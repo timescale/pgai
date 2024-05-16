@@ -15,8 +15,10 @@ sudo apt-get install -y \
     python3-openai \
     python3-tiktoken
 
-#    python3-pip \
-#    postgresql-server-dev-16 \
+# dev requirements
+sudo apt-get install -y python3-pip
+echo 'PATH="$PATH:~/.local/bin"' >> ~/.profile
+pip install --break-system-packages pgspot
 
 echo "/usr/bin/psql -U postgres -c \"create user ubuntu superuser login password 'ubuntu'\"" | sudo su postgres -
 echo "/usr/bin/psql -U postgres -c \"create database ubuntu owner ubuntu\"" | sudo su postgres -

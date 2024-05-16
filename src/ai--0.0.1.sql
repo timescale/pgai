@@ -5,7 +5,9 @@ import tiktoken
 encoding = tiktoken.encoding_for_model(_model)
 tokens = encoding.encode(_text)
 return tokens
-$func$ language plpython3u strict volatile parallel safe security definer
+$func$ 
+language plpython3u strict volatile parallel safe security definer
+set search_path to pg_catalog, pg_temp
 ;
 
 create function openai_list_models(_api_key text) returns table
@@ -20,7 +22,9 @@ client = openai.OpenAI(api_key=_api_key)
 for model in client.models.list():
     created = datetime.fromtimestamp(model.created, timezone.utc)
     yield (model.id, created, model.owned_by)
-$func$ language plpython3u strict volatile parallel safe security definer
+$func$ 
+language plpython3u strict volatile parallel safe security definer
+set search_path to pg_catalog, pg_temp
 ;
 
 create function openai_embed(_model text, _api_key text, _text text) returns vector
@@ -29,7 +33,9 @@ import openai
 client = openai.OpenAI(api_key=_api_key)
 response = client.embeddings.create(input = [_text], model=_model)
 return response.data[0].embedding
-$func$ language plpython3u strict volatile parallel safe security definer
+$func$ 
+language plpython3u strict volatile parallel safe security definer
+set search_path to pg_catalog, pg_temp
 ;
 
 create function openai_embed(_model text, _api_key text, _texts text[]) returns setof vector
@@ -39,7 +45,9 @@ client = openai.OpenAI(api_key=_api_key)
 response = client.embeddings.create(input = _texts, model=_model)
 for obj in response.data:
     yield obj.embedding
-$func$ language plpython3u strict volatile parallel safe security definer
+$func$ 
+language plpython3u strict volatile parallel safe security definer
+set search_path to pg_catalog, pg_temp
 ;
 
 create function openai_chat_complete
@@ -65,7 +73,8 @@ if _response_format is not None:
     rf = json.loads(_response_format)
     rf = {'type': rf['type']}
     if rf['type'] not in {'text', 'json_object'}:
-        plpy.error("invalid response format. use 'text' or 'json_object'")
+        plpy.error("invalid response format.",
+            hint = "use {'type': 'text'} or {'type': 'json_object'}")
 
 msgs = json.loads(_messages)
 if not isinstance(msgs, list):
@@ -73,7 +82,7 @@ if not isinstance(msgs, list):
 
 msgs = [{'role': msg['role'], 'content': msg['content']} for msg in msgs]
 
-response = completion = client.chat.completions.create(
+response = client.chat.completions.create(
   model=_model
 , messages=msgs
 , frequency_penalty=_frequency_penalty
@@ -110,5 +119,7 @@ completion = {
 }
 
 return json.dumps(completion)
-$func$ language plpython3u volatile parallel safe security definer
+$func$ 
+language plpython3u volatile parallel safe security definer
+set search_path to pg_catalog, pg_temp
 ;

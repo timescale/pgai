@@ -1,4 +1,4 @@
--- psql -v api_key=$OPENAI_API_KEY
+-- psql -v OPENAI_API_KEY=$OPENAI_API_KEY
 
 select * from openai_list_models(:'api_key');
 
@@ -11,7 +11,7 @@ select vector_dims
 (
     openai_embed
     ( 'text-embedding-ada-002'
-    , :'api_key'
+    , :'OPENAI_API_KEY'
     , $$Listen, strange women lyin' in ponds distributin' swords is no basis for a system of government. Supreme executive power derives from a mandate from the masses, not from some farcical aquatic ceremony.$$
     )
 );
@@ -19,7 +19,7 @@ select vector_dims
 select vector_dims(x.embedding)
 from openai_embed
 ( 'text-embedding-ada-002'
-, :'api_key'
+, :'OPENAI_API_KEY'
 , array
   [ $$Listen, strange women lyin' in ponds distributin' swords is no basis for a system of government.$$
   , $$Supreme executive power derives from a mandate from the masses, not from some farcical aquatic ceremony.$$
@@ -32,7 +32,7 @@ select jsonb_pretty
 (
   openai_chat_complete
   ( 'gpt-4o'
-  , :'api_key'
+  , :'OPENAI_API_KEY'
   , jsonb_build_array
     ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
     , jsonb_build_object('role', 'user', 'content', 'what is the typical weather like in Alabama in June')
@@ -42,7 +42,7 @@ select jsonb_pretty
 
 select openai_chat_complete
 ( 'gpt-4o'
-, :'api_key'
+, :'OPENAI_API_KEY'
 , jsonb_build_array
   ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
   , jsonb_build_object('role', 'user', 'content', 'what is the typical weather like in Alabama in June')
