@@ -1,0 +1,5 @@
+comment='artificial intelligence for postgres'
+default_version=1.0
+requires='vector,plpython3u'
+relocatable=false
+schema=ai
