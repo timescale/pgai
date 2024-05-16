@@ -25,35 +25,48 @@ as $func$
 select secret from @extschema@.secret where name = _name
 $func$ language sql strict volatile
 ;
+*/
 
-create function @extschema@.tokenize(_model text, _content text) returns int[]
+create function @extschema@.openai_tokenize(_model text, _text text) returns int[]
 as $func$
 import tiktoken
 encoding = tiktoken.encoding_for_model(_model)
-tokens = encoding.encode(_content)
+tokens = encoding.encode(_text)
 return tokens
 $func$ language plpython3u strict volatile parallel safe
 ;
-*/
 
-create function @extschema@.embed(_model text, _api_key text, _content text) returns vector
+create function @extschema@.openai_list_models(_api_key text) returns table
+( id text
+, created timestamptz
+, owned_by text
+)
+as $func$
+import openai
+from datetime import datetime, timezone
+client = openai.OpenAI(api_key=_api_key)
+for model in client.models.list():
+    created = datetime.fromtimestamp(model.created, timezone.utc)
+    yield (model.id, created, model.owned_by)
+$func$ language plpython3u strict volatile parallel safe --security invoker
+;
+
+create function @extschema@.openai_embed(_model text, _api_key text, _text text) returns vector
 as $func$
 import openai
 client = openai.OpenAI(api_key=_api_key)
-response = client.embeddings.create(input = [_content], model=_model)
+response = client.embeddings.create(input = [_text], model=_model)
 return response.data[0].embedding
-$func$ language plpython3u strict volatile parallel safe security invoker
+$func$ language plpython3u strict volatile parallel safe --security invoker
 ;
 
-
-/*
-create function @extschema@.embed(_model text, _api_key text, _tokens int[]) returns vector
+create function @extschema@.openai_embed(_model text, _api_key text, _texts text[]) returns setof vector
 as $func$
 import openai
-import json
 client = openai.OpenAI(api_key=_api_key)
-response = client.embeddings.create(input = [_tokens], model=_model)
-return response.data[0].embedding
-$func$ language plpython3u strict volatile parallel safe
+response = client.embeddings.create(input = _texts, model=_model)
+for obj in response.data:
+    yield obj.embedding
+$func$ language plpython3u strict volatile parallel safe --security invoker
 ;
-*/
+

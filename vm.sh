@@ -24,5 +24,4 @@ multipass stop pgai
 # mount cwd to /pgai in the vm
 multipass mount -t native . pgai:/pgai
 multipass start pgai
-#multipass exec pgai -- psql -c "create user bob; create user fred; create user joe; create user jill;"
-multipass exec pgai -- ./build.sh
+multipass exec pgai -- /pgai/build.sh

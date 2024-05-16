@@ -29,3 +29,12 @@ Run `build.sh` from a shell INSIDE the vm. It will copy the extension's SQL and
 control files into the correct spots in the vm. Then it will drop the extension 
 if it exists and create it using the new sources.
 
+```bash
+multipass exec pgai -- /pgai/build.sh
+```
+
+### Deleting the vm
+
+```bash
+multipass delete --purge pgai
+```
