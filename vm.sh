@@ -9,13 +9,14 @@ sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
 sudo apt-get update && sudo apt-get upgrade -y
 sudo apt-get install -y \
     postgresql-16 \
-    postgresql-server-dev-16 \
     postgresql-plpython3-16 \
     postgresql-16-pgvector \
     python3-full \
-    python3-pip \
     python3-openai \
     python3-tiktoken
+
+#    python3-pip \
+#    postgresql-server-dev-16 \
 
 echo "/usr/bin/psql -U postgres -c \"create user ubuntu superuser login password 'ubuntu'\"" | sudo su postgres -
 echo "/usr/bin/psql -U postgres -c \"create database ubuntu owner ubuntu\"" | sudo su postgres -
