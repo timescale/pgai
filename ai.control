@@ -1,5 +1,5 @@
 # pgai extension
 comment='artificial intelligence for postgres'
-default_version='0.0.1'
+default_version='0.1.0'
 requires='vector,plpython3u'
 relocatable=true
