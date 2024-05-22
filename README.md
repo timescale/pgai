@@ -4,9 +4,62 @@ Artificial intelligence for Postgres.
 
 ## Handling API Tokens
 
+API keys are secrets. Exposing them can present financial and/or information
+security issues. Below are some non-exhaustive tips to help protect your 
+keys.
+
 ### psql
 
+```bash
+OPENAI_AI_KEY="sk-this-is-my-super-secret-api-key-dont-tell"
+```
+
+Assuming you have your OPENAI_API_KEY in an environment variable, you can set
+a psql variable to the value of the key when connecting to the database with a
+command line argument like so:
+
+```bash
+psql -v OPENAI_API_KEY=$OPENAI_API_KEY
+```
+
+Using a colon followed by a psql variable name will substitute the variable's 
+value into a query. If you want the variable's value to be treated as text, 
+wrap the variable name in single quotes.
+
+```sql
+-- DON'T DO THIS! The results will show your key in plain text.
+SELECT :'OPENAI_API_KEY';
+```
+
+You can use this technique to pass your API key as a text literal to a function 
+as an argument without displaying your plain text key in the raw SQL.
+
+```sql
+SELECT * 
+FROM openai_list_models(:'OPENAI_API_KEY')
+ORDER BY created DESC;
+```
+
+Unfortunately, since the key is being provided as a text literal, it could show 
+up in logs, pg_stat_statements, etc. To take our precautions one step further, 
+make the query parameterized ($1) and bind the psql variable's value to the 
+parameter using the `\bind` metacommand. Note that we don't wrap the variable
+name in single quotes using this technique. `\g` causes psql to execute the
+query.
+
+The `\bind` metacommand is available in psql version 16+.
+
+```sql
+SELECT * 
+FROM openai_list_models($1)
+ORDER BY created DESC
+\bind :OPENAI_API_KEY
+\g
+```
+
 ### Python
+
+
 
 ## Usage
 
