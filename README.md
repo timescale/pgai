@@ -1,43 +1,63 @@
 # Postgres AI
 
-Artificial intelligence for Postgres.
+Postgres AI (PgAI) enables you to handle more AI workflows within a database. PgAI simplifies 
+the process of building [similarity search](https://en.wikipedia.org/wiki/Similarity_search), and 
+[Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation) 
+(RAG) apps with PostgreSQL. 
 
-## Docker
+Directly from your existing PostgreSQL database, PgAI empowers you to:
 
-### Building the image
+* Create OpenAI [embeddings](https://platform.openai.com/docs/guides/embeddings). 
+* Retrieve OpenAI [chat completions](https://platform.openai.com/docs/guides/text-generation/chat-completions-api) from 
+  models such as GPT4o.
+* Facilitate use cases such as classification, summarization, and data enrichment on your existing relational data.
 
-```bash
-docker build -t pgai .
-```
-
-### Running the container
-
-```bash
-docker run -d --name pgai -p 9876:5432 -e POSTGRES_PASSWORD=pgaipass pgai
-```
-
-### Connecting to the database
-
-```bash
-psql -d "postgres://postgres:pgaipass@localhost:9876/postgres"
-```
-
-### Creating the extension
-
-```sql
-CREATE EXTENSION ai CASCADE;
-```
+This page shows you how to setup your environment in Docker or locally, and create your first AI models:
 
 ## Prerequisites
 
-1. PostgreSQL (obviously) version 16
-2. [plpython3u](https://www.postgresql.org/docs/current/plpython.html)
-3. [pgvector](https://github.com/pgvector/pgvector)
-4. Python3 with the following packages
-    1. [openai](https://pypi.org/project/openai/)
-    2. [tiktoken](https://pypi.org/project/tiktoken/)
+* The PgAI source on your developer environment:
+   ```bash
+   git clone git@github.com:timescale/pgai.git
+   ```
+* If you are using [Docker](#setup-your-developer-environment-in-docker):
+  * [Docker](https://docs.docker.com/get-docker/)
+* If you prefer [local development](#setup-your-developer-environment-locally):
+  *  [PostgreSQL with pgvector](https://docs.timescale.com/self-hosted/latest/install/installation-linux/#install-and-configure-timescaledb-on-postgresql) v16
+  *  [plpython3u](https://www.postgresql.org/docs/current/plpython.html)
+  *  [Python3](https://www.python.org/downloads/) with the following packages:
+     * [openai](https://pypi.org/project/openai/)
+     * [tiktoken](https://pypi.org/project/tiktoken/)
+   
+## Setup your developer environment in Docker
 
-## Installation
+1. On the command line, navigate to the folder you cloned PgAI to. 
+
+1. Build the Docker image
+
+   ```bash
+   docker build -t pgai .
+   ```
+
+1. Run the container
+
+    ```bash
+    docker run -d --name pgai -p 9876:5432 -e POSTGRES_PASSWORD=pgaipass pgai
+    ```
+
+1. Connect to the database
+
+    ```bash
+    psql -d "postgres://postgres:pgaipass@localhost:9876/postgres"
+    ```
+
+1. Create the extension
+
+    ```sql
+    CREATE EXTENSION ai CASCADE;
+    ```
+
+## Setup your developer environment locally
 
 Using docker is recommended, however a Makefile is provided if you wish to 
 install the extension on your system. The `install` make target will download 
