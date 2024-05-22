@@ -6,7 +6,7 @@ encoding = tiktoken.encoding_for_model(_model)
 tokens = encoding.encode(_text)
 return tokens
 $func$ 
-language plpython3u strict volatile parallel safe security definer
+language plpython3u strict volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -23,7 +23,7 @@ for model in client.models.list():
     created = datetime.fromtimestamp(model.created, timezone.utc)
     yield (model.id, created, model.owned_by)
 $func$ 
-language plpython3u strict volatile parallel safe security definer
+language plpython3u strict volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -34,7 +34,7 @@ client = openai.OpenAI(api_key=_api_key)
 response = client.embeddings.create(input = [_text], model=_model)
 return response.data[0].embedding
 $func$ 
-language plpython3u strict volatile parallel safe security definer
+language plpython3u strict volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -46,7 +46,7 @@ response = client.embeddings.create(input = _texts, model=_model)
 for obj in response.data:
     yield obj.embedding
 $func$ 
-language plpython3u strict volatile parallel safe security definer
+language plpython3u strict volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -120,6 +120,6 @@ completion = {
 
 return json.dumps(completion)
 $func$ 
-language plpython3u volatile parallel safe security definer
+language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
