@@ -1,250 +1,25 @@
 # Postgres AI
 
-Postgres AI (pgai) enables you to handle more AI workflows within a database. pgai simplifies 
-the process of building [similarity search](https://en.wikipedia.org/wiki/Similarity_search), and 
-[Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation) 
-(RAG) apps with PostgreSQL. 
+Artificial intelligence for Postgres.
 
-Directly from your existing PostgreSQL database, pgai empowers you to:
+## Handling API Tokens
 
-* Create OpenAI [embeddings](#openai_embed). 
-* Retrieve OpenAI [chat completions](#openai_chat_complete) from 
-  models such as GPT4o.
-* Facilitate use cases such as [classification, summarization, and data enrichment](#openai_moderate) on your existing 
-  relational data.
+### psql
 
-
-## pgai Prerequisites
-
-Before you start working with pgai, you need:
-
-* The pgai source on your local machine:
-   ```bash
-   git clone git@github.com:timescale/pgai.git
-   ```
-* If you prefer using Docker:
-  * [Docker](https://docs.docker.com/get-docker/)
-  * [Psql](https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
-* If you prefer a local virtual Ubuntu environment:
-    * [Multipass](https://multipass.run/)
-* If you prefer local development:
-  *  [PostgreSQL with pgvector](https://docs.timescale.com/self-hosted/latest/install/installation-linux/#install-and-configure-timescaledb-on-postgresql) v16
-
-     TODO: this package does not include `pgxs.mk`. Can you update the install instructions please. 
-
-  *  [plpython3u](https://www.postgresql.org/docs/current/plpython.html)
-  *  [Python3](https://www.python.org/downloads/)
-
-## Setup your pgai developer environment
-
-Best practice is to use the Docker environment supplied by Timescale. You can also integrate
-pgai into your local developer environment. Either:
-
-<details>
-<summary>Setup a developer environment in Docker</summary>
-
-The pgai Docker container has all the software you need preinstalled. To connect to
-pgai running in a Docker container:
-
-
-1. In Terminal, navigate to the folder you cloned pgai to. 
-
-1. Build the Docker image:
-
-   ```bash
-   docker build -t pgai .
-   ```
-
-1. Run the container:
-
-    ```bash
-    docker run -d --name pgai -p 9876:5432 -e POSTGRES_PASSWORD=pgaipass pgai
-    ```
-
-1. Connect to the database:
-
-    ```bash
-    psql -d "postgres://postgres:pgaipass@localhost:9876/postgres"
-    ```
-
-1. Create the pgai extension:
-
-    ```sql
-    CREATE EXTENSION ai CASCADE;
-    ```
-   The `CASCADE` automatically installs the plpython3u and pgvector dependencies.
-
-</details>
-<details>
-<summary>Setup a virtual developer environment locally</summary>
-
-Best practice is to setup your developer environment in Docker. However, to install pgai in a virtual
-Ubunto environment.
-
-In this repository, [vm.sh](./vm.sh) creates a [multipass](https://multipass.run/) virtual machine called `pgai`. This script 
-installs the [pgai Prerequisites](#pgai-prerequisites) in the `pgai` Ubuntu virtual
-machine. This repo is mounted to `/pgai` in the virtual machine.
-
-1. To create the virtual machine, run the following command:
-
-    ```bash
-    ./vm.sh
-    ```
-
-    You are automatically logged into Terminal on the virtual machine.
-
-1. In the multipass shell, [Setup a developer environment locally](#setup-a-developer-environment-locally).
-
-For more information on using Multipass, [see the documentation](https://multipass.run/docs/use-an-instance).
-
-</details>
-<details>
-<summary>Setup a developer environment locally</summary>
-<a id="setup-a-developer-environment-locally"></a>
-
-Best practice is to setup your developer environment in Docker. However, to install pgai directly on your 
-developer environment. 
-
-1. On the command line, navigate to the folder you cloned pgai to.
-
-1. Build pgai:
-
-    ```bash
-    make install
-    ```
-
-    This installs the pgvector and pgai extensions on your local PostgreSQL developer
-    environment, then installs the package dependencies in your Python environment.
-
-   
-1. Create the pgai extension in a database. Use either:
-
-   - SQL:
-      1. Connect to PostgreSQL:
-         ```bash
-         psql -d "postgres://postgres:pgaipass@localhost:9876/postgres"
-         ```
-         TODO: Is this true for the local installation? Is the database already created?
-
-      1. Create the pgai extension:
-   
-          ```sql
-          CREATE EXTENSION IF NOT EXISTS ai CASCADE;
-          ```
-    
-          The `CASCADE` automatically installs the plpython3u and pgvector dependencies.
-
-   - Terminal: 
-     1. In `Makefile`, update `DB` and `USER` to match your PostgreSQL configuration. 
-     1.  Create the pgai extension:
-
-        ```bash
-        make create_extension
-        ```
-</details>
-
-
-## Securely connect to OpenAI through pgai
-
-API keys are secrets. Exposing them can present financial and information security issues. 
-The following sections show how to securely connect to your OpenAI account through pgai using psql and Python.
-
-### Use psql in Terminal
-
-To securely interact with OpenAI through pgai from Terminal:
-
-1. Set your OpenAI key as an environment variable:
-    ```bash
-    OPENAI_AI_KEY="this-is-my-super-secret-api-key-dont-tell"
-    ```
-
-1. Set the value of your environment variable as a [psql variable](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-VARIABLES).
-   ```bash
-    psql -v OPENAI_API_KEY=$OPENAI_API_KEY
-    ```
-   You can now connect to your database using your psql variable as a [command line argument](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-OPTION-VARIABLE).
-
-1. Pass your API key as a parameterized variable when you query the database:
-    ```sql
-    SELECT * 
-    FROM openai_list_models($1)
-    ORDER BY created DESC
-    \bind :OPENAI_API_KEY
-    \g
-    ```
-
-    You use [bind](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMAND-BIND) to pass the value of `OPENAI_API_KEY` as a parameterized variable. Now, the value 
-    of your API key is not visible in the query, logs, pg_stat_statements, and so on.
-
-The `\bind` metacommand is available in psql version 16+.
-
-
-
-### Connect through psql in a Python app
-
-To securely interact with OpenAI in a Python app, you use [dotenv](https://github.com/theskumar/python-dotenv) to load API tokens, passwords, connection 
-strings, and other configuration settings from environment variables and .env files. You then pass your security 
-information as variables when you interact with your database.
-
-1. In your Python environment, include the dotenv packages:
-
-    ```bash
-    pip install python-dotenv
-    pip install psycopg2-binary
-    ```
-    TODO: could we not install these packages with the install scripts?
-
-1. Set your OpenAI key as an environment variable:
-    ```bash
-    OPENAI_AI_KEY="this-is-my-super-secret-api-key-dont-tell"
-    DB_URL="your connection string"
-    ```
-
-1. Pass your API key as a parameter to your queries:
-
-    ```python
-    import os
-    from dotenv import load_dotenv
-    
-    load_dotenv()
-    
-    OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
-    DB_URL = os.environ["DB_URL"]
-    
-    import psycopg2
-    
-    with psycopg2.connect(DB_URL) as conn:
-        with conn.cursor() as cur:
-            # pass the API key as a parameter to the query. don't use string manipulations
-            cur.execute("SELECT * FROM openai_list_models(%s) ORDER BY created DESC", (OPENAI_API_KEY,))
-            records = cur.fetchall()
-    ```
-
-    Do not use string manipulation to embed the key as a literal in the SQL query.
+### Python
 
 ## Usage
 
-- [open_ai_list_models](#open_ai_list_models): list the models supported by OpenAI functions in pgai.
-- [openai_tokenize](#openai_tokenize): encode content into tokens. 
-- [openai_detokenize](#openai_detokenize): turn tokens into natural language.
-- [openai_embed](#openai_embed): generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using a 
-  specified model.
-- [openai_chat_complete](#openai_chat_complete): generate text or complete a chat using key words and phrases.
-- [openai_moderate](#openai_moderate): check if content is classified as potentially harmful:
+### List Models
 
-
-### open_ai_list_models
-
-List the models supported by OpenAI functions in pgai.
+To list the models supported in the OpenAI functions, call the 
+`open_ai_list_models` function. It returns a table
 
 ```sql
 SELECT * 
-FROM openai_list_models($1)
-ORDER BY created DESC
-\bind :OPENAI_API_KEY
-\g
+FROM openai_list_models(:'OPENAI_API_KEY') 
+ORDER BY created DESC;
 ```
-The data returned looks like:
 
 ```text
              id              |        created         |    owned_by     
@@ -254,297 +29,244 @@ The data returned looks like:
  gpt-4o                      | 2024-05-10 13:50:49-05 | system
  gpt-4-turbo-2024-04-09      | 2024-04-08 13:41:17-05 | system
  gpt-4-turbo                 | 2024-04-05 18:57:21-05 | system
- ...
-(N rows)
+ gpt-4-1106-vision-preview   | 2024-03-26 12:10:33-05 | system
+ gpt-3.5-turbo-0125          | 2024-01-23 16:19:18-06 | system
+ gpt-4-turbo-preview         | 2024-01-23 13:22:57-06 | system
+ gpt-4-0125-preview          | 2024-01-23 13:20:12-06 | system
+ text-embedding-3-large      | 2024-01-22 13:53:00-06 | system
+ text-embedding-3-small      | 2024-01-22 12:43:17-06 | system
+ tts-1-hd-1106               | 2023-11-03 18:18:53-05 | system
+ tts-1-1106                  | 2023-11-03 18:14:01-05 | system
+ tts-1-hd                    | 2023-11-03 16:13:35-05 | system
+ gpt-3.5-turbo-1106          | 2023-11-02 16:15:48-05 | system
+ gpt-4-1106-preview          | 2023-11-02 15:33:26-05 | system
+ gpt-4-vision-preview        | 2023-11-01 22:15:17-05 | system
+ dall-e-2                    | 2023-10-31 19:22:57-05 | system
+ dall-e-3                    | 2023-10-31 15:46:29-05 | system
+ gpt-3.5-turbo-instruct-0914 | 2023-09-07 16:34:32-05 | system
+ gpt-3.5-turbo-instruct      | 2023-08-24 13:23:47-05 | system
+ babbage-002                 | 2023-08-21 11:16:55-05 | system
+ davinci-002                 | 2023-08-21 11:11:41-05 | system
+ gpt-4                       | 2023-06-27 11:13:31-05 | openai
+ gpt-4-0613                  | 2023-06-12 11:54:56-05 | openai
+ gpt-3.5-turbo-0613          | 2023-06-12 11:30:34-05 | openai
+ gpt-3.5-turbo-16k-0613      | 2023-05-30 14:17:27-05 | openai
+ gpt-3.5-turbo-16k           | 2023-05-10 17:35:02-05 | openai-internal
+ tts-1                       | 2023-04-19 16:49:11-05 | openai-internal
+ gpt-3.5-turbo-0301          | 2023-02-28 23:52:43-06 | openai
+ gpt-3.5-turbo               | 2023-02-28 12:56:42-06 | openai
+ whisper-1                   | 2023-02-27 15:13:04-06 | openai-internal
+ text-embedding-ada-002      | 2022-12-16 13:01:39-06 | openai-internal
+(33 rows)
 ```
 
-### openai_tokenize
-
-To encode content and count the number of tokens returned:
-
-* Encode content into an array of tokens.
-
-    ```sql
-    SELECT openai_tokenize
-    ( 'text-embedding-ada-002'
-    , 'Timescale is Postgres made Powerful'
-    );
-    ```
-    The data returned looks like:
-    ```text
-                openai_tokenize             
-    ----------------------------------------
-     {19422,2296,374,3962,18297,1903,75458}
-    (1 row)
-    ```
-
-* Count the number of tokens generated:
-
-    ```sql
-    SELECT array_length
-    ( openai_tokenize
-      ( 'text-embedding-ada-002'
-      , 'Timescale is Postgres made Powerful'
-      )
-    , 1
-    );
-    ```
-    The data returned looks like:
-    ```text
-     array_length 
-    --------------
-                7
-    (1 row)
-    ```
-
-### openai_detokenize
-
-Turn tokenized content into natural language:
+### Tokenization
 
 ```sql
-SELECT openai_detokenize('text-embedding-ada-002', array[1820,25977,46840,23874,389,264,2579,58466]);
+SELECT openai_tokenize
+( 'text-embedding-ada-002'
+, 'Timescale is Postgres made Powerful'
+);
 ```
-The data returned looks like:
 
 ```text
-             openai_detokenize              
---------------------------------------------
- the purple elephant sits on a red mushroom
+            openai_tokenize             
+----------------------------------------
+ {19422,2296,374,3962,18297,1903,75458}
 (1 row)
 ```
 
-### openai_embed
+```sql
+SELECT array_length
+( openai_tokenize
+  ( 'text-embedding-ada-002'
+  , 'Timescale is Postgres made Powerful'
+  )
+, 1
+);
+```
 
-Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using a specified model.
+```text
+ array_length 
+--------------
+            7
+(1 row)
+```
 
-- Request an embedding using a specific model.
+### Embeddings
 
-    ```sql
-    SELECT openai_embed
-    ( $1
-    , 'text-embedding-ada-002'
-    , 'the purple elephant sits on a red mushroom'
-    )
-    \bind :OPENAI_API_KEY
-    \g
-    ```
+```sql
+SELECT openai_embed
+( 'text-embedding-ada-002'
+, :'OPENAI_API_KEY'
+, 'Timescale is Postgres made Powerful'
+);
+```
 
-    The data returned looks like:
-    
-    ```text
-                          openai_embed                      
-    --------------------------------------------------------
-     [0.005978798,-0.020522336,...-0.0022857306,-0.023699166]
-    (1 row)
-    ```
+```text
+                      openai_embed                      
+--------------------------------------------------------
+ [0.003339539,-0.020084092,...-0.011202685,-0.025288943]
+(1 row)
+```
 
-- Specify the number of dimensions you want in the returned embedding:
-
-    ```sql
-    SELECT openai_embed
-    ( $1
-    , 'text-embedding-ada-002'
-    , 'the purple elephant sits on a red mushroom'
-    , _dimensions=>768
-    )
-    \bind :OPENAI_API_KEY
-    \g
-    ```
-    This only works for certain models.
-
-- Pass a user identifier.
-
-    ```sql
-    SELECT openai_embed
-    ( $1
-    , 'text-embedding-ada-002'
-    , 'the purple elephant sits on a red mushroom'
-    , _user=>'bac1aaf7-4460-42d3-bba5-2957b057f4a5'
-    )
-    \bind :OPENAI_API_KEY
-    \g
-    ```
-
-- Pass an array of text inputs.
-
-    ```sql
-    SELECT openai_embed
-    ( $1
-    , 'text-embedding-ada-002'
-    , array['Timescale is Postgres made Powerful', 'the purple elephant sits on a red mushroom']
-    )
-    \bind :OPENAI_API_KEY
-    \g
-    ```
-
-- Provide tokenized input.
-
-    ```sql
-    select openai_embed
-    ( $1
-    , 'text-embedding-ada-002'
-    , array[1820,25977,46840,23874,389,264,2579,58466]
-    )
-    \bind :OPENAI_API_KEY
-    \g
-    ```
-
-### openai_chat_complete
-
-Generate text or complete a chat using key words and phrases:
-
-* Return different possible answers for a specific question from a specific persona:
-
-    ```sql
-    \pset tuples_only on
-    \pset format unaligned
-    
-    SELECT jsonb_pretty
-    (
-      openai_chat_complete
-      ( $1
-      , 'gpt-4o'
-      , jsonb_build_array
-        ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
-        , jsonb_build_object('role', 'user', 'content', 'what is the typical weather like in Alabama in June')
-        )
-      )
-    )
-    \bind :OPENAI_API_KEY
-    \g
-    ```
-  The data returned looks like:
-    ```json
-    {
-        "id": "chatcmpl-9RgehyQ0aydAkQajrN6Oe0lepERKC",
-        "model": "gpt-4o-2024-05-13",
-        "usage": {
-            "total_tokens": 332,
-            "prompt_tokens": 26,
-            "completion_tokens": 306
-        },
-        "object": "chat.completion",
-        "choices": [
-            {
-                "index": 0,
-                "message": {
-                    "role": "assistant",
-                    "content": "In Alabama, June typically ushers in the summer season with warm to hot temperatures and relatively high humidity. Here’s a general overview of what you can expect:\n\n1. **Temperature**: \n   - Average daytime highs usually range from the mid-80s to low 90s Fahrenheit (around 29-35°C).\n   - Nighttime temperatures often fall to the mid-60s to mid-70s Fahrenheit (18-24°C).\n\n2. **Humidity**:\n   - Humidity levels can be quite high, making the temperatures feel even warmer. The mix of heat and humidity can lead to a muggy atmosphere.\n\n3. **Rainfall**:\n   - June is part of the wet season for Alabama, so you can expect a fair amount of rainfall. Thunderstorms are relatively common, often in the afternoons and evenings.\n   - The precipitation can be sporadic, with sudden downpours that can clear up quickly.\n\n4. **Sunshine**:\n   - There are plenty of sunny days, though the sunshine can be intense. Ultraviolet (UV) levels are high, so sun protection is important.\n\n5. **Overall Climate**:\n   - Generally, the climate in Alabama in June is characterized by a typical Southeastern U.S. summer: hot, humid, and occasionally stormy. \n\nIf you’re planning a visit or activities in Alabama during June, it’s a good idea to stay hydrated, wear light clothing, and keep an eye on the weather forecast for any potential thunderstorms."
-                },
-                "logprobs": null,
-                "finish_reason": "stop"
-            }
-        ],
-        "created": 1716385851,
-        "system_fingerprint": "fp_729ea513f7"
-    }
-    ```
-
-- Return the content as text from a specific message in the choices array.
-
-    `openai_chat_complete` returns a [jsonb object](https://www.depesz.com/2014/03/25/waiting-for-9-4-introduce-jsonb-a-structured-format-for-storing-json/) containing the
-    response from the API. Use jsonb operators and functions to manipulate the object returned. For example, the 
-    following query returns the content as text from the first message in the choices array.
-    
-    ```sql
-    \pset tuples_only on
-    \pset format unaligned
-    
-    select openai_chat_complete
-    ( 'gpt-4o'
-    , :'OPENAI_API_KEY'
-    , jsonb_build_array
-      ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
-      , jsonb_build_object('role', 'user', 'content', 'what is the typical weather like in Alabama in June')
-      )
-    )->'choices'->0->'message'->>'content'
-    ;
-    ```
-    The data returned looks like:
-
-    ```text
-    In June, Alabama generally experiences warm to hot weather as it transitions into summer. Typical conditions include:
-    
-    1. **Temperatures**: Daytime highs usually range from the mid-80s to low 90s Fahrenheit (around 29-34°C). Nighttime lows typically range from the mid-60s to low 70s Fahrenheit (around 18-23°C).
-    
-    2. **Humidity**: June tends to be quite humid, which can make the temperatures feel even warmer. High humidity levels are characteristic of Alabama summers.
-    
-    3. **Precipitation**: June is part of the wetter season in Alabama, with regular afternoon thunderstorms being common. Rainfall can vary, but you can expect an average of about 4 to 5 inches (around 100-125 mm) of rain for the month.
-    
-    4. **Sunshine**: There are usually plenty of sunny days, although the frequent thunderstorms can lead to overcast skies at times.
-    
-    Overall, if you're planning to visit Alabama in June, be prepared for hot and humid conditions, and keep an umbrella or rain jacket handy for those afternoon storms.
-    ```
-
-### openai_moderate
-
-Check if content is classified as potentially harmful:
+### Text Generation / Chat Completion
 
 ```sql
 \pset tuples_only on
 \pset format unaligned
 
-select jsonb_pretty
+SELECT jsonb_pretty
 (
-  openai_moderate
-  ( $1
-  , 'text-moderation-stable'
-  , 'I want to kill them.'
+  openai_chat_complete
+  ( 'gpt-4o'
+  , :'OPENAI_API_KEY'
+  , jsonb_build_array
+    ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
+    , jsonb_build_object('role', 'user', 'content', 'what is the typical weather like in Alabama in June')
+    )
   )
-)
-\bind :OPENAI_API_KEY
-\g
+);
 ```
-The data returned looks like:
+
+```json
+{
+    "id": "chatcmpl-9RgehyQ0aydAkQajrN6Oe0lepERKC",
+    "model": "gpt-4o-2024-05-13",
+    "usage": {
+        "total_tokens": 332,
+        "prompt_tokens": 26,
+        "completion_tokens": 306
+    },
+    "object": "chat.completion",
+    "choices": [
+        {
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": "In Alabama, June typically ushers in the summer season with warm to hot temperatures and relatively high humidity. Here’s a general overview of what you can expect:\n\n1. **Temperature**: \n   - Average daytime highs usually range from the mid-80s to low 90s Fahrenheit (around 29-35°C).\n   - Nighttime temperatures often fall to the mid-60s to mid-70s Fahrenheit (18-24°C).\n\n2. **Humidity**:\n   - Humidity levels can be quite high, making the temperatures feel even warmer. The mix of heat and humidity can lead to a muggy atmosphere.\n\n3. **Rainfall**:\n   - June is part of the wet season for Alabama, so you can expect a fair amount of rainfall. Thunderstorms are relatively common, often in the afternoons and evenings.\n   - The precipitation can be sporadic, with sudden downpours that can clear up quickly.\n\n4. **Sunshine**:\n   - There are plenty of sunny days, though the sunshine can be intense. Ultraviolet (UV) levels are high, so sun protection is important.\n\n5. **Overall Climate**:\n   - Generally, the climate in Alabama in June is characterized by a typical Southeastern U.S. summer: hot, humid, and occasionally stormy. \n\nIf you’re planning a visit or activities in Alabama during June, it’s a good idea to stay hydrated, wear light clothing, and keep an eye on the weather forecast for any potential thunderstorms."
+            },
+            "logprobs": null,
+            "finish_reason": "stop"
+        }
+    ],
+    "created": 1716385851,
+    "system_fingerprint": "fp_729ea513f7"
+}
+```
+
+```sql
+\pset tuples_only on
+\pset format unaligned
+select openai_chat_complete
+( 'gpt-4o'
+, :'OPENAI_API_KEY'
+, jsonb_build_array
+  ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
+  , jsonb_build_object('role', 'user', 'content', 'what is the typical weather like in Alabama in June')
+  )
+)->'choices'->0->'message'->>'content'
+;
+```
 
 ```text
-{
-    "id": "modr-9RsN6qZWoZYm1AK4mtrKuEjfOcMWp",
-    "model": "text-moderation-007",
-    "results": [
-        {
-            "flagged": true,
-            "categories": {
-                "hate": false,
-                "sexual": false,
-                "violence": true,
-                "self-harm": false,
-                "self_harm": false,
-                "harassment": true,
-                "sexual/minors": false,
-                "sexual_minors": false,
-                "hate/threatening": false,
-                "hate_threatening": false,
-                "self-harm/intent": false,
-                "self_harm_intent": false,
-                "violence/graphic": false,
-                "violence_graphic": false,
-                "harassment/threatening": true,
-                "harassment_threatening": true,
-                "self-harm/instructions": false,
-                "self_harm_instructions": false
-            },
-            "category_scores": {
-                "hate": 0.2324090600013733,
-                "sexual": 0.00001205232911161147,
-                "violence": 0.997192919254303,
-                "self-harm": 0.0000023696395601291442,
-                "self_harm": 0.0000023696395601291442,
-                "harassment": 0.5278584957122803,
-                "sexual/minors": 0.00000007506431387582779,
-                "sexual_minors": 0.00000007506431387582779,
-                "hate/threatening": 0.024183575063943863,
-                "hate_threatening": 0.024183575063943863,
-                "self-harm/intent": 0.0000017161115692942985,
-                "self_harm_intent": 0.0000017161115692942985,
-                "violence/graphic": 0.00003399916022317484,
-                "violence_graphic": 0.00003399916022317484,
-                "harassment/threatening": 0.5712487697601318,
-                "harassment_threatening": 0.5712487697601318,
-                "self-harm/instructions": 0.000000001132860139030356,
-                "self_harm_instructions": 0.000000001132860139030356
-            }
-        }
-    ]
-}
+In June, Alabama generally experiences warm to hot weather as it transitions into summer. Typical conditions include:
+
+1. **Temperatures**: Daytime highs usually range from the mid-80s to low 90s Fahrenheit (around 29-34°C). Nighttime lows typically range from the mid-60s to low 70s Fahrenheit (around 18-23°C).
+
+2. **Humidity**: June tends to be quite humid, which can make the temperatures feel even warmer. High humidity levels are characteristic of Alabama summers.
+
+3. **Precipitation**: June is part of the wetter season in Alabama, with regular afternoon thunderstorms being common. Rainfall can vary, but you can expect an average of about 4 to 5 inches (around 100-125 mm) of rain for the month.
+
+4. **Sunshine**: There are usually plenty of sunny days, although the frequent thunderstorms can lead to overcast skies at times.
+
+Overall, if you're planning to visit Alabama in June, be prepared for hot and humid conditions, and keep an umbrella or rain jacket handy for those afternoon storms.
+```
+
+## Docker
+
+### Building the image
+
+```bash
+docker build -t pgai .
+```
+
+### Running the container
+
+```bash
+docker run -d --name pgai -p 9876:5432 -e POSTGRES_PASSWORD=pgaipass pgai
+```
+
+### Connecting to the database
+
+```bash
+psql -d "postgres://postgres:pgaipass@localhost:9876/postgres"
+```
+
+### Creating the extension
+
+```sql
+CREATE EXTENSION ai CASCADE;
+```
+
+## Prerequisites
+
+1. PostgreSQL (obviously) version 16
+2. [plpython3u](https://www.postgresql.org/docs/current/plpython.html)
+3. [pgvector](https://github.com/pgvector/pgvector)
+4. Python3 with the following packages
+    1. [openai](https://pypi.org/project/openai/)
+    2. [tiktoken](https://pypi.org/project/tiktoken/)
+
+## Installation
+
+Using docker is recommended, however a Makefile is provided if you wish to 
+install the extension on your system. The `install` make target will download 
+and install the pgvector extension, install the pgai extension, and install 
+the Python package dependencies in your system's Python environment.
+
+```bash
+make install
+```
+
+## Create Extension
+
+After installation, the extension must be created in a Postgres database. Since
+the extension depends on both plpython3u and pgvector, using the `CASCADE` 
+option is recommended to automatically install them if they are not already.
+
+```sql
+CREATE EXTENSION IF NOT EXISTS ai CASCADE;
+```
+
+Alternately, you can use the `create_extension` make target. Be aware that the
+`DB` and `USER` make variables are used to establish a connection to the 
+running database, so modify them accordingly if needed.
+
+```bash
+make create_extension
+```
+
+## Development
+
+The `vm.sh` shell script will create a virtual machine named `pgai` using 
+[multipass](https://multipass.run/) for development use. The repo directory 
+will be mounted to `/pgai` in the virtual machine.
+
+### Create the virtual machine
+
+```bash
+./vm.sh
+```
+
+### Get a shell in the virtual machine
+
+```bash
+multipass shell pgai
+```
+
+### Delete the virtual machine
+
+```bash
+multipass delete --purge pgai
 ```
