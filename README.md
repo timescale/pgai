@@ -59,7 +59,35 @@ ORDER BY created DESC
 
 ### Python
 
+The [dotenv](https://github.com/theskumar/python-dotenv) is frequently used to 
+load API tokens, passwords, connection strings, and other configuration 
+settings from a .env file.
 
+```bash
+pip install python-dotenv
+pip install psycopg2-binary
+```
+
+Be sure to pass the API key as a parameter to your queries. Don't use string 
+manipulation techniques to embed the key as a literal in the SQL query.
+
+```python
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+DB_URL = os.environ["DB_URL"]
+
+import psycopg2
+
+with psycopg2.connect(DB_URL) as conn:
+    with conn.cursor() as cur:
+        # pass the API key as a parameter to the query. don't use string manipulations
+        cur.execute("SELECT * FROM openai_list_models(%s) ORDER BY created DESC", (OPENAI_API_KEY,))
+        records = cur.fetchall()
+```
 
 ## Usage
 
