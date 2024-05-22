@@ -19,6 +19,10 @@ sign the [Contributor License Agreement](https://cla-assistant.io/timescale/pgai
 ensure that the community is free and confident in its ability to use your
 contributions.
 
+## Getting and building TimescaleDB
+
+Please follow our README for [instructions on installing from source](./README.md#installation).
+
 ## Development
 
 Please follow our DEVELOPMENT doc for [instructions how to develop and test](https://github.com/timescale/pgai/blob/main/DEVELOPMENT.md).
