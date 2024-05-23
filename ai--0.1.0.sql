@@ -1,6 +1,9 @@
 -------------------------------------------------------------------------------
 -- ai 0.1.0
 
+-- complain if script is sourced in psql, rather than via CREATE EXTENSION
+\echo Use "CREATE EXTENSION ai CASCADE" to load this file. \quit
+
 -------------------------------------------------------------------------------
 -- openai_tokenize
 -- encode text as tokens for a given model
@@ -232,3 +235,32 @@ $func$
 language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
+
+-------------------------------------------------------------------------------
+-- telemetry
+do $block$
+import httpx
+
+PGAI_VERSION = "0.1.0"
+TELEMETRY_ENDPOINT="http://localhost:8080/telemetry/pgai"
+
+# get the postgres version
+rows = plpy.execute("SHOW server_version_num;")
+server_version_num = rows[0]["server_version_num"]
+
+data = {
+    "pgai_version": PGAI_VERSION,
+    "server_version_num": server_version_num,
+}
+
+try:
+    resp = httpx.post(TELEMETRY_ENDPOINT, data)
+    resp.raise_for_status()
+    plpy.log("telemetry reported successfully")
+except (httpx.RequestError, Exception, RuntimeError) as e:
+    plpy.warning("FAILED to report telemetry: {err=}, {type(err)=}")
+
+$block$ language plpython3u
+;
+
+-------------------------------------------------------------------------------
