@@ -5,7 +5,7 @@
 -- openai_tokenize
 -- encode text as tokens for a given model
 -- https://github.com/openai/tiktoken/blob/main/README.md
-create function openai_tokenize(_model text, _text text) returns int[]
+create function @extschema@.openai_tokenize(_model text, _text text) returns int[]
 as $func$
 import tiktoken
 encoding = tiktoken.encoding_for_model(_model)
@@ -20,7 +20,7 @@ set search_path to pg_catalog, pg_temp
 -- openai_detokenize
 -- decode tokens for a given model back into text
 -- https://github.com/openai/tiktoken/blob/main/README.md
-create function openai_detokenize(_model text, _tokens int[]) returns text
+create function @extschema@.openai_detokenize(_model text, _tokens int[]) returns text
 as $func$
 import tiktoken
 encoding = tiktoken.encoding_for_model(_model)
@@ -35,7 +35,7 @@ set search_path to pg_catalog, pg_temp
 -- openai_list_models
 -- list models supported on the openai platform
 -- https://platform.openai.com/docs/api-reference/models/list
-create function openai_list_models(_api_key text) returns table
+create function @extschema@.openai_list_models(_api_key text) returns table
 ( id text
 , created timestamptz
 , owned_by text
@@ -56,7 +56,7 @@ set search_path to pg_catalog, pg_temp
 -- openai_embed
 -- generate an embedding from a text value
 -- https://platform.openai.com/docs/api-reference/embeddings/create
-create function openai_embed
+create function @extschema@.openai_embed
 ( _api_key text
 , _model text
 , _input text
@@ -84,7 +84,7 @@ set search_path to pg_catalog, pg_temp
 -- openai_embed
 -- generate embeddings from an array of text values
 -- https://platform.openai.com/docs/api-reference/embeddings/create
-create function openai_embed
+create function @extschema@.openai_embed
 ( _api_key text
 , _model text
 , _input text[]
@@ -92,7 +92,7 @@ create function openai_embed
 , _user text default null
 ) returns table
 ( "index" int
-, embedding vector
+, embedding @extschema:vector@.vector
 )
 as $func$
 import openai
@@ -114,13 +114,13 @@ set search_path to pg_catalog, pg_temp
 -- openai_embed
 -- generate embeddings from an array of tokens
 -- https://platform.openai.com/docs/api-reference/embeddings/create
-create function openai_embed
+create function @extschema@.openai_embed
 ( _api_key text
 , _model text
 , _input int[]
 , _dimensions int default null
 , _user text default null
-) returns vector
+) returns @extschema:vector@.vector
 as $func$
 import openai
 client = openai.OpenAI(api_key=_api_key)
@@ -142,7 +142,7 @@ set search_path to pg_catalog, pg_temp
 -- openai_chat_complete
 -- text generation / chat completion
 -- https://platform.openai.com/docs/api-reference/chat/create
-create function openai_chat_complete
+create function @extschema@.openai_chat_complete
 ( _api_key text
 , _model text
 , _messages jsonb
@@ -218,7 +218,7 @@ set search_path to pg_catalog, pg_temp
 -- openai_moderate
 -- classify text as potentially harmful or not
 -- https://platform.openai.com/docs/api-reference/moderations/create
-create function openai_moderate
+create function @extschema@.openai_moderate
 ( _api_key text
 , _model text
 , _input text
