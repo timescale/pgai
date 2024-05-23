@@ -1,10 +1,10 @@
-# Contributing to Postgres AI
+# Contributing to pgai
 
-We appreciate any help the community can provide to make Postgres AI better!  
+We appreciate any help the community can provide to make pgia better!  
 
 You can help in different ways:
 
-* Open an [issue](https://github.com/timescale/timescaledb/issues) with a
+* Open an [issue](https://github.com/timescale/pgai/issues) with a
   bug report, build issue, feature request, suggestion, etc.
 
 * Fork this repository and submit a pull request
@@ -14,23 +14,18 @@ begin discussion on the GitHub issues page. This is the best place to
 discuss your proposed improvement (and its implementation) with the core
 development team.
 
-Before we accept any code contributions, Timescale contributors need to
-sign the [Contributor License Agreement](https://cla-assistant.io/timescale/timescaledb) (CLA). 
-By signing a CLA, we can ensure that the community is free and confident in its ability to use 
-your contributions.
+Before we accept any code contributions, pgai contributors need to
+sign the [Contributor License Agreement](https://cla-assistant.io/timescale/pgai) (CLA). By signing a CLA, we can
+ensure that the community is free and confident in its ability to use your
+contributions.
 
-## Getting and building Postgres AI
+## Development
 
-Please follow our README for [instructions on installing from source](./README.md#installation).
-
-## Style guide
-
-Before submitting any contributions, please ensure that it adheres to
-our [Style Guide](https://github.com/timescale/timescaledb/blob/main/docs/StyleGuide.md).
+Please follow our DEVELOPMENT doc for [instructions how to develop and test](https://github.com/timescale/pgai/blob/main/DEVELOPMENT.md).
 
 ## Code review workflow
 
-* Sign the [Contributor License Agreement](https://cla-assistant.io/timescale/timescaledb) (CLA) if you're a new contributor.
+* Sign the [Contributor License Agreement](https://cla-assistant.io/timescale/pgai) (CLA) if you're a new contributor.
 
 * Develop on your local branch:
 
@@ -39,6 +34,8 @@ our [Style Guide](https://github.com/timescale/timescaledb/blob/main/docs/StyleG
       feature enhancements or stylistical changes.
 
     * Hack away. Add tests for non-trivial changes.
+
+    * Run the [test suite](#testing) and make sure everything passes.
 
     * When committing, be sure to write good commit messages according to [these
       seven rules](https://chris.beams.io/posts/git-commit/#seven-rules). Doing 
@@ -102,4 +99,11 @@ our [Style Guide](https://github.com/timescale/timescaledb/blob/main/docs/StyleG
 ## Testing
 
 Every non-trivial change to the code base should be accompanied by a
-relevant testing.
+relevant addition to or modification of the test suite.
+
+Please check that the full test suite (including your test additions
+or changes) passes successfully on your local machine **before you
+open a pull request**.
+
+See our [testing](https://github.com/timescale/pgai/blob/main/DEVELOPMENT.md#testing)
+instructions for help with how to test.
