@@ -489,27 +489,3 @@ running database, so modify them accordingly if needed.
 ```bash
 make create_extension
 ```
-
-## Development
-
-The `vm.sh` shell script will create a virtual machine named `pgai` using 
-[multipass](https://multipass.run/) for development use. The repo directory 
-will be mounted to `/pgai` in the virtual machine.
-
-### Create the virtual machine
-
-```bash
-./vm.sh
-```
-
-### Get a shell in the virtual machine
-
-```bash
-multipass shell pgai
-```
-
-### Delete the virtual machine
-
-```bash
-multipass delete --purge pgai
-```
