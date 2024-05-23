@@ -1,4 +1,4 @@
-# Postgres AI
+# pgai
 
 Artificial intelligence for Postgres.
 
