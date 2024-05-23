@@ -158,6 +158,8 @@ create function openai_chat_complete
 , _stop text default null
 , _temperature float8 default null
 , _top_p float8 default null
+, _tools jsonb default null
+, _tool_choice jsonb default null
 , _user text default null
 ) returns jsonb
 as $func$
@@ -177,6 +179,14 @@ _response_format_1 = None
 if _response_format is not None:
   _response_format_1 = json.loads(_response_format)
 
+_tools_1 = None
+if _tools is not None:
+  _tools_1 = json.loads(_tools)
+
+_tool_choice_1 = None
+if _tool_choice is not None:
+  _tool_choice_1 = json.loads(_tool_choice)
+
 response = client.chat.completions.create(
   model=_model
 , messages=_messages_1
@@ -193,6 +203,8 @@ response = client.chat.completions.create(
 , stream=False
 , temperature=_temperature
 , top_p=_top_p
+, tools=_tools_1
+, tool_choice=_tool_choice_1
 , user=_user
 )
 

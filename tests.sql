@@ -1,3 +1,6 @@
+-------------------------------------------------------------------------------
+-- psql -v OPENAI_API_KEY=$OPENAI_API_KEY -X -f tests.sql
+
 \set ON_ERROR_ROLLBACK 1
 \set VERBOSITY verbose
 \set SHOW_CONTEXT errors
@@ -209,18 +212,15 @@ where test = 'openai_moderate'
 
 -------------------------------------------------------------------------------
 -- results
-\x off
 select test, passed
 from tests
 ;
 
-\x on
 select *
 from tests
 where not passed
 ;
 
-\x on
 select
   count(*) as run
 , count(*) filter (where passed = true) as passed
@@ -228,7 +228,6 @@ select
 , count(*) filter (where passed is null) as did_not_run
 from tests
 ;
-\x auto
 
 select count(*) filter (where passed = false or passed is null) = 0 as result
 from tests
