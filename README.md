@@ -15,14 +15,14 @@ OPENAI_AI_KEY="sk-this-is-my-super-secret-api-key-dont-tell"
 ```
 
 Assuming you have your OPENAI_API_KEY in an environment variable, you can set
-a psql variable to the value of the key when connecting to the database with a
-command line argument like so:
+a [psql variable](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-VARIABLES) to the value of the key when connecting to the database with a
+[command line argument](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-OPTION-VARIABLE) like so:
 
 ```bash
 psql -v OPENAI_API_KEY=$OPENAI_API_KEY
 ```
 
-Using a colon followed by a psql variable name will substitute the variable's 
+Using a colon followed by a psql variable name will [substitute](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-INTERPOLATION) the variable's 
 value into a query. If you want the variable's value to be treated as text, 
 wrap the variable name in single quotes.
 
@@ -42,7 +42,7 @@ ORDER BY created DESC;
 
 Unfortunately, since the key is being provided as a text literal, it could show 
 up in logs, pg_stat_statements, etc. To take our precautions one step further, 
-make the query parameterized ($1) and bind the psql variable's value to the 
+make the query parameterized ($1) and [bind](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMAND-BIND) the psql variable's value to the 
 parameter using the `\bind` metacommand. Note that we don't wrap the variable
 name in single quotes using this technique. `\g` causes psql to execute the
 query.
@@ -98,8 +98,10 @@ To list the models supported in the OpenAI functions, call the
 
 ```sql
 SELECT * 
-FROM openai_list_models(:'OPENAI_API_KEY') 
-ORDER BY created DESC;
+FROM openai_list_models($1)
+ORDER BY created DESC
+\bind :OPENAI_API_KEY
+\g
 ```
 
 ```text
@@ -143,6 +145,8 @@ ORDER BY created DESC;
 
 ### Tokenization
 
+Encode content into an array of tokens with `openai_tokenize`.
+
 ```sql
 SELECT openai_tokenize
 ( 'text-embedding-ada-002'
@@ -156,6 +160,8 @@ SELECT openai_tokenize
  {19422,2296,374,3962,18297,1903,75458}
 (1 row)
 ```
+
+Count tokens using `array_length` on the token array.
 
 ```sql
 SELECT array_length
@@ -174,24 +180,99 @@ SELECT array_length
 (1 row)
 ```
 
+### Detokenization
+
+Turn tokenized content back into natural language with the `openai_detokenize` function.
+
+```sql
+SELECT openai_detokenize('text-embedding-ada-002', array[1820,25977,46840,23874,389,264,2579,58466]);
+```
+
+```text
+             openai_detokenize              
+--------------------------------------------
+ the purple elephant sits on a red mushroom
+(1 row)
+```
+
 ### Embeddings
+
+You can generate embeddings using a specified model.
 
 ```sql
 SELECT openai_embed
-( 'text-embedding-ada-002'
-, :'OPENAI_API_KEY'
-, 'Timescale is Postgres made Powerful'
-);
+( $1
+, 'text-embedding-ada-002'
+, 'the purple elephant sits on a red mushroom'
+)
+\bind :OPENAI_API_KEY
+\g
 ```
+
+Truncated output...
 
 ```text
                       openai_embed                      
 --------------------------------------------------------
- [0.003339539,-0.020084092,...-0.011202685,-0.025288943]
+ [0.005978798,-0.020522336,...-0.0022857306,-0.023699166]
 (1 row)
 ```
 
+Some models support specifying the number of dimensions you want in the 
+returned embedding.
+
+```sql
+SELECT openai_embed
+( $1
+, 'text-embedding-ada-002'
+, 'the purple elephant sits on a red mushroom'
+, _dimensions=>768
+)
+\bind :OPENAI_API_KEY
+\g
+```
+
+You may optionally pass a user identifier.
+
+```sql
+SELECT openai_embed
+( $1
+, 'text-embedding-ada-002'
+, 'the purple elephant sits on a red mushroom'
+, _user=>'bac1aaf7-4460-42d3-bba5-2957b057f4a5'
+)
+\bind :OPENAI_API_KEY
+\g
+```
+
+You may pass an array of text inputs.
+
+```sql
+SELECT openai_embed
+( $1
+, 'text-embedding-ada-002'
+, array['Timescale is Postgres made Powerful', 'the purple elephant sits on a red mushroom']
+)
+\bind :OPENAI_API_KEY
+\g
+```
+
+You may also provide a tokenized input.
+
+```sql
+select openai_embed
+( $1
+, 'text-embedding-ada-002'
+, array[1820,25977,46840,23874,389,264,2579,58466]
+)
+\bind :OPENAI_API_KEY
+\g
+```
+
 ### Text Generation / Chat Completion
+
+You can do text generation / chat completion using the `openai_chat_complete` 
+function.
 
 ```sql
 \pset tuples_only on
@@ -200,14 +281,16 @@ SELECT openai_embed
 SELECT jsonb_pretty
 (
   openai_chat_complete
-  ( 'gpt-4o'
-  , :'OPENAI_API_KEY'
+  ( $1
+  , 'gpt-4o'
   , jsonb_build_array
     ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
     , jsonb_build_object('role', 'user', 'content', 'what is the typical weather like in Alabama in June')
     )
   )
-);
+)
+\bind :OPENAI_API_KEY
+\g
 ```
 
 ```json
@@ -236,9 +319,15 @@ SELECT jsonb_pretty
 }
 ```
 
+The `openai_chat_complete` function returns a jsonb object containing the
+response from the API. You can use jsonb operators and functions to manipulate
+the object. The following returns the content as text from the first message
+in the choices array.
+
 ```sql
 \pset tuples_only on
 \pset format unaligned
+
 select openai_chat_complete
 ( 'gpt-4o'
 , :'OPENAI_API_KEY'
@@ -262,6 +351,79 @@ In June, Alabama generally experiences warm to hot weather as it transitions int
 4. **Sunshine**: There are usually plenty of sunny days, although the frequent thunderstorms can lead to overcast skies at times.
 
 Overall, if you're planning to visit Alabama in June, be prepared for hot and humid conditions, and keep an umbrella or rain jacket handy for those afternoon storms.
+```
+
+### Moderation
+
+Classify content as potentially harmful by using the `openai_moderate` 
+function.
+
+```sql
+\pset tuples_only on
+\pset format unaligned
+
+select jsonb_pretty
+(
+  openai_moderate
+  ( $1
+  , 'text-moderation-stable'
+  , 'I want to kill them.'
+  )
+)
+\bind :OPENAI_API_KEY
+\g
+```
+
+```text
+{
+    "id": "modr-9RsN6qZWoZYm1AK4mtrKuEjfOcMWp",
+    "model": "text-moderation-007",
+    "results": [
+        {
+            "flagged": true,
+            "categories": {
+                "hate": false,
+                "sexual": false,
+                "violence": true,
+                "self-harm": false,
+                "self_harm": false,
+                "harassment": true,
+                "sexual/minors": false,
+                "sexual_minors": false,
+                "hate/threatening": false,
+                "hate_threatening": false,
+                "self-harm/intent": false,
+                "self_harm_intent": false,
+                "violence/graphic": false,
+                "violence_graphic": false,
+                "harassment/threatening": true,
+                "harassment_threatening": true,
+                "self-harm/instructions": false,
+                "self_harm_instructions": false
+            },
+            "category_scores": {
+                "hate": 0.2324090600013733,
+                "sexual": 0.00001205232911161147,
+                "violence": 0.997192919254303,
+                "self-harm": 0.0000023696395601291442,
+                "self_harm": 0.0000023696395601291442,
+                "harassment": 0.5278584957122803,
+                "sexual/minors": 0.00000007506431387582779,
+                "sexual_minors": 0.00000007506431387582779,
+                "hate/threatening": 0.024183575063943863,
+                "hate_threatening": 0.024183575063943863,
+                "self-harm/intent": 0.0000017161115692942985,
+                "self_harm_intent": 0.0000017161115692942985,
+                "violence/graphic": 0.00003399916022317484,
+                "violence_graphic": 0.00003399916022317484,
+                "harassment/threatening": 0.5712487697601318,
+                "harassment_threatening": 0.5712487697601318,
+                "self-harm/instructions": 0.000000001132860139030356,
+                "self_harm_instructions": 0.000000001132860139030356
+            }
+        }
+    ]
+}
 ```
 
 ## Docker

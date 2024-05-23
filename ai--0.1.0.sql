@@ -1,15 +1,40 @@
+-------------------------------------------------------------------------------
+-- ai 0.1.0
 
+-------------------------------------------------------------------------------
+-- openai_tokenize
+-- encode text as tokens for a given model
+-- https://github.com/openai/tiktoken/blob/main/README.md
 create function openai_tokenize(_model text, _text text) returns int[]
 as $func$
 import tiktoken
 encoding = tiktoken.encoding_for_model(_model)
 tokens = encoding.encode(_text)
 return tokens
-$func$ 
+$func$
 language plpython3u strict volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-------------------------------------------------------------------------------
+-- openai_detokenize
+-- decode tokens for a given model back into text
+-- https://github.com/openai/tiktoken/blob/main/README.md
+create function openai_detokenize(_model text, _tokens int[]) returns text
+as $func$
+import tiktoken
+encoding = tiktoken.encoding_for_model(_model)
+content = encoding.decode(_tokens)
+return content
+$func$
+language plpython3u strict volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- openai_list_models
+-- list models supported on the openai platform
+-- https://platform.openai.com/docs/api-reference/models/list
 create function openai_list_models(_api_key text) returns table
 ( id text
 , created timestamptz
@@ -22,104 +47,176 @@ client = openai.OpenAI(api_key=_api_key)
 for model in client.models.list():
     created = datetime.fromtimestamp(model.created, timezone.utc)
     yield (model.id, created, model.owned_by)
-$func$ 
+$func$
 language plpython3u strict volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
-create function openai_embed(_model text, _api_key text, _text text) returns vector
+-------------------------------------------------------------------------------
+-- openai_embed
+-- generate an embedding from a text value
+-- https://platform.openai.com/docs/api-reference/embeddings/create
+create function openai_embed
+( _api_key text
+, _model text
+, _input text
+, _dimensions int default null
+, _user text default null
+) returns vector
 as $func$
 import openai
 client = openai.OpenAI(api_key=_api_key)
-response = client.embeddings.create(input = [_text], model=_model)
+args = {}
+if _dimensions is not None:
+  args["dimensions"] = _dimensions
+if _user is not None:
+  args["user"] = _user
+response = client.embeddings.create(input=[_input], model=_model, **args)
+if not hasattr(response, "data") or len(response.data) == 0:
+  return null
 return response.data[0].embedding
-$func$ 
-language plpython3u strict volatile parallel safe security invoker
+$func$
+language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
-create function openai_embed(_model text, _api_key text, _texts text[]) returns setof vector
+-------------------------------------------------------------------------------
+-- openai_embed
+-- generate embeddings from an array of text values
+-- https://platform.openai.com/docs/api-reference/embeddings/create
+create function openai_embed
+( _api_key text
+, _model text
+, _input text[]
+, _dimensions int default null
+, _user text default null
+) returns table
+( "index" int
+, embedding vector
+)
 as $func$
 import openai
 client = openai.OpenAI(api_key=_api_key)
-response = client.embeddings.create(input = _texts, model=_model)
+args = {}
+if _dimensions is not None:
+  args["dimensions"] = _dimensions
+if _user is not None:
+  args["user"] = _user
+response = client.embeddings.create(input=_input, model=_model, **args)
 for obj in response.data:
-    yield obj.embedding
-$func$ 
-language plpython3u strict volatile parallel safe security invoker
+    yield (obj.index, obj.embedding)
+$func$
+language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-------------------------------------------------------------------------------
+-- openai_embed
+-- generate embeddings from an array of tokens
+-- https://platform.openai.com/docs/api-reference/embeddings/create
+create function openai_embed
+( _api_key text
+, _model text
+, _input int[]
+, _dimensions int default null
+, _user text default null
+) returns vector
+as $func$
+import openai
+client = openai.OpenAI(api_key=_api_key)
+args = {}
+if _dimensions is not None:
+  args["dimensions"] = _dimensions
+if _user is not None:
+  args["user"] = _user
+response = client.embeddings.create(input=[_input], model=_model, **args)
+if not hasattr(response, "data") or len(response.data) == 0:
+  return null
+return response.data[0].embedding
+$func$
+language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- openai_chat_complete
+-- text generation / chat completion
+-- https://platform.openai.com/docs/api-reference/chat/create
 create function openai_chat_complete
-( _model text
-, _api_key text
+( _api_key text
+, _model text
 , _messages jsonb
 , _frequency_penalty float8 default null
+, _logit_bias jsonb default null
+, _logprobs boolean default null
+, _top_logprobs int default null
 , _max_tokens int default null
 , _n int default null
+, _presence_penalty float8 default null
 , _response_format jsonb default null
 , _seed int default null
+, _stop text default null
 , _temperature float8 default null
 , _top_p float8 default null
 , _user text default null
 ) returns jsonb
 as $func$
-import openai
 import json
+import openai
 client = openai.OpenAI(api_key=_api_key)
 
-rf = None
-if _response_format is not None:
-    rf = json.loads(_response_format)
-    rf = {'type': rf['type']}
-    if rf['type'] not in {'text', 'json_object'}:
-        plpy.error("invalid response format.",
-            hint = "use {'type': 'text'} or {'type': 'json_object'}")
-
-msgs = json.loads(_messages)
-if not isinstance(msgs, list):
+_messages_1 = json.loads(_messages)
+if not isinstance(_messages_1, list):
     plpy.error("_messages is not an array")
 
-msgs = [{'role': msg['role'], 'content': msg['content']} for msg in msgs]
+_logit_bias_1 = None
+if _logit_bias is not None:
+  _logit_bias_1 = json.loads(_logit_bias)
+
+_response_format_1 = None
+if _response_format is not None:
+  _response_format_1 = json.loads(_response_format)
 
 response = client.chat.completions.create(
   model=_model
-, messages=msgs
+, messages=_messages_1
 , frequency_penalty=_frequency_penalty
+, logit_bias=_logit_bias_1
+, logprobs=_logprobs
+, top_logprobs=_top_logprobs
 , max_tokens=_max_tokens
 , n=_n
-, response_format=rf
+, presence_penalty=_presence_penalty
+, response_format=_response_format_1
 , seed=_seed
+, stop=_stop
 , stream=False
 , temperature=_temperature
 , top_p=_top_p
 , user=_user
 )
 
-completion = {
-  "id": response.id,
-  "object": "chat.completion",
-  "created": response.created,
-  "model": response.model,
-  "system_fingerprint": response.system_fingerprint,
-  "choices": [{
-    "index": choice.index,
-    "message": {
-      "role": choice.message.role,
-      "content": choice.message.content,
-    },
-    "logprobs": choice.logprobs,
-    "finish_reason": choice.finish_reason
-  } for choice in response.choices],
-  "usage": {
-    "prompt_tokens": response.usage.prompt_tokens,
-    "completion_tokens": response.usage.completion_tokens,
-    "total_tokens": response.usage.total_tokens
-  }
-}
+return response.model_dump_json()
+$func$
+language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
 
-return json.dumps(completion)
-$func$ 
+-------------------------------------------------------------------------------
+-- openai_moderate
+-- classify text as potentially harmful or not
+-- https://platform.openai.com/docs/api-reference/moderations/create
+create function openai_moderate
+( _api_key text
+, _model text
+, _input text
+) returns jsonb
+as $func$
+import openai
+client = openai.OpenAI(api_key=_api_key)
+moderation = client.moderations.create(input=_input, model=_model)
+return moderation.model_dump_json()
+$func$
 language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
