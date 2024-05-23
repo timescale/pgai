@@ -1,6 +1,6 @@
 # Contributing to pgai
 
-We appreciate any help the community can provide to make pgia better!  
+We appreciate any help the community can provide to make pgai better!
 
 You can help in different ways:
 
