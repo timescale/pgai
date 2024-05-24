@@ -1,111 +1,137 @@
 # Postgres AI
 
-Postgres AI (PgAI) enables you to handle more AI workflows within a database. PgAI simplifies 
+Postgres AI (pgai) enables you to handle more AI workflows within a database. pgai simplifies 
 the process of building [similarity search](https://en.wikipedia.org/wiki/Similarity_search), and 
 [Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation) 
 (RAG) apps with PostgreSQL. 
 
-Directly from your existing PostgreSQL database, PgAI empowers you to:
+Directly from your existing PostgreSQL database, pgai empowers you to:
 
 * Create OpenAI [embeddings](https://platform.openai.com/docs/guides/embeddings). 
 * Retrieve OpenAI [chat completions](https://platform.openai.com/docs/guides/text-generation/chat-completions-api) from 
   models such as GPT4o.
 * Facilitate use cases such as classification, summarization, and data enrichment on your existing relational data.
 
-This page shows you how to setup your environment in Docker or locally, and create your first AI models:
+This page shows you how to setup your developer environment, then create your first AI models:
 
-## Prerequisites
+## pgai Prerequisites
 
-* The PgAI source on your developer environment:
+Before you start working with pgai, you need:
+
+* The pgai source on your local machine:
    ```bash
    git clone git@github.com:timescale/pgai.git
    ```
-* If you are using [Docker](#setup-your-developer-environment-in-docker):
+* If you prefer using Docker:
   * [Docker](https://docs.docker.com/get-docker/)
-* If you prefer [local development](#setup-your-developer-environment-locally):
+* If you prefer a local virtual Ubuntu environment:
+    * [Multipass](https://multipass.run/)
+* If you prefer local development:
   *  [PostgreSQL with pgvector](https://docs.timescale.com/self-hosted/latest/install/installation-linux/#install-and-configure-timescaledb-on-postgresql) v16
+     TODO: this package does not include `pgxs.mk`. Can you update the install instructions please. 
   *  [plpython3u](https://www.postgresql.org/docs/current/plpython.html)
-  *  [Python3](https://www.python.org/downloads/) with the following packages:
-     * [openai](https://pypi.org/project/openai/)
-     * [tiktoken](https://pypi.org/project/tiktoken/)
-   
-## Setup your developer environment in Docker
+  *  [Python3](https://www.python.org/downloads/)
 
-1. On the command line, navigate to the folder you cloned PgAI to. 
+## Setup your pgai developer environment
 
-1. Build the Docker image
+Best practice is to use the Docker environment supplied by Timescale. You can also integrate
+pgai into your local developer environment:
+
+- [Setup a developer environment in Docker](#setup-a-developer-environment-in-docker)
+- [Setup a virtual developer environment locally](#setup-a-virtual-developer-environment-locally)
+- [Setup a developer environment locally](#setup-a-developer-environment-locally)
+
+
+### Setup a developer environment in Docker
+
+1. In Terminal, navigate to the folder you cloned pgai to. 
+
+1. Build the Docker image:
 
    ```bash
    docker build -t pgai .
    ```
 
-1. Run the container
+1. Run the container:
 
     ```bash
     docker run -d --name pgai -p 9876:5432 -e POSTGRES_PASSWORD=pgaipass pgai
     ```
 
-1. Connect to the database
+1. Connect to the database:
 
     ```bash
     psql -d "postgres://postgres:pgaipass@localhost:9876/postgres"
     ```
 
-1. Create the extension
+1. Create the pgai extension:
 
     ```sql
     CREATE EXTENSION ai CASCADE;
     ```
+   The `CASCADE` automatically installs the plpython3u and pgvector dependencies.
 
-## Setup your developer environment locally
+### Setup a virtual developer environment locally
 
-Using docker is recommended, however a Makefile is provided if you wish to 
-install the extension on your system. The `install` make target will download 
-and install the pgvector extension, install the pgai extension, and install 
-the Python package dependencies in your system's Python environment.
+`vm.sh` creates a [multipass](https://multipass.run/) virtual machine called `pgai`. This script 
+installs the local development [pgai Prerequisites](#pgai-prerequisites) in the pgai virtual
+machine for you.
 
-```bash
-make install
-```
 
-## Create Extension
+This pgai folder
+is mounted to `/pgai` in the virtual machine.
 
-After installation, the extension must be created in a Postgres database. Since
-the extension depends on both plpython3u and pgvector, using the `CASCADE` 
-option is recommended to automatically install them if they are not already.
+1. To create the virtual machine, run the following command:
 
-```sql
-CREATE EXTENSION IF NOT EXISTS ai CASCADE;
-```
+    ```bash
+    ./vm.sh
+    ```
 
-Alternately, you can use the `create_extension` make target. Be aware that the
-`DB` and `USER` make variables are used to establish a connection to the 
-running database, so modify them accordingly if needed.
+    You are automatically logged into a terminal on the virtual machine.
 
-```bash
-make create_extension
-```
+1. In the multipass shell, [Setup a developer environment locally](#setup-a-developer-environment-locally).
 
-## Development
+For more information on using Multipass, see [their documentation](https://multipass.run/docs/use-an-instance)
 
-The `vm.sh` shell script will create a virtual machine named `pgai` using 
-[multipass](https://multipass.run/) for development use. The repo director will
-be mounted to `/pgai` in the virtual machine.
+### Setup a developer environment locally
 
-### Create the virtual machine
+Best practice is to [Setup your developer environment in Docker](#setup-your-developer-environment-in-docker).
+However, you can install pgai directly on your developer environment. 
 
-```bash
-./vm.sh
-```
+1. On the command line, navigate to the folder you cloned pgai to.
 
-### Get a shell in the virtual machine
+1. Build pgai:
 
-```bash
-multipass shell pgai
-```
+    ```bash
+    make install
+    ```
 
-### Delete the virtual machine
+    This installs the pgvector and pgai extensions on your local PostgreSQL developer
+    environment, then installs the package dependencies in your Python environment.
 
-```bash
-multipass delete --purge pgai
-```
+   
+1. Create the pgai extension in a database. Use either:
+
+   - SQL:
+      1. Connect to PostgreSQL:
+         ```bash
+         psql -d "postgres://postgres:pgaipass@localhost:9876/postgres"
+         ```
+         TODO: Is this true for the local installation? Is the database already created?
+
+      1. Create the pgai extension:
+   
+          ```sql
+          CREATE EXTENSION IF NOT EXISTS ai CASCADE;
+          ```
+    
+          The `CASCADE` automatically installs the plpython3u and pgvector dependencies.
+
+   - Terminal: 
+     1. In `Makefile`, update `DB` and `USER` to match your PostgreSQL configuration. 
+     1.  Create the pgai extension:
+
+        ```bash
+        make create_extension
+        ```
+
