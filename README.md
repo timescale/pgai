@@ -19,6 +19,7 @@ This page shows you how to setup your pgai environment, and interact with OpenAP
 
 Before you start working with pgai, you need:
 
+* An [OpenAI API Key](https://platform.openai.com/api-keys).
 * The pgai source on your local machine:
    ```bash
    git clone git@github.com:timescale/pgai.git
