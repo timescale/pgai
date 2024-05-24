@@ -36,7 +36,7 @@ Before you start working with pgai, you need:
 ## Setup your pgai developer environment
 
 Best practice is to use the Docker environment supplied by Timescale. You can also integrate
-pgai into your local developer environment. Either
+pgai into your local developer environment. Either:
 
 <details>
 <summary>Setup a developer environment in Docker</summary>
