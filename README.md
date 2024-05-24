@@ -2,7 +2,7 @@
 
 Postgres AI (pgai) enables you to handle more AI workflows within a database. pgai simplifies 
 the process of building [similarity search](https://en.wikipedia.org/wiki/Similarity_search), and 
-[Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation) 
+[Retrieval-Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation) 
 (RAG) apps with PostgreSQL. 
 
 Directly from your existing PostgreSQL database, pgai empowers you to:
@@ -13,7 +13,7 @@ Directly from your existing PostgreSQL database, pgai empowers you to:
 * Facilitate use cases such as [classification, summarization, and data enrichment](#openai_moderate) on your existing 
   relational data.
 
-This page shows you how to setup your pgai environment, and interact with OpenAPI through your database. 
+This page shows you how to set up your pgai environment, and interact with OpenAPI through your database. 
 
 ## pgai Prerequisites
 
@@ -36,13 +36,13 @@ Before you start working with pgai, you need:
   *  [plpython3u](https://www.postgresql.org/docs/current/plpython.html)
   *  [Python3](https://www.python.org/downloads/)
 
-## Setup your pgai developer environment
+## Set up your pgai developer environment
 
 Best practice is to use the Docker environment supplied by Timescale. You can also integrate
 pgai into your local developer environment. Either:
 
 <details>
-<summary>Setup a developer environment in Docker</summary>
+<summary>Set up a developer environment in Docker</summary>
 <p></p>
 The pgai Docker container has all the software you need preinstalled. To connect to
 pgai running in a Docker container:
@@ -77,10 +77,10 @@ pgai running in a Docker container:
 
 </details>
 <details>
-<summary>Setup a virtual developer environment locally</summary>
+<summary>Set up a virtual developer environment locally</summary>
 <p></p>
-Best practice is to setup your developer environment in Docker. However, to install pgai in a virtual
-Ubunto environment.
+Best practice is to set up your developer environment in Docker. However, to install pgai in a virtual
+Ubuntu environment.
 
 In this repository, [vm.sh](./vm.sh) creates a [multipass](https://multipass.run/) virtual machine called `pgai`. This script 
 installs the [pgai Prerequisites](#pgai-prerequisites) in the `pgai` Ubuntu virtual
@@ -94,16 +94,16 @@ machine. This repo is mounted to `/pgai` in the virtual machine.
 
     You are automatically logged into Terminal on the virtual machine.
 
-1. In the multipass shell, [Setup a developer environment locally](#setup-a-developer-environment-locally).
+1. In the multipass shell, [Set up a developer environment locally](#setup-a-developer-environment-locally).
 
 For more information on using Multipass, [see the documentation](https://multipass.run/docs/use-an-instance).
 
 </details>
 <details>
-<summary>Setup a developer environment locally</summary>
+<summary>Set up a developer environment locally</summary>
 <a id="setup-a-developer-environment-locally"></a>
 <p></p>
-Best practice is to setup your developer environment in Docker. However, to install pgai directly on your 
+Best practice is to set up your developer environment in Docker. However, to install pgai directly on your 
 developer environment. 
 
 1. On the command line, navigate to the folder you cloned pgai to.
@@ -147,7 +147,7 @@ developer environment.
 
 ## Securely connect to OpenAI through pgai
 
-API keys are secrets. Exposing them can present financial and information security issues. 
+API keys are secret. Exposing them can present financial and information security issues. 
 The following sections show how to securely connect to your OpenAI account through pgai using psql and Python.
 
 ### Use psql in Terminal
