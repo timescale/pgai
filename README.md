@@ -43,7 +43,7 @@ pgai into your local developer environment. Either:
 
 <details>
 <summary>Setup a developer environment in Docker</summary>
-
+<p></p>
 The pgai Docker container has all the software you need preinstalled. To connect to
 pgai running in a Docker container:
 
@@ -78,7 +78,7 @@ pgai running in a Docker container:
 </details>
 <details>
 <summary>Setup a virtual developer environment locally</summary>
-
+<p></p>
 Best practice is to setup your developer environment in Docker. However, to install pgai in a virtual
 Ubunto environment.
 
@@ -102,7 +102,7 @@ For more information on using Multipass, [see the documentation](https://multipa
 <details>
 <summary>Setup a developer environment locally</summary>
 <a id="setup-a-developer-environment-locally"></a>
-
+<p></p>
 Best practice is to setup your developer environment in Docker. However, to install pgai directly on your 
 developer environment. 
 
