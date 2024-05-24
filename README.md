@@ -35,15 +35,11 @@ Before you start working with pgai, you need:
 ## Setup your pgai developer environment
 
 Best practice is to use the Docker environment supplied by Timescale. You can also integrate
-pgai into your local developer environment:
+pgai into your local developer environment. Either
 
-- [Setup a developer environment in Docker](#setup-a-developer-environment-in-docker)
-- [Setup a virtual developer environment locally](#setup-a-virtual-developer-environment-locally)
-- [Setup a developer environment locally](#setup-a-developer-environment-locally)
-
-
-### Setup a developer environment in Docker
-
+<details>
+<summary>Setup a developer environment in Docker</summary>
+<a id="setup-a-developer-environment-in-docker"></a>
 1. In Terminal, navigate to the folder you cloned pgai to. 
 
 1. Build the Docker image:
@@ -71,7 +67,9 @@ pgai into your local developer environment:
     ```
    The `CASCADE` automatically installs the plpython3u and pgvector dependencies.
 
-### Setup a virtual developer environment locally
+</details>
+<details>
+<summary>Setup a virtual developer environment locally</summary>
 
 `vm.sh` creates a [multipass](https://multipass.run/) virtual machine called `pgai`. This script 
 installs the local development [pgai Prerequisites](#pgai-prerequisites) in the pgai virtual
@@ -93,7 +91,10 @@ is mounted to `/pgai` in the virtual machine.
 
 For more information on using Multipass, see [their documentation](https://multipass.run/docs/use-an-instance)
 
-### Setup a developer environment locally
+</details>
+<details>
+<summary>Setup a developer environment locally</summary>
+
 
 Best practice is to [Setup your developer environment in Docker](#setup-your-developer-environment-in-docker).
 However, you can install pgai directly on your developer environment. 
@@ -134,4 +135,4 @@ However, you can install pgai directly on your developer environment.
         ```bash
         make create_extension
         ```
-
+<details>
