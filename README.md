@@ -24,6 +24,7 @@ Before you start working with pgai, you need:
    ```
 * If you prefer using Docker:
   * [Docker](https://docs.docker.com/get-docker/)
+  * [Psql](https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
 * If you prefer a local virtual Ubuntu environment:
     * [Multipass](https://multipass.run/)
 * If you prefer local development:
@@ -39,7 +40,11 @@ pgai into your local developer environment. Either
 
 <details>
 <summary>Setup a developer environment in Docker</summary>
-<a id="setup-a-developer-environment-in-docker"></a>
+
+The pgai Docker container has all the software you need preinstalled. To connect to
+pgai running in a Docker container:
+
+
 1. In Terminal, navigate to the folder you cloned pgai to. 
 
 1. Build the Docker image:
@@ -71,13 +76,12 @@ pgai into your local developer environment. Either
 <details>
 <summary>Setup a virtual developer environment locally</summary>
 
-`vm.sh` creates a [multipass](https://multipass.run/) virtual machine called `pgai`. This script 
-installs the local development [pgai Prerequisites](#pgai-prerequisites) in the pgai virtual
-machine for you.
+Best practice is to setup your developer environment in Docker. However, to install pgai in a virtual
+Ubunto environment.
 
-
-This pgai folder
-is mounted to `/pgai` in the virtual machine.
+In this repository, [vm.sh](./vm.sh) creates a [multipass](https://multipass.run/) virtual machine called `pgai`. This script 
+installs the [pgai Prerequisites](#pgai-prerequisites) in the `pgai` Ubuntu virtual
+machine for you. This repo is mounted to `/pgai` in the virtual machine.
 
 1. To create the virtual machine, run the following command:
 
@@ -96,8 +100,8 @@ For more information on using Multipass, see [their documentation](https://multi
 <summary>Setup a developer environment locally</summary>
 
 
-Best practice is to [Setup your developer environment in Docker](#setup-your-developer-environment-in-docker).
-However, you can install pgai directly on your developer environment. 
+Best practice is to setup your developer environment in Docker. However, to install pgai directly on your 
+developer environment. 
 
 1. On the command line, navigate to the folder you cloned pgai to.
 
