@@ -19,7 +19,7 @@ sign the [Contributor License Agreement](https://cla-assistant.io/timescale/pgai
 ensure that the community is free and confident in its ability to use your
 contributions.
 
-## Getting and building TimescaleDB
+## Getting and building Postgres AI
 
 Please follow our README for [instructions on installing from source](./README.md#installation).
 
