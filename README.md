@@ -1,4 +1,4 @@
-# Postgres AI
+# pgai
 
 Postgres AI (pgai) enables you to handle more AI workflows within a database. pgai simplifies 
 the process of building [similarity search](https://en.wikipedia.org/wiki/Similarity_search), and 
