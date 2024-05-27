@@ -146,7 +146,7 @@ developer environment.
 </details>
 
 
-## Securely connect to OpenAI through pgai
+## Handling API keys securely
 
 API keys are secrets. Exposing them can present financial and information security issues. 
 The following sections show how to securely connect to your OpenAI account through pgai using psql and Python.
