@@ -1,15 +1,68 @@
 # Setup your pgai developer environment
 
-This page shows you how to create your developer environment locally. Timescale
-supplies the following variants:
+This page shows you how to create your pgai developer environment. Best practice is to
+[Setup a pgai environment in Docker](#setup-a-pgai-environment-in-docker). Timescale supplies the following pgai variants:
 
-- [Setup a developer environment in Docker](#setup-a-developer-environment-in-docker)
-- [Setup a virtual developer environment](#setup-a-virtual-developer-environment)
-- [Setup a developer environment locally](#setup-a-developer-environment-locally)
+- [Integrate pgai into an existing PostgreSQL environment](#integrate-pgai-into-an-existing-postgresql-environment) 
+- [Setup a pgai environment in Docker](#setup-a-pgai-environment-in-docker)
+- [Setup a virtual pgai environment](#setup-a-virtual-pgai-environment)
+- [Setup a local pgai environment](#setup-a-pgai-environment-locally)
 
 When your environment is running, [Test your pgai environment](#test-your-pgai-environment).
 
-## Setup a developer environment in Docker
+## pgai Prerequisites
+
+Before you start working with pgai, you need:
+
+* An [OpenAI API Key](https://platform.openai.com/api-keys).
+* The pgai source on your local machine:
+   ```bash
+   git clone git@github.com:timescale/pgai.git
+   ```
+* If you prefer using Docker:
+    * [Docker](https://docs.docker.com/get-docker/)
+    * [Psql](https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
+* If you prefer a local virtual Ubuntu environment:
+    * [Multipass](https://multipass.run/)
+* If you prefer local development:
+    *  [PostgreSQL with pgvector](https://docs.timescale.com/self-hosted/latest/install/installation-linux/#install-and-configure-timescaledb-on-postgresql) v16
+
+       TODO: this package does not include `pgxs.mk`. Can you update the install instructions please.
+
+    *  [plpython3u](https://www.postgresql.org/docs/current/plpython.html)
+    *  [Python3](https://www.python.org/downloads/)
+
+## Integrate pgai into an existing PostgreSQL environment
+
+pgai is a PostgreSQL extension written in SQL. Database functions are written in
+plpython3u. There is no compilation required, simply integrate pgai into your
+[PostgreSQL with pgvector](https://docs.timescale.com/self-hosted/latest/install/installation-linux/#install-and-configure-timescaledb-on-postgresql) environment.
+
+1. In Terminal, navigate to the folder you cloned this pgai repository to.
+
+1. Copy the pgai sql sources to the `postgresql-py` shared directory:
+
+    ```bash
+    cp ai* `pg_config --sharedir`/extension/
+    ```
+
+1. Connect to PostgreSQL:
+
+   ```bash
+   psql -d "your://postgres:configuration@string:9876/database-name"
+   
+   ```
+
+1. Add pgai to a database from the source you just installed.
+
+    ```sql
+    drop extension if exists ai;
+    create extension ai cascade;
+    ```
+
+If you want to check that all is well, [Test your pgai environment](./DEVELOPMENT.md#test-your-pgai-environment).
+
+## Setup a pgai environment in Docker
 
 The pgai Docker container has all the software you need preinstalled. To connect to
 pgai running in a Docker container:
@@ -54,7 +107,7 @@ docker exec pgai /bin/bash -c 'cp /pgai/ai* `pg_config --sharedir`/extension/'
 This command copies the sources from the repo directory on the bind mount to
 the postgres extensions directory.
 
-## Setup a virtual developer environment
+## Setup a virtual pgai environment
 
 Best practice is to setup your developer environment in Docker. However, to install pgai in a virtual
 Ubunto environment.
@@ -75,7 +128,7 @@ machine. This repo is mounted to `/pgai` in the virtual machine.
 
 For more information on using Multipass, [see the documentation](https://multipass.run/docs/use-an-instance).
 
-## Setup a developer environment locally
+## Setup a pgai environment locally
 
 Best practice is to setup your developer environment in Docker. However, to install pgai directly on your 
 developer environment. 

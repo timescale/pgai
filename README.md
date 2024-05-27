@@ -13,9 +13,7 @@ Directly from your existing PostgreSQL database, pgai empowers you to:
 * Facilitate use cases such as [classification, summarization, and data enrichment](#openai_moderate) on your existing 
   relational data.
 
-This page shows you how to
-[Integrate pgai into your PostgreSQL environment](#integrate-pgai-into-your-postgresql-environment-),
-[Securely connect to your AI provider through pgai](#securely-connect-to-your-ai-provider-through-pgai)
+This page shows you how to [Securely connect to your AI provider through pgai](#securely-connect-to-your-ai-provider-through-pgai)
 and [Use AI functionality through pgai](#usage).
 
 If you would like to contribute to pgai, see our [Developer guide](./DEVELOPMENT.md).
@@ -25,52 +23,9 @@ If you would like to contribute to pgai, see our [Developer guide](./DEVELOPMENT
 Before you start working with pgai, you need:
 
 * An [OpenAI API Key](https://platform.openai.com/api-keys).
-* The pgai source on your local machine:
-   ```bash
-   git clone git@github.com:timescale/pgai.git
-   ```
-* If you prefer using Docker:
-  * [Docker](https://docs.docker.com/get-docker/)
-  * [Psql](https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
-* If you prefer a local virtual Ubuntu environment:
-    * [Multipass](https://multipass.run/)
-* If you prefer local development:
-  *  [PostgreSQL with pgvector](https://docs.timescale.com/self-hosted/latest/install/installation-linux/#install-and-configure-timescaledb-on-postgresql) v16
+* [Psql](https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
+* A [pgai developer environment](./DEVELOPMENT.md)
 
-     TODO: this package does not include `pgxs.mk`. Can you update the install instructions please. 
-
-  *  [plpython3u](https://www.postgresql.org/docs/current/plpython.html)
-  *  [Python3](https://www.python.org/downloads/)
-
-## Integrate pgai into your PostgreSQL environment 
-
-pgai is a PostgreSQL extension written in SQL. Database functions are written in
-plpython3u. There is no compilation required, simply integrate pgai into your
-[PostgreSQL with pgvector](https://docs.timescale.com/self-hosted/latest/install/installation-linux/#install-and-configure-timescaledb-on-postgresql) environment. 
-
-1. In Terminal, navigate to the folder you cloned this pgai repository to.
-
-1. Copy the pgai sql sources to the `postgresql-py` shared directory:
-
-    ```bash
-    cp ai* `pg_config --sharedir`/extension/
-    ```
-
-1. Connect to PostgreSQL:
-   
-   ```bash
-   psql -d "your://postgres:configuration@string:9876/database-name"
-   
-   ```
-
-1. Add pgai to a database from the source you just installed.
-
-    ```sql
-    drop extension if exists ai;
-    create extension ai cascade;
-    ```
-
-If you want to check that all is well, [Test your pgai environment](./DEVELOPMENT.md#test-your-pgai-environment).
 
 ## Securely connect to your AI provider through pgai
 
