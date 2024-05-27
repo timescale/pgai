@@ -188,7 +188,7 @@ To securely interact with OpenAI in a Python app, you use [dotenv](https://githu
 strings, and other configuration settings from environment variables and .env files. You then pass your security 
 information as variables when you interact with your database.
 
-1. In your Python environment, include the dotenv packages:
+1. In your Python environment, include the dotenv and postgres driver packages:
 
     ```bash
     pip install python-dotenv
