@@ -196,7 +196,7 @@ information as variables when you interact with your database.
     ```
     TODO: could we not install these packages with the install scripts?
 
-1. Set your OpenAI key as an environment variable:
+1. Set your OpenAI key in a .env file or as an environment variable:
     ```bash
     OPENAI_AI_KEY="this-is-my-super-secret-api-key-dont-tell"
     DB_URL="your connection string"
