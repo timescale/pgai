@@ -1,6 +1,6 @@
 # Security Policy
 
-We aim to keep Postgres AI safe for everyone. 
+We aim to keep pgai safe for everyone. 
 
 Publicly disclosing security bugs in a public forum can put everyone in the Timescale community at risk. 
 We ask that people follow the instructions in this page to report security vulnerability.
