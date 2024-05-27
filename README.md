@@ -182,7 +182,7 @@ The `\bind` metacommand is available in psql version 16+.
 
 
 
-### Connect through psql in a Python app
+### Using pgai from a Python app
 
 To securely interact with OpenAI in a Python app, you use [dotenv](https://github.com/theskumar/python-dotenv) to load API tokens, passwords, connection 
 strings, and other configuration settings from environment variables and .env files. You then pass your security 
