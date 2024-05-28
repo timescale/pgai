@@ -74,7 +74,6 @@ information as variables when you interact with your database.
     pip install python-dotenv
     pip install psycopg2-binary
     ```
-    TODO: could we not install these packages with the install scripts?
 
 1. Set your OpenAI key in a .env file or as an environment variable:
     ```bash
