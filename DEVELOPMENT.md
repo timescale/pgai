@@ -9,7 +9,7 @@ This page shows you how to create your pgai developer environment. Best practice
   the pgai extension to your existing PostgreSQL and [pgvector][pgvector-install] installation.
 - [Setup a virtual pgai environment](#setup-a-virtual-pgai-environment): create a virtual Ubuntu environment with 
   PostgreSQL installed.   
-- [Setup a pgai development environment](#setup-a-pgai-environment-locally): build pgai and pgvector from source and 
+- [Add pgai to your virtual or local developer environment](#setup-a-pgai-environment-locally): build pgai and pgvector from source and 
   add these extensions to your local or virtual PostgreSQL developer environment.  
 
 
