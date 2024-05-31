@@ -3,64 +3,39 @@
 This page shows you how to create your pgai developer environment. Best practice is to
 [Setup a pgai environment in Docker](#setup-a-pgai-environment-in-docker). Timescale supplies the following pgai variants:
 
-- [Integrate pgai into an existing PostgreSQL environment](#integrate-pgai-into-an-existing-postgresql-environment) 
-- [Setup a pgai environment in Docker](#setup-a-pgai-environment-in-docker)
-- [Setup a virtual pgai environment](#setup-a-virtual-pgai-environment)
-- [Setup a local pgai environment](#setup-a-pgai-environment-locally)
+- [Setup a pgai environment in Docker](#setup-a-pgai-environment-in-docker): this image
+  includes all necessary software and extensions to use pgai.
+- [Integrate pgai into an existing PostgreSQL environment](#integrate-pgai-into-an-existing-postgresql-environment): add
+  the pgai extension to your existing PostgreSQL and [pgvector][pgvector-install] installation.
+- [Setup a virtual pgai environment](#setup-a-virtual-pgai-environment): create a virtual Ubuntu environment with 
+  PostgreSQL installed.   
+- [Setup a pgai development environment](#setup-a-pgai-environment-locally): build pgai and pgvector from source and 
+  add these extensions to your local or virtual PostgreSQL developer environment.  
 
-When your environment is running, [Test your pgai environment](#test-your-pgai-environment).
+
+When your environment is running, [Test your pgai environment](./README.md#test-your-pgai-environment).
 
 ## pgai Prerequisites
 
 Before you start working with pgai, you need:
 
 * An [OpenAI API Key](https://platform.openai.com/api-keys).
+* [Psql](https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
 * The pgai source on your local machine:
    ```bash
    git clone git@github.com:timescale/pgai.git
    ```
-* If you prefer using Docker:
+* For a Docker environment:
     * [Docker](https://docs.docker.com/get-docker/)
-    * [Psql](https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
-* If you prefer a local virtual Ubuntu environment:
-    * [Multipass](https://multipass.run/)
-* If you prefer local development:
-    *  [PostgreSQL with pgvector](https://docs.timescale.com/self-hosted/latest/install/installation-linux/#install-and-configure-timescaledb-on-postgresql) v16
-
-       TODO: this package does not include `pgxs.mk`. Can you update the install instructions please.
-
-    *  [plpython3u](https://www.postgresql.org/docs/current/plpython.html)
-    *  [Python3](https://www.python.org/downloads/)
-
-## Integrate pgai into an existing PostgreSQL environment
-
-pgai is a PostgreSQL extension written in SQL. Database functions are written in
-plpython3u. There is no compilation required, simply integrate pgai into your
-[PostgreSQL with pgvector](https://docs.timescale.com/self-hosted/latest/install/installation-linux/#install-and-configure-timescaledb-on-postgresql) environment.
-
-1. In Terminal, navigate to the folder you cloned this pgai repository to.
-
-1. Copy the pgai sql sources to the `postgresql-py` shared directory:
-
-    ```bash
-    cp ai* `pg_config --sharedir`/extension/
-    ```
-
-1. Connect to PostgreSQL:
-
-   ```bash
-   psql -d "your://postgres:configuration@string:9876/database-name"
-   
-   ```
-
-1. Add pgai to a database from the source you just installed.
-
-    ```sql
-    drop extension if exists ai;
-    create extension ai cascade;
-    ```
-
-If you want to check that all is well, [Test your pgai environment](./DEVELOPMENT.md#test-your-pgai-environment).
+* Traditional environment:
+  * For a virtual Ubuntu environment:
+      * [Multipass](https://multipass.run/)
+  * For local development:
+      *  [PostgreSQL](https://docs.timescale.com/self-hosted/latest/install/installation-linux/#install-and-configure-timescaledb-on-postgresql) v16
+  * Build tools and PostgreSQL developer libraries:
+     ```
+     sudo apt-get install build-essential postgresql-server-dev-16
+     ```
 
 ## Setup a pgai environment in Docker
 
@@ -81,8 +56,8 @@ pgai running in a Docker container:
     ```bash
     docker run -d --name pgai -p 9876:5432 -e POSTGRES_PASSWORD=pgaipass --mount type=bind,src=`pwd`,dst=/pgai pgai
     ```
-    You are automatically connected to the container. To connect from the command line, run
-    `docker exec -it pgai /bin/bash`.
+   You are automatically connected to the container. To connect from the command line, run
+   `docker exec -it pgai /bin/bash`.
 
 1. Connect to the database:
 
@@ -96,6 +71,7 @@ pgai running in a Docker container:
     CREATE EXTENSION ai CASCADE;
     ```
    The `CASCADE` automatically installs the plpython3u and pgvector dependencies.
+1. You can now [Securely connect to your AI provider through pgai](./README.md#securely-connect-to-your-ai-provider-through-pgai).
 
 If you make changes to this extension in `ai*.sql`, use the following command to upload
 your new functionality to the Docker container:
@@ -106,6 +82,38 @@ docker exec pgai /bin/bash -c 'cp /pgai/ai* `pg_config --sharedir`/extension/'
 
 This command copies the sources from the repo directory on the bind mount to
 the postgres extensions directory.
+
+## Integrate pgai into an existing PostgreSQL environment
+
+pgai is a PostgreSQL extension written in SQL. Database functions are written in
+plpython3u. There is no compilation required, simply integrate pgai into your
+[PostgreSQL v16](https://docs.timescale.com/self-hosted/latest/install/installation-linux/#install-and-configure-timescaledb-on-postgresql) with
+[pgvector][pgvector-install] environment.
+
+1. In Terminal, navigate to the folder you cloned this pgai repository to.
+
+1. Copy the pgai sql sources to the `postgresql-py` shared directory:
+
+    ```bash
+    cp ai* `pg_config --sharedir`/extension/
+    ```
+
+1. Connect to PostgreSQL:
+
+   ```bash
+   psql -d "postgres://<username>@<password>:<port>/<database-name>"
+   ```
+
+1. Add pgai to a database:
+
+    ```sql
+    drop extension if exists ai
+    create extension ai cascade
+    ```
+1. You can now [Securely connect to your AI provider through pgai](./README.md#securely-connect-to-your-ai-provider-through-pgai).
+
+If you want to check that all is well, [Test your pgai environment](./README.md#test-your-pgai-environment).
+
 
 ## Setup a virtual pgai environment
 
@@ -122,16 +130,32 @@ machine. This repo is mounted to `/pgai` in the virtual machine.
     ./vm.sh
     ```
 
-   You are automatically logged into Terminal on the virtual machine.
+   You are automatically logged into Terminal on the virtual machine. 
+   In multipass, this pgai repo is mounted on /pgai
 
-1. In the multipass shell, [Setup a developer environment locally](#setup-a-developer-environment-locally).
+1. Login to PostgreSQL as postgres:
+
+    ```bash
+    sudo -u postgres psql
+    ```
+    You are in the psql shell.
+
+1. **Set the password for `postgres`**
+
+    ```bash
+    \password postgres
+    ```
+
+   When you have set the password, type `\q` to exit psql.
+
+1. [Setup a pgai developer environment locally](#add-pgai-to-your-virtual-or-local-developer-environment).
 
 For more information on using Multipass, [see the documentation](https://multipass.run/docs/use-an-instance).
 
-## Setup a pgai environment locally
+## Add pgai to your virtual or local developer environment
 
 Best practice is to setup your developer environment in Docker. However, to install pgai directly on your 
-developer environment. 
+developer environment: 
 
 1. On the command line, navigate to the folder you cloned pgai to.
 
@@ -144,15 +168,13 @@ developer environment.
    This installs the pgvector and pgai extensions on your local PostgreSQL developer
    environment, then installs the package dependencies in your Python environment.
 
-
 1. Create the pgai extension in a database. Use either:
 
-    - SQL:
+    - psql:
         1. Connect to PostgreSQL:
            ```bash
-           psql -d "postgres://postgres:pgaipass@localhost:9876/postgres"
+           psql -d "postgres://postgres:<password>@localhost/postgres"
            ```
-           TODO: Is this true for the local installation? Is the database already created?
 
         1. Create the pgai extension:
 
@@ -166,26 +188,12 @@ developer environment.
         1. In `Makefile`, update `DB` and `USER` to match your PostgreSQL configuration.
         1.  Create the pgai extension:
 
-        ```bash
-        make create_extension
-        ```
+           ```bash
+           make create_extension
+           ```
+1. You can now [Securely connect to your AI provider through pgai](./README.md#securely-connect-to-your-ai-provider-through-pgai).
 
 
 
-## Test your pgai environment
-
-`tests.sql` contains unit tests to validate your environment. To run the tests:
-
-- Terminal
-    ```bash
-    psql -v OPENAI_API_KEY=$OPENAI_API_KEY -f tests.sql
-    ```
-
-- psql session
-    
-    ```sql
-    \i tests.sql
-    ```
-
-Best practice is to add new tests when you commit new functionality.
+[pgvector-install]: https://github.com/pgvector/pgvector
 

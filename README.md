@@ -24,7 +24,7 @@ Before you start working with pgai, you need:
 
 * An [OpenAI API Key](https://platform.openai.com/api-keys).
 * [Psql](https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
-* A [pgai developer environment](./DEVELOPMENT.md)
+* Access to a [pgai developer environment](./DEVELOPMENT.md)
 
 
 ## Securely connect to your AI provider through pgai
@@ -38,14 +38,14 @@ To securely interact with OpenAI through pgai from Terminal:
 
 1. Set your OpenAI key as an environment variable:
     ```bash
-    OPENAI_AI_KEY="this-is-my-super-secret-api-key-dont-tell"
+    OPENAI_API_KEY="this-is-my-super-secret-api-key-dont-tell"
     ```
 
-1. Set the value of your environment variable as a [psql variable](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-VARIABLES).
+1. Set the value of your environment variable as a [psql variable](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-VARIABLES). 
    ```bash
-    psql -v OPENAI_API_KEY=$OPENAI_API_KEY
+    psql -U postgres -h localhost -v OPENAI_API_KEY=$OPENAI_API_KEY
     ```
-   You can now connect to your database using your psql variable as a [command line argument](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-OPTION-VARIABLE).
+   You can now connect to your database using your OpenAI password as a variable as a [command line argument](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-OPTION-VARIABLE).
 
 1. Pass your API key as a parameterized variable when you query the database:
     ```sql
@@ -77,7 +77,7 @@ information as variables when you interact with your database.
 
 1. Set your OpenAI key in a .env file or as an environment variable:
     ```bash
-    OPENAI_AI_KEY="this-is-my-super-secret-api-key-dont-tell"
+    OPENAI_API_KEY="this-is-my-super-secret-api-key-dont-tell"
     DB_URL="your connection string"
     ```
 
@@ -102,6 +102,24 @@ information as variables when you interact with your database.
     ```
 
     Do not use string manipulation to embed the key as a literal in the SQL query.
+
+## Test your pgai environment
+
+`tests.sql` contains unit tests to validate your environment. To run the tests:
+
+- Terminal
+    ```bash
+    psql -v OPENAI_API_KEY=$OPENAI_API_KEY -f tests.sql
+    ```
+
+- psql session
+
+    ```sql
+    \i tests.sql
+    ```
+
+Best practice is to add new tests when you commit new functionality.
+
 
 ## Usage
 
@@ -429,3 +447,12 @@ The data returned looks like:
     ]
 }
 ```
+
+
+### 🐯 About Timescale
+
+TimescaleDB is a distributed time-series database built on PostgreSQL that scales to over 10 million of metrics per second, supports native compression, handles high cardinality, and offers native time-series capabilities, such as data retention policies, continuous aggregate views, downsampling, data gap-filling and interpolation.
+
+TimescaleDB also supports full SQL, a variety of data types (numerics, text, arrays, JSON, booleans), and ACID semantics. Operationally mature capabilities include high availability, streaming backups, upgrades over time, roles and permissions, and security.
+
+TimescaleDB has a large and active user community (tens of millions of downloads, hundreds of thousands of active deployments, Slack channels with thousands of members).
