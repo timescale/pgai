@@ -6,6 +6,39 @@
 \set SHOW_CONTEXT errors
 \x auto
 
+create extension if not exists ai cascade;
+
+-------------------------------------------------------------------------------
+-- use an unprivileged user "tester"
+reset role; -- just in case
+
+select count(1) filter (where rolname = 'tester') = 0 as create_tester
+from pg_roles
+\gset
+
+\if :create_tester
+create user tester;
+\endif
+
+select not has_schema_privilege('tester', 'public', 'create') as grant_public
+\gset
+
+\if :grant_public
+grant create on schema public to tester;
+\endif
+
+select not pg_has_role(current_user, 'tester', 'member') as grant_tester
+\gset
+
+\if :grant_tester
+select format('grant tester to %I', current_user)
+\gexec
+\endif
+
+set role tester;
+
+-------------------------------------------------------------------------------
+-- test setup
 drop table if exists tests;
 create table tests
 ( test text not null primary key
@@ -26,6 +59,7 @@ values
 , ('openai_embed-5')
 , ('openai_chat_complete-1')
 , ('openai_moderate')
+-- add entries for new tests here!
 ;
 
 -------------------------------------------------------------------------------
