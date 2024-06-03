@@ -267,6 +267,8 @@ select count(*) filter (where passed = false or passed is null) = 0 as result
 from tests
 \gset
 
+reset role; -- no longer tester
+
 \if :result
 \echo PASSED!
 \else
