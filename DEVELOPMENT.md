@@ -3,14 +3,16 @@
 This page shows you how to create your pgai developer environment. Best practice is to
 [Setup a pgai environment in Docker](#setup-a-pgai-environment-in-docker). Timescale supplies the following pgai variants:
 
-- [Setup a pgai environment in Docker](#setup-a-pgai-environment-in-docker): this image
-  includes all necessary software and extensions to use pgai.
-- [Integrate pgai into an existing PostgreSQL environment](#integrate-pgai-into-an-existing-postgresql-environment): add
-  the pgai extension to your existing PostgreSQL and [pgvector][pgvector-install] installation.
-- [Setup a virtual pgai environment](#setup-a-virtual-pgai-environment): create a virtual Ubuntu environment with 
-  PostgreSQL installed.   
-- [Add pgai to your virtual or local developer environment](#setup-a-pgai-environment-locally): build pgai and pgvector from source and 
-  add these extensions to your local or virtual PostgreSQL developer environment.  
+- To use pgai, either:
+  - [Setup a pgai environment in Docker](#setup-a-pgai-environment-in-docker): this image
+    includes all necessary software and extensions to use pgai.
+  - [Integrate pgai into an existing PostgreSQL environment](#integrate-pgai-into-an-existing-postgresql-environment): add
+    the pgai extension to your existing PostgreSQL and [pgvector][pgvector-install] environment.
+- To develop pgai:
+  - [Setup a virtual pgai environment](#setup-a-virtual-pgai-environment): create a virtual Ubuntu environment with 
+    PostgreSQL installed.   
+  - [Add pgai to your virtual or local developer environment](#setup-a-pgai-environment-locally): build pgai and pgvector from source and 
+    add these extensions to your local or virtual PostgreSQL developer environment.  
 
 
 When your environment is running, [Test your pgai environment](./README.md#test-your-pgai-environment).
@@ -25,9 +27,9 @@ Before you start working with pgai, you need:
    ```bash
    git clone git@github.com:timescale/pgai.git
    ```
-* For a Docker environment:
+* Docker environment:
     * [Docker](https://docs.docker.com/get-docker/)
-* Traditional environment:
+* Virtual or local environment:
   * For a virtual Ubuntu environment:
       * [Multipass](https://multipass.run/)
   * For local development:
@@ -101,7 +103,7 @@ plpython3u. There is no compilation required, simply integrate pgai into your
 1. Connect to PostgreSQL:
 
    ```bash
-   psql -d "postgres://<username>@<password>:<port>/<database-name>"
+   psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
    ```
 
 1. Add pgai to a database:
@@ -130,8 +132,9 @@ machine. This repo is mounted to `/pgai` in the virtual machine.
     ./vm.sh
     ```
 
-   You are automatically logged into Terminal on the virtual machine. 
-   In multipass, this pgai repo is mounted on /pgai
+   You are automatically logged into Terminal as `ubuntu` on the virtual machine. 
+   In multipass, this pgai repo is mounted on `/pgai`. To connect to 
+   multipass from the command line, run `multipass shell pgai`
 
 1. Login to PostgreSQL as postgres:
 
@@ -148,25 +151,23 @@ machine. This repo is mounted to `/pgai` in the virtual machine.
 
    When you have set the password, type `\q` to exit psql.
 
-1. [Setup a pgai developer environment locally](#add-pgai-to-your-virtual-or-local-developer-environment).
+You are ready to [Add pgai to your virtual or local developer environment](#add-pgai-to-your-virtual-or-local-developer-environment).
 
 For more information on using Multipass, [see the documentation](https://multipass.run/docs/use-an-instance).
 
 ## Add pgai to your virtual or local developer environment
 
-Best practice is to setup your developer environment in Docker. However, to install pgai directly on your 
-developer environment: 
+Best practice is to setup your developer environment in Docker. However, to integrate pgai into your
+local or virtual developer environment:
 
-1. On the command line, navigate to the folder you cloned pgai to.
+1. In Terminal, navigate to the folder you cloned pgai to.
 
-1. Build pgai:
+1. Build and install pgvector, pgai and python extensions on your PostgreSQL developer
+   environment.
 
     ```bash
     make install
     ```
-
-   This installs the pgvector and pgai extensions on your local PostgreSQL developer
-   environment, then installs the package dependencies in your Python environment.
 
 1. Create the pgai extension in a database. Use either:
 

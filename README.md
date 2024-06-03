@@ -1,9 +1,8 @@
 # pgai
 
-pgai enables you to handle your AI workflows within a database. pgai simplifies 
+pgai enables you to handle your AI workflows from within a database. pgai simplifies 
 the process of building [similarity search](https://en.wikipedia.org/wiki/Similarity_search), and 
-[Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation) 
-(RAG) apps with PostgreSQL. 
+[Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation)(RAG) apps with PostgreSQL. 
 
 Directly from your existing PostgreSQL database, pgai empowers you to:
 
@@ -12,6 +11,20 @@ Directly from your existing PostgreSQL database, pgai empowers you to:
   models such as GPT4o.
 * Facilitate use cases such as [classification, summarization, and data enrichment](#openai_moderate) on your existing 
   relational data.
+
+Timescale offers the following AI journeys:
+
+* **User**: try out pgai functionality in Timescale Cloud or a local environment:
+  * [Enable pgai in a Timescale service](#enable-pgai-in-a-timescale-service)
+  * [Integrate pgai into an existing PostgreSQL environment](./DEVELOPMENT.md#integrate-pgai-into-an-existing-postgresql-environment)
+* **Developer**: build pgai from source in a developer environment:
+  - [Setup a pgai environment in Docker](#setup-a-pgai-environment-in-docker): this image
+        includes all necessary software and extensions to use pgai.
+  - [Setup a virtual pgai environment](#setup-a-virtual-pgai-environment): create a virtual Ubuntu environment with
+        PostgreSQL installed.
+  - [Add pgai to your virtual or local developer environment](#setup-a-pgai-environment-locally): build pgai and pgvector from source and
+    add these extensions to your local or virtual PostgreSQL developer environment.
+
 
 This page shows you how to [Securely connect to your AI provider through pgai](#securely-connect-to-your-ai-provider-through-pgai)
 and [Use AI functionality through pgai](#usage).
@@ -23,9 +36,26 @@ If you would like to contribute to pgai, see our [Developer guide](./DEVELOPMENT
 Before you start working with pgai, you need:
 
 * An [OpenAI API Key](https://platform.openai.com/api-keys).
-* [Psql](https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
-* Access to a [pgai developer environment](./DEVELOPMENT.md)
+* [Psql v16](https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
 
+## Enable pgai in a Timescale service
+
+To enable pgai:
+
+1. Connect to your Timescale service:
+   ```bash
+   psql -d "postgres://postgres:<password>@localhost/postgres"
+   ```
+
+1. Create the pgai extension:
+
+    ```sql
+    CREATE EXTENSION IF NOT EXISTS ai CASCADE;
+    ```
+
+   The `CASCADE` automatically installs the plpython3u and pgvector dependencies.
+
+You now [Securely connect to your AI provider through pgai](#securely-connect-to-your-ai-provider-through-pgai) and [Try out the AI models](#usage).
 
 ## Securely connect to your AI provider through pgai
 
@@ -43,7 +73,7 @@ To securely interact with OpenAI through pgai from Terminal:
 
 1. Set the value of your environment variable as a [psql variable](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-VARIABLES). 
    ```bash
-    psql -U postgres -h localhost -v OPENAI_API_KEY=$OPENAI_API_KEY
+   psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>" -v OPENAI_API_KEY=$OPENAI_API_KEY
     ```
    You can now connect to your database using your OpenAI password as a variable as a [command line argument](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-OPTION-VARIABLE).
 
@@ -109,7 +139,7 @@ information as variables when you interact with your database.
 
 - Terminal
     ```bash
-    psql -v OPENAI_API_KEY=$OPENAI_API_KEY -f tests.sql
+    psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>" -v OPENAI_API_KEY=$OPENAI_API_KEY -f tests.sql
     ```
 
 - psql session
