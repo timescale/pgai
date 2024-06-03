@@ -14,22 +14,16 @@ Directly from your existing PostgreSQL database, pgai empowers you to:
 
 Timescale offers the following AI journeys:
 
-* **User**: try out pgai functionality in Timescale Cloud or a local environment:
+* **User**: try out pgai functionality in Timescale Cloud or a local environment.
   * [Enable pgai in a Timescale service](#enable-pgai-in-a-timescale-service)
   * [Integrate pgai into an existing PostgreSQL environment](./DEVELOPMENT.md#integrate-pgai-into-an-existing-postgresql-environment)
-* **Developer**: build pgai from source in a developer environment:
-  - [Setup a pgai environment in Docker](#setup-a-pgai-environment-in-docker): this image
-        includes all necessary software and extensions to use pgai.
-  - [Setup a virtual pgai environment](#setup-a-virtual-pgai-environment): create a virtual Ubuntu environment with
-        PostgreSQL installed.
-  - [Add pgai to your virtual or local developer environment](#setup-a-pgai-environment-locally): build pgai and pgvector from source and
-    add these extensions to your local or virtual PostgreSQL developer environment.
+* **Developer**: contribute to pgai.
+  * [Build pgai from source in a developer environment](./DEVELOPMENT.md)
 
 
-This page shows you how to [Securely connect to your AI provider through pgai](#securely-connect-to-your-ai-provider-through-pgai)
+This page shows you how to [Securely connect to your AI provider through pgai](#securely-connect-to-your-ai-provider-through-pgai) using sql and python,
 and [Use AI functionality through pgai](#usage).
 
-If you would like to contribute to pgai, see our [Developer guide](./DEVELOPMENT.md).
 
 ## pgai Prerequisites
 
