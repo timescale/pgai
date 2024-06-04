@@ -45,7 +45,7 @@ pgai running in a Docker container:
     ```bash
     docker run -d --name pgai -p 9876:5432 -e POSTGRES_PASSWORD=pgaipass --mount type=bind,src=`pwd`,dst=/pgai pgai
     ```
-   You are automatically connected to the container. To connect from the command line, run
+   To get a shell inside the container, run
    `docker exec -it pgai /bin/bash`.
 
 1. Connect to the database:
