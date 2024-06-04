@@ -1,7 +1,18 @@
-# pgai
 
-pgai enables you to handle your AI workflows from within a database. pgai simplifies 
-the process of building [similarity search](https://en.wikipedia.org/wiki/Similarity_search), and 
+
+<p></p>
+<div align=center>
+<picture align=center>
+    <source media="(prefers-color-scheme: dark)" srcset="https://assets.timescale.com/docs/images/timescale-logo-dark-mode.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://assets.timescale.com/docs/images/timescale-logo-light-mode.svg">
+    <img alt="Timescale logo" >
+</picture>
+
+<h3>pgai enables you to handle your AI workflows from your database</h3>
+
+</div>
+
+pgai simplifies the process of building [similarity search](https://en.wikipedia.org/wiki/Similarity_search), and 
 [Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation)(RAG) apps with PostgreSQL. 
 
 Directly from your existing PostgreSQL database, pgai empowers you to:
@@ -14,16 +25,15 @@ Directly from your existing PostgreSQL database, pgai empowers you to:
 
 Timescale offers the following AI journeys:
 
-* **User**: try out pgai functionality in Timescale Cloud or a local environment.
+* **User**: try out pgai functionality in Timescale Cloud.
   * [Enable pgai in a Timescale service](#enable-pgai-in-a-timescale-service)
-  * [Integrate pgai into an existing PostgreSQL environment](./DEVELOPMENT.md#integrate-pgai-into-an-existing-postgresql-environment)
 * **Developer**: contribute to pgai.
   * [Build pgai from source in a developer environment](./DEVELOPMENT.md)
+* **Everyone**: create a hybrid by securely integrating AI with your data.
+  * [Securely connect to your AI provider through pgai](#securely-connect-to-your-ai-provider-through-pgai)
+  * [Use AI functionality through pgai](#usage).
 
-
-This page shows you how to [Securely connect to your AI provider through pgai](#securely-connect-to-your-ai-provider-through-pgai) using sql and python,
-and [Use AI functionality through pgai](#usage).
-
+To get the big picture, read [PostgreSQL Hybrid Search Using pgvector](https://www.timescale.com/blog/postgresql-hybrid-search-using-pgvector-and-cohere/).
 
 ## pgai Prerequisites
 
@@ -36,9 +46,14 @@ Before you start working with pgai, you need:
 
 To enable pgai:
 
+1. Create a new [Timescale Service](https://console.cloud.timescale.com/dashboard/create_services).
+
+   If you want to use an existing service, pgai is added as an available extension on the first maintenance window 
+   after the pgai release date. 
+
 1. Connect to your Timescale service:
    ```bash
-   psql -d "postgres://postgres:<password>@localhost/postgres"
+   psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
    ```
 
 1. Create the pgai extension:
@@ -54,9 +69,12 @@ You now [Securely connect to your AI provider through pgai](#securely-connect-to
 ## Securely connect to your AI provider through pgai
 
 API keys are secrets. Exposing them can present financial and information security issues. 
-The following sections show how to securely connect to your OpenAI account through pgai using psql and Python.
+The following sections show how to:
 
-### Connect using psql in Terminal
+- [Securely connect to your OpenAI account using psql](#securely-connect-to-your-ai-provider-through-pgai)
+- [Securely connect to your OpenAI account programmatically using python](#securely-connect-to-your-openai-account-programmatically-using-python)
+
+### Securely connect to your OpenAI account using psql
 
 To securely interact with OpenAI through pgai from Terminal:
 
@@ -86,7 +104,7 @@ To securely interact with OpenAI through pgai from Terminal:
 The `\bind` metacommand is available in psql version 16+.
 
 
-### Connect from a Python app
+### Securely connect to your OpenAI account programmatically using python
 
 To securely interact with OpenAI in a Python app, you use [dotenv](https://github.com/theskumar/python-dotenv) to load API tokens, passwords, connection 
 strings, and other configuration settings from environment variables and .env files. You then pass your security 
@@ -127,36 +145,20 @@ information as variables when you interact with your database.
 
     Do not use string manipulation to embed the key as a literal in the SQL query.
 
-## Test your pgai environment
-
-`tests.sql` contains unit tests to validate your environment. To run the tests:
-
-- Terminal
-    ```bash
-    psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>" -v OPENAI_API_KEY=$OPENAI_API_KEY -f tests.sql
-    ```
-
-- psql session
-
-    ```sql
-    \i tests.sql
-    ```
-
-Best practice is to add new tests when you commit new functionality.
-
-
 ## Usage
 
-- [open_ai_list_models](#open_ai_list_models): list the models supported by OpenAI functions in pgai.
-- [openai_tokenize](#openai_tokenize): encode content into tokens. 
-- [openai_detokenize](#openai_detokenize): turn tokens into natural language.
-- [openai_embed](#openai_embed): generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using a 
+This section shows you how to make AI calls directly from your database using SQL. 
+
+- [List_models](#list-models): list the models supported by OpenAI functions in pgai.
+- [Tokenize](#tokenize): encode content into tokens. 
+- [Detokenize](#detokenize): turn tokens into natural language.
+- [Embed](#embed): generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using a 
   specified model.
-- [openai_chat_complete](#openai_chat_complete): generate text or complete a chat using key words and phrases.
-- [openai_moderate](#openai_moderate): check if content is classified as potentially harmful:
+- [Chat_complete](#chat_complete): generate text or complete a chat using key words and phrases.
+- [Moderate](#moderate): check if content is classified as potentially harmful:
 
 
-### open_ai_list_models
+### List models
 
 List the models supported by OpenAI functions in pgai.
 
@@ -181,7 +183,7 @@ The data returned looks like:
 (N rows)
 ```
 
-### openai_tokenize
+### Tokenize
 
 To encode content and count the number of tokens returned:
 
@@ -220,7 +222,7 @@ To encode content and count the number of tokens returned:
     (1 row)
     ```
 
-### openai_detokenize
+### Detokenize
 
 Turn tokenized content into natural language:
 
@@ -236,7 +238,7 @@ The data returned looks like:
 (1 row)
 ```
 
-### openai_embed
+### Embed
 
 Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using a specified model.
 
@@ -312,7 +314,7 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
     \g
     ```
 
-### openai_chat_complete
+### Chat_complete
 
 Generate text or complete a chat using key words and phrases:
 
@@ -399,7 +401,7 @@ Generate text or complete a chat using key words and phrases:
     Overall, if you're planning to visit Alabama in June, be prepared for hot and humid conditions, and keep an umbrella or rain jacket handy for those afternoon storms.
     ```
 
-### openai_moderate
+### Moderate
 
 Check if content is classified as potentially harmful:
 
