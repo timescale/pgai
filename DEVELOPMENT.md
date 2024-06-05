@@ -28,8 +28,8 @@ Before you start working with pgai, you need:
 
 ## Setup a pgai environment in Docker
 
-The pgai Docker container has all the software you need preinstalled. To connect to
-pgai running in a Docker container:
+The pgai Docker container has all the software you need preinstalled. To build and run the
+pgai Docker container, then connect to it:
 
 
 1. In Terminal, navigate to the folder you cloned this pgai repository to.
@@ -79,7 +79,7 @@ Best practice is to setup your developer environment in Docker. However, to inst
 Ubuntu environment.
 
 In this repository, [vm.sh](./vm.sh) creates a [multipass](https://multipass.run/) virtual machine called `pgai`. This script
-installs the [pgai Prerequisites](#pgai-prerequisites) in the `pgai` Ubuntu virtual
+installs all the software you need in the `pgai` Ubuntu virtual
 machine. This repo is mounted to `/pgai` in the virtual machine.
 
 1. To create the virtual machine, run the following command:

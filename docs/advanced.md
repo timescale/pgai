@@ -1,37 +1,41 @@
 # Advanced Examples
 
-The following are more in-depth examples of using the extension.
+This page gives you more in-depth AI examples using pgai.
 
-## Setup
+- [Install the advanced examples]() - add git commit history sample data to your database
+- [Embedding]() - generate an [embedding](https://platform.openai.com/docs/guides/embeddings) for each git commit
+- [Moderation]() - check the commit history and flag harmful speech in a new table
+- [Summerization]() - summarize a month of git commits in a Markdown release note 
 
-Connect to your database using the `psql` command line tool and pass your 
-OPENAI API key as a psql variable from your environment.
+## Install the advanced examples
 
-```bash
-psql -v OPENAI_API_KEY=$OPENAI_API_KEY
-```
+To add the advanced examples to your developer environment:
 
-1. Create the pgai extension.
-1. Create a table to contain git commits
-1. Copy the git commits from the [commit_history.csv](./commit_history.csv) 
-   csv file in this directory into the table
+1. Connect to your database using the `psql` command line tool and pass your 
+    OPENAI API key as a psql variable from your environment.
 
-```sql
-create extension if not exists ai cascade;
+   ```bash
+       psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>" -v OPENAI_API_KEY=$OPENAI_API_KEY -f tests.sql
+   ```
 
--- a table with git commit history
-create table commit_history
-( id int not null primary key
-, author text
-, "date" timestamptz
-, "commit" text
-, summary text
-, detail text
-);
+1. Ensure pgai is enabled on your database and add the [git commit_history data](./commit_history.csv) to a new table in your database.
 
--- use psql's copy metacommand to load the csv into the table
-\copy commit_history from 'commit_history.csv' with (format csv)
-```
+   ```sql
+   create extension if not exists ai cascade;
+   
+   -- a table with git commit history
+   create table commit_history
+   ( id int not null primary key
+   , author text
+   , "date" timestamptz
+   , "commit" text
+   , summary text
+   , detail text
+   );
+   
+   -- use psql's copy metacommand to load the csv into the table
+   \copy commit_history from 'commit_history.csv' with (format csv)
+   ```
 
 ## Embedding
 
@@ -62,7 +66,7 @@ from commit_history
 
 ## Moderation
 
-This example uses the pgai extension to moderate the git commit details. Any
+Use the pgai extension to moderate the git commit details. Any
 commits that are flagged are inserted into a new table. An array of the 
 categories of harmful speech that were flagged is provided for each row. We
 use both [jsonb operators](https://www.postgresql.org/docs/current/functions-json.html#FUNCTIONS-JSON-PROCESSING)
@@ -99,12 +103,12 @@ where (x.moderation->'results'->0->>'flagged')::bool -- only the ones that were 
 
 ## Summerization
 
-In this example, we will use the pgai extension to summarize content. In a
-single query, we will ask for a summerization of a month's worth of git
-commits in the form of release notes in Markdown format. We provide two 
-messages -- one for the system and one for the user. The git commits for the
-month are appended in text formate to the user message. We use jsonb
-operators to pull out just the content of the [response](https://platform.openai.com/docs/api-reference/chat/object).
+Use the pgai extension to summarize content. In a single query, ask for a summarization 
+of a month's worth of git commits in the form of release notes in Markdown format. You 
+provide one message for the system and another one for the user. 
+
+The git commits for the month are appended in text format to the user message. The query 
+uses jsonb operators to pull out the content of the [response](https://platform.openai.com/docs/api-reference/chat/object) only.
 
 ```sql
 -- summarize and categorize git commits to produce a release notes document

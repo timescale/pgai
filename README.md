@@ -11,10 +11,9 @@
 <h3>pgai enables you to handle your AI workflows from your database</h3>
 
 
-![Questions](https://img.shields.io/badge/Questions:-blue?style=for-the-badge)
-[![Docs](https://img.shields.io/badge/Docs-black?style=for-the-badge&logo=readthedocs&logoColor=white)](https://docs.timescale.com/)
-[![SLACK](https://img.shields.io/badge/Community-black?style=for-the-badge&logo=slack&logoColor=white)](https://timescaledb.slack.com/archives/C4GT3N90X)
-![Questions](https://img.shields.io/badge/Get_started:-blue?style=for-the-badge)
+
+[![Docs](https://img.shields.io/badge/Read_the_Timescale_docs-black?style=for-the-badge&logo=readthedocs&logoColor=white)](https://docs.timescale.com/)
+[![SLACK](https://img.shields.io/badge/Ask_the_Timescale_community-black?style=for-the-badge&logo=slack&logoColor=white)](https://timescaledb.slack.com/archives/C4GT3N90X)
 [![Try Timescale for free](https://img.shields.io/badge/Try_Timescale_for_free-black?style=for-the-badge&logo=timescale&logoColor=white)](https://console.cloud.timescale.com/signup)
 </div>
 
@@ -31,13 +30,14 @@ Directly from your existing PostgreSQL database, pgai empowers you to:
 
 Timescale offers the following AI journeys:
 
-* **User**: try out pgai functionality in Timescale Cloud.
+* **App developer and DBA**: try out pgai functionality in Timescale Cloud.
   * [Enable pgai in a Timescale service](#enable-pgai-in-a-timescale-service)
-* **Developer**: contribute to pgai.
+* **Extension contributor**: contribute to pgai.
   * [Build pgai from source in a developer environment](./DEVELOPMENT.md)
-* **Everyone**: create a hybrid by securely integrating AI with your data.
+* **Everyone**: create a hybrid seach by securely integrating AI with your data.
   * [Securely connect to your AI provider through pgai](#securely-connect-to-your-ai-provider-through-pgai)
-  * [Use AI functionality through pgai](#usage).
+  * [Add AI functionality to your database](#usage).
+  * [Advanced AI examples using data](./docs/advanced.md)  
 
 To get the big picture, read [PostgreSQL Hybrid Search Using pgvector](https://www.timescale.com/blog/postgresql-hybrid-search-using-pgvector-and-cohere/).
 
@@ -481,10 +481,13 @@ The data returned looks like:
 ```
 
 
-### 🐯 About Timescale
+## About Timescale
 
-TimescaleDB is a distributed time-series database built on PostgreSQL that scales to over 10 million of metrics per second, supports native compression, handles high cardinality, and offers native time-series capabilities, such as data retention policies, continuous aggregate views, downsampling, data gap-filling and interpolation.
+Timescale Cloud is a high-performance developer focused cloud that provides PostgreSQL services
+enhanced with our blazing fast vector search. Timescale services are built using TimescaleDB and PostgreSQL extensions, like this one. Timescale Cloud provides high availability,
+streaming backups, upgrades over time, roles and permissions, and great security.
 
-TimescaleDB also supports full SQL, a variety of data types (numerics, text, arrays, JSON, booleans), and ACID semantics. Operationally mature capabilities include high availability, streaming backups, upgrades over time, roles and permissions, and security.
-
-TimescaleDB has a large and active user community (tens of millions of downloads, hundreds of thousands of active deployments, Slack channels with thousands of members).
+TimescaleDB is a distributed time-series database built on PostgreSQL that scales to over 10
+million of metrics per second, supports native compression, handles high cardinality, and offers
+native time-series capabilities, such as data retention policies, continuous aggregate views,
+downsampling, data gap-filling and interpolation. TimescaleDB supports full SQL, a variety of data types, and ACID semantics.
