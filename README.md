@@ -484,10 +484,12 @@ The data returned looks like:
 ## About Timescale
 
 Timescale Cloud is a high-performance developer focused cloud that provides PostgreSQL services
-enhanced with our blazing fast vector search. Timescale services are built using TimescaleDB and PostgreSQL extensions, like this one. Timescale Cloud provides high availability,
-streaming backups, upgrades over time, roles and permissions, and great security.
+enhanced with our blazing fast vector search. Timescale services are built using TimescaleDB and 
+PostgreSQL extensions, like this one. Timescale Cloud provides high availability, streaming 
+backups, upgrades over time, roles and permissions, and great security.
 
-TimescaleDB is a distributed time-series database built on PostgreSQL that scales to over 10
-million of metrics per second, supports native compression, handles high cardinality, and offers
-native time-series capabilities, such as data retention policies, continuous aggregate views,
-downsampling, data gap-filling and interpolation. TimescaleDB supports full SQL, a variety of data types, and ACID semantics.
+TimescaleDB is a time-series database built on PostgreSQL that scales to over millions of metrics 
+per second, supports native compression, handles high cardinality, and offers native time-series 
+capabilities, such as data retention policies, continuous aggregate views, downsampling, data 
+gap-filling and interpolation. TimescaleDB supports full SQL, a variety of data types, and ACID 
+semantics.
