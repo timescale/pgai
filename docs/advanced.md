@@ -1,6 +1,7 @@
 # Advanced Examples
 
-This page gives you more in-depth AI examples using pgai.
+This page gives you more in-depth AI examples using pgai. In these examples, you 
+will use pgai to embed, moderate, and summarize git commit history.
 
 - [Install the advanced examples]() - add git commit history sample data to your database
 - [Embedding]() - generate an [embedding](https://platform.openai.com/docs/guides/embeddings) for each git commit
@@ -12,13 +13,14 @@ This page gives you more in-depth AI examples using pgai.
 To add the advanced examples to your developer environment:
 
 1. Connect to your database using the `psql` command line tool and pass your 
-    OPENAI API key as a psql variable from your environment.
+   OPENAI API key as a psql variable from your environment. Run this from the
+   directory where the csv file resides.
 
    ```bash
-       psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>" -v OPENAI_API_KEY=$OPENAI_API_KEY -f tests.sql
+   psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>" -v OPENAI_API_KEY=$OPENAI_API_KEY
    ```
 
-1. Ensure pgai is enabled on your database and add the [git commit_history data](./commit_history.csv) to a new table in your database.
+3. Ensure pgai is enabled on your database and add the [git commit_history data](./commit_history.csv) to a new table in your database.
 
    ```sql
    create extension if not exists ai cascade;
@@ -34,6 +36,8 @@ To add the advanced examples to your developer environment:
    );
    
    -- use psql's copy metacommand to load the csv into the table
+   -- if the csv file is not in the same directory from which psql was launched,
+   -- you will need to modify the path here
    \copy commit_history from 'commit_history.csv' with (format csv)
    ```
 

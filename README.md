@@ -480,6 +480,12 @@ The data returned looks like:
 }
 ```
 
+## Advanced Examples
+
+For more advanced usage examples, check out [this page](docs/advanced.md). In 
+these examples, you will use pgai to embed, moderate, and summarize git commit
+history.
+
 ## About Timescale
 
 Timescale Cloud is a high-performance developer focused cloud that provides PostgreSQL services
