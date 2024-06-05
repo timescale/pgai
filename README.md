@@ -137,7 +137,7 @@ information as variables when you interact with your database.
     
     load_dotenv()
     
-    OPENAI_API_KEY = os.environ["OPENAI_API_KEY"=-0qz1`
+    OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
     DB_URL = os.environ["DB_URL"]
     
     import psycopg2
