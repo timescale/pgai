@@ -490,6 +490,6 @@ backups, upgrades over time, roles and permissions, and great security.
 
 TimescaleDB is a time-series database built on PostgreSQL that scales to over millions of metrics 
 per second, supports native compression, handles high cardinality, and offers native time-series 
-capabilities, such as data retention policies, continuous aggregate views, downsampling, data 
+capabilities such as data retention policies, continuous aggregate views, downsampling, data 
 gap-filling and interpolation. TimescaleDB supports full SQL, a variety of data types, and ACID 
 semantics.
