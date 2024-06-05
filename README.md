@@ -30,14 +30,13 @@ Directly from your existing PostgreSQL database, pgai empowers you to:
 
 Timescale offers the following AI journeys:
 
-* **App developer and DBA**: try out pgai functionality in Timescale Cloud.
-  * [Enable pgai in a Timescale service](#enable-pgai-in-a-timescale-service)
-* **Extension contributor**: contribute to pgai.
-  * [Build pgai from source in a developer environment](./DEVELOPMENT.md)
-* **Everyone**: create a hybrid seach by securely integrating AI with your data.
+* **Everyone**: use AI directly from SQL on your data.
+  * [How to get pgai](#how-to-get-pgai)
   * [Use pgai with your API keys](#use-pgai-with-your-api-keys)
   * [Add AI functionality to your database](#usage).
   * [Advanced AI examples using data](./docs/advanced.md)  
+* **Extension contributor**: contribute to pgai.
+  * [Build pgai from source in a developer environment](./DEVELOPMENT.md)
 
 To get the big picture, read [PostgreSQL Hybrid Search Using pgvector](https://www.timescale.com/blog/postgresql-hybrid-search-using-pgvector-and-cohere/).
 
@@ -48,7 +47,14 @@ Before you start working with pgai, you need:
 * An [OpenAI API Key](https://platform.openai.com/api-keys).
 * A postgres client like [psql v16](https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
 
-## Enable pgai in a Timescale service
+## How to get pgai
+
+### Use a pre-built Docker image
+
+Follow [these instructions](https://docs.timescale.com/self-hosted/latest/install/installation-docker/) 
+to use pgai in docker with a pre-built image.
+
+### Enable pgai in a Timescale service
 
 To enable pgai:
 
