@@ -153,14 +153,14 @@ information as variables when you interact with your database.
 
 ## Usage
 
-This section shows you how to make AI calls directly from your database using SQL. 
+This section shows you how to use AI directly from your database using SQL. 
 
 - [List_models](#list-models): list the models supported by OpenAI functions in pgai.
 - [Tokenize](#tokenize): encode content into tokens. 
 - [Detokenize](#detokenize): turn tokens into natural language.
 - [Embed](#embed): generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using a 
   specified model.
-- [Chat_complete](#chat_complete): generate text or complete a chat using key words and phrases.
+- [Chat_complete](#chat_complete): generate text or complete a chat.
 - [Moderate](#moderate): check if content is classified as potentially harmful:
 
 
@@ -322,11 +322,13 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
 
 ### Chat_complete
 
-Generate text or complete a chat using key words and phrases:
+Generate text or complete a chat:
 
-* Return different possible answers for a specific question from a specific persona:
+* Have an LLM generate text from a prompt:
 
     ```sql
+    -- the following two metacommands cause the raw query results to be printed
+    -- without any decoration
     \pset tuples_only on
     \pset format unaligned
     
@@ -374,10 +376,12 @@ Generate text or complete a chat using key words and phrases:
 - Return the content as text from a specific message in the choices array.
 
     `openai_chat_complete` returns a [jsonb object](https://www.depesz.com/2014/03/25/waiting-for-9-4-introduce-jsonb-a-structured-format-for-storing-json/) containing the
-    response from the API. Use jsonb operators and functions to manipulate the object returned. For example, the 
+    response from the API. You can use jsonb operators and functions to manipulate [the object returned](https://platform.openai.com/docs/api-reference/chat/object). For example, the 
     following query returns the content as text from the first message in the choices array.
     
     ```sql
+    -- the following two metacommands cause the raw query results to be printed
+    -- without any decoration
     \pset tuples_only on
     \pset format unaligned
     
@@ -412,6 +416,8 @@ Generate text or complete a chat using key words and phrases:
 Check if content is classified as potentially harmful:
 
 ```sql
+-- the following two metacommands cause the raw query results to be printed
+-- without any decoration
 \pset tuples_only on
 \pset format unaligned
 
