@@ -1,105 +1,162 @@
-# Development
+# Setup your pgai developer environment
 
-## "Building"
+This page shows you how to create your pgai developer environment. Best practice is to
+[Setup a pgai environment in Docker](#setup-a-pgai-environment-in-docker). 
 
-The pgai extension is written in SQL files with database functions written in
-plpython3u. Conveniently, there is no compilation required.
+This page shows you how to:
 
-Copy the extension sources to the appropriate postgres directory with the 
-following command. (This assumes your current working directory is the root of 
-this repo.)
+- [Setup a pgai environment in Docker](#setup-a-pgai-environment-in-docker): all necessary software and extensions to 
+  develop pgai in a container.
+- [Setup a virtual pgai environment](#setup-a-virtual-pgai-environment): all necessary software and extensions to 
+  develop pgai in a virtual Ubuntu environment.   
+- [Test your pgai environment](#test-your-pgai-environment): use the tests.sql script to validate your pgai environment.
 
-```bash
-cp ai* `pg_config --sharedir`/extension/
-```
+## pgai Prerequisites
 
-Next, create the extension with the new sources.
+Before you start working with pgai, you need:
 
-```sql
-drop extension if exists ai;
-create extension ai cascade;
-```
+* An [OpenAI API Key](https://platform.openai.com/api-keys).
+* [Psql](https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
+* The pgai source on your local machine:
+   ```bash
+   git clone git@github.com:timescale/pgai.git
+   ```
+* Your virtual environment, either:
+    * [Docker](https://docs.docker.com/get-docker/)
+    * [Multipass](https://multipass.run/)
+    * Or both, why not :metal:? 
 
-## Testing
+## Setup a pgai environment in Docker
 
-The `tests.sql` file contains unit tests. Add new tests for new functionality.
+The pgai Docker container has all the software you need preinstalled. To build and run the
+pgai Docker container, then connect to it:
 
-Run the tests with the following command:
 
-```bash
-psql -v OPENAI_API_KEY=$OPENAI_API_KEY -f tests.sql
-```
+1. In Terminal, navigate to the folder you cloned this pgai repository to.
 
-Or if you already have a psql session going you can run the tests from psql 
-with:
+1. Build the Docker image:
 
-```sql
-\i tests.sql
-```
+   ```bash
+   docker build -t pgai .
+   ```
 
-## Development with Docker
+1. Run the container:
 
-You may want to do your development and testing in a docker container.
+    ```bash
+    docker run -d --name pgai -p 9876:5432 -e POSTGRES_PASSWORD=pgaipass --mount type=bind,src=`pwd`,dst=/pgai pgai
+    ```
+   To get a shell inside the container, run
+   `docker exec -it pgai /bin/bash`.
 
-### Building the image
+1. Connect to the database:
 
-```bash
-docker build -t pgai .
-```
+    ```bash
+    psql -d "postgres://postgres:pgaipass@localhost:9876/postgres"
+    ```
 
-### Running the container
+1. Create the pgai extension:
 
-This runs the container and bind mounts the working directory (this repo) to 
-the /pgai directory in the container.
+    ```sql
+    CREATE EXTENSION ai CASCADE;
+    ```
+   The `CASCADE` automatically installs the plpython3u and pgvector dependencies.
+1. [Securely connect to your AI provider through pgai](./README.md#securely-connect-to-your-ai-provider-through-pgai).
 
-```bash
-docker run -d --name pgai -p 9876:5432 -e POSTGRES_PASSWORD=pgaipass --mount type=bind,src=`pwd`,dst=/pgai pgai
-```
-
-### Getting a terminal in the container
-
-```bash
-docker exec -it pgai /bin/bash
-```
-
-### Connecting to the database
-
-```bash
-psql -d "postgres://postgres:pgaipass@localhost:9876/postgres"
-```
-
-### "Building" from outside the container
-
-This command will copy the sources from the repo directory on the bind mount to
-the appropriate postgres directory from outside the container.
+If you make changes to this extension in `ai*.sql`, use the following command to upload
+your new functionality to the Docker container:
 
 ```bash
 docker exec pgai /bin/bash -c 'cp /pgai/ai* `pg_config --sharedir`/extension/'
 ```
 
-## Development with a Virtual Machine
+This command copies the sources from the repo directory on the bind mount to
+the postgres extensions directory.
 
-You may want to do your development and testing in a virtual machine.
 
-The `vm.sh` shell script will create a virtual machine named `pgai` using 
-[multipass](https://multipass.run/) for development use. The repo directory 
-will be mounted to `/pgai` in the virtual machine.
+## Setup a virtual pgai environment
 
-### Create the virtual machine
+Best practice is to setup your developer environment in Docker. However, to install pgai in a virtual
+Ubuntu environment.
 
-```bash
-./vm.sh
-```
+In this repository, [vm.sh](./vm.sh) creates a [multipass](https://multipass.run/) virtual machine called `pgai`. This script
+installs all the software you need in the `pgai` Ubuntu virtual
+machine. This repo is mounted to `/pgai` in the virtual machine.
 
-### Get a shell in the virtual machine
+1. To create the virtual machine, run the following command:
 
-```bash
-multipass shell pgai
-```
+    ```bash
+    ./vm.sh
+    ```
 
-### Delete the virtual machine
+   You are automatically logged into Terminal as `ubuntu` on the virtual machine. 
+   
+   To connect to multipass from the command line, run `multipass shell pgai`. For more information 
+   on using Multipass, [see the documentation](https://multipass.run/docs/use-an-instance).
 
-```bash
-multipass delete --purge pgai
-```
+1. Login to PostgreSQL as postgres:
+
+    ```bash
+    sudo -u postgres psql
+    ```
+    You are in the psql shell.
+
+1. **Set the password for `postgres`**
+
+    ```bash
+    \password postgres
+    ```
+
+   When you have set the password, type `\q` to exit psql.
+
+1. Build and install pgvector, pgai and the python extensions on your PostgreSQL developer
+   environment.
+
+    ```bash
+    make install
+    ```
+
+1. Create the pgai extension in a database. Use either:
+
+    - psql:
+        1. Connect to PostgreSQL:
+           ```bash
+           psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+           ```
+
+        1. Create the pgai extension:
+
+            ```sql
+            CREATE EXTENSION IF NOT EXISTS ai CASCADE;
+            ```
+
+           The `CASCADE` automatically installs the plpython3u and pgvector dependencies.
+
+    - Terminal:
+        1. In `Makefile`, update `DB` and `USER` to match your PostgreSQL configuration.
+        1.  Create the pgai extension:
+
+           ```bash
+           make create_extension
+           ```
+
+
+You can now [Securely connect to your AI provider through pgai](./README.md#securely-connect-to-your-ai-provider-through-pgai).
+
+## Test your pgai environment
+
+`tests.sql` contains unit tests to validate your environment. To run the tests:
+
+- Terminal
+    ```bash
+    psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>" -v OPENAI_API_KEY=$OPENAI_API_KEY -f tests.sql
+    ```
+
+- psql session
+
+    ```sql
+    \i tests.sql
+    ```
+
+Best practice is to add new tests when you commit new functionality.
+
 
