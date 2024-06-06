@@ -51,8 +51,18 @@ Before you start working with pgai, you need:
 
 ### Use a pre-built Docker image
 
-Follow [these instructions](https://docs.timescale.com/self-hosted/latest/install/installation-docker/) 
-to use pgai in docker with a pre-built image.
+1. Follow [these instructions](https://docs.timescale.com/self-hosted/latest/install/installation-docker/) 
+   to use pgai in docker with a pre-built image.
+
+2. Create the pgai extension:
+
+    ```sql
+    CREATE EXTENSION IF NOT EXISTS ai CASCADE;
+    ```
+
+   The `CASCADE` automatically installs the plpython3u and pgvector dependencies.
+
+You now [Use pgai with your API keys](#use-pgai-with-your-api-keys) and [Try out the AI models](#usage).
 
 ### Enable pgai in a Timescale service
 
@@ -80,35 +90,70 @@ You now [Use pgai with your API keys](#use-pgai-with-your-api-keys) and [Try out
 
 ## Use pgai with your API keys
 
+Most pgai functions require an [OpenAI API key](https://platform.openai.com/docs/quickstart/step-2-set-up-your-api-key).
+The api key is an [optional parameter to these functions](https://www.postgresql.org/docs/current/sql-syntax-calling-funcs.html) 
+and may either be provided explicitly as an argument or implicitly through a 
+[config setting](https://www.postgresql.org/docs/current/config-setting.html)
+named `ai.openai_api_key`. 
+
 - [Handling API keys when using pgai from psql](#handling-api-keys-when-using-pgai-from-psql)
 - [Handling API keys when using pgai from python](#handling-api-keys-when-using-pgai-from-python)
 
 ### Handling API keys when using pgai from psql
 
+### Providing an API key implicitly via config setting
+
+Assuming your shell environment has your api key in a variable named `OPENAI_API_KEY`,
+set a [session level parameter when connecting to your database with psql](https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-SHELL)
+like so:
+
+```bash
+PGOPTIONS="-c ai.openai_api_key=$OPENAI_API_KEY" psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+The `ai.openai_api_key` parameter will be set for the duration of your psql 
+session, and you therefore do not need to specify the `_api_key` parameter to
+pgai functions.
+
+```sql
+SELECT * 
+FROM openai_list_models()
+ORDER BY created DESC
+;
+```
+
+### Providing an API key explicitly as a function argument
+
 1. Set your OpenAI key as an environment variable in your shell:
     ```bash
-    OPENAI_API_KEY="this-is-my-super-secret-api-key-dont-tell"
+    export OPENAI_API_KEY="this-is-my-super-secret-api-key-dont-tell"
     ```
 
-2. Connect to your database while setting a [psql variable](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-VARIABLES) 
-   to your API key using a psql [command line argument](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-OPTION-VARIABLE).
-   ```bash
-   psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>" -v OPENAI_API_KEY=$OPENAI_API_KEY
-   ```
-   Your API key is now available as a psql variable in your psql session.
+2. Connect to your database and set a [psql variable](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-VARIABLES) to your API key.
+   Either:
+   - Set the variable with a psql [command line argument](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-OPTION-VARIABLE).
+      ```bash
+      psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>" -v openai_api_key=$OPENAI_API_KEY
+      ```
+   - Or, set the variable using the `\getenv` [metacommand](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMAND-GETENV) during your session.
+     ```sql
+     \getenv openai_api_key OPENAI_API_KEY
+     ```
 
-1. Pass your API key to your parameterized query:
+   Your API key is now available as a psql variable named `openai_api_key` in your psql session.
+
+
+4. Pass your API key to your parameterized query:
     ```sql
     SELECT * 
-    FROM openai_list_models($1)
+    FROM openai_list_models(_api_key=>$1)
     ORDER BY created DESC
-    \bind :OPENAI_API_KEY
+    \bind :openai_api_key
     \g
     ```
 
-    Use [bind](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMAND-BIND) to pass the value of `OPENAI_API_KEY` as a parameterized variable.
+    Use [\bind](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMAND-BIND) to pass the value of `openai_api_key` to the parameterized query.
 
-The `\bind` metacommand is available in psql version 16+.
+    The `\bind` metacommand is available in psql version 16+.
 
 ### Handling API keys when using pgai from python
 
@@ -141,7 +186,7 @@ The `\bind` metacommand is available in psql version 16+.
     with psycopg2.connect(DB_URL) as conn:
         with conn.cursor() as cur:
             # pass the API key as a parameter to the query. don't use string manipulations
-            cur.execute("SELECT * FROM openai_list_models(%s) ORDER BY created DESC", (OPENAI_API_KEY,))
+            cur.execute("SELECT * FROM openai_list_models(_api_key=>%s) ORDER BY created DESC", (OPENAI_API_KEY,))
             records = cur.fetchall()
     ```
 
@@ -159,17 +204,15 @@ This section shows you how to use AI directly from your database using SQL.
 - [Chat_complete](#chat_complete): generate text or complete a chat.
 - [Moderate](#moderate): check if content is classified as potentially harmful:
 
-
 ### List models
 
 List the models supported by OpenAI functions in pgai.
 
 ```sql
 SELECT * 
-FROM openai_list_models($1)
+FROM openai_list_models()
 ORDER BY created DESC
-\bind :OPENAI_API_KEY
-\g
+;
 ```
 The data returned looks like:
 
@@ -248,12 +291,9 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
 
     ```sql
     SELECT openai_embed
-    ( $1
-    , 'text-embedding-ada-002'
+    ( 'text-embedding-ada-002'
     , 'the purple elephant sits on a red mushroom'
-    )
-    \bind :OPENAI_API_KEY
-    \g
+    );
     ```
 
     The data returned looks like:
@@ -269,13 +309,10 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
 
     ```sql
     SELECT openai_embed
-    ( $1
-    , 'text-embedding-ada-002'
+    ( 'text-embedding-ada-002'
     , 'the purple elephant sits on a red mushroom'
     , _dimensions=>768
-    )
-    \bind :OPENAI_API_KEY
-    \g
+    );
     ```
     This only works for certain models.
 
@@ -283,37 +320,28 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
 
     ```sql
     SELECT openai_embed
-    ( $1
-    , 'text-embedding-ada-002'
+    ( 'text-embedding-ada-002'
     , 'the purple elephant sits on a red mushroom'
     , _user=>'bac1aaf7-4460-42d3-bba5-2957b057f4a5'
-    )
-    \bind :OPENAI_API_KEY
-    \g
+    );
     ```
 
 - Pass an array of text inputs.
 
     ```sql
     SELECT openai_embed
-    ( $1
-    , 'text-embedding-ada-002'
+    ( 'text-embedding-ada-002'
     , array['Timescale is Postgres made Powerful', 'the purple elephant sits on a red mushroom']
-    )
-    \bind :OPENAI_API_KEY
-    \g
+    );
     ```
 
 - Provide tokenized input.
 
     ```sql
     select openai_embed
-    ( $1
-    , 'text-embedding-ada-002'
+    ( 'text-embedding-ada-002'
     , array[1820,25977,46840,23874,389,264,2579,58466]
-    )
-    \bind :OPENAI_API_KEY
-    \g
+    );
     ```
 
 ### Chat_complete
@@ -331,16 +359,13 @@ Generate text or complete a chat:
     SELECT jsonb_pretty
     (
       openai_chat_complete
-      ( $1
-      , 'gpt-4o'
+      ( 'gpt-4o'
       , jsonb_build_array
         ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
         , jsonb_build_object('role', 'user', 'content', 'what is the typical weather like in Alabama in June')
         )
       )
-    )
-    \bind :OPENAI_API_KEY
-    \g
+    );
     ```
   The data returned looks like:
     ```json
@@ -383,7 +408,6 @@ Generate text or complete a chat:
     
     select openai_chat_complete
     ( 'gpt-4o'
-    , :'OPENAI_API_KEY'
     , jsonb_build_array
       ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
       , jsonb_build_object('role', 'user', 'content', 'what is the typical weather like in Alabama in June')
@@ -420,13 +444,10 @@ Check if content is classified as potentially harmful:
 select jsonb_pretty
 (
   openai_moderate
-  ( $1
-  , 'text-moderation-stable'
+  ( 'text-moderation-stable'
   , 'I want to kill them.'
   )
-)
-\bind :OPENAI_API_KEY
-\g
+);
 ```
 The data returned looks like:
 
