@@ -35,20 +35,28 @@ set search_path to pg_catalog, pg_temp
 -- openai_list_models
 -- list models supported on the openai platform
 -- https://platform.openai.com/docs/api-reference/models/list
-create function @extschema@.openai_list_models(_api_key text) returns table
+create function @extschema@.openai_list_models(_api_key text default null)
+returns table
 ( id text
 , created timestamptz
 , owned_by text
 )
 as $func$
+_api_key_1 = _api_key
+if _api_key_1 is None:
+    r = plpy.execute("select pg_catalog.current_setting('ai.openai_api_key', true) as api_key")
+    if len(r) >= 0:
+        _api_key_1 = r[0]["api_key"]
+if _api_key_1 is None:
+    plpy.error("missing api key")
 import openai
+client = openai.OpenAI(api_key=_api_key_1)
 from datetime import datetime, timezone
-client = openai.OpenAI(api_key=_api_key)
 for model in client.models.list():
     created = datetime.fromtimestamp(model.created, timezone.utc)
     yield (model.id, created, model.owned_by)
 $func$
-language plpython3u strict volatile parallel safe security invoker
+language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -57,15 +65,22 @@ set search_path to pg_catalog, pg_temp
 -- generate an embedding from a text value
 -- https://platform.openai.com/docs/api-reference/embeddings/create
 create function @extschema@.openai_embed
-( _api_key text
-, _model text
+( _model text
 , _input text
+, _api_key text default null
 , _dimensions int default null
 , _user text default null
 ) returns vector
 as $func$
+_api_key_1 = _api_key
+if _api_key_1 is None:
+    r = plpy.execute("select pg_catalog.current_setting('ai.openai_api_key', true) as api_key")
+    if len(r) >= 0:
+        _api_key_1 = r[0]["api_key"]
+if _api_key_1 is None:
+    plpy.error("missing api key")
 import openai
-client = openai.OpenAI(api_key=_api_key)
+client = openai.OpenAI(api_key=_api_key_1)
 args = {}
 if _dimensions is not None:
   args["dimensions"] = _dimensions
@@ -85,9 +100,9 @@ set search_path to pg_catalog, pg_temp
 -- generate embeddings from an array of text values
 -- https://platform.openai.com/docs/api-reference/embeddings/create
 create function @extschema@.openai_embed
-( _api_key text
-, _model text
+( _model text
 , _input text[]
+, _api_key text default null
 , _dimensions int default null
 , _user text default null
 ) returns table
@@ -95,8 +110,15 @@ create function @extschema@.openai_embed
 , embedding @extschema:vector@.vector
 )
 as $func$
+_api_key_1 = _api_key
+if _api_key_1 is None:
+    r = plpy.execute("select pg_catalog.current_setting('ai.openai_api_key', true) as api_key")
+    if len(r) >= 0:
+        _api_key_1 = r[0]["api_key"]
+if _api_key_1 is None:
+    plpy.error("missing api key")
 import openai
-client = openai.OpenAI(api_key=_api_key)
+client = openai.OpenAI(api_key=_api_key_1)
 args = {}
 if _dimensions is not None:
   args["dimensions"] = _dimensions
@@ -115,15 +137,22 @@ set search_path to pg_catalog, pg_temp
 -- generate embeddings from an array of tokens
 -- https://platform.openai.com/docs/api-reference/embeddings/create
 create function @extschema@.openai_embed
-( _api_key text
-, _model text
+( _model text
 , _input int[]
+, _api_key text default null
 , _dimensions int default null
 , _user text default null
 ) returns @extschema:vector@.vector
 as $func$
+_api_key_1 = _api_key
+if _api_key_1 is None:
+    r = plpy.execute("select pg_catalog.current_setting('ai.openai_api_key', true) as api_key")
+    if len(r) >= 0:
+        _api_key_1 = r[0]["api_key"]
+if _api_key_1 is None:
+    plpy.error("missing api key")
 import openai
-client = openai.OpenAI(api_key=_api_key)
+client = openai.OpenAI(api_key=_api_key_1)
 args = {}
 if _dimensions is not None:
   args["dimensions"] = _dimensions
@@ -143,9 +172,9 @@ set search_path to pg_catalog, pg_temp
 -- text generation / chat completion
 -- https://platform.openai.com/docs/api-reference/chat/create
 create function @extschema@.openai_chat_complete
-( _api_key text
-, _model text
+( _model text
 , _messages jsonb
+, _api_key text default null
 , _frequency_penalty float8 default null
 , _logit_bias jsonb default null
 , _logprobs boolean default null
@@ -163,9 +192,16 @@ create function @extschema@.openai_chat_complete
 , _user text default null
 ) returns jsonb
 as $func$
-import json
+_api_key_1 = _api_key
+if _api_key_1 is None:
+    r = plpy.execute("select pg_catalog.current_setting('ai.openai_api_key', true) as api_key")
+    if len(r) >= 0:
+        _api_key_1 = r[0]["api_key"]
+if _api_key_1 is None:
+    plpy.error("missing api key")
 import openai
-client = openai.OpenAI(api_key=_api_key)
+client = openai.OpenAI(api_key=_api_key_1)
+import json
 
 _messages_1 = json.loads(_messages)
 if not isinstance(_messages_1, list):
@@ -219,13 +255,20 @@ set search_path to pg_catalog, pg_temp
 -- classify text as potentially harmful or not
 -- https://platform.openai.com/docs/api-reference/moderations/create
 create function @extschema@.openai_moderate
-( _api_key text
-, _model text
+( _model text
 , _input text
+, _api_key text default null
 ) returns jsonb
 as $func$
+_api_key_1 = _api_key
+if _api_key_1 is None:
+    r = plpy.execute("select pg_catalog.current_setting('ai.openai_api_key', true) as api_key")
+    if len(r) >= 0:
+        _api_key_1 = r[0]["api_key"]
+if _api_key_1 is None:
+    plpy.error("missing api key")
 import openai
-client = openai.OpenAI(api_key=_api_key)
+client = openai.OpenAI(api_key=_api_key_1)
 moderation = client.moderations.create(input=_input, model=_model)
 return moderation.model_dump_json()
 $func$
