@@ -7,7 +7,7 @@ This page shows you how to:
 
 - [Setup a pgai environment in Docker](#setup-a-pgai-environment-in-docker): all necessary software and extensions to 
   develop pgai in a container.
-- [Setup a virtual pgai environment](#setup-a-virtual-pgai-environment): all necessary software and extensions to 
+- [Setup a virtual pgai environment](#setup-a-pgai-environment-in-a-virtual-machine): all necessary software and extensions to 
   develop pgai in a virtual Ubuntu environment.   
 - [Test your pgai changes](#test-your-pgai-changes): use the tests.sql script to validate your pgai environment.
 

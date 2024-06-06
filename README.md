@@ -30,14 +30,13 @@ Directly from your existing PostgreSQL database, pgai empowers you to:
 
 Timescale offers the following AI journeys:
 
-* **App developer and DBA**: try out pgai functionality in Timescale Cloud.
-  * [Enable pgai in a Timescale service](#enable-pgai-in-a-timescale-service)
-* **Extension contributor**: contribute to pgai.
-  * [Build pgai from source in a developer environment](./DEVELOPMENT.md)
-* **Everyone**: create a hybrid seach by securely integrating AI with your data.
-  * [Securely connect to your AI provider through pgai](#securely-connect-to-your-ai-provider-through-pgai)
+* **Everyone**: use AI directly from SQL on your data.
+  * [How to get pgai](#how-to-get-pgai)
+  * [Use pgai with your API keys](#use-pgai-with-your-api-keys)
   * [Add AI functionality to your database](#usage).
   * [Advanced AI examples using data](./docs/advanced.md)  
+* **Extension contributor**: contribute to pgai.
+  * [Build pgai from source in a developer environment](./DEVELOPMENT.md)
 
 To get the big picture, read [PostgreSQL Hybrid Search Using pgvector](https://www.timescale.com/blog/postgresql-hybrid-search-using-pgvector-and-cohere/).
 
@@ -46,9 +45,16 @@ To get the big picture, read [PostgreSQL Hybrid Search Using pgvector](https://w
 Before you start working with pgai, you need:
 
 * An [OpenAI API Key](https://platform.openai.com/api-keys).
-* [Psql v16](https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
+* A postgres client like [psql v16](https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
 
-## Enable pgai in a Timescale service
+## How to get pgai
+
+### Use a pre-built Docker image
+
+Follow [these instructions](https://docs.timescale.com/self-hosted/latest/install/installation-docker/) 
+to use pgai in docker with a pre-built image.
+
+### Enable pgai in a Timescale service
 
 To enable pgai:
 
@@ -70,32 +76,28 @@ To enable pgai:
 
    The `CASCADE` automatically installs the plpython3u and pgvector dependencies.
 
-You now [Securely connect to your AI provider through pgai](#securely-connect-to-your-ai-provider-through-pgai) and [Try out the AI models](#usage).
+You now [Use pgai with your API keys](#use-pgai-with-your-api-keys) and [Try out the AI models](#usage).
 
-## Securely connect to your AI provider through pgai
+## Use pgai with your API keys
 
-API keys are secrets. Exposing them can present financial and information security issues. 
-The following sections show how to:
+- [Handling API keys when using pgai from psql](#handling-api-keys-when-using-pgai-from-psql)
+- [Handling API keys when using pgai from python](#handling-api-keys-when-using-pgai-from-python)
 
-- [Securely connect to your OpenAI account using psql](#securely-connect-to-your-ai-provider-through-pgai)
-- [Securely connect to your OpenAI account programmatically using python](#securely-connect-to-your-openai-account-programmatically-using-python)
+### Handling API keys when using pgai from psql
 
-### Securely connect to your OpenAI account using psql
-
-To securely interact with OpenAI through pgai from Terminal:
-
-1. Set your OpenAI key as an environment variable:
+1. Set your OpenAI key as an environment variable in your shell:
     ```bash
     OPENAI_API_KEY="this-is-my-super-secret-api-key-dont-tell"
     ```
 
-1. Set the value of your environment variable as a [psql variable](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-VARIABLES). 
+2. Connect to your database while setting a [psql variable](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-VARIABLES) 
+   to your API key using a psql [command line argument](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-OPTION-VARIABLE).
    ```bash
    psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>" -v OPENAI_API_KEY=$OPENAI_API_KEY
-    ```
-   You can now connect to your database using your OpenAI password as a variable as a [command line argument](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-OPTION-VARIABLE).
+   ```
+   Your API key is now available as a psql variable in your psql session.
 
-1. Pass your API key as a parameterized variable when you query the database:
+1. Pass your API key to your parameterized query:
     ```sql
     SELECT * 
     FROM openai_list_models($1)
@@ -104,17 +106,11 @@ To securely interact with OpenAI through pgai from Terminal:
     \g
     ```
 
-    You use [bind](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMAND-BIND) to pass the value of `OPENAI_API_KEY` as a parameterized variable. Now, the value 
-    of your API key is not visible in the query, logs, pg_stat_statements, and so on.
+    Use [bind](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMAND-BIND) to pass the value of `OPENAI_API_KEY` as a parameterized variable.
 
 The `\bind` metacommand is available in psql version 16+.
 
-
-### Securely connect to your OpenAI account programmatically using python
-
-To securely interact with OpenAI in a Python app, you use [dotenv](https://github.com/theskumar/python-dotenv) to load API tokens, passwords, connection 
-strings, and other configuration settings from environment variables and .env files. You then pass your security 
-information as variables when you interact with your database.
+### Handling API keys when using pgai from python
 
 1. In your Python environment, include the dotenv and postgres driver packages:
 
@@ -137,7 +133,7 @@ information as variables when you interact with your database.
     
     load_dotenv()
     
-    OPENAI_API_KEY = os.environ["OPENAI_API_KEY"=-0qz1`
+    OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
     DB_URL = os.environ["DB_URL"]
     
     import psycopg2
@@ -153,14 +149,14 @@ information as variables when you interact with your database.
 
 ## Usage
 
-This section shows you how to make AI calls directly from your database using SQL. 
+This section shows you how to use AI directly from your database using SQL. 
 
 - [List_models](#list-models): list the models supported by OpenAI functions in pgai.
 - [Tokenize](#tokenize): encode content into tokens. 
 - [Detokenize](#detokenize): turn tokens into natural language.
 - [Embed](#embed): generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using a 
   specified model.
-- [Chat_complete](#chat_complete): generate text or complete a chat using key words and phrases.
+- [Chat_complete](#chat_complete): generate text or complete a chat.
 - [Moderate](#moderate): check if content is classified as potentially harmful:
 
 
@@ -322,11 +318,13 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
 
 ### Chat_complete
 
-Generate text or complete a chat using key words and phrases:
+Generate text or complete a chat:
 
-* Return different possible answers for a specific question from a specific persona:
+* Have an LLM generate text from a prompt:
 
     ```sql
+    -- the following two metacommands cause the raw query results to be printed
+    -- without any decoration
     \pset tuples_only on
     \pset format unaligned
     
@@ -374,10 +372,12 @@ Generate text or complete a chat using key words and phrases:
 - Return the content as text from a specific message in the choices array.
 
     `openai_chat_complete` returns a [jsonb object](https://www.depesz.com/2014/03/25/waiting-for-9-4-introduce-jsonb-a-structured-format-for-storing-json/) containing the
-    response from the API. Use jsonb operators and functions to manipulate the object returned. For example, the 
+    response from the API. You can use jsonb operators and functions to manipulate [the object returned](https://platform.openai.com/docs/api-reference/chat/object). For example, the 
     following query returns the content as text from the first message in the choices array.
     
     ```sql
+    -- the following two metacommands cause the raw query results to be printed
+    -- without any decoration
     \pset tuples_only on
     \pset format unaligned
     
@@ -412,6 +412,8 @@ Generate text or complete a chat using key words and phrases:
 Check if content is classified as potentially harmful:
 
 ```sql
+-- the following two metacommands cause the raw query results to be printed
+-- without any decoration
 \pset tuples_only on
 \pset format unaligned
 
