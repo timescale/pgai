@@ -3,24 +3,27 @@
 This page gives you more in-depth AI examples using pgai. In these examples, you 
 will use pgai to embed, moderate, and summarize git commit history.
 
-- [Install the advanced examples]() - add git commit history sample data to your database
+- [Load the sample data]() - add git commit history sample data to your database
 - [Embedding]() - generate an [embedding](https://platform.openai.com/docs/guides/embeddings) for each git commit
 - [Moderation]() - check the commit history and flag harmful speech in a new table
 - [Summerization]() - summarize a month of git commits in a Markdown release note 
 
-## Install the advanced examples
+## Load the sample data
 
 To add the advanced examples to your developer environment:
 
-1. Connect to your database using the `psql` command line tool and pass your 
-   OPENAI API key as a psql variable from your environment. Run this from the
-   directory where the csv file resides.
+1. Connect to your database using the `psql` command line tool and [pass your 
+   OpenAI API key as a session setting](../README.md#providing-an-api-key-implicitly-via-config-setting) 
+   from your environment. Run this from the directory where the csv file resides.
 
    ```bash
-   psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>" -v OPENAI_API_KEY=$OPENAI_API_KEY
+   PGOPTIONS="-c ai.openai_api_key=$OPENAI_API_KEY" psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
    ```
 
-3. Ensure pgai is enabled on your database and add the [git commit_history data](./commit_history.csv) to a new table in your database.
+2. Ensure the pgai extension is enabled in your database and load the
+   [git commit_history data](./commit_history.csv) to a new table in your 
+   database using the [\copy](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMANDS-COPY)
+   metacommand.
 
    ```sql
    create extension if not exists ai cascade;
@@ -58,14 +61,12 @@ insert into commit_history_embed (id, embedding)
 select
   id
 , openai_embed
-  ( $1
-  , 'text-embedding-3-small'
+  ( 'text-embedding-3-small'
     -- create a single text string representation of the commit
   , format('author: %s date: %s commit: %s summary: %s detail: %s', author, "date", "commit", summary, detail)
   ) as embedding
 from commit_history
-\bind :OPENAI_API_KEY
-\g
+;
 ```
 
 ## Moderation
@@ -97,12 +98,11 @@ from
       id
     , detail
       -- call the openai api using the pgai extension. the result is jsonb
-    , openai_moderate($1, 'text-moderation-stable', detail) as moderation
+    , openai_moderate('text-moderation-stable', detail) as moderation
     from commit_history
 ) x
 where (x.moderation->'results'->0->>'flagged')::bool -- only the ones that were flagged
-\bind :OPENAI_API_KEY
-\g
+;
 ```
 
 ## Summerization
@@ -115,10 +115,14 @@ The git commits for the month are appended in text format to the user message. T
 uses jsonb operators to pull out the content of the [response](https://platform.openai.com/docs/api-reference/chat/object) only.
 
 ```sql
+-- the following two metacommands cause the raw query results to be printed
+-- without any decoration
+\pset tuples_only on
+\pset format unaligned
+
 -- summarize and categorize git commits to produce a release notes document
 select openai_chat_complete
-( $1
-, 'gpt-4o'
+( 'gpt-4o'
 , jsonb_build_array
   ( jsonb_build_object
     ( 'role', 'system'
@@ -149,9 +153,8 @@ from
     ) as commit_desc
     from commit_history
     -- just look at commits from August 2023
-    where date_trunc('month', "date") = '2023-08-01 00:00:00-05'::timestamptz
+    where date_trunc('month', "date") = '2023-08-01 00:00:00+00'::timestamptz
     order by "date"
 ) x
-\bind :OPENAI_API_KEY
-\g
+;
 ```
