@@ -23,4 +23,6 @@ COPY LICENSE /usr/share/doc/pgai/
 COPY README.md /usr/share/doc/pgai/
 COPY ./ai.control /usr/share/postgresql/16/extension/
 COPY ./ai--*.sql /usr/share/postgresql/16/extension/
+RUN chmod -R go+w /usr/share/postgresql/16/extension/
+RUN chmod -R go+w /usr/lib/postgresql/16/lib/
 WORKDIR /pgai
