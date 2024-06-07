@@ -1,12 +1,8 @@
 
-
 <p></p>
 <div align=center>
-<picture align=center>
-    <source media="(prefers-color-scheme: dark)" srcset="https://assets.timescale.com/docs/images/timescale-logo-dark-mode.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://assets.timescale.com/docs/images/timescale-logo-light-mode.svg">
-    <img alt="Timescale logo" >
-</picture>
+
+# pgai
 
 <h3>pgai enables you to handle your AI workflows from your database</h3>
 
@@ -51,6 +47,7 @@ Before you start working with pgai, you need:
 The fastest ways to run PostgreSQL with TimescaleDB and pgai are:
 
 * [Enable pgai in a pre-built Docker container](#enable-pgai-in-a-pre-built-docker-container)
+* [Installing from source](#installing-from-source)
 * [Enable pgai in a Timescale Cloud service](#enable-pgai-in-a-timescale-cloud-service)
 
 ### Enable pgai in a pre-built Docker container
@@ -70,7 +67,32 @@ The fastest ways to run PostgreSQL with TimescaleDB and pgai are:
 
    The `CASCADE` automatically installs the plpython3u and pgvector dependencies.
 
-You now [Connect to your AI provider through pgai](#connect-to-your-ai-provider-through-pgai) and [Try out the AI models](#usage).
+You now [Provide your API key to pgai](#provide-your-api-key-to-pgai) and [Try out the AI models](#usage).
+
+### Installing from source
+
+You can install pgai from source and install it in an existing PostgreSQL server
+
+1. Install the extension and dependencies
+
+   ```bash
+   make install
+   ```
+
+2. Connect to your database:
+   ```bash
+   psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+   ```
+
+3. Create the pgai extension:
+
+    ```sql
+    CREATE EXTENSION IF NOT EXISTS ai CASCADE;
+    ```
+
+   The `CASCADE` automatically installs `pgvector` and `plpython3u`.
+
+You now [Provide your API key to pgai](#provide-your-api-key-to-pgai) and [Try out the AI models](#usage).
 
 ### Enable pgai in a Timescale Cloud service
 
@@ -94,7 +116,7 @@ To enable pgai:
 
    `CASCADE` automatically installs the plpython3u and pgvector dependencies.
 
-You now [Connect to your AI provider through pgai](#connect-to-your-ai-provider-through-pgai) and [Try out the AI models](#usage).
+You now [Provide your API key to pgai](#provide-your-api-key-to-pgai) and [Try out the AI models](#usage).
 
 ## Provide your API key to pgai
 
@@ -522,6 +544,12 @@ The data returned looks like:
 
 For more advanced usage, the [Advanced examples](docs/advanced.md) use pgai to embed, moderate, 
 and summarize a git commit history.
+
+## Get involved
+
+pgai is still at an early stage. Now is a great time to help shape the direction of this project; 
+we are currently deciding priorities. Have a look at the list of features we're thinking of working on. 
+Feel free to comment, expand the list, or hop on the Discussions forum.
 
 ## About Timescale
 
