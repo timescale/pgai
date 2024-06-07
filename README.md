@@ -29,7 +29,7 @@ Timescale offers the following AI journeys:
 
 * **Everyone**: use AI directly from SQL on your data.
   * [Create a pgai environment](#create-a-pgai-environment)
-  * [Connect to your AI provider through pgai](#connect-to-your-ai-provider-through-pgai)
+  * [Use pgai](#use-pgai)
   * [Add AI functionality to your database](#usage).
   * [Advanced AI examples using data](./docs/advanced.md)  
 * **Extension contributor**: contribute to pgai.
@@ -43,6 +43,7 @@ Before you start working with pgai, you need:
 
 * An [OpenAI API Key](https://platform.openai.com/api-keys) - everyone
 * A postgres client like [psql v16](https://docs.timescale.com/use-timescale/latest/integrations/query-admin/psql/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
+* [Docker](https://docs.docker.com/get-docker/) - if you prefer to use pgai locally
 * [Python3](https://www.python.org/downloads/) - if you prefer code to pure sql 
 
 ## Create a pgai environment
@@ -95,7 +96,7 @@ To enable pgai:
 
 You now [Connect to your AI provider through pgai](#connect-to-your-ai-provider-through-pgai) and [Try out the AI models](#usage).
 
-## Connect to your AI provider through pgai
+## Use pgai
 
 Most pgai functions require an [OpenAI API key](https://platform.openai.com/docs/quickstart/step-2-set-up-your-api-key).
 
@@ -107,10 +108,10 @@ Most pgai functions require an [OpenAI API key](https://platform.openai.com/docs
 The api key is an [optional parameter to pgai functions](https://www.postgresql.org/docs/current/sql-syntax-calling-funcs.html).
 You either:
 
-* [Run AI queries securely by passing your API key implicitly as a session parameter](#run-ai-queries-securely-by-passing-your-api-key-implicitly-as-a-session-parameter)
-* [Run AI queries securely by passing your API key explicitly as a function argument](#run-ai-queries-securely-by-passing-your-api-key-explicitly-as-a-function-argument)
+* [Run AI queries by passing your API key implicitly as a session parameter](#run-ai-queries-by-passing-your-api-key-implicitly-as-a-session-parameter)
+* [Run AI queries by passing your API key explicitly as a function argument](#run-ai-queries-by-passing-your-api-key-explicitly-as-a-function-argument)
 
-#### Run AI queries securely by passing your API key implicitly as a session parameter
+#### Run AI queries by passing your API key implicitly as a session parameter
 
 To use a [session level parameter when connecting to your database with psql](https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-SHELL)
 to securely connect to OpenAI through pgai:
@@ -136,7 +137,7 @@ to securely connect to OpenAI through pgai:
     ;
     ```
 
-#### Run AI queries securely by passing your API key explicitly as a function argument
+#### Run AI queries by passing your API key explicitly as a function argument
 
 1. Set your OpenAI key as an environment variable in your shell:
     ```bash
