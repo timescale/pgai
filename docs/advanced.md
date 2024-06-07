@@ -1,4 +1,4 @@
-# Advanced Examples
+# Advanced examples
 
 This page gives you more in-depth AI examples using pgai. In these examples, you 
 will use pgai to embed, moderate, and summarize git commit history.
@@ -10,20 +10,19 @@ will use pgai to embed, moderate, and summarize git commit history.
 
 ## Load the sample data
 
-To add the advanced examples to your developer environment:
+To add the advanced examples to your developer environment, in the `<pgai-repo>/docs` folder:
 
-1. Connect to your database using the `psql` command line tool and [pass your 
-   OpenAI API key as a session setting](../README.md#providing-an-api-key-implicitly-via-config-setting) 
-   from your environment. Run this from the directory where the csv file resides.
+1. Connect to your database using `psql`: 
+
+   The following command [passes your OpenAI API key as a session parameter](../README.md#run-ai-queries-securely-by-passing-your-api-key-implicitly-as-a-session-parameter).
 
    ```bash
    PGOPTIONS="-c ai.openai_api_key=$OPENAI_API_KEY" psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
    ```
 
-2. Ensure the pgai extension is enabled in your database and load the
-   [git commit_history data](./commit_history.csv) to a new table in your 
-   database using the [\copy](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMANDS-COPY)
-   metacommand.
+2. Ensure the pgai extension is enabled in your database and use 
+   [\copy](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMANDS-COPY) 
+   to load the [git commit_history data](./commit_history.csv) to a new table in your database.
 
    ```sql
    create extension if not exists ai cascade;
@@ -46,8 +45,8 @@ To add the advanced examples to your developer environment:
 
 ## Embedding
 
-The following example uses the pgai extension to generate an embedding for each
-git commit. These are inserted into a new table.
+Use the pgai extension to generate an embedding for each
+git commit. The embeddings are inserted into a new table.
 
 ```sql
 -- we want to embed each row of commit history and put the embedding in this table
@@ -73,11 +72,11 @@ from commit_history
 
 Use the pgai extension to moderate the git commit details. Any
 commits that are flagged are inserted into a new table. An array of the 
-categories of harmful speech that were flagged is provided for each row. We
-use both [jsonb operators](https://www.postgresql.org/docs/current/functions-json.html#FUNCTIONS-JSON-PROCESSING)
+categories of harmful speech that were flagged is provided for each row. To achieve this, the following
+query uses [jsonb operators](https://www.postgresql.org/docs/current/functions-json.html#FUNCTIONS-JSON-PROCESSING)
 and a [jsonpath query](https://www.postgresql.org/docs/current/functions-json.html#FUNCTIONS-SQLJSON-PATH) 
 to process [the response](https://platform.openai.com/docs/api-reference/moderations/object)
-from OpenAI to acheive this.
+from OpenAI.
 
 ```sql
 create table commit_history_moderated 
@@ -111,7 +110,7 @@ Use the pgai extension to summarize content. In a single query, ask for a summar
 of a month's worth of git commits in the form of release notes in Markdown format. You 
 provide one message for the system and another one for the user. 
 
-The git commits for the month are appended in text format to the user message. The query 
+The git commits for the month are appended in text format to the user message. This query 
 uses jsonb operators to pull out the content of the [response](https://platform.openai.com/docs/api-reference/chat/object) only.
 
 ```sql

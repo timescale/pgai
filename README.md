@@ -10,11 +10,8 @@
 
 <h3>pgai enables you to handle your AI workflows from your database</h3>
 
-
-
-[![Docs](https://img.shields.io/badge/Read_the_Timescale_docs-black?style=for-the-badge&logo=readthedocs&logoColor=white)](https://docs.timescale.com/)
 [![SLACK](https://img.shields.io/badge/Ask_the_Timescale_community-black?style=for-the-badge&logo=slack&logoColor=white)](https://timescaledb.slack.com/archives/C4GT3N90X)
-[![Try Timescale for free](https://img.shields.io/badge/Try_Timescale_for_free-black?style=for-the-badge&logo=timescale&logoColor=white)](https://console.cloud.timescale.com/signup)
+[![Try Timescale for free](https://img.shields.io/badge/Try_Timescale_for_free-black?style=for-the-badge&logo=timescale&logoColor=white)](https://tsdb.co/gh-pgai-signup)
 </div>
 
 pgai simplifies the process of building [similarity search](https://en.wikipedia.org/wiki/Similarity_search), and 
@@ -22,17 +19,17 @@ pgai simplifies the process of building [similarity search](https://en.wikipedia
 
 Directly from your existing PostgreSQL database, pgai empowers you to:
 
-* Create OpenAI [embeddings](#openai_embed). 
-* Retrieve OpenAI [chat completions](#openai_chat_complete) from 
+* Create OpenAI [embeddings](#embed). 
+* Retrieve OpenAI [chat completions](#chat_complete) from 
   models such as GPT4o.
-* Facilitate use cases such as [classification, summarization, and data enrichment](#openai_moderate) on your existing 
+* Facilitate use cases such as [classification, summarization, and data enrichment](#moderate) on your existing 
   relational data.
 
 Timescale offers the following AI journeys:
 
 * **Everyone**: use AI directly from SQL on your data.
-  * [How to get pgai](#how-to-get-pgai)
-  * [Use pgai with your API keys](#use-pgai-with-your-api-keys)
+  * [Create a pgai environment](#create-a-pgai-environment)
+  * [Connect to your AI provider through pgai](#connect-to-your-ai-provider-through-pgai)
   * [Add AI functionality to your database](#usage).
   * [Advanced AI examples using data](./docs/advanced.md)  
 * **Extension contributor**: contribute to pgai.
@@ -44,17 +41,27 @@ To get the big picture, read [PostgreSQL Hybrid Search Using pgvector](https://w
 
 Before you start working with pgai, you need:
 
-* An [OpenAI API Key](https://platform.openai.com/api-keys).
-* A postgres client like [psql v16](https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
+* An [OpenAI API Key](https://platform.openai.com/api-keys) - everyone
+* A postgres client like [psql v16](https://docs.timescale.com/use-timescale/latest/integrations/query-admin/psql/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
+* [Python3](https://www.python.org/downloads/) - if you prefer code to pure sql 
 
-## How to get pgai
+## Create a pgai environment
 
-### Use a pre-built Docker image
+The fastest ways to run PostgreSQL with TimescaleDB and pgai are:
 
-1. Follow [these instructions](https://docs.timescale.com/self-hosted/latest/install/installation-docker/) 
-   to use pgai in docker with a pre-built image.
+* [Enable pgai in a pre-built Docker container](#enable-pgai-in-a-pre-built-docker-container)
+* [Enable pgai in a Timescale Cloud service](#enable-pgai-in-a-timescale-cloud-service)
 
-2. Create the pgai extension:
+### Enable pgai in a pre-built Docker container
+
+1.  [Run the TimescaleDB Docker image](https://docs.timescale.com/self-hosted/latest/install/installation-docker/).
+
+1. Connect to your database:
+   ```bash
+   psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+   ```
+   
+1. Create the pgai extension:
 
     ```sql
     CREATE EXTENSION IF NOT EXISTS ai CASCADE;
@@ -62,9 +69,9 @@ Before you start working with pgai, you need:
 
    The `CASCADE` automatically installs the plpython3u and pgvector dependencies.
 
-You now [Use pgai with your API keys](#use-pgai-with-your-api-keys) and [Try out the AI models](#usage).
+You now [Connect to your AI provider through pgai](#connect-to-your-ai-provider-through-pgai) and [Try out the AI models](#usage).
 
-### Enable pgai in a Timescale service
+### Enable pgai in a Timescale Cloud service
 
 To enable pgai:
 
@@ -84,63 +91,70 @@ To enable pgai:
     CREATE EXTENSION IF NOT EXISTS ai CASCADE;
     ```
 
-   The `CASCADE` automatically installs the plpython3u and pgvector dependencies.
+   `CASCADE` automatically installs the plpython3u and pgvector dependencies.
 
-You now [Use pgai with your API keys](#use-pgai-with-your-api-keys) and [Try out the AI models](#usage).
+You now [Connect to your AI provider through pgai](#connect-to-your-ai-provider-through-pgai) and [Try out the AI models](#usage).
 
-## Use pgai with your API keys
+## Connect to your AI provider through pgai
 
 Most pgai functions require an [OpenAI API key](https://platform.openai.com/docs/quickstart/step-2-set-up-your-api-key).
-The api key is an [optional parameter to these functions](https://www.postgresql.org/docs/current/sql-syntax-calling-funcs.html) 
-and may either be provided explicitly as an argument or implicitly through a 
-[config setting](https://www.postgresql.org/docs/current/config-setting.html)
-named `ai.openai_api_key`. 
 
-- [Handling API keys when using pgai from psql](#handling-api-keys-when-using-pgai-from-psql)
-- [Handling API keys when using pgai from python](#handling-api-keys-when-using-pgai-from-python)
+- [Handle API keys using pgai from psql](#handle-api-keys-using-pgai-from-psql)
+- [Handle API keys using pgai from python](#handle-api-keys-using-pgai-from-python)
 
-### Handling API keys when using pgai from psql
+### Handle API keys using pgai from psql
 
-### Providing an API key implicitly via config setting
+The api key is an [optional parameter to pgai functions](https://www.postgresql.org/docs/current/sql-syntax-calling-funcs.html).
+You either:
 
-Assuming your shell environment has your api key in a variable named `OPENAI_API_KEY`,
-set a [session level parameter when connecting to your database with psql](https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-SHELL)
-like so:
+* [Run AI queries securely by passing your API key implicitly as a session parameter](#run-ai-queries-securely-by-passing-your-api-key-implicitly-as-a-session-parameter)
+* [Run AI queries securely by passing your API key explicitly as a function argument](#run-ai-queries-securely-by-passing-your-api-key-explicitly-as-a-function-argument)
 
-```bash
-PGOPTIONS="-c ai.openai_api_key=$OPENAI_API_KEY" psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
-```
-The `ai.openai_api_key` parameter will be set for the duration of your psql 
-session, and you therefore do not need to specify the `_api_key` parameter to
-pgai functions.
+### Run AI queries securely by passing your API key implicitly as a session parameter
 
-```sql
-SELECT * 
-FROM openai_list_models()
-ORDER BY created DESC
-;
-```
+To use a [session level parameter when connecting to your database with psql](https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-SHELL)
+to securely connect to OpenAI through pgai:
 
-### Providing an API key explicitly as a function argument
+1. Set your OpenAI key as an environment variable in your shell:
+    ```bash
+    export OPENAI_API_KEY="this-is-my-super-secret-api-key-dont-tell"
+    ```
+1. Use the session level parameter when you connect to your database:
+
+    ```bash
+    PGOPTIONS="-c ai.openai_api_key=$OPENAI_API_KEY" psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+    ```
+
+1. Run your AI query:
+
+    `ai.openai_api_key` is set for the duration of your psql session, you do not need to specify it for pgai functions.
+
+    ```sql
+    SELECT * 
+    FROM openai_list_models()
+    ORDER BY created DESC
+    ;
+    ```
+
+### Run AI queries securely by passing your API key explicitly as a function argument
 
 1. Set your OpenAI key as an environment variable in your shell:
     ```bash
     export OPENAI_API_KEY="this-is-my-super-secret-api-key-dont-tell"
     ```
 
-2. Connect to your database and set a [psql variable](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-VARIABLES) to your API key.
-   Either:
-   - Set the variable with a psql [command line argument](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-OPTION-VARIABLE).
+2. Connect to your database and set your api key as a [psql variable](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-VARIABLES).
+
       ```bash
       psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>" -v openai_api_key=$OPENAI_API_KEY
       ```
-   - Or, set the variable using the `\getenv` [metacommand](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMAND-GETENV) during your session.
-     ```sql
-     \getenv openai_api_key OPENAI_API_KEY
-     ```
+      Your API key is now available as a psql variable named `openai_api_key` in your psql session.
 
-   Your API key is now available as a psql variable named `openai_api_key` in your psql session.
+      You can also log into the database, then set `openai_api_key` using the `\getenv` [metacommand](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMAND-GETENV):   
 
+      ```sql
+       \getenv openai_api_key OPENAI_API_KEY
+      ```
 
 4. Pass your API key to your parameterized query:
     ```sql
@@ -155,7 +169,7 @@ ORDER BY created DESC
 
     The `\bind` metacommand is available in psql version 16+.
 
-### Handling API keys when using pgai from python
+### Handle API keys using pgai from python
 
 1. In your Python environment, include the dotenv and postgres driver packages:
 
@@ -503,11 +517,10 @@ The data returned looks like:
 }
 ```
 
-## Advanced Examples
+## Advanced examples
 
-For more advanced usage examples, check out [this page](docs/advanced.md). In 
-these examples, you will use pgai to embed, moderate, and summarize git commit
-history.
+For more advanced usage, the [Advanced examples](docs/advanced.md) use pgai to embed, moderate, 
+and summarize a git commit history.
 
 ## About Timescale
 
