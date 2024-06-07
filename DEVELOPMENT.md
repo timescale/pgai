@@ -8,8 +8,9 @@ This page shows you how to:
 - [Setup a pgai environment in Docker](#setup-a-pgai-environment-in-docker): all necessary software and extensions to 
   develop pgai in a container.
 - [Setup a virtual pgai environment](#setup-a-pgai-environment-in-a-virtual-machine): all necessary software and extensions to 
-  develop pgai in a virtual Ubuntu environment.   
-- [Test your pgai changes](#test-your-pgai-changes): use the tests.sql script to validate your pgai environment.
+  develop pgai in a virtual Ubuntu environment.
+- [Make changes to pgai](#make-changes-to-pgai): edit the pgai source and reflect the changes in the database
+- [Test your pgai changes](#test-your-pgai-changes): use the tests.sql script to test your pgai changes.
 
 ## pgai Prerequisites
 
@@ -31,32 +32,29 @@ Before you start working with pgai, you need:
 The pgai Docker container has all the software you need preinstalled. To build and run the
 pgai Docker container, then connect to it:
 
-
 1. Navigate to the folder you cloned this pgai repository to.
 
-1. Build the Docker image:
+2. Build the Docker image:
 
    ```bash
    make docker_build
    ```
 
-1. Run the container:
+3. Run the container:
 
    ```bash
    make docker_run
    ```
-   Later, to stop and delete the container, run:
-   ```bash
-   make docker_delete
-   ```
+   The repo directory is mounted to `/pgai` in the running container.
 
-1. To get a shell inside the container, run
+4. To get a shell inside the container, run
    
    ```bash
    make docker_shell
    ```
+   You are logged in as root.
 
-1. Connect to the database:
+5. Connect to the database:
 
    To connect from outside the container:
    ```bash
@@ -68,34 +66,14 @@ pgai Docker container, then connect to it:
    psql
    ```
 
-1. Create the pgai extension:
-
-    ```sql
-    CREATE EXTENSION ai CASCADE;
-    ```
-   The `CASCADE` automatically installs the plpython3u and pgvector dependencies.
-
-1. To update the database with your changes:
-
-   If you make changes to this extension in `ai*.sql`, use the following command to upload
-   your new functionality to the Docker container from outside the container:
+6. Later, to stop and delete the container, run:
    
    ```bash
-   docker exec pgai /bin/bash -c 'cd /pgai && make install_extension'
+   make docker_stop
    ```
-   or from within the container:
+   
    ```bash
-   cd /pgai
-   make install_extension
-   ```
-
-   These commands copy the sources from the repo directory on the bind mount to
-   the postgres extensions directory.
-
-   Then, from within a psql session, recreate the extension with:
-   ```bash
-   DROP EXTENSION ai CASCADE;
-   CREATE EXTENSION ai CASCADE;
+   make docker_rm
    ```
 
 ## Setup a pgai environment in a virtual machine
@@ -103,124 +81,88 @@ pgai Docker container, then connect to it:
 Best practice is to setup your developer environment in Docker. However, to install pgai in a virtual
 Ubuntu environment using multipass.
 
-In this repository, [vm.sh](./vm.sh) creates a [multipass](https://multipass.run/) virtual machine called `pgai`. This script
-installs all the software you need in the `pgai` Ubuntu virtual
-machine. This repo is mounted to `/pgai` in the virtual machine.
-
 1. To create the virtual machine, run the following command:
 
    ```bash
    make vm_create
    ```
 
-   The virtual machine is started, and you are automatically logged into a shell as `ubuntu` on the virtual machine. 
+   - The virtual machine is started, and you are automatically logged into a shell as `ubuntu` on the virtual machine.
+   - The repo directory is mounted to `/pgai` in the virtual machine.
 
-1. To start, stop and delete the virtual machine, run:
+2. Login to PostgreSQL from within the virtual machine:
 
-   ```bash
-   make vm_start
-   ```
-
-   ```bash
-   make vm_stop
-   ```
-
-   ```bash
-   make vm_delete
-   ```
-
-1. To get a shell inside the virtual machine, run:
-
-   ```bash
-   make vm_shell
-   ```
-   For more information on using Multipass, [see the documentation](https://multipass.run/docs/use-an-instance).
-
-1. Login to PostgreSQL from within the virtual machine:
-
-   As the postgres database user:
-   ```bash
-   sudo -u postgres psql
-   ```
    As the ubuntu database user:
    ```bash
    psql
    ```
    You are in the psql shell.
 
-1. Login to PostgreSQL from outside the virtual machine:
-   
-   First, connect to postgres from within the virtual machine, and then set the password for `postgres`. 
+3. Later, to stop, start, get a shell inside the vm, and delete the vm, run:
+
    ```bash
-   \password postgres
+   make vm_stop
    ```
 
-   When you have set the password, type `\q` to exit psql.
-
-   Then, from outside the virtual machine, run:
    ```bash
-   psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+   make vm_start
    ```
 
-1. Build and install pgvector, pgai and the python extensions on your PostgreSQL developer
-   environment.
+   ```bash
+   make vm_shell
+   ```
 
-    From inside the virtual machine, run:
-    ```bash
-    cd /pgai
-    make install
-    ```
+   ```bash
+   make vm_delete
+   ```
 
-1. Create the pgai extension in a database. Use either:
+For more information on using Multipass, [see the documentation](https://multipass.run/docs/use-an-instance).
 
-    - psql:
-        1. Connect to PostgreSQL using one of the options above.
 
-        1. Create the pgai extension:
+## Make changes to pgai
 
-            ```sql
-            CREATE EXTENSION IF NOT EXISTS ai CASCADE;
-            ```
+The repo is mounted to `/pgai` in the docker container/virtual machine. You 
+may edit the source from either inside the docker container/virtual machine
+or from the host machine.
 
-           The `CASCADE` automatically installs the plpython3u and pgvector dependencies.
+If you have updated the [unit tests](./tests.sql) accordingly, you may simply 
+[test your changes](#test-your-pgai-changes), or you can manually update the 
+database with your changes.
 
-    - Terminal:
-        1. In `Makefile`, update `DB` and `USER` to match your PostgreSQL configuration.
-        1. From a shell inside the virtual machine, create the pgai extension:
+To reflect your changes in the database manually, do the following from within 
+the docker container/virtual machine.
 
-           ```bash
-           cd /pgai
-           make create_extension
-           ```
-
-1. To update the database with your changes:
-
-    1. To copy your changes to the appropriate directories, run this from within the virtual machine:
-       ```bash
-       cd /pgai
-       make install_extension
-       ```
-    1. Then, from within a psql session, recreate the extension with:
-       ```bash
-       DROP EXTENSION ai CASCADE;
-       CREATE EXTENSION ai CASCADE;
-       ```
+1. Copy the edited sources to the appropriate postgres directory:
+   ```bash
+   make install_extension
+   ```
+2. From a psql session, run:
+   ```bash
+   DROP EXTENSION IF EXISTS ai CASCADE;
+   CREATE EXTENSION ai CASCADE;
+   ```
 
 ## Test your pgai changes
 
-`tests.sql` contains unit tests to validate your changes. To run the tests:
+[tests.sql](./tests.sql) contains unit tests to validate your changes. 
+From within the docker container/virtual machine:
 
-- Terminal
-    ```bash
-    psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>" -v OPENAI_API_KEY=$OPENAI_API_KEY -f tests.sql
-    ```
+1. Make sure your OpenAI API key is in your shell's environment
 
-- psql session
+   ```bash
+   export OPENAI_API_KEY="<your key here>"
+   ```
 
-    ```sql
-    \i tests.sql
-    ```
+2. Run the tests
+
+   ```bash
+   make test
+   ```
+
+   This will:
+   1. copy the sources from the `/pgai` directory to the correct postgres directory
+   2. drop the "test" database if it exists
+   3. create a "test" database
+   4. run [tests.sql](./tests.sql) in the "test" database
 
 Best practice is to add new tests when you commit new functionality.
-
-
