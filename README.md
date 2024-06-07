@@ -25,11 +25,11 @@ Directly from your existing PostgreSQL database, pgai empowers you to:
 * Facilitate use cases such as [classification, summarization, and data enrichment](#moderate) on your existing 
   relational data.
 
-Timescale offers the following AI journeys:
+The fastest ways to run PostgreSQL with pgai are:
 
 * **Everyone**: use AI directly from SQL on your data.
-  * [Create a pgai environment](#create-a-pgai-environment)
-  * [Use pgai](#use-pgai)
+  * [Installation](#installation)
+  * [Provide your API key to pgai](#provide-your-api-key-to-pgai)
   * [Add AI functionality to your database](#usage).
   * [Advanced AI examples using data](./docs/advanced.md)  
 * **Extension contributor**: contribute to pgai.
@@ -46,7 +46,7 @@ Before you start working with pgai, you need:
 * [Docker](https://docs.docker.com/get-docker/) - if you prefer to use pgai locally
 * [Python3](https://www.python.org/downloads/) - if you prefer code to pure sql 
 
-## Create a pgai environment
+## Installation
 
 The fastest ways to run PostgreSQL with TimescaleDB and pgai are:
 
@@ -96,7 +96,7 @@ To enable pgai:
 
 You now [Connect to your AI provider through pgai](#connect-to-your-ai-provider-through-pgai) and [Try out the AI models](#usage).
 
-## Use pgai
+## Provide your API key to pgai
 
 Most pgai functions require an [OpenAI API key](https://platform.openai.com/docs/quickstart/step-2-set-up-your-api-key).
 
@@ -114,7 +114,7 @@ You either:
 #### Run AI queries by passing your API key implicitly as a session parameter
 
 To use a [session level parameter when connecting to your database with psql](https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-SHELL)
-to securely connect to OpenAI through pgai:
+to run your AI queries:
 
 1. Set your OpenAI key as an environment variable in your shell:
     ```bash
