@@ -8,9 +8,6 @@
 
 create extension if not exists ai cascade;
 
-\set ON_ERROR_ROLLBACK 1
-\x auto
-
 -------------------------------------------------------------------------------
 -- use an unprivileged user "tester"
 reset role; -- just in case
@@ -41,7 +38,9 @@ select format('grant tester to %I', current_user)
 set role tester;
 
 -- set our session local GUC
-select set_config('ai.openai_api_key', :'openai_api_key', false) is not null as set_config;
+select set_config('ai.openai_api_key', $1, false) is not null as set_openai_api_key
+\bind :openai_api_key
+\g
 
 -------------------------------------------------------------------------------
 -- test setup
@@ -75,6 +74,9 @@ values
 , ('openai_moderate-no-key')
 -- add entries for new tests here!
 ;
+
+\set ON_ERROR_ROLLBACK 1
+\x auto
 
 -------------------------------------------------------------------------------
 -- openai_list_models
