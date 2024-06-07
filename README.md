@@ -110,7 +110,7 @@ You either:
 * [Run AI queries securely by passing your API key implicitly as a session parameter](#run-ai-queries-securely-by-passing-your-api-key-implicitly-as-a-session-parameter)
 * [Run AI queries securely by passing your API key explicitly as a function argument](#run-ai-queries-securely-by-passing-your-api-key-explicitly-as-a-function-argument)
 
-### Run AI queries securely by passing your API key implicitly as a session parameter
+#### Run AI queries securely by passing your API key implicitly as a session parameter
 
 To use a [session level parameter when connecting to your database with psql](https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-SHELL)
 to securely connect to OpenAI through pgai:
@@ -136,7 +136,7 @@ to securely connect to OpenAI through pgai:
     ;
     ```
 
-### Run AI queries securely by passing your API key explicitly as a function argument
+#### Run AI queries securely by passing your API key explicitly as a function argument
 
 1. Set your OpenAI key as an environment variable in your shell:
     ```bash
