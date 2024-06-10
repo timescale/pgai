@@ -21,15 +21,16 @@ pgai brings embedding and generation AI models closer to the database. With pgai
 
 Here's how to get started with pgai:
 
-* **Everyone**: use pgai in your PostgreSQL database.
+* **Everyone**: Use pgai in your PostgreSQL database.
   * [Installation](#installation)
   * [Provide your API key to pgai](#provide-your-api-key-to-pgai)
   * [Add AI functionality to your database](#usage).
   * [Advanced AI examples using data](./docs/advanced.md)  
-* **Extension contributor**: contribute to pgai and improve the project.
+* **Extension contributor**: Contribute to pgai and improve the project.
   * [Build pgai from source in a developer environment](./DEVELOPMENT.md)
+  * See the [Issues tab](https://github.com/timescale/pgai/issues) for a list of feature ideas to contribute.
 
-**Learn more about pgai** To learn more about pgai and why we built it, read [pgai: Giving PostgreSQL Developers AI Engineering Superpowers](http://www.timescale.com/blog/pgai-giving-postgresql-developers-ai-engineering-superpowers).
+**Learn more about pgai:** To learn more about the pgai extension and why we built it, read this blog post [pgai: Giving PostgreSQL Developers AI Engineering Superpowers](http://www.timescale.com/blog/pgai-giving-postgresql-developers-ai-engineering-superpowers).
 
 ## pgai Prerequisites
 
@@ -554,14 +555,7 @@ and [how to set up a dev/test environment](./DEVELOPMENT.md).
 
 ## About Timescale
 
-Timescale Cloud is a high-performance developer focused cloud that provides PostgreSQL services
-enhanced with our blazing fast vector search. Timescale services are built using TimescaleDB and 
-PostgreSQL extensions, like this one. Timescale Cloud provides high availability, streaming 
-backups, upgrades over time, roles and permissions, and great security.
+Timescale is a PostgreSQL database company. To learn more visit the [timescale.com](https://www.timescale.com).
 
-TimescaleDB is an open-source time-series database designed for scalability and performance, 
-built on top of PostgreSQL. It provides SQL support for time-series data, allowing users to 
-leverage PostgreSQL's rich ecosystem while optimizing for high ingest rates and fast query 
-performance. TimescaleDB includes features like automated data retention policies, compression 
-and continuous aggregates, making it ideal for applications like monitoring, IoT, AI and 
-real-time analytics. 
+Timescale Cloud is a high-performance, developer focused, cloud platform that provides PostgreSQL services
+for the most demanding AI, time-series, analytics, and event workloads. Timescale Cloud is ideal for production applications and provides high availability, streaming backups, upgrades over time, roles and permissions, and great security.
