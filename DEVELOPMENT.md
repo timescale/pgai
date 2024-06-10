@@ -1,13 +1,13 @@
-# Setup your pgai developer environment
+# Set up your pgai developer environment
 
 Want to contribute to the pgai project? This page shows you how to create your pgai developer environment. Best practice is to
-[Setup a pgai environment in Docker](#setup-a-pgai-environment-in-docker). 
+[Set up a pgai environment in Docker](#set-up-a-pgai-environment-in-docker). 
 
 This page shows you how to:
 
-- [Setup a pgai environment in Docker](#setup-a-pgai-environment-in-docker): all necessary software and extensions to 
+- [Set up a pgai environment in Docker](#set-up-a-pgai-environment-in-docker): all necessary software and extensions to 
   develop pgai in a container.
-- [Setup a virtual pgai environment](#setup-a-pgai-environment-in-a-virtual-machine): all necessary software and extensions to 
+- [Set up a virtual pgai environment](#set-up-a-pgai-environment-in-a-virtual-machine): all necessary software and extensions to 
   develop pgai in a virtual Ubuntu environment.
 - [Make changes to pgai](#make-changes-to-pgai): edit the pgai source and reflect the changes in the database
 - [Test your pgai changes](#test-your-pgai-changes): use the tests.sql script to test your pgai changes.
@@ -27,7 +27,7 @@ Before you start working with pgai, you need:
     * [Multipass](https://multipass.run/)
     * Or both, why not :metal:? 
 
-## Setup a pgai environment in Docker
+## Set up a pgai environment in Docker
 
 The pgai Docker container has all the software you need preinstalled. To build and run the
 pgai Docker container, then connect to it:
@@ -76,12 +76,11 @@ pgai Docker container, then connect to it:
    make docker_rm
    ```
 
-## Setup a pgai environment in a virtual machine
+## Set up a pgai environment in a virtual machine
 
-Best practice is to setup your developer environment in Docker. However, to install pgai in a virtual
-Ubuntu environment using multipass.
+To create a virtual machine using multipass with what you need to get started: 
 
-1. To create the virtual machine, run the following command:
+1. Create the virtual machine by running the following command:
 
    ```bash
    make vm_create
