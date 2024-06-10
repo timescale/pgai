@@ -6,7 +6,7 @@
 
 <h3>pgai enables you to handle your AI workflows from your database</h3>
 
-[![SLACK](https://img.shields.io/badge/Ask_the_Timescale_community-black?style=for-the-badge&logo=slack&logoColor=white)](https://timescaledb.slack.com/archives/C4GT3N90X)
+[![Discord](https://img.shields.io/badge/Ask_the_Timescale_community-black?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/QedVDxRb)
 [![Try Timescale for free](https://img.shields.io/badge/Try_Timescale_for_free-black?style=for-the-badge&logo=timescale&logoColor=white)](https://tsdb.co/gh-pgai-signup)
 </div>
 
