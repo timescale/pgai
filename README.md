@@ -4,34 +4,34 @@
 
 # pgai
 
-<h3>pgai enables you to handle your AI workflows from your database</h3>
+<h3>pgai brings AI workflows to your PostgreSQL database</h3>
 
 [![Discord](https://img.shields.io/badge/Join_us_on_Discord-black?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/QedVDxRb)
 [![Try Timescale for free](https://img.shields.io/badge/Try_Timescale_for_free-black?style=for-the-badge&logo=timescale&logoColor=white)](https://tsdb.co/gh-pgai-signup)
 </div>
 
-pgai simplifies the process of building [similarity search](https://en.wikipedia.org/wiki/Similarity_search), and 
+pgai simplifies the process of building [search](https://en.wikipedia.org/wiki/Similarity_search), and 
 [Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation)(RAG) apps with PostgreSQL. 
 
-Directly from your existing PostgreSQL database, pgai empowers you to:
+pgai brings embedding and generation AI models closer to the database. With pgai, you can now do the following directly from within PostgreSQL in a SQL query:
 
-* Create OpenAI [embeddings](#embed). 
+* Create OpenAI [embeddings](#embed)
 * Retrieve OpenAI [chat completions](#chat_complete) from 
   models such as GPT4o.
-* Facilitate use cases such as [classification, summarization, and data enrichment](#moderate) on your existing 
-  relational data.
+* Facilitate use cases such as classification, summarization, and data enrichment on your existing 
+  relational data in PostgreSQL.
 
-The fastest ways to run PostgreSQL with pgai are:
+Here's how to get started with pgai:
 
-* **Everyone**: use AI directly from SQL on your data.
+* **Everyone**: use pgai in your PostgreSQL database.
   * [Installation](#installation)
   * [Provide your API key to pgai](#provide-your-api-key-to-pgai)
   * [Add AI functionality to your database](#usage).
   * [Advanced AI examples using data](./docs/advanced.md)  
-* **Extension contributor**: contribute to pgai.
+* **Extension contributor**: contribute to pgai and improve the project.
   * [Build pgai from source in a developer environment](./DEVELOPMENT.md)
 
-To get the big picture, read [PostgreSQL Hybrid Search Using pgvector](https://www.timescale.com/blog/postgresql-hybrid-search-using-pgvector-and-cohere/).
+**Learn more about pgai** To learn more about pgai and why we built it, read [pgai: Giving PostgreSQL Developers AI Engineering Superpowers](http://www.timescale.com/blog/pgai-giving-postgresql-developers-ai-engineering-superpowers).
 
 ## pgai Prerequisites
 
