@@ -11,15 +11,13 @@
 </div>
 
 pgai simplifies the process of building [search](https://en.wikipedia.org/wiki/Similarity_search), and 
-[Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation)(RAG) apps with PostgreSQL. 
+[Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation)(RAG) AI applications with PostgreSQL. 
 
 pgai brings embedding and generation AI models closer to the database. With pgai, you can now do the following directly from within PostgreSQL in a SQL query:
 
-* Create OpenAI [embeddings](#embed)
-* Retrieve OpenAI [chat completions](#chat_complete) from 
-  models such as GPT4o.
-* Facilitate use cases such as classification, summarization, and data enrichment on your existing 
-  relational data in PostgreSQL.
+* Create [embeddings](#embed) for your data.
+* Retrieve LLM [chat completions](#chat-complete) from models like OpenAI GPT4o.
+* Reason over your data and facilitate use cases like [classification, summarization, and data enrichment](docs/advanced.md) on your existing relational data in PostgreSQL.
 
 Here's how to get started with pgai:
 
