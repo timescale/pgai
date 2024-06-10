@@ -104,7 +104,7 @@ where (x.moderation->'results'->0->>'flagged')::bool -- only the ones that were 
 ;
 ```
 
-## Summerization
+## Summarization
 
 Use the pgai extension to summarize content. In a single query, ask for a summarization 
 of a month's worth of git commits in the form of release notes in Markdown format. You 

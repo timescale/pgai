@@ -381,7 +381,7 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
     );
     ```
 
-### Chat_complete
+### Chat complete
 
 Generate text or complete a chat:
 
@@ -548,8 +548,11 @@ and summarize a git commit history.
 ## Get involved
 
 pgai is still at an early stage. Now is a great time to help shape the direction of this project; 
-we are currently deciding priorities. Have a look at the list of features we're thinking of working on. 
+we are currently deciding priorities. Have a look at the [list of features](https://github.com/timescale/pgai/issues) we're thinking of working on. 
 Feel free to comment, expand the list, or hop on the Discussions forum.
+
+To get started, take a look at [how to contribute](./CONTRIBUTING.md) 
+and [how to set up a dev/test environment](./DEVELOPMENT.md).
 
 ## About Timescale
 
