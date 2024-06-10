@@ -6,7 +6,7 @@ will use pgai to embed, moderate, and summarize git commit history.
 - [Load the sample data]() - add git commit history sample data to your database
 - [Embedding]() - generate an [embedding](https://platform.openai.com/docs/guides/embeddings) for each git commit
 - [Moderation]() - check the commit history and flag harmful speech in a new table
-- [Summerization]() - summarize a month of git commits in a Markdown release note 
+- [Summarization]() - summarize a month of git commits in a Markdown release note 
 
 ## Load the sample data
 
