@@ -237,7 +237,7 @@ This section shows you how to use AI directly from your database using SQL.
 - [Detokenize](#detokenize): turn tokens into natural language.
 - [Embed](#embed): generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using a 
   specified model.
-- [Chat_complete](#chat_complete): generate text or complete a chat.
+- [Chat_complete](#chat-complete): generate text or complete a chat.
 - [Moderate](#moderate): check if content is classified as potentially harmful:
 
 ### List models
