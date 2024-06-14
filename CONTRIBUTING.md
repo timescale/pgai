@@ -105,5 +105,5 @@ Please check that the full test suite (including your test additions
 or changes) passes successfully on your local machine **before you
 open a pull request**.
 
-See our [testing](https://github.com/timescale/pgai/blob/main/DEVELOPMENT.md#testing)
+See our [testing](./DEVELOPMENT.md#test-your-pgai-changes)
 instructions for help with how to test.

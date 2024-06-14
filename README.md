@@ -16,69 +16,59 @@ pgai simplifies the process of building [search](https://en.wikipedia.org/wiki/S
 pgai brings embedding and generation AI models closer to the database. With pgai, you can now do the following directly from within PostgreSQL in a SQL query:
 
 * Create [embeddings](#embed) for your data.
-* Retrieve LLM [chat completions](#chat-complete) from models like OpenAI GPT4o.
+* Retrieve LLM [chat completions](#chat-complete) from models like OpenAI GPT4o and Llama 3.
 * Reason over your data and facilitate use cases like [classification, summarization, and data enrichment](docs/advanced.md) on your existing relational data in PostgreSQL.
 
 Here's how to get started with pgai:
 
 * **Everyone**: Use pgai in your PostgreSQL database.
   * [Installation](#installation)
-  * [Provide your API key to pgai](#provide-your-api-key-to-pgai)
   * [Add AI functionality to your database](#usage).
   * [Advanced AI examples using data](./docs/advanced.md)  
+  * [Address provider-specific setup steps](#provider-specific-setup)
 * **Extension contributor**: Contribute to pgai and improve the project.
-  * [Build pgai from source in a developer environment](./DEVELOPMENT.md)
+  * [Develop and test changes to the pgai extension](./DEVELOPMENT.md)
   * See the [Issues tab](https://github.com/timescale/pgai/issues) for a list of feature ideas to contribute.
 
 **Learn more about pgai:** To learn more about the pgai extension and why we built it, read this blog post [pgai: Giving PostgreSQL Developers AI Engineering Superpowers](http://www.timescale.com/blog/pgai-giving-postgresql-developers-ai-engineering-superpowers).
 
-## pgai Prerequisites
-
-Before you start working with pgai, you need:
-
-* An [OpenAI API Key](https://platform.openai.com/api-keys) - everyone
-* A postgres client like [psql v16](https://docs.timescale.com/use-timescale/latest/integrations/query-admin/psql/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
-* [Docker](https://docs.docker.com/get-docker/) - if you prefer to use pgai locally
-* [Python3](https://www.python.org/downloads/) - if you prefer code to pure sql 
-
 ## Installation
 
-The fastest ways to run PostgreSQL with TimescaleDB and pgai are:
+The fastest ways to run PostgreSQL with the pgai extension are to:
 
-* [Enable pgai in a pre-built Docker container](#enable-pgai-in-a-pre-built-docker-container)
-* [Installing from source](#installing-from-source)
-* [Enable pgai in a Timescale Cloud service](#enable-pgai-in-a-timescale-cloud-service)
+* [Use a pre-built Docker container](#use-a-pre-built-docker-container)
+* [Install from source](#install-from-source)
+* [Use a Timescale Cloud service](#use-a-timescale-cloud-service)
 
-### Enable pgai in a pre-built Docker container
+Then, [enable the pgai extension](#enabling-the-pgai-extension-in-your-database) in your database.
 
-1.  [Run the TimescaleDB Docker image](https://docs.timescale.com/self-hosted/latest/install/installation-docker/).
+### Use a pre-built Docker container
 
-1. Connect to your database:
-   ```bash
-   psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
-   ```
-   
-1. Create the pgai extension:
+[Run the TimescaleDB Docker image](https://docs.timescale.com/self-hosted/latest/install/installation-docker/).
 
-    ```sql
-    CREATE EXTENSION IF NOT EXISTS ai CASCADE;
-    ```
+### Install from source
 
-   The `CASCADE` automatically installs the plpython3u and pgvector dependencies.
+You can install pgai from source in an existing PostgreSQL server.
+You will need [Python3](https://www.python.org/downloads/) and [pip](https://pip.pypa.io/en/stable/) installed system-wide. 
+You will also need to install the [plpython3](https://www.postgresql.org/docs/current/plpython.html) 
+and [pgvector](https://github.com/pgvector/pgvector) extensions.
+After installing these prerequisites, run:
 
-You now [Provide your API key to pgai](#provide-your-api-key-to-pgai) and [Try out the AI models](#usage).
+```bash
+make install
+```
 
-### Installing from source
+### Use a Timescale Cloud service
 
-You can install pgai from source and install it in an existing PostgreSQL server
+Create a new [Timescale Service](https://console.cloud.timescale.com/dashboard/create_services).
 
-1. Install the extension and dependencies
+If you want to use an existing service, pgai is added as an available extension on the first maintenance window
+after the pgai release date.
 
-   ```bash
-   make install
-   ```
+### Enabling the pgai extension in your database
 
-2. Connect to your database:
+1. Connect to your database with a postgres client like [psql v16](https://docs.timescale.com/use-timescale/latest/integrations/query-admin/psql/) 
+   or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
    ```bash
    psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
    ```
@@ -88,160 +78,27 @@ You can install pgai from source and install it in an existing PostgreSQL server
     ```sql
     CREATE EXTENSION IF NOT EXISTS ai CASCADE;
     ```
+   
+   The `CASCADE` automatically installs `pgvector` and `plpython3u` extensions.
 
-   The `CASCADE` automatically installs `pgvector` and `plpython3u`.
-
-You now [Provide your API key to pgai](#provide-your-api-key-to-pgai) and [Try out the AI models](#usage).
-
-### Enable pgai in a Timescale Cloud service
-
-To enable pgai:
-
-1. Create a new [Timescale Service](https://console.cloud.timescale.com/dashboard/create_services).
-
-   If you want to use an existing service, pgai is added as an available extension on the first maintenance window 
-   after the pgai release date. To apply changes manually instead of waiting for the maintenance window, 
-   Pause and Resume your service. Maintenance changes are automatically applied.
-
-1. Connect to your Timescale service:
-   ```bash
-   psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
-   ```
-
-1. Create the pgai extension:
-
-    ```sql
-    CREATE EXTENSION IF NOT EXISTS ai CASCADE;
-    ```
-
-   `CASCADE` automatically installs the plpython3u and pgvector dependencies.
-
-You now [Provide your API key to pgai](#provide-your-api-key-to-pgai) and [Try out the AI models](#usage).
-
-## Provide your API key to pgai
-
-Most pgai functions require an [OpenAI API key](https://platform.openai.com/docs/quickstart/step-2-set-up-your-api-key).
-
-- [Handle API keys using pgai from psql](#handle-api-keys-using-pgai-from-psql)
-- [Handle API keys using pgai from python](#handle-api-keys-using-pgai-from-python)
-
-### Handle API keys using pgai from psql
-
-The api key is an [optional parameter to pgai functions](https://www.postgresql.org/docs/current/sql-syntax-calling-funcs.html).
-You either:
-
-* [Run AI queries by passing your API key implicitly as a session parameter](#run-ai-queries-by-passing-your-api-key-implicitly-as-a-session-parameter)
-* [Run AI queries by passing your API key explicitly as a function argument](#run-ai-queries-by-passing-your-api-key-explicitly-as-a-function-argument)
-
-#### Run AI queries by passing your API key implicitly as a session parameter
-
-To use a [session level parameter when connecting to your database with psql](https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-SHELL)
-to run your AI queries:
-
-1. Set your OpenAI key as an environment variable in your shell:
-    ```bash
-    export OPENAI_API_KEY="this-is-my-super-secret-api-key-dont-tell"
-    ```
-1. Use the session level parameter when you connect to your database:
-
-    ```bash
-    PGOPTIONS="-c ai.openai_api_key=$OPENAI_API_KEY" psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
-    ```
-
-1. Run your AI query:
-
-    `ai.openai_api_key` is set for the duration of your psql session, you do not need to specify it for pgai functions.
-
-    ```sql
-    SELECT * 
-    FROM openai_list_models()
-    ORDER BY created DESC
-    ;
-    ```
-
-#### Run AI queries by passing your API key explicitly as a function argument
-
-1. Set your OpenAI key as an environment variable in your shell:
-    ```bash
-    export OPENAI_API_KEY="this-is-my-super-secret-api-key-dont-tell"
-    ```
-
-2. Connect to your database and set your api key as a [psql variable](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-VARIABLES).
-
-      ```bash
-      psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>" -v openai_api_key=$OPENAI_API_KEY
-      ```
-      Your API key is now available as a psql variable named `openai_api_key` in your psql session.
-
-      You can also log into the database, then set `openai_api_key` using the `\getenv` [metacommand](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMAND-GETENV):   
-
-      ```sql
-       \getenv openai_api_key OPENAI_API_KEY
-      ```
-
-4. Pass your API key to your parameterized query:
-    ```sql
-    SELECT * 
-    FROM openai_list_models(_api_key=>$1)
-    ORDER BY created DESC
-    \bind :openai_api_key
-    \g
-    ```
-
-    Use [\bind](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMAND-BIND) to pass the value of `openai_api_key` to the parameterized query.
-
-    The `\bind` metacommand is available in psql version 16+.
-
-### Handle API keys using pgai from python
-
-1. In your Python environment, include the dotenv and postgres driver packages:
-
-    ```bash
-    pip install python-dotenv
-    pip install psycopg2-binary
-    ```
-
-1. Set your OpenAI key in a .env file or as an environment variable:
-    ```bash
-    OPENAI_API_KEY="this-is-my-super-secret-api-key-dont-tell"
-    DB_URL="your connection string"
-    ```
-
-1. Pass your API key as a parameter to your queries:
-
-    ```python
-    import os
-    from dotenv import load_dotenv
-    
-    load_dotenv()
-    
-    OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
-    DB_URL = os.environ["DB_URL"]
-    
-    import psycopg2
-    
-    with psycopg2.connect(DB_URL) as conn:
-        with conn.cursor() as cur:
-            # pass the API key as a parameter to the query. don't use string manipulations
-            cur.execute("SELECT * FROM openai_list_models(_api_key=>%s) ORDER BY created DESC", (OPENAI_API_KEY,))
-            records = cur.fetchall()
-    ```
-
-    Do not use string manipulation to embed the key as a literal in the SQL query.
 
 ## Usage
 
-This section shows you how to use AI directly from your database using SQL. 
+This section shows you how to use AI directly from your database using SQL.
 
 - [List_models](#list-models): list the models supported by OpenAI functions in pgai.
-- [Tokenize](#tokenize): encode content into tokens. 
+- [Tokenize](#tokenize): encode content into tokens.
 - [Detokenize](#detokenize): turn tokens into natural language.
-- [Embed](#embed): generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using a 
+- [Embed](#embed): generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using a
   specified model.
 - [Chat_complete](#chat-complete): generate text or complete a chat.
-- [Moderate](#moderate): check if content is classified as potentially harmful:
+- [Generate](#generate): generate a response to a prompt
+- [Moderate](#moderate): check if content is classified as potentially harmful
+- [List running models](#list-running-models): list the models currently running
 
 ### List models
+
+#### OpenAI list models
 
 List the models supported by OpenAI functions in pgai.
 
@@ -264,8 +121,30 @@ The data returned looks like:
  ...
 (N rows)
 ```
+#### Ollama list models
+
+List the models supported by Ollama functions in pgai.
+
+```sql
+SELECT * 
+FROM ollama_list_models()
+ORDER BY size DESC
+;
+```
+The data returned will look something like the following but will be different 
+depending on the models pulled in your Ollama instance.
+
+```text
+     name      |     model     |    size    |                              digest                              | family | format |     families      | parent_model | parameter_size | quantization_level |          modified_at          
+---------------+---------------+------------+------------------------------------------------------------------+--------+--------+-------------------+--------------+----------------+--------------------+-------------------------------
+ llava:7b      | llava:7b      | 4733363377 | 8dd30f6b0cb19f555f2c7a7ebda861449ea2cc76bf1f44e262931f45fc81d081 | llama  | gguf   | ["llama", "clip"] |              | 7B             | Q4_0               | 2024-06-17 21:01:26.225392+00
+ llama3:latest | llama3:latest | 4661224676 | 365c0bd3c000a25d28ddbf732fe1c6add414de7275464c4e4d1c3b5fcb5d8ad1 | llama  | gguf   | ["llama"]         |              | 8.0B           | Q4_0               | 2024-06-12 21:28:38.49735+00
+(2 rows)
+```
 
 ### Tokenize
+
+#### OpenAI tokenize
 
 To encode content and count the number of tokens returned:
 
@@ -277,7 +156,7 @@ To encode content and count the number of tokens returned:
     , 'Timescale is Postgres made Powerful'
     );
     ```
-    The data returned looks like:
+  The data returned looks like:
     ```text
                 openai_tokenize             
     ----------------------------------------
@@ -296,7 +175,7 @@ To encode content and count the number of tokens returned:
     , 1
     );
     ```
-    The data returned looks like:
+  The data returned looks like:
     ```text
      array_length 
     --------------
@@ -305,6 +184,8 @@ To encode content and count the number of tokens returned:
     ```
 
 ### Detokenize
+
+#### OpenAI detokenize
 
 Turn tokenized content into natural language:
 
@@ -322,6 +203,8 @@ The data returned looks like:
 
 ### Embed
 
+#### OpenAI embed
+
 Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using a specified model.
 
 - Request an embedding using a specific model.
@@ -333,8 +216,8 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
     );
     ```
 
-    The data returned looks like:
-    
+  The data returned looks like:
+
     ```text
                           openai_embed                      
     --------------------------------------------------------
@@ -351,7 +234,7 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
     , _dimensions=>768
     );
     ```
-    This only works for certain models.
+  This only works for certain models.
 
 - Pass a user identifier.
 
@@ -381,7 +264,30 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
     );
     ```
 
+#### Ollama embed
+
+Generate [embeddings](https://github.com/ollama/ollama/blob/main/docs/api.md#generate-embeddings) using a specified model.
+
+```sql
+select ollama_embed
+( 'llama3'
+, 'the purple elephant sits on a red mushroom'
+);
+```
+
+The data returned looks like:
+
+```text
+                      ollama_embed                      
+--------------------------------------------------------
+    [0.65253496,0.63268006,... 1.5451192,-2.6915514]
+(1 row)
+
+```
+
 ### Chat complete
+
+#### OpenAi chat complete
 
 Generate text or complete a chat:
 
@@ -433,10 +339,10 @@ Generate text or complete a chat:
 
 - Return the content as text from a specific message in the choices array.
 
-    `openai_chat_complete` returns a [jsonb object](https://www.depesz.com/2014/03/25/waiting-for-9-4-introduce-jsonb-a-structured-format-for-storing-json/) containing the
-    response from the API. You can use jsonb operators and functions to manipulate [the object returned](https://platform.openai.com/docs/api-reference/chat/object). For example, the 
-    following query returns the content as text from the first message in the choices array.
-    
+  `openai_chat_complete` returns a [jsonb object](https://www.depesz.com/2014/03/25/waiting-for-9-4-introduce-jsonb-a-structured-format-for-storing-json/) containing the
+  response from the API. You can use jsonb operators and functions to manipulate [the object returned](https://platform.openai.com/docs/api-reference/chat/object). For example, the
+  following query returns the content as text from the first message in the choices array.
+
     ```sql
     -- the following two metacommands cause the raw query results to be printed
     -- without any decoration
@@ -452,7 +358,7 @@ Generate text or complete a chat:
     )->'choices'->0->'message'->>'content'
     ;
     ```
-    The data returned looks like:
+  The data returned looks like:
 
     ```text
     In June, Alabama generally experiences warm to hot weather as it transitions into summer. Typical conditions include:
@@ -468,9 +374,139 @@ Generate text or complete a chat:
     Overall, if you're planning to visit Alabama in June, be prepared for hot and humid conditions, and keep an umbrella or rain jacket handy for those afternoon storms.
     ```
 
+#### Ollama chat complete
+
+[Generate text or complete a chat](https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-completion):
+
+You can specify custom parameters to the LLM by providing the optional `_options` argument.
+
+```sql
+-- the following two metacommands cause the raw query results to be printed
+-- without any decoration
+\pset tuples_only on
+\pset format unaligned
+
+select jsonb_pretty(
+  ollama_chat_complete
+  ( 'llama3'
+  , jsonb_build_array
+    ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
+    , jsonb_build_object('role', 'user', 'content', 'Give a short description of what a large language model is')
+    )
+  , _options=> jsonb_build_object
+    ( 'seed', 42
+    , 'temperature', 0.6
+    )
+  )
+);
+```
+The data returned looks like:
+
+```json
+{
+  "done": true,
+  "model": "llama3",
+  "message": {
+    "role": "assistant",
+    "content": "A large language model (LLM) is a type of artificial intelligence designed to process and generate human-like language. It's trained on massive amounts of text data, such as books, articles, and online conversations, which allows it to learn patterns, relationships, and nuances of language.\n\nAn LLM can perform various tasks, including:\n\n1. Natural Language Processing (NLP): understanding and generating human language.\n2. Text generation: creating original text based on input prompts or topics.\n3. Question answering: providing accurate answers to questions posed in natural language.\n4. Sentiment analysis: determining the emotional tone or sentiment behind a piece of text.\n\nLarge language models are typically trained using deep learning algorithms, such as transformer-based architectures (like BERT, RoBERTa, and XLNet), which enable them to learn from vast amounts of data and generate coherent, context-specific responses.\n\nThese models have numerous applications in areas like:\n\n1. Virtual assistants: providing helpful information and answering user queries.\n2. Language translation: facilitating communication between people speaking different languages.\n3. Content creation: generating text for articles, blog posts, or even entire books.\n4. Chatbots: enabling conversational interfaces that can engage with users.\n\nIn summary, a large language model is a powerful AI tool capable of processing and generating human-like language, with applications in various industries and aspects of our lives!"
+  },
+  "created_at": "2024-06-18T19:57:09.011458Z",
+  "eval_count": 278,
+  "done_reason": "stop",
+  "eval_duration": 8380764000,
+  "load_duration": 4187544583,
+  "total_duration": 12715492417,
+  "prompt_eval_count": 31,
+  "prompt_eval_duration": 142132000
+}
+```
+
+You can use [jsonb operators and functions](https://www.postgresql.org/docs/current/functions-json.html#FUNCTIONS-JSON-PROCESSING) 
+to manipulate the jsonb object returned from `ollama_chat_complete`.
+
+```sql
+-- the following two metacommands cause the raw query results to be printed
+-- without any decoration
+\pset tuples_only on
+\pset format unaligned
+
+select ollama_chat_complete
+( 'llama3'
+, jsonb_build_array
+  ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
+  , jsonb_build_object('role', 'user', 'content', 'Give a short description of what a large language model is')
+  )
+, _options=> jsonb_build_object
+  ( 'seed', 42
+  , 'temperature', 0.6
+  )
+)->'message'->>'content';
+```
+
+The data returned looks like:
+
+```text
+A large language model (LLM) is a type of artificial intelligence designed to process and generate human-like language. It's trained on massive amounts of text data, such as books, articles, and online conversations, which allows it to learn patterns, relationships, and nuances of language.
+
+An LLM can perform various tasks, including:
+
+1. Natural Language Processing (NLP): understanding and generating human language.
+2. Text generation: creating original text based on input prompts or topics.
+3. Question answering: providing accurate answers to questions posed in natural language.
+4. Sentiment analysis: determining the emotional tone or sentiment behind a piece of text.
+
+Large language models are typically trained using deep learning algorithms, such as transformer-based architectures (like BERT, RoBERTa, and XLNet), which enable them to learn from vast amounts of data and generate coherent, context-specific responses.
+
+These models have numerous applications in areas like:
+
+1. Virtual assistants: providing helpful information and answering user queries.
+2. Language translation: facilitating communication between people speaking different languages.
+3. Content creation: generating text for articles, blog posts, or even entire books.
+4. Chatbots: enabling conversational interfaces that can engage with users.
+
+In summary, a large language model is a powerful AI tool capable of processing and generating human-like language, with applications in various industries and aspects of our lives!
+```
+
+### Generate
+
+#### Ollama generate
+
+[Generate a response for the prompt provided](https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-completion)
+
+```sql
+-- the following two metacommands cause the raw query results to be printed
+-- without any decoration
+\pset tuples_only on
+\pset format unaligned
+
+select ollama_generate
+( 'llava:7b'
+, 'Please describe this image.'
+, _images=> array[pg_read_binary_file('/pgai/tests/postgresql-vs-pinecone.jpg')]
+, _system=>'you are a helpful assistant'
+, _options=> jsonb_build_object
+  ( 'seed', 42
+  , 'temperature', 0.9
+  )
+)->>'response'
+;
+```
+
+The data returned looks like:
+
+```text
+ This is a digital image featuring two anthropomorphic characters that appear to be stylized animals. On the left, there's a character that looks like an elephant with boxing gloves on, ready for a fight. The elephant has large ears and eyes, and it's standing upright.
+
+On the right, there's a character that resembles a pine cone. This character is also anthropomorphic, wearing shorts, boots, and a bandana. It holds what looks like a pine cone in each hand.
+
+The background of the image suggests an indoor setting with a wooden floor, a stage with lights, and spectators in the stands. The overall atmosphere of the scene is competitive and energetic. 
+```
+
 ### Moderate
 
 Check if content is classified as potentially harmful:
+
+#### OpenAI Moderate
 
 ```sql
 -- the following two metacommands cause the raw query results to be printed
@@ -540,13 +576,179 @@ The data returned looks like:
 }
 ```
 
+### List running models
+
+#### Ollama list running models
+
+You can [list the models currently running in Ollama](https://github.com/ollama/ollama/blob/main/docs/api.md#list-running-models) with:
+
+```sql
+select *
+from ollama_ps()
+;
+```
+
+The data returned looks like:
+
+```text
+   name   |  model   |    size    |                              digest                              | parent_model | format | family |     families      | parameter_size | quantization_level |          expires_at           | size_vram  
+----------+----------+------------+------------------------------------------------------------------+--------------+--------+--------+-------------------+----------------+--------------------+-------------------------------+------------
+ llava:7b | llava:7b | 5758857216 | 8dd30f6b0cb19f555f2c7a7ebda861449ea2cc76bf1f44e262931f45fc81d081 |              | gguf   | llama  | ["llama", "clip"] | 7B             | Q4_0               | 2024-06-18 20:07:30.508198+00 | 5758857216
+(1 row)
+```
+
 ## Advanced examples
 
-For more advanced usage, the [Advanced examples](docs/advanced.md) use pgai to embed, moderate, 
+For more advanced usage, the [Advanced examples](docs/advanced.md) use pgai to embed, moderate,
 and summarize a git commit history.
 
 Combine with triggers to [moderate comments](docs/moderate.md) or
 [populate embeddings](docs/delayed_embed.md) in the background.
+
+## Provider-specific Setup
+
+### OpenAI
+
+Most pgai functions require an [OpenAI API key](https://platform.openai.com/docs/quickstart/step-2-set-up-your-api-key).
+
+- [Handle API keys using pgai from psql](#handle-api-keys-using-pgai-from-psql)
+- [Handle API keys using pgai from python](#handle-api-keys-using-pgai-from-python)
+
+#### Handle API keys using pgai from psql
+
+The api key is an [optional parameter to pgai functions](https://www.postgresql.org/docs/current/sql-syntax-calling-funcs.html).
+You can either:
+
+* [Run AI queries by passing your API key implicitly as a session parameter](#run-ai-queries-by-passing-your-api-key-implicitly-as-a-session-parameter)
+* [Run AI queries by passing your API key explicitly as a function argument](#run-ai-queries-by-passing-your-api-key-explicitly-as-a-function-argument)
+
+##### Run AI queries by passing your API key implicitly as a session parameter
+
+To use a [session level parameter when connecting to your database with psql](https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-SHELL)
+to run your AI queries:
+
+1. Set your OpenAI key as an environment variable in your shell:
+    ```bash
+    export OPENAI_API_KEY="this-is-my-super-secret-api-key-dont-tell"
+    ```
+1. Use the session level parameter when you connect to your database:
+
+    ```bash
+    PGOPTIONS="-c ai.openai_api_key=$OPENAI_API_KEY" psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+    ```
+
+1. Run your AI query:
+
+    `ai.openai_api_key` is set for the duration of your psql session, you do not need to specify it for pgai functions.
+
+    ```sql
+    SELECT * 
+    FROM openai_list_models()
+    ORDER BY created DESC
+    ;
+    ```
+
+##### Run AI queries by passing your API key explicitly as a function argument
+
+1. Set your OpenAI key as an environment variable in your shell:
+    ```bash
+    export OPENAI_API_KEY="this-is-my-super-secret-api-key-dont-tell"
+    ```
+
+2. Connect to your database and set your api key as a [psql variable](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-VARIABLES).
+
+      ```bash
+      psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>" -v openai_api_key=$OPENAI_API_KEY
+      ```
+      Your API key is now available as a psql variable named `openai_api_key` in your psql session.
+
+      You can also log into the database, then set `openai_api_key` using the `\getenv` [metacommand](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMAND-GETENV):   
+
+      ```sql
+       \getenv openai_api_key OPENAI_API_KEY
+      ```
+
+4. Pass your API key to your parameterized query:
+    ```sql
+    SELECT * 
+    FROM openai_list_models(_api_key=>$1)
+    ORDER BY created DESC
+    \bind :openai_api_key
+    \g
+    ```
+
+    Use [\bind](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMAND-BIND) to pass the value of `openai_api_key` to the parameterized query.
+
+    The `\bind` metacommand is available in psql version 16+.
+
+#### Handle API keys using pgai from python
+
+1. In your Python environment, include the dotenv and postgres driver packages:
+
+    ```bash
+    pip install python-dotenv
+    pip install psycopg2-binary
+    ```
+
+1. Set your OpenAI key in a .env file or as an environment variable:
+    ```bash
+    OPENAI_API_KEY="this-is-my-super-secret-api-key-dont-tell"
+    DB_URL="your connection string"
+    ```
+
+1. Pass your API key as a parameter to your queries:
+
+    ```python
+    import os
+    from dotenv import load_dotenv
+    
+    load_dotenv()
+    
+    OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+    DB_URL = os.environ["DB_URL"]
+    
+    import psycopg2
+    
+    with psycopg2.connect(DB_URL) as conn:
+        with conn.cursor() as cur:
+            # pass the API key as a parameter to the query. don't use string manipulations
+            cur.execute("SELECT * FROM openai_list_models(_api_key=>%s) ORDER BY created DESC", (OPENAI_API_KEY,))
+            records = cur.fetchall()
+    ```
+
+    Do not use string manipulation to embed the key as a literal in the SQL query.
+
+### Ollama
+
+You will need to have Ollama running somewhere that is network-accessible to your database.
+The Ollama functions in pgai take an optional `_host` parameter to specify where Ollama is.
+
+If you are running Postgres in a docker container, and Ollama is running on the host machine,
+use `http://host.docker.internal:11434` for the `_host`.
+
+You can provide an argument explicitly like this:
+
+```sql
+select ollama_generate
+( 'llama3'
+, 'what is the typical weather like in Alabama in June'
+, _host=>'http://host.docker.internal:11434' -- tells pgai that Ollama is running on the host when pgai is in a docker container
+)
+```
+
+Alternately, you can set the `ai.ollama_host` config parameter.
+
+To do this at a session level, run:
+
+```sql
+select set_config('ai.ollama_host', 'http://host.docker.internal:11434', false);
+```
+
+Or to do it system-wide, you can [add it to the postgres.conf file](https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-CONFIGURATION-FILE).
+
+If the `_host` parameter is not specified explicitly and the `ai.ollama_host` config
+setting is missing, the Ollama functions will default to `http://localhost:11434`. 
+This will generate a warning in the log file.
 
 ## Get involved
 
