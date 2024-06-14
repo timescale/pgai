@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
-# this should be run from INSIDE the docker container / virtual machine
 set -e
-if [ -z "$OPENAI_API_KEY" ]; then
-    echo "Error: OPENAI_API_KEY is not set or is empty."
-    exit 1
+
+# if a .env file exists, load and export the variables in it
+if [ -f .env ]; then
+  set -a
+  source .env
+  set +a
 fi
-# copy the latest sources to the correct postgres dir
-make install_extension
-# if the "test" database exists, drop it
-psql -d postgres -f - <<EOF
-select count(*) > 0 as test_db_exists
-from pg_database where datname = 'test'
-\gset
-\if :test_db_exists
-drop database test;
-\endif
-EOF
-# create a fresh "test" database
-psql -d postgres -c "create database test;"
-# run the tests in the test database
-psql -d test -f tests.sql
+
+if [ -z "$ENABLE_OPENAI_TESTS" ]; then
+  export ENABLE_OPENAI_TESTS=1
+fi
+
+if [ "$ENABLE_OPENAI_TESTS" ] && [ -z "$OPENAI_API_KEY" ]; then
+  echo "OPENAI_API_KEY must be set if running OpenAI tests"
+  exit 3
+fi
+
+if [ -z "$ENABLE_OLLAMA_TESTS" ]; then
+  export ENABLE_OLLAMA_TESTS=1
+fi
+
+psql -d postgres -f test.sql

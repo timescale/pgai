@@ -19,7 +19,6 @@ apt-get install -y --no-install-recommends \
     python3-pip \
     make
 
-pip install --break-system-packages pgspot
 pip install --break-system-packages -r /pgai/requirements.txt
 
 cp /pgai/ai--*.sql /usr/share/postgresql/16/extension/

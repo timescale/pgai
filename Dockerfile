@@ -12,15 +12,12 @@ RUN set -eux; \
     postgresql-plpython3-16 \
     postgresql-16-pgvector \
     python3-pip \
-    make
+    make \
+    vim
 
-RUN pip install --break-system-packages pgspot
-WORKDIR /tmp
 COPY requirements.txt /tmp/
-RUN pip install --break-system-packages -r /tmp/requirements.txt && rm /tmp/requirements.txt
+RUN pip install --break-system-packages -r /tmp/requirements.txt
 
-COPY LICENSE /usr/share/doc/pgai/
-COPY README.md /usr/share/doc/pgai/
 COPY ./ai.control /usr/share/postgresql/16/extension/
 COPY ./ai--*.sql /usr/share/postgresql/16/extension/
 RUN chmod -R go+w /usr/share/postgresql/16/extension/
