@@ -100,7 +100,8 @@ To enable pgai:
 1. Create a new [Timescale Service](https://console.cloud.timescale.com/dashboard/create_services).
 
    If you want to use an existing service, pgai is added as an available extension on the first maintenance window 
-   after the pgai release date. 
+   after the pgai release date. To apply changes manually instead of waiting for the maintenance window, 
+   Pause and Resume your service. Maintenance changes are automatically applied.
 
 1. Connect to your Timescale service:
    ```bash
