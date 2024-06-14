@@ -1,14 +1,11 @@
-# Set up your pgai developer environment
+# Develop and test changes to the pgai extension
 
-Want to contribute to the pgai project? This page shows you how to create your pgai developer environment. Best practice is to
-[Set up a pgai environment in Docker](#set-up-a-pgai-environment-in-docker). 
+Want to contribute to the pgai project? Start here.
 
 This page shows you how to:
 
-- [Set up a pgai environment in Docker](#set-up-a-pgai-environment-in-docker): all necessary software and extensions to 
+- [Set up a pgai development environment in Docker](#set-up-a-pgai-development-environment-in-docker): all necessary software and extensions to 
   develop pgai in a container.
-- [Set up a virtual pgai environment](#set-up-a-pgai-environment-in-a-virtual-machine): all necessary software and extensions to 
-  develop pgai in a virtual Ubuntu environment.
 - [Make changes to pgai](#make-changes-to-pgai): edit the pgai source and reflect the changes in the database
 - [Test your pgai changes](#test-your-pgai-changes): use the tests.sql script to test your pgai changes.
 
@@ -16,18 +13,18 @@ This page shows you how to:
 
 Before you start working with pgai, you need:
 
-* An [OpenAI API Key](https://platform.openai.com/api-keys).
-* [Psql](https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
 * The pgai source on your local machine:
    ```bash
    git clone git@github.com:timescale/pgai.git
    ```
-* Your virtual environment, either:
-    * [Docker](https://docs.docker.com/get-docker/)
-    * [Multipass](https://multipass.run/)
-    * Or both, why not :metal:? 
+* [Docker](https://docs.docker.com/get-docker/)
+* If you will be working with OpenAI, you will need an [OpenAI API Key](https://platform.openai.com/api-keys).
+* If you will be working with Ollama, you will need it [running somewhere accessible](https://github.com/ollama/ollama/blob/main/README.md#quickstart).
+  * [pull](https://github.com/ollama/ollama/blob/main/README.md#pull-a-model) the `llama3` model
+  * [pull](https://github.com/ollama/ollama/blob/main/README.md#pull-a-model) the `llava:7b` model
+* You may want a Postgres client on your host machine like [Psql](https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
 
-## Set up a pgai environment in Docker
+## Set up a pgai development environment in Docker
 
 The pgai Docker container has all the software you need preinstalled. To build and run the
 pgai Docker container, then connect to it:
@@ -58,7 +55,7 @@ pgai Docker container, then connect to it:
 
    To connect from outside the container:
    ```bash
-   psql -d "postgres://postgres:pgaipass@localhost:9876/postgres"
+   psql -d "postgres://postgres@localhost:9876/postgres"
    ```
    To connect from a shell within the container:
    ```bash
@@ -76,55 +73,12 @@ pgai Docker container, then connect to it:
    make docker_rm
    ```
 
-## Set up a pgai environment in a virtual machine
-
-To create a virtual machine using multipass with what you need to get started: 
-
-1. Create the virtual machine by running the following command:
-
-   ```bash
-   make vm_create
-   ```
-
-   - The virtual machine is started, and you are automatically logged into a shell as `ubuntu` on the virtual machine.
-   - The repo directory is mounted to `/pgai` in the virtual machine.
-
-2. Login to PostgreSQL from within the virtual machine:
-
-   As the ubuntu database user:
-   ```bash
-   psql
-   ```
-   You are in the psql shell.
-
-3. Later, to stop, start, get a shell inside the vm, and delete the vm, run:
-
-   ```bash
-   make vm_stop
-   ```
-
-   ```bash
-   make vm_start
-   ```
-
-   ```bash
-   make vm_shell
-   ```
-
-   ```bash
-   make vm_delete
-   ```
-
-For more information on using Multipass, [see the documentation](https://multipass.run/docs/use-an-instance).
-
-
 ## Make changes to pgai
 
-The repo is mounted to `/pgai` in the docker container/virtual machine. You 
-may edit the source from either inside the docker container/virtual machine
-or from the host machine.
+The repo is mounted to `/pgai` in the docker container. You may edit the source 
+from either inside the docker container or from the host machine.
 
-If you have updated the [unit tests](./tests.sql) accordingly, you may simply 
+If you have updated the [unit tests](./tests) accordingly, you may simply 
 [test your changes](#test-your-pgai-changes), or you can manually update the 
 database with your changes.
 
@@ -143,14 +97,14 @@ the docker container/virtual machine.
 
 ## Test your pgai changes
 
-[tests.sql](./tests.sql) contains unit tests to validate your changes. 
-From within the docker container/virtual machine:
+The [tests](./tests) directory contains unit tests in psql scripts. The 
+[test.sql](./test.sql) script drives test runs.
 
-1. Make sure your OpenAI API key is in your shell's environment
-
-   ```bash
-   export OPENAI_API_KEY="<your key here>"
-   ```
+1. Create a .env file to store environment variables needed for testing:
+   - ENABLE_OPENAI_TESTS - a [boolean](https://www.postgresql.org/docs/current/app-psql.html#PSQL-METACOMMAND-IF) flag to enable/disable OpenAI unit tests
+   - ENABLE_OLLAMA_TESTS - a [boolean](https://www.postgresql.org/docs/current/app-psql.html#PSQL-METACOMMAND-IF) flag to enable/disable Ollama unit tests
+   - OPENAI_API_KEY - an [OpenAI API Key](https://platform.openai.com/api-keys) to use for OpenAI unit testing
+   - OLLAMA_HOST - the URL to the Ollama instance to use for testing (e.g. `http://host.docker.internal:11434`)
 
 2. Run the tests
 
@@ -159,9 +113,10 @@ From within the docker container/virtual machine:
    ```
 
    This will:
-   1. copy the sources from the `/pgai` directory to the correct postgres directory
+   1. run `make install_extension` to copy the sources from the `/pgai` directory to the correct postgres directory
    2. drop the "test" database if it exists
    3. create a "test" database
-   4. run [tests.sql](./tests.sql) in the "test" database
+   4. create a database user named "tester" if it doesn't exist
+   5. run [test.sh](./test.sh) to execute the unit tests against the "test" database
 
 Best practice is to add new tests when you commit new functionality.
