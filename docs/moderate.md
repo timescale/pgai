@@ -127,9 +127,14 @@ RETURNS TEXT AS $$
 DECLARE
     result JSONB;
     category TEXT;
+    api_key text;
 BEGIN
+
+    select current_setting('ai.openai_api_key', false) into api_key;
     -- Call OpenAI moderation endpoint
-    select openai_moderate( 'text-moderation-stable', body, api_key)->'results'->0 into result;
+    select openai_moderate( 'text-moderation-stable',
+      body,
+      _api_key => api_key)->'results'->0 into result;
 
     -- Check if any category is flagged
     IF result->>'flagged' = 'true' THEN
@@ -157,7 +162,8 @@ BEGIN
   RAISE NOTICE 'Executing action % with config %', job_id, config;
   -- iterate over comments and moderate them
   api_key := config->>'api_key';
-  for comment in select * from comments where status = 'pending' loop
+  for comment in select * from comments where status = 'pending' for update skip
+  locked loop
     update comments set status = get_moderation_status(comment.body, api_key)
     where id = comment.id;
   end loop;
