@@ -32,6 +32,10 @@ SET ai.openai_api_key TO :'OPENAI_API_KEY' ;
 ALTER SYSTEM SET ai.openai_api_key TO :'OPENAI_API_KEY' ;
 ```
 
+:warning: **Remember your keys are stored in plain text in the configuration file.** :warning:
+:warning: **Remember that ALTER SYSTEM will propagate the config in the server
+after changing the configuration.** :warning:
+
 ## Delayed vector example
 
 Let's imagine you're receiving documents and want to process the embedings in the
@@ -73,6 +77,11 @@ USING diskann (embedding);
 Now, we're going to build a background job with timescaledb action
 that will populate the embedding column with the embeddings of the contents:
 
+:warning: Note that the api_key is being passed as a parameter to the function.
+If you're using the `ALTER SYSTEM` approach, you can remove the parameter.
+
+:warning: Remember your keys are pure text, so, they'll also be copied as part
+of the payload and may be appearing in logs.
 
 ```sql
 CREATE OR REPLACE FUNCTION populate_embedding(job_id int, config jsonb) returns void as $$
