@@ -545,6 +545,9 @@ The data returned looks like:
 For more advanced usage, the [Advanced examples](docs/advanced.md) use pgai to embed, moderate, 
 and summarize a git commit history.
 
+Combine with triggers to [moderate comments](docs/moderate.md) or
+[populate embeddings](docs/delayed_embed.md) in the background.
+
 ## Get involved
 
 pgai is still at an early stage. Now is a great time to help shape the direction of this project; 
