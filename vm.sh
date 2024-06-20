@@ -29,5 +29,7 @@ chmod -R go+w /usr/lib/postgresql/16/lib/
 echo "/usr/bin/psql -U postgres -c \"create user ubuntu superuser login password 'ubuntu'\"" | sudo su postgres -
 echo "/usr/bin/psql -U postgres -c \"create database ubuntu owner ubuntu\"" | sudo su postgres -
 EOF
-multipass restart pgai
+multipass stop pgai
+multipass mount -t native . pgai:/pgai
+multipass start pgai
 multipass shell pgai
