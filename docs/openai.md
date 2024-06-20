@@ -4,7 +4,7 @@ This page shows you how to:
 
 - [Configure pgai for OpenAI](#configure-pgai-for-openai)
 - [Add AI functionality to your database](#usage)
-- [Follow advanced AI examples using data](./docs/advanced.md)
+- [Follow advanced AI examples](#advanced-examples)
 
 ## Configure pgai for OpenAI
 
