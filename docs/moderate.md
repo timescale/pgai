@@ -71,7 +71,8 @@ declare
 BEGIN
   select openai_moderate(
     'text-moderation-stable',
-    NEW.body
+    NEW.body,
+     _api_key=>current_setting('ai.openai_api_key', false) -- fail if setting not available
   )->'results'->0 into out;
   NEW.status = get_moderation_status(out);
 
@@ -162,8 +163,7 @@ BEGIN
   RAISE NOTICE 'Executing action % with config %', job_id, config;
   -- iterate over comments and moderate them
   api_key := config->>'api_key';
-  for comment in select * from comments where status = 'pending' for update skip
-  locked loop
+  for comment in select * from comments where status = 'pending' limit 1 for update skip locked loop
     update comments set status = get_moderation_status(comment.body, api_key)
     where id = comment.id;
   end loop;
