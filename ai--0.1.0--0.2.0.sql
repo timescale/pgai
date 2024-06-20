@@ -240,8 +240,6 @@ if not isinstance(_messages_1, list):
 for message in _messages_1:
     if 'images' in message:
         decoded = [base64.b64decode(image) for image in message["images"]]
-        plpy.warning(f"number of images: {len(decoded)}")
-        plpy.warning(f"the type of the image is: {type(decoded[0])}")
         message["images"] = decoded
 
 from ollama import Client

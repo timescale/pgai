@@ -63,6 +63,13 @@ select not has_function_privilege('tester', 'pg_read_binary_file(text)', 'execut
 grant execute on function pg_read_binary_file(text) to tester;
 \endif
 
+select not pg_has_role('tester', 'pg_read_server_files', 'member') as grant_tester
+\gset
+
+\if :grant_tester
+grant pg_read_server_files to tester;
+\endif
+
 set role tester;
 
 -------------------------------------------------------------------------------
