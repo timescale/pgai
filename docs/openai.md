@@ -433,8 +433,7 @@ The data returned looks like:
 
 ## Advanced examples
 
-This page gives you more in-depth AI examples using pgai. In these examples, you
-will use pgai to embed, moderate, and summarize git commit history.
+In the next examples, you will use pgai to embed, moderate, and summarize git commit history.
 
 - [Load the sample data]() - add git commit history sample data to your database
 - [Embedding]() - generate an [embedding](https://platform.openai.com/docs/guides/embeddings) for each git commit
