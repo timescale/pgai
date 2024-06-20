@@ -23,7 +23,7 @@ pgai brings embedding and generation AI models closer to the database. With pgai
 Here's how to get started with pgai:
 
 * **Everyone**: Use pgai in your PostgreSQL database.
-  1. [Set up pgai](#set-up-pgai).
+  1. [Install pgai](#installation).
   1. Use pgai to integrate AI from your provider:
     * [Ollama](./docs/ollama.md) - configure pgai with Ollama, then use the model to embed, chat complete and generate. 
     * [OpenAI](./docs/openai.md) - configure pgai with OpenAI, then use the model to tokenize, embed, chat complete and moderate. This page also includes advanced examples.
