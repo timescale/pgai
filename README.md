@@ -33,7 +33,7 @@ Here's how to get started with pgai:
 
 **Learn more about pgai:** To learn more about the pgai extension and why we built it, read this blog post [pgai: Giving PostgreSQL Developers AI Engineering Superpowers](http://www.timescale.com/blog/pgai-giving-postgresql-developers-ai-engineering-superpowers).
 
-## Set up pgai
+## Installation
 
 The fastest ways to run PostgreSQL with the pgai extension are to:
 
