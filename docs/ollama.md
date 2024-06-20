@@ -10,8 +10,8 @@ This page shows you how to:
 To use pgai with Ollama, Ollama must be running and network-accessible to your database.
 
 To specify the Ollama network address, Ollama functions in pgai use the `_host` parameter. Alternatively, the `ai.ollama_host` config setting can used.
-If you have not set `_host`, the `ai.ollama_host` config setting is missing. pgai defaults to 
-`http://localhost:11434`, and a warning is appended to to the log file.
+If you do not pass a `_host` argument, and the `ai.ollama_host` config setting is missing. pgai defaults to 
+`http://localhost:11434`, and a warning is appended to the log file.
 
 You set the network for your Ollama configuration either:
 
