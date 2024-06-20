@@ -44,7 +44,7 @@ The fastest ways to run PostgreSQL with the pgai extension are to:
 
 2. [Enable the pgai extension](#enable-the-pgai-extension-in-your-database).
 
-3. Use pgai to integrate AI from [Ollama](./docs/ollama.md) and [OpenAI](./docs/openai.md).
+3. [Use pgai](#use-pgai).
 
 ### Use a pre-built Docker container
 
@@ -86,7 +86,11 @@ after the pgai release date.
    
    The `CASCADE` automatically installs `pgvector` and `plpython3u` extensions.
 
-Now use pgai to integrate AI from [Ollama](./docs/ollama.md) and [OpenAI](./docs/openai.md).
+### Use pgai
+
+Now, use pgai to integrate AI from [Ollama](./docs/ollama.md) and [OpenAI](./docs/openai.md).
+Learn how to [moderate](./docs/moderate.md) and [embed](./docs/delayed_embed.md)
+content directly in the database using triggers and background jobs.
 
 ## Get involved
 
