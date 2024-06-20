@@ -37,7 +37,7 @@ Here's how to get started with pgai:
 
 The fastest ways to run PostgreSQL with the pgai extension are to:
 
-1. Create your Timescale environment. Either:
+1. Create your database environment. Either:
    * [Use a pre-built Docker container](#use-a-pre-built-docker-container).
    * [Install from source](#install-from-source).
    * [Use a Timescale Cloud service](#use-a-timescale-cloud-service).
