@@ -1,5 +1,10 @@
-# openAI
+# Use pgai with OpenAI
 
+This page shows you how to:
+
+- [Configure pgai for OpenAI](#configure-pgai-for-openai)
+- [Add AI functionality to your database](#usage)
+- [Follow advanced AI examples using data](./docs/advanced.md)
 
 ## Configure pgai for OpenAI
 
@@ -8,7 +13,7 @@ Most pgai functions require an [OpenAI API key](https://platform.openai.com/docs
 - [Handle API keys using pgai from psql](#handle-api-keys-using-pgai-from-psql)
 - [Handle API keys using pgai from python](#handle-api-keys-using-pgai-from-python)
 
-#### Handle API keys using pgai from psql
+### Handle API keys using pgai from psql
 
 The api key is an [optional parameter to pgai functions](https://www.postgresql.org/docs/current/sql-syntax-calling-funcs.html).
 You can either:
@@ -16,7 +21,7 @@ You can either:
 * [Run AI queries by passing your API key implicitly as a session parameter](#run-ai-queries-by-passing-your-api-key-implicitly-as-a-session-parameter)
 * [Run AI queries by passing your API key explicitly as a function argument](#run-ai-queries-by-passing-your-api-key-explicitly-as-a-function-argument)
 
-##### Run AI queries by passing your API key implicitly as a session parameter
+#### Run AI queries by passing your API key implicitly as a session parameter
 
 To use a [session level parameter when connecting to your database with psql](https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-SHELL)
 to run your AI queries:
@@ -42,14 +47,14 @@ to run your AI queries:
     ;
     ```
 
-##### Run AI queries by passing your API key explicitly as a function argument
+#### Run AI queries by passing your API key explicitly as a function argument
 
 1. Set your OpenAI key as an environment variable in your shell:
     ```bash
     export OPENAI_API_KEY="this-is-my-super-secret-api-key-dont-tell"
     ```
 
-2. Connect to your database and set your api key as a [psql variable](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-VARIABLES).
+2. Connect to your database and set your api key as a [psql variable](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-VARIABLES):
 
       ```bash
       psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>" -v openai_api_key=$OPENAI_API_KEY
@@ -75,7 +80,7 @@ to run your AI queries:
 
    The `\bind` metacommand is available in psql version 16+.
 
-#### Handle API keys using pgai from python
+### Handle API keys using pgai from python
 
 1. In your Python environment, include the dotenv and postgres driver packages:
 
@@ -113,7 +118,6 @@ to run your AI queries:
    Do not use string manipulation to embed the key as a literal in the SQL query.
 
 
-
 ## Usage
 
 This section shows you how to use AI directly from your database using SQL.
@@ -124,13 +128,11 @@ This section shows you how to use AI directly from your database using SQL.
 - [Embed](#embed): generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using a
   specified model.
 - [Chat_complete](#chat-complete): generate text or complete a chat.
-- [Generate](#generate): generate a response to a prompt
-- [Moderate](#moderate): check if content is classified as potentially harmful
-- [List running models](#list-running-models): list the models currently running
+- [Moderate](#moderate): check if content is classified as potentially harmful.
 
 ### List models
 
-List the models supported by your AI provider in pgai.
+List the models supported by your AI provider in pgai:
 
   ```sql
   SELECT * 
@@ -152,12 +154,11 @@ The data returned looks like:
 (N rows)
 ```
 
-
 ### Tokenize
 
 To encode content and count the number of tokens returned:
 
-* Encode content into an array of tokens.
+* Encode content into an array of tokens:
 
     ```sql
     SELECT openai_tokenize
@@ -212,7 +213,7 @@ The data returned looks like:
 
 Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using a specified model.
 
-- Request an embedding using a specific model.
+- Request an embedding using a specific model:
 
     ```sql
     SELECT openai_embed
@@ -241,7 +242,7 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
     ```
   This only works for certain models.
 
-- Pass a user identifier.
+- Pass a user identifier:
 
     ```sql
     SELECT openai_embed
@@ -251,7 +252,7 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
     );
     ```
 
-- Pass an array of text inputs.
+- Pass an array of text inputs:
 
     ```sql
     SELECT openai_embed
@@ -260,7 +261,7 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
     );
     ```
 
-- Provide tokenized input.
+- Provide tokenized input:
 
     ```sql
     select openai_embed
@@ -324,7 +325,7 @@ Generate text or complete a chat:
 
   `openai_chat_complete` returns a [jsonb object](https://www.depesz.com/2014/03/25/waiting-for-9-4-introduce-jsonb-a-structured-format-for-storing-json/) containing the
   response from the API. You can use jsonb operators and functions to manipulate [the object returned](https://platform.openai.com/docs/api-reference/chat/object). For example, the
-  following query returns the content as text from the first message in the choices array.
+  following query returns the content as text from the first message in the choices array:
 
     ```sql
     -- the following two metacommands cause the raw query results to be printed
@@ -428,4 +429,164 @@ The data returned looks like:
         }
     ]
 }
+```
+
+## Advanced examples
+
+This page gives you more in-depth AI examples using pgai. In these examples, you
+will use pgai to embed, moderate, and summarize git commit history.
+
+- [Load the sample data]() - add git commit history sample data to your database
+- [Embedding]() - generate an [embedding](https://platform.openai.com/docs/guides/embeddings) for each git commit
+- [Moderation]() - check the commit history and flag harmful speech in a new table
+- [Summarization]() - summarize a month of git commits in a Markdown release note
+
+### Load the sample data
+
+To add the advanced examples to your developer environment, in the `<pgai-repo>/docs` folder:
+
+1. Connect to your database using `psql`:
+
+   The following command [passes your OpenAI API key as a session parameter](../README.md#run-ai-queries-by-passing-your-api-key-implicitly-as-a-session-parameter):
+
+   ```bash
+   PGOPTIONS="-c ai.openai_api_key=$OPENAI_API_KEY" psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+   ```
+
+2. Ensure the pgai extension is enabled in your database and use
+   [\copy](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMANDS-COPY)
+   to load the [git commit_history data](./commit_history.csv) to a new table in your database:
+
+   ```sql
+   create extension if not exists ai cascade;
+   
+   -- a table with git commit history
+   create table commit_history
+   ( id int not null primary key
+   , author text
+   , "date" timestamptz
+   , "commit" text
+   , summary text
+   , detail text
+   );
+   
+   -- use psql's copy metacommand to load the csv into the table
+   -- if the csv file is not in the same directory from which psql was launched,
+   -- you will need to modify the path here
+   \copy commit_history from 'commit_history.csv' with (format csv)
+   ```
+
+### Embedding
+
+Use the pgai extension to generate an embedding for each
+git commit. The embeddings are inserted into a new table:
+
+```sql
+-- we want to embed each row of commit history and put the embedding in this table
+create table commit_history_embed
+( id int not null primary key
+, embedding vector(1536) -- the vector type comes from the pgvector extension
+);
+
+-- select from the first table, embed the content, and insert in the second table
+insert into commit_history_embed (id, embedding)
+select
+  id
+, openai_embed
+  ( 'text-embedding-3-small'
+    -- create a single text string representation of the commit
+  , format('author: %s date: %s commit: %s summary: %s detail: %s', author, "date", "commit", summary, detail)
+  ) as embedding
+from commit_history
+;
+```
+
+### Moderation
+
+Use the pgai extension to moderate the git commit details. Any
+commits that are flagged are inserted into a new table. An array of the
+categories of harmful speech that were flagged is provided for each row. To achieve this, the following
+query uses [jsonb operators](https://www.postgresql.org/docs/current/functions-json.html#FUNCTIONS-JSON-PROCESSING)
+and a [jsonpath query](https://www.postgresql.org/docs/current/functions-json.html#FUNCTIONS-SQLJSON-PATH)
+to process [the response](https://platform.openai.com/docs/api-reference/moderations/object)
+from OpenAI:
+
+```sql
+create table commit_history_moderated 
+( id int not null primary key
+, detail text -- the content that was moderated
+, flagged_categories jsonb -- an array of json strings
+);
+
+insert into commit_history_moderated (id, detail, flagged_categories)
+select
+  x.id
+, x.detail
+  -- pull out the list of only the categories that were flagged
+, jsonb_path_query_array(x.moderation, '$.results[0].categories.keyvalue() ? (@.value == true).key')
+from
+(
+    select
+      id
+    , detail
+      -- call the openai api using the pgai extension. the result is jsonb
+    , openai_moderate('text-moderation-stable', detail) as moderation
+    from commit_history
+) x
+where (x.moderation->'results'->0->>'flagged')::bool -- only the ones that were flagged
+;
+```
+
+### Summarization
+
+Use the pgai extension to summarize content. In a single query, ask for a summarization
+of a month's worth of git commits in the form of release notes in Markdown format. You
+provide one message for the system and another one for the user.
+
+The git commits for the month are appended in text format to the user message. This query
+uses jsonb operators to pull out the content of the [response](https://platform.openai.com/docs/api-reference/chat/object) only:
+
+```sql
+-- the following two metacommands cause the raw query results to be printed
+-- without any decoration
+\pset tuples_only on
+\pset format unaligned
+
+-- summarize and categorize git commits to produce a release notes document
+select openai_chat_complete
+( 'gpt-4o'
+, jsonb_build_array
+  ( jsonb_build_object
+    ( 'role', 'system'
+    , 'content', 'You are a software release engineer who summarizes git commits to produce release notes.'
+    )
+  , jsonb_build_object
+    ( 'role', 'user'
+    , 'content'
+    , -- build up a list of the commit details to append to the prompt
+      concat
+      ( E'Summarize the following list of commits from the timescaledb git repo from August 2023 in a release notes document in markdown format.\n\n'
+      , string_agg(x.commit_desc, E'\n\n')
+      )
+    )
+  )
+)->'choices'->0->'message'->>'content'
+from
+(
+    -- convert each to a text format
+    select format
+    ( E'%s %s\n\tcommit: %s\n\tauthor: %s\n\tdate: %s\n\tdetail: %s'
+    , row_number() over (order by "date")
+    , summary
+    , "commit"
+    , author
+    , "date"
+    , detail
+    ) as commit_desc
+    from commit_history
+    -- just look at commits from August 2023
+    where date_trunc('month', "date") = '2023-08-01 00:00:00+00'::timestamptz
+    order by "date"
+) x
+;
 ```

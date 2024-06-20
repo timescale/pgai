@@ -1,82 +1,59 @@
-# Ollama
+# Use pgai with Ollama
 
+This page shows you how to:
 
+- [Configure pgai for Ollama](#configure-pgai-for-ollama)
+- [Add AI functionality to your database](#usage)
 
 ## Configure pgai for Ollama
 
-### Ollama
+To use pgai with Ollama, Ollama must be running and network-accessible to your Timescale Cloud service or 
+self-hosted database.
 
-You will need to have Ollama running somewhere that is network-accessible to your database.
-The Ollama functions in pgai take an optional `_host` parameter to specify where Ollama is.
+To specify the Ollama network address, Ollama functions in pgai use the `_host` parameter. 
+If you have not set `_host`, the `ai.ollama_host` config setting is missing. pgai defaults to 
+`http://localhost:11434`, and a warning is appended to to the log file.
 
-If you are running Postgres in a docker container, and Ollama is running on the host machine,
-use `http://host.docker.internal:11434` for the `_host`.
+You set the network for your Ollama configuration either:
 
-You can provide an argument explicitly like this:
+* Explicitly with the `_host` parameter:
 
-```sql
-select ollama_generate
-( 'llama3'
-, 'what is the typical weather like in Alabama in June'
-, _host=>'http://host.docker.internal:11434' -- tells pgai that Ollama is running on the host when pgai is in a docker container
-)
-```
+  ```sql
+  select ollama_generate
+  ( 'llama3'
+  , 'what is the typical weather like in Alabama in June'
+  , _host=>'http://host.for.ollama:port' -- tells pgai that Ollama is running on the host when pgai is in a docker container
+  )
+  ```
 
-Alternately, you can set the `ai.ollama_host` config parameter.
+* Using the `ai.ollama_host` config parameter:
 
-To do this at a session level, run:
+  * At a session level:
 
-```sql
-select set_config('ai.ollama_host', 'http://host.docker.internal:11434', false);
-```
+    ```sql
+    select set_config('ai.ollama_host', 'http://host.for.ollama:port', false);
+    ```
 
-Or to do it system-wide, you can [add it to the postgres.conf file](https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-CONFIGURATION-FILE).
+  * System-wide, [add it to the postgres.conf file](https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-CONFIGURATION-FILE)
 
-If the `_host` parameter is not specified explicitly and the `ai.ollama_host` config
-setting is missing, the Ollama functions will default to `http://localhost:11434`.
-This will generate a warning in the log file.
+
+When Ollama is running on the same host machine as the [Docker container](../README.md#use-a-pre-built-docker-container) 
+running pgai, the ollama host address is `http://host.docker.internal:11434`.
 
 ## Usage
 
 This section shows you how to use AI directly from your database using SQL.
 
 - [List_models](#list-models): list the models supported by OpenAI functions in pgai.
-- [Tokenize](#tokenize): encode content into tokens.
-- [Detokenize](#detokenize): turn tokens into natural language.
 - [Embed](#embed): generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using a
   specified model.
 - [Chat_complete](#chat-complete): generate text or complete a chat.
 - [Generate](#generate): generate a response to a prompt
-- [Moderate](#moderate): check if content is classified as potentially harmful
 - [List running models](#list-running-models): list the models currently running
 
 ### List models
 
-List the models supported by your AI provider in pgai.
-
-- **OpenAI**
-
-    ```sql
-    SELECT * 
-    FROM openai_list_models()
-    ORDER BY created DESC
-    ;
-    ```
-  The data returned looks like:
-
-    ```text
-                 id              |        created         |    owned_by     
-    -----------------------------+------------------------+-----------------
-     gpt-4o-test-shared          | 2024-05-20 13:06:56-05 | system
-     gpt-4o-2024-05-13           | 2024-05-10 14:08:52-05 | system
-     gpt-4o                      | 2024-05-10 13:50:49-05 | system
-     gpt-4-turbo-2024-04-09      | 2024-04-08 13:41:17-05 | system
-     gpt-4-turbo                 | 2024-04-05 18:57:21-05 | system
-     ...
-    (N rows)
-    ```
-
-Ollama list models
+List the models supported by your AI provider in pgai:
 
 ```sql
 SELECT * 
@@ -84,8 +61,8 @@ FROM ollama_list_models()
 ORDER BY size DESC
 ;
 ```
-The data returned will look something like the following but will be different
-depending on the models pulled in your Ollama instance.
+The data returned looks something like the following. However this depends on the models pulled in 
+your Ollama instance:
 
 ```text
      name      |     model     |    size    |                              digest                              | family | format |     families      | parent_model | parameter_size | quantization_level |          modified_at          
@@ -95,131 +72,9 @@ depending on the models pulled in your Ollama instance.
 (2 rows)
 ```
 
-### Tokenize
-
-#### OpenAI tokenize
-
-To encode content and count the number of tokens returned:
-
-* Encode content into an array of tokens.
-
-    ```sql
-    SELECT openai_tokenize
-    ( 'text-embedding-ada-002'
-    , 'Timescale is Postgres made Powerful'
-    );
-    ```
-  The data returned looks like:
-    ```text
-                openai_tokenize             
-    ----------------------------------------
-     {19422,2296,374,3962,18297,1903,75458}
-    (1 row)
-    ```
-
-* Count the number of tokens generated:
-
-    ```sql
-    SELECT array_length
-    ( openai_tokenize
-      ( 'text-embedding-ada-002'
-      , 'Timescale is Postgres made Powerful'
-      )
-    , 1
-    );
-    ```
-  The data returned looks like:
-    ```text
-     array_length 
-    --------------
-                7
-    (1 row)
-    ```
-
-### Detokenize
-
-#### OpenAI detokenize
-
-Turn tokenized content into natural language:
-
-```sql
-SELECT openai_detokenize('text-embedding-ada-002', array[1820,25977,46840,23874,389,264,2579,58466]);
-```
-The data returned looks like:
-
-```text
-             openai_detokenize              
---------------------------------------------
- the purple elephant sits on a red mushroom
-(1 row)
-```
-
 ### Embed
 
-#### OpenAI embed
-
-Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using a specified model.
-
-- Request an embedding using a specific model.
-
-    ```sql
-    SELECT openai_embed
-    ( 'text-embedding-ada-002'
-    , 'the purple elephant sits on a red mushroom'
-    );
-    ```
-
-  The data returned looks like:
-
-    ```text
-                          openai_embed                      
-    --------------------------------------------------------
-     [0.005978798,-0.020522336,...-0.0022857306,-0.023699166]
-    (1 row)
-    ```
-
-- Specify the number of dimensions you want in the returned embedding:
-
-    ```sql
-    SELECT openai_embed
-    ( 'text-embedding-ada-002'
-    , 'the purple elephant sits on a red mushroom'
-    , _dimensions=>768
-    );
-    ```
-  This only works for certain models.
-
-- Pass a user identifier.
-
-    ```sql
-    SELECT openai_embed
-    ( 'text-embedding-ada-002'
-    , 'the purple elephant sits on a red mushroom'
-    , _user=>'bac1aaf7-4460-42d3-bba5-2957b057f4a5'
-    );
-    ```
-
-- Pass an array of text inputs.
-
-    ```sql
-    SELECT openai_embed
-    ( 'text-embedding-ada-002'
-    , array['Timescale is Postgres made Powerful', 'the purple elephant sits on a red mushroom']
-    );
-    ```
-
-- Provide tokenized input.
-
-    ```sql
-    select openai_embed
-    ( 'text-embedding-ada-002'
-    , array[1820,25977,46840,23874,389,264,2579,58466]
-    );
-    ```
-
-#### Ollama embed
-
-Generate [embeddings](https://github.com/ollama/ollama/blob/main/docs/api.md#generate-embeddings) using a specified model.
+Generate [embeddings](https://github.com/ollama/ollama/blob/main/docs/api.md#generate-embeddings) using a specified model:
 
 ```sql
 select ollama_embed
@@ -240,98 +95,8 @@ The data returned looks like:
 
 ### Chat complete
 
-#### OpenAi chat complete
-
-Generate text or complete a chat:
-
-* Have an LLM generate text from a prompt:
-
-    ```sql
-    -- the following two metacommands cause the raw query results to be printed
-    -- without any decoration
-    \pset tuples_only on
-    \pset format unaligned
-    
-    SELECT jsonb_pretty
-    (
-      openai_chat_complete
-      ( 'gpt-4o'
-      , jsonb_build_array
-        ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
-        , jsonb_build_object('role', 'user', 'content', 'what is the typical weather like in Alabama in June')
-        )
-      )
-    );
-    ```
-  The data returned looks like:
-    ```json
-    {
-        "id": "chatcmpl-9RgehyQ0aydAkQajrN6Oe0lepERKC",
-        "model": "gpt-4o-2024-05-13",
-        "usage": {
-            "total_tokens": 332,
-            "prompt_tokens": 26,
-            "completion_tokens": 306
-        },
-        "object": "chat.completion",
-        "choices": [
-            {
-                "index": 0,
-                "message": {
-                    "role": "assistant",
-                    "content": "In Alabama, June typically ushers in the summer season with warm to hot temperatures and relatively high humidity. Here’s a general overview of what you can expect:\n\n1. **Temperature**: \n   - Average daytime highs usually range from the mid-80s to low 90s Fahrenheit (around 29-35°C).\n   - Nighttime temperatures often fall to the mid-60s to mid-70s Fahrenheit (18-24°C).\n\n2. **Humidity**:\n   - Humidity levels can be quite high, making the temperatures feel even warmer. The mix of heat and humidity can lead to a muggy atmosphere.\n\n3. **Rainfall**:\n   - June is part of the wet season for Alabama, so you can expect a fair amount of rainfall. Thunderstorms are relatively common, often in the afternoons and evenings.\n   - The precipitation can be sporadic, with sudden downpours that can clear up quickly.\n\n4. **Sunshine**:\n   - There are plenty of sunny days, though the sunshine can be intense. Ultraviolet (UV) levels are high, so sun protection is important.\n\n5. **Overall Climate**:\n   - Generally, the climate in Alabama in June is characterized by a typical Southeastern U.S. summer: hot, humid, and occasionally stormy. \n\nIf you’re planning a visit or activities in Alabama during June, it’s a good idea to stay hydrated, wear light clothing, and keep an eye on the weather forecast for any potential thunderstorms."
-                },
-                "logprobs": null,
-                "finish_reason": "stop"
-            }
-        ],
-        "created": 1716385851,
-        "system_fingerprint": "fp_729ea513f7"
-    }
-    ```
-
-- Return the content as text from a specific message in the choices array.
-
-  `openai_chat_complete` returns a [jsonb object](https://www.depesz.com/2014/03/25/waiting-for-9-4-introduce-jsonb-a-structured-format-for-storing-json/) containing the
-  response from the API. You can use jsonb operators and functions to manipulate [the object returned](https://platform.openai.com/docs/api-reference/chat/object). For example, the
-  following query returns the content as text from the first message in the choices array.
-
-    ```sql
-    -- the following two metacommands cause the raw query results to be printed
-    -- without any decoration
-    \pset tuples_only on
-    \pset format unaligned
-    
-    select openai_chat_complete
-    ( 'gpt-4o'
-    , jsonb_build_array
-      ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
-      , jsonb_build_object('role', 'user', 'content', 'what is the typical weather like in Alabama in June')
-      )
-    )->'choices'->0->'message'->>'content'
-    ;
-    ```
-  The data returned looks like:
-
-    ```text
-    In June, Alabama generally experiences warm to hot weather as it transitions into summer. Typical conditions include:
-    
-    1. **Temperatures**: Daytime highs usually range from the mid-80s to low 90s Fahrenheit (around 29-34°C). Nighttime lows typically range from the mid-60s to low 70s Fahrenheit (around 18-23°C).
-    
-    2. **Humidity**: June tends to be quite humid, which can make the temperatures feel even warmer. High humidity levels are characteristic of Alabama summers.
-    
-    3. **Precipitation**: June is part of the wetter season in Alabama, with regular afternoon thunderstorms being common. Rainfall can vary, but you can expect an average of about 4 to 5 inches (around 100-125 mm) of rain for the month.
-    
-    4. **Sunshine**: There are usually plenty of sunny days, although the frequent thunderstorms can lead to overcast skies at times.
-    
-    Overall, if you're planning to visit Alabama in June, be prepared for hot and humid conditions, and keep an umbrella or rain jacket handy for those afternoon storms.
-    ```
-
-#### Ollama chat complete
-
-[Generate text or complete a chat](https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-completion):
-
-You can specify custom parameters to the LLM by providing the optional `_options` argument.
+[Generate text or complete a chat](https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-completion).
+You specify custom parameters to the LLM using optional `_options` argument:
 
 ```sql
 -- the following two metacommands cause the raw query results to be printed
@@ -375,7 +140,7 @@ The data returned looks like:
 ```
 
 You can use [jsonb operators and functions](https://www.postgresql.org/docs/current/functions-json.html#FUNCTIONS-JSON-PROCESSING)
-to manipulate the jsonb object returned from `ollama_chat_complete`.
+to manipulate the jsonb object returned from `ollama_chat_complete`:
 
 ```sql
 -- the following two metacommands cause the raw query results to be printed
@@ -422,9 +187,7 @@ In summary, a large language model is a powerful AI tool capable of processing a
 
 ### Generate
 
-#### Ollama generate
-
-[Generate a response for the prompt provided](https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-completion)
+[Generate a response for the prompt provided](https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-completion):
 
 ```sql
 -- the following two metacommands cause the raw query results to be printed
@@ -455,85 +218,9 @@ On the right, there's a character that resembles a pine cone. This character is 
 The background of the image suggests an indoor setting with a wooden floor, a stage with lights, and spectators in the stands. The overall atmosphere of the scene is competitive and energetic. 
 ```
 
-### Moderate
-
-Check if content is classified as potentially harmful:
-
-#### OpenAI Moderate
-
-```sql
--- the following two metacommands cause the raw query results to be printed
--- without any decoration
-\pset tuples_only on
-\pset format unaligned
-
-select jsonb_pretty
-(
-  openai_moderate
-  ( 'text-moderation-stable'
-  , 'I want to kill them.'
-  )
-);
-```
-The data returned looks like:
-
-```text
-{
-    "id": "modr-9RsN6qZWoZYm1AK4mtrKuEjfOcMWp",
-    "model": "text-moderation-007",
-    "results": [
-        {
-            "flagged": true,
-            "categories": {
-                "hate": false,
-                "sexual": false,
-                "violence": true,
-                "self-harm": false,
-                "self_harm": false,
-                "harassment": true,
-                "sexual/minors": false,
-                "sexual_minors": false,
-                "hate/threatening": false,
-                "hate_threatening": false,
-                "self-harm/intent": false,
-                "self_harm_intent": false,
-                "violence/graphic": false,
-                "violence_graphic": false,
-                "harassment/threatening": true,
-                "harassment_threatening": true,
-                "self-harm/instructions": false,
-                "self_harm_instructions": false
-            },
-            "category_scores": {
-                "hate": 0.2324090600013733,
-                "sexual": 0.00001205232911161147,
-                "violence": 0.997192919254303,
-                "self-harm": 0.0000023696395601291442,
-                "self_harm": 0.0000023696395601291442,
-                "harassment": 0.5278584957122803,
-                "sexual/minors": 0.00000007506431387582779,
-                "sexual_minors": 0.00000007506431387582779,
-                "hate/threatening": 0.024183575063943863,
-                "hate_threatening": 0.024183575063943863,
-                "self-harm/intent": 0.0000017161115692942985,
-                "self_harm_intent": 0.0000017161115692942985,
-                "violence/graphic": 0.00003399916022317484,
-                "violence_graphic": 0.00003399916022317484,
-                "harassment/threatening": 0.5712487697601318,
-                "harassment_threatening": 0.5712487697601318,
-                "self-harm/instructions": 0.000000001132860139030356,
-                "self_harm_instructions": 0.000000001132860139030356
-            }
-        }
-    ]
-}
-```
-
 ### List running models
 
-#### Ollama list running models
-
-You can [list the models currently running in Ollama](https://github.com/ollama/ollama/blob/main/docs/api.md#list-running-models) with:
+You [list the models currently running in Ollama](https://github.com/ollama/ollama/blob/main/docs/api.md#list-running-models) with:
 
 ```sql
 select *
@@ -549,3 +236,4 @@ The data returned looks like:
  llava:7b | llava:7b | 5758857216 | 8dd30f6b0cb19f555f2c7a7ebda861449ea2cc76bf1f44e262931f45fc81d081 |              | gguf   | llama  | ["llama", "clip"] | 7B             | Q4_0               | 2024-06-18 20:07:30.508198+00 | 5758857216
 (1 row)
 ```
+

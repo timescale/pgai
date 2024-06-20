@@ -17,23 +17,23 @@ pgai brings embedding and generation AI models closer to the database. With pgai
 
 * Create [embeddings](#embed) for your data.
 * Retrieve LLM [chat completions](#chat-complete) from models like OpenAI GPT4o and Llama 3.
+* Generate responses for models such as Ollama.
 * Reason over your data and facilitate use cases like [classification, summarization, and data enrichment](docs/advanced.md) on your existing relational data in PostgreSQL.
 
 Here's how to get started with pgai:
 
 * **Everyone**: Use pgai in your PostgreSQL database.
-  * [Install pgai](#install-pgai)
-  * Configure your AI provider
-  * [Add AI functionality to your database](#usage).
-  * [Advanced AI examples using data](./docs/advanced.md)  
-  * [Address provider-specific setup steps](#provider-specific-setup)
+  1. [Set up pgai](#set-up-pgai).
+  1. Use pgai to integrate AI from your provider:
+    * [Ollama](./docs/ollama.md) - configure pgai with Ollama, then use the model to embed, chat complete and generate. 
+    * [OpenAI](./docs/openai.md) - configure pgai with OpenAI, then use the model to tokenize, embed, chat complete and moderate. This page also includes advanced examples.
 * **Extension contributor**: Contribute to pgai and improve the project.
-  * [Develop and test changes to the pgai extension](./DEVELOPMENT.md)
+  * [Develop and test changes to the pgai extension](./DEVELOPMENT.md).
   * See the [Issues tab](https://github.com/timescale/pgai/issues) for a list of feature ideas to contribute.
 
 **Learn more about pgai:** To learn more about the pgai extension and why we built it, read this blog post [pgai: Giving PostgreSQL Developers AI Engineering Superpowers](http://www.timescale.com/blog/pgai-giving-postgresql-developers-ai-engineering-superpowers).
 
-## Setup pgai
+## Set up pgai
 
 The fastest ways to run PostgreSQL with the pgai extension are to:
 
@@ -42,11 +42,14 @@ The fastest ways to run PostgreSQL with the pgai extension are to:
    * [Install from source](#install-from-source).
    * [Use a Timescale Cloud service](#use-a-timescale-cloud-service).
 
-2. [Enable the pgai extension](#enabling-the-pgai-extension-in-your-database).
+2. [Enable the pgai extension](#enable-the-pgai-extension-in-your-database).
+
+3. Use pgai to integrate AI from [Ollama](./docs/ollama.md) and [OpenAI](./docs/openai.md).
 
 ### Use a pre-built Docker container
 
 [Run the TimescaleDB Docker image](https://docs.timescale.com/self-hosted/latest/install/installation-docker/).
+
 
 ### Install from source
 
@@ -67,10 +70,10 @@ Create a new [Timescale Service](https://console.cloud.timescale.com/dashboard/c
 If you want to use an existing service, pgai is added as an available extension on the first maintenance window
 after the pgai release date.
 
-### Enabling the pgai extension in your database
+### Enable the pgai extension in your database
 
 1. Connect to your database with a postgres client like [psql v16](https://docs.timescale.com/use-timescale/latest/integrations/query-admin/psql/) 
-   or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
+   or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/).
    ```bash
    psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
    ```
@@ -83,28 +86,7 @@ after the pgai release date.
    
    The `CASCADE` automatically installs `pgvector` and `plpython3u` extensions.
 
-
-## Usage
-
-This section shows you how to use AI directly from your database using SQL.
-
-- [List_models](#list-models): list the models supported by OpenAI functions in pgai.
-- [Tokenize](#tokenize): encode content into tokens.
-- [Detokenize](#detokenize): turn tokens into natural language.
-- [Embed](#embed): generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using a
-  specified model.
-- [Chat_complete](#chat-complete): generate text or complete a chat.
-- [Generate](#generate): generate a response to a prompt
-- [Moderate](#moderate): check if content is classified as potentially harmful
-- [List running models](#list-running-models): list the models currently running
-
-
-## Advanced examples
-
-For more advanced usage, the [Advanced examples](docs/advanced.md) use pgai to embed, moderate,
-and summarize a git commit history.
-
-
+Now use pgai to integrate AI from [Ollama](./docs/ollama.md) and [OpenAI](./docs/openai.md).
 
 ## Get involved
 
