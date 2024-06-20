@@ -7,8 +7,7 @@ This page shows you how to:
 
 ## Configure pgai for Ollama
 
-To use pgai with Ollama, Ollama must be running and network-accessible to your Timescale Cloud service or 
-self-hosted database.
+To use pgai with Ollama, Ollama must be running and network-accessible to your database.
 
 To specify the Ollama network address, Ollama functions in pgai use the `_host` parameter. 
 If you have not set `_host`, the `ai.ollama_host` config setting is missing. pgai defaults to 
