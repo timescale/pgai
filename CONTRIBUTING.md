@@ -107,3 +107,21 @@ open a pull request**.
 
 See our [testing](./DEVELOPMENT.md#test-your-pgai-changes)
 instructions for help with how to test.
+
+## Documenting
+
+If you want to run docs locally, use mkdocs with the material theme. You can install
+it with pip:
+
+```bash
+pip install mkdocs
+pip install mkdocs-material
+```
+
+To run the docs locally, use the following command:
+
+```bash
+mkdocs serve
+```
+
+Edit the mkdocs.yml to add new pages or change the structure.

@@ -29,12 +29,18 @@ directly from your session:
 
 ```sql
 SET ai.openai_api_key TO :'OPENAI_API_KEY' ;
-ALTER SYSTEM SET ai.openai_api_key TO :'OPENAI_API_KEY' ;
 ```
 
-:warning: **Remember your keys are stored in plain text in the configuration file.** :warning:
-:warning: **Remember that ALTER SYSTEM will propagate the config in the server
-after changing the configuration.** :warning:
+!!!warning "Plain text keys 🔑"
+    Remember your keys are stored in plain text in the configuration file.
+    **Use it at your own risk.**
+
+    ```sql
+    ALTER SYSTEM SET ai.openai_api_key TO :'OPENAI_API_KEY' ;
+    ```
+
+    Remember that ALTER SYSTEM will propagate the config in the server
+    after changing the configuration.
 
 ## Delayed vector example
 
@@ -77,11 +83,6 @@ USING diskann (embedding);
 Now, we're going to build a background job with timescaledb action
 that will populate the embedding column with the embeddings of the contents:
 
-:warning: Note that the api_key is being passed as a parameter to the function.
-If you're using the `ALTER SYSTEM` approach, you can remove the parameter.
-
-:warning: Remember your keys are pure text, so, they'll also be copied as part
-of the payload and may be appearing in logs.
 
 ```sql
 CREATE OR REPLACE FUNCTION populate_embedding(job_id int, config jsonb) returns void as $$
@@ -100,12 +101,24 @@ END;
 $$ language plpgsql;
 ```
 
-Schedule the job to run every 10 seconds:
+!!!warning "api_key exposed in the payload!"
+    If you cannot set the api_key in the configuration file, you can pass it as
+    a parameter to the function.
 
+    Note that the api_key is being passed as a parameter to the function.
+
+    ```sql
+    SELECT add_job('populate_embedding','10s', fixed_schedule => true,
+    config => format('{"api_key": "%s"}', :'OPENAI_API_KEY')::jsonb);
+    ```
+
+If you're able to spread the config to the backend, you can simply schedule the
+job to run every 10 seconds:
+
+```sql
+SELECT add_job('populate_embedding','10s', fixed_schedule => true);
 ```
-SELECT add_job('populate_embedding','10s', fixed_schedule => true,
-  config => format('{"api_key": "%s"}', :'OPENAI_API_KEY')::jsonb);
-```
+
 
 Now you can insert a new document:
 

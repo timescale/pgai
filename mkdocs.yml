@@ -1,0 +1,32 @@
+site_name: PGAI Documentation
+repo_url: https://github.com/timescale/pgai
+edit_uri: edit/main/docs/
+extra:
+  analytics:
+    provider: google
+    property: TBD
+theme:
+  name: material
+  palette:
+    primary: indigo
+    accent: pink
+markdown_extensions:
+  - admonition
+  - codehilite:
+      guess_lang: false
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+nav:
+  - Introduction: index.md
+  - Examples:
+    - Moderate comments: moderate.md
+    - Vectorize your data: delayed_embed.md
+  - API:
+    - Ollama: ollama.md
+    - OpenAI: openai.md
+  - Community: community.md
