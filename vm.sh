@@ -19,7 +19,8 @@ apt-get install -y --no-install-recommends \
     python3-pip \
     make
 
-pip install --break-system-packages -r /pgai/requirements.txt
+export PIP_BREAK_SYSTEM_PACKAGES=1
+pip install -r /pgai/requirements.txt
 
 cp /pgai/ai--*.sql /usr/share/postgresql/16/extension/
 cp /pgai/ai.control /usr/share/postgresql/16/extension/
@@ -29,7 +30,5 @@ chmod -R go+w /usr/lib/postgresql/16/lib/
 echo "/usr/bin/psql -U postgres -c \"create user ubuntu superuser login password 'ubuntu'\"" | sudo su postgres -
 echo "/usr/bin/psql -U postgres -c \"create database ubuntu owner ubuntu\"" | sudo su postgres -
 EOF
-multipass stop pgai
-multipass mount -t native . pgai:/pgai
-multipass start pgai
+multipass restart pgai
 multipass shell pgai

@@ -22,9 +22,11 @@ install_extension:
 	@cp $(SQL_FILES) $(EXTENSION_DIR)
 	@cp $(CONTROL_FILE) $(EXTENSION_DIR)
 
+export PIP_BREAK_SYSTEM_PACKAGES=1
+
 # Install the required Python packages
 install_python_packages:
-	@pip3 install --break-system-packages -r requirements.txt
+	@pip3 install -r requirements.txt
 
 test: install_extension
 	@./test.sh
