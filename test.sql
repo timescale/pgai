@@ -105,6 +105,17 @@ create table tests
 \endif
 
 -------------------------------------------------------------------------------
+-- anthropic tests
+\getenv enable_anthropic_tests ENABLE_ANTHROPIC_TESTS
+\if :enable_anthropic_tests
+\set ON_ERROR_ROLLBACK on
+\set ON_ERROR_STOP off
+\i tests/anthropic.sql
+\set ON_ERROR_ROLLBACK off
+\set ON_ERROR_STOP on
+\endif
+
+-------------------------------------------------------------------------------
 -- test results
 \echo
 \echo
