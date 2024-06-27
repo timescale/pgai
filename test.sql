@@ -116,6 +116,17 @@ create table tests
 \endif
 
 -------------------------------------------------------------------------------
+-- cohere tests
+\getenv enable_cohere_tests ENABLE_COHERE_TESTS
+\if :enable_cohere_tests
+\set ON_ERROR_ROLLBACK on
+\set ON_ERROR_STOP off
+\i tests/cohere.sql
+\set ON_ERROR_ROLLBACK off
+\set ON_ERROR_STOP on
+\endif
+
+-------------------------------------------------------------------------------
 -- test results
 \echo
 \echo
