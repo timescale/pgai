@@ -35,11 +35,7 @@ select anthropic_generate
 select jsonb_extract_path_text(:'actual'::jsonb, 'content', '0', 'text') is not null and (:'actual'::jsonb)->>'stop_reason' = 'end_turn' as actual
 \gset
 
-update tests set
-  expected = true::text
-, actual = :'actual'::bool::text
-where test = 'anthropic_generate'
-;
+select result('anthropic_generate', true, :'actual');
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -59,9 +55,5 @@ select anthropic_generate
 select jsonb_extract_path_text(:'actual'::jsonb, 'content', '0', 'text') is not null and (:'actual'::jsonb)->>'stop_reason' = 'end_turn' as actual
 \gset
 
-update tests set
-  expected = true::text
-, actual = :'actual'::bool::text
-where test = 'anthropic_generate-no-key'
-;
+select result('anthropic_generate-no-key', true, :'actual');
 \unset actual

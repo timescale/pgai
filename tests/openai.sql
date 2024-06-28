@@ -40,11 +40,7 @@ from openai_list_models(_api_key=>$1)
 \bind :openai_api_key
 \gset
 
-update tests set
-  expected = true
-, actual = :actual > 0
-where test = 'openai_list_models'
-;
+select result('openai_list_models', true, :actual > 0);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -54,11 +50,7 @@ select count(*) as actual
 from openai_list_models()
 \gset
 
-update tests set
-  expected = true
-, actual = :actual > 0
-where test = 'openai_list_models-no-key'
-;
+select result('openai_list_models-no-key', true, :actual > 0);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -67,11 +59,7 @@ where test = 'openai_list_models-no-key'
 select openai_tokenize('text-embedding-ada-002', 'the purple elephant sits on a red mushroom') as actual
 \gset
 
-update tests set
-  expected = array[1820,25977,46840,23874,389,264,2579,58466]::text
-, actual = :'actual'::int[]::text
-where test = 'openai_tokenize'
-;
+select result('openai_tokenize', array[1820,25977,46840,23874,389,264,2579,58466]::text, :'actual'::int[]::text);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -80,11 +68,7 @@ where test = 'openai_tokenize'
 select openai_detokenize('text-embedding-ada-002', array[1820,25977,46840,23874,389,264,2579,58466]) as actual
 \gset
 
-update tests set
-  expected = 'the purple elephant sits on a red mushroom'
-, actual = :'actual'
-where test = 'openai_detokenize'
-;
+select result('openai_detokenize', 'the purple elephant sits on a red mushroom', :'actual');
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -101,11 +85,7 @@ select vector_dims
 \bind :openai_api_key
 \gset
 
-update tests set
-  expected = 1536
-, actual = :'actual'
-where test = 'openai_embed-1'
-;
+select result('openai_embed-1', 1536, :actual);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -120,11 +100,7 @@ select vector_dims
 ) as actual
 \gset
 
-update tests set
-  expected = 1536
-, actual = :'actual'
-where test = 'openai_embed-1-no-key'
-;
+select result('openai_embed-1-no-key', 1536, :actual);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -142,11 +118,7 @@ select vector_dims
 \bind :openai_api_key
 \gset
 
-update tests set
-  expected = 768
-, actual = :'actual'
-where test = 'openai_embed-2'
-;
+select result('openai_embed-2', 768, :actual);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -162,11 +134,7 @@ select vector_dims
 ) as actual
 \gset
 
-update tests set
-  expected = 768
-, actual = :'actual'
-where test = 'openai_embed-2-no-key'
-;
+select result('openai_embed-2-no-key', 768, :actual);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -184,11 +152,7 @@ select vector_dims
 \bind :openai_api_key
 \gset
 
-update tests set
-  expected = 3072
-, actual = :'actual'
-where test = 'openai_embed-3'
-;
+select result('openai_embed-3', 3072, :actual);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -204,11 +168,7 @@ select vector_dims
 ) as actual
 \gset
 
-update tests set
-  expected = 3072
-, actual = :'actual'
-where test = 'openai_embed-3-no-key'
-;
+select result('openai_embed-3-no-key', 3072, :actual);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -223,11 +183,7 @@ from openai_embed
 \bind :openai_api_key
 \gset
 
-update tests set
-  expected = 6144
-, actual = :'actual'
-where test = 'openai_embed-4'
-;
+select result('openai_embed-4', 6144, :actual);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -240,11 +196,7 @@ from openai_embed
 )
 \gset
 
-update tests set
-  expected = 6144
-, actual = :'actual'
-where test = 'openai_embed-4-no-key'
-;
+select result('openai_embed-4-no-key', 6144, :actual);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -261,11 +213,7 @@ select vector_dims
 \bind :openai_api_key
 \gset
 
-update tests set
-  expected = 1536
-, actual = :'actual'
-where test = 'openai_embed-5'
-;
+select result('openai_embed-5', 1536, :actual);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -280,11 +228,7 @@ select vector_dims
 ) as actual
 \gset
 
-update tests set
-  expected = 1536
-, actual = :'actual'
-where test = 'openai_embed-5-no-key'
-;
+select result('openai_embed-5-no-key', 1536, :actual);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -304,11 +248,7 @@ select openai_chat_complete
 select jsonb_extract_path_text(:'actual'::jsonb, 'choices', '0', 'message', 'content') is not null as actual
 \gset
 
-update tests set
-  expected = true::text
-, actual = :'actual'::bool::text
-where test = 'openai_chat_complete'
-;
+select result('openai_chat_complete', true, :'actual');
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -326,11 +266,7 @@ select openai_chat_complete
 select jsonb_extract_path_text(:'actual'::jsonb, 'choices', '0', 'message', 'content') is not null as actual
 \gset
 
-update tests set
-  expected = true::text
-, actual = :'actual'::bool::text
-where test = 'openai_chat_complete-no-key'
-;
+select result('openai_chat_complete-no-key', true, :'actual');
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -347,11 +283,7 @@ select openai_moderate
 select jsonb_extract_path_text(:'actual'::jsonb, 'results', '0', 'flagged')::bool as actual
 \gset
 
-update tests set
-  expected = true::text
-, actual = :'actual'::bool::text
-where test = 'openai_moderate'
-;
+select result('openai_moderate', true, :'actual');
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -366,11 +298,7 @@ select openai_moderate
 select jsonb_extract_path_text(:'actual'::jsonb, 'results', '0', 'flagged')::bool as actual
 \gset
 
-update tests set
-  expected = true::text
-, actual = :'actual'::bool::text
-where test = 'openai_moderate-no-key'
-;
+select result('openai_moderate-no-key', true, :'actual');
 \unset actual
 
 -------------------------------------------------------------------------------
