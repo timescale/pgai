@@ -115,6 +115,48 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- cohere_tokenize
+-- https://docs.cohere.com/reference/tokenize
+create function @extschema@.cohere_tokenize(_model text, _text text, _api_key text default null) returns int[]
+as $func$
+_api_key_1 = _api_key
+if _api_key_1 is None:
+    r = plpy.execute("select pg_catalog.current_setting('ai.cohere_api_key', true) as api_key")
+    if len(r) >= 0:
+        _api_key_1 = r[0]["api_key"]
+if _api_key_1 is None:
+    plpy.error("missing api key")
+import cohere
+client = cohere.Client(_api_key_1)
+response = client.tokenize(text=_text, model=_model)
+return response.tokens
+$func$
+language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- cohere_detokenize
+-- https://docs.cohere.com/reference/detokenize
+create function @extschema@.cohere_detokenize(_model text, _tokens int[], _api_key text default null) returns text
+as $func$
+_api_key_1 = _api_key
+if _api_key_1 is None:
+    r = plpy.execute("select pg_catalog.current_setting('ai.cohere_api_key', true) as api_key")
+    if len(r) >= 0:
+        _api_key_1 = r[0]["api_key"]
+if _api_key_1 is None:
+    plpy.error("missing api key")
+import cohere
+client = cohere.Client(_api_key_1)
+response = client.detokenize(tokens=_tokens, model=_model)
+return response.text
+$func$
+language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- cohere_embed
 -- https://docs.cohere.com/reference/embed-1
 create function @extschema@.cohere_embed
@@ -148,3 +190,4 @@ $func$
 language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
+
