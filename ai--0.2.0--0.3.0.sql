@@ -69,3 +69,193 @@ $func$
 language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
+
+-------------------------------------------------------------------------------
+-- cohere_list_models
+-- https://docs.cohere.com/reference/list-models
+create function @extschema@.cohere_list_models
+( _api_key text default null
+, _endpoint text default null
+, _default_only bool default null
+)
+returns table
+( "name" text
+, endpoints text[]
+, finetuned bool
+, context_length int
+, tokenizer_url text
+, default_endpoints text[]
+)
+as $func$
+_api_key_1 = _api_key
+if _api_key_1 is None:
+    r = plpy.execute("select pg_catalog.current_setting('ai.cohere_api_key', true) as api_key")
+    if len(r) >= 0:
+        _api_key_1 = r[0]["api_key"]
+if _api_key_1 is None:
+    plpy.error("missing api key")
+import cohere
+client = cohere.Client(_api_key_1)
+args = {}
+if _endpoint is not None:
+    args["endpoint"] = _endpoint
+if _default_only is not None:
+    args["default_only"] = _default_only
+page_token = None
+while True:
+    resp = client.models.list(page_size=1000, page_token=page_token, **args)
+    for model in resp.models:
+        yield (model.name, model.endpoints, model.finetuned, model.context_length, model.tokenizer_url, model.default_endpoints)
+    page_token = resp.next_page_token
+    if page_token is None:
+        break
+$func$
+language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- cohere_tokenize
+-- https://docs.cohere.com/reference/tokenize
+create function @extschema@.cohere_tokenize(_model text, _text text, _api_key text default null) returns int[]
+as $func$
+_api_key_1 = _api_key
+if _api_key_1 is None:
+    r = plpy.execute("select pg_catalog.current_setting('ai.cohere_api_key', true) as api_key")
+    if len(r) >= 0:
+        _api_key_1 = r[0]["api_key"]
+if _api_key_1 is None:
+    plpy.error("missing api key")
+import cohere
+client = cohere.Client(_api_key_1)
+response = client.tokenize(text=_text, model=_model)
+return response.tokens
+$func$
+language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- cohere_detokenize
+-- https://docs.cohere.com/reference/detokenize
+create function @extschema@.cohere_detokenize(_model text, _tokens int[], _api_key text default null) returns text
+as $func$
+_api_key_1 = _api_key
+if _api_key_1 is None:
+    r = plpy.execute("select pg_catalog.current_setting('ai.cohere_api_key', true) as api_key")
+    if len(r) >= 0:
+        _api_key_1 = r[0]["api_key"]
+if _api_key_1 is None:
+    plpy.error("missing api key")
+import cohere
+client = cohere.Client(_api_key_1)
+response = client.detokenize(tokens=_tokens, model=_model)
+return response.text
+$func$
+language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- cohere_embed
+-- https://docs.cohere.com/reference/embed-1
+create function @extschema@.cohere_embed
+( _model text
+, _input text
+, _api_key text default null
+, _input_type text default null
+, _truncate text default null
+) returns vector
+as $func$
+_api_key_1 = _api_key
+if _api_key_1 is None:
+    r = plpy.execute("select pg_catalog.current_setting('ai.cohere_api_key', true) as api_key")
+    if len(r) >= 0:
+        _api_key_1 = r[0]["api_key"]
+if _api_key_1 is None:
+    plpy.error("missing api key")
+import cohere
+client = cohere.Client(_api_key_1)
+args={}
+if _input_type is not None:
+    args["input_type"] = _input_type
+if _truncate is not None:
+    args["truncate"] = _truncate
+response = client.embed(texts=[_input], model=_model, **args)
+return response.embeddings[0]
+$func$
+language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- cohere_classify
+-- https://docs.cohere.com/reference/classify
+create function @extschema@.cohere_classify
+( _model text
+, _inputs text[]
+, _api_key text default null
+, _examples jsonb default null
+, _truncate text default null
+) returns jsonb
+as $func$
+_api_key_1 = _api_key
+if _api_key_1 is None:
+    r = plpy.execute("select pg_catalog.current_setting('ai.cohere_api_key', true) as api_key")
+    if len(r) >= 0:
+        _api_key_1 = r[0]["api_key"]
+if _api_key_1 is None:
+    plpy.error("missing api key")
+import json
+args = {}
+if _examples is not None:
+    args["examples"] = json.loads(_examples)
+if _truncate is not None:
+    args["truncate"] = _truncate
+import cohere
+client = cohere.Client(_api_key_1)
+response = client.classify(inputs=_inputs, model=_model, **args)
+return response.json()
+$func$
+language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- cohere_classify_simple
+-- https://docs.cohere.com/reference/classify
+create function @extschema@.cohere_classify_simple
+( _model text
+, _inputs text[]
+, _api_key text default null
+, _examples jsonb default null
+, _truncate text default null
+) returns table
+( input text
+, prediction text
+, confidence float8
+)
+as $func$
+_api_key_1 = _api_key
+if _api_key_1 is None:
+    r = plpy.execute("select pg_catalog.current_setting('ai.cohere_api_key', true) as api_key")
+    if len(r) >= 0:
+        _api_key_1 = r[0]["api_key"]
+if _api_key_1 is None:
+    plpy.error("missing api key")
+import json
+args = {}
+if _examples is not None:
+    args["examples"] = json.loads(_examples)
+if _truncate is not None:
+    args["truncate"] = _truncate
+import cohere
+client = cohere.Client(_api_key_1)
+response = client.classify(inputs=_inputs, model=_model, **args)
+for x in response.classifications:
+    yield (x.input, x.prediction, x.confidence)
+$func$
+language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+

@@ -3,3 +3,4 @@ tiktoken==0.7.0
 httpx==0.27.0
 ollama==0.2.1
 anthropic==0.29.0
+cohere==5.5.8
