@@ -73,7 +73,7 @@ grant pg_read_server_files to tester;
 set role tester;
 
 -------------------------------------------------------------------------------
--- test setup
+-- test table
 drop table if exists tests;
 create table tests
 ( test text not null primary key
@@ -82,6 +82,28 @@ create table tests
 , passed boolean generated always as (actual = expected) stored
 );
 
+-------------------------------------------------------------------------------
+-- convenience functions for recording test results
+create function result(_test text, _expected text, _actual text) returns bool
+as $func$
+merge into tests as t
+using (select _test as test, _expected as expected, _actual as actual) x
+on (t.test = x.test)
+when matched then update set expected = x.expected, actual = x.actual
+when not matched then insert (test, actual) values (x.test, x.actual)
+;
+select passed from tests where test = _test;
+$func$ language sql;
+
+create function result(_test text, _expected int, _actual int) returns bool
+return (select result(_test, _expected::text, _actual::text))
+;
+
+create function result(_test text, _expected bool, _actual bool) returns bool
+return (select result(_test, _expected::text, _actual::text))
+;
+
+\pset tuples_only on
 -------------------------------------------------------------------------------
 -- openai tests
 \getenv enable_openai_tests ENABLE_OPENAI_TESTS
@@ -126,6 +148,7 @@ create table tests
 \set ON_ERROR_STOP on
 \endif
 
+\pset tuples_only off
 -------------------------------------------------------------------------------
 -- test results
 \echo
@@ -144,19 +167,18 @@ from tests
 \echo failed tests
 select *
 from tests
-where not passed
+where passed is distinct from true
 ;
 
 \echo test stats
 select
-  count(*) as run
+  count(*) as total
 , count(*) filter (where passed = true) as passed
-, count(*) filter (where passed = false) as failed
-, count(*) filter (where passed is null) as did_not_run
+, count(*) filter (where passed is distinct from true) as failed
 from tests
 ;
 
-select count(*) filter (where passed = false or passed is null) = 0 as result
+select count(*) filter (where passed is distinct from true) = 0 as result
 from tests
 \gset
 
