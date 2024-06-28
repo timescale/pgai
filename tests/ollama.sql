@@ -34,11 +34,7 @@ from ollama_list_models(_host=>$1)
 \bind :ollama_host
 \gset
 
-update tests set
-  expected = true
-, actual = :actual > 0
-where test = 'ollama_list_models'
-;
+select result('ollama_list_models', true, :actual > 0);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -48,11 +44,7 @@ select count(*) as actual
 from ollama_list_models()
 \gset
 
-update tests set
-  expected = true
-, actual = :actual > 0
-where test = 'ollama_list_models-no-host'
-;
+select result('ollama_list_models-no-host', true, :actual > 0);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -69,11 +61,7 @@ select vector_dims
 \bind :ollama_host
 \gset
 
-update tests set
-  expected = 4096
-, actual = :'actual'
-where test = 'ollama_embed'
-;
+select result('ollama_embed', 4096, :actual);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -88,11 +76,7 @@ select vector_dims
 ) as actual
 \gset
 
-update tests set
-  expected = 4096
-, actual = :'actual'
-where test = 'ollama_embed-no-host'
-;
+select result('ollama_embed-no-host', 4096, :actual);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -114,11 +98,7 @@ select ollama_generate
 select (:'actual'::jsonb)->>'response' is not null and ((:'actual'::jsonb)->>'done')::boolean as actual
 \gset
 
-update tests set
-  expected = true::text
-, actual = :'actual'::bool::text
-where test = 'ollama_generate'
-;
+select result('ollama_generate', true, :'actual');
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -138,11 +118,7 @@ select ollama_generate
 select (:'actual'::jsonb)->>'response' is not null and ((:'actual'::jsonb)->>'done')::boolean as actual
 \gset
 
-update tests set
-  expected = true::text
-, actual = :'actual'::bool::text
-where test = 'ollama_generate-no-host'
-;
+select result('ollama_generate-no-host', true, :'actual');
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -160,11 +136,7 @@ select ollama_generate
 )->>'response' as actual
 \gset
 
-update tests set
-  expected = 'an elephant with boxing gloves on, ready for a fight'::text
-, actual = substring(:'actual' from 152 for 52)
-where test = 'ollama_generate-image'
-;
+select result('ollama_generate-image', 'an elephant with boxing gloves on, ready for a fight', substring(:'actual' from 152 for 52));
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -188,11 +160,7 @@ select ollama_chat_complete
 select (:'actual'::jsonb)->'message'->>'content' is not null and ((:'actual'::jsonb)->>'done')::boolean as actual
 \gset
 
-update tests set
-  expected = true::text
-, actual = :'actual'::bool::text
-where test = 'ollama_chat_complete'
-;
+select result('ollama_chat_complete', true, :'actual');
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -214,11 +182,7 @@ select ollama_chat_complete
 select (:'actual'::jsonb)->'message'->>'content' is not null and ((:'actual'::jsonb)->>'done')::boolean as actual
 \gset
 
-update tests set
-  expected = true::text
-, actual = :'actual'::bool::text
-where test = 'ollama_chat_complete-no-host'
-;
+select result('ollama_chat_complete-no-host', true, :'actual');
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -240,11 +204,7 @@ select ollama_chat_complete
 )->'message'->>'content' as actual
 \gset
 
-update tests set
-  expected = true::text
-, actual = starts_with(:'actual'::text, ' This is a digitally manipulated image')
-where test = 'ollama_chat_complete-image'
-;
+select result('ollama_chat_complete-image', true, starts_with(:'actual'::text, ' This is a digitally manipulated image'));
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -255,11 +215,7 @@ from ollama_ps(_host=>$1)
 \bind :ollama_host
 \gset
 
-update tests set
-  expected = '1'
-, actual = :'actual'::text
-where test = 'ollama_ps'
-;
+select result('ollama_ps', 1, :actual);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -269,9 +225,5 @@ select count(*) filter (where "name" = 'llava:7b') as actual
 from ollama_ps()
 \gset
 
-update tests set
-  expected = '1'
-, actual = :'actual'::text
-where test = 'ollama_ps-no-host'
-;
+select result('ollama_ps-no-host', 1, :actual);
 \unset actual

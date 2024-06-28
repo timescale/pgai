@@ -27,11 +27,7 @@ from cohere_list_models(_api_key=>$1)
 \bind :cohere_api_key
 \gset
 
-update tests set
-  expected = true
-, actual = :actual > 0
-where test = 'cohere_list_models'
-;
+select result('cohere_list_models', true, :actual > 0);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -41,11 +37,7 @@ select count(*) as actual
 from cohere_list_models()
 \gset
 
-update tests set
-  expected = true
-, actual = :actual > 0
-where test = 'cohere_list_models-no-key'
-;
+select result('cohere_list_models-no-key', true, :actual > 0);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -55,11 +47,7 @@ select count(*) as actual
 from cohere_list_models(_endpoint=>'embed')
 \gset
 
-update tests set
-  expected = true
-, actual = :actual > 0
-where test = 'cohere_list_models-endpoint'
-;
+select result('cohere_list_models-endpoint', true, :actual > 0);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -69,11 +57,7 @@ select count(*) as actual
 from cohere_list_models(_endpoint=>'generate', _default_only=>true)
 \gset
 
-update tests set
-  expected = true
-, actual = :actual > 0
-where test = 'cohere_list_models-default-only'
-;
+select result('cohere_list_models-default-only', true, :actual > 0);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -91,11 +75,7 @@ select vector_dims
 \bind :cohere_api_key
 \gset
 
-update tests set
-  expected = 384
-, actual = :'actual'
-where test = 'cohere_embed'
-;
+select result('cohere_embed', 384, :actual);
 \unset actual
 
 -------------------------------------------------------------------------------
@@ -105,15 +85,11 @@ select vector_dims
 (
     cohere_embed
     ( 'embed-english-light-v3.0'
-    , 'how much wood would a woodchuck chuck if a woodchuck could chuck wood?'
+    , 'if a woodchuck could chuck wood, a woodchuck would chuck as much wood as he could'
     , _input_type=>'search_document'
     )
 ) as actual
 \gset
 
-update tests set
-  expected = 384
-, actual = :'actual'
-where test = 'cohere_embed-no-key'
-;
+select result('cohere_embed-no-key', 384, :actual);
 \unset actual
