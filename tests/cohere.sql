@@ -20,6 +20,8 @@ values
 , ('cohere_detokenize-no-key')
 , ('cohere_embed')
 , ('cohere_embed-no-key')
+, ('cohere_classify')
+, ('cohere_classify_simple')
 -- add entries for new tests here!
 ;
 
@@ -150,3 +152,56 @@ select vector_dims
 
 select result('cohere_embed-no-key', 384, :actual);
 \unset actual
+
+-------------------------------------------------------------------------------
+-- cohere_classify
+\echo cohere_classify
+with examples(example, label) as
+(
+    values
+      ('cat', 'animal')
+    , ('dog', 'animal')
+    , ('car', 'machine')
+    , ('truck', 'machine')
+    , ('apple', 'food')
+    , ('broccoli', 'food')
+)
+select jsonb_object_agg(x.input, x.prediction) as actual
+from jsonb_to_recordset
+((
+    select cohere_classify
+    ( 'embed-english-light-v3.0'
+    , array['bird', 'airplane', 'corn']
+    , _examples=>(select jsonb_agg(jsonb_build_object('text', examples.example, 'label', examples.label)) from examples)
+    )->'classifications'
+)) x(input text, prediction text)
+\gset
+
+select result('cohere_classify', '{"bird": "animal", "corn": "food", "airplane": "machine"}', :'actual');
+\unset actual
+
+-------------------------------------------------------------------------------
+-- cohere_classify_simple
+\echo cohere_classify_simple
+with examples(example, label) as
+(
+    values
+      ('cat', 'animal')
+    , ('dog', 'animal')
+    , ('car', 'machine')
+    , ('truck', 'machine')
+    , ('apple', 'food')
+    , ('broccoli', 'food')
+)
+select jsonb_object_agg(x.input, x.prediction) as actual
+from cohere_classify_simple
+( 'embed-english-light-v3.0'
+, array['bird', 'airplane', 'corn']
+, _examples=>(select jsonb_agg(jsonb_build_object('text', examples.example, 'label', examples.label)) from examples)
+) x
+\gset
+
+select result('cohere_classify_simple', '{"bird": "animal", "corn": "food", "airplane": "machine"}', :'actual');
+\unset actual
+
+-------------------------------------------------------------------------------
