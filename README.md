@@ -28,6 +28,7 @@ Here's how to get started with pgai:
     * [Ollama](./docs/ollama.md) - configure pgai for Ollama, then use the model to embed, chat complete and generate. 
     * [OpenAI](./docs/openai.md) - configure pgai for OpenAI, then use the model to tokenize, embed, chat complete and moderate. This page also includes advanced examples.
     * [Anthropic](./docs/anthropic.md) - configure pgai for Anthropic, then use the model to generate content.
+    * [Cohere](./docs/cohere.md) - configure pgai for Cohere, then use the model to tokenize, embed, chat complete, classify, and rerank.
 * **Extension contributor**: Contribute to pgai and improve the project.
   * [Develop and test changes to the pgai extension](./DEVELOPMENT.md).
   * See the [Issues tab](https://github.com/timescale/pgai/issues) for a list of feature ideas to contribute.
