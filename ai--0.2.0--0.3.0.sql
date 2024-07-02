@@ -327,3 +327,91 @@ from pg_catalog.jsonb_to_recordset
 $func$ language sql volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
+
+-------------------------------------------------------------------------------
+-- cohere_chat_complete
+-- https://docs.cohere.com/reference/chat
+create function @extschema@.cohere_chat_complete
+( _model text
+, _message text
+, _api_key text default null
+, _preamble text default null
+, _chat_history jsonb default null
+, _conversation_id text default null
+, _prompt_truncation text default null
+, _connectors jsonb default null
+, _search_queries_only bool default null
+, _documents jsonb default null
+, _citation_quality text default null
+, _temperature float8 default null
+, _max_tokens int default null
+, _max_input_tokens int default null
+, _k int default null
+, _p float8 default null
+, _seed int default null
+, _stop_sequences text[] default null
+, _frequency_penalty float8 default null
+, _presence_penalty float8 default null
+, _tools jsonb default null
+, _tool_results jsonb default null
+, _force_single_step bool default null
+) returns jsonb
+as $func$
+_api_key_1 = _api_key
+if _api_key_1 is None:
+    r = plpy.execute("select pg_catalog.current_setting('ai.cohere_api_key', true) as api_key")
+    if len(r) >= 0:
+        _api_key_1 = r[0]["api_key"]
+if _api_key_1 is None:
+    plpy.error("missing api key")
+
+import json
+args = {}
+if _preamble is not None:
+    args["preamble"] = _preamble
+if _chat_history is not None:
+    args["chat_history"] = json.loads(_chat_history)
+if _conversation_id is not None:
+    args["conversation_id"] = _conversation_id
+if _prompt_truncation is not None:
+    args["prompt_truncation"] = _prompt_truncation
+if _connectors is not None:
+    args["connectors"] = json.loads(_connectors)
+if _search_queries_only is not None:
+    args["search_queries_only"] = _search_queries_only
+if _documents is not None:
+    args["documents"] = json.loads(_documents)
+if _citation_quality is not None:
+    args["citation_quality"] = _citation_quality
+if _temperature is not None:
+    args["temperature"] = _temperature
+if _max_tokens is not None:
+    args["max_tokens"] = _max_tokens
+if _max_input_tokens is not None:
+    args["max_input_tokens"] = _max_input_tokens
+if _k is not None:
+    args["k"] = _k
+if _p is not None:
+    args["p"] = _p
+if _seed is not None:
+    args["seed"] = _seed
+if _stop_sequences is not None:
+    args["stop_sequences"] = _stop_sequences
+if _frequency_penalty is not None:
+    args["frequency_penalty"] = _frequency_penalty
+if _presence_penalty is not None:
+    args["presence_penalty"] = _presence_penalty
+if _tools is not None:
+    args["tools"] = json.loads(_tools)
+if _tool_results is not None:
+    args["tool_results"] = json.loads(_tool_results)
+if _force_single_step is not None:
+    args["force_single_step"] = _force_single_step
+
+import cohere
+client = cohere.Client(_api_key_1)
+response = client.chat(model=_model, message=_message, **args)
+return response.json()
+$func$ language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
