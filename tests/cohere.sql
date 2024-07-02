@@ -24,6 +24,7 @@ values
 , ('cohere_classify_simple')
 , ('cohere_rerank')
 , ('cohere_rerank_simple')
+, ('cohere_chat_complete')
 -- add entries for new tests here!
 ;
 
@@ -252,6 +253,20 @@ limit 1
 \gset
 
 select result('cohere_rerank_simple', 3, :actual);
+\unset actual
+
+-------------------------------------------------------------------------------
+-- cohere_chat_complete
+\echo cohere_chat_complete
+
+select cohere_chat_complete
+( 'command-r-plus'
+, 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
+, _seed=>42
+)->>'text' is not null as actual
+\gset
+
+select result('cohere_chat_complete', true, :'actual'::bool);
 \unset actual
 
 -------------------------------------------------------------------------------
