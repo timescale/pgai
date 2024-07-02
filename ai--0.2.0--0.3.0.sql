@@ -1,7 +1,6 @@
 -------------------------------------------------------------------------------
 -- ai 0.3.0
 
-
 -------------------------------------------------------------------------------
 -- anthropic_generate
 -- https://docs.anthropic.com/en/api/messages
@@ -259,3 +258,72 @@ language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-------------------------------------------------------------------------------
+-- cohere_rerank
+-- https://docs.cohere.com/reference/rerank
+create function @extschema@.cohere_rerank
+( _model text
+, _query text
+, _documents jsonb
+, _api_key text default null
+, _top_n integer default null
+, _return_documents bool default null
+, _max_chunks_per_doc int default null
+) returns jsonb
+as $func$
+_api_key_1 = _api_key
+if _api_key_1 is None:
+    r = plpy.execute("select pg_catalog.current_setting('ai.cohere_api_key', true) as api_key")
+    if len(r) >= 0:
+        _api_key_1 = r[0]["api_key"]
+if _api_key_1 is None:
+    plpy.error("missing api key")
+import json
+args = {}
+if _top_n is not None:
+    args["top_n"] = _top_n
+if _return_documents is not None:
+    args["return_documents"] = _return_documents
+if _max_chunks_per_doc is not None:
+    args["max_chunks_per_doc"] = _max_chunks_per_doc
+_documents_1 = json.loads(_documents)
+import cohere
+client = cohere.Client(_api_key_1)
+response = client.rerank(model=_model, query=_query, documents=_documents_1, **args)
+return response.json()
+$func$ language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- cohere_rerank_simple
+-- https://docs.cohere.com/reference/rerank
+create function @extschema@.cohere_rerank_simple
+( _model text
+, _query text
+, _documents jsonb
+, _api_key text default null
+, _top_n integer default null
+, _max_chunks_per_doc int default null
+) returns table
+( "index" int
+, "document" jsonb
+, relevance_score float8
+)
+as $func$
+select *
+from pg_catalog.jsonb_to_recordset
+(
+    @extschema@.cohere_rerank
+    ( _model
+    , _query
+    , _documents
+    , _api_key=>_api_key
+    , _top_n=>_top_n
+    , _return_documents=>true
+    , _max_chunks_per_doc=>_max_chunks_per_doc
+    )->'results'
+) x("index" int, "document" jsonb, relevance_score float8)
+$func$ language sql volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
