@@ -22,6 +22,8 @@ values
 , ('cohere_embed-no-key')
 , ('cohere_classify')
 , ('cohere_classify_simple')
+, ('cohere_rerank')
+, ('cohere_rerank_simple')
 -- add entries for new tests here!
 ;
 
@@ -202,6 +204,54 @@ from cohere_classify_simple
 \gset
 
 select result('cohere_classify_simple', '{"bird": "animal", "corn": "food", "airplane": "machine"}', :'actual');
+\unset actual
+
+-------------------------------------------------------------------------------
+-- cohere_rerank
+\echo cohere_rerank
+
+select cohere_rerank
+( 'rerank-english-v3.0'
+, 'How long does it take for two programmers to work on something?'
+, jsonb_build_array
+  ( $$Good programmers don't just write programs. They build a working vocabulary.$$
+  , 'One of the best programming skills you can have is knowing when to walk away for awhile.'
+  , 'What one programmer can do in one month, two programmers can do in two months.'
+  , 'how much wood would a woodchuck chuck if a woodchuck could chuck wood?'
+  )
+, _return_documents=>true
+) as actual
+\gset
+
+select x."index" as actual
+from jsonb_to_recordset((:'actual'::jsonb)->'results') x("index" int, "document" jsonb, relevance_score float8)
+order by relevance_score desc
+limit 1
+\gset
+
+select result('cohere_rerank', 2, :actual);
+\unset actual
+
+-------------------------------------------------------------------------------
+-- cohere_rerank_simple
+\echo cohere_rerank_simple
+
+select x."index" as actual
+from cohere_rerank_simple
+( 'rerank-english-v3.0'
+, 'How long does it take for two programmers to work on something?'
+, jsonb_build_array
+  ( $$Good programmers don't just write programs. They build a working vocabulary.$$
+  , 'One of the best programming skills you can have is knowing when to walk away for awhile.'
+  , 'What one programmer can do in one month, two programmers can do in two months.'
+  , 'how much wood would a woodchuck chuck if a woodchuck could chuck wood?'
+  )
+) x
+order by relevance_score asc
+limit 1
+\gset
+
+select result('cohere_rerank_simple', 3, :actual);
 \unset actual
 
 -------------------------------------------------------------------------------
