@@ -99,34 +99,34 @@ to run your AI queries:
     DB_URL="your connection string"
     ```
 
-    1. Pass your API key as a parameter to your queries:
+3. Pass your API key as a parameter to your queries:
 
-        ```python
-        import os
-        from dotenv import load_dotenv
+    ```python
+    import os
+    from dotenv import load_dotenv
          
-        load_dotenv()
+    load_dotenv()
         
-        COHERE_API_KEY = os.environ["COHERE_API_KEY"]
-        DB_URL = os.environ["DB_URL"]
+    COHERE_API_KEY = os.environ["COHERE_API_KEY"]
+    DB_URL = os.environ["DB_URL"]
         
-        import psycopg2
+    import psycopg2
         
-        with psycopg2.connect(DB_URL) as conn:
-            with conn.cursor() as cur:
-                # pass the API key as a parameter to the query. don't use string manipulations
-                cur.execute("""
-                    SELECT cohere_chat_complete
-                    ( 'command-r-plus'
-                    , 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
-                    , _api_key=>%s
-                    , _seed=>42
-                    )->>'text'
-                """, (COHERE_API_KEY, ))
-                records = cur.fetchall()
-        ```
+    with psycopg2.connect(DB_URL) as conn:
+        with conn.cursor() as cur:
+            # pass the API key as a parameter to the query. don't use string manipulations
+            cur.execute("""
+                SELECT cohere_chat_complete
+                ( 'command-r-plus'
+                , 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
+                , _api_key=>%s
+                , _seed=>42
+                )->>'text'
+            """, (COHERE_API_KEY, ))
+            records = cur.fetchall()
+    ```
 
-       Do not use string manipulation to embed the key as a literal in the SQL query.
+   Do not use string manipulation to embed the key as a literal in the SQL query.
 
 ## Usage
 
@@ -144,78 +144,78 @@ This section shows you how to use AI directly from your database using SQL.
 
 ### cohere_list_models
 
-List the models supported by the Cohere platform.
+* List the models supported by the Cohere platform.
+  
+  ```sql
+  select *
+  from cohere_list_models()
+  ;
+  ```
+  
+  Results:
+  
+  ```text
+               name              |         endpoints         | finetuned | context_length |                                       tokenizer_url                                        | default_endpoints 
+  -------------------------------+---------------------------+-----------+----------------+--------------------------------------------------------------------------------------------+-------------------
+   embed-english-light-v2.0      | {embed,classify}          | f         |            512 |                                                                                            | {}
+   embed-english-v2.0            | {embed,classify}          | f         |            512 |                                                                                            | {}
+   command-r                     | {generate,chat,summarize} | f         |         128000 | https://storage.googleapis.com/cohere-public/tokenizers/command-r.json                     | {}
+   embed-multilingual-light-v3.0 | {embed,classify}          | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-light-v3.0.json | {}
+   command-nightly               | {generate,chat,summarize} | f         |         128000 | https://storage.googleapis.com/cohere-public/tokenizers/command-nightly.json               | {}
+   command-r-plus                | {generate,chat,summarize} | f         |         128000 | https://storage.googleapis.com/cohere-public/tokenizers/command-r-plus.json                | {chat}
+   embed-multilingual-v3.0       | {embed,classify}          | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-v3.0.json       | {}
+   embed-multilingual-v2.0       | {embed,classify}          | f         |            256 | https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-v2.0.json       | {}
+   c4ai-aya-23                   | {generate,chat}           | f         |           8192 | https://storage.googleapis.com/cohere-public/tokenizers/c4ai-aya-23.json                   | {}
+   command-light-nightly         | {generate,summarize,chat} | f         |           4096 | https://storage.googleapis.com/cohere-public/tokenizers/command-light-nightly.json         | {}
+   rerank-multilingual-v2.0      | {rerank}                  | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/rerank-multilingual-v2.0.json      | {}
+   embed-english-v3.0            | {embed,classify}          | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/embed-english-v3.0.json            | {}
+   command                       | {generate,summarize,chat} | f         |           4096 | https://storage.googleapis.com/cohere-public/tokenizers/command.json                       | {generate}
+   rerank-multilingual-v3.0      | {rerank}                  | f         |           4096 | https://storage.googleapis.com/cohere-public/tokenizers/rerank-multilingual-v3.0.json      | {}
+   rerank-english-v2.0           | {rerank}                  | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/rerank-english-v2.0.json           | {}
+   command-light                 | {generate,summarize,chat} | f         |           4096 | https://storage.googleapis.com/cohere-public/tokenizers/command-light.json                 | {}
+   rerank-english-v3.0           | {rerank}                  | f         |           4096 | https://storage.googleapis.com/cohere-public/tokenizers/rerank-english-v3.0.json           | {}
+   embed-english-light-v3.0      | {embed,classify}          | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/embed-english-light-v3.0.json      | {}
+  (18 rows)
+  ```
 
-```sql
-select *
-from cohere_list_models()
-;
-```
+* List the models on the Cohere platform that support a particular endpoint.
+  
+  ```sql
+  select *
+  from cohere_list_models(_endpoint=>'embed')
+  ;
+  ```
+  
+  Results
+  
+  ```text
+               name              |    endpoints     | finetuned | context_length |                                       tokenizer_url                                        | default_endpoints 
+  -------------------------------+------------------+-----------+----------------+--------------------------------------------------------------------------------------------+-------------------
+   embed-english-light-v2.0      | {embed,classify} | f         |            512 |                                                                                            | {}
+   embed-english-v2.0            | {embed,classify} | f         |            512 |                                                                                            | {}
+   embed-multilingual-light-v3.0 | {embed,classify} | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-light-v3.0.json | {}
+   embed-multilingual-v3.0       | {embed,classify} | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-v3.0.json       | {}
+   embed-multilingual-v2.0       | {embed,classify} | f         |            256 | https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-v2.0.json       | {}
+   embed-english-v3.0            | {embed,classify} | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/embed-english-v3.0.json            | {}
+   embed-english-light-v3.0      | {embed,classify} | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/embed-english-light-v3.0.json      | {}
+  (7 rows)
+  ```
 
-Results:
-
-```text
-             name              |         endpoints         | finetuned | context_length |                                       tokenizer_url                                        | default_endpoints 
--------------------------------+---------------------------+-----------+----------------+--------------------------------------------------------------------------------------------+-------------------
- embed-english-light-v2.0      | {embed,classify}          | f         |            512 |                                                                                            | {}
- embed-english-v2.0            | {embed,classify}          | f         |            512 |                                                                                            | {}
- command-r                     | {generate,chat,summarize} | f         |         128000 | https://storage.googleapis.com/cohere-public/tokenizers/command-r.json                     | {}
- embed-multilingual-light-v3.0 | {embed,classify}          | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-light-v3.0.json | {}
- command-nightly               | {generate,chat,summarize} | f         |         128000 | https://storage.googleapis.com/cohere-public/tokenizers/command-nightly.json               | {}
- command-r-plus                | {generate,chat,summarize} | f         |         128000 | https://storage.googleapis.com/cohere-public/tokenizers/command-r-plus.json                | {chat}
- embed-multilingual-v3.0       | {embed,classify}          | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-v3.0.json       | {}
- embed-multilingual-v2.0       | {embed,classify}          | f         |            256 | https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-v2.0.json       | {}
- c4ai-aya-23                   | {generate,chat}           | f         |           8192 | https://storage.googleapis.com/cohere-public/tokenizers/c4ai-aya-23.json                   | {}
- command-light-nightly         | {generate,summarize,chat} | f         |           4096 | https://storage.googleapis.com/cohere-public/tokenizers/command-light-nightly.json         | {}
- rerank-multilingual-v2.0      | {rerank}                  | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/rerank-multilingual-v2.0.json      | {}
- embed-english-v3.0            | {embed,classify}          | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/embed-english-v3.0.json            | {}
- command                       | {generate,summarize,chat} | f         |           4096 | https://storage.googleapis.com/cohere-public/tokenizers/command.json                       | {generate}
- rerank-multilingual-v3.0      | {rerank}                  | f         |           4096 | https://storage.googleapis.com/cohere-public/tokenizers/rerank-multilingual-v3.0.json      | {}
- rerank-english-v2.0           | {rerank}                  | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/rerank-english-v2.0.json           | {}
- command-light                 | {generate,summarize,chat} | f         |           4096 | https://storage.googleapis.com/cohere-public/tokenizers/command-light.json                 | {}
- rerank-english-v3.0           | {rerank}                  | f         |           4096 | https://storage.googleapis.com/cohere-public/tokenizers/rerank-english-v3.0.json           | {}
- embed-english-light-v3.0      | {embed,classify}          | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/embed-english-light-v3.0.json      | {}
-(18 rows)
-```
-
-List the models on the Cohere platform that support a particular endpoint.
-
-```sql
-select *
-from cohere_list_models(_endpoint=>'embed')
-;
-```
-
-Results
-
-```text
-             name              |    endpoints     | finetuned | context_length |                                       tokenizer_url                                        | default_endpoints 
--------------------------------+------------------+-----------+----------------+--------------------------------------------------------------------------------------------+-------------------
- embed-english-light-v2.0      | {embed,classify} | f         |            512 |                                                                                            | {}
- embed-english-v2.0            | {embed,classify} | f         |            512 |                                                                                            | {}
- embed-multilingual-light-v3.0 | {embed,classify} | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-light-v3.0.json | {}
- embed-multilingual-v3.0       | {embed,classify} | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-v3.0.json       | {}
- embed-multilingual-v2.0       | {embed,classify} | f         |            256 | https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-v2.0.json       | {}
- embed-english-v3.0            | {embed,classify} | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/embed-english-v3.0.json            | {}
- embed-english-light-v3.0      | {embed,classify} | f         |            512 | https://storage.googleapis.com/cohere-public/tokenizers/embed-english-light-v3.0.json      | {}
-(7 rows)
-```
-
-List the default model for a given endpoint.
-
-```sql
-select * 
-from cohere_list_models(_endpoint=>'generate', _default_only=>true);
-```
-
-Results
-
-```text
-  name   |         endpoints         | finetuned | context_length |                            tokenizer_url                             | default_endpoints 
----------+---------------------------+-----------+----------------+----------------------------------------------------------------------+-------------------
- command | {generate,summarize,chat} | f         |           4096 | https://storage.googleapis.com/cohere-public/tokenizers/command.json | {generate}
-(1 row)
-```
+* List the default model for a given endpoint.
+  
+  ```sql
+  select * 
+  from cohere_list_models(_endpoint=>'generate', _default_only=>true);
+  ```
+  
+  Results
+  
+  ```text
+    name   |         endpoints         | finetuned | context_length |                            tokenizer_url                             | default_endpoints 
+  ---------+---------------------------+-----------+----------------+----------------------------------------------------------------------+-------------------
+   command | {generate,summarize,chat} | f         |           4096 | https://storage.googleapis.com/cohere-public/tokenizers/command.json | {generate}
+  (1 row)
+  ```
 
 ### cohere_tokenize
 
