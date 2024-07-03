@@ -106,36 +106,36 @@ to run your AI queries:
     DB_URL="your connection string"
     ```
 
-   1. Pass your API key as a parameter to your queries:
+3. Pass your API key as a parameter to your queries:
 
-       ```python
-       import os
-       from dotenv import load_dotenv
+    ```python
+    import os
+    from dotenv import load_dotenv
         
-       load_dotenv()
+    load_dotenv()
        
-       ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
-       DB_URL = os.environ["DB_URL"]
+    ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
+    DB_URL = os.environ["DB_URL"]
        
-       import psycopg2
-       from psycopg2.extras import Json
+    import psycopg2
+    from psycopg2.extras import Json
        
-       messages = [{'role': 'user', 'content': 'Name five famous people from Birmingham, Alabama.'}]
+    messages = [{'role': 'user', 'content': 'Name five famous people from Birmingham, Alabama.'}]
        
-       with psycopg2.connect(DB_URL) as conn:
-           with conn.cursor() as cur:
-               # pass the API key as a parameter to the query. don't use string manipulations
-               cur.execute("""
-                   SELECT anthropic_generate
-                   ( 'claude-3-5-sonnet-20240620'
-                   , %s
-                   , _api_key=>%s
-                   )
-               """, (Json(messages), ANTHROPIC_API_KEY))
-               records = cur.fetchall()
-       ```
+    with psycopg2.connect(DB_URL) as conn:
+        with conn.cursor() as cur:
+            # pass the API key as a parameter to the query. don't use string manipulations
+            cur.execute("""
+                SELECT anthropic_generate
+                ( 'claude-3-5-sonnet-20240620'
+                , %s
+                , _api_key=>%s
+                )
+            """, (Json(messages), ANTHROPIC_API_KEY))
+            records = cur.fetchall()
+    ```
 
-      Do not use string manipulation to embed the key as a literal in the SQL query.
+   Do not use string manipulation to embed the key as a literal in the SQL query.
 
 ## Usage
 
