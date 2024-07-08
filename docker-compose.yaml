@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: pgai:ci
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: pgai-tests
+    environment:
+      POSTGRES_DB: postgres
+      HTTPS_PROXY: hoverfly:8500
+      HTTP_PROXY: hoverfly:8500
+      POSTGRES_HOST_AUTH_METHOD: trust
+      REQUESTS_CA_BUNDLE: /usr/local/share/ca-certificates/hoverfly.crt
+      SSL_CERT_FILE: /usr/local/share/ca-certificates/hoverfly.crt
+    ports:
+      - "5432:5432"
+    depends_on:
+      - hoverfly
+  pgai-tests:
+    image: postgres:alpine
+    command:
+    environment:
+      ENABLE_COHERE_TESTS: 1
+      COHERE_API_KEY: cohere_api
+    depends_on:
+      - postgres
+    volumes:
+      - .:/sql-scripts
+    entrypoint: |
+      /bin/sh -c "
+      until pg_isready -h postgres -U postgres; do
+        echo 'Waiting for postgres to be ready...'
+        sleep 2
+      done
+      cd /sql-scripts
+      psql -d postgres -f test.sql -h postgres -U postgres
+      "
+    restart: "no"
+
+  hoverfly:
+    image: spectolabs/hoverfly:latest
+    volumes:
+      - ./tests:/config
+    ports:
+      - 8888:8888
+      - 8500:8500
+    # To record the requests, set -spy or -capture. Then retrieve them with
+    # docker-compose up when it's done, don't kill the containers and run
+    # docker-compose exec hoverfly -- wget -O - localhost:8888/api/v2/simulation | pbcopy
+    # command: -capture
+    command: -import /config/cohere-hoverfly-simulations.json
