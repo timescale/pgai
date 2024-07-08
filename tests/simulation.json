@@ -1,0 +1,56 @@
+{
+  "data": {
+    "pairs": [
+      {
+        "request": {
+          "path": [{ "matcher": "exact", "value": "/v1/chat" }],
+          "method": [{ "matcher": "exact", "value": "POST" }],
+          "destination": [{ "matcher": "exact", "value": "api.cohere.com" }],
+          "scheme": [{ "matcher": "exact", "value": "https" }],
+          "body": [
+            {
+              "matcher": "json",
+              "value": "{\"message\": \"How much wood would a woodchuck chuck if a woodchuck could chuck wood?\", \"model\": \"command-r-plus\", \"seed\": 42, \"stream\": false}"
+            }
+          ]
+        },
+        "response": {
+          "status": 200,
+          "body": "{\"response_id\":\"1b680b7e-a0f9-49de-a350-8d73a698e513\",\"text\":\"According to a 1909 poem by Robert Hobart Davis, a woodchuck would chuck “as much wood as a woodchuck would, if a woodchuck could chuck wood.” \\n\\nHowever, in a more practical sense, a real-life woodchuck (also known as a groundhog) does not actually chuck wood. They are known to dig and burrow extensive tunnel systems, but their primary diet consists of plants, grasses, fruits, and insects. So, while we can't determine the exact amount of wood a woodchuck could chuck, we can enjoy the playful language and rhyme of the poem.\",\"generation_id\":\"ac1491d7-56f4-4b17-b48e-a1f536414683\",\"chat_history\":[{\"role\":\"USER\",\"message\":\"How much wood would a woodchuck chuck if a woodchuck could chuck wood?\"},{\"role\":\"CHATBOT\",\"message\":\"According to a 1909 poem by Robert Hobart Davis, a woodchuck would chuck “as much wood as a woodchuck would, if a woodchuck could chuck wood.” \\n\\nHowever, in a more practical sense, a real-life woodchuck (also known as a groundhog) does not actually chuck wood. They are known to dig and burrow extensive tunnel systems, but their primary diet consists of plants, grasses, fruits, and insects. So, while we can't determine the exact amount of wood a woodchuck could chuck, we can enjoy the playful language and rhyme of the poem.\"}],\"finish_reason\":\"COMPLETE\",\"meta\":{\"api_version\":{\"version\":\"1\"},\"billed_units\":{\"input_tokens\":16,\"output_tokens\":123},\"tokens\":{\"input_tokens\":82,\"output_tokens\":123}}}",
+          "encodedBody": false,
+          "headers": {
+            "Access-Control-Expose-Headers": ["X-Debug-Trace-ID"],
+            "Alt-Svc": ["h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000"],
+            "Cache-Control": [
+              "no-cache, no-store, no-transform, must-revalidate, private, max-age=0"
+            ],
+            "Content-Length": ["1505"],
+            "Content-Type": ["application/json"],
+            "Date": ["Mon, 08 Jul 2024 14:08:39 GMT"],
+            "Expires": ["Thu, 01 Jan 1970 00:00:00 UTC"],
+            "Hoverfly": ["Was-Here"],
+            "Num_chars": ["484"],
+            "Num_tokens": ["139"],
+            "Pragma": ["no-cache"],
+            "Server": ["envoy"],
+            "Vary": ["Origin"],
+            "Via": ["1.1 google"],
+            "X-Accel-Expires": ["0"],
+            "X-Debug-Trace-Id": ["fb1c0bb8c301199471071ce9cc269f12"],
+            "X-Endpoint-Monthly-Call-Limit": ["1000"],
+            "X-Envoy-Upstream-Service-Time": ["5430"],
+            "X-Trial-Endpoint-Call-Limit": ["10"],
+            "X-Trial-Endpoint-Call-Remaining": ["9"]
+          },
+          "templated": false
+        }
+      }
+    ],
+    "globalActions": { "delays": [], "delaysLogNormal": [] }
+  },
+  "meta": {
+    "schemaVersion": "v5.2",
+    "hoverflyVersion": "v1.9.5",
+    "timeExported": "2024-07-08T14:16:05Z"
+  }
+}
