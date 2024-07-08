@@ -103,8 +103,12 @@ The [tests](./tests) directory contains unit tests in psql scripts. The
 1. Create a .env file to store environment variables needed for testing:
    - ENABLE_OPENAI_TESTS - a [boolean](https://www.postgresql.org/docs/current/app-psql.html#PSQL-METACOMMAND-IF) flag to enable/disable OpenAI unit tests
    - ENABLE_OLLAMA_TESTS - a [boolean](https://www.postgresql.org/docs/current/app-psql.html#PSQL-METACOMMAND-IF) flag to enable/disable Ollama unit tests
+   - ENABLE_ANTHROPIC_TESTS - a [boolean](https://www.postgresql.org/docs/current/app-psql.html#PSQL-METACOMMAND-IF) flag to enable/disable Anthropic unit tests
+   - ENABLE_COHERE_TESTS - a [boolean](https://www.postgresql.org/docs/current/app-psql.html#PSQL-METACOMMAND-IF) flag to enable/disable Cohere unit tests
    - OPENAI_API_KEY - an [OpenAI API Key](https://platform.openai.com/api-keys) to use for OpenAI unit testing
    - OLLAMA_HOST - the URL to the Ollama instance to use for testing (e.g. `http://host.docker.internal:11434`)
+   - ANTHROPIC_API_KEY - an [Anthropic API Key](https://docs.anthropic.com/en/docs/quickstart#set-your-api-key) to use for Anthropic unit testing
+   - COHERE_API_KEY - a [Cohere API Key](https://docs.cohere.com/docs/rate-limits) to use for Cohere unit testing
 
 2. Run the tests
 
