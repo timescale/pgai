@@ -1,0 +1,551 @@
+{
+  "data": {
+    "pairs": [
+      {
+        "request": {
+          "path": [{ "matcher": "exact", "value": "/v1/models" }],
+          "method": [{ "matcher": "exact", "value": "GET" }],
+          "destination": [{ "matcher": "exact", "value": "api.cohere.com" }],
+          "scheme": [{ "matcher": "exact", "value": "https" }],
+          "body": [{ "matcher": "exact", "value": "" }],
+          "query": { "page_size": [{ "matcher": "exact", "value": "1000" }] }
+        },
+        "response": {
+          "status": 200,
+          "body": "{\"models\":[{\"name\":\"embed-english-light-v2.0\",\"endpoints\":[\"embed\",\"classify\"],\"finetuned\":false,\"context_length\":512,\"tokenizer_url\":null,\"default_endpoints\":[]},{\"name\":\"embed-english-v2.0\",\"endpoints\":[\"embed\",\"classify\"],\"finetuned\":false,\"context_length\":512,\"tokenizer_url\":null,\"default_endpoints\":[]},{\"name\":\"command-r\",\"endpoints\":[\"generate\",\"chat\",\"summarize\"],\"finetuned\":false,\"context_length\":128000,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/command-r.json\",\"default_endpoints\":[]},{\"name\":\"embed-multilingual-light-v3.0\",\"endpoints\":[\"embed\",\"classify\"],\"finetuned\":false,\"context_length\":512,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-light-v3.0.json\",\"default_endpoints\":[]},{\"name\":\"command-r-plus\",\"endpoints\":[\"generate\",\"chat\",\"summarize\"],\"finetuned\":false,\"context_length\":128000,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/command-r-plus.json\",\"default_endpoints\":[\"chat\"]},{\"name\":\"embed-multilingual-v3.0\",\"endpoints\":[\"embed\",\"classify\"],\"finetuned\":false,\"context_length\":512,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-v3.0.json\",\"default_endpoints\":[]},{\"name\":\"embed-multilingual-v2.0\",\"endpoints\":[\"embed\",\"classify\"],\"finetuned\":false,\"context_length\":256,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-v2.0.json\",\"default_endpoints\":[]},{\"name\":\"c4ai-aya-23\",\"endpoints\":[\"generate\",\"chat\"],\"finetuned\":false,\"context_length\":8192,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/c4ai-aya-23.json\",\"default_endpoints\":[]},{\"name\":\"command-light-nightly\",\"endpoints\":[\"generate\",\"summarize\",\"chat\"],\"finetuned\":false,\"context_length\":4096,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/command-light-nightly.json\",\"default_endpoints\":[]},{\"name\":\"command-nightly\",\"endpoints\":[\"generate\",\"chat\",\"summarize\"],\"finetuned\":false,\"context_length\":128000,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/command-nightly.json\",\"default_endpoints\":[]},{\"name\":\"rerank-multilingual-v2.0\",\"endpoints\":[\"rerank\"],\"finetuned\":false,\"context_length\":512,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/rerank-multilingual-v2.0.json\",\"default_endpoints\":[]},{\"name\":\"embed-english-v3.0\",\"endpoints\":[\"embed\",\"classify\"],\"finetuned\":false,\"context_length\":512,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/embed-english-v3.0.json\",\"default_endpoints\":[]},{\"name\":\"command\",\"endpoints\":[\"generate\",\"summarize\",\"chat\"],\"finetuned\":false,\"context_length\":4096,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/command.json\",\"default_endpoints\":[\"generate\"]},{\"name\":\"rerank-multilingual-v3.0\",\"endpoints\":[\"rerank\"],\"finetuned\":false,\"context_length\":4096,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/rerank-multilingual-v3.0.json\",\"default_endpoints\":[]},{\"name\":\"rerank-english-v2.0\",\"endpoints\":[\"rerank\"],\"finetuned\":false,\"context_length\":512,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/rerank-english-v2.0.json\",\"default_endpoints\":[]},{\"name\":\"command-light\",\"endpoints\":[\"generate\",\"summarize\",\"chat\"],\"finetuned\":false,\"context_length\":4096,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/command-light.json\",\"default_endpoints\":[]},{\"name\":\"rerank-english-v3.0\",\"endpoints\":[\"rerank\"],\"finetuned\":false,\"context_length\":4096,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/rerank-english-v3.0.json\",\"default_endpoints\":[]},{\"name\":\"embed-english-light-v3.0\",\"endpoints\":[\"embed\",\"classify\"],\"finetuned\":false,\"context_length\":512,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/embed-english-light-v3.0.json\",\"default_endpoints\":[]}]}",
+          "encodedBody": false,
+          "headers": {
+            "Access-Control-Expose-Headers": ["X-Debug-Trace-ID"],
+            "Alt-Svc": ["h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000"],
+            "Cache-Control": [
+              "no-cache, no-store, no-transform, must-revalidate, private, max-age=0"
+            ],
+            "Content-Type": ["application/json"],
+            "Date": ["Mon, 08 Jul 2024 17:12:19 GMT"],
+            "Expires": ["Thu, 01 Jan 1970 00:00:00 UTC"],
+            "Hoverfly": ["Was-Here"],
+            "Pragma": ["no-cache"],
+            "Server": ["envoy"],
+            "Vary": ["Origin"],
+            "Via": ["1.1 google"],
+            "X-Accel-Expires": ["0"],
+            "X-Debug-Trace-Id": ["490728129dab648d7dc41a86a4cdd58a"],
+            "X-Endpoint-Monthly-Call-Limit": ["1000"],
+            "X-Envoy-Upstream-Service-Time": ["40"],
+            "X-Trial-Endpoint-Call-Limit": ["40"],
+            "X-Trial-Endpoint-Call-Remaining": ["39"]
+          },
+          "templated": false
+        }
+      },
+      {
+        "request": {
+          "path": [{ "matcher": "exact", "value": "/v1/models" }],
+          "method": [{ "matcher": "exact", "value": "GET" }],
+          "destination": [{ "matcher": "exact", "value": "api.cohere.com" }],
+          "scheme": [{ "matcher": "exact", "value": "https" }],
+          "body": [{ "matcher": "exact", "value": "" }],
+          "query": {
+            "endpoint": [{ "matcher": "exact", "value": "embed" }],
+            "page_size": [{ "matcher": "exact", "value": "1000" }]
+          }
+        },
+        "response": {
+          "status": 200,
+          "body": "{\"models\":[{\"name\":\"embed-english-light-v2.0\",\"endpoints\":[\"embed\",\"classify\"],\"finetuned\":false,\"context_length\":512,\"tokenizer_url\":null,\"default_endpoints\":[]},{\"name\":\"embed-english-v2.0\",\"endpoints\":[\"embed\",\"classify\"],\"finetuned\":false,\"context_length\":512,\"tokenizer_url\":null,\"default_endpoints\":[]},{\"name\":\"embed-multilingual-light-v3.0\",\"endpoints\":[\"embed\",\"classify\"],\"finetuned\":false,\"context_length\":512,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-light-v3.0.json\",\"default_endpoints\":[]},{\"name\":\"embed-multilingual-v3.0\",\"endpoints\":[\"embed\",\"classify\"],\"finetuned\":false,\"context_length\":512,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-v3.0.json\",\"default_endpoints\":[]},{\"name\":\"embed-multilingual-v2.0\",\"endpoints\":[\"embed\",\"classify\"],\"finetuned\":false,\"context_length\":256,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/embed-multilingual-v2.0.json\",\"default_endpoints\":[]},{\"name\":\"embed-english-v3.0\",\"endpoints\":[\"embed\",\"classify\"],\"finetuned\":false,\"context_length\":512,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/embed-english-v3.0.json\",\"default_endpoints\":[]},{\"name\":\"embed-english-light-v3.0\",\"endpoints\":[\"embed\",\"classify\"],\"finetuned\":false,\"context_length\":512,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/embed-english-light-v3.0.json\",\"default_endpoints\":[]}]}",
+          "encodedBody": false,
+          "headers": {
+            "Access-Control-Expose-Headers": ["X-Debug-Trace-ID"],
+            "Alt-Svc": ["h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000"],
+            "Cache-Control": [
+              "no-cache, no-store, no-transform, must-revalidate, private, max-age=0"
+            ],
+            "Content-Length": ["1479"],
+            "Content-Type": ["application/json"],
+            "Date": ["Mon, 08 Jul 2024 17:12:20 GMT"],
+            "Expires": ["Thu, 01 Jan 1970 00:00:00 UTC"],
+            "Hoverfly": ["Was-Here"],
+            "Pragma": ["no-cache"],
+            "Server": ["envoy"],
+            "Vary": ["Origin"],
+            "Via": ["1.1 google"],
+            "X-Accel-Expires": ["0"],
+            "X-Debug-Trace-Id": ["bd2393af49922403ed560911c632e24e"],
+            "X-Endpoint-Monthly-Call-Limit": ["1000"],
+            "X-Envoy-Upstream-Service-Time": ["43"],
+            "X-Trial-Endpoint-Call-Limit": ["40"],
+            "X-Trial-Endpoint-Call-Remaining": ["37"]
+          },
+          "templated": false
+        }
+      },
+      {
+        "request": {
+          "path": [{ "matcher": "exact", "value": "/v1/models/command" }],
+          "method": [{ "matcher": "exact", "value": "GET" }],
+          "destination": [{ "matcher": "exact", "value": "api.cohere.com" }],
+          "scheme": [{ "matcher": "exact", "value": "https" }],
+          "body": [{ "matcher": "exact", "value": "" }]
+        },
+        "response": {
+          "status": 200,
+          "body": "{\"name\":\"command\",\"endpoints\":[\"generate\",\"summarize\",\"chat\"],\"finetuned\":false,\"context_length\":4096,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/command.json\",\"default_endpoints\":[\"generate\"]}",
+          "encodedBody": false,
+          "headers": {
+            "Access-Control-Expose-Headers": ["X-Debug-Trace-ID"],
+            "Alt-Svc": ["h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000"],
+            "Cache-Control": [
+              "no-cache, no-store, no-transform, must-revalidate, private, max-age=0"
+            ],
+            "Content-Length": ["222"],
+            "Content-Type": ["application/json"],
+            "Date": ["Mon, 08 Jul 2024 17:12:20 GMT"],
+            "Expires": ["Thu, 01 Jan 1970 00:00:00 UTC"],
+            "Hoverfly": ["Was-Here"],
+            "Pragma": ["no-cache"],
+            "Server": ["envoy"],
+            "Vary": ["Origin"],
+            "Via": ["1.1 google"],
+            "X-Accel-Expires": ["0"],
+            "X-Debug-Trace-Id": ["9a2ed0a9cf1b77617a1d092c954eb217"],
+            "X-Endpoint-Monthly-Call-Limit": ["1000"],
+            "X-Envoy-Upstream-Service-Time": ["14"],
+            "X-Trial-Endpoint-Call-Limit": ["40"],
+            "X-Trial-Endpoint-Call-Remaining": ["39"]
+          },
+          "templated": false
+        }
+      },
+      {
+        "request": {
+          "path": [{ "matcher": "exact", "value": "/v1/tokenize" }],
+          "method": [{ "matcher": "exact", "value": "POST" }],
+          "destination": [{ "matcher": "exact", "value": "api.cohere.com" }],
+          "scheme": [{ "matcher": "exact", "value": "https" }],
+          "body": [
+            {
+              "matcher": "json",
+              "value": "{\"text\": \"What one programmer can do in one month, two programmers can do in two months.\", \"model\": \"command\"}"
+            }
+          ]
+        },
+        "response": {
+          "status": 200,
+          "body": "{\"tokens\":[5171,2011,36613,1863,1978,1703,2011,2812,19,2253,38374,1863,1978,1703,2253,3784,21],\"token_strings\":[\"What\",\" one\",\" programmer\",\" can\",\" do\",\" in\",\" one\",\" month\",\",\",\" two\",\" programmers\",\" can\",\" do\",\" in\",\" two\",\" months\",\".\"],\"meta\":{\"api_version\":{\"version\":\"1\"}}}",
+          "encodedBody": false,
+          "headers": {
+            "Access-Control-Expose-Headers": ["X-Debug-Trace-ID"],
+            "Alt-Svc": ["h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000"],
+            "Cache-Control": [
+              "no-cache, no-store, no-transform, must-revalidate, private, max-age=0"
+            ],
+            "Content-Length": ["281"],
+            "Content-Type": ["application/json"],
+            "Date": ["Mon, 08 Jul 2024 17:12:21 GMT"],
+            "Expires": ["Thu, 01 Jan 1970 00:00:00 UTC"],
+            "Hoverfly": ["Was-Here"],
+            "Pragma": ["no-cache"],
+            "Server": ["envoy"],
+            "Vary": ["Origin"],
+            "Via": ["1.1 google"],
+            "X-Accel-Expires": ["0"],
+            "X-Debug-Trace-Id": ["512be2ab100efb8363b54c3d6313674e"],
+            "X-Endpoint-Monthly-Call-Limit": ["1000"],
+            "X-Envoy-Upstream-Service-Time": ["17"],
+            "X-Trial-Endpoint-Call-Limit": ["40"],
+            "X-Trial-Endpoint-Call-Remaining": ["39"]
+          },
+          "templated": false
+        }
+      },
+      {
+        "request": {
+          "path": [{ "matcher": "exact", "value": "/v1/tokenize" }],
+          "method": [{ "matcher": "exact", "value": "POST" }],
+          "destination": [{ "matcher": "exact", "value": "api.cohere.com" }],
+          "scheme": [{ "matcher": "exact", "value": "https" }],
+          "body": [
+            {
+              "matcher": "json",
+              "value": "{\"text\": \"One of the best programming skills you can have is knowing when to walk away for awhile.\", \"model\": \"command\"}"
+            }
+          ]
+        },
+        "response": {
+          "status": 200,
+          "body": "{\"tokens\":[5256,1707,1682,2383,9461,4696,1739,1863,1871,1740,9397,2112,1705,4066,3465,1742,38700,21],\"token_strings\":[\"One\",\" of\",\" the\",\" best\",\" programming\",\" skills\",\" you\",\" can\",\" have\",\" is\",\" knowing\",\" when\",\" to\",\" walk\",\" away\",\" for\",\" awhile\",\".\"],\"meta\":{\"api_version\":{\"version\":\"1\"}}}",
+          "encodedBody": false,
+          "headers": {
+            "Access-Control-Expose-Headers": ["X-Debug-Trace-ID"],
+            "Alt-Svc": ["h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000"],
+            "Cache-Control": [
+              "no-cache, no-store, no-transform, must-revalidate, private, max-age=0"
+            ],
+            "Content-Length": ["300"],
+            "Content-Type": ["application/json"],
+            "Date": ["Mon, 08 Jul 2024 17:12:22 GMT"],
+            "Expires": ["Thu, 01 Jan 1970 00:00:00 UTC"],
+            "Hoverfly": ["Was-Here"],
+            "Pragma": ["no-cache"],
+            "Server": ["envoy"],
+            "Vary": ["Origin"],
+            "Via": ["1.1 google"],
+            "X-Accel-Expires": ["0"],
+            "X-Debug-Trace-Id": ["8df8690ce11ff981eb18ddf7c650c68e"],
+            "X-Endpoint-Monthly-Call-Limit": ["1000"],
+            "X-Envoy-Upstream-Service-Time": ["15"],
+            "X-Trial-Endpoint-Call-Limit": ["40"],
+            "X-Trial-Endpoint-Call-Remaining": ["38"]
+          },
+          "templated": false
+        }
+      },
+      {
+        "request": {
+          "path": [{ "matcher": "exact", "value": "/v1/detokenize" }],
+          "method": [{ "matcher": "exact", "value": "POST" }],
+          "destination": [{ "matcher": "exact", "value": "api.cohere.com" }],
+          "scheme": [{ "matcher": "exact", "value": "https" }],
+          "body": [
+            {
+              "matcher": "json",
+              "value": "{\"tokens\": [5171, 2011, 36613, 1863, 1978, 1703, 2011, 2812, 19, 2253, 38374, 1863, 1978, 1703, 2253, 3784, 21], \"model\": \"command\"}"
+            }
+          ]
+        },
+        "response": {
+          "status": 200,
+          "body": "{\"text\":\"What one programmer can do in one month, two programmers can do in two months.\",\"meta\":{\"api_version\":{\"version\":\"1\"}}}",
+          "encodedBody": false,
+          "headers": {
+            "Access-Control-Expose-Headers": ["X-Debug-Trace-ID"],
+            "Alt-Svc": ["h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000"],
+            "Cache-Control": [
+              "no-cache, no-store, no-transform, must-revalidate, private, max-age=0"
+            ],
+            "Content-Length": ["128"],
+            "Content-Type": ["application/json"],
+            "Date": ["Mon, 08 Jul 2024 17:12:23 GMT"],
+            "Expires": ["Thu, 01 Jan 1970 00:00:00 UTC"],
+            "Hoverfly": ["Was-Here"],
+            "Pragma": ["no-cache"],
+            "Server": ["envoy"],
+            "Vary": ["Origin"],
+            "Via": ["1.1 google"],
+            "X-Accel-Expires": ["0"],
+            "X-Debug-Trace-Id": ["dde18d6c51d8aac4b4eedab171f2d511"],
+            "X-Endpoint-Monthly-Call-Limit": ["1000"],
+            "X-Envoy-Upstream-Service-Time": ["13"],
+            "X-Trial-Endpoint-Call-Limit": ["40"],
+            "X-Trial-Endpoint-Call-Remaining": ["39"]
+          },
+          "templated": false
+        }
+      },
+      {
+        "request": {
+          "path": [{ "matcher": "exact", "value": "/v1/detokenize" }],
+          "method": [{ "matcher": "exact", "value": "POST" }],
+          "destination": [{ "matcher": "exact", "value": "api.cohere.com" }],
+          "scheme": [{ "matcher": "exact", "value": "https" }],
+          "body": [
+            {
+              "matcher": "json",
+              "value": "{\"tokens\": [14485, 38374, 2630, 2060, 2252, 5164, 4905, 21, 2744, 2628, 1675, 3094, 23407, 21], \"model\": \"command\"}"
+            }
+          ]
+        },
+        "response": {
+          "status": 200,
+          "body": "{\"text\":\"Good programmers don't just write programs. They build a working vocabulary.\",\"meta\":{\"api_version\":{\"version\":\"1\"}}}",
+          "encodedBody": false,
+          "headers": {
+            "Access-Control-Expose-Headers": ["X-Debug-Trace-ID"],
+            "Alt-Svc": ["h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000"],
+            "Cache-Control": [
+              "no-cache, no-store, no-transform, must-revalidate, private, max-age=0"
+            ],
+            "Content-Length": ["126"],
+            "Content-Type": ["application/json"],
+            "Date": ["Mon, 08 Jul 2024 17:12:24 GMT"],
+            "Expires": ["Thu, 01 Jan 1970 00:00:00 UTC"],
+            "Hoverfly": ["Was-Here"],
+            "Pragma": ["no-cache"],
+            "Server": ["envoy"],
+            "Vary": ["Origin"],
+            "Via": ["1.1 google"],
+            "X-Accel-Expires": ["0"],
+            "X-Debug-Trace-Id": ["983f8f763cd1ff552ccf2057f1ebda41"],
+            "X-Endpoint-Monthly-Call-Limit": ["1000"],
+            "X-Envoy-Upstream-Service-Time": ["15"],
+            "X-Trial-Endpoint-Call-Limit": ["40"],
+            "X-Trial-Endpoint-Call-Remaining": ["38"]
+          },
+          "templated": false
+        }
+      },
+      {
+        "request": {
+          "path": [{ "matcher": "exact", "value": "/v1/models" }],
+          "method": [{ "matcher": "exact", "value": "GET" }],
+          "destination": [{ "matcher": "exact", "value": "api.cohere.com" }],
+          "scheme": [{ "matcher": "exact", "value": "https" }],
+          "body": [{ "matcher": "exact", "value": "" }],
+          "query": {
+            "default_only": [{ "matcher": "exact", "value": "true" }],
+            "endpoint": [{ "matcher": "exact", "value": "generate" }],
+            "page_size": [{ "matcher": "exact", "value": "1000" }]
+          }
+        },
+        "response": {
+          "status": 200,
+          "body": "{\"models\":[{\"name\":\"command\",\"endpoints\":[\"generate\",\"summarize\",\"chat\"],\"finetuned\":false,\"context_length\":4096,\"tokenizer_url\":\"https://storage.googleapis.com/cohere-public/tokenizers/command.json\",\"default_endpoints\":[\"generate\"]}]}",
+          "encodedBody": false,
+          "headers": {
+            "Access-Control-Expose-Headers": ["X-Debug-Trace-ID"],
+            "Alt-Svc": ["h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000"],
+            "Cache-Control": [
+              "no-cache, no-store, no-transform, must-revalidate, private, max-age=0"
+            ],
+            "Content-Length": ["235"],
+            "Content-Type": ["application/json"],
+            "Date": ["Mon, 08 Jul 2024 17:12:24 GMT"],
+            "Expires": ["Thu, 01 Jan 1970 00:00:00 UTC"],
+            "Hoverfly": ["Was-Here"],
+            "Pragma": ["no-cache"],
+            "Server": ["envoy"],
+            "Vary": ["Origin"],
+            "Via": ["1.1 google"],
+            "X-Accel-Expires": ["0"],
+            "X-Debug-Trace-Id": ["6cc05da8cb7791a61c0f04743c036edd"],
+            "X-Endpoint-Monthly-Call-Limit": ["1000"],
+            "X-Envoy-Upstream-Service-Time": ["12"],
+            "X-Trial-Endpoint-Call-Limit": ["40"],
+            "X-Trial-Endpoint-Call-Remaining": ["36"]
+          },
+          "templated": false
+        }
+      },
+      {
+        "request": {
+          "path": [{ "matcher": "exact", "value": "/v1/embed" }],
+          "method": [{ "matcher": "exact", "value": "POST" }],
+          "destination": [{ "matcher": "exact", "value": "api.cohere.com" }],
+          "scheme": [{ "matcher": "exact", "value": "https" }],
+          "body": [
+            {
+              "matcher": "json",
+              "value": "{\"texts\": [\"how much wood would a woodchuck chuck if a woodchuck could chuck wood?\"], \"model\": \"embed-english-light-v3.0\", \"input_type\": \"search_document\"}"
+            }
+          ]
+        },
+        "response": {
+          "status": 200,
+          "body": "{\"id\":\"95987643-bab3-4afa-82ec-858a98066523\",\"texts\":[\"how much wood would a woodchuck chuck if a woodchuck could chuck wood?\"],\"embeddings\":[[-0.03338623,0.0049324036,0.018203735,-0.0109939575,-0.017242432,-0.0049819946,0.0057373047,0.028930664,0.0692749,0.13928223,-0.052886963,0.06286621,0.04208374,0.15234375,-0.07489014,0.044677734,-0.1340332,0.094177246,-0.1171875,0.07409668,0.026977539,0.05102539,-0.008270264,0.048828125,-0.009590149,-0.101623535,0.035827637,0.025390625,0.008605957,-0.027633667,-0.026275635,-0.049835205,-0.07897949,0.044036865,0.017150879,-0.030853271,0.04498291,-0.0058250427,0.0008382797,0.04888916,-0.0017595291,0.08300781,0.027069092,-0.0018587112,-0.021896362,0.030517578,-0.11608887,-0.074645996,-0.035583496,0.02633667,-0.048706055,0.07684326,0.09234619,-0.01158905,-0.01600647,0.0138168335,-0.0077819824,-0.024047852,0.0034599304,0.013877869,-0.045898438,0.01600647,-0.03866577,-0.0044403076,0.11102295,0.0011663437,-0.083984375,-0.011894226,-0.059051514,0.05886841,0.11456299,0.017822266,0.060668945,0.019134521,0.02444458,0.06933594,-0.010795593,0.089904785,-0.053497314,-0.013626099,-0.08856201,-0.07928467,-0.0206604,-0.045440674,-0.036254883,-0.023040771,0.0032749176,0.040496826,-0.02217102,0.041229248,0.013076782,0.053649902,-0.028930664,-0.049468994,0.013664246,-0.050628662,0.028839111,0.034301758,-0.022659302,-0.044036865,0.021743774,-0.07720947,-0.04034424,-0.0473938,-0.070617676,-0.039642334,-0.011734009,-0.013671875,-0.02229309,0.060180664,0.022232056,-0.0025196075,0.022232056,0.056488037,0.08325195,-0.072509766,0.041931152,-0.028198242,-0.074035645,0.018539429,0.10211182,0.016342163,0.10687256,-0.04458618,0.009643555,-0.031707764,0.03515625,-0.028503418,-0.036224365,0.055236816,0.013031006,-0.04348755,0.15576172,-0.008392334,-0.08276367,-0.032684326,-0.014556885,-0.08459473,-0.019302368,0.082214355,-0.010925293,-0.016815186,0.0390625,-0.03189087,-0.046173096,-0.06402588,-0.061798096,-0.016647339,-0.09710693,-0.044403076,-0.0018138885,-0.0037021637,0.029891968,0.027633667,0.0524292,-0.0044898987,-0.01071167,0.06149292,0.064331055,-0.012107849,-0.013534546,0.049438477,0.014556885,0.039276123,-0.003227234,0.0496521,0.028442383,-0.013671875,-0.0015649796,-0.06616211,0.012954712,0.015716553,-0.062347412,-0.066345215,0.029830933,-0.029632568,-0.06402588,-0.08544922,0.021362305,0.005760193,0.06341553,0.031234741,-0.07574463,0.0769043,0.052947998,0.010375977,-0.038360596,-0.0054130554,0.035369873,-0.008300781,-0.07537842,-0.08673096,-0.07611084,0.0013513565,0.023162842,0.046722412,-0.05142212,-0.036010742,-0.0038108826,-0.008163452,0.015731812,-0.039794922,-0.0848999,0.0126571655,0.04144287,0.021987915,0.04714966,0.019744873,-0.015701294,0.04888916,0.0769043,-0.058776855,-0.043182373,-0.06213379,0.08294678,-0.057861328,-0.020309448,-0.020401001,-0.03857422,0.012107849,-0.06951904,-0.083984375,0.026748657,-0.053649902,0.01537323,-0.031829834,-0.012054443,0.049224854,0.04977417,-0.04083252,0.08721924,-0.0041656494,0.0016021729,0.002117157,-0.0037899017,0.045532227,-0.034088135,0.06161499,0.05923462,0.012458801,-0.056274414,-0.052124023,0.010726929,0.0059394836,-0.07373047,-0.09185791,-0.01071167,-0.041992188,-0.040863037,0.05041504,-0.021743774,0.04019165,0.048339844,0.026153564,0.054504395,-0.03744507,0.107299805,0.010803223,0.01953125,0.023452759,0.0128479,0.03314209,-0.020629883,0.07116699,-0.044189453,-0.025817871,-0.04067993,0.13085938,0.058166504,-0.03604126,-0.016067505,-0.07116699,-0.05697632,0.04043579,-0.016586304,0.08532715,0.047943115,-0.074279785,0.015304565,-0.005542755,-0.055480957,0.029205322,0.012382507,-0.014541626,-0.030136108,0.0065307617,-0.049591064,-0.058532715,0.0390625,0.046417236,-0.054626465,-0.10040283,-0.02168274,0.013031006,0.11224365,-0.040008545,-0.019622803,0.12988281,0.006427765,0.0236969,0.1217041,-0.00047969818,0.008613586,0.045654297,0.03540039,0.0791626,0.059173584,-0.05114746,-0.025405884,0.087646484,-0.0758667,0.018859863,-0.049346924,0.009841919,-0.023147583,0.041137695,0.009117126,-0.03591919,0.007881165,-0.038757324,-0.0635376,0.1303711,0.055908203,0.08178711,0.03314209,-0.011383057,-0.064697266,0.028213501,-0.05340576,0.105651855,0.025527954,0.029434204,0.0076675415,-0.009315491,-0.049591064,-0.008888245,0.06616211,0.022964478,-0.013465881,0.014808655,-0.039001465,0.012519836,-0.0026855469,0.11999512,-0.014785767,-0.03326416,0.074035645,0.009262085,0.029876709,-0.023666382,-0.018341064,0.007797241,-0.0017185211,0.029647827,0.048034668,-0.0036087036,-0.048797607,-0.03265381,-0.057373047,0.045562744,-0.030456543,-0.06726074,-0.0062561035,0.030151367,-0.03289795,-0.014320374,-0.017562866,-0.11004639,-0.09490967,-0.01828003,0.0011425018,0.05923462,-0.0064735413,-0.088378906,-0.0022678375,0.027450562,0.0029258728,-0.007698059,0.009735107,-0.043426514,-0.082214355,0.042419434,0.016357422,0.007297516]],\"meta\":{\"api_version\":{\"version\":\"1\"},\"billed_units\":{\"input_tokens\":18}},\"response_type\":\"embeddings_floats\"}",
+          "encodedBody": false,
+          "headers": {
+            "Access-Control-Expose-Headers": ["X-Debug-Trace-ID"],
+            "Alt-Svc": ["h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000"],
+            "Cache-Control": [
+              "no-cache, no-store, no-transform, must-revalidate, private, max-age=0"
+            ],
+            "Content-Type": ["application/json"],
+            "Date": ["Mon, 08 Jul 2024 17:12:25 GMT"],
+            "Expires": ["Thu, 01 Jan 1970 00:00:00 UTC"],
+            "Hoverfly": ["Was-Here"],
+            "Num_chars": ["70"],
+            "Num_tokens": ["18"],
+            "Pragma": ["no-cache"],
+            "Server": ["envoy"],
+            "Vary": ["Origin"],
+            "Via": ["1.1 google"],
+            "X-Accel-Expires": ["0"],
+            "X-Debug-Trace-Id": ["d7b4e559eeec7a929fb717409441e3b9"],
+            "X-Endpoint-Monthly-Call-Limit": ["1000"],
+            "X-Envoy-Upstream-Service-Time": ["72"],
+            "X-Trial-Endpoint-Call-Limit": ["40"],
+            "X-Trial-Endpoint-Call-Remaining": ["39"]
+          },
+          "templated": false
+        }
+      },
+      {
+        "request": {
+          "path": [{ "matcher": "exact", "value": "/v1/embed" }],
+          "method": [{ "matcher": "exact", "value": "POST" }],
+          "destination": [{ "matcher": "exact", "value": "api.cohere.com" }],
+          "scheme": [{ "matcher": "exact", "value": "https" }],
+          "body": [
+            {
+              "matcher": "json",
+              "value": "{\"texts\": [\"if a woodchuck could chuck wood, a woodchuck would chuck as much wood as he could\"], \"model\": \"embed-english-light-v3.0\", \"input_type\": \"search_document\", \"truncate\": \"end\"}"
+            }
+          ]
+        },
+        "response": {
+          "status": 200,
+          "body": "{\"id\":\"c574263b-89c8-4cc0-84c3-19c071db96bf\",\"texts\":[\"if a woodchuck could chuck wood, a woodchuck would chuck as much wood as he could\"],\"embeddings\":[[-0.066833496,-0.052337646,-0.0044174194,-0.0070343018,-0.03390503,-0.005138397,-0.0024528503,0.037719727,0.03933716,0.113342285,-0.012519836,0.011047363,0.061828613,0.15551758,-0.07537842,0.015296936,-0.10491943,0.089660645,-0.11206055,0.063964844,0.012924194,0.027435303,-0.010612488,0.0395813,0.0026359558,-0.07739258,0.009788513,0.0015830994,0.00995636,-0.008911133,-0.015617371,-0.073913574,-0.072387695,0.002161026,0.029067993,-0.005695343,0.01689148,-0.009246826,0.0051612854,0.05911255,0.033172607,0.09716797,0.042816162,0.015159607,-0.051330566,0.011131287,-0.09112549,-0.036499023,0.0006041527,0.05871582,-0.0011787415,0.08880615,0.054473877,-0.018051147,-0.038024902,0.00957489,-0.050354004,0.031799316,-0.023422241,0.026229858,-0.036071777,0.008392334,0.0011816025,0.029678345,0.14050293,-0.0259552,-0.07647705,-0.008682251,-0.09063721,0.057922363,0.11138916,0.03640747,0.038024902,0.050445557,0.05432129,0.049591064,-0.014060974,0.085510254,-0.041870117,0.029388428,-0.062042236,-0.109191895,-0.027404785,-0.046905518,-0.052368164,-0.015151978,-0.008476257,-0.04119873,0.029022217,0.037322998,0.0008907318,0.050354004,-0.024993896,-0.04989624,0.07232666,-0.066589355,0.015029907,0.01852417,-0.008155823,-0.022613525,0.041046143,-0.07104492,-0.04147339,-0.057922363,-0.08508301,-0.06311035,-0.050567627,-0.008514404,-0.004688263,0.06488037,0.035614014,-0.015365601,0.020095825,0.08557129,0.06506348,-0.004875183,0.018585205,-0.050567627,-0.060455322,0.042510986,0.07476807,0.05355835,0.10333252,-0.02494812,0.018569946,-0.09442139,0.037628174,-0.041381836,-0.029205322,0.055725098,0.030181885,-0.028244019,0.12561035,0.004245758,-0.066711426,-0.015579224,0.0035629272,-0.07849121,-0.04006958,0.11834717,0.011665344,0.013839722,0.103393555,-0.036224365,-0.034576416,-0.05834961,-0.06842041,-0.011795044,-0.05041504,-0.06689453,0.0079422,0.0043792725,0.04711914,0.013137817,0.033325195,0.0015249252,0.027114868,0.051696777,0.08337402,0.016983032,-0.025848389,0.09552002,0.0009365082,0.013427734,-0.013000488,0.057556152,0.04232788,-0.034698486,-0.035827637,-0.049194336,-0.00003862381,0.03857422,-0.10028076,-0.08935547,0.03540039,-0.010215759,-0.114746094,-0.06488037,0.028961182,-0.0013875961,0.089538574,0.01436615,-0.038879395,0.077941895,0.043548584,0.013061523,-0.053649902,-0.008560181,0.047180176,-0.0038204193,-0.06878662,-0.014480591,-0.0914917,-0.06536865,0.081970215,0.05368042,-0.0848999,-0.046691895,-0.0154953,0.0010147095,-0.0440979,-0.03237915,-0.1038208,-0.006504059,0.03567505,0.0076293945,-0.0034236908,0.06149292,-0.05706787,0.059570312,0.06896973,-0.07299805,-0.030853271,-0.05895996,0.04940796,-0.049865723,-0.011192322,0.00094747543,-0.0061149597,-0.01423645,-0.07043457,-0.12561035,0.028198242,-0.068359375,-0.002439499,-0.013053894,0.011405945,0.07684326,0.03390503,-0.011672974,0.046295166,0.016403198,0.04321289,-0.01499176,-0.04159546,0.030258179,-0.015266418,0.05215454,0.09039307,0.008323669,-0.08001709,-0.072753906,-0.012832642,0.013450623,-0.025283813,-0.0960083,0.014320374,-0.018753052,-0.05355835,0.05230713,0.022644043,0.019012451,0.042114258,0.0023441315,0.07086182,-0.05722046,0.099365234,-0.020553589,-0.0022830963,0.041290283,-0.025512695,0.04623413,-0.072143555,0.07849121,-0.07727051,-0.027572632,-0.022155762,0.10028076,0.10491943,-0.015914917,0.02645874,-0.06762695,-0.04699707,0.03390503,0.0013046265,0.079711914,0.019332886,-0.08062744,0.009307861,-0.011810303,-0.027130127,0.01448822,-0.016738892,0.0023956299,-0.049865723,-0.008514404,-0.031677246,-0.0088272095,0.03253174,0.045837402,-0.037261963,-0.11254883,-0.010665894,-0.019500732,0.09686279,-0.0463562,0.0020637512,0.11590576,0.0033493042,0.043670654,0.11090088,-0.019546509,0.015411377,0.030517578,0.04208374,0.06976318,0.035125732,-0.080322266,-0.08465576,0.099121094,-0.045562744,-0.000027894974,-0.04788208,0.005332947,-0.024963379,0.009437561,-0.018157959,-0.020980835,0.021331787,-0.07220459,-0.0519104,0.09710693,0.029251099,0.054260254,0.017791748,-0.043182373,-0.053131104,0.0039253235,-0.055480957,0.079833984,0.018234253,0.048553467,-0.010253906,0.026672363,-0.035888672,0.012809753,0.049438477,-0.0016365051,0.0023441315,0.038757324,-0.040985107,0.015541077,-0.0076026917,0.062469482,-0.03274536,-0.008033752,0.05267334,0.010169983,0.01007843,0.0063591003,-0.015670776,0.042388916,0.01423645,0.014053345,0.075683594,0.024368286,-0.038848877,-0.023162842,-0.011550903,0.008369446,-0.039367676,-0.04840088,-0.011726379,0.097839355,-0.03186035,-0.010009766,-0.027618408,-0.08294678,-0.099121094,-0.010414124,-0.01322937,0.04699707,-0.0045166016,-0.08666992,-0.016723633,-0.0027122498,0.02243042,0.009246826,-0.0019426346,-0.018096924,-0.038391113,0.010314941,0.014167786,0.02053833]],\"meta\":{\"api_version\":{\"version\":\"1\"},\"billed_units\":{\"input_tokens\":21}},\"response_type\":\"embeddings_floats\"}",
+          "encodedBody": false,
+          "headers": {
+            "Access-Control-Expose-Headers": ["X-Debug-Trace-ID"],
+            "Alt-Svc": ["h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000"],
+            "Cache-Control": [
+              "no-cache, no-store, no-transform, must-revalidate, private, max-age=0"
+            ],
+            "Content-Type": ["application/json"],
+            "Date": ["Mon, 08 Jul 2024 17:12:25 GMT"],
+            "Expires": ["Thu, 01 Jan 1970 00:00:00 UTC"],
+            "Hoverfly": ["Was-Here"],
+            "Num_chars": ["81"],
+            "Num_tokens": ["21"],
+            "Pragma": ["no-cache"],
+            "Server": ["envoy"],
+            "Vary": ["Origin"],
+            "Via": ["1.1 google"],
+            "X-Accel-Expires": ["0"],
+            "X-Debug-Trace-Id": ["69aa5b62e32c22f13ee3e906153198ed"],
+            "X-Endpoint-Monthly-Call-Limit": ["1000"],
+            "X-Envoy-Upstream-Service-Time": ["40"],
+            "X-Trial-Endpoint-Call-Limit": ["40"],
+            "X-Trial-Endpoint-Call-Remaining": ["38"]
+          },
+          "templated": false
+        }
+      },
+      {
+        "request": {
+          "path": [{ "matcher": "exact", "value": "/v1/classify" }],
+          "method": [{ "matcher": "exact", "value": "POST" }],
+          "destination": [{ "matcher": "exact", "value": "api.cohere.com" }],
+          "scheme": [{ "matcher": "exact", "value": "https" }],
+          "body": [
+            {
+              "matcher": "json",
+              "value": "{\"inputs\": [\"bird\", \"airplane\", \"corn\"], \"examples\": [{\"text\": \"cat\", \"label\": \"animal\"}, {\"text\": \"dog\", \"label\": \"animal\"}, {\"text\": \"car\", \"label\": \"machine\"}, {\"text\": \"truck\", \"label\": \"machine\"}, {\"text\": \"apple\", \"label\": \"food\"}, {\"text\": \"broccoli\", \"label\": \"food\"}], \"model\": \"embed-english-light-v3.0\"}"
+            }
+          ]
+        },
+        "response": {
+          "status": 200,
+          "body": "{\"id\":\"b4bb0e34-2c27-4a38-9236-d4e808abffab\",\"classifications\":[{\"classification_type\":\"single-label\",\"confidence\":0.3708435,\"confidences\":[0.3708435],\"id\":\"f1c1a2e5-2a61-4c8f-ab0b-95dbd1c4c3d4\",\"input\":\"bird\",\"labels\":{\"animal\":{\"confidence\":0.3708435},\"food\":{\"confidence\":0.31428948},\"machine\":{\"confidence\":0.31486702}},\"prediction\":\"animal\",\"predictions\":[\"animal\"]},{\"classification_type\":\"single-label\",\"confidence\":0.343932,\"confidences\":[0.343932],\"id\":\"87434954-42a3-453b-80b3-1d1d3acef374\",\"input\":\"airplane\",\"labels\":{\"animal\":{\"confidence\":0.3254672},\"food\":{\"confidence\":0.3306008},\"machine\":{\"confidence\":0.343932}},\"prediction\":\"machine\",\"predictions\":[\"machine\"]},{\"classification_type\":\"single-label\",\"confidence\":0.37896726,\"confidences\":[0.37896726],\"id\":\"0b41c55b-09e7-4efd-9100-dc5ddefd787e\",\"input\":\"corn\",\"labels\":{\"animal\":{\"confidence\":0.30510396},\"food\":{\"confidence\":0.37896726},\"machine\":{\"confidence\":0.3159288}},\"prediction\":\"food\",\"predictions\":[\"food\"]}],\"meta\":{\"api_version\":{\"version\":\"1\"},\"billed_units\":{\"classifications\":3}}}",
+          "encodedBody": false,
+          "headers": {
+            "Access-Control-Expose-Headers": ["X-Debug-Trace-ID"],
+            "Alt-Svc": ["h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000"],
+            "Cache-Control": [
+              "no-cache, no-store, no-transform, must-revalidate, private, max-age=0"
+            ],
+            "Content-Length": ["1064"],
+            "Content-Type": ["application/json"],
+            "Date": ["Mon, 08 Jul 2024 17:12:26 GMT"],
+            "Expires": ["Thu, 01 Jan 1970 00:00:00 UTC"],
+            "Hoverfly": ["Was-Here"],
+            "Pragma": ["no-cache"],
+            "Server": ["envoy"],
+            "Vary": ["Origin"],
+            "Via": ["1.1 google"],
+            "X-Accel-Expires": ["0"],
+            "X-Debug-Trace-Id": ["7fac18d62912359062e0730cbb2b4fc3"],
+            "X-Endpoint-Monthly-Call-Limit": ["1000"],
+            "X-Envoy-Upstream-Service-Time": ["51"],
+            "X-Trial-Endpoint-Call-Limit": ["40"],
+            "X-Trial-Endpoint-Call-Remaining": ["39"]
+          },
+          "templated": false
+        }
+      },
+      {
+        "request": {
+          "path": [{ "matcher": "exact", "value": "/v1/rerank" }],
+          "method": [{ "matcher": "exact", "value": "POST" }],
+          "destination": [{ "matcher": "exact", "value": "api.cohere.com" }],
+          "scheme": [{ "matcher": "exact", "value": "https" }],
+          "body": [
+            {
+              "matcher": "json",
+              "value": "{\"model\": \"rerank-english-v3.0\", \"query\": \"How long does it take for two programmers to work on something?\", \"documents\": [\"Good programmers don't just write programs. They build a working vocabulary.\", \"One of the best programming skills you can have is knowing when to walk away for awhile.\", \"What one programmer can do in one month, two programmers can do in two months.\", \"how much wood would a woodchuck chuck if a woodchuck could chuck wood?\"], \"return_documents\": true}"
+            }
+          ]
+        },
+        "response": {
+          "status": 200,
+          "body": "{\"id\":\"7e0a8716-ac0c-42ee-a0f6-592e156462da\",\"results\":[{\"document\":{\"text\":\"What one programmer can do in one month, two programmers can do in two months.\"},\"index\":2,\"relevance_score\":0.8003801},{\"document\":{\"text\":\"Good programmers don't just write programs. They build a working vocabulary.\"},\"index\":0,\"relevance_score\":0.0011559008},{\"document\":{\"text\":\"One of the best programming skills you can have is knowing when to walk away for awhile.\"},\"index\":1,\"relevance_score\":0.0006932423},{\"document\":{\"text\":\"how much wood would a woodchuck chuck if a woodchuck could chuck wood?\"},\"index\":3,\"relevance_score\":2.637042e-7}],\"meta\":{\"api_version\":{\"version\":\"1\"},\"billed_units\":{\"search_units\":1}}}",
+          "encodedBody": false,
+          "headers": {
+            "Access-Control-Expose-Headers": ["X-Debug-Trace-ID"],
+            "Alt-Svc": ["h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000"],
+            "Cache-Control": [
+              "no-cache, no-store, no-transform, must-revalidate, private, max-age=0"
+            ],
+            "Content-Length": ["702"],
+            "Content-Type": ["application/json"],
+            "Date": ["Mon, 08 Jul 2024 17:12:27 GMT"],
+            "Expires": ["Thu, 01 Jan 1970 00:00:00 UTC"],
+            "Hoverfly": ["Was-Here"],
+            "Pragma": ["no-cache"],
+            "Server": ["envoy"],
+            "Vary": ["Origin"],
+            "Via": ["1.1 google"],
+            "X-Accel-Expires": ["0"],
+            "X-Debug-Trace-Id": ["82814cf5f5bf3cec9623675837a1d9ee"],
+            "X-Endpoint-Monthly-Call-Limit": ["1000"],
+            "X-Envoy-Upstream-Service-Time": ["37"],
+            "X-Trial-Endpoint-Call-Limit": ["40"],
+            "X-Trial-Endpoint-Call-Remaining": ["39"]
+          },
+          "templated": false
+        }
+      },
+      {
+        "request": {
+          "path": [{ "matcher": "exact", "value": "/v1/chat" }],
+          "method": [{ "matcher": "exact", "value": "POST" }],
+          "destination": [{ "matcher": "exact", "value": "api.cohere.com" }],
+          "scheme": [{ "matcher": "exact", "value": "https" }],
+          "body": [
+            {
+              "matcher": "json",
+              "value": "{\"message\": \"How much wood would a woodchuck chuck if a woodchuck could chuck wood?\", \"model\": \"command-r-plus\", \"seed\": 42, \"stream\": false}"
+            }
+          ]
+        },
+        "response": {
+          "status": 200,
+          "body": "{\"response_id\":\"5b1fda7f-7cdd-4674-b33c-f0c74b5585b4\",\"text\":\"According to a tongue-twister poem often attributed to Robert Hobart Davis and Richard Woodruff, a woodchuck would chuck “as much wood as a woodchuck would, if a woodchuck could chuck wood.” \\n\\nIn reality, woodchucks (also known as groundhogs) do not chuck wood. They are herbivores and primarily feed on grasses, weeds, fruits, and vegetables. They may occasionally gnaw on wood to wear down their ever-growing teeth, but they do not chuck or throw wood. \\n\\nSo, the amount of wood a woodchuck would chuck if it could chuck wood remains a whimsical and nonsensical concept, meant more for playful language exercise than any practical measurement.\",\"generation_id\":\"70aad792-756c-4bc7-b499-672372776150\",\"chat_history\":[{\"role\":\"USER\",\"message\":\"How much wood would a woodchuck chuck if a woodchuck could chuck wood?\"},{\"role\":\"CHATBOT\",\"message\":\"According to a tongue-twister poem often attributed to Robert Hobart Davis and Richard Woodruff, a woodchuck would chuck “as much wood as a woodchuck would, if a woodchuck could chuck wood.” \\n\\nIn reality, woodchucks (also known as groundhogs) do not chuck wood. They are herbivores and primarily feed on grasses, weeds, fruits, and vegetables. They may occasionally gnaw on wood to wear down their ever-growing teeth, but they do not chuck or throw wood. \\n\\nSo, the amount of wood a woodchuck would chuck if it could chuck wood remains a whimsical and nonsensical concept, meant more for playful language exercise than any practical measurement.\"}],\"finish_reason\":\"COMPLETE\",\"meta\":{\"api_version\":{\"version\":\"1\"},\"billed_units\":{\"input_tokens\":16,\"output_tokens\":142},\"tokens\":{\"input_tokens\":82,\"output_tokens\":142}}}",
+          "encodedBody": false,
+          "headers": {
+            "Access-Control-Expose-Headers": ["X-Debug-Trace-ID"],
+            "Alt-Svc": ["h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000"],
+            "Cache-Control": [
+              "no-cache, no-store, no-transform, must-revalidate, private, max-age=0"
+            ],
+            "Content-Length": ["1741"],
+            "Content-Type": ["application/json"],
+            "Date": ["Mon, 08 Jul 2024 17:12:31 GMT"],
+            "Expires": ["Thu, 01 Jan 1970 00:00:00 UTC"],
+            "Hoverfly": ["Was-Here"],
+            "Num_chars": ["484"],
+            "Num_tokens": ["158"],
+            "Pragma": ["no-cache"],
+            "Server": ["envoy"],
+            "Vary": ["Origin"],
+            "Via": ["1.1 google"],
+            "X-Accel-Expires": ["0"],
+            "X-Debug-Trace-Id": ["2e7d58434cac70ac13fb3f965043ce62"],
+            "X-Endpoint-Monthly-Call-Limit": ["1000"],
+            "X-Envoy-Upstream-Service-Time": ["2848"],
+            "X-Trial-Endpoint-Call-Limit": ["40"],
+            "X-Trial-Endpoint-Call-Remaining": ["39"]
+          },
+          "templated": false
+        }
+      }
+    ],
+    "globalActions": { "delays": [], "delaysLogNormal": [] }
+  },
+  "meta": {
+    "schemaVersion": "v5.2",
+    "hoverflyVersion": "v1.9.5",
+    "timeExported": "2024-07-08T17:12:34Z"
+  }
+}
