@@ -83,7 +83,7 @@ create table tests
 );
 
 -------------------------------------------------------------------------------
--- convenience functions for recording test results
+-- convenience function for recording test results
 create function result(_test text, _expected text, _actual text) returns bool
 as $func$
 merge into tests as t
@@ -95,57 +95,73 @@ when not matched then insert (test, actual) values (x.test, x.actual)
 select passed from tests where test = _test;
 $func$ language sql;
 
-create function result(_test text, _expected int, _actual int) returns bool
-return (select result(_test, _expected::text, _actual::text))
-;
-
-create function result(_test text, _expected bool, _actual bool) returns bool
-return (select result(_test, _expected::text, _actual::text))
-;
-
 \pset tuples_only on
 -------------------------------------------------------------------------------
 -- openai tests
 \getenv enable_openai_tests ENABLE_OPENAI_TESTS
+\if :{?enable_openai_tests}
+\else
+\set enable_openai_tests 0
+\endif
 \if :enable_openai_tests
 \set ON_ERROR_ROLLBACK on
 \set ON_ERROR_STOP off
 \i tests/openai.sql
 \set ON_ERROR_ROLLBACK off
 \set ON_ERROR_STOP on
+\else
+\echo Skipped OpenAI tests
 \endif
 
 -------------------------------------------------------------------------------
 -- ollama tests
 \getenv enable_ollama_tests ENABLE_OLLAMA_TESTS
+\if :{?enable_ollama_tests}
+\else
+\set enable_ollama_tests 0
+\endif
 \if :enable_ollama_tests
 \set ON_ERROR_ROLLBACK on
 \set ON_ERROR_STOP off
 \i tests/ollama.sql
 \set ON_ERROR_ROLLBACK off
 \set ON_ERROR_STOP on
+\else
+\echo Skipped Ollama tests
 \endif
 
 -------------------------------------------------------------------------------
 -- anthropic tests
 \getenv enable_anthropic_tests ENABLE_ANTHROPIC_TESTS
+\if :{?enable_anthropic_tests}
+\else
+\set enable_anthropic_tests 0
+\endif
 \if :enable_anthropic_tests
 \set ON_ERROR_ROLLBACK on
 \set ON_ERROR_STOP off
 \i tests/anthropic.sql
 \set ON_ERROR_ROLLBACK off
 \set ON_ERROR_STOP on
+\else
+\echo Skipped Anthropic tests
 \endif
 
 -------------------------------------------------------------------------------
 -- cohere tests
 \getenv enable_cohere_tests ENABLE_COHERE_TESTS
+\if :{?enable_cohere_tests}
+\else
+\set enable_cohere_tests 0
+\endif
 \if :enable_cohere_tests
 \set ON_ERROR_ROLLBACK on
 \set ON_ERROR_STOP off
 \i tests/cohere.sql
 \set ON_ERROR_ROLLBACK off
 \set ON_ERROR_STOP on
+\else
+\echo Skipped Cohere tests
 \endif
 
 \pset tuples_only off
@@ -153,34 +169,47 @@ return (select result(_test, _expected::text, _actual::text))
 -- test results
 \echo
 \echo
-\echo test results
+\echo
 \echo
 \echo
 
 \set ON_ERROR_STOP on
 \set ON_ERROR_ROLLBACK off
-\echo test results
-select test, passed
-from tests
-;
 
-\echo failed tests
-select *
-from tests
-where passed is distinct from true
-;
-
-\echo test stats
-select
-  count(*) as total
-, count(*) filter (where passed = true) as passed
-, count(*) filter (where passed is distinct from true) as failed
-from tests
-;
-
-select count(*) filter (where passed is distinct from true) = 0 as result
+-- we should fail if no tests were run
+select count(*) > 0 as result
 from tests
 \gset
+
+\if :result
+
+    \echo test results
+    select test, passed
+    from tests
+    ;
+
+    \echo failed tests
+    select *
+    from tests
+    where passed is distinct from true
+    ;
+
+    \echo test stats
+    select
+      count(*) as total
+    , count(*) filter (where passed = true) as passed
+    , count(*) filter (where passed is distinct from true) as failed
+    from tests
+    ;
+
+    select count(*) filter (where passed is distinct from true) = 0 as result
+    from tests
+    \gset
+
+\else
+\warn NO TESTS WERE RUN!
+\endif
+
 
 reset role; -- no longer tester
 

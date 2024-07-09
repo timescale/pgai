@@ -1,6 +1,17 @@
 -------------------------------------------------------------------------------
 -- get our cohere api key
 \getenv cohere_api_key COHERE_API_KEY
+\if :{?cohere_api_key}
+\else
+\warn Cohere tests are enabled but COHERE_API_KEY is not set!
+do $$
+begin
+raise exception 'Cohere tests are enabled but COHERE_API_KEY is not set!';
+end;
+$$;
+\q
+\endif
+
 -- set our session local GUC
 select set_config('ai.cohere_api_key', $1, false) is not null as set_cohere_api_key
 \bind :cohere_api_key
@@ -30,64 +41,81 @@ values
 
 -------------------------------------------------------------------------------
 -- cohere_list_models
-\echo cohere_list_models
-select count(*) as actual
+\set testname cohere_list_models
+\set expected t
+\echo :testname
+
+select count(*) > 0 as actual
 from cohere_list_models(_api_key=>$1)
 \bind :cohere_api_key
 \gset
 
-select result('cohere_list_models', true, :actual > 0);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- cohere_list_models-no-key
-\echo cohere_list_models-no-key
-select count(*) as actual
+\set testname cohere_list_models-no-key
+\set expected t
+\echo :testname
+
+select count(*) > 0 as actual
 from cohere_list_models()
 \gset
 
-select result('cohere_list_models-no-key', true, :actual > 0);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- cohere_list_models-endpoint
-\echo cohere_list_models-endpoint
-select count(*) as actual
+\set testname cohere_list_models-endpoint
+\set expected t
+\echo :testname
+
+select count(*) > 0 as actual
 from cohere_list_models(_endpoint=>'embed')
 \gset
 
-select result('cohere_list_models-endpoint', true, :actual > 0);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- cohere_tokenize
-\echo cohere_tokenize
-select cohere_tokenize
-( 'command'
-, 'What one programmer can do in one month, two programmers can do in two months.'
-, _api_key=>$1
+\set testname cohere_tokenize
+\set expected 17
+\echo :testname
+
+select array_length
+(
+    cohere_tokenize
+    ( 'command'
+    , 'What one programmer can do in one month, two programmers can do in two months.'
+    , _api_key=>$1
+    )
+, 1
 ) as actual
 \bind :cohere_api_key
 \gset
 
-select result('cohere_tokenize', 17, array_length(:'actual'::int[], 1));
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- cohere_tokenize-no-key
-\echo cohere_tokenize-no-key
+\set testname cohere_tokenize-no-key
+\set expected {5256,1707,1682,2383,9461,4696,1739,1863,1871,1740,9397,2112,1705,4066,3465,1742,38700,21}
+\echo :testname
+
 select cohere_tokenize
 ( 'command'
 , 'One of the best programming skills you can have is knowing when to walk away for awhile.'
 ) as actual
 \gset
 
-select result('cohere_tokenize-no-key', '{5256,1707,1682,2383,9461,4696,1739,1863,1871,1740,9397,2112,1705,4066,3465,1742,38700,21}', :'actual');
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- cohere_detokenize
-\echo cohere_detokenize
+\set testname cohere_detokenize
+select 'What one programmer can do in one month, two programmers can do in two months.' as expected \gset
+\echo :testname
+
 select cohere_detokenize
 ( 'command'
 , array[5171,2011,36613,1863,1978,1703,2011,2812,19,2253,38374,1863,1978,1703,2253,3784,21]
@@ -96,34 +124,40 @@ select cohere_detokenize
 \bind :cohere_api_key
 \gset
 
-select result('cohere_detokenize', 'What one programmer can do in one month, two programmers can do in two months.', :'actual');
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- cohere_detokenize-no-key
-\echo cohere_detokenize-no-key
+\set testname cohere_detokenize-no-key
+select $$Good programmers don't just write programs. They build a working vocabulary.$$ as expected \gset
+\echo :testname
+
 select cohere_detokenize
 ( 'command'
 , array[14485,38374,2630,2060,2252,5164,4905,21,2744,2628,1675,3094,23407,21]
 ) as actual
 \gset
 
-select result('cohere_detokenize-no-key', $$Good programmers don't just write programs. They build a working vocabulary.$$, :'actual');
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- cohere_list_models-default-only
-\echo cohere_list_models-default-only
-select count(*) as actual
+\set testname cohere_list_models-default-only
+\set expected t
+\echo :testname
+
+select count(*) > 0 as actual
 from cohere_list_models(_endpoint=>'generate', _default_only=>true)
 \gset
 
-select result('cohere_list_models-default-only', true, :actual > 0);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- cohere_embed
-\echo cohere_embed
+\set testname cohere_embed
+\set expected 384
+\echo :testname
+
 select vector_dims
 (
     cohere_embed
@@ -136,12 +170,14 @@ select vector_dims
 \bind :cohere_api_key
 \gset
 
-select result('cohere_embed', 384, :actual);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- cohere_embed-no-key
-\echo cohere_embed-no-key
+\set testname cohere_embed-no-key
+\set expected 384
+\echo :testname
+
 select vector_dims
 (
     cohere_embed
@@ -153,12 +189,14 @@ select vector_dims
 ) as actual
 \gset
 
-select result('cohere_embed-no-key', 384, :actual);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- cohere_classify
-\echo cohere_classify
+\set testname cohere_classify
+select '{"bird": "animal", "corn": "food", "airplane": "machine"}'::jsonb::text as expected \gset
+\echo :testname
+
 with examples(example, label) as
 (
     values
@@ -180,12 +218,14 @@ from jsonb_to_recordset
 )) x(input text, prediction text)
 \gset
 
-select result('cohere_classify', '{"bird": "animal", "corn": "food", "airplane": "machine"}', :'actual');
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- cohere_classify_simple
-\echo cohere_classify_simple
+\set testname cohere_classify_simple
+select '{"bird": "animal", "corn": "food", "airplane": "machine"}'::jsonb::text as expected \gset
+\echo :testname
+
 with examples(example, label) as
 (
     values
@@ -204,12 +244,13 @@ from cohere_classify_simple
 ) x
 \gset
 
-select result('cohere_classify_simple', '{"bird": "animal", "corn": "food", "airplane": "machine"}', :'actual');
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- cohere_rerank
-\echo cohere_rerank
+\set testname cohere_rerank
+\set expected 2
+\echo :testname
 
 select cohere_rerank
 ( 'rerank-english-v3.0'
@@ -224,18 +265,21 @@ select cohere_rerank
 ) as actual
 \gset
 
+\if :{?actual}
 select x."index" as actual
 from jsonb_to_recordset((:'actual'::jsonb)->'results') x("index" int, "document" jsonb, relevance_score float8)
 order by relevance_score desc
 limit 1
 \gset
+\endif
 
-select result('cohere_rerank', 2, :actual);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- cohere_rerank_simple
-\echo cohere_rerank_simple
+\set testname cohere_rerank_simple
+\set expected 3
+\echo :testname
 
 select x."index" as actual
 from cohere_rerank_simple
@@ -252,12 +296,13 @@ order by relevance_score asc
 limit 1
 \gset
 
-select result('cohere_rerank_simple', 3, :actual);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- cohere_chat_complete
-\echo cohere_chat_complete
+\set testname cohere_chat_complete
+\set expected t
+\echo :testname
 
 select cohere_chat_complete
 ( 'command-r-plus'
@@ -266,7 +311,6 @@ select cohere_chat_complete
 )->>'text' is not null as actual
 \gset
 
-select result('cohere_chat_complete', true, :'actual'::bool);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------

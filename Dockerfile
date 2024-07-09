@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.3-labs
 FROM postgres:16
-
+ENV WHERE_AM_I=docker
 ENV DEBIAN_FRONTEND=noninteractive
 USER root
 

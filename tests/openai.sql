@@ -2,6 +2,17 @@
 -- get our openai api key
 -- grab our api key from the environment as a psql variable
 \getenv openai_api_key OPENAI_API_KEY
+\if :{?openai_api_key}
+\else
+\warn OpenAI tests are enabled but OPENAI_API_KEY is not set!
+do $$
+begin
+raise exception 'OpenAI tests are enabled but OPENAI_API_KEY is not set!';
+end;
+$$;
+\q
+\endif
+
 -- set our session local GUC
 select set_config('ai.openai_api_key', $1, false) is not null as set_openai_api_key
 \bind :openai_api_key
@@ -34,46 +45,57 @@ values
 
 -------------------------------------------------------------------------------
 -- openai_list_models
-\echo openai_list_models
-select count(*) as actual
+\set testname openai_list_models
+\set expected t
+\echo :testname
+
+select count(*) > 0 as actual
 from openai_list_models(_api_key=>$1)
 \bind :openai_api_key
 \gset
 
-select result('openai_list_models', true, :actual > 0);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- openai_list_models-no-key
-\echo openai_list_models-no-key
-select count(*) as actual
+\set testname openai_list_models-no-key
+\set expected t
+\echo :testname
+
+select count(*) > 0 as actual
 from openai_list_models()
 \gset
 
-select result('openai_list_models-no-key', true, :actual > 0);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- openai_tokenize
-\echo openai_tokenize
-select openai_tokenize('text-embedding-ada-002', 'the purple elephant sits on a red mushroom') as actual
+\set testname openai_tokenize
+select array[1820,25977,46840,23874,389,264,2579,58466]::text as expected \gset
+\echo :testname
+
+select openai_tokenize('text-embedding-ada-002', 'the purple elephant sits on a red mushroom')::text as actual
 \gset
 
-select result('openai_tokenize', array[1820,25977,46840,23874,389,264,2579,58466]::text, :'actual'::int[]::text);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- openai_detokenize
-\echo openai_detokenize
+\set testname openai_detokenize
+select 'the purple elephant sits on a red mushroom' as expected \gset
+\echo :testname
+
 select openai_detokenize('text-embedding-ada-002', array[1820,25977,46840,23874,389,264,2579,58466]) as actual
 \gset
 
-select result('openai_detokenize', 'the purple elephant sits on a red mushroom', :'actual');
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- openai_embed-1
-\echo openai_embed-1
+\set testname openai_embed-1
+\set expected 1536
+\echo :testname
+
 select vector_dims
 (
     openai_embed
@@ -85,12 +107,14 @@ select vector_dims
 \bind :openai_api_key
 \gset
 
-select result('openai_embed-1', 1536, :actual);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- openai_embed-1-no-key
-\echo openai_embed-1-no-key
+\set testname openai_embed-1-no-key
+\set expected 1536
+\echo :testname
+
 select vector_dims
 (
     openai_embed
@@ -100,12 +124,14 @@ select vector_dims
 ) as actual
 \gset
 
-select result('openai_embed-1-no-key', 1536, :actual);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- openai_embed-2
-\echo openai_embed-2
+\set testname openai_embed-2
+\set expected 768
+\echo :testname
+
 select vector_dims
 (
     openai_embed
@@ -118,12 +144,14 @@ select vector_dims
 \bind :openai_api_key
 \gset
 
-select result('openai_embed-2', 768, :actual);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- openai_embed-2-no-key
-\echo openai_embed-2-no-key
+\set testname openai_embed-2-no-key
+\set expected 768
+\echo :testname
+
 select vector_dims
 (
     openai_embed
@@ -134,12 +162,14 @@ select vector_dims
 ) as actual
 \gset
 
-select result('openai_embed-2-no-key', 768, :actual);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- openai_embed-3
-\echo openai_embed-3
+\set testname openai_embed-3
+\set expected 3072
+\echo :testname
+
 select vector_dims
 (
     openai_embed
@@ -152,12 +182,14 @@ select vector_dims
 \bind :openai_api_key
 \gset
 
-select result('openai_embed-3', 3072, :actual);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- openai_embed-3-no-key
-\echo openai_embed-3-no-key
+\set testname openai_embed-3-no-key
+\set expected 3072
+\echo :testname
+
 select vector_dims
 (
     openai_embed
@@ -168,12 +200,14 @@ select vector_dims
 ) as actual
 \gset
 
-select result('openai_embed-3-no-key', 3072, :actual);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- openai_embed-4
-\echo openai_embed-4
+\set testname openai_embed-4
+\set expected 6144
+\echo :testname
+
 select sum(vector_dims(embedding)) as actual
 from openai_embed
 ( 'text-embedding-3-large'
@@ -183,12 +217,14 @@ from openai_embed
 \bind :openai_api_key
 \gset
 
-select result('openai_embed-4', 6144, :actual);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- openai_embed-4-no-key
-\echo openai_embed-4-no-key
+\set testname openai_embed-4-no-key
+\set expected 6144
+\echo :testname
+
 select sum(vector_dims(embedding)) as actual
 from openai_embed
 ( 'text-embedding-3-large'
@@ -196,12 +232,14 @@ from openai_embed
 )
 \gset
 
-select result('openai_embed-4-no-key', 6144, :actual);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- openai_embed-5
-\echo openai_embed-5
+\set testname openai_embed-5
+\set expected 1536
+\echo :testname
+
 select vector_dims
 (
     openai_embed
@@ -213,12 +251,14 @@ select vector_dims
 \bind :openai_api_key
 \gset
 
-select result('openai_embed-5', 1536, :actual);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- openai_embed-5-no-key
-\echo openai_embed-5-no-key
+\set testname openai_embed-5-no-key
+\set expected 1536
+\echo :testname
+
 select vector_dims
 (
     openai_embed
@@ -228,12 +268,14 @@ select vector_dims
 ) as actual
 \gset
 
-select result('openai_embed-5-no-key', 1536, :actual);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- openai_chat_complete
-\echo openai_chat_complete
+\set testname openai_chat_complete
+\set expected t
+\echo :testname
+
 select openai_chat_complete
 ( 'gpt-4o'
 , jsonb_build_array
@@ -245,15 +287,19 @@ select openai_chat_complete
 \bind :openai_api_key
 \gset
 
+\if :{?actual}
 select jsonb_extract_path_text(:'actual'::jsonb, 'choices', '0', 'message', 'content') is not null as actual
 \gset
+\endif
 
-select result('openai_chat_complete', true, :'actual');
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- openai_chat_complete-no-key
-\echo openai_chat_complete-no-key
+\set testname openai_chat_complete-no-key
+\set expected t
+\echo :testname
+
 select openai_chat_complete
 ( 'gpt-4o'
 , jsonb_build_array
@@ -263,15 +309,19 @@ select openai_chat_complete
 ) as actual
 \gset
 
+\if :{?actual}
 select jsonb_extract_path_text(:'actual'::jsonb, 'choices', '0', 'message', 'content') is not null as actual
 \gset
+\endif
 
-select result('openai_chat_complete-no-key', true, :'actual');
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- openai_moderate
-\echo openai_moderate
+\set testname openai_moderate
+\set expected t
+\echo :testname
+
 select openai_moderate
 ( 'text-moderation-stable'
 , 'I want to kill them.'
@@ -280,25 +330,30 @@ select openai_moderate
 \bind :openai_api_key
 \gset
 
+\if :{?actual}
 select jsonb_extract_path_text(:'actual'::jsonb, 'results', '0', 'flagged')::bool as actual
 \gset
+\endif
 
-select result('openai_moderate', true, :'actual');
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- openai_moderate-no-key
-\echo openai_moderate-no-key
+\set testname openai_moderate-no-key
+\set expected t
+\echo :testname
+
 select openai_moderate
 ( 'text-moderation-stable'
 , 'I want to kill them.'
 ) as actual
 \gset
 
+\if :{?actual}
 select jsonb_extract_path_text(:'actual'::jsonb, 'results', '0', 'flagged')::bool as actual
 \gset
+\endif
 
-select result('openai_moderate-no-key', true, :'actual');
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
