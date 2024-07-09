@@ -8,35 +8,12 @@ if [ -f .env ]; then
   set +a
 fi
 
-if [ -z "$ENABLE_OPENAI_TESTS" ]; then
-  export ENABLE_OPENAI_TESTS=0
+if [ -n "$WHERE_AM_I" ] && [ "$WHERE_AM_I" == "docker" ]; then
+  if [ "$(whoami)" == "root" ]; then
+    echo switching to postgres user...
+    su postgres -
+  fi
+  psql -d postgres -f test.sql
+else
+  psql --no-psqlrc -d 'postgres://postgres@127.0.0.1:9876/postgres' -f test.sql
 fi
-
-if [ "$ENABLE_OPENAI_TESTS" ] && [ -z "$OPENAI_API_KEY" ]; then
-  echo "OPENAI_API_KEY must be set if running OpenAI tests"
-  exit 3
-fi
-
-if [ -z "$ENABLE_OLLAMA_TESTS" ]; then
-  export ENABLE_OLLAMA_TESTS=0
-fi
-
-if [ -z "$ENABLE_ANTHROPIC_TESTS" ]; then
-  export ENABLE_ANTHROPIC_TESTS=0
-fi
-
-if [ "$ENABLE_ANTHROPIC_TESTS" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
-  echo "ANTHROPIC_API_KEY must be set if running Anthropic tests"
-  exit 3
-fi
-
-if [ -z "$ENABLE_COHERE_TESTS" ]; then
-  export ENABLE_COHERE_TESTS=0
-fi
-
-if [ "$ENABLE_COHERE_TESTS" ] && [ -z "$COHERE_API_KEY" ]; then
-  echo "COHERE_API_KEY must be set if running Cohere tests"
-  exit 3
-fi
-
-psql -d postgres -f test.sql

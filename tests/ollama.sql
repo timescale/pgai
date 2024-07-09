@@ -2,6 +2,17 @@
 -- get our ollama host
 -- grab our ollama host from the environment as a psql variable
 \getenv ollama_host OLLAMA_HOST
+\if :{?ollama_host}
+\else
+\warn Ollama tests are enabled but OLLAMA_HOST is not set!
+do $$
+begin
+raise exception 'Ollama tests are enabled but OLLAMA_HOST is not set!';
+end;
+$$;
+\q
+\endif
+
 -- set our session local GUC
 select set_config('ai.ollama_host', $1, false) is not null as set_ollama_host
 \bind :ollama_host
@@ -28,28 +39,35 @@ values
 
 -------------------------------------------------------------------------------
 -- ollama_list_models
-\echo ollama_list_models
-select count(*) as actual
+\set testname ollama_list_models
+\set expected t
+\echo :testname
+
+select count(*) > 0 as actual
 from ollama_list_models(_host=>$1)
 \bind :ollama_host
 \gset
 
-select result('ollama_list_models', true, :actual > 0);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- ollama_list_models-no-host
-\echo ollama_list_models-no-host
-select count(*) as actual
+\set testname ollama_list_models-no-host
+\set expected t
+\echo :testname
+
+select count(*) > 0 as actual
 from ollama_list_models()
 \gset
 
-select result('ollama_list_models-no-host', true, :actual > 0);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- ollama_embed
-\echo ollama_embed
+\set testname ollama_embed
+\set expected 4096
+\echo :testname
+
 select vector_dims
 (
     ollama_embed
@@ -61,12 +79,14 @@ select vector_dims
 \bind :ollama_host
 \gset
 
-select result('ollama_embed', 4096, :actual);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- ollama_embed-no-host
-\echo ollama_embed-no-host
+\set testname ollama_embed-no-host
+\set expected 4096
+\echo :testname
+
 select vector_dims
 (
     ollama_embed
@@ -76,12 +96,14 @@ select vector_dims
 ) as actual
 \gset
 
-select result('ollama_embed-no-host', 4096, :actual);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- ollama_generate
-\echo ollama_generate
+\set testname ollama_generate
+\set expected t
+\echo :testname
+
 select ollama_generate
 ( 'llama3'
 , 'what is the typical weather like in Alabama in June'
@@ -95,15 +117,19 @@ select ollama_generate
 \bind :ollama_host
 \gset
 
+\if :{?actual}
 select (:'actual'::jsonb)->>'response' is not null and ((:'actual'::jsonb)->>'done')::boolean as actual
 \gset
+\endif
 
-select result('ollama_generate', true, :'actual');
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- ollama_generate-no-host
-\echo ollama_generate-no-host
+\set testname ollama_generate-no-host
+\set expected t
+\echo :testname
+
 select ollama_generate
 ( 'llama3'
 , 'what is the typical weather like in Alabama in June'
@@ -115,15 +141,19 @@ select ollama_generate
 ) as actual
 \gset
 
+\if :{?actual}
 select (:'actual'::jsonb)->>'response' is not null and ((:'actual'::jsonb)->>'done')::boolean as actual
 \gset
+\endif
 
-select result('ollama_generate-no-host', true, :'actual');
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- ollama_generate-image
-\echo ollama_generate-image
+\set testname ollama_generate-image
+select 'an elephant with boxing gloves on, ready for a fight' as expected \gset
+\echo :testname
+
 select ollama_generate
 ( 'llava:7b'
 , 'Please describe this image.'
@@ -136,12 +166,19 @@ select ollama_generate
 )->>'response' as actual
 \gset
 
-select result('ollama_generate-image', 'an elephant with boxing gloves on, ready for a fight', substring(:'actual' from 152 for 52));
-\unset actual
+\if :{?actual}
+select substring(:'actual' from 152 for 52) as actual
+\gset
+\endif
+
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- ollama_chat_complete
-\echo ollama_chat_complete
+\set testname ollama_chat_complete
+\set expected t
+\echo :testname
+
 select ollama_chat_complete
 ( 'llama3'
 , jsonb_build_array
@@ -157,15 +194,19 @@ select ollama_chat_complete
 \bind :ollama_host
 \gset
 
+\if :{?actual}
 select (:'actual'::jsonb)->'message'->>'content' is not null and ((:'actual'::jsonb)->>'done')::boolean as actual
 \gset
+\endif
 
-select result('ollama_chat_complete', true, :'actual');
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- ollama_chat_complete-no-host
-\echo ollama_chat_complete-no-host
+\set testname ollama_chat_complete-no-host
+\set expected t
+\echo :testname
+
 select ollama_chat_complete
 ( 'llama3'
 , jsonb_build_array
@@ -179,15 +220,19 @@ select ollama_chat_complete
 ) as actual
 \gset
 
+\if :{?actual}
 select (:'actual'::jsonb)->'message'->>'content' is not null and ((:'actual'::jsonb)->>'done')::boolean as actual
 \gset
+\endif
 
-select result('ollama_chat_complete-no-host', true, :'actual');
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- ollama_chat_complete-image
-\echo ollama_chat_complete-image
+\set testname ollama_chat_complete-image
+\set expected t
+\echo :testname
+
 select ollama_chat_complete
 ( 'llava:7b'
 , jsonb_build_array
@@ -204,26 +249,34 @@ select ollama_chat_complete
 )->'message'->>'content' as actual
 \gset
 
-select result('ollama_chat_complete-image', true, starts_with(:'actual'::text, ' This is a digitally manipulated image'));
-\unset actual
+\if :{?actual}
+select starts_with(:'actual'::text, ' This is a digitally manipulated image') as actual
+\gset
+\endif
+
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- ollama_ps
-\echo ollama_ps
+\set testname ollama_ps
+\set expected 1
+\echo :testname
+
 select count(*) filter (where "name" = 'llava:7b') as actual
 from ollama_ps(_host=>$1)
 \bind :ollama_host
 \gset
 
-select result('ollama_ps', 1, :actual);
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- ollama_ps-no-host
-\echo ollama_ps-no-host
+\set testname ollama_ps-no-host
+\set expected 1
+\echo :testname
+
 select count(*) filter (where "name" = 'llava:7b') as actual
 from ollama_ps()
 \gset
 
-select result('ollama_ps-no-host', 1, :actual);
-\unset actual
+\ir eval.sql

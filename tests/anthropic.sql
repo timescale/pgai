@@ -2,6 +2,17 @@
 -- get our anthropic api key
 
 \getenv anthropic_api_key ANTHROPIC_API_KEY
+\if :{?anthropic_api_key}
+\else
+\warn Anthropic tests are enabled but ANTHROPIC_API_KEY is not set!
+do $$
+begin
+raise exception 'Anthropic tests are enabled but ANTHROPIC_API_KEY is not set!';
+end;
+$$;
+\q
+\endif
+
 -- set our session local GUC
 select set_config('ai.anthropic_api_key', $1, false) is not null as set_anthropic_api_key
 \bind :anthropic_api_key
@@ -18,7 +29,9 @@ values
 
 -------------------------------------------------------------------------------
 -- anthropic_generate
-\echo anthropic_generate
+\set testname anthropic_generate
+\set expected t
+\echo :testname
 select anthropic_generate
 ( 'claude-3-5-sonnet-20240620'
 , jsonb_build_array
@@ -32,15 +45,18 @@ select anthropic_generate
 \bind :anthropic_api_key
 \gset
 
+\if :{?actual}
 select jsonb_extract_path_text(:'actual'::jsonb, 'content', '0', 'text') is not null and (:'actual'::jsonb)->>'stop_reason' = 'end_turn' as actual
 \gset
+\endif
 
-select result('anthropic_generate', true, :'actual');
-\unset actual
+\ir eval.sql
 
 -------------------------------------------------------------------------------
 -- anthropic_generate-no-key
-\echo anthropic_generate-no-key
+\set testname anthropic_generate-no-key
+\set expected t
+\echo :testname
 select anthropic_generate
 ( 'claude-3-5-sonnet-20240620'
 , jsonb_build_array
@@ -52,8 +68,9 @@ select anthropic_generate
 ) as actual
 \gset
 
+\if :{?actual}
 select jsonb_extract_path_text(:'actual'::jsonb, 'content', '0', 'text') is not null and (:'actual'::jsonb)->>'stop_reason' = 'end_turn' as actual
 \gset
+\endif
 
-select result('anthropic_generate-no-key', true, :'actual');
-\unset actual
+\ir eval.sql
