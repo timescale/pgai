@@ -55,7 +55,7 @@ The fastest ways to run PostgreSQL with the pgai extension are to:
 
 ### Use a Timescale Cloud service
 
-pgai an available for [new][create-a-new-service] or existing Timescale Cloud services. For any service, 
+pgai is available for [new][create-a-new-service] or existing Timescale Cloud services. For any service, 
   [enable the pgai extension](#enable-the-pgai-extension-in-your-database).
 
 
