@@ -15,9 +15,8 @@ pgai simplifies the process of building [search](https://en.wikipedia.org/wiki/S
 
 pgai brings embedding and generation AI models closer to the database. With pgai, you can now do the following directly from within PostgreSQL in a SQL query:
 
-* Create [embeddings](#embed) for your data.
-* Retrieve LLM [chat completions](#chat-complete) from models like OpenAI GPT4o and Llama 3.
-* Generate responses for models such as Ollama.
+* Create vector [embeddings](#embed) for your data.
+* Retrieve LLM [chat completions](#chat-complete) from models like Claude Sonnet 3.5, OpenAI GPT4o, Cohere Command, and Llama 3 (via Ollama).
 * Reason over your data and facilitate use cases like [classification, summarization, and data enrichment](docs/advanced.md) on your existing relational data in PostgreSQL.
 
 Here's how to get started with pgai:
