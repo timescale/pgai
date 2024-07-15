@@ -1,62 +1,82 @@
-# Makefile for installing the ai extension
 
-# Extension name
-PGAI_EXTENSION := ai
-
-# Find the PostgreSQL extension directory
-PG_SHAREDIR := $(shell pg_config --sharedir)
-EXTENSION_DIR := $(PG_SHAREDIR)/extension
-
-# Files to be installed
-SQL_FILES := $(wildcard $(PGAI_EXTENSION)--*.sql)
-CONTROL_FILE := $(PGAI_EXTENSION).control
-
-# Default target
+.PHONY: default
 default: help
 
-# Install target
-install: install_extension install_python_packages
+.PHONY: help
+help:
+	@./make.py help
+	@echo "- docker-shell      launches a bash shell in the container"
+	@echo "- docker-psql       launches a psql shell in the container"
 
-# Install the extension files
-install_extension:
-	@cp $(SQL_FILES) $(EXTENSION_DIR)
-	@cp $(CONTROL_FILE) $(EXTENSION_DIR)
+.PHONY: clean
+clean:
+	@./make.py clean
 
-export PIP_BREAK_SYSTEM_PACKAGES=1
+.PHONY: clean-sql
+clean-sql:
+	@./make.py clean-sql
 
-# Install the required Python packages
-install_python_packages:
-	@pip3 install -r requirements.txt
+.PHONY: clean-py
+clean-py:
+	@./make.py clean-py
 
-test: install_extension
-	@./test.sh
+.PHONY: install
+install:
+	@./make.py install
 
-docker_build:
-	@docker build -t pgai .
+.PHONY: install-sql
+install-sql:
+	@./make.py install-sql
 
-docker_run:
-	@docker run -d --name pgai -p 127.0.0.1:9876:5432 -e POSTGRES_HOST_AUTH_METHOD=trust --mount type=bind,src=$(shell pwd),dst=/pgai pgai
+.PHONY: install-prior-py
+install-prior-py:
+	@./make.py install-prior-py
 
-docker_stop:
-	@docker stop pgai
+.PHONY: install-py
+install-py:
+	@./make.py install-py
 
-docker_rm:
-	@docker rm pgai
+.PHONY: uninstall
+uninstall:
+	@./make.py uninstall
 
-docker_shell:
+.PHONY: uninstall-sql
+uninstall-sql:
+	@./make.py uninstall-sql
+
+.PHONY: uninstall-py
+uninstall-py:
+	@./make.py uninstall-py
+
+.PHONY: build-sql
+build-sql:
+	@./make.py build-sql
+
+.PHONY: test
+test:
+	@./make.py test
+
+.PHONY: docker-build
+docker-build:
+	@./make.py docker-build
+
+.PHONY: docker-run
+docker-run:
+	@./make.py docker-run
+
+.PHONY: docker-stop
+docker-stop:
+	@./make.py docker-stop
+
+.PHONY: docker-rm
+docker-rm:
+	@./make.py docker-rm
+
+.PHONY: docker-shell
+docker-shell:
 	@docker exec -it -u root pgai /bin/bash
 
-# Display help message with available targets
-help:
-	@echo "Available targets:"
-	@echo "  install                  Install the pgai extension and Python dependencies"
-	@echo "  install_extension        Install the pgai extension files"
-	@echo "  install_python_packages  Install required Python packages"
-	@echo "  test                     Runs the unit tests in the database"
-	@echo "  docker_build             Builds a Docker image for a development container"
-	@echo "  docker_run               Runs a Docker container for development"
-	@echo "  docker_stop              Stops the docker container"
-	@echo "  docker_rm                Deletes the Docker container"
-	@echo "  docker_shell             Gets a shell inside the development Docker container"
+.PHONY: psql-shell
+psql-shell:
+	@docker exec -it -u postgres pgai /bin/bash -c "set -e; if [ -f .env ]; then set -a; source .env; set +a; fi; psql"
 
-.PHONY: default install install_extension install_python_packages test docker_build docker_run docker_delete docker_shell help

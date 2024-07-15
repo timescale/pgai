@@ -17,90 +17,72 @@ Before you start working with pgai, you need:
    ```bash
    git clone git@github.com:timescale/pgai.git
    ```
+* [Python3](https://www.python.org/downloads/)
 * [Docker](https://docs.docker.com/get-docker/)
-* If you will be working with OpenAI, you will need an [OpenAI API Key](https://platform.openai.com/api-keys).
+* You will need API Keys for the LLM cloud providers you are working with (OpenAI, Anthropic, Cohere, etc.)
 * If you will be working with Ollama, you will need it [running somewhere accessible](https://github.com/ollama/ollama/blob/main/README.md#quickstart).
   * [pull](https://github.com/ollama/ollama/blob/main/README.md#pull-a-model) the `llama3` model
   * [pull](https://github.com/ollama/ollama/blob/main/README.md#pull-a-model) the `llava:7b` model
 * You may want a Postgres client on your host machine like [Psql](https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/)
 
-## Set up a pgai development environment in Docker
+## The pgai development workflow
 
-The pgai Docker container has all the software you need preinstalled. To build and run the
-pgai Docker container, then connect to it:
-
-1. Navigate to the folder you cloned this pgai repository to.
-
-2. Build the Docker image:
+1. Clone the pgai repo
+2. Navigate to the folder you cloned this pgai repository to
+3. Build the docker image
 
    ```bash
-   make docker_build
-   ```
+   make docker-build
+   ``
 
-3. Run the container:
+4. Run the container:
 
    ```bash
-   make docker_run
+   make docker-run
    ```
    The repo directory is mounted to `/pgai` in the running container.
 
-4. To get a shell inside the container, run
-   
+5. To get a shell inside the container, run
+
    ```bash
-   make docker_shell
+   make docker-shell
    ```
    You are logged in as root.
 
-5. Connect to the database:
+   1. Once you are in a shell in the container, install the extension
 
-   To connect from outside the container:
-   ```bash
-   psql -d "postgres://postgres@localhost:9876/postgres"
-   ```
-   To connect from a shell within the container:
-   ```bash
-   su postgres -
-   psql
-   ```
+      ```bash
+      make install
+      ```
 
-6. Later, to stop and delete the container, run:
-   
+   2. Run the unit tests
+
+      ```bash
+      make test
+      ```
+
+6. To get a psql shell to the database in the docker container:
+
    ```bash
-   make docker_stop
-   ```
-   
-   ```bash
-   make docker_rm
+   make psql-shell
    ```
 
-## Make changes to pgai
+7. Later, to stop and delete the container, run:
 
-The repo is mounted to `/pgai` in the docker container. You may edit the source 
-from either inside the docker container or from the host machine.
-
-If you have updated the [unit tests](./tests) accordingly, you may simply 
-[test your changes](#test-your-pgai-changes), or you can manually update the 
-database with your changes.
-
-To reflect your changes in the database manually, do the following from within 
-the docker container/virtual machine.
-
-1. Copy the edited sources to the appropriate postgres directory:
    ```bash
-   make install_extension
-   ```
-2. From a psql session, run:
-   ```bash
-   DROP EXTENSION IF EXISTS ai CASCADE;
-   CREATE EXTENSION ai CASCADE;
+   make docker-stop
    ```
 
-## Test your pgai changes
+   ```bash
+   make docker-rm
+   ```
 
-The [tests](./tests) directory contains unit tests in psql scripts. The 
-[test.sql](./test.sql) script drives test runs.
+## Test pgai
 
-1. Create a .env file to store environment variables needed for testing:
+The [tests](./tests) directory contains unit tests in psql scripts. The
+[test.sql](./tests/test.sql) script drives test runs.
+
+1. Create a .env file in the root of the repo to store environment variables needed for testing:
    - ENABLE_OPENAI_TESTS - a [boolean](https://www.postgresql.org/docs/current/app-psql.html#PSQL-METACOMMAND-IF) flag to enable/disable OpenAI unit tests
    - ENABLE_OLLAMA_TESTS - a [boolean](https://www.postgresql.org/docs/current/app-psql.html#PSQL-METACOMMAND-IF) flag to enable/disable Ollama unit tests
    - ENABLE_ANTHROPIC_TESTS - a [boolean](https://www.postgresql.org/docs/current/app-psql.html#PSQL-METACOMMAND-IF) flag to enable/disable Anthropic unit tests
@@ -110,17 +92,88 @@ The [tests](./tests) directory contains unit tests in psql scripts. The
    - ANTHROPIC_API_KEY - an [Anthropic API Key](https://docs.anthropic.com/en/docs/quickstart#set-your-api-key) to use for Anthropic unit testing
    - COHERE_API_KEY - a [Cohere API Key](https://docs.cohere.com/docs/rate-limits) to use for Cohere unit testing
 
-2. Run the tests
+2. If you have made changes to the source, from a docker shell, (re)install the extension
+
+   ```bash
+   make install
+   ```
+
+3. Run the tests
 
    ```bash
    make test
    ```
 
    This will:
-   1. run `make install_extension` to copy the sources from the `/pgai` directory to the correct postgres directory
-   2. drop the "test" database if it exists
-   3. create a "test" database
-   4. create a database user named "tester" if it doesn't exist
-   5. run [test.sh](./test.sh) to execute the unit tests against the "test" database
+   1. drop the "test" database if it exists
+   2. create a "test" database
+   3. create a database user named "tester" if it doesn't exist
+   4. run [test.sql](./tests/test.sql) to execute the unit tests against the "test" database
 
 Best practice is to add new tests when you commit new functionality.
+
+## pgai Architecture
+
+The pgai extension consists of SQL files as well as Python packages. SQL files 
+are maintained in the [./sql](./sql) directory. The Python packages are 
+maintained in the [./src](./src) directory.
+
+### SQL
+
+The SQL consists of both idempotent and incremental scripts. The code in 
+[./sql/idempotent](./sql/idempotent) is executed on EVERY install AND upgrade of
+the pgai extension and thus must be written with this in mind. Idempotent files
+are executed in alphanumeric order of the file names. In general, it is safe to 
+reorder these from one version to the next. Typically, idempotent files consist
+of `CREATE OR REPLACE`-style statements (usually functions).
+
+The code in [./sql/incremental](./sql/incremental) is guaranteed to execute 
+exactly ONCE in the form of a database migration. Each file in the incremental 
+directory is a migration - a separate unit-of-work that either succeeds or 
+fails. Each incremental file is [wrapped](./sql/migration.sql) to facilitate the
+migration. These migrations are tracked in a table named "ai_migration" 
+(see [./sql/head.sql](./sql/head.sql) for details). Incremental files
+are executed in alphnumeric order of the file names. It is not safe to reorder 
+incremental files once they have been published as a part of a release. 
+Typically, incremental files create tables and other stateful-structures that 
+should not be dropped from one version upgrade to another.
+
+The `make build-sql` "compiles" all of these scripts into the `ai--*.sql` files
+in the [./sql](./sql) directory. These are the files that are actually installed
+into postgres as an extension via `make install-sql`. The `make clean-sql` 
+command will delete the `ai--*.sql` files in the [./sql](./sql) directory for 
+the current version. When releasing a new version, the `ai--*.sql` files for the
+current version need to be added to git and not modified thereafter.
+
+### Python
+
+Python code used by the pgai extension is maintained in the [./src](./src)
+directory.
+
+In order to support multiple versions of the extension being 
+installed and upgraded from/to in a given postgres installation, we have to 
+install every version of our python code and its associated dependencies. Each 
+version of the Python code is installed under `/usr/local/lib/pgai/<version>`.
+
+The `make install-py` command will compile and install the current version of 
+the python package with it's associated dependencies to the target directory.
+
+The `make install-prior-py` command will `git clone` the prior versions and
+compile and install those versions with associated dependencies to the target
+directory.
+
+The `make uninstall-py` command deletes `/usr/local/lib/pgai`.
+
+The `make clean-py` command removes the build artifacts from the repo directory.
+
+The SQL functions modify add the appropriate path dynamically when looking to
+import modules using [site.addsitedir()](https://docs.python.org/3/library/site.html#site.addsitedir)
+
+#### Versions prior to 0.4.0
+
+Versions prior to 0.4.0 installed Python dependencies into a system-wide 
+location. We have moved away from that practice for version 0.4.0 and following.
+Until we deprecate versions prior to 0.4.0 we need to continue installing the
+old dependencies into the system-wide location. These old dependencies are
+identified in [./src/old_requirements.txt](./src/old_requirements.txt).
+
