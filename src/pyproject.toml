@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pgai"
+version = "0.4.0"
+dependencies = [
+    "openai==1.30.2",
+    "tiktoken==0.7.0",
+    "ollama==0.2.1",
+    "anthropic==0.29.0",
+    "cohere==5.5.8",
+]

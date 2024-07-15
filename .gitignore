@@ -1,3 +1,7 @@
 .env
 .idea
 .venv
+build
+*.egg-info
+__pycache__
+sql/ai--*.sql

@@ -18,7 +18,7 @@ You set the network for your Ollama configuration either:
 * Explicitly with the `_host` parameter:
 
   ```sql
-  select ollama_generate
+  select ai.ollama_generate
   ( 'llama3'
   , 'what is the typical weather like in Alabama in June'
   , _host=>'http://host.for.ollama:port' -- tells pgai that Ollama is running on the host when pgai is in a docker container
@@ -56,7 +56,7 @@ List the models supported by your AI provider in pgai:
 
 ```sql
 SELECT * 
-FROM ollama_list_models()
+FROM ai.ollama_list_models()
 ORDER BY size DESC
 ;
 ```
@@ -76,7 +76,7 @@ your Ollama instance:
 Generate [embeddings](https://github.com/ollama/ollama/blob/main/docs/api.md#generate-embeddings) using a specified model:
 
 ```sql
-select ollama_embed
+select ai.ollama_embed
 ( 'llama3'
 , 'the purple elephant sits on a red mushroom'
 );
@@ -104,7 +104,7 @@ You specify custom parameters to the LLM using optional `_options` argument:
 \pset format unaligned
 
 select jsonb_pretty(
-  ollama_chat_complete
+  ai.ollama_chat_complete
   ( 'llama3'
   , jsonb_build_array
     ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
@@ -147,7 +147,7 @@ to manipulate the jsonb object returned from `ollama_chat_complete`:
 \pset tuples_only on
 \pset format unaligned
 
-select ollama_chat_complete
+select ai.ollama_chat_complete
 ( 'llama3'
 , jsonb_build_array
   ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
@@ -194,7 +194,7 @@ In summary, a large language model is a powerful AI tool capable of processing a
 \pset tuples_only on
 \pset format unaligned
 
-select ollama_generate
+select ai.ollama_generate
 ( 'llava:7b'
 , 'Please describe this image.'
 , _images=> array[pg_read_binary_file('/pgai/tests/postgresql-vs-pinecone.jpg')]
@@ -223,7 +223,7 @@ You [list the models currently running in Ollama](https://github.com/ollama/olla
 
 ```sql
 select *
-from ollama_ps()
+from ai.ollama_ps()
 ;
 ```
 
