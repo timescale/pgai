@@ -42,7 +42,7 @@ to run your AI queries:
 
     ```sql
     SELECT * 
-    FROM openai_list_models()
+    FROM ai.openai_list_models()
     ORDER BY created DESC
     ;
     ```
@@ -70,7 +70,7 @@ to run your AI queries:
 4. Pass your API key to your parameterized query:
     ```sql
     SELECT * 
-    FROM openai_list_models(_api_key=>$1)
+    FROM ai.openai_list_models(_api_key=>$1)
     ORDER BY created DESC
     \bind :openai_api_key
     \g
@@ -111,7 +111,7 @@ to run your AI queries:
     with psycopg2.connect(DB_URL) as conn:
         with conn.cursor() as cur:
             # pass the API key as a parameter to the query. don't use string manipulations
-            cur.execute("SELECT * FROM openai_list_models(_api_key=>%s) ORDER BY created DESC", (OPENAI_API_KEY,))
+            cur.execute("SELECT * FROM ai.openai_list_models(_api_key=>%s) ORDER BY created DESC", (OPENAI_API_KEY,))
             records = cur.fetchall()
     ```
 
@@ -136,7 +136,7 @@ List the models supported by your AI provider in pgai:
 
   ```sql
   SELECT * 
-  FROM openai_list_models()
+  FROM ai.openai_list_models()
   ORDER BY created DESC
   ;
   ```
@@ -161,7 +161,7 @@ To encode content and count the number of tokens returned:
 * Encode content into an array of tokens:
 
     ```sql
-    SELECT openai_tokenize
+    SELECT ai.openai_tokenize
     ( 'text-embedding-ada-002'
     , 'Timescale is Postgres made Powerful'
     );
@@ -178,7 +178,7 @@ To encode content and count the number of tokens returned:
 
     ```sql
     SELECT array_length
-    ( openai_tokenize
+    ( ai.openai_tokenize
       ( 'text-embedding-ada-002'
       , 'Timescale is Postgres made Powerful'
       )
@@ -198,7 +198,7 @@ To encode content and count the number of tokens returned:
 Turn tokenized content into natural language:
 
 ```sql
-SELECT openai_detokenize('text-embedding-ada-002', array[1820,25977,46840,23874,389,264,2579,58466]);
+SELECT ai.openai_detokenize('text-embedding-ada-002', array[1820,25977,46840,23874,389,264,2579,58466]);
 ```
 The data returned looks like:
 
@@ -216,7 +216,7 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
 - Request an embedding using a specific model:
 
     ```sql
-    SELECT openai_embed
+    SELECT ai.openai_embed
     ( 'text-embedding-ada-002'
     , 'the purple elephant sits on a red mushroom'
     );
@@ -234,7 +234,7 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
 - Specify the number of dimensions you want in the returned embedding:
 
     ```sql
-    SELECT openai_embed
+    SELECT ai.openai_embed
     ( 'text-embedding-ada-002'
     , 'the purple elephant sits on a red mushroom'
     , _dimensions=>768
@@ -245,7 +245,7 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
 - Pass a user identifier:
 
     ```sql
-    SELECT openai_embed
+    SELECT ai.openai_embed
     ( 'text-embedding-ada-002'
     , 'the purple elephant sits on a red mushroom'
     , _user=>'bac1aaf7-4460-42d3-bba5-2957b057f4a5'
@@ -255,7 +255,7 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
 - Pass an array of text inputs:
 
     ```sql
-    SELECT openai_embed
+    SELECT ai.openai_embed
     ( 'text-embedding-ada-002'
     , array['Timescale is Postgres made Powerful', 'the purple elephant sits on a red mushroom']
     );
@@ -264,7 +264,7 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
 - Provide tokenized input:
 
     ```sql
-    select openai_embed
+    select ai.openai_embed
     ( 'text-embedding-ada-002'
     , array[1820,25977,46840,23874,389,264,2579,58466]
     );
@@ -285,7 +285,7 @@ Generate text or complete a chat:
     
     SELECT jsonb_pretty
     (
-      openai_chat_complete
+      ai.openai_chat_complete
       ( 'gpt-4o'
       , jsonb_build_array
         ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
@@ -333,7 +333,7 @@ Generate text or complete a chat:
     \pset tuples_only on
     \pset format unaligned
     
-    select openai_chat_complete
+    select ai.openai_chat_complete
     ( 'gpt-4o'
     , jsonb_build_array
       ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
@@ -371,7 +371,7 @@ Check if content is classified as potentially harmful:
 
 select jsonb_pretty
 (
-  openai_moderate
+  ai.openai_moderate
   ( 'text-moderation-stable'
   , 'I want to kill them.'
   )
@@ -491,7 +491,7 @@ create table commit_history_embed
 insert into commit_history_embed (id, embedding)
 select
   id
-, openai_embed
+, ai.openai_embed
   ( 'text-embedding-3-small'
     -- create a single text string representation of the commit
   , format('author: %s date: %s commit: %s summary: %s detail: %s', author, "date", "commit", summary, detail)
@@ -529,7 +529,7 @@ from
       id
     , detail
       -- call the openai api using the pgai extension. the result is jsonb
-    , openai_moderate('text-moderation-stable', detail) as moderation
+    , ai.openai_moderate('text-moderation-stable', detail) as moderation
     from commit_history
 ) x
 where (x.moderation->'results'->0->>'flagged')::bool -- only the ones that were flagged
@@ -552,7 +552,7 @@ uses jsonb operators to pull out the content of the [response](https://platform.
 \pset format unaligned
 
 -- summarize and categorize git commits to produce a release notes document
-select openai_chat_complete
+select ai.openai_chat_complete
 ( 'gpt-4o'
 , jsonb_build_array
   ( jsonb_build_object

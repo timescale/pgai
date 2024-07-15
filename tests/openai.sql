@@ -50,7 +50,7 @@ values
 \echo :testname
 
 select count(*) > 0 as actual
-from openai_list_models(_api_key=>$1)
+from ai.openai_list_models(_api_key=>$1)
 \bind :openai_api_key
 \gset
 
@@ -63,7 +63,7 @@ from openai_list_models(_api_key=>$1)
 \echo :testname
 
 select count(*) > 0 as actual
-from openai_list_models()
+from ai.openai_list_models()
 \gset
 
 \ir eval.sql
@@ -74,7 +74,7 @@ from openai_list_models()
 select array[1820,25977,46840,23874,389,264,2579,58466]::text as expected \gset
 \echo :testname
 
-select openai_tokenize('text-embedding-ada-002', 'the purple elephant sits on a red mushroom')::text as actual
+select ai.openai_tokenize('text-embedding-ada-002', 'the purple elephant sits on a red mushroom')::text as actual
 \gset
 
 \ir eval.sql
@@ -85,7 +85,7 @@ select openai_tokenize('text-embedding-ada-002', 'the purple elephant sits on a 
 select 'the purple elephant sits on a red mushroom' as expected \gset
 \echo :testname
 
-select openai_detokenize('text-embedding-ada-002', array[1820,25977,46840,23874,389,264,2579,58466]) as actual
+select ai.openai_detokenize('text-embedding-ada-002', array[1820,25977,46840,23874,389,264,2579,58466]) as actual
 \gset
 
 \ir eval.sql
@@ -98,7 +98,7 @@ select openai_detokenize('text-embedding-ada-002', array[1820,25977,46840,23874,
 
 select vector_dims
 (
-    openai_embed
+    ai.openai_embed
     ( 'text-embedding-ada-002'
     , 'the purple elephant sits on a red mushroom'
     , _api_key=>$1
@@ -117,7 +117,7 @@ select vector_dims
 
 select vector_dims
 (
-    openai_embed
+    ai.openai_embed
     ( 'text-embedding-ada-002'
     , 'the purple elephant sits on a red mushroom'
     )
@@ -134,7 +134,7 @@ select vector_dims
 
 select vector_dims
 (
-    openai_embed
+    ai.openai_embed
     ( 'text-embedding-3-large'
     , 'the purple elephant sits on a red mushroom'
     , _api_key=>$1
@@ -154,7 +154,7 @@ select vector_dims
 
 select vector_dims
 (
-    openai_embed
+    ai.openai_embed
     ( 'text-embedding-3-large'
     , 'the purple elephant sits on a red mushroom'
     , _dimensions=>768
@@ -172,7 +172,7 @@ select vector_dims
 
 select vector_dims
 (
-    openai_embed
+    ai.openai_embed
     ( 'text-embedding-3-large'
     , 'the purple elephant sits on a red mushroom'
     , _api_key=>$1
@@ -192,7 +192,7 @@ select vector_dims
 
 select vector_dims
 (
-    openai_embed
+    ai.openai_embed
     ( 'text-embedding-3-large'
     , 'the purple elephant sits on a red mushroom'
     , _user=>'bob'
@@ -209,7 +209,7 @@ select vector_dims
 \echo :testname
 
 select sum(vector_dims(embedding)) as actual
-from openai_embed
+from ai.openai_embed
 ( 'text-embedding-3-large'
 , array['the purple elephant sits on a red mushroom', 'timescale is postgres made powerful']
 , _api_key=>$1
@@ -226,7 +226,7 @@ from openai_embed
 \echo :testname
 
 select sum(vector_dims(embedding)) as actual
-from openai_embed
+from ai.openai_embed
 ( 'text-embedding-3-large'
 , array['the purple elephant sits on a red mushroom', 'timescale is postgres made powerful']
 )
@@ -242,7 +242,7 @@ from openai_embed
 
 select vector_dims
 (
-    openai_embed
+    ai.openai_embed
     ( 'text-embedding-ada-002'
     , array[1820,25977,46840,23874,389,264,2579,58466]
     , _api_key=>$1
@@ -261,7 +261,7 @@ select vector_dims
 
 select vector_dims
 (
-    openai_embed
+    ai.openai_embed
     ( 'text-embedding-ada-002'
     , array[1820,25977,46840,23874,389,264,2579,58466]
     )
@@ -276,7 +276,7 @@ select vector_dims
 \set expected t
 \echo :testname
 
-select openai_chat_complete
+select ai.openai_chat_complete
 ( 'gpt-4o'
 , jsonb_build_array
   ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
@@ -300,7 +300,7 @@ select jsonb_extract_path_text(:'actual'::jsonb, 'choices', '0', 'message', 'con
 \set expected t
 \echo :testname
 
-select openai_chat_complete
+select ai.openai_chat_complete
 ( 'gpt-4o'
 , jsonb_build_array
   ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
@@ -322,7 +322,7 @@ select jsonb_extract_path_text(:'actual'::jsonb, 'choices', '0', 'message', 'con
 \set expected t
 \echo :testname
 
-select openai_moderate
+select ai.openai_moderate
 ( 'text-moderation-stable'
 , 'I want to kill them.'
 , _api_key=>$1
@@ -343,7 +343,7 @@ select jsonb_extract_path_text(:'actual'::jsonb, 'results', '0', 'flagged')::boo
 \set expected t
 \echo :testname
 
-select openai_moderate
+select ai.openai_moderate
 ( 'text-moderation-stable'
 , 'I want to kill them.'
 ) as actual

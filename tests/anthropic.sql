@@ -32,7 +32,7 @@ values
 \set testname anthropic_generate
 \set expected t
 \echo :testname
-select anthropic_generate
+select ai.anthropic_generate
 ( 'claude-3-5-sonnet-20240620'
 , jsonb_build_array
   ( jsonb_build_object
@@ -57,7 +57,7 @@ select jsonb_extract_path_text(:'actual'::jsonb, 'content', '0', 'text') is not 
 \set testname anthropic_generate-no-key
 \set expected t
 \echo :testname
-select anthropic_generate
+select ai.anthropic_generate
 ( 'claude-3-5-sonnet-20240620'
 , jsonb_build_array
   ( jsonb_build_object

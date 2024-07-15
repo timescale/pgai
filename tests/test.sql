@@ -41,34 +41,46 @@ create user tester;
 
 \endif
 
-select not has_schema_privilege('tester', 'public', 'create') as grant_public
+select not has_schema_privilege('tester', 'public', 'create') as do_grant
 \gset
 
-\if :grant_public
+\if :do_grant
 grant create on schema public to tester;
 \endif
+\unset do_grant
 
-select not pg_has_role(current_user, 'tester', 'member') as grant_tester
+select not pg_has_role(current_user, 'tester', 'member') as do_grant
 \gset
 
-\if :grant_tester
+\if :do_grant
 select format('grant tester to %I', current_user)
 \gexec
 \endif
+\unset do_grant
 
-select not has_function_privilege('tester', 'pg_read_binary_file(text)', 'execute') as grant_pg_read_server_files
+select not has_function_privilege('tester', 'pg_read_binary_file(text)', 'execute') as do_grant
 \gset
 
-\if :grant_pg_read_server_files
+\if :do_grant
 grant execute on function pg_read_binary_file(text) to tester;
 \endif
+\unset do_grant
 
-select not pg_has_role('tester', 'pg_read_server_files', 'member') as grant_tester
+select not pg_has_role('tester', 'pg_read_server_files', 'member') as do_grant
 \gset
 
-\if :grant_tester
+\if :do_grant
 grant pg_read_server_files to tester;
 \endif
+\unset do_grant
+
+select not has_schema_privilege('tester', 'ai', 'usage') as do_grant
+\gset
+
+\if :do_grant
+grant usage on schema ai to tester;
+\endif
+\unset do_grant
 
 set role tester;
 

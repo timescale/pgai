@@ -40,7 +40,7 @@ to run your AI queries:
    `ai.cohere_api_key` is set for the duration of your psql session, you do not need to specify it for pgai functions.
 
     ```sql
-    SELECT cohere_chat_complete
+    SELECT ai.cohere_chat_complete
     ( 'command-r-plus'
     , 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
     , _seed=>42
@@ -70,7 +70,7 @@ to run your AI queries:
 
 4. Pass your API key to your parameterized query:
     ```sql
-    SELECT cohere_chat_complete
+    SELECT ai.cohere_chat_complete
     ( 'command-r-plus'
     , 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
     , _api_key=>$1
@@ -116,7 +116,7 @@ to run your AI queries:
         with conn.cursor() as cur:
             # pass the API key as a parameter to the query. don't use string manipulations
             cur.execute("""
-                SELECT cohere_chat_complete
+                SELECT ai.cohere_chat_complete
                 ( 'command-r-plus'
                 , 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
                 , _api_key=>%s
@@ -148,7 +148,7 @@ This section shows you how to use AI directly from your database using SQL.
   
   ```sql
   select *
-  from cohere_list_models()
+  from ai.cohere_list_models()
   ;
   ```
   
@@ -182,7 +182,7 @@ This section shows you how to use AI directly from your database using SQL.
   
   ```sql
   select *
-  from cohere_list_models(_endpoint=>'embed')
+  from ai.cohere_list_models(_endpoint=>'embed')
   ;
   ```
   
@@ -205,7 +205,7 @@ This section shows you how to use AI directly from your database using SQL.
   
   ```sql
   select * 
-  from cohere_list_models(_endpoint=>'generate', _default_only=>true);
+  from ai.cohere_list_models(_endpoint=>'generate', _default_only=>true);
   ```
   
   Results
@@ -222,7 +222,7 @@ This section shows you how to use AI directly from your database using SQL.
 Tokenize text content.
 
 ```sql
-select cohere_tokenize
+select ai.cohere_tokenize
 ( 'command'
 , 'One of the best programming skills you can have is knowing when to walk away for awhile.'
 );
@@ -242,7 +242,7 @@ Results:
 Reverse the tokenize process.
 
 ```sql
-select cohere_detokenize
+select ai.cohere_detokenize
 ( 'command'
 , array[14485,38374,2630,2060,2252,5164,4905,21,2744,2628,1675,3094,23407,21]
 );
@@ -262,7 +262,7 @@ Results:
 Embed content.
 
 ```sql
-select cohere_embed
+select ai.cohere_embed
 ( 'embed-english-light-v3.0'
 , 'if a woodchuck could chuck wood, a woodchuck would chuck as much wood as he could'
 , _input_type=>'search_document'
@@ -296,7 +296,7 @@ with examples(example, label) as
 select *
 from jsonb_to_recordset
 (
-    cohere_classify
+    ai.cohere_classify
     ( 'embed-english-light-v3.0'
     , array['bird', 'airplane', 'corn'] --inputs we want to classify
     , _examples=>(select jsonb_agg(jsonb_build_object('text', examples.example, 'label', examples.label)) from examples)
@@ -332,7 +332,7 @@ with examples(example, label) as
     , ('broccoli', 'food')
 )
 select *
-from cohere_classify_simple
+from ai.cohere_classify_simple
 ( 'embed-english-light-v3.0'
 , array['bird', 'airplane', 'corn']
 , _examples=>(select jsonb_agg(jsonb_build_object('text', examples.example, 'label', examples.label)) from examples)
@@ -362,7 +362,7 @@ select
 , x.relevance_score
 from jsonb_to_recordset
 (
-    cohere_rerank
+    ai.cohere_rerank
     ( 'rerank-english-v3.0'
     , 'How long does it take for two programmers to work on something?'
     , jsonb_build_array
@@ -396,7 +396,7 @@ A simpler interface to rerank.
 
 ```sql
 select *
-from cohere_rerank_simple
+from ai.cohere_rerank_simple
 ( 'rerank-english-v3.0'
 , 'How long does it take for two programmers to work on something?'
 , jsonb_build_array
@@ -427,7 +427,7 @@ Results:
 Complete chat prompts
 
 ```sql
-select cohere_chat_complete
+select ai.cohere_chat_complete
 ( 'command-r-plus'
 , 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
 , _seed=>42

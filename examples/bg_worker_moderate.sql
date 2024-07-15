@@ -16,7 +16,7 @@ DECLARE
     category TEXT;
 BEGIN
     -- Call OpenAI moderation endpoint
-    select openai_moderate( 'text-moderation-stable', body, api_key)->'results'->0 into result;
+    select ai.openai_moderate( 'text-moderation-stable', body, api_key)->'results'->0 into result;
 
     -- Check if any category is flagged
     IF result->>'flagged' = 'true' THEN
