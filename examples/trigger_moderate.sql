@@ -34,7 +34,7 @@ CREATE OR REPLACE FUNCTION moderate_comment() RETURNS TRIGGER AS $$
 declare
     out jsonb;
 BEGIN
-  select openai_moderate(
+  select ai.openai_moderate(
     'text-moderation-stable',
     NEW.body
   )->'results'->0 into out;
