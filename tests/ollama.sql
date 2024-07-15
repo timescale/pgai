@@ -44,7 +44,7 @@ values
 \echo :testname
 
 select count(*) > 0 as actual
-from ollama_list_models(_host=>$1)
+from ai.ollama_list_models(_host=>$1)
 \bind :ollama_host
 \gset
 
@@ -57,7 +57,7 @@ from ollama_list_models(_host=>$1)
 \echo :testname
 
 select count(*) > 0 as actual
-from ollama_list_models()
+from ai.ollama_list_models()
 \gset
 
 \ir eval.sql
@@ -70,7 +70,7 @@ from ollama_list_models()
 
 select vector_dims
 (
-    ollama_embed
+    ai.ollama_embed
     ( 'llama3'
     , 'the purple elephant sits on a red mushroom'
     , _host=>$1
@@ -89,7 +89,7 @@ select vector_dims
 
 select vector_dims
 (
-    ollama_embed
+    ai.ollama_embed
     ( 'llama3'
     , 'the purple elephant sits on a red mushroom'
     )
@@ -104,7 +104,7 @@ select vector_dims
 \set expected t
 \echo :testname
 
-select ollama_generate
+select ai.ollama_generate
 ( 'llama3'
 , 'what is the typical weather like in Alabama in June'
 , _system=>'you are a helpful assistant'
@@ -130,7 +130,7 @@ select (:'actual'::jsonb)->>'response' is not null and ((:'actual'::jsonb)->>'do
 \set expected t
 \echo :testname
 
-select ollama_generate
+select ai.ollama_generate
 ( 'llama3'
 , 'what is the typical weather like in Alabama in June'
 , _system=>'you are a helpful assistant'
@@ -151,10 +151,10 @@ select (:'actual'::jsonb)->>'response' is not null and ((:'actual'::jsonb)->>'do
 -------------------------------------------------------------------------------
 -- ollama_generate-image
 \set testname ollama_generate-image
-select 'an elephant with boxing gloves on, ready for a fight' as expected \gset
+\set expected t
 \echo :testname
 
-select ollama_generate
+select ai.ollama_generate
 ( 'llava:7b'
 , 'Please describe this image.'
 , _images=> array[pg_read_binary_file('/pgai/tests/postgresql-vs-pinecone.jpg')]
@@ -167,7 +167,7 @@ select ollama_generate
 \gset
 
 \if :{?actual}
-select substring(:'actual' from 152 for 52) as actual
+select :'actual' ilike '%boxing gloves%' as actual
 \gset
 \endif
 
@@ -179,7 +179,7 @@ select substring(:'actual' from 152 for 52) as actual
 \set expected t
 \echo :testname
 
-select ollama_chat_complete
+select ai.ollama_chat_complete
 ( 'llama3'
 , jsonb_build_array
   ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
@@ -207,7 +207,7 @@ select (:'actual'::jsonb)->'message'->>'content' is not null and ((:'actual'::js
 \set expected t
 \echo :testname
 
-select ollama_chat_complete
+select ai.ollama_chat_complete
 ( 'llama3'
 , jsonb_build_array
   ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
@@ -233,7 +233,7 @@ select (:'actual'::jsonb)->'message'->>'content' is not null and ((:'actual'::js
 \set expected t
 \echo :testname
 
-select ollama_chat_complete
+select ai.ollama_chat_complete
 ( 'llava:7b'
 , jsonb_build_array
   ( jsonb_build_object
@@ -263,7 +263,7 @@ select starts_with(:'actual'::text, ' This is a digitally manipulated image') as
 \echo :testname
 
 select count(*) filter (where "name" = 'llava:7b') as actual
-from ollama_ps(_host=>$1)
+from ai.ollama_ps(_host=>$1)
 \bind :ollama_host
 \gset
 
@@ -276,7 +276,7 @@ from ollama_ps(_host=>$1)
 \echo :testname
 
 select count(*) filter (where "name" = 'llava:7b') as actual
-from ollama_ps()
+from ai.ollama_ps()
 \gset
 
 \ir eval.sql

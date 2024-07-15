@@ -46,7 +46,7 @@ values
 \echo :testname
 
 select count(*) > 0 as actual
-from cohere_list_models(_api_key=>$1)
+from ai.cohere_list_models(_api_key=>$1)
 \bind :cohere_api_key
 \gset
 
@@ -59,7 +59,7 @@ from cohere_list_models(_api_key=>$1)
 \echo :testname
 
 select count(*) > 0 as actual
-from cohere_list_models()
+from ai.cohere_list_models()
 \gset
 
 \ir eval.sql
@@ -71,7 +71,7 @@ from cohere_list_models()
 \echo :testname
 
 select count(*) > 0 as actual
-from cohere_list_models(_endpoint=>'embed')
+from ai.cohere_list_models(_endpoint=>'embed')
 \gset
 
 \ir eval.sql
@@ -84,7 +84,7 @@ from cohere_list_models(_endpoint=>'embed')
 
 select array_length
 (
-    cohere_tokenize
+    ai.cohere_tokenize
     ( 'command'
     , 'What one programmer can do in one month, two programmers can do in two months.'
     , _api_key=>$1
@@ -102,7 +102,7 @@ select array_length
 \set expected {5256,1707,1682,2383,9461,4696,1739,1863,1871,1740,9397,2112,1705,4066,3465,1742,38700,21}
 \echo :testname
 
-select cohere_tokenize
+select ai.cohere_tokenize
 ( 'command'
 , 'One of the best programming skills you can have is knowing when to walk away for awhile.'
 ) as actual
@@ -116,7 +116,7 @@ select cohere_tokenize
 select 'What one programmer can do in one month, two programmers can do in two months.' as expected \gset
 \echo :testname
 
-select cohere_detokenize
+select ai.cohere_detokenize
 ( 'command'
 , array[5171,2011,36613,1863,1978,1703,2011,2812,19,2253,38374,1863,1978,1703,2253,3784,21]
 , _api_key=>$1
@@ -132,7 +132,7 @@ select cohere_detokenize
 select $$Good programmers don't just write programs. They build a working vocabulary.$$ as expected \gset
 \echo :testname
 
-select cohere_detokenize
+select ai.cohere_detokenize
 ( 'command'
 , array[14485,38374,2630,2060,2252,5164,4905,21,2744,2628,1675,3094,23407,21]
 ) as actual
@@ -147,7 +147,7 @@ select cohere_detokenize
 \echo :testname
 
 select count(*) > 0 as actual
-from cohere_list_models(_endpoint=>'generate', _default_only=>true)
+from ai.cohere_list_models(_endpoint=>'generate', _default_only=>true)
 \gset
 
 \ir eval.sql
@@ -160,7 +160,7 @@ from cohere_list_models(_endpoint=>'generate', _default_only=>true)
 
 select vector_dims
 (
-    cohere_embed
+    ai.cohere_embed
     ( 'embed-english-light-v3.0'
     , 'how much wood would a woodchuck chuck if a woodchuck could chuck wood?'
     , _api_key=>$1
@@ -180,7 +180,7 @@ select vector_dims
 
 select vector_dims
 (
-    cohere_embed
+    ai.cohere_embed
     ( 'embed-english-light-v3.0'
     , 'if a woodchuck could chuck wood, a woodchuck would chuck as much wood as he could'
     , _input_type=>'search_document'
@@ -210,7 +210,7 @@ with examples(example, label) as
 select jsonb_object_agg(x.input, x.prediction) as actual
 from jsonb_to_recordset
 ((
-    select cohere_classify
+    select ai.cohere_classify
     ( 'embed-english-light-v3.0'
     , array['bird', 'airplane', 'corn']
     , _examples=>(select jsonb_agg(jsonb_build_object('text', examples.example, 'label', examples.label)) from examples)
@@ -237,7 +237,7 @@ with examples(example, label) as
     , ('broccoli', 'food')
 )
 select jsonb_object_agg(x.input, x.prediction) as actual
-from cohere_classify_simple
+from ai.cohere_classify_simple
 ( 'embed-english-light-v3.0'
 , array['bird', 'airplane', 'corn']
 , _examples=>(select jsonb_agg(jsonb_build_object('text', examples.example, 'label', examples.label)) from examples)
@@ -252,7 +252,7 @@ from cohere_classify_simple
 \set expected 2
 \echo :testname
 
-select cohere_rerank
+select ai.cohere_rerank
 ( 'rerank-english-v3.0'
 , 'How long does it take for two programmers to work on something?'
 , jsonb_build_array
@@ -282,7 +282,7 @@ limit 1
 \echo :testname
 
 select x."index" as actual
-from cohere_rerank_simple
+from ai.cohere_rerank_simple
 ( 'rerank-english-v3.0'
 , 'How long does it take for two programmers to work on something?'
 , jsonb_build_array
@@ -304,7 +304,7 @@ limit 1
 \set expected t
 \echo :testname
 
-select cohere_chat_complete
+select ai.cohere_chat_complete
 ( 'command-r-plus'
 , 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
 , _seed=>42

@@ -69,7 +69,7 @@ CREATE OR REPLACE FUNCTION moderate_comment() RETURNS TRIGGER AS $$
 declare
     out jsonb;
 BEGIN
-  select openai_moderate(
+  select ai.openai_moderate(
     'text-moderation-stable',
     NEW.body,
      _api_key=>current_setting('ai.openai_api_key', false) -- fail if setting not available
@@ -133,7 +133,7 @@ BEGIN
 
     select current_setting('ai.openai_api_key', false) into api_key;
     -- Call OpenAI moderation endpoint
-    select openai_moderate( 'text-moderation-stable',
+    select ai.openai_moderate( 'text-moderation-stable',
       body,
       _api_key => api_key)->'results'->0 into result;
 
