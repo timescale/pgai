@@ -18,7 +18,7 @@ begin
         end if;
         return;
     end if;
-    _sql = format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
+    _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
     execute _sql;
     insert into @extschema@.ai_migration ("name", body, applied_at_version)
     values (_migration_name, _migration_body, $version${version}$version$);
