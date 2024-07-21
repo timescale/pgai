@@ -74,6 +74,18 @@ def output_sql_file() -> Path:
     return sql_dir().joinpath(f"ai--{this_version()}.sql")
 
 
+def build_sql_control_file() -> None:
+    ctl_file = sql_dir().joinpath("ai.control")
+    content = ctl_file.read_text()
+    lines = []
+    for line in content.splitlines(keepends=True):
+        if line.startswith("default_version"):
+            lines.append(f"default_version='{this_version()}'\n")
+        else:
+            lines.append(line)
+    ctl_file.write_text("".join(lines))
+
+
 def build_incremental_sql_file(input_file: Path) -> str:
     template = sql_dir().joinpath("migration.sql").read_text()
     migration_name = input_file.name
@@ -106,6 +118,7 @@ def build_idempotent_sql_file(input_file: Path) -> str:
 
 
 def build_sql() -> None:
+    build_sql_control_file()
     hr = "".rjust(80, "-")
     osf = output_sql_file()
     osf.unlink(missing_ok=True)
@@ -206,7 +219,20 @@ def install_prior_py() -> None:
         shutil.rmtree(tmp_dir)
 
 
+def build_pyproject_toml() -> None:
+    prj_file = src_dir().joinpath("pyproject.toml")
+    content = prj_file.read_text()
+    lines = []
+    for line in content.splitlines(keepends=True):
+        if line.startswith("version"):
+            lines.append(f'version = "{this_version()}"\n')
+        else:
+            lines.append(line)
+    prj_file.write_text("".join(lines))
+
+
 def install_py() -> None:
+    build_pyproject_toml()
     python_install_dir().mkdir(exist_ok=True)
     version = this_version()
     version_target_dir = python_install_dir().joinpath(version)
