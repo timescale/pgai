@@ -216,7 +216,7 @@ from pg_catalog.jsonb_to_recordset
     , _top_n=>_top_n
     , _return_documents=>true
     , _max_chunks_per_doc=>_max_chunks_per_doc
-    )->'results'
+    ) operator(pg_catalog.->) 'results'
 ) x("index" int, "document" jsonb, relevance_score float8)
 $func$ language sql volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp

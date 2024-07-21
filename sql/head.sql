@@ -18,8 +18,8 @@ begin
     select k.relowner into _migration_table_owner_id
     from pg_catalog.pg_class k
     inner join pg_catalog.pg_namespace n on (k.relnamespace = n.oid)
-    where k.relname = 'ai_migration'
-    and n.nspname = '@extschema@';
+    where k.relname operator(pg_catalog.=) 'ai_migration'
+    and n.nspname operator(pg_catalog.=) '@extschema@';
 
     if _migration_table_owner_id is not null
     and _migration_table_owner_id is distinct from _current_user_id then
@@ -30,10 +30,10 @@ begin
         create table @extschema@.ai_migration
         ( "name" text not null primary key
         , applied_at_version text not null
-        , applied_at timestamptz not null default clock_timestamp()
+        , applied_at timestamptz not null default pg_catalog.clock_timestamp()
         , body text not null
         );
-        perform pg_catalog.pg_extension_config_dump('@extschema@.ai_migration'::regclass, '');
+        perform pg_catalog.pg_extension_config_dump('@extschema@.ai_migration'::pg_catalog.regclass, '');
     end if;
 end;
 $owner_check$;

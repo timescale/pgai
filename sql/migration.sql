@@ -10,7 +10,7 @@ $migration_body$
 {migration_body}
 $migration_body$;
 begin
-    select * into _migration from @extschema@.ai_migration where "name" = _migration_name;
+    select * into _migration from @extschema@.ai_migration where "name" operator(pg_catalog.=) _migration_name;
     if _migration is not null then
         raise notice 'migration %s already applied. skipping.', _migration_name;
         if _migration.body is distinct from _migration_body then
