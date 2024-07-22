@@ -10,7 +10,8 @@ def find_api_key(plpy) -> str:
         plpy.error("missing api key")
 
 
-def make_client(plpy, api_key: Optional[str] = None, base_url: Optional[str] = None, timeout: Optional[float] = None, max_retries: Optional[int] = None) -> Anthropic:
+def make_client(plpy, api_key: Optional[str] = None, base_url: Optional[str] = None, timeout: Optional[float] = None,
+                max_retries: Optional[int] = None) -> Anthropic:
     if api_key is None:
         api_key = find_api_key(plpy)
     args = {}

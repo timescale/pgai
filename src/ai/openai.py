@@ -25,7 +25,8 @@ def list_models(plpy, api_key: Optional[str] = None) -> Generator[tuple[str, dat
         yield model.id, created, model.owned_by
 
 
-def embed(plpy, model: str, input: Union[str, list[str], list[int]], api_key: Optional[str] = None, dimensions: Optional[int] = None,
+def embed(plpy, model: str, input: Union[str, list[str], list[int]], api_key: Optional[str] = None,
+          dimensions: Optional[int] = None,
           user: Optional[str] = None) -> Generator[tuple[int, list[float]], None, None]:
     client = make_client(plpy, api_key)
     args = {}
@@ -38,5 +39,3 @@ def embed(plpy, model: str, input: Union[str, list[str], list[int]], api_key: Op
         return None
     for obj in response.data:
         yield obj.index, obj.embedding
-
-
