@@ -154,7 +154,7 @@ The SQL is organized into:
 
   Incremental scripts are executed in alphanumeric order on file name. Once an incremental script is published
   in a release, you must not rename it. To facilitate migration, each incremental file is
-  [wrapped](./sql/migration.sql). Each migration id is tracked in the `ai_migration` table. For more information,
+  [wrapped](./sql/migration.sql). Each migration id is tracked in the `migration` table. For more information,
   see [./sql/head.sql](./sql/head.sql).
 
 You install pgai into your developer environment using the `ai-<version from>-<version-to>.sql` script. The  
