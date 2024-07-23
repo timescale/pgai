@@ -145,9 +145,7 @@ The installation workflow to build the SQL scripts and Python code in pgai is:
 1. **Clean your environment**: run `make clean` to remove build artifacts from your developer 
    environment.
 1. **Install pgai**:
-   To compile and install pgai:
-  * Current version: run `make install`.
-  * All previous versions: run `make install-prior`.
+   To compile and install pgai, run `make install`.
 1. **Uninstall pgai**: run `make uninstall` and delete all versions of pgai from your developer
    environment. 
 
