@@ -17,10 +17,10 @@ To make changes to the pgai extension, do the following in your developer enviro
    * [Docker](https://docs.docker.com/get-docker/).
    * A Postgres client like [Psql](https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/) or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/).
 * Retrieve the API Keys for the LLM cloud providers you are working with.
-* Clone the pgai source in `<pgai_install_dir>`:
+* Clone the pgai source:
    ```bash
-   cd <pgai_install_dir>
    git clone git@github.com:timescale/pgai.git
+   cd pgai
    ```
 * Ollama only:
    * [Run Ollama somewhere accessible from your developer environment](https://github.com/ollama/ollama/blob/main/README.md#quickstart).
@@ -34,7 +34,7 @@ To make changes to the pgai extension, do the following in your developer enviro
 
 To make changes to pgai:
 
-1. Navigate to `<pgai_install_dir>`.
+1. Navigate to `<pgai_source_dir>`.
 1. Build the docker image
    ```bash
    make docker-build
@@ -91,7 +91,7 @@ The [tests](./tests) directory contains the psql scripts that run unit tests. Th
 
 To setup the pgai tests:
 
-1. In `<pgai_install_dir>/.env`, add the variables for the framework you want to test:
+1. In `<pgai_source_dir>/.env`, add the variables for the framework you want to test:
    - **OpenAI**:
       - ENABLE_OPENAI_TESTS - set to `true` to enable OpenAI unit tests.
       - OPENAI_API_KEY - an [OpenAI API Key](https://platform.openai.com/api-keys) for OpenAI unit testing.
@@ -107,7 +107,7 @@ To setup the pgai tests:
 
 2. If you have made changes to the source, from a Docker shell, install the extension:
    ```bash
-   cd <pgai_install_dir>
+   cd <pgai_source_dir>
    make docker-shell
    make install
    ```
@@ -155,7 +155,7 @@ The installation workflow to build the SQL scripts and Python code in pgai is:
 
 ### Build the SQL scripts in pgai
 
-SQL code used by pgai is maintained in [<pgai_install_dir>/sql](./sql).
+SQL code used by pgai is maintained in [<pgai_source_dir>/sql](./sql).
 
 The SQL is organized into:
 
@@ -197,7 +197,7 @@ pull request.
 
 ### Build the Python code in pgai
 
-Python code used by the pgai is maintained in [<pgai_install_dir>/src](./src).
+Python code used by the pgai is maintained in [<pgai_source_dir>/src](./src).
 
 In order to support multiple versions of pgai in the same Postgres installation, each version of the Python code and
 its associated dependencies is installed in `/usr/local/lib/pgai/<version>`
