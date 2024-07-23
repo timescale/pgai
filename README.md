@@ -24,7 +24,7 @@ Here's how to get started with pgai:
 * **Everyone**: Use pgai in your PostgreSQL database.
   1. [Install pgai](#installation).
   1. Use pgai to integrate AI from your provider:
-    * [Ollama](./docs/ollama.md) - configure pgai for Ollama, then use the model to embed, chat complete and generate. 
+    * [Ollama](./docs/ollama.md) - configure pgai for Ollama, then use the model to embed, chat complete and generate.
     * [OpenAI](./docs/openai.md) - configure pgai for OpenAI, then use the model to tokenize, embed, chat complete and moderate. This page also includes advanced examples.
     * [Anthropic](./docs/anthropic.md) - configure pgai for Anthropic, then use the model to generate content.
     * [Cohere](./docs/cohere.md) - configure pgai for Cohere, then use the model to tokenize, embed, chat complete, classify, and rerank.
@@ -54,8 +54,8 @@ The fastest ways to run PostgreSQL with the pgai extension are to:
 
 ### Use a Timescale Cloud service
 
-pgai is available for [new][create-a-new-service] or existing Timescale Cloud services. For any service, 
-  [enable the pgai extension](#enable-the-pgai-extension-in-your-database).
+pgai is available for [new][create-a-new-service] or existing Timescale Cloud services. For any service,
+[enable the pgai extension](#enable-the-pgai-extension-in-your-database).
 
 
 ### Install from source
@@ -63,20 +63,14 @@ pgai is available for [new][create-a-new-service] or existing Timescale Cloud se
 To install pgai from source on a PostgreSQL server:
 
 1. **Install the prerequisite software system-wide**
-   - **Python3**: if running `python3 --version` in Terminal returns `command not found`:
-     - **Standard installation**: download and install the latest version of [Python3][python3].
-     - **[Postgresql plugin][asdf-postgres] for the [asdf][asdf] version manager**: set the `--with-python` option 
-       when installing PostgreSQL:
+   - **Python3**: if running `python3 --version` in Terminal returns `command
+     not found`, download and install the latest version of [Python3][python3].
 
-       ```bash
-       POSTGRES_EXTRA_CONFIGURE_OPTIONS=--with-python asdf install postgres 16.3
-       ```
-    
    - **Pip**: if running `pip --version` in Terminal returns `command not found`:
      - **Standard installation**: use one of the pip [supported methods][pip].
-     - **Virtual environment**: usually, pip is automatically installed if you are working in a 
-       [Python virtual environment][python-virtual-environment]. If you are running PostgreSQL in a virtual 
-       environement, pgai requires several python packages. Set the `PYTHONPATH` and `VIRTUAL_ENV` 
+     - **Virtual environment**: usually, pip is automatically installed if you are working in a
+       [Python virtual environment][python-virtual-environment]. If you are running PostgreSQL in a virtual
+       environement, pgai requires several python packages. Set the `PYTHONPATH` and `VIRTUAL_ENV`
        environment variables before you start your PostgreSQL server.
 
        ```bash
@@ -87,11 +81,18 @@ To install pgai from source on a PostgreSQL server:
    - **PL/Python**: follow [How to install Postgres 16 with plpython3u: Recipes for macOS, Ubuntu, Debian, CentOS, Docker][pgai-plpython].
 
       _macOS_: the standard PostgreSQL brew in Homebrew does not include the `plpython3` extension. These instructions show
-      how to install from an alternate tap. 
-   
+      how to install from an alternate tap.
+
+     - **[Postgresql plugin][asdf-postgres] for the [asdf][asdf] version manager**: set the `--with-python` option
+       when installing PostgreSQL:
+
+       ```bash
+       POSTGRES_EXTRA_CONFIGURE_OPTIONS=--with-python asdf install postgres 16.3
+       ```
+
    - **pgvector**: follow the [install instructions][pgvector-install] from the official repository.
 
-   These extensions are automatically added to your PostgreSQL database when you 
+   These extensions are automatically added to your PostgreSQL database when you
    [Enable the pgai extension](#enable-the-pgai-extension-in-your-database).
 
 1. Make this `pgai` extension:
