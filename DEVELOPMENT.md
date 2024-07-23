@@ -160,7 +160,7 @@ The SQL is organized into:
 You install pgai into your developer environment using the `ai-<version from>-<version-to>.sql` script. The  
 installation workflow for the SQL scripts is:
 
-1. **Clean your environment**: run `make clean-sql` to delete `./sql/<version-from>-<current-version>.sql`.
+1. **Clean your environment**: run `make clean-sql` to delete `./sql/ai--*<current-version>.sql`.
 
    You define `<current-version>` in [./sql/ai.control](./sql/ai.control).
 
