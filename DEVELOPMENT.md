@@ -166,7 +166,7 @@ The `make uninstall-py` command deletes `/usr/local/lib/pgai`.
 
 The `make clean-py` command removes the build artifacts from the repo directory.
 
-The SQL functions modify add the appropriate path dynamically when looking to
+The SQL functions add the appropriate path dynamically when looking to
 import modules using [site.addsitedir()](https://docs.python.org/3/library/site.html#site.addsitedir)
 
 #### Versions prior to 0.4.0
