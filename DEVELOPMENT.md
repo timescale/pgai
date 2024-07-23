@@ -131,7 +131,29 @@ Best practice is to add new tests when you commit new functionality.
 
 pgai consists of [SQL](#sql) scripts and [Python](#python) packages.
 
-### SQL
+The pgai build has the following paths:
+
+* [Build everything as is](#build-everything-as-is): the default workflow. 
+* [Build the SQL scripts in pgai](#build-the-sql-scripts-in-pgai): update sql migration scripts.
+* [Build the Python code in pgai](#build-the-python-code-in-pgai): update functionality in pgai. 
+* [Versions prior to 0.4.0](#versions-prior-to-040): the legacy installation procedure.
+
+### Build everything as is
+
+The installation workflow to build the SQL scripts and Python code in pgai is:
+
+1. **Clean your environment**: run `make clean` to remove build artifacts from your developer 
+   environment.
+1. **Install pgai**:
+   To compile and install pgai:
+  * Current version: run `make install`.
+  * All previous versions: run `make install-prior`.
+1. **Uninstall pgai**: run `make uninstall` and delete all versions of pgai from your developer
+   environment. 
+
+
+
+### Build the SQL scripts in pgai
 
 SQL code used by pgai is maintained in [<pgai_install_dir>/sql](./sql).
 
@@ -162,7 +184,7 @@ installation workflow for the SQL scripts is:
 
 1. **Clean your environment**: run `make clean-sql` to delete `./sql/ai--*<current-version>.sql`.
 
-   You define `<current-version>` in [./sql/ai.control](./sql/ai.control).
+   The `<current-version>` is defined in `versions()` in [./build.py](./build.py).
 
 1. **Build pgai**: run `make build-sql` to compile idempotent and incremental scripts
    into `./sql/ai--*<current-version>.sql`.
@@ -173,7 +195,7 @@ When you release a new version, add the `./sql/ai--*<current-version>.sql` scrip
 pull request.
 
 
-### Python
+### Build the Python code in pgai
 
 Python code used by the pgai is maintained in [<pgai_install_dir>/src](./src).
 
@@ -184,12 +206,12 @@ The installation workflow for the Python code is:
 
 1. **Clean your environment**: run `make clean-py` to remove build artifacts from your developer environment.
 1. **Install pgai**:
-   to compile and install the python package with its associated dependencies.
+   To compile and install the python package with its associated dependencies.
    * Current version: run `make install-py`.
-   * Previous versions: run `make install-prior-py`. **IAIN**: can i choose a version?
-1. **Uninstall pgai**: run `make uninstall-py` and delete `/usr/local/lib/pgai`.
+   * All previous versions: run `make install-prior-py`. 
+1. **Uninstall pgai**: run `make uninstall-py` and delete all versions of the Python code from 
+   `/usr/local/lib/pgai`.
 
-   **IAIN**: does this delete all versions or just the latest version?
 
 ### Versions prior to 0.4.0
 
