@@ -165,11 +165,11 @@ installation workflow for the SQL scripts is:
    You define `<current-version>` in [./sql/ai.control](./sql/ai.control).
 
 1. **Build pgai**: run `make build-sql` to compile idempotent and incremental scripts
-   into `./sql/<version-from>-<current-version>.sql`.
-1. **Install pgai**: run `make install-sql` to install `./sql/<version-from>-<current-version>.sql` into your local
+   into `./sql/ai--*<current-version>.sql`.
+1. **Install pgai**: run `make install-sql` to install `./sql/ai--*.sql` and `./sql/ai.control` into your local
    environment.
 
-When you release a new version, add `./sql/<version-from>-<current-version>.sql` to this repo with your
+When you release a new version, add the `./sql/ai--*<current-version>.sql` scripts to this repo with your
 pull request.
 
 
