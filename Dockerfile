@@ -17,6 +17,8 @@ RUN set -eux; \
     vim
 
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
+RUN pip install ruff==0.5.5
+
 RUN set -eux; \
     git clone https://github.com/timescale/pgspot.git /build/pgspot; \
     pip install /build/pgspot; \

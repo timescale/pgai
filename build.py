@@ -6,7 +6,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-HELP = f"""Available targets:
+HELP = """Available targets:
 - help              displays this message and exits
 - install           installs the project
 - uninstall         uninstalls the project
@@ -20,7 +20,10 @@ HELP = f"""Available targets:
 - clean-py          removes python build artifacts from the project directories
 - uninstall-py      removes the python package and dependencies from the system
 - test              runs the unit tests in the docker database
-- pgspot            runs pgspot against the `ai--<this_version>.sql` file
+- lint-sql          runs pgspot against the `ai--<this_version>.sql` file
+- lint-py           runs ruff linter against the python source files
+- lint              runs both sql and python linters
+- format-py         runs ruff to check formatting of the python source files
 - docker-build      builds the development docker image
 - docker-run        launches a container in docker using the docker image
 - docker-stop       stops the container
@@ -28,7 +31,12 @@ HELP = f"""Available targets:
 
 
 def versions() -> list[str]:
-    return ["0.4.0", "0.3.0", "0.2.0", "0.1.0"]  # ADD NEW VERSIONS TO THE FRONT OF THIS LIST! STAY SORTED PLEASE
+    return [
+        "0.4.0",
+        "0.3.0",
+        "0.2.0",
+        "0.1.0",
+    ]  # ADD NEW VERSIONS TO THE FRONT OF THIS LIST! STAY SORTED PLEASE
 
 
 def this_version() -> str:
@@ -92,7 +100,9 @@ def build_incremental_sql_file(input_file: Path) -> str:
     migration_name = input_file.name
     migration_body = input_file.read_text()
     version = this_version()
-    return template.format(migration_name=migration_name, migration_body=migration_body, version=version)
+    return template.format(
+        migration_name=migration_name, migration_body=migration_body, version=version
+    )
 
 
 def build_idempotent_sql_file(input_file: Path) -> str:
@@ -115,7 +125,9 @@ def build_idempotent_sql_file(input_file: Path) -> str:
     # remove first and last (blank) lines
     inject = "".join(inject.splitlines(keepends=True)[1:-1])
     code = input_file.read_text()
-    return code.replace('''    #ADD-PYTHON-LIB-DIR\n''', inject)  # leading 4 spaces is intentional
+    return code.replace(
+        """    #ADD-PYTHON-LIB-DIR\n""", inject
+    )  # leading 4 spaces is intentional
 
 
 def build_sql() -> None:
@@ -139,7 +151,11 @@ def build_sql() -> None:
         wf.flush()
         wf.close()
     for prior_version in prior_versions():
-        if prior_version in {"0.3.0", "0.2.0", "0.1.0"}:  # we don't allow upgrades from these versions
+        if prior_version in {
+            "0.3.0",
+            "0.2.0",
+            "0.1.0",
+        }:  # we don't allow upgrades from these versions
             continue
         dest = sql_dir().joinpath(f"ai--{prior_version}--{this_version()}.sql")
         dest.unlink(missing_ok=True)
@@ -154,10 +170,16 @@ def clean_sql() -> None:
 
 def extension_dir() -> Path:
     if shutil.which("pg_config") is None:
-        print(f"pg_config not found", file=sys.stderr)
-        exit(1)
-    proc = subprocess.run(f"pg_config --sharedir", check=True, shell=True, env=os.environ, text=True,
-                          capture_output=True)
+        print("pg_config not found", file=sys.stderr)
+        sys.exit(1)
+    proc = subprocess.run(
+        "pg_config --sharedir",
+        check=True,
+        shell=True,
+        env=os.environ,
+        text=True,
+        capture_output=True,
+    )
     return Path(str(proc.stdout).strip()).resolve().absolute().joinpath("extension")
 
 
@@ -165,7 +187,7 @@ def install_sql() -> None:
     ext_dir = extension_dir()
     if not ext_dir.exists():
         print(f"extension directory does not exist: {ext_dir}", file=sys.stderr)
-        exit(1)
+        sys.exit(1)
     build_sql()
     for src in sql_dir().glob("ai*.control"):
         dest = ext_dir.joinpath(src.name)
@@ -190,7 +212,9 @@ def python_install_dir() -> Path:
     # don't do it. i'm warning you
     # seriously.
     # you'll wreck old versions. look at build_idempotent_sql_file()
-    return Path(f"/usr/local/lib/pgai").resolve().absolute()  # CONTROLS WHERE THE PYTHON LIB AND DEPS ARE INSTALLED
+    return (
+        Path("/usr/local/lib/pgai").resolve().absolute()
+    )  # CONTROLS WHERE THE PYTHON LIB AND DEPS ARE INSTALLED
 
 
 def install_old_py_deps() -> None:
@@ -200,27 +224,44 @@ def install_old_py_deps() -> None:
     if old_reqs_file.exists():
         env = {k: v for k, v in os.environ.items()}
         env["PIP_BREAK_SYSTEM_PACKAGES"] = "1"
-        subprocess.run(f"pip install --compile -r {old_reqs_file}", shell=True, check=True, env=env)
+        subprocess.run(
+            f"pip install --compile -r {old_reqs_file}", shell=True, check=True, env=env
+        )
 
 
 def install_prior_py() -> None:
     install_old_py_deps()
     for version in prior_versions():
-        if version in {"0.3.0", "0.2.0", "0.1.0"}:  # these are handled by install_old_py_deps()
+        if version in {
+            "0.3.0",
+            "0.2.0",
+            "0.1.0",
+        }:  # these are handled by install_old_py_deps()
             continue
         if os.sep in version:
-            print(f"'{os.sep}' in version {version}. this is not supported", file=sys.stderr)
-            exit(1)
+            print(
+                f"'{os.sep}' in version {version}. this is not supported",
+                file=sys.stderr,
+            )
+            sys.exit(1)
         version_target_dir = python_install_dir().joinpath(version)
         if version_target_dir.exists():
             continue
         tmp_dir = Path(tempfile.gettempdir()).joinpath("pgai", version)
         tmp_dir.mkdir(parents=True, exist_ok=True)
-        subprocess.run(f"git clone https://github.com/timescale/pgai.git --branch {version} {tmp_dir}", shell=True,
-                       check=True, env=os.environ)
+        subprocess.run(
+            f"git clone https://github.com/timescale/pgai.git --branch {version} {tmp_dir}",
+            shell=True,
+            check=True,
+            env=os.environ,
+        )
         tmp_src_dir = tmp_dir.joinpath("src")
-        subprocess.run(f'pip install --compile -t "{version_target_dir}" "{tmp_src_dir}"', check=True,
-                       shell=True, env=os.environ)
+        subprocess.run(
+            f'pip install --compile -t "{version_target_dir}" "{tmp_src_dir}"',
+            check=True,
+            shell=True,
+            env=os.environ,
+        )
         shutil.rmtree(tmp_dir)
 
 
@@ -252,14 +293,24 @@ def install_py() -> None:
         d = version_target_dir.joinpath("ai")  # delete module if exists
         if d.exists():
             shutil.rmtree(d)
-        for d in version_target_dir.glob("pgai-*.dist-info"):  # delete package info if exists
+        for d in version_target_dir.glob(
+            "pgai-*.dist-info"
+        ):  # delete package info if exists
             shutil.rmtree(d)
-        subprocess.run(f'pip install --no-deps --compile -t "{version_target_dir}" "{src_dir()}"',
-                       check=True, shell=True, env=os.environ)
+        subprocess.run(
+            f'pip install --no-deps --compile -t "{version_target_dir}" "{src_dir()}"',
+            check=True,
+            shell=True,
+            env=os.environ,
+        )
     else:
         version_target_dir.mkdir(exist_ok=True)
-        subprocess.run(f'pip install --compile -t "{version_target_dir}" "{src_dir()}"', check=True,
-                       shell=True, env=os.environ)
+        subprocess.run(
+            f'pip install --compile -t "{version_target_dir}" "{src_dir()}"',
+            check=True,
+            shell=True,
+            env=os.environ,
+        )
 
 
 def clean_py() -> None:
@@ -315,36 +366,59 @@ def test() -> None:
     for line in test_heredoc.splitlines(keepends=True):
         lines.append(line[4:])
     test_heredoc = "".join(lines)
-    subprocess.run("bash", shell=True, check=True, env=os.environ, text=True, input=test_heredoc)
+    subprocess.run(
+        "bash", shell=True, check=True, env=os.environ, text=True, input=test_heredoc
+    )
 
 
-def pgspot() -> None:
+def lint_sql() -> None:
     sql = sql_dir().joinpath(f"ai--{this_version()}.sql")
-    subprocess.run(f"pgspot {sql}", shell=True, check=True, env=os.environ)
+    subprocess.run(
+        f"pgspot --ignore-lang=plpython3u {sql}", shell=True, check=True, env=os.environ
+    )
+
+
+def lint_py() -> None:
+    subprocess.run(f"ruff check {src_dir()}", shell=True, check=True, env=os.environ)
+
+
+def lint() -> None:
+    lint_py()
+    lint_sql()
+
+
+def format_py() -> None:
+    subprocess.run(f"ruff format --diff {src_dir()}", shell=True, check=True, env=os.environ)
 
 
 def docker_build() -> None:
-    assert (Path.cwd() == project_dir())
-    subprocess.run(f'''docker build -t pgai .''', shell=True, check=True, env=os.environ, text=True)
+    assert Path.cwd() == project_dir()
+    subprocess.run(
+        """docker build -t pgai .""", shell=True, check=True, env=os.environ, text=True
+    )
 
 
 def docker_run() -> None:
-    cmd = f'''docker run -d --name pgai -p 127.0.0.1:9876:5432 -e POSTGRES_HOST_AUTH_METHOD=trust --mount type=bind,src={project_dir()},dst=/pgai pgai'''
+    cmd = f"""docker run -d --name pgai -p 127.0.0.1:9876:5432 -e POSTGRES_HOST_AUTH_METHOD=trust --mount type=bind,src={project_dir()},dst=/pgai pgai"""
     subprocess.run(cmd, shell=True, check=True, env=os.environ, text=True)
 
 
 def docker_stop() -> None:
-    subprocess.run(f"""docker stop pgai""", shell=True, check=True, env=os.environ, text=True)
+    subprocess.run(
+        """docker stop pgai""", shell=True, check=True, env=os.environ, text=True
+    )
 
 
 def docker_rm() -> None:
-    subprocess.run(f"""docker rm pgai""", shell=True, check=True, env=os.environ, text=True)
+    subprocess.run(
+        """docker rm pgai""", shell=True, check=True, env=os.environ, text=True
+    )
 
 
 if __name__ == "__main__":
     if len(sys.argv) <= 1 or "help" in sys.argv[1:]:
         print(HELP)
-        exit(0)
+        sys.exit(0)
     for action in sys.argv[1:]:
         if action == "install":
             install()
@@ -370,8 +444,14 @@ if __name__ == "__main__":
             uninstall()
         elif action == "test":
             test()
-        elif action == "pgspot":
-            pgspot()
+        elif action == "lint-sql":
+            lint_sql()
+        elif action == "lint-py":
+            lint_py()
+        elif action == "lint":
+            lint()
+        elif action == "format-py":
+            format_py()
         elif action == "docker-build":
             docker_build()
         elif action == "docker-run":
@@ -382,4 +462,4 @@ if __name__ == "__main__":
             docker_rm()
         else:
             print(f"{action} is not a valid action", file=sys.stderr)
-            exit(1)
+            sys.exit(1)
