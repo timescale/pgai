@@ -3,7 +3,9 @@ from cohere import Client
 
 
 def find_api_key(plpy) -> str:
-    r = plpy.execute("select pg_catalog.current_setting('ai.cohere_api_key', true) as api_key")
+    r = plpy.execute(
+        "select pg_catalog.current_setting('ai.cohere_api_key', true) as api_key"
+    )
     if len(r) >= 0:
         return r[0]["api_key"]
     else:

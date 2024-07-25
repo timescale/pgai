@@ -56,9 +56,21 @@ build-sql:
 test:
 	@./build.py test
 
-.PHONY: pgspot
-pgspot:
-	@./build.py pgspot
+.PHONY: lint-sql
+lint-sql:
+	@./build.py lint-sql
+
+.PHONY: lint-py
+lint-py:
+	@./build.py lint-py
+
+.PHONY: lint
+lint:
+	@./build.py lint
+
+.PHONY: format-py
+format-py:
+	@./build.py format-py
 
 .PHONY: docker-build
 docker-build:
