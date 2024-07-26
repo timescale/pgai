@@ -12,16 +12,27 @@ def get_openai_api_key(plpy) -> str:
     return r[0]["api_key"]
 
 
-def make_client(plpy, api_key: Optional[str] = None) -> openai.Client:
+def get_openai_base_url(plpy) -> Optional[str]:
+    r = plpy.execute(
+        "select pg_catalog.current_setting('ai.openai_base_url', true) as base_url"
+    )
+    if len(r) == 0:
+        return None
+    return r[0]["base_url"]
+
+
+def make_client(plpy, api_key: Optional[str] = None, base_url: Optional[str] = None) -> openai.Client:
     if api_key is None:
         api_key = get_openai_api_key(plpy)
-    return openai.Client(api_key=api_key)
+    if base_url is None:
+        base_url = get_openai_base_url(plpy)
+    return openai.Client(api_key=api_key, base_url=base_url)
 
 
 def list_models(
-    plpy, api_key: Optional[str] = None
+    plpy, api_key: Optional[str] = None, base_url: Optional[str] = None
 ) -> Generator[tuple[str, datetime, str], None, None]:
-    client = make_client(plpy, api_key)
+    client = make_client(plpy, api_key, base_url)
     from datetime import datetime, timezone
 
     for model in client.models.list():
@@ -34,10 +45,11 @@ def embed(
     model: str,
     input: Union[str, list[str], list[int]],
     api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
     dimensions: Optional[int] = None,
     user: Optional[str] = None,
 ) -> Generator[tuple[int, list[float]], None, None]:
-    client = make_client(plpy, api_key)
+    client = make_client(plpy, api_key, base_url)
     args = {}
     if dimensions is not None:
         args["dimensions"] = dimensions
