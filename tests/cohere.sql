@@ -34,6 +34,7 @@ values
 , ('cohere_classify')
 , ('cohere_classify_simple')
 , ('cohere_rerank')
+, ('cohere_rerank_adv')
 , ('cohere_rerank_simple')
 , ('cohere_chat_complete')
 -- add entries for new tests here!
@@ -267,6 +268,39 @@ select ai.cohere_rerank
 
 \if :{?actual}
 select x."index" as actual
+from jsonb_to_recordset((:'actual'::jsonb)->'results') x("index" int, "document" jsonb, relevance_score float8)
+order by relevance_score desc
+limit 1
+\gset
+\endif
+
+\ir eval.sql
+
+-------------------------------------------------------------------------------
+-- cohere_rerank_adv
+\set testname cohere_rerank_adv
+\set expected 'Frederick P. Brooks'
+\echo :testname
+
+with docs(id, quote, author) as
+(
+    values
+      (1, $$Good programmers don't just write programs. They build a working vocabulary.$$, 'Guy Steele')
+    , (2, 'One of the best programming skills you can have is knowing when to walk away for awhile.', 'Oscar Godson')
+    , (3, 'What one programmer can do in one month, two programmers can do in two months.', 'Frederick P. Brooks')
+    , (4, 'how much wood would a woodchuck chuck if a woodchuck could chuck wood?', 'some joker')
+)
+select ai.cohere_rerank
+( 'rerank-english-v3.0'
+, 'How long does it take for two programmers to work on something?'
+, (select jsonb_agg(x) from docs x)
+, _rank_fields=>array['quote']
+, _return_documents=>true
+) as actual
+\gset
+
+\if :{?actual}
+select x."document"->>'author' as actual
 from jsonb_to_recordset((:'actual'::jsonb)->'results') x("index" int, "document" jsonb, relevance_score float8)
 order by relevance_score desc
 limit 1

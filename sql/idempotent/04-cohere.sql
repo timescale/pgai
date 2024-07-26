@@ -167,6 +167,7 @@ create or replace function ai.cohere_rerank
 , _documents jsonb
 , _api_key text default null
 , _top_n integer default null
+, _rank_fields text[] default null
 , _return_documents bool default null
 , _max_chunks_per_doc int default null
 ) returns jsonb
@@ -178,6 +179,8 @@ as $python$
     args = {}
     if _top_n is not None:
         args["top_n"] = _top_n
+    if _rank_fields is not None:
+        args["rank_fields"] = _rank_fields
     if _return_documents is not None:
         args["return_documents"] = _return_documents
     if _max_chunks_per_doc is not None:
