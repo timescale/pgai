@@ -26,6 +26,7 @@ values
 , ('ollama_list_models-no-host')
 , ('ollama_embed')
 , ('ollama_embed-no-host')
+, ('ollama_embed_via_openai')
 , ('ollama_generate')
 , ('ollama_generate-no-host')
 , ('ollama_generate-image')
@@ -94,6 +95,27 @@ select vector_dims
     , 'the purple elephant sits on a red mushroom'
     )
 ) as actual
+\gset
+
+\ir eval.sql
+
+
+-------------------------------------------------------------------------------
+-- ollama_embed_via_openai
+\set testname ollama_embed_via_openai
+\set expected 4096
+\echo :testname
+
+select vector_dims
+(
+    ai.openai_embed
+    ( 'llama3'
+    , 'the purple elephant sits on a red mushroom'
+    , _api_key=>'this is a garbage api key'
+    , _base_url=>concat($1::text, '/v1/')
+    )
+) as actual
+\bind :ollama_host
 \gset
 
 \ir eval.sql
