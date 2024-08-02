@@ -11,7 +11,7 @@
 </div>
 
 pgai simplifies the process of building [search](https://en.wikipedia.org/wiki/Similarity_search), and
-[Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation)(RAG) AI applications with PostgreSQL.
+[Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation) (RAG) AI applications with PostgreSQL.
 
 pgai brings embedding and generation AI models closer to the database. With pgai, you can now do the following directly from within PostgreSQL in a SQL query:
 
