@@ -38,7 +38,6 @@ from pg_roles
 
 \if :create_tester
 create user tester;
-
 \endif
 
 select not has_schema_privilege('tester', 'public', 'create') as do_grant
@@ -74,13 +73,9 @@ grant pg_read_server_files to tester;
 \endif
 \unset do_grant
 
-select not has_schema_privilege('tester', 'ai', 'usage') as do_grant
-\gset
-
-\if :do_grant
+grant create on database test to tester;
 grant usage on schema ai to tester;
-\endif
-\unset do_grant
+grant insert,select on ai.vectorize to tester;
 
 set role tester;
 
@@ -122,7 +117,7 @@ $func$ language sql;
 \set ON_ERROR_ROLLBACK off
 \set ON_ERROR_STOP on
 \else
-\echo Skipped OpenAI tests
+\echo skipped openai tests
 \endif
 
 -------------------------------------------------------------------------------
@@ -139,7 +134,7 @@ $func$ language sql;
 \set ON_ERROR_ROLLBACK off
 \set ON_ERROR_STOP on
 \else
-\echo Skipped Ollama tests
+\echo skipped ollama tests
 \endif
 
 -------------------------------------------------------------------------------
@@ -156,7 +151,7 @@ $func$ language sql;
 \set ON_ERROR_ROLLBACK off
 \set ON_ERROR_STOP on
 \else
-\echo Skipped Anthropic tests
+\echo skipped anthropic tests
 \endif
 
 -------------------------------------------------------------------------------
@@ -173,7 +168,24 @@ $func$ language sql;
 \set ON_ERROR_ROLLBACK off
 \set ON_ERROR_STOP on
 \else
-\echo Skipped Cohere tests
+\echo skipped cohere tests
+\endif
+
+-------------------------------------------------------------------------------
+-- vectorize tests
+\getenv enable_vectorize_tests ENABLE_VECTORIZE_TESTS
+\if :{?enable_vectorize_tests}
+\else
+\set enable_vectorize_tests 0
+\endif
+\if :enable_vectorize_tests
+\set ON_ERROR_ROLLBACK on
+\set ON_ERROR_STOP off
+\i tests/vectorize.sql
+\set ON_ERROR_ROLLBACK off
+\set ON_ERROR_STOP on
+\else
+\echo skipped vectorize tests
 \endif
 
 \pset tuples_only off
