@@ -113,7 +113,7 @@ as $python$
     resp = client.embeddings(_model, _input, options=_options, keep_alive=_keep_alive)
     return resp.get("embedding")
 $python$
-language plpython3u volatile parallel safe security invoker
+language plpython3u immutable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 

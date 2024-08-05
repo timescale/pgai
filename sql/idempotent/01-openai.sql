@@ -11,7 +11,7 @@ as $python$
     tokens = encoding.encode(_text)
     return tokens
 $python$
-language plpython3u strict volatile parallel safe security invoker
+language plpython3u strict immutable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -27,7 +27,7 @@ as $python$
     content = encoding.decode(_tokens)
     return content
 $python$
-language plpython3u strict volatile parallel safe security invoker
+language plpython3u strict immutable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -69,7 +69,7 @@ as $python$
     for tup in ai.openai.embed(plpy, _model, _input, api_key=_api_key, base_url=_base_url, dimensions=_dimensions, user=_user):
         return tup[1]
 $python$
-language plpython3u volatile parallel safe security invoker
+language plpython3u immutable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -94,7 +94,7 @@ as $python$
     for tup in ai.openai.embed(plpy, _model, _input, api_key=_api_key, base_url=_base_url, dimensions=_dimensions, user=_user):
         yield tup
 $python$
-language plpython3u volatile parallel safe security invoker
+language plpython3u immutable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -116,7 +116,7 @@ as $python$
     for tup in ai.openai.embed(plpy, _model, _input, api_key=_api_key, base_url=_base_url, dimensions=_dimensions, user=_user):
         return tup[1]
 $python$
-language plpython3u volatile parallel safe security invoker
+language plpython3u immutable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -215,6 +215,6 @@ as $python$
     moderation = client.moderations.create(input=_input, model=_model)
     return moderation.model_dump_json()
 $python$
-language plpython3u volatile parallel safe security invoker
+language plpython3u immutable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
