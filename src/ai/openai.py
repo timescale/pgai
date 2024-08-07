@@ -21,7 +21,9 @@ def get_openai_base_url(plpy) -> Optional[str]:
     return r[0]["base_url"]
 
 
-def make_client(plpy, api_key: Optional[str] = None, base_url: Optional[str] = None) -> openai.Client:
+def make_client(
+    plpy, api_key: Optional[str] = None, base_url: Optional[str] = None
+) -> openai.Client:
     if api_key is None:
         api_key = get_openai_api_key(plpy)
     if base_url is None:

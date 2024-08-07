@@ -12,7 +12,7 @@ if not enable_ollama_tests or enable_ollama_tests == "0":
 
 @pytest.fixture()
 def ollama_host() -> str:
-    ollama_host = os.environ['OLLAMA_HOST']
+    ollama_host = os.environ["OLLAMA_HOST"]
     return ollama_host
 
 
@@ -32,7 +32,10 @@ def cur(con) -> psycopg.Cursor:
 def cur_with_ollama_host(ollama_host, con) -> psycopg.Cursor:
     with con:
         with con.cursor() as cursor:
-            cursor.execute("select set_config('ai.ollama_host', %s, false) is not null", (ollama_host,))
+            cursor.execute(
+                "select set_config('ai.ollama_host', %s, false) is not null",
+                (ollama_host,),
+            )
             yield cursor
 
 
@@ -43,13 +46,16 @@ def test_ollama_list_models_no_host(cur_with_ollama_host):
 
 
 def test_ollama_list_models(cur, ollama_host):
-    cur.execute("select count(*) > 0 from ai.ollama_list_models(_host=>%s)", (ollama_host,))
+    cur.execute(
+        "select count(*) > 0 from ai.ollama_list_models(_host=>%s)", (ollama_host,)
+    )
     actual = cur.fetchone()[0]
     assert actual is True
 
 
 def test_ollama_embed(cur, ollama_host):
-    cur.execute("""
+    cur.execute(
+        """
         select vector_dims
         (
             ai.ollama_embed
@@ -58,7 +64,9 @@ def test_ollama_embed(cur, ollama_host):
             , _host=>%s
             )
         )
-    """, (ollama_host,))
+    """,
+        (ollama_host,),
+    )
     actual = cur.fetchone()[0]
     assert actual == 4096
 
@@ -78,7 +86,8 @@ def test_ollama_embed_no_host(cur_with_ollama_host):
 
 
 def test_ollama_embed_via_openai(cur, ollama_host):
-    cur.execute("""
+    cur.execute(
+        """
         select vector_dims
         (
             ai.openai_embed
@@ -88,13 +97,16 @@ def test_ollama_embed_via_openai(cur, ollama_host):
             , _base_url=>concat(%s::text, '/v1/')
             )
         )
-    """, (ollama_host,))
+    """,
+        (ollama_host,),
+    )
     actual = cur.fetchone()[0]
     assert actual == 4096
 
 
 def test_ollama_generate(cur, ollama_host):
-    cur.execute("""
+    cur.execute(
+        """
         select ai.ollama_generate
         ( 'llama3'
         , 'what is the typical weather like in Alabama in June'
@@ -105,7 +117,9 @@ def test_ollama_generate(cur, ollama_host):
           , 'temperature', 0.6
           )
         )
-    """, (ollama_host,))
+    """,
+        (ollama_host,),
+    )
     actual = cur.fetchone()[0]
     assert "response" in actual and "done" in actual and actual["done"] is True
 
@@ -144,7 +158,8 @@ def test_ollama_image(cur_with_ollama_host):
 
 
 def test_ollama_chat_complete(cur, ollama_host):
-    cur.execute("""
+    cur.execute(
+        """
         select ai.ollama_chat_complete
         ( 'llama3'
           , jsonb_build_array
@@ -157,9 +172,16 @@ def test_ollama_chat_complete(cur, ollama_host):
           , 'temperature', 0.6
           )
         )
-    """, (ollama_host,))
+    """,
+        (ollama_host,),
+    )
     actual = cur.fetchone()[0]
-    assert "message" in actual and "content" in actual["message"] and "done" in actual and actual["done"] is True
+    assert (
+        "message" in actual
+        and "content" in actual["message"]
+        and "done" in actual
+        and actual["done"] is True
+    )
 
 
 def test_ollama_chat_complete_no_host(cur_with_ollama_host):
@@ -177,7 +199,12 @@ def test_ollama_chat_complete_no_host(cur_with_ollama_host):
         )
     """)
     actual = cur_with_ollama_host.fetchone()[0]
-    assert "message" in actual and "content" in actual["message"] and "done" in actual and actual["done"] is True
+    assert (
+        "message" in actual
+        and "content" in actual["message"]
+        and "done" in actual
+        and actual["done"] is True
+    )
 
 
 def test_ollama_chat_complete_image(cur_with_ollama_host):
@@ -202,10 +229,13 @@ def test_ollama_chat_complete_image(cur_with_ollama_host):
 
 
 def test_ollama_ps(cur, ollama_host):
-    cur.execute("""
+    cur.execute(
+        """
         select count(*) filter (where "name" = 'llava:7b') as actual
         from ai.ollama_ps(_host=>%s)
-    """, (ollama_host,))
+    """,
+        (ollama_host,),
+    )
     actual = cur.fetchone()[0]
     assert actual > 0
 
@@ -217,4 +247,3 @@ def test_ollama_ps_no_host(cur_with_ollama_host):
     """)
     actual = cur_with_ollama_host.fetchone()[0]
     assert actual > 0
-
