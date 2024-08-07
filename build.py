@@ -19,7 +19,7 @@ HELP = """Available targets:
 - install-py        installs the python package and dependencies for the current version
 - clean-py          removes python build artifacts from the project directories
 - uninstall-py      removes the python package and dependencies from the system
-- test              runs the unit tests in the docker database
+- test              runs the unit tests against the docker database
 - lint-sql          runs pgspot against the `ai--<this_version>.sql` file
 - lint-py           runs ruff linter against the python source files
 - lint              runs both sql and python linters
@@ -343,32 +343,7 @@ def clean() -> None:
 
 
 def test() -> None:
-    test_heredoc = """
-    #!/usr/bin/env bash
-    set -e
-    if [ -f .env ]; then
-      set -a
-      source .env
-      set +a
-    fi
-    if [ -n "$WHERE_AM_I" ] && [ "$WHERE_AM_I" == "docker" ]; then
-      if [ "$(whoami)" != "postgres" ]; then
-        psql -d "postgres://postgres@localhost:5432/postgres" -f tests/test.sql
-      else
-        psql -d postgres -f tests/test.sql
-      fi
-    else
-      psql -X -d 'postgres://postgres@127.0.0.1:9876/postgres' -f tests/test.sql
-    fi
-    """
-    # trim the leading 4 spaces off each line in the string
-    lines = []
-    for line in test_heredoc.splitlines(keepends=True):
-        lines.append(line[4:])
-    test_heredoc = "".join(lines)
-    subprocess.run(
-        "bash", shell=True, check=True, env=os.environ, text=True, input=test_heredoc
-    )
+    subprocess.run("pytest", shell=True, check=True, env=os.environ, cwd=project_dir())
 
 
 def lint_sql() -> None:
