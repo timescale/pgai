@@ -388,7 +388,9 @@ def lint() -> None:
 
 
 def format_py() -> None:
-    subprocess.run(f"ruff format --diff {src_dir()}", shell=True, check=True, env=os.environ)
+    subprocess.run(
+        f"ruff format --diff {src_dir()}", shell=True, check=True, env=os.environ
+    )
 
 
 def docker_build() -> None:

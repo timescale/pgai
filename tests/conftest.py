@@ -1,6 +1,4 @@
 import os
-from collections.abc import Callable
-from typing import Optional
 
 import dotenv
 import psycopg
@@ -64,7 +62,9 @@ def create_test_user(cur: psycopg.Cursor) -> None:
 
 @pytest.fixture(scope="session", autouse=True)
 def set_up_test_db() -> None:
-    with psycopg.connect(f"postgres://postgres@{db_host_port()}/postgres", autocommit=True) as con:
+    with psycopg.connect(
+        f"postgres://postgres@{db_host_port()}/postgres", autocommit=True
+    ) as con:
         with con.cursor() as cur:
             create_test_db(cur)
     with psycopg.connect(f"postgres://postgres@{db_host_port()}/test") as con:
@@ -81,4 +81,3 @@ def db_url() -> str:
 @pytest.fixture(scope="session", autouse=True)
 def load_dotenv() -> None:
     dotenv.load_dotenv()
-
