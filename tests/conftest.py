@@ -64,18 +64,30 @@ def create_test_user(cur: psycopg.Cursor) -> None:
 def set_up_test_db() -> None:
     with psycopg.connect(
         f"postgres://postgres@{db_host_port()}/postgres", autocommit=True
-    ) as con:
-        with con.cursor() as cur:
-            create_test_db(cur)
-    with psycopg.connect(f"postgres://postgres@{db_host_port()}/test") as con:
-        with con.cursor() as cur:
-            create_ai_extension(cur)
-            create_test_user(cur)
+    ) as connection:
+        with connection.cursor() as cursor:
+            create_test_db(cursor)
+    with psycopg.connect(f"postgres://postgres@{db_host_port()}/test") as connection:
+        with connection.cursor() as cursor:
+            create_ai_extension(cursor)
+            create_test_user(cursor)
 
 
 @pytest.fixture()
 def db_url() -> str:
     return f"postgres://test:test@{db_host_port()}/test"
+
+
+@pytest.fixture()
+def con(db_url) -> psycopg.Connection:
+    return psycopg.connect(db_url)
+
+
+@pytest.fixture()
+def cur(con) -> psycopg.Cursor:
+    with con:
+        with con.cursor() as cursor:
+            yield cursor
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -17,18 +17,6 @@ def openai_api_key() -> str:
 
 
 @pytest.fixture()
-def con(db_url) -> psycopg.Connection:
-    return psycopg.connect(db_url)
-
-
-@pytest.fixture()
-def cur(con) -> psycopg.Cursor:
-    with con:
-        with con.cursor() as cursor:
-            yield cursor
-
-
-@pytest.fixture()
 def cur_with_api_key(openai_api_key, con) -> psycopg.Cursor:
     with con:
         with con.cursor() as cursor:
