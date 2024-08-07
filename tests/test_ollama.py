@@ -17,18 +17,6 @@ def ollama_host() -> str:
 
 
 @pytest.fixture()
-def con(db_url) -> psycopg.Connection:
-    return psycopg.connect(db_url)
-
-
-@pytest.fixture()
-def cur(con) -> psycopg.Cursor:
-    with con:
-        with con.cursor() as cursor:
-            yield cursor
-
-
-@pytest.fixture()
 def cur_with_ollama_host(ollama_host, con) -> psycopg.Cursor:
     with con:
         with con.cursor() as cursor:

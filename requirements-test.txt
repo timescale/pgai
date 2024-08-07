@@ -4,3 +4,4 @@
 ruff==0.5.5
 pytest==8.3.2
 psycopg[binary]==3.2.1
+python-dotenv==1.0.1
