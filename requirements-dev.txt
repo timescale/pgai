@@ -1,0 +1,11 @@
+# this requirements file is optional
+# if you are editing python on your host machine (as opposed to inside the docker container)
+# you may use this on your host to aid your IDE's code completion etc. capabilities
+
+openai==1.30.2
+tiktoken==0.7.0
+ollama==0.2.1
+anthropic==0.29.0
+cohere==5.5.8
+
+-r requirements-test.txt
