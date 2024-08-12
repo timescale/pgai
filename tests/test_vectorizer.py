@@ -10,6 +10,12 @@ if not enable_vectorize_tests or enable_vectorize_tests == "0":
     pytest.skip(allow_module_level=True)
 
 
+def cur(user: str) -> psycopg.Cursor:
+    with psycopg.connect(f"postgres://{user}@127.0.0.1:5432/test") as con:
+        with con.cursor() as cur:
+            yield cur
+
+
 def drop_website_schema(cursor: psycopg.Cursor) -> None:
     cursor.execute("drop schema if exists website cascade")
 

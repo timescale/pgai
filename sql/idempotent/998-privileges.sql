@@ -1,5 +1,71 @@
 
 /*
+do $func$
+declare
+    _rec record;
+begin
+    for _rec in
+    (
+        select
+          n.nspname
+        , k.relname
+        , case k.relkind
+              when 'S' then 'sequence'
+              else 'table'
+          end as kind
+        from pg_catalog.pg_depend d
+        inner join pg_catalog.pg_extension e on (d.refobjid operator(pg_catalog.=) e.oid)
+        inner join pg_catalog.pg_class k on (d.objid operator(pg_catalog.=) k.oid)
+        inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
+        where k.relkind in ('r', 'p', 'S') -- tables and sequences
+        and n.nspname operator(pg_catalog.=) 'ai'
+        order by k.relkind, n.nspname, k.relname
+    )
+    loop
+        execute pg_catalog.format
+        ( 'revoke all on %s %I.%I from public'
+        , _rec.kind
+        , _rec.nspname
+        , _rec.relname
+        );
+    end loop;
+end;
+$func$
+;
+
+do $func$
+declare
+    _rec record;
+begin
+    for _rec in
+    (
+        select
+          case prokind
+              when 'f' then 'function'
+              when 'p' then 'procedure'
+          end as prokind
+        , n.nspname
+        , k.proname
+        , pg_get_function_identity_arguments(k.oid) as args
+        from pg_catalog.pg_depend d
+        inner join pg_catalog.pg_extension e on (d.refobjid operator(pg_catalog.=) e.oid)
+        inner join pg_catalog.pg_proc k on (d.objid operator(pg_catalog.=) k.oid)
+        inner join pg_namespace n on (k.pronamespace operator(pg_catalog.=) n.oid)
+        where d.refclassid operator(pg_catalog.=) 'pg_catalog.pg_extension'::pg_catalog.regclass
+        and d.deptype operator(pg_catalog.=) 'e'
+        and e.extname operator(pg_catalog.=) 'ai'
+        and k.prokind in ('f', 'p')
+    )
+    loop
+        execute pg_catalog.format('revoke all on %s %I.%I(%s) from public', _rec.prokind, _rec.nspname, _rec.proname, _rec.args);
+    end loop;
+end;
+$func$
+;
+*/
+
+
+/*
 roles cannot belong to an extension and they exist at the cluster level
 if our extension creates roles, this will cause issues for
 * dump/restore
@@ -22,6 +88,43 @@ easier to dump/restore
 multiple versions of the extension in the same cluster cannot mess with each other
 */
 
+/* -- tables and sequences
+select
+  n.nspname
+, k.relname
+, case k.relkind
+      when 'S' then 'sequence'
+      else 'table'
+  end as kind
+from pg_catalog.pg_depend d
+inner join pg_catalog.pg_extension e on (d.refobjid operator(pg_catalog.=) e.oid)
+inner join pg_catalog.pg_class k on (d.objid operator(pg_catalog.=) k.oid)
+inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
+where k.relkind in ('r', 'p', 'S') -- tables and sequences
+and n.nspname operator(pg_catalog.=) 'ai'
+order by k.relkind, n.nspname, k.relname
+*/
+
+/*
+select format
+( '%I.%I(%s)'
+, n.nspname
+, k.proname
+, pg_get_function_identity_arguments(k.oid)
+)
+from pg_catalog.pg_depend d
+inner join pg_catalog.pg_extension e on (d.refobjid operator(pg_catalog.=) e.oid)
+inner join pg_catalog.pg_proc k on (d.objid operator(pg_catalog.=) k.oid)
+inner join pg_namespace n on (k.pronamespace operator(pg_catalog.=) n.oid)
+where d.refclassid operator(pg_catalog.=) 'pg_catalog.pg_extension'::pg_catalog.regclass
+and d.deptype operator(pg_catalog.=) 'e'
+and e.extname operator(pg_catalog.=) 'ai'
+and k.prokind in ('f', 'p')
+order by k.proname
+;
+*/
+
+/*
 create function ai.grant_ai_usage(_user regrole, _with_grant bool default false) returns void
 as $func$
 declare
@@ -34,32 +137,26 @@ begin
     , case when _with_grant then ' with grant option;' else ';' end
     );
 
-    -- tables & sequences
-    for _rec in
-    (
-        select
-            n.nspname,
-            k.relname,
-            case k.relkind
-                when 'S' then 'sequence'
-                else 'table'
-            end as kind
-        from pg_catalog.pg_class k
-        inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
-        where k.relkind in ('r', 'p', 'S') -- tables and sequences
-        and n.nspname operator(pg_catalog.=) 'ai'
-        order by k.relkind, n.nspname, k.relname
-    )
-    loop
-        execute pg_catalog.format
-        ( 'grant all privileges on %s %I.%I to %s%s'
-        , _rec.kind
-        , _rec.nspname
-        , _rec.relname
-        , _user
-        , case when _with_grant then ' with grant option;' else ';' end
-        );
-    end loop;
+    -- table: ai.migration
+    execute pg_catalog.format
+    ( $$grant insert,update,delete on table ai.migration to %I%s$$
+    , _user
+    , case when _with_grant then ' with grant option;' else ';' end
+    );
+
+    -- table: ai.vectorize
+    execute pg_catalog.format
+    ( $$grant insert,update,delete on table ai.vectorize to %I%s$$
+    , _user
+    , case when _with_grant then ' with grant option;' else ';' end
+    );
+
+    -- sequence: ai.migration
+    execute pg_catalog.format
+    ( $$grant all privileges on sequence ai.vectorize_id_seq to %I%s$$
+    , _user
+    , case when _with_grant then ' with grant option;' else ';' end
+    );
 
     -- functions & procedures
     for _rec in
@@ -97,3 +194,4 @@ end;
 $func$ language plpgsql volatile security definer
 set search_path to pg_catalog, pg_temp
 ;
+*/

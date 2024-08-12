@@ -376,7 +376,7 @@ def docker_build() -> None:
 
 
 def docker_run() -> None:
-    cmd = f"""docker run -d --name pgai -p 127.0.0.1:9876:5432 -e POSTGRES_HOST_AUTH_METHOD=trust --mount type=bind,src={project_dir()},dst=/pgai pgai"""
+    cmd = f"""docker run -d --name pgai -p 127.0.0.1:5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust --mount type=bind,src={project_dir()},dst=/pgai pgai"""
     subprocess.run(cmd, shell=True, check=True, env=os.environ, text=True)
 
 
