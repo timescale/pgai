@@ -17,14 +17,20 @@ def ollama_host() -> str:
 
 
 @pytest.fixture()
-def cur_with_ollama_host(ollama_host, con) -> psycopg.Cursor:
-    with con:
-        with con.cursor() as cursor:
-            cursor.execute(
-                "select set_config('ai.ollama_host', %s, false) is not null",
-                (ollama_host,),
-            )
-            yield cursor
+def cur() -> psycopg.Cursor:
+    with psycopg.connect("postgres://test@127.0.0.1:5432/test") as con:
+        with con.cursor() as cur:
+            yield cur
+
+
+@pytest.fixture()
+def cur_with_ollama_host(ollama_host, cur) -> psycopg.Cursor:
+    with cur:
+        cur.execute(
+            "select set_config('ai.ollama_host', %s, false) is not null",
+            (ollama_host,),
+        )
+        yield cur
 
 
 def test_ollama_list_models_no_host(cur_with_ollama_host):
