@@ -17,14 +17,20 @@ def cohere_api_key() -> str:
 
 
 @pytest.fixture()
-def cur_with_api_key(cohere_api_key, con) -> psycopg.Cursor:
-    with con:
-        with con.cursor() as cursor:
-            cursor.execute(
-                "select set_config('ai.cohere_api_key', %s, false) is not null",
-                (cohere_api_key,),
-            )
-            yield cursor
+def cur() -> psycopg.Cursor:
+    with psycopg.connect("postgres://test@127.0.0.1:5432/test") as con:
+        with con.cursor() as cur:
+            yield cur
+
+
+@pytest.fixture()
+def cur_with_api_key(cohere_api_key, cur) -> psycopg.Cursor:
+    with cur:
+        cur.execute(
+            "select set_config('ai.cohere_api_key', %s, false) is not null",
+            (cohere_api_key,),
+        )
+        yield cur
 
 
 def test_cohere_list_models(cur, cohere_api_key):

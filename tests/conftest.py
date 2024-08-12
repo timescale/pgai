@@ -1,22 +1,8 @@
-import os
-
 import dotenv
 import psycopg
 import pytest
 
 dotenv.load_dotenv()
-
-
-def is_running_in_docker() -> bool:
-    where_am_i = os.getenv("WHERE_AM_I")
-    return True if where_am_i and where_am_i == "docker" else False
-
-
-def db_host_port() -> str:
-    if is_running_in_docker():
-        return "localhost:5432"
-    else:
-        return "127.0.0.1:9876"
 
 
 def does_test_db_exist(cur: psycopg.Cursor) -> bool:
@@ -57,37 +43,18 @@ def create_test_user(cur: psycopg.Cursor) -> None:
     cur.execute("grant create on schema public to test")
     cur.execute("grant execute on function pg_read_binary_file(text) to test")
     cur.execute("grant pg_read_server_files to test")
-    cur.execute("grant usage on schema ai to test")
+    cur.execute("select ai.grant_ai_usage('test'::regrole)")
 
 
 @pytest.fixture(scope="session", autouse=True)
 def set_up_test_db() -> None:
-    with psycopg.connect(
-        f"postgres://postgres@{db_host_port()}/postgres", autocommit=True
-    ) as connection:
-        with connection.cursor() as cursor:
+    with psycopg.connect(f"postgres://postgres@127.0.0.1:5432/postgres", autocommit=True) as con:
+        with con.cursor() as cursor:
             create_test_db(cursor)
-    with psycopg.connect(f"postgres://postgres@{db_host_port()}/test") as connection:
-        with connection.cursor() as cursor:
+    with psycopg.connect(f"postgres://postgres@127.0.0.1:5432/test") as con:
+        with con.cursor() as cursor:
             create_ai_extension(cursor)
             create_test_user(cursor)
-
-
-@pytest.fixture()
-def db_url() -> str:
-    return f"postgres://test:test@{db_host_port()}/test"
-
-
-@pytest.fixture()
-def con(db_url) -> psycopg.Connection:
-    return psycopg.connect(db_url)
-
-
-@pytest.fixture()
-def cur(con) -> psycopg.Cursor:
-    with con:
-        with con.cursor() as cursor:
-            yield cursor
 
 
 @pytest.fixture(scope="session", autouse=True)
