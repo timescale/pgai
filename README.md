@@ -70,7 +70,7 @@ To install pgai from source on a PostgreSQL server:
      - **Standard installation**: use one of the pip [supported methods][pip].
      - **Virtual environment**: usually, pip is automatically installed if you are working in a
        [Python virtual environment][python-virtual-environment]. If you are running PostgreSQL in a virtual
-       environement, pgai requires several python packages. Set the `PYTHONPATH` and `VIRTUAL_ENV`
+       environment, pgai requires several python packages. Set the `PYTHONPATH` and `VIRTUAL_ENV`
        environment variables before you start your PostgreSQL server.
 
        ```bash
