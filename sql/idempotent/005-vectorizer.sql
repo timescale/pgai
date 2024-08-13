@@ -1,4 +1,58 @@
 
+create or replace function ai.embedding_config_openai
+( _model text
+, _dimensions int default null
+, _user text default null
+) returns jsonb
+as $func$
+    select json_object
+    ( 'version': '@extversion@'
+    , 'provider': 'openai'
+    , 'model': _model
+    , 'dimensions': _dimensions
+    , 'user': _user
+    absent on null
+    )
+$func$ language sql immutable parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+create or replace function ai.chunking_config_token_text_splitter
+( _column name
+, _chunk_size int
+, _chunk_overlap int
+, _separator text default ' '
+) returns jsonb
+as $func$
+    select jsonb_build_object
+    ( 'version', '@extversion@'
+    , 'implementation', 'token_text_splitter'
+    , 'chunk_column', _column
+    , 'chunk_size', _chunk_size
+    , 'chunk_overlap', _chunk_overlap
+    , 'separator', _separator
+    )
+$func$ language sql immutable parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+create or replace function ai.formatting_config_python_string_template
+( _columns name[]
+, _template text
+) returns jsonb
+as $func$
+    select jsonb_build_object
+    ( 'version', '@extversion@'
+    , 'implementation', 'python_string_template'
+    , 'columns', _columns
+    , 'template', _template
+    )
+$func$ language sql immutable parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+
+
 /*
     -- check that source columns match real columns
     if (
@@ -19,8 +73,8 @@
 
 
 -------------------------------------------------------------------------------
--- vectorize_async
-create or replace function ai.vectorize_async
+-- create_async_vectorizer
+create or replace function ai.create_async_vectorizer
 ( _source_table regclass
 , _dimensions int
 , _config jsonb
@@ -239,7 +293,7 @@ begin
     raise notice 'do i have insert: %', (select has_table_privilege('test', 'ai.vectorize', 'insert'));
     raise notice 'do i have usage: %', (select has_sequence_privilege('test', 'ai.vectorize_id_seq', 'usage'));
 
-    insert into ai.vectorize
+    insert into ai.vectorizer_config
     ( source_schema
     , source_table
     , target_schema
