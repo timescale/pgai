@@ -1,5 +1,6 @@
 import json
 import httpx
+import backoff
 
 
 def get_vectorizer_config(plpy, config_id: int) -> dict:
@@ -48,15 +49,26 @@ def insert_vectorizer_execution(plpy, config_id: int, config: dict) -> int:
     return results[0]["id"]
 
 
-def execute_vectorizer(plpy, config_id: int) -> int:
-    config = get_vectorizer_config(plpy, config_id)
-    id = insert_vectorizer_execution(plpy, config_id, config)
-    r = httpx.post("http://localhost:8000/", json={"id": id})
+def request_vectorizer_execution(plpy, exe_id: int) -> None:
+    def on_backoff(detail):
+        plpy.warning(f"request_vectorizer_execution{detail['args']}: retry number: {detail['tries']} elapsed: {detail['elapsed']} wait: {detail['wait']}...")
+
+    @backoff.on_exception(backoff.expo, httpx.HTTPError, max_tries=10, max_time=120, on_backoff=on_backoff)
+    def post_vectorizer_execution(exe_id: int) -> httpx.Response:
+        return httpx.post("http://localhost:8000/", json={"id": exe_id})
+
+    r = post_vectorizer_execution(exe_id)
     if r.status_code != httpx.codes.OK:
         plpy.error(f"failed to signal vectorizer execution: {r.status_code}")
     resp = r.json()
-    assert resp["id"] == id
-    return id
+    assert resp["id"] == exe_id
+
+
+def execute_vectorizer(plpy, config_id: int) -> int:
+    config = get_vectorizer_config(plpy, config_id)
+    exe_id = insert_vectorizer_execution(plpy, config_id, config)
+    request_vectorizer_execution(plpy, exe_id)
+    return exe_id
 
 
 def get_primary_key(plpy, source_table: int) -> list[dict]:

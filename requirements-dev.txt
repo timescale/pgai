@@ -7,5 +7,6 @@ tiktoken==0.7.0
 ollama==0.2.1
 anthropic==0.29.0
 cohere==5.5.8
+backoff==2.2.1
 
 -r requirements-test.txt
