@@ -5,8 +5,8 @@
 create or replace function ai.execute_vectorizer(_id int) returns int
 as $python$
     #ADD-PYTHON-LIB-DIR
-    from ai import vectorizer
-    return vectorizer.execute_vectorizer(plpy, _id)
+    import ai.vectorizer
+    return ai.vectorizer.execute_vectorizer(plpy, _id)
 $python$
 language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
