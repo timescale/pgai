@@ -100,6 +100,7 @@ def build_incremental_sql_file(input_file: Path) -> str:
     migration_name = input_file.name
     migration_body = input_file.read_text()
     version = this_version()
+    migration_body = migration_body.replace("@extversion@", version)
     return template.format(
         migration_name=migration_name, migration_body=migration_body, version=version
     )
@@ -125,6 +126,7 @@ def build_idempotent_sql_file(input_file: Path) -> str:
     # remove first and last (blank) lines
     inject = "".join(inject.splitlines(keepends=True)[1:-1])
     code = input_file.read_text()
+    code = code.replace("@extversion@", this_version())
     return code.replace(
         """    #ADD-PYTHON-LIB-DIR\n""", inject
     )  # leading 4 spaces is intentional

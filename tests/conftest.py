@@ -43,7 +43,9 @@ def create_test_user(cur: psycopg.Cursor) -> None:
     cur.execute("grant create on schema public to test")
     cur.execute("grant execute on function pg_read_binary_file(text) to test")
     cur.execute("grant pg_read_server_files to test")
-    cur.execute("select ai.grant_ai_usage('test'::regrole)")
+    cur.execute("grant usage on schema ai to test")  # todo: remove
+    cur.execute("grant execute on all functions in schema ai to test")  # todo: remove
+    #cur.execute("select ai.grant_ai_usage('test'::regrole)")
 
 
 @pytest.fixture(scope="session", autouse=True)
