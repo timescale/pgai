@@ -1,4 +1,19 @@
 
+
+-------------------------------------------------------------------------------
+-- execute_vectorizer
+create or replace function ai.execute_vectorizer(_id int) returns int
+as $python$
+    #ADD-PYTHON-LIB-DIR
+    from ai import vectorizer
+    return vectorizer.execute_vectorizer(plpy, _id)
+$python$
+language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- embedding_config_openai
 create or replace function ai.embedding_config_openai
 ( _model text
 , _dimensions int default null
@@ -17,6 +32,8 @@ $func$ language sql immutable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-------------------------------------------------------------------------------
+-- chunking_config_token_text_splitter
 create or replace function ai.chunking_config_token_text_splitter
 ( _column name
 , _chunk_size int
@@ -36,6 +53,8 @@ $func$ language sql immutable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-------------------------------------------------------------------------------
+-- formatting_config_python_string_template
 create or replace function ai.formatting_config_python_string_template
 ( _columns name[]
 , _template text
@@ -51,33 +70,14 @@ $func$ language sql immutable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
-
-
-/*
-    -- check that source columns match real columns
-    if (
-        select pg_catalog.count(*) operator(pg_catalog.!=) pg_catalog.array_length(_source_cols, 1)
-        from pg_attribute a
-        where a.attrelid operator(pg_catalog.=) _source_table
-        and a.attname operator( pg_catalog.=) any(_source_cols)
-    ) then
-        raise exception 'invalid source column specification';
-    end if;
-
-    -- only support one source column at the moment
-    if pg_catalog.array_length(_source_cols, 1) > 1 then
-        raise exception 'only one source column supported';
-    end if;
-*/
-
-
-
 -------------------------------------------------------------------------------
 -- create_async_vectorizer
 create or replace function ai.create_async_vectorizer
 ( _source_table regclass
 , _dimensions int
-, _config jsonb
+, _embedding jsonb
+, _chunking jsonb
+, _formatting jsonb
 , _target_schema name default null
 , _target_table name default null
 , _target_column name default null
@@ -289,10 +289,6 @@ begin
     ;
     execute _sql;
 
-    raise notice 'who am i: %', current_user;
-    raise notice 'do i have insert: %', (select has_table_privilege('test', 'ai.vectorize', 'insert'));
-    raise notice 'do i have usage: %', (select has_sequence_privilege('test', 'ai.vectorize_id_seq', 'usage'));
-
     insert into ai.vectorizer_config
     ( source_schema
     , source_table
@@ -311,7 +307,11 @@ begin
     , _target_column
     , _queue_schema
     , _queue_table
-    , _config
+    , jsonb_build_object
+      ( 'embedding', _embedding
+      , 'chunking', _chunking
+      , 'formatting', _formatting
+      )
     )
     returning id into strict _id;
     return _id;

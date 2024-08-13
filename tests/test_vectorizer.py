@@ -1,6 +1,7 @@
 import os
 
 import psycopg
+from psycopg.rows import namedtuple_row
 import pytest
 
 # skip tests in this module if disabled
@@ -153,62 +154,55 @@ def create_blog_table(cursor: psycopg.Cursor) -> None:
     """)
 
 
-def test_vectorize(cur):
-    drop_website_schema(cur)
-    create_website_schema(cur)
-    drop_blog_table(cur)
-    create_blog_table(cur)
-    cur.execute("""
-    select ai.vectorize_async
-    ( 'website.blog'::regclass
-    , 768
-    , '{}'::jsonb
-    );
-    """)
-    id = cur.fetchone()[0]
-    cur.execute(
-        """
-    select * from ai.vectorize
-    where id = %s
-    """,
-        (id,),
-    )
-    row = cur.fetchone()
-    assert row.id == id
-    assert row.source_schema == "website"
-    assert row.source_table == "blog"
-    assert row.target_schema == "website"
-    assert row.target_table == "blog_embedding"
-    assert row.queue_schema == "website"
-    assert row.queue_table == "blog_embedding_q"
+def test_create_async_vectorizer():
+    with psycopg.connect(db_url("postgres")) as con:
+        with con.cursor() as cur:
+            drop_website_schema(cur)
+            create_website_schema(cur)
+            cur.execute("grant all privileges on schema website to test")
+            cur.execute("grant all privileges on ai.vectorizer_config to test")  # TODO: remove once privileges sorted
+            cur.execute("grant all privileges on ai.vectorizer_execution to test")  # TODO: remove once privileges sorted
+    with psycopg.connect(db_url("test"), row_factory=namedtuple_row) as con:
+        with con.cursor() as cur:
+            # create a table to vectorizer
+            drop_blog_table(cur)
+            create_blog_table(cur)
 
+            # create a vectorizer for the blog table
+            cur.execute("""
+            select ai.create_async_vectorizer
+            ( 'website.blog'::regclass
+            , 768
+            , _embedding=>ai.embedding_config_openai('text-embedding-3-small', _dimensions=>768)
+            , _chunking=>ai.chunking_config_token_text_splitter('body', 128, 10)
+            , _formatting=>ai.formatting_config_python_string_template
+                    ( array['title', 'published']
+                    , $tmpl$title: $title published: $published $chunk $tmpl$
+                    )
+            );
+            """)
+            id = cur.fetchone()[0]
+            con.commit()
 
-def test_vectorize2(cur):
-    drop_website_schema(cur)
-    create_website_schema(cur)
-    drop_blog_table(cur)
-    create_blog_table(cur)
-    cur.execute("""
-    select ai.vectorize_async
-    ( 'website.blog'::regclass
-    , 768
-    , '{}'::jsonb
-    , _target_table=>'blog_target'
-    );
-    """)
-    id = cur.fetchone()[0]
-    cur.execute(
-        """
-    select * from ai.vectorize
-    where id = %s
-    """,
-        (id,),
-    )
-    row = cur.fetchone()
-    assert row.id == id
-    assert row.source_schema == "website"
-    assert row.source_table == "blog"
-    assert row.target_schema == "website"
-    assert row.target_table == "blog_target"
-    assert row.queue_schema == "website"
-    assert row.queue_table == "blog_target_q"
+            # check the config that was created
+            cur.execute("select * from ai.vectorizer_config where id = %s", (id,))
+            row = cur.fetchone()
+            assert row.id == id
+            assert row.source_schema == "website"
+            assert row.source_table == "blog"
+            assert row.target_schema == "website"
+            assert row.target_table == "blog_embedding"
+            assert row.queue_schema == "website"
+            assert row.queue_table == "blog_embedding_q"
+            assert "embedding" in row.config
+            assert "chunking" in row.config
+            assert "formatting" in row.config
+
+            # execute the vectorizer
+            cur.execute("select ai.execute_vectorizer(%s)", (id,))
+            con.commit()
+
+            # check the execution
+            cur.execute("select count(*) from ai.vectorizer_execution where config_id = %s", (id,))
+            assert cur.fetchone()[0] == 1
+
