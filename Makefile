@@ -52,6 +52,10 @@ uninstall-py:
 build-sql:
 	@./build.py build-sql
 
+.PHONY: test-server
+test-server:
+	@./build.py test-server
+
 .PHONY: test
 test:
 	@./build.py test

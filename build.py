@@ -344,6 +344,11 @@ def clean() -> None:
     clean_py()
 
 
+def test_server() -> None:
+    cmd = "docker exec -it -w /pgai/tests pgai fastapi dev server.py"
+    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
+
+
 def test() -> None:
     subprocess.run("pytest", shell=True, check=True, env=os.environ, cwd=project_dir())
 
@@ -421,6 +426,8 @@ if __name__ == "__main__":
             uninstall_sql()
         elif action == "uninstall":
             uninstall()
+        elif action == "test-server":
+            test_server()
         elif action == "test":
             test()
         elif action == "lint-sql":

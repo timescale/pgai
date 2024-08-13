@@ -1,6 +1,5 @@
 import json
 import httpx
-import requests
 
 
 def get_vectorizer_config(plpy, config_id: int) -> dict:
@@ -52,9 +51,11 @@ def insert_vectorizer_execution(plpy, config_id: int, config: dict) -> int:
 def execute_vectorizer(plpy, config_id: int) -> int:
     config = get_vectorizer_config(plpy, config_id)
     id = insert_vectorizer_execution(plpy, config_id, config)
-    r = httpx.post("http://localhost:8080/", json={"id": id})
+    r = httpx.post("http://localhost:8000/", json={"id": id})
     if r.status_code != httpx.codes.OK:
         plpy.error(f"failed to signal vectorizer execution: {r.status_code}")
+    resp = r.json()
+    assert resp["id"] == id
     return id
 
 
