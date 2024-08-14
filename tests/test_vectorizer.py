@@ -1,5 +1,6 @@
 import os
 import subprocess
+import json
 
 import psycopg
 from psycopg.rows import namedtuple_row
@@ -91,7 +92,7 @@ def test_formatting_config_python_string_template():
             """
             select ai.formatting_config_python_string_template
             ( array['size', 'shape']
-            , 'size: $size shape: $shape $chunk$'
+            , 'size: $size shape: $shape $chunk'
             )
             """,
             {
@@ -161,8 +162,17 @@ Indexes:
 Referenced by:
     TABLE "website.blog_embedding" CONSTRAINT "blog_embedding_title_published_fkey" FOREIGN KEY (title, published) REFERENCES website.blog(title, published) ON DELETE CASCADE
 Triggers:
-    vectorizer_trg_1 AFTER INSERT OR UPDATE ON website.blog FOR EACH ROW EXECUTE FUNCTION ai.vectorizer_trg_1()
+    vectorizer_src_trg_1 AFTER INSERT OR UPDATE ON website.blog FOR EACH ROW EXECUTE FUNCTION website.vectorizer_src_trg_1()
 Access method: heap
+""".strip()
+
+
+SOURCE_TRIGGER_FUNC = """
+                                                                                     List of functions
+ Schema  |         Name         | Result data type | Argument data types | Type | Volatility | Parallel |  Owner   | Security | Access privileges | Language | Internal name | Description 
+---------+----------------------+------------------+---------------------+------+------------+----------+----------+----------+-------------------+----------+---------------+-------------
+ website | vectorizer_src_trg_1 | trigger          |                     | func | volatile   | unsafe   | postgres | invoker  |                   | plpgsql  |               | 
+(1 row)
 """.strip()
 
 
@@ -195,8 +205,17 @@ QUEUE_TABLE = """
 Indexes:
     "vectorizer_q_1_title_published_idx" btree (title, published)
 Triggers:
-    vectorizer_q_1 AFTER INSERT ON ai.vectorizer_q_1 FOR EACH STATEMENT EXECUTE FUNCTION ai.vectorizer_q_1()
+    vectorizer_q_trg_1 AFTER INSERT ON ai.vectorizer_q_1 FOR EACH STATEMENT EXECUTE FUNCTION ai.vectorizer_q_trg_1()
 Access method: heap
+""".strip()
+
+
+QUEUE_TRIGGER_FUNC = """
+                                                                                   List of functions
+ Schema |        Name        | Result data type | Argument data types | Type | Volatility | Parallel |  Owner   | Security | Access privileges | Language | Internal name | Description 
+--------+--------------------+------------------+---------------------+------+------------+----------+----------+----------+-------------------+----------+---------------+-------------
+ ai     | vectorizer_q_trg_1 | trigger          |                     | func | volatile   | unsafe   | postgres | invoker  |                   | plpgsql  |               | 
+(1 row)
 """.strip()
 
 
@@ -223,22 +242,62 @@ def test_vectorizer():
             """)
             vectorizer_id = cur.fetchone()[0]
 
-            # check the config that was created
-            cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
-            row = cur.fetchone()
-            assert row.id == vectorizer_id
-            assert row.asynchronous is True
-            assert row.external is True
-            assert row.source_schema == "website"
-            assert row.source_table == "blog"
-            assert len(row.source_pk) == 2
-            assert row.target_schema == "website"
-            assert row.target_table == "blog_embedding"
-            assert row.queue_schema == "ai"
-            assert row.queue_table == f"vectorizer_q_{vectorizer_id}"
-            assert "embedding" in row.config
-            assert "chunking" in row.config
-            assert "formatting" in row.config
+            # check the vectorizer that was created
+            cur.execute("select jsonb_pretty(to_jsonb(x) #- array['config', 'version']) from ai.vectorizer x where x.id = %s", (vectorizer_id,))
+            actual = json.dumps(json.loads(cur.fetchone()[0]), sort_keys=True)
+            expected = json.dumps(json.loads("""
+            {
+                "id": 1,
+                "config": {
+                    "chunking": {
+                        "separator": " ",
+                        "chunk_size": 128,
+                        "chunk_column": "body",
+                        "chunk_overlap": 10,
+                        "implementation": "token_text_splitter"
+                    },
+                    "embedding": {
+                        "model": "text-embedding-3-small",
+                        "provider": "openai",
+                        "dimensions": 768
+                    },
+                    "formatting": {
+                        "columns": [
+                            "title",
+                            "published"
+                        ],
+                        "template": "title: $title published: $published $chunk",
+                        "implementation": "python_string_template"
+                    }
+                },
+                "external": true,
+                "source_pk": [
+                    {
+                        "pknum": 1,
+                        "attnum": 2,
+                        "attname": "title",
+                        "typname": "text",
+                        "attnotnull": true
+                    },
+                    {
+                        "pknum": 2,
+                        "attnum": 3,
+                        "attname": "published",
+                        "typname": "timestamptz",
+                        "attnotnull": true
+                    }
+                ],
+                "queue_table": "vectorizer_q_1",
+                "asynchronous": true,
+                "queue_schema": "ai",
+                "source_table": "blog",
+                "target_table": "blog_embedding",
+                "source_schema": "website",
+                "target_column": "embedding",
+                "target_schema": "website"
+            }
+            """), sort_keys=True)
+            assert actual == expected
 
             # check the request
             cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (vectorizer_id,))
@@ -284,6 +343,12 @@ def test_vectorizer():
     actual = str(proc.stdout).strip()
     assert actual == SOURCE_TABLE
 
+    # does the source trigger function look right?
+    cmd = f'''psql -X -d "{db_url('test')}" -c "\df+ website.vectorizer_src_trg_1()"'''
+    proc = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
+    actual = str(proc.stdout).strip()
+    assert actual == SOURCE_TRIGGER_FUNC
+
     # does the target table look right?
     cmd = f'''psql -X -d "{db_url('test')}" -c "\d+ website.blog_embedding"'''
     proc = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
@@ -296,3 +361,8 @@ def test_vectorizer():
     actual = str(proc.stdout).strip()
     assert actual == QUEUE_TABLE
 
+    # does the queue trigger function look right?
+    cmd = f'''psql -X -d "{db_url('test')}" -c "\df+ ai.vectorizer_q_trg_1()"'''
+    proc = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
+    actual = str(proc.stdout).strip()
+    assert actual == QUEUE_TRIGGER_FUNC
