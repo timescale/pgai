@@ -183,6 +183,7 @@ def test_vectorizer():
             assert row.id == id
             assert row.source_schema == "website"
             assert row.source_table == "blog"
+            assert len(row.source_pk) == 2
             assert row.target_schema == "website"
             assert row.target_table == "blog_embedding"
             assert row.queue_schema == "website"
