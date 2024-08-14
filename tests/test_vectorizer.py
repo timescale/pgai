@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 import psycopg
 from psycopg.rows import namedtuple_row
@@ -90,7 +91,7 @@ def test_formatting_config_python_string_template():
             """
             select ai.formatting_config_python_string_template
             ( array['size', 'shape']
-            , $tmpl$size: $size shape: $shape $chunk$tmpl$
+            , 'size: $size shape: $shape $chunk$'
             )
             """,
             {
@@ -103,13 +104,13 @@ def test_formatting_config_python_string_template():
             """
             select ai.formatting_config_python_string_template
             ( array['color', 'weight', 'category']
-            , $tmpl$color: $color weight: $weight category: $category $chunk $tmpl$
+            , 'color: $color weight: $weight category: $category $chunk'
             )
             """,
             {
                 "implementation": "python_string_template",
                 "columns": ["color", "weight", "category"],
-                "template": "color: $color weight: $weight category: $category $chunk ",
+                "template": "color: $color weight: $weight category: $category $chunk",
             },
         ),
     ]
@@ -147,17 +148,45 @@ def create_blog_table(cursor: psycopg.Cursor) -> None:
     """)
 
 
+TARGET_TABLE = """
+                                                    Table "website.blog_embedding"
+  Column   |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
+-----------+--------------------------+-----------+----------+-------------------+----------+-------------+--------------+-------------
+ id        | uuid                     |           | not null | gen_random_uuid() | plain    |             |              | 
+ title     | text                     |           | not null |                   | extended |             |              | 
+ published | timestamp with time zone |           | not null |                   | plain    |             |              | 
+ chunk_seq | integer                  |           | not null |                   | plain    |             |              | 
+ chunk     | text                     |           | not null |                   | extended |             |              | 
+ embedding | vector(768)              |           | not null |                   | external |             |              | 
+Indexes:
+    "blog_embedding_pkey" PRIMARY KEY, btree (id)
+    "blog_embedding_title_published_chunk_seq_key" UNIQUE CONSTRAINT, btree (title, published, chunk_seq)
+Foreign-key constraints:
+    "blog_embedding_title_published_fkey" FOREIGN KEY (title, published) REFERENCES website.blog(title, published) ON DELETE CASCADE
+Access method: heap
+""".strip()
+
+
+QUEUE_TABLE = """
+                                                  Table "ai.vectorizer_q_1"
+  Column   |           Type           | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
+-----------+--------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
+ title     | text                     |           | not null |         | extended |             |              | 
+ published | timestamp with time zone |           | not null |         | plain    |             |              | 
+ queued_at | timestamp with time zone |           | not null | now()   | plain    |             |              | 
+Indexes:
+    "vectorizer_q_1_title_published_idx" btree (title, published)
+Triggers:
+    vectorizer_q_1 AFTER INSERT ON ai.vectorizer_q_1 FOR EACH STATEMENT EXECUTE FUNCTION ai.vectorizer_q_1()
+Access method: heap
+""".strip()
+
+
 def test_vectorizer():
-    with psycopg.connect(db_url("postgres")) as con:
+    with psycopg.connect(db_url("postgres"), autocommit=True, row_factory=namedtuple_row) as con:
         with con.cursor() as cur:
             drop_website_schema(cur)
             create_website_schema(cur)
-            cur.execute("grant all privileges on schema website to test")
-            cur.execute("grant all privileges on ai.vectorizer to test")  # TODO: remove once privileges sorted
-            cur.execute("grant all privileges on ai.vectorizer_request to test")  # TODO: remove once privileges sorted
-    with psycopg.connect(db_url("test"), row_factory=namedtuple_row) as con:
-        with con.cursor() as cur:
-            # create a table to vectorizer
             drop_blog_table(cur)
             create_blog_table(cur)
 
@@ -170,12 +199,11 @@ def test_vectorizer():
             , _chunking=>ai.chunking_config_token_text_splitter('body', 128, 10)
             , _formatting=>ai.formatting_config_python_string_template
                     ( array['title', 'published']
-                    , $tmpl$title: $title published: $published $chunk $tmpl$
+                    , 'title: $title published: $published $chunk'
                     )
             );
             """)
             id = cur.fetchone()[0]
-            con.commit()
 
             # check the config that was created
             cur.execute("select * from ai.vectorizer where id = %s", (id,))
@@ -188,8 +216,6 @@ def test_vectorizer():
             assert len(row.source_pk) == 2
             assert row.target_schema == "website"
             assert row.target_table == "blog_embedding"
-            assert row.queue_schema == "website"
-            assert row.queue_table == "blog_embedding_q"
             assert "embedding" in row.config
             assert "chunking" in row.config
             assert "formatting" in row.config
@@ -200,7 +226,6 @@ def test_vectorizer():
 
             # execute the vectorizer
             cur.execute("select ai.execute_vectorizer(%s)", (id,))
-            con.commit()
 
             # check that we don't schedule a second request when one is pending
             cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (id,))
@@ -211,7 +236,6 @@ def test_vectorizer():
 
             # execute the vectorizer
             cur.execute("select ai.execute_vectorizer(%s)", (id,))
-            con.commit()
 
             # check that we don't schedule a second request when one is running
             cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (id,))
@@ -219,7 +243,6 @@ def test_vectorizer():
 
             # forcefully execute the vectorizer
             cur.execute("select ai.execute_vectorizer(%s, _force=>true)", (id,))
-            con.commit()
 
             # check the request
             cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (id,))
@@ -230,10 +253,18 @@ def test_vectorizer():
 
             # execute the vectorizer
             cur.execute("select ai.execute_vectorizer(%s)", (id,))
-            con.commit()
 
             # check that we have one request
             cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (id,))
             assert cur.fetchone()[0] == 1
 
+    cmd = f'''psql -X -d "{db_url('test')}" -c "\d+ website.blog_embedding"'''
+    proc = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
+    actual = str(proc.stdout).strip()
+    assert actual == TARGET_TABLE
+
+    cmd = f'''psql -X -d "{db_url('test')}" -c "\d+ ai.vectorizer_q_1"'''
+    proc = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
+    actual = str(proc.stdout).strip()
+    assert actual == QUEUE_TABLE
 
