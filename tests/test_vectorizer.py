@@ -19,7 +19,6 @@ def test_embedding_config_openai():
         (
             "select ai.embedding_config_openai('text-embedding-3-small')",
             {
-                "version": "0.4.0",
                 "provider": "openai",
                 "model": "text-embedding-3-small",
             },
@@ -27,7 +26,6 @@ def test_embedding_config_openai():
         (
             "select ai.embedding_config_openai('text-embedding-3-small', _dimensions=>128)",
             {
-                "version": "0.4.0",
                 "provider": "openai",
                 "model": "text-embedding-3-small",
                 "dimensions": 128,
@@ -36,7 +34,6 @@ def test_embedding_config_openai():
         (
             "select ai.embedding_config_openai('text-embedding-3-small', _dimensions=>128, _user=>'bob')",
             {
-                "version": "0.4.0",
                 "provider": "openai",
                 "model": "text-embedding-3-small",
                 "dimensions": 128,
@@ -59,7 +56,6 @@ def test_chunking_config_token_text_splitter():
         (
             "select ai.chunking_config_token_text_splitter('body', 128, 10)",
             {
-                "version": "0.4.0",
                 "separator": " ",
                 "chunk_size": 128,
                 "chunk_column": "body",
@@ -70,7 +66,6 @@ def test_chunking_config_token_text_splitter():
         (
             "select ai.chunking_config_token_text_splitter('content', 256, 20, _separator=>E'\n')",
             {
-                "version": "0.4.0",
                 "separator": "\n",
                 "chunk_size": 256,
                 "chunk_column": "content",
@@ -99,7 +94,6 @@ def test_formatting_config_python_string_template():
             )
             """,
             {
-                "version": "0.4.0",
                 "implementation": "python_string_template",
                 "columns": ["size", "shape"],
                 "template": "size: $size shape: $shape $chunk",
@@ -113,7 +107,6 @@ def test_formatting_config_python_string_template():
             )
             """,
             {
-                "version": "0.4.0",
                 "implementation": "python_string_template",
                 "columns": ["color", "weight", "category"],
                 "template": "color: $color weight: $weight category: $category $chunk ",
@@ -154,14 +147,14 @@ def create_blog_table(cursor: psycopg.Cursor) -> None:
     """)
 
 
-def test_create_async_vectorizer():
+def test_vectorizer():
     with psycopg.connect(db_url("postgres")) as con:
         with con.cursor() as cur:
             drop_website_schema(cur)
             create_website_schema(cur)
             cur.execute("grant all privileges on schema website to test")
-            cur.execute("grant all privileges on ai.vectorizer_config to test")  # TODO: remove once privileges sorted
-            cur.execute("grant all privileges on ai.vectorizer_execution to test")  # TODO: remove once privileges sorted
+            cur.execute("grant all privileges on ai.vectorizer to test")  # TODO: remove once privileges sorted
+            cur.execute("grant all privileges on ai.vectorizer_request to test")  # TODO: remove once privileges sorted
     with psycopg.connect(db_url("test"), row_factory=namedtuple_row) as con:
         with con.cursor() as cur:
             # create a table to vectorizer
@@ -170,7 +163,7 @@ def test_create_async_vectorizer():
 
             # create a vectorizer for the blog table
             cur.execute("""
-            select ai.create_async_vectorizer
+            select ai.create_vectorizer
             ( 'website.blog'::regclass
             , 768
             , _embedding=>ai.embedding_config_openai('text-embedding-3-small', _dimensions=>768)
@@ -185,7 +178,7 @@ def test_create_async_vectorizer():
             con.commit()
 
             # check the config that was created
-            cur.execute("select * from ai.vectorizer_config where id = %s", (id,))
+            cur.execute("select * from ai.vectorizer where id = %s", (id,))
             row = cur.fetchone()
             assert row.id == id
             assert row.source_schema == "website"
@@ -198,11 +191,46 @@ def test_create_async_vectorizer():
             assert "chunking" in row.config
             assert "formatting" in row.config
 
+            # check the request
+            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (id,))
+            assert cur.fetchone()[0] == 1
+
             # execute the vectorizer
             cur.execute("select ai.execute_vectorizer(%s)", (id,))
             con.commit()
 
-            # check the execution
-            cur.execute("select count(*) from ai.vectorizer_execution where config_id = %s", (id,))
+            # check that we don't schedule a second request when one is pending
+            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (id,))
             assert cur.fetchone()[0] == 1
+
+            # pretend we are working it
+            cur.execute("update ai.vectorizer_request set status = 'running', started = now() where vectorizer_id = %s", (id,))
+
+            # execute the vectorizer
+            cur.execute("select ai.execute_vectorizer(%s)", (id,))
+            con.commit()
+
+            # check that we don't schedule a second request when one is running
+            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (id,))
+            assert cur.fetchone()[0] == 1
+
+            # forcefully execute the vectorizer
+            cur.execute("select ai.execute_vectorizer(%s, _force=>true)", (id,))
+            con.commit()
+
+            # check the request
+            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (id,))
+            assert cur.fetchone()[0] == 2
+
+            # delete the requests
+            cur.execute("delete from ai.vectorizer_request where vectorizer_id = %s", (id,))
+
+            # execute the vectorizer
+            cur.execute("select ai.execute_vectorizer(%s)", (id,))
+            con.commit()
+
+            # check that we have one request
+            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (id,))
+            assert cur.fetchone()[0] == 1
+
 
