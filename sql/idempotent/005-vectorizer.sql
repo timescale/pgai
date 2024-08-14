@@ -154,8 +154,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_create_queue_table
 create or replace function ai._vectorizer_create_queue_table
-( _queue_schema name
-, _queue_table name
+( _queue_table name
 , _source_pk jsonb
 ) returns void as
 $func$
@@ -163,8 +162,8 @@ declare
     _sql text;
 begin
     select pg_catalog.format
-    ( $sql$create table %I.%I(%s, queued_at timestamptz not null default now())$sql$
-    , _queue_schema, _queue_table
+    ( $sql$create table ai.%I(%s, queued_at timestamptz not null default now())$sql$
+    , _queue_table
     , (
         select pg_catalog.string_agg
         (
@@ -184,8 +183,8 @@ begin
     execute _sql;
 
     select pg_catalog.format
-    ( $sql$create index on %I.%I (%s)$sql$
-    , _queue_schema, _queue_table
+    ( $sql$create index on ai.%I (%s)$sql$
+    , _queue_table
     , (
         select pg_catalog.string_agg(pg_catalog.format('%I', x.attname), ', ' order by x.pknum)
         from pg_catalog.jsonb_to_recordset(_source_pk) x(pknum int, attname name)
@@ -202,9 +201,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_create_source_trigger
 create or replace function ai._vectorizer_create_source_trigger
-( _trigger_schema name
-, _trigger_name name
-, _queue_schema name
+( _trigger_name name
 , _queue_table name
 , _source_schema name
 , _source_table name
@@ -216,22 +213,22 @@ declare
 begin
     select pg_catalog.format
     ( $sql$
-    create function %I.%I() returns trigger
+    create function ai.%I() returns trigger
     as $plpgsql$
     begin
         if tg_op = 'delete' then
-            insert into %I.%I (%s)
+            insert into ai.%I (%s)
             values (%s);
         else
-            insert into %I.%I (%s)
+            insert into ai.%I (%s)
             values (%s);
         end if;
         return null;
     end;
     $plpgsql$ language plpgsql
     $sql$
-    , _trigger_schema, _trigger_name
-    , _queue_schema, _queue_table
+    , _trigger_name
+    , _queue_table
     , (
         select pg_catalog.string_agg(pg_catalog.format('%I', x.attname), ', ' order by x.attnum)
         from pg_catalog.jsonb_to_recordset(_source_pk) x(attnum int, attname name)
@@ -240,7 +237,7 @@ begin
         select pg_catalog.string_agg(pg_catalog.format('old.%I', x.attname), ', ' order by x.attnum)
         from pg_catalog.jsonb_to_recordset(_source_pk) x(attnum int, attname name)
       )
-    , _queue_schema, _queue_table
+    , _queue_table
     , (
         select pg_catalog.string_agg(pg_catalog.format('%I', x.attname), ', ' order by x.attnum)
         from pg_catalog.jsonb_to_recordset(_source_pk) x(attnum int, attname name)
@@ -258,11 +255,11 @@ begin
     create trigger %I
     after insert or update or delete
     on %I.%I
-    for each row execute function %I.%I();
+    for each row execute function ai.%I();
     $sql$
     , _trigger_name
     , _source_schema, _source_table
-    , _trigger_schema, _trigger_name
+    , _trigger_name
     ) into strict _sql
     ;
     execute _sql;
@@ -275,9 +272,9 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_create_queue_trigger
 create or replace function ai._vectorizer_create_queue_trigger
-( _trigger_name name
-, _queue_schema name
-, _queue_table name
+( _queue_table name
+, _target_schema name
+, _target_table name
 ) returns void as
 $func$
 declare
@@ -285,20 +282,21 @@ declare
 begin
     select pg_catalog.format
     ( $sql$
-    create function %I.%I() returns trigger
+    create function ai.%I() returns trigger
     as $plpgsql$
     begin
         perform ai.execute_vectorizer(v.id)
         from ai.vectorizer v
-        where v.queue_schema = %L
-        and v.queue_table = %L
+        where v.target_schema = %L
+        and v.target_table = %L
         ;
         return null;
     end;
     $plpgsql$ language plpgsql
     $sql$
-    , _queue_schema, _trigger_name
-    , _queue_schema, _queue_table
+    , _queue_table
+    , _target_schema
+    , _target_table
     ) into strict _sql
     ;
     execute _sql;
@@ -306,14 +304,12 @@ begin
     -- create trigger on queue table
     select pg_catalog.format
     ( $sql$
-    create trigger %I
-    after insert or update or delete
-    on %I.%I
-    for each statement execute function %I.%I();
+    create trigger %I after insert on ai.%I
+    for each statement execute function ai.%I();
     $sql$
-    , _trigger_name
-    , _queue_schema, _queue_table
-    , _queue_schema, _trigger_name
+    , _queue_table
+    , _queue_table
+    , _queue_table
     ) into strict _sql
     ;
     execute _sql;
@@ -336,14 +332,15 @@ create or replace function ai.create_vectorizer
 , _target_schema name default null
 , _target_table name default null
 , _target_column name default null
-, _queue_schema name default null
-, _queue_table name default null
 ) returns int
 as $func$
 declare
     _source_table name;
     _source_schema name;
     _source_pk jsonb;
+    _vectorizer_id int;
+    _queue_table name;
+    _trigger_name name;
     _sql text;
     _id int;
 begin
@@ -373,14 +370,16 @@ begin
     _target_schema = coalesce(_target_schema, _source_schema);
     _target_table = coalesce(_target_table, pg_catalog.concat(_source_table, '_embedding'));
     _target_column = coalesce(_target_column, 'embedding');
-    _queue_schema = coalesce(_queue_schema, _target_schema);
-    _queue_table = coalesce(_queue_table, pg_catalog.concat(_target_table, '_q'));
 
     -- get the source table's primary key definition
     select ai._vectorizer_source_pk(_source) into strict _source_pk;
     if pg_catalog.jsonb_array_length(_source_pk) = 0 then
         raise exception 'source table must have a primary key constraint';
     end if;
+
+    _vectorizer_id = pg_catalog.nextval('ai.vectorizer_id_seq'::pg_catalog.regclass);
+    _queue_table = pg_catalog.concat('vectorizer_q_', _vectorizer_id);
+    _trigger_name = pg_catalog.concat('vectorizer_trg_', _vectorizer_id);
 
     -- create the target table
     perform ai._vectorizer_create_target_table
@@ -395,16 +394,13 @@ begin
 
     -- create queue table
     perform ai._vectorizer_create_queue_table
-    ( _queue_schema
-    , _queue_table
+    ( _queue_table
     , _source_pk
     );
 
     -- create trigger on source table to populate queue
     perform ai._vectorizer_create_source_trigger
-    ( _source_schema
-    , pg_catalog.concat(_source_table, '_', _queue_table)
-    , _queue_schema
+    ( _trigger_name
     , _queue_table
     , _source_schema
     , _source_table
@@ -414,12 +410,13 @@ begin
     -- create trigger func to request an execution
     perform ai._vectorizer_create_queue_trigger
     ( _queue_table
-    , _queue_schema
-    , _queue_table
+    , _target_schema
+    , _target_table
     );
 
     insert into ai.vectorizer
-    ( asynchronous
+    ( id
+    , asynchronous
     , external
     , source_schema
     , source_table
@@ -427,12 +424,11 @@ begin
     , target_schema
     , target_table
     , target_column
-    , queue_schema
-    , queue_table
     , config
     )
     values
-    ( _asynchronous
+    ( _vectorizer_id
+    , _asynchronous
     , _external
     , _source_schema
     , _source_table
@@ -440,26 +436,23 @@ begin
     , _target_schema
     , _target_table
     , _target_column
-    , _queue_schema
-    , _queue_table
     , pg_catalog.jsonb_build_object
       ( 'version', '@extversion@'
       , 'embedding', _embedding
       , 'chunking', _chunking
       , 'formatting', _formatting
       )
-    )
-    returning id into strict _id;
+    );
 
     -- insert into queue any existing rows from source table
     select pg_catalog.format
     ( $sql$
-    insert into %I.%I (%s)
+    insert into ai.%I (%s)
     select %s
     from %I.%I x
     ;
     $sql$
-    , _queue_schema, _queue_table
+    , _queue_table
     , (
         select pg_catalog.string_agg(pg_catalog.format('%I', x.attname), ', ' order by x.attnum)
         from pg_catalog.jsonb_to_recordset(_source_pk) x(attnum int, attname name)
@@ -473,7 +466,7 @@ begin
     ;
     execute _sql;
 
-    return _id;
+    return _vectorizer_id;
 end
 $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
