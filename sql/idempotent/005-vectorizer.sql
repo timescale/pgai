@@ -363,7 +363,7 @@ begin
     _queue_table = coalesce(_queue_table, pg_catalog.concat(_target_table, '_q'));
 
     -- get the source table's primary key definition
-    select ai._vectorizer_source_pk(_source) into strict _source_pk; -- TODO: add to vectorizer table
+    select ai._vectorizer_source_pk(_source) into strict _source_pk;
     if pg_catalog.jsonb_array_length(_source_pk) = 0 then
         raise exception 'source table must have a primary key constraint';
     end if;
@@ -407,6 +407,7 @@ begin
     insert into ai.vectorizer
     ( source_schema
     , source_table
+    , source_pk
     , target_schema
     , target_table
     , target_column
@@ -417,6 +418,7 @@ begin
     values
     ( _source_schema
     , _source_table
+    , _source_pk
     , _target_schema
     , _target_table
     , _target_column
