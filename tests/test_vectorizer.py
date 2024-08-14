@@ -148,6 +148,24 @@ def create_blog_table(cursor: psycopg.Cursor) -> None:
     """)
 
 
+SOURCE_TABLE = """
+                                                               Table "website.blog"
+  Column   |           Type           | Collation | Nullable |           Default            | Storage  | Compression | Stats target | Description 
+-----------+--------------------------+-----------+----------+------------------------------+----------+-------------+--------------+-------------
+ id        | integer                  |           | not null | generated always as identity | plain    |             |              | 
+ title     | text                     |           | not null |                              | extended |             |              | 
+ published | timestamp with time zone |           | not null |                              | plain    |             |              | 
+ body      | text                     |           | not null |                              | extended |             |              | 
+Indexes:
+    "blog_pkey" PRIMARY KEY, btree (title, published)
+Referenced by:
+    TABLE "website.blog_embedding" CONSTRAINT "blog_embedding_title_published_fkey" FOREIGN KEY (title, published) REFERENCES website.blog(title, published) ON DELETE CASCADE
+Triggers:
+    vectorizer_trg_1 AFTER INSERT OR DELETE OR UPDATE ON website.blog FOR EACH ROW EXECUTE FUNCTION ai.vectorizer_trg_1()
+Access method: heap
+""".strip()
+
+
 TARGET_TABLE = """
                                                     Table "website.blog_embedding"
   Column   |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
@@ -203,12 +221,12 @@ def test_vectorizer():
                     )
             );
             """)
-            id = cur.fetchone()[0]
+            vectorizer_id = cur.fetchone()[0]
 
             # check the config that was created
-            cur.execute("select * from ai.vectorizer where id = %s", (id,))
+            cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
             row = cur.fetchone()
-            assert row.id == id
+            assert row.id == vectorizer_id
             assert row.asynchronous is True
             assert row.external is True
             assert row.source_schema == "website"
@@ -221,48 +239,56 @@ def test_vectorizer():
             assert "formatting" in row.config
 
             # check the request
-            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (id,))
+            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (vectorizer_id,))
             assert cur.fetchone()[0] == 1
 
             # execute the vectorizer
-            cur.execute("select ai.execute_vectorizer(%s)", (id,))
+            cur.execute("select ai.execute_vectorizer(%s)", (vectorizer_id,))
 
             # check that we don't schedule a second request when one is pending
-            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (id,))
+            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (vectorizer_id,))
             assert cur.fetchone()[0] == 1
 
             # pretend we are working it
-            cur.execute("update ai.vectorizer_request set status = 'running', started = now() where vectorizer_id = %s", (id,))
+            cur.execute("update ai.vectorizer_request set status = 'running', started = now() where vectorizer_id = %s", (vectorizer_id,))
 
             # execute the vectorizer
-            cur.execute("select ai.execute_vectorizer(%s)", (id,))
+            cur.execute("select ai.execute_vectorizer(%s)", (vectorizer_id,))
 
             # check that we don't schedule a second request when one is running
-            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (id,))
+            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (vectorizer_id,))
             assert cur.fetchone()[0] == 1
 
             # forcefully execute the vectorizer
-            cur.execute("select ai.execute_vectorizer(%s, _force=>true)", (id,))
+            cur.execute("select ai.execute_vectorizer(%s, _force=>true)", (vectorizer_id,))
 
             # check the request
-            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (id,))
+            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (vectorizer_id,))
             assert cur.fetchone()[0] == 2
 
             # delete the requests
-            cur.execute("delete from ai.vectorizer_request where vectorizer_id = %s", (id,))
+            cur.execute("delete from ai.vectorizer_request where vectorizer_id = %s", (vectorizer_id,))
 
             # execute the vectorizer
-            cur.execute("select ai.execute_vectorizer(%s)", (id,))
+            cur.execute("select ai.execute_vectorizer(%s)", (vectorizer_id,))
 
             # check that we have one request
-            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (id,))
+            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (vectorizer_id,))
             assert cur.fetchone()[0] == 1
 
+    # does the source table look right?
+    cmd = f'''psql -X -d "{db_url('test')}" -c "\d+ website.blog"'''
+    proc = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
+    actual = str(proc.stdout).strip()
+    assert actual == SOURCE_TABLE
+
+    # does the target table look right?
     cmd = f'''psql -X -d "{db_url('test')}" -c "\d+ website.blog_embedding"'''
     proc = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
     actual = str(proc.stdout).strip()
     assert actual == TARGET_TABLE
 
+    # does the queue table look right?
     cmd = f'''psql -X -d "{db_url('test')}" -c "\d+ ai.vectorizer_q_1"'''
     proc = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
     actual = str(proc.stdout).strip()
