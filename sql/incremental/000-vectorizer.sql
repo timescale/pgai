@@ -9,6 +9,8 @@ create table ai.vectorizer
 , target_schema name not null
 , target_table name not null
 , target_column name not null
+, queue_schema name
+, queue_table name
 , config jsonb not null
 , unique (target_schema, target_table)
 , check (case when not asynchronous then not external else true end)

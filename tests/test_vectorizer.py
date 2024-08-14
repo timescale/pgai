@@ -161,7 +161,7 @@ Indexes:
 Referenced by:
     TABLE "website.blog_embedding" CONSTRAINT "blog_embedding_title_published_fkey" FOREIGN KEY (title, published) REFERENCES website.blog(title, published) ON DELETE CASCADE
 Triggers:
-    vectorizer_trg_1 AFTER INSERT OR DELETE OR UPDATE ON website.blog FOR EACH ROW EXECUTE FUNCTION ai.vectorizer_trg_1()
+    vectorizer_trg_1 AFTER INSERT OR UPDATE ON website.blog FOR EACH ROW EXECUTE FUNCTION ai.vectorizer_trg_1()
 Access method: heap
 """.strip()
 
@@ -234,6 +234,8 @@ def test_vectorizer():
             assert len(row.source_pk) == 2
             assert row.target_schema == "website"
             assert row.target_table == "blog_embedding"
+            assert row.queue_schema == "ai"
+            assert row.queue_table == f"vectorizer_q_{vectorizer_id}"
             assert "embedding" in row.config
             assert "chunking" in row.config
             assert "formatting" in row.config

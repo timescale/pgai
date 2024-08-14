@@ -33,15 +33,7 @@ def is_already_running(plpy, vectorizer_id: int) -> bool:
 
 def get_vectorizer(plpy, vectorizer_id: int) -> dict:
     plan = plpy.prepare("""
-        select
-          id
-        , source_schema
-        , source_table
-        , source_pk
-        , target_schema
-        , target_table
-        , target_column
-        , config
+        select *
         from ai.vectorizer
         where id = $1
     """, ["int"])
