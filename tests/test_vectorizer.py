@@ -181,6 +181,8 @@ def test_vectorizer():
             cur.execute("select * from ai.vectorizer where id = %s", (id,))
             row = cur.fetchone()
             assert row.id == id
+            assert row.asynchronous is True
+            assert row.external is True
             assert row.source_schema == "website"
             assert row.source_table == "blog"
             assert len(row.source_pk) == 2
