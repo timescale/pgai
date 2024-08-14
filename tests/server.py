@@ -5,11 +5,11 @@ from pydantic import BaseModel
 app = FastAPI()
 
 
-class ExecuteVectorizerRequest(BaseModel):
+class VectorizerRequest(BaseModel):
     id: int
 
 
 @app.post("/")
-async def execute_vectorizer(request: ExecuteVectorizerRequest):
+async def execute_vectorizer(request: VectorizerRequest):
     return {"id": request.id}
 

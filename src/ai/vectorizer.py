@@ -1,9 +1,37 @@
 import json
+from typing import Optional
+
 import httpx
 import backoff
 
 
-def get_vectorizer_config(plpy, config_id: int) -> dict:
+def is_already_pending(plpy, vectorizer_id: int) -> bool:
+    plan = plpy.prepare("""
+        select now() - r.requested <= interval '1h' as is_already_pending
+        from ai.vectorizer_request r
+        where r.vectorizer_id = $1
+        and r.status = 'pending'
+        order by r.requested desc
+        limit 1
+    """, ["int"])
+    results = plan.execute([vectorizer_id], 1)
+    return results[0]["is_already_pending"] if results else False
+
+
+def is_already_running(plpy, vectorizer_id: int) -> bool:
+    plan = plpy.prepare("""
+        select now() - r.started <= interval '1h' as is_already_running
+        from ai.vectorizer_request r
+        where r.vectorizer_id = $1
+        and r.status = 'running'
+        order by r.started desc
+        limit 1
+    """, ["int"])
+    results = plan.execute([vectorizer_id], 1)
+    return results[0]["is_already_running"] if results else False
+
+
+def get_vectorizer(plpy, vectorizer_id: int) -> dict:
     plan = plpy.prepare("""
         select
           id
@@ -15,27 +43,27 @@ def get_vectorizer_config(plpy, config_id: int) -> dict:
         , queue_schema
         , queue_table
         , config
-        from ai.vectorizer_config
+        from ai.vectorizer
         where id = $1
     """, ["int"])
-    result = plan.execute([config_id], 1)
+    result = plan.execute([vectorizer_id], 1)
     if not result:
-        plpy.error(f"vectorizer {config_id} config not found")
-    config = {}
+        plpy.error(f"vectorizer {vectorizer_id} not found")
+    vec = {}
     for k, v in json.loads(result[0]["config"]).items():
-        config[k] = v
+        vec[k] = v
     for colname in result.colnames():
         if colname == "config":
             continue
-        config[colname] = result[0][colname]
-    return config
+        vec[colname] = result[0][colname]
+    return vec
 
 
-def insert_vectorizer_execution(plpy, config_id: int, config: dict) -> int:
+def insert_vectorizer_request(plpy, vectorizer_id: int, args: dict) -> int:
     plan = plpy.prepare("""
-        insert into ai.vectorizer_execution
-        ( config_id
-        , config
+        insert into ai.vectorizer_request
+        ( vectorizer_id
+        , args
         )
         values
         ( $1
@@ -43,9 +71,9 @@ def insert_vectorizer_execution(plpy, config_id: int, config: dict) -> int:
         )
         returning id
     """, ["int", "jsonb"])
-    results = plan.execute([config_id, json.dumps(config)], 1)
+    results = plan.execute([vectorizer_id, json.dumps(args)], 1)
     if results.nrows() != 1:
-        plpy.error(f"vectorizer execution was not inserted")
+        plpy.error(f"vectorizer request was not inserted")
     return results[0]["id"]
 
 
@@ -64,30 +92,15 @@ def request_vectorizer_execution(plpy, exe_id: int) -> None:
     assert resp["id"] == exe_id
 
 
-def execute_vectorizer(plpy, config_id: int) -> int:
-    config = get_vectorizer_config(plpy, config_id)
-    exe_id = insert_vectorizer_execution(plpy, config_id, config)
+def execute_vectorizer(plpy, vectorizer_id: int, force: bool = False) -> Optional[int]:
+    if not force and is_already_pending(plpy, vectorizer_id):
+        plpy.debug(f"vectorizer {vectorizer_id} already pending.")
+        return None
+    if not force and is_already_running(plpy, vectorizer_id):
+        plpy.debug(f"vectorizer {vectorizer_id} already running.")
+        return None
+    vec = get_vectorizer(plpy, vectorizer_id)
+    exe_id = insert_vectorizer_request(plpy, vectorizer_id, vec)
     request_vectorizer_execution(plpy, exe_id)
     return exe_id
 
-
-def get_primary_key(plpy, source_table: int) -> list[dict]:
-    plan = plpy.prepare("""
-        select jsonb_agg(x) as pk
-        from
-        (
-            select e.attnum, e.pknum, a.attname, y.typname, a.attnotnull
-            from pg_catalog.pg_constraint k
-            cross join lateral unnest(k.conkey) with ordinality e(attnum, pknum)
-            inner join pg_catalog.pg_attribute a
-                on (k.conrelid operator(pg_catalog.=) a.attrelid
-                    and e.attnum operator(pg_catalog.=) a.attnum)
-            inner join pg_catalog.pg_type y on (a.atttypid operator(pg_catalog.=) y.oid)
-            where k.conrelid operator(pg_catalog.=) $1
-            and k.contype operator(pg_catalog.=) 'p'
-        ) x
-    """, ["oid"])
-    results = plan.execute([source_table])
-    if not results:
-        plpy.error("source table must have a primary key constraint")
-    return [{k: r[k] for k in results.colnames()} for r in results]
