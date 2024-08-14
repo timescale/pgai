@@ -331,6 +331,8 @@ create or replace function ai.create_vectorizer
 , _embedding jsonb
 , _chunking jsonb
 , _formatting jsonb
+, _asynchronous bool default true
+, _external bool default true
 , _target_schema name default null
 , _target_table name default null
 , _target_column name default null
@@ -345,6 +347,18 @@ declare
     _sql text;
     _id int;
 begin
+    if _asynchronous and not _external then
+        raise exception 'asynchronous internal vectorizers are not implemented yet';
+    end if;
+
+    if not _asynchronous and not _external then
+        raise exception 'synchronous internal vectorizers are not implemented yet';
+    end if;
+
+    if not _asynchronous and _external then
+        raise exception 'synchronous vectorizers must be internal';
+    end if;
+
     -- get source table name and schema name
     select k.relname, n.nspname
     into strict _source_table, _source_schema
@@ -405,7 +419,9 @@ begin
     );
 
     insert into ai.vectorizer
-    ( source_schema
+    ( asynchronous
+    , external
+    , source_schema
     , source_table
     , source_pk
     , target_schema
@@ -416,7 +432,9 @@ begin
     , config
     )
     values
-    ( _source_schema
+    ( _asynchronous
+    , _external
+    , _source_schema
     , _source_table
     , _source_pk
     , _target_schema
