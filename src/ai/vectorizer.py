@@ -37,11 +37,10 @@ def get_vectorizer(plpy, vectorizer_id: int) -> dict:
           id
         , source_schema
         , source_table
+        , source_pk
         , target_schema
         , target_table
         , target_column
-        , queue_schema
-        , queue_table
         , config
         from ai.vectorizer
         where id = $1
