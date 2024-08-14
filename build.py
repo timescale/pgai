@@ -83,6 +83,16 @@ def output_sql_file() -> Path:
     return sql_dir().joinpath(f"ai--{this_version()}.sql")
 
 
+def tests_dir() -> Path:
+    return project_dir().joinpath("tests")
+
+
+def where_am_i() -> str:
+    if "WHERE_AM_I" in os.environ and os.environ["WHERE_AM_I"] == "docker":
+        return "docker"
+    return "host"
+
+
 def build_sql_control_file() -> None:
     ctl_file = sql_dir().joinpath("ai.control")
     content = ctl_file.read_text()
@@ -345,12 +355,16 @@ def clean() -> None:
 
 
 def test_server() -> None:
-    cmd = "docker exec -it -w /pgai/tests pgai fastapi dev server.py"
-    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
+    if where_am_i() == "host":
+        cmd = "docker exec -it -w /pgai/tests pgai fastapi dev server.py"
+        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
+    else:
+        cmd = "fastapi dev server.py"
+        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=tests_dir())
 
 
 def test() -> None:
-    subprocess.run("pytest", shell=True, check=True, env=os.environ, cwd=project_dir())
+    subprocess.run("pytest", shell=True, check=True, env=os.environ, cwd=tests_dir())
 
 
 def lint_sql() -> None:
