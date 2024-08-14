@@ -216,27 +216,14 @@ begin
     create function ai.%I() returns trigger
     as $plpgsql$
     begin
-        if tg_op = 'delete' then
-            insert into ai.%I (%s)
-            values (%s);
-        else
-            insert into ai.%I (%s)
-            values (%s);
-        end if;
+        insert into ai.%I (%s)
+        values (%s);
         return null;
     end;
     $plpgsql$ language plpgsql
     $sql$
     , _trigger_name
     , _queue_table
-    , (
-        select pg_catalog.string_agg(pg_catalog.format('%I', x.attname), ', ' order by x.attnum)
-        from pg_catalog.jsonb_to_recordset(_source_pk) x(attnum int, attname name)
-      )
-    , (
-        select pg_catalog.string_agg(pg_catalog.format('old.%I', x.attname), ', ' order by x.attnum)
-        from pg_catalog.jsonb_to_recordset(_source_pk) x(attnum int, attname name)
-      )
     , _queue_table
     , (
         select pg_catalog.string_agg(pg_catalog.format('%I', x.attname), ', ' order by x.attnum)
@@ -253,7 +240,7 @@ begin
     select pg_catalog.format
     ( $sql$
     create trigger %I
-    after insert or update or delete
+    after insert or update
     on %I.%I
     for each row execute function ai.%I();
     $sql$
@@ -424,6 +411,8 @@ begin
     , target_schema
     , target_table
     , target_column
+    , queue_schema
+    , queue_table
     , config
     )
     values
@@ -436,6 +425,8 @@ begin
     , _target_schema
     , _target_table
     , _target_column
+    , 'ai'
+    , _queue_table
     , pg_catalog.jsonb_build_object
       ( 'version', '@extversion@'
       , 'embedding', _embedding
