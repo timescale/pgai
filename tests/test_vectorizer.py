@@ -243,7 +243,11 @@ def test_vectorizer():
             vectorizer_id = cur.fetchone()[0]
 
             # check the vectorizer that was created
-            cur.execute("select jsonb_pretty(to_jsonb(x) #- array['config', 'version']) from ai.vectorizer x where x.id = %s", (vectorizer_id,))
+            cur.execute("""
+                select jsonb_pretty(to_jsonb(x) #- array['config', 'version']) 
+                from ai.vectorizer x 
+                where x.id = %s
+            """, (vectorizer_id,))
             actual = json.dumps(json.loads(cur.fetchone()[0]), sort_keys=True)
             expected = json.dumps(json.loads("""
             {
