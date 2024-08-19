@@ -2,11 +2,11 @@
 
 -------------------------------------------------------------------------------
 -- execute_vectorizer
-create or replace function ai.execute_vectorizer(_vectorizer_id int, _force bool default false) returns int
+create or replace function ai.execute_async_ext_vectorizer(_vectorizer_id int) returns void
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.vectorizer
-    return ai.vectorizer.execute_vectorizer(plpy, _vectorizer_id, _force)
+    ai.vectorizer.execute_async_ext_vectorizer(plpy, _vectorizer_id)
 $python$
 language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
@@ -62,6 +62,48 @@ as $func$
     ( 'implementation', 'python_string_template'
     , 'columns', _columns
     , 'template', _template
+    )
+$func$ language sql immutable parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- scheduling_config_none
+create or replace function ai.scheduling_config_none() returns jsonb
+as $func$
+    select pg_catalog.jsonb_build_object('implementation', 'none')
+$func$ language sql immutable parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- scheduling_config_pg_cron
+create or replace function ai.scheduling_config_pg_cron(_schedule text) returns jsonb
+as $func$
+    select pg_catalog.jsonb_build_object
+    ( 'implementation', 'pg_cron'
+    , 'schedule', _schedule
+    )
+$func$ language sql immutable parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- scheduling_config_timescaledb
+create or replace function ai.scheduling_config_timescaledb
+( _schedule_interval interval
+, _initial_start timestamptz default null
+, _fixed_schedule bool default null
+, _timezone text default null
+) returns jsonb
+as $func$
+    select json_object
+    ( 'implementation': 'timescaledb'
+    , 'schedule_interval': _schedule_interval
+    , 'initial_start': _initial_start
+    , 'fixed_schedule': _fixed_schedule
+    , 'timezone': _timezone
+    absent on null
     )
 $func$ language sql immutable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
@@ -259,52 +301,120 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- _vectorizer_create_queue_trigger
-create or replace function ai._vectorizer_create_queue_trigger
-( _trigger_name name
-, _queue_schema name
-, _queue_table name
-, _target_schema name
-, _target_table name
-) returns void as
+-- _vectorizer_async_ext_job
+create or replace function ai._vectorizer_async_ext_job(_config jsonb) returns bool as
 $func$
 declare
+    _vectorizer_id int;
+    _queue_schema name;
+    _queue_table name;
     _sql text;
 begin
-    select pg_catalog.format
-    ( $sql$
-    create function %I.%I() returns trigger
-    as $plpgsql$
-    begin
-        perform ai.execute_vectorizer(v.id)
-        from ai.vectorizer v
-        where v.target_schema operator(pg_catalog.=) %L
-        and v.target_table operator(pg_catalog.=) %L
-        ;
-        return null;
-    end;
-    $plpgsql$ language plpgsql volatile parallel unsafe security invoker
-    set search_path to pg_catalog, pg_temp
-    $sql$
-    , _queue_schema, _trigger_name
-    , _target_schema, _target_table
-    ) into strict _sql
+    -- get the vectorizer id from the config
+    select pg_catalog.jsonb_extract_path_text(_config, 'vectorizer_id')::int
+    into strict _vectorizer_id
     ;
-    execute _sql;
-
-    -- create trigger on queue table
+    -- look up the queue table for the vectorizer
+    select v.queue_schema, v.queue_table into strict _queue_schema, _queue_table
+    from ai.vectorizer v
+    where v.id operator(pg_catalog.=) _vectorizer_id
+    ;
+    -- if there is at least one item in the queue, we need to execute the vectorizer
     select pg_catalog.format
     ( $sql$
-    create trigger %I after insert on %I.%I
-    for each statement execute function %I.%I();
+    select *
+    from %I.%I
+    for update skip locked
+    limit 1
     $sql$
-    , _trigger_name
     , _queue_schema, _queue_table
-    , _queue_schema, _trigger_name
     ) into strict _sql
     ;
     execute _sql;
-end;
+    if not found then
+        -- nothing to do
+        return false;
+    end if;
+    -- execute the vectorizer
+    perform ai.execute_async_ext_vectorizer(_vectorizer_id);
+    return true;
+end
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _vectorizer_schedule_async_ext_job
+create or replace function ai._vectorizer_schedule_async_ext_job
+( _vectorizer_id int
+, _scheduling jsonb
+) returns bigint as
+$func$
+declare
+    _implementation text;
+    _sql text;
+    _extension_schema name;
+    _job_id bigint;
+begin
+    select pg_catalog.jsonb_extract_path_text(_scheduling, 'implementation')
+    into strict _implementation
+    ;
+    case
+        when _implementation in ('pg_cron', 'timescaledb') then
+            -- look up schema/name of the extension for scheduling. may be null
+            select n.nspname into _extension_schema
+            from pg_catalog.pg_extension x
+            inner join pg_catalog.pg_namespace n on (x.extnamespace operator(pg_catalog.=) n.oid)
+            where x.extname operator(pg_catalog.=) _implementation
+            ;
+            if _extension_schema is null then
+                raise exception '% extension is not found', _implementation;
+            end if;
+        when _implementation = 'none' then
+            return null;
+        else
+            raise exception 'scheduling implementation not recognized';
+    end case;
+
+    -- schedule the job using the implementation chosen
+    case _implementation
+        when 'pg_cron' then
+            -- schedule the work proc with pg_cron
+            select pg_catalog.format
+            ( $$select %I.schedule(%L, %L, $sql$select ai._vectorizer_async_ext_job(pg_catalog.jsonb_build_object('vectorizer_id', %L))$sql$)$$
+            , _extension_schema
+            , pg_catalog.jsonb_extract_path_text(_scheduling, 'schedule')
+            , _vectorizer_id
+            ) into strict _sql
+            ;
+            execute _sql into strict _job_id;
+        when 'timescaledb' then
+            -- schedule the work proc with timescaledb background jobs
+            select pg_catalog.format
+            ( $$select %I.add_job('ai._vectorizer_async_ext_job'::regproc, %s, config=>jsonb_build_object('vectorizer_id', %L))$$
+            , _extension_schema
+            , ( -- gather up the arguments
+                select string_agg
+                ( case s.key
+                    when 'schedule_interval' then pg_catalog.format('%L', s.value)
+                    else pg_catalog.format('%s=>%L', s.key, s.value)
+                  end
+                , ', '
+                order by x.ord
+                )
+                from pg_catalog.jsonb_each_text(_scheduling) s
+                inner join
+                unnest(array['schedule_interval', 'initial_start', 'fixed_schedule', 'timezone']) with ordinality x(key, ord)
+                on (s.key = x.key)
+              )
+            , _vectorizer_id
+            ) into strict _sql
+            ;
+            execute _sql into strict _job_id;
+    end case;
+    return _job_id;
+end
 $func$
 language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
@@ -318,6 +428,7 @@ create or replace function ai.create_vectorizer
 , _embedding jsonb
 , _chunking jsonb
 , _formatting jsonb
+, _scheduling jsonb
 , _asynchronous bool default true
 , _external bool default true
 , _target_schema name default null
@@ -332,8 +443,8 @@ declare
     _source_schema name;
     _source_pk jsonb;
     _vectorizer_id int;
-    _trigger_name name;
     _sql text;
+    _job_id bigint;
 begin
     if _asynchronous and not _external then
         raise exception 'asynchronous internal vectorizers are not implemented yet';
@@ -400,14 +511,15 @@ begin
     , _source_pk
     );
 
-    -- create trigger func to request an execution
-    perform ai._vectorizer_create_queue_trigger
-    ( pg_catalog.concat('vectorizer_q_trg_', _vectorizer_id)
-    , _queue_schema
-    , _queue_table
-    , _target_schema
-    , _target_table
-    );
+    -- schedule the async ext job
+    select ai._vectorizer_schedule_async_ext_job
+    (_vectorizer_id
+    , _scheduling
+    ) into _job_id
+    ;
+    if _job_id is not null then
+        _scheduling = pg_catalog.jsonb_insert(_scheduling, array['job_id'], to_jsonb(_job_id));
+    end if;
 
     insert into ai.vectorizer
     ( id
@@ -440,6 +552,7 @@ begin
       , 'embedding', _embedding
       , 'chunking', _chunking
       , 'formatting', _formatting
+      , 'scheduling', _scheduling
       )
     );
 

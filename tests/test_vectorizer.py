@@ -86,6 +86,99 @@ def test_chunking_config_token_text_splitter():
                     assert k in expected and v == expected[k]
 
 
+def test_scheduling_config_none():
+    tests = [
+        (
+            "select ai.scheduling_config_none()",
+            {
+                "implementation": "none",
+            },
+        ),
+    ]
+    with psycopg.connect(db_url("test")) as con:
+        with con.cursor() as cur:
+            for query, expected in tests:
+                cur.execute(query)
+                actual = cur.fetchone()[0]
+                assert actual.keys() == expected.keys()
+                for k, v in actual.items():
+                    assert k in expected and v == expected[k]
+
+
+def test_scheduling_config_pg_cron():
+    tests = [
+        (
+            "select ai.scheduling_config_pg_cron('*/5 * * * *')",
+            {
+                "implementation": "pg_cron",
+                "schedule": "*/5 * * * *",
+            },
+        ),
+        (
+            "select ai.scheduling_config_pg_cron('0 * * * *')",
+            {
+                "implementation": "pg_cron",
+                "schedule": "0 * * * *",
+            },
+        ),
+    ]
+    with psycopg.connect(db_url("test")) as con:
+        with con.cursor() as cur:
+            for query, expected in tests:
+                cur.execute(query)
+                actual = cur.fetchone()[0]
+                assert actual.keys() == expected.keys()
+                for k, v in actual.items():
+                    assert k in expected and v == expected[k]
+
+
+def test_scheduling_config_timescaledb():
+    tests = [
+        (
+            "select ai.scheduling_config_timescaledb(interval '5m')",
+            {
+                "implementation": "timescaledb",
+                "schedule_interval": "00:05:00",
+            },
+        ),
+        (
+            "select ai.scheduling_config_timescaledb(interval '1h', _timezone=>'America/Chicago')",
+            {
+                "implementation": "timescaledb",
+                "schedule_interval": "01:00:00",
+                "timezone": "America/Chicago",
+            },
+        ),
+        (
+            "select ai.scheduling_config_timescaledb(interval '10m', _fixed_schedule=>true, _timezone=>'America/Chicago')",
+            {
+                "implementation": "timescaledb",
+                "schedule_interval": "00:10:00",
+                "timezone": "America/Chicago",
+                "fixed_schedule": True,
+            },
+        ),
+        (
+            "select ai.scheduling_config_timescaledb(interval '15m', _initial_start=>'2025-01-06 America/Chicago'::timestamptz, _fixed_schedule=>false, _timezone=>'America/Chicago')",
+            {
+                "implementation": "timescaledb",
+                "schedule_interval": "00:15:00",
+                "timezone": "America/Chicago",
+                "fixed_schedule": False,
+                "initial_start": "2025-01-06T06:00:00+00:00",
+            },
+        ),
+    ]
+    with psycopg.connect(db_url("test")) as con:
+        with con.cursor() as cur:
+            for query, expected in tests:
+                cur.execute(query)
+                actual = cur.fetchone()[0]
+                assert actual.keys() == expected.keys()
+                for k, v in actual.items():
+                    assert k in expected and v == expected[k]
+
+
 def test_formatting_config_python_string_template():
     tests = [
         (
@@ -149,6 +242,66 @@ def create_blog_table(cursor: psycopg.Cursor) -> None:
     """)
 
 
+VECTORIZER_ROW = """
+{
+    "id": 1,
+    "config": {
+        "chunking": {
+            "separator": " ",
+            "chunk_size": 128,
+            "chunk_column": "body",
+            "chunk_overlap": 10,
+            "implementation": "token_text_splitter"
+        },
+        "embedding": {
+            "model": "text-embedding-3-small",
+            "provider": "openai",
+            "dimensions": 768
+        },
+        "formatting": {
+            "columns": [
+                "title",
+                "published"
+            ],
+            "template": "title: $title published: $published $chunk",
+            "implementation": "python_string_template"
+        },
+        "scheduling": {
+            "job_id": 1000,
+            "timezone": "America/Chicago",
+            "implementation": "timescaledb",
+            "schedule_interval": "00:05:00"
+        }
+    },
+    "external": true,
+    "source_pk": [
+        {
+            "pknum": 1,
+            "attnum": 2,
+            "attname": "title",
+            "typname": "text",
+            "attnotnull": true
+        },
+        {
+            "pknum": 2,
+            "attnum": 3,
+            "attname": "published",
+            "typname": "timestamptz",
+            "attnotnull": true
+        }
+    ],
+    "queue_table": "vectorizer_q_1",
+    "asynchronous": true,
+    "queue_schema": "ai",
+    "source_table": "blog",
+    "target_table": "blog_embedding",
+    "source_schema": "website",
+    "target_column": "embedding",
+    "target_schema": "website"
+}
+"""
+
+
 SOURCE_TABLE = """
                                                                Table "website.blog"
   Column   |           Type           | Collation | Nullable |           Default            | Storage  | Compression | Stats target | Description 
@@ -204,24 +357,14 @@ QUEUE_TABLE = """
  queued_at | timestamp with time zone |           | not null | now()   | plain    |             |              | 
 Indexes:
     "vectorizer_q_1_title_published_idx" btree (title, published)
-Triggers:
-    vectorizer_q_trg_1 AFTER INSERT ON ai.vectorizer_q_1 FOR EACH STATEMENT EXECUTE FUNCTION ai.vectorizer_q_trg_1()
 Access method: heap
-""".strip()
-
-
-QUEUE_TRIGGER_FUNC = """
-                                                                                   List of functions
- Schema |        Name        | Result data type | Argument data types | Type | Volatility | Parallel |  Owner   | Security | Access privileges | Language | Internal name | Description 
---------+--------------------+------------------+---------------------+------+------------+----------+----------+----------+-------------------+----------+---------------+-------------
- ai     | vectorizer_q_trg_1 | trigger          |                     | func | volatile   | unsafe   | postgres | invoker  |                   | plpgsql  |               | 
-(1 row)
 """.strip()
 
 
 def test_vectorizer():
     with psycopg.connect(db_url("postgres"), autocommit=True, row_factory=namedtuple_row) as con:
         with con.cursor() as cur:
+            cur.execute("create extension if not exists timescaledb")
             drop_website_schema(cur)
             create_website_schema(cur)
             drop_blog_table(cur)
@@ -238,6 +381,7 @@ def test_vectorizer():
                     ( array['title', 'published']
                     , 'title: $title published: $published $chunk'
                     )
+            , _scheduling=>ai.scheduling_config_timescaledb(interval '5m', _timezone=>'America/Chicago')
             );
             """)
             vectorizer_id = cur.fetchone()[0]
@@ -249,97 +393,28 @@ def test_vectorizer():
                 where x.id = %s
             """, (vectorizer_id,))
             actual = json.dumps(json.loads(cur.fetchone()[0]), sort_keys=True)
-            expected = json.dumps(json.loads("""
-            {
-                "id": 1,
-                "config": {
-                    "chunking": {
-                        "separator": " ",
-                        "chunk_size": 128,
-                        "chunk_column": "body",
-                        "chunk_overlap": 10,
-                        "implementation": "token_text_splitter"
-                    },
-                    "embedding": {
-                        "model": "text-embedding-3-small",
-                        "provider": "openai",
-                        "dimensions": 768
-                    },
-                    "formatting": {
-                        "columns": [
-                            "title",
-                            "published"
-                        ],
-                        "template": "title: $title published: $published $chunk",
-                        "implementation": "python_string_template"
-                    }
-                },
-                "external": true,
-                "source_pk": [
-                    {
-                        "pknum": 1,
-                        "attnum": 2,
-                        "attname": "title",
-                        "typname": "text",
-                        "attnotnull": true
-                    },
-                    {
-                        "pknum": 2,
-                        "attnum": 3,
-                        "attname": "published",
-                        "typname": "timestamptz",
-                        "attnotnull": true
-                    }
-                ],
-                "queue_table": "vectorizer_q_1",
-                "asynchronous": true,
-                "queue_schema": "ai",
-                "source_table": "blog",
-                "target_table": "blog_embedding",
-                "source_schema": "website",
-                "target_column": "embedding",
-                "target_schema": "website"
-            }
-            """), sort_keys=True)
+            expected = json.dumps(json.loads(VECTORIZER_ROW), sort_keys=True)
             assert actual == expected
 
-            # check the request
-            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (vectorizer_id,))
-            assert cur.fetchone()[0] == 1
+            # check the timescaledb job that was created
+            cur.execute("""
+                select j.schedule_interval = interval '5m'
+                and j.proc_schema = 'ai'
+                and j.proc_name = '_vectorizer_async_ext_job'
+                and j.scheduled = true
+                and j.fixed_schedule = true
+                as is_ok
+                from timescaledb_information.jobs j
+                inner join ai.vectorizer x on (j.job_id = (x.config->'scheduling'->>'job_id')::int)
+                where x.id = %s
+            """, (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual is True
 
-            # execute the vectorizer
-            cur.execute("select ai.execute_vectorizer(%s)", (vectorizer_id,))
-
-            # check that we don't schedule a second request when one is pending
-            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (vectorizer_id,))
-            assert cur.fetchone()[0] == 1
-
-            # pretend we are working it
-            cur.execute("update ai.vectorizer_request set status = 'running', started = now() where vectorizer_id = %s", (vectorizer_id,))
-
-            # execute the vectorizer
-            cur.execute("select ai.execute_vectorizer(%s)", (vectorizer_id,))
-
-            # check that we don't schedule a second request when one is running
-            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (vectorizer_id,))
-            assert cur.fetchone()[0] == 1
-
-            # forcefully execute the vectorizer
-            cur.execute("select ai.execute_vectorizer(%s, _force=>true)", (vectorizer_id,))
-
-            # check the request
-            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (vectorizer_id,))
-            assert cur.fetchone()[0] == 2
-
-            # delete the requests
-            cur.execute("delete from ai.vectorizer_request where vectorizer_id = %s", (vectorizer_id,))
-
-            # execute the vectorizer
-            cur.execute("select ai.execute_vectorizer(%s)", (vectorizer_id,))
-
-            # check that we have one request
-            cur.execute("select count(*) from ai.vectorizer_request where vectorizer_id = %s", (vectorizer_id,))
-            assert cur.fetchone()[0] == 1
+            cur.execute("select ai._vectorizer_async_ext_job(jsonb_build_object('vectorizer_id', %s))"
+                        , (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual is True
 
     # does the source table look right?
     cmd = f'''psql -X -d "{db_url('test')}" -c "\d+ website.blog"'''
@@ -365,8 +440,3 @@ def test_vectorizer():
     actual = str(proc.stdout).strip()
     assert actual == QUEUE_TABLE
 
-    # does the queue trigger function look right?
-    cmd = f'''psql -X -d "{db_url('test')}" -c "\df+ ai.vectorizer_q_trg_1()"'''
-    proc = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
-    actual = str(proc.stdout).strip()
-    assert actual == QUEUE_TRIGGER_FUNC
