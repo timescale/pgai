@@ -306,7 +306,7 @@ def install_py() -> None:
         if d.exists():
             shutil.rmtree(d)
         for d in version_target_dir.glob(
-            "pgai-*.dist-info"
+                "pgai-*.dist-info"
         ):  # delete package info if exists
             shutil.rmtree(d)
         subprocess.run(
@@ -397,7 +397,11 @@ def docker_build() -> None:
 
 
 def docker_run() -> None:
-    cmd = f"""docker run -d --name pgai -p 127.0.0.1:5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust --mount type=bind,src={project_dir()},dst=/pgai pgai"""
+    cmd = " ".join([
+        "docker run -d --name pgai -p 127.0.0.1:5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust",
+        f"--mount type=bind,src={project_dir()},dst=/pgai",
+        "pgai -c shared_preload_libraries='pg_cron, timescaledb'"
+    ])
     subprocess.run(cmd, shell=True, check=True, env=os.environ, text=True)
 
 
