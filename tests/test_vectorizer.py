@@ -86,6 +86,36 @@ def test_chunking_config_token_text_splitter():
                     assert k in expected and v == expected[k]
 
 
+def test_validate_chunking_config_token_text_splitter():
+    ok = [
+        """
+        select ai._validate_chunking_config_token_text_splitter
+        ( ai.chunking_config_token_text_splitter('body', 128, 10)
+        , 'public', 'thing'
+        )
+        """,
+    ]
+    bad = [
+        """
+        select ai._validate_chunking_config_token_text_splitter
+        ( ai.chunking_config_token_text_splitter('content', 128, 10)
+        , 'public', 'thing'
+        )
+        """,
+    ]
+    with psycopg.connect(db_url("test")) as con:
+        with con.cursor() as cur:
+            cur.execute("drop table if exists public.thing;")
+            cur.execute("create table public.thing (id int, color text, weight float, body text)")
+            for query in ok:
+                cur.execute(query)
+                assert True
+            for query in bad:
+                with pytest.raises(psycopg.errors.RaiseException):
+                    cur.execute(query)
+            con.rollback()
+
+
 def test_scheduling_config_none():
     tests = [
         (
@@ -216,6 +246,42 @@ def test_formatting_config_python_string_template():
                 assert actual.keys() == expected.keys()
                 for k, v in actual.items():
                     assert k in expected and v == expected[k]
+
+
+def test_validate_formatting_config_python_string_template():
+    ok = [
+        """
+        select ai._validate_formatting_config_python_string_template
+        ( ai.formatting_config_python_string_template
+          ( array['color', 'weight']
+          , 'color: $color weight: $weight $chunk'
+          )
+        , 'public', 'thing'
+        )
+        """,
+    ]
+    bad = [
+        """
+        select ai._validate_formatting_config_python_string_template
+        ( ai.formatting_config_python_string_template
+          ( array['color', 'weight', 'height']
+          , 'color: $color weight: $weight height: $height $chunk'
+          )
+        , 'public', 'thing'
+        )
+        """,
+    ]
+    with psycopg.connect(db_url("test")) as con:
+        with con.cursor() as cur:
+            cur.execute("drop table if exists public.thing;")
+            cur.execute("create table public.thing (id int, color text, weight float)")
+            for query in ok:
+                cur.execute(query)
+                assert True
+            for query in bad:
+                with pytest.raises(psycopg.errors.RaiseException):
+                    cur.execute(query)
+            con.rollback()
 
 
 def drop_website_schema(cursor: psycopg.Cursor) -> None:

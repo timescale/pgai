@@ -52,6 +52,39 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- _validate_chunking_config_token_text_splitter
+create or replace function ai._validate_chunking_config_token_text_splitter
+( _config jsonb
+, _source_schema name
+, _source_table name
+) returns void
+as $func$
+declare
+    _chunk_column text;
+    _found bool;
+begin
+    select _config operator(pg_catalog.->>) 'chunk_column'
+    into strict _chunk_column
+    ;
+
+    select count(*) > 0 into strict _found
+    from pg_catalog.pg_class k
+    inner join pg_catalog.pg_namespace n on (k.relnamespace = n.oid)
+    inner join pg_catalog.pg_attribute a on (k.oid = a.attrelid)
+    where n.nspname operator(pg_catalog.=) _source_schema
+    and k.relname operator(pg_catalog.=) _source_table
+    and a.attnum operator(pg_catalog.>) 0
+    and a.attname operator(pg_catalog.=) _chunk_column
+    ;
+    if not _found then
+        raise exception 'chunk column in config does not exist in the table: %', _chunk_column;
+    end if;
+end
+$func$ language plpgsql stable parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- formatting_config_python_string_template
 create or replace function ai.formatting_config_python_string_template
 ( _columns name[]
@@ -64,6 +97,42 @@ as $func$
     , 'template', _template
     )
 $func$ language sql immutable parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _validate_formatting_config_python_string_template
+create or replace function ai._validate_formatting_config_python_string_template
+( _config jsonb
+, _source_schema name
+, _source_table name
+) returns void
+as $func$
+declare
+    _columns text;
+begin
+    -- ensure the the columns listed in the config exist in the table
+    -- find the columns in the config that do NOT exist in the table. hoping for zero results
+    select string_agg(x.x, ', ') into _columns
+    from
+    (
+        select x
+        from pg_catalog.jsonb_array_elements_text(_config->'columns') x
+        except
+        select a.attname
+        from pg_catalog.pg_class k
+        inner join pg_catalog.pg_namespace n on (k.relnamespace = n.oid)
+        inner join pg_catalog.pg_attribute a on (k.oid = a.attrelid)
+        where n.nspname operator(pg_catalog.=) _source_schema
+        and k.relname operator(pg_catalog.=) _source_table
+        and a.attnum operator(pg_catalog.>) 0
+    ) x
+    ;
+    if found and _columns is not null then
+        raise exception 'columns in config do not exist in the table: %', _columns;
+    end if;
+end
+$func$ language plpgsql stable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -482,6 +551,26 @@ begin
     _target_column = coalesce(_target_column, 'embedding');
     _queue_schema = coalesce(_queue_schema, 'ai');
     _queue_table = coalesce(_queue_table, pg_catalog.concat('vectorizer_q_', _vectorizer_id));
+
+    -- validate the formatting config
+    case _formatting operator(pg_catalog.->>) 'implementation'
+        when 'python_string_template' then
+            perform ai._validate_formatting_config_python_string_template
+            ( _formatting
+            , _source_schema
+            , _source_table
+            );
+    end case;
+
+    -- validate the chunking config
+    case _chunking operator(pg_catalog.->>) 'implementation'
+        when 'token_text_splitter' then
+            perform ai._validate_chunking_config_token_text_splitter
+            ( _chunking
+            , _source_schema
+            , _source_table
+            );
+    end case;
 
     -- create the target table
     perform ai._vectorizer_create_target_table
