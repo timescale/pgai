@@ -371,14 +371,16 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- _vectorizer_async_ext_job
-create or replace function ai._vectorizer_async_ext_job(_job_id int default null, _config jsonb default null) returns bool as
+create or replace procedure ai._vectorizer_async_ext_job(_job_id int default null, _config jsonb default null) as
 $func$
 declare
     _vectorizer_id int;
     _queue_schema name;
     _queue_table name;
     _sql text;
+    _item record;
 begin
+    set local search_path = pg_catalog, pg_temp;
     if _config is null then
         raise exception 'config is null';
     end if;
@@ -403,18 +405,19 @@ begin
     , _queue_schema, _queue_table
     ) into strict _sql
     ;
-    execute _sql;
-    if not found then
+    execute _sql into _item;
+    commit;
+    set local search_path = pg_catalog, pg_temp;
+    if _item is null then
         -- nothing to do
-        return false;
+        return;
     end if;
     -- execute the vectorizer
     perform ai.execute_async_ext_vectorizer(_vectorizer_id);
-    return true;
+    commit;
 end
 $func$
-language plpgsql volatile security invoker
-set search_path to pg_catalog, pg_temp
+language plpgsql security invoker
 ;
 
 -------------------------------------------------------------------------------
@@ -455,7 +458,7 @@ begin
         when 'pg_cron' then
             -- schedule the work proc with pg_cron
             select pg_catalog.format
-            ( $$select %I.schedule(%L, %L, $sql$select ai._vectorizer_async_ext_job(null, %L))$sql$)$$
+            ( $$select %I.schedule(%L, %L, $sql$call ai._vectorizer_async_ext_job(null, %L))$sql$)$$
             , _extension_schema
             , pg_catalog.jsonb_extract_path_text(_scheduling, 'schedule')
             , _vectorizer_id
