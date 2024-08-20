@@ -1,5 +1,5 @@
 
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI
 from pydantic import BaseModel
 import psycopg
 
@@ -33,6 +33,8 @@ def work_the_queue(queue_schema: str, queue_table: str):
 @app.post("/")
 async def execute_vectorizer(vectorizer: Vectorizer):
     print(f"vectorizer: {vectorizer}")
+    # do this in a blocking manner to make the tests easier
+    # we KNOW that when the HTTP request has returned that the work has been done
     work_the_queue(vectorizer.queue_schema, vectorizer.queue_table)
     print("returning...")
     return {"id": vectorizer.id}
