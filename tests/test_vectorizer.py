@@ -284,30 +284,6 @@ def test_validate_formatting_config_python_string_template():
             con.rollback()
 
 
-def drop_website_schema(cursor: psycopg.Cursor) -> None:
-    cursor.execute("drop schema if exists website cascade")
-
-
-def create_website_schema(cursor: psycopg.Cursor) -> None:
-    cursor.execute("create schema website")
-
-
-def drop_blog_table(cursor: psycopg.Cursor) -> None:
-    cursor.execute("drop table if exists website.blog")
-
-
-def create_blog_table(cursor: psycopg.Cursor) -> None:
-    cursor.execute("""
-    create table website.blog
-    ( id int not null generated always as identity
-    , title text not null
-    , published timestamptz
-    , body text not null
-    , primary key (title, published)
-    )
-    """)
-
-
 VECTORIZER_ROW = """
 {
     "id": 1,
@@ -437,12 +413,20 @@ def psql_cmd(cmd: str) -> str:
 def test_vectorizer():
     with psycopg.connect(db_url("postgres"), autocommit=True, row_factory=namedtuple_row) as con:
         with con.cursor() as cur:
+            # set up the test
             cur.execute("create extension if not exists timescaledb")
-            drop_website_schema(cur)
-            create_website_schema(cur)
-            drop_blog_table(cur)
-            create_blog_table(cur)
-
+            cur.execute("drop schema if exists website cascade")
+            cur.execute("create schema website")
+            cur.execute("drop table if exists website.blog")
+            cur.execute("""
+                create table website.blog
+                ( id int not null generated always as identity
+                , title text not null
+                , published timestamptz
+                , body text not null
+                , primary key (title, published)
+                )
+            """)
             cur.execute("""
                 insert into website.blog(title, published, body)
                 values
@@ -452,6 +436,7 @@ def test_vectorizer():
             """)
 
             # create a vectorizer for the blog table
+            # language=PostgreSQL
             cur.execute("""
             select ai.create_vectorizer
             ( 'website.blog'::regclass
@@ -489,6 +474,7 @@ def test_vectorizer():
             actual = cur.fetchone()[0]
             assert actual == 3
 
+            # get timescaledb job's job_id
             cur.execute("""
                 select (x.config->'scheduling'->>'job_id')::int 
                 from ai.vectorizer x 
@@ -542,7 +528,35 @@ def test_vectorizer():
             assert actual == 2
 
             # run the underlying function explicitly
+            # language=PostgreSQL
             cur.execute("call ai._vectorizer_async_ext_job(null, jsonb_build_object('vectorizer_id', %s))"
+                        , (vectorizer_id,))
+
+            # check that the queue has 0 rows
+            cur.execute("""
+                select count(*)
+                from ai.vectorizer_q_1
+            """)
+            actual = cur.fetchone()[0]
+            assert actual == 0
+
+            # update a row into the source
+            cur.execute("""
+                update website.blog set published = now()
+                where title = 'how to make ramen'
+            """)
+
+            # check that the queue has 1 rows
+            cur.execute("""
+                select count(*)
+                from ai.vectorizer_q_1
+            """)
+            actual = cur.fetchone()[0]
+            assert actual == 1
+
+            # ping the external job explicitly
+            # language=PostgreSQL
+            cur.execute("select ai.execute_async_ext_vectorizer(%s)"
                         , (vectorizer_id,))
 
             # check that the queue has 0 rows
