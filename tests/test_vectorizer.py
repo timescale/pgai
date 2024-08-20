@@ -335,6 +335,7 @@ VECTORIZER_ROW = """
         "scheduling": {
             "job_id": 1000,
             "timezone": "America/Chicago",
+            "initial_start": "2050-01-06T00:00:00+00:00",
             "implementation": "timescaledb",
             "schedule_interval": "00:05:00"
         }
@@ -442,6 +443,14 @@ def test_vectorizer():
             drop_blog_table(cur)
             create_blog_table(cur)
 
+            cur.execute("""
+                insert into website.blog(title, published, body)
+                values
+                  ('how to cook a hot dog', '2024-01-06'::timestamptz, 'put it on a hot grill')
+                , ('how to make a sandwich', '2023-01-06'::timestamptz, 'put a slice of meat between two pieces of bread')
+                , ('how to make stir fry', '2022-01-06'::timestamptz, 'pick up the phone and order takeout')
+            """)
+
             # create a vectorizer for the blog table
             cur.execute("""
             select ai.create_vectorizer
@@ -453,7 +462,11 @@ def test_vectorizer():
                     ( array['title', 'published']
                     , 'title: $title published: $published $chunk'
                     )
-            , _scheduling=>ai.scheduling_config_timescaledb(interval '5m', _timezone=>'America/Chicago')
+            , _scheduling=>ai.scheduling_config_timescaledb
+                    ( interval '5m'
+                    , _initial_start=>'2050-01-06'::timestamptz
+                    , _timezone=>'America/Chicago'
+                    )
             );
             """)
             vectorizer_id = cur.fetchone()[0]
@@ -467,6 +480,14 @@ def test_vectorizer():
             actual = json.dumps(json.loads(cur.fetchone()[0]), sort_keys=True)
             expected = json.dumps(json.loads(VECTORIZER_ROW), sort_keys=True)
             assert actual == expected
+
+            # check that the queue has 3 rows
+            cur.execute("""
+                select count(*)
+                from ai.vectorizer_q_1
+            """)
+            actual = cur.fetchone()[0]
+            assert actual == 3
 
             cur.execute("""
                 select (x.config->'scheduling'->>'job_id')::int 
@@ -492,11 +513,45 @@ def test_vectorizer():
             # run the timescaledb background job explicitly
             cur.execute("call public.run_job(%s)", (job_id,))
 
-            # run the underlying function explicitly
-            cur.execute("select ai._vectorizer_async_ext_job(null, jsonb_build_object('vectorizer_id', %s))"
-                        , (vectorizer_id,))
+            # check that the queue has 0 rows
+            cur.execute("""
+                select count(*)
+                from ai.vectorizer_q_1
+            """)
             actual = cur.fetchone()[0]
-            assert actual is True
+            assert actual == 0
+
+            # insert a row into the source
+            cur.execute("""
+                insert into website.blog(title, published, body)
+                values
+                  ('how to make ramen', '2021-01-06'::timestamptz, 'boil water. cook ramen in the water')
+            """)
+            # update a row into the source
+            cur.execute("""
+                update website.blog set published = now()
+                where title = 'how to cook a hot dog'
+            """)
+
+            # check that the queue has 2 rows
+            cur.execute("""
+                select count(*)
+                from ai.vectorizer_q_1
+            """)
+            actual = cur.fetchone()[0]
+            assert actual == 2
+
+            # run the underlying function explicitly
+            cur.execute("call ai._vectorizer_async_ext_job(null, jsonb_build_object('vectorizer_id', %s))"
+                        , (vectorizer_id,))
+
+            # check that the queue has 0 rows
+            cur.execute("""
+                select count(*)
+                from ai.vectorizer_q_1
+            """)
+            actual = cur.fetchone()[0]
+            assert actual == 0
 
     # does the source table look right?
     actual = psql_cmd("\d+ website.blog")
