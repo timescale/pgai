@@ -468,6 +468,13 @@ def test_vectorizer():
             expected = json.dumps(json.loads(VECTORIZER_ROW), sort_keys=True)
             assert actual == expected
 
+            cur.execute("""
+                select (x.config->'scheduling'->>'job_id')::int 
+                from ai.vectorizer x 
+                where x.id = %s
+                """, (vectorizer_id,))
+            job_id = cur.fetchone()[0]
+
             # check the timescaledb job that was created
             cur.execute("""
                 select j.schedule_interval = interval '5m'
@@ -477,13 +484,16 @@ def test_vectorizer():
                 and j.fixed_schedule = true
                 as is_ok
                 from timescaledb_information.jobs j
-                inner join ai.vectorizer x on (j.job_id = (x.config->'scheduling'->>'job_id')::int)
-                where x.id = %s
-            """, (vectorizer_id,))
+                where j.job_id = %s
+            """, (job_id,))
             actual = cur.fetchone()[0]
             assert actual is True
 
-            cur.execute("select ai._vectorizer_async_ext_job(jsonb_build_object('vectorizer_id', %s))"
+            # run the timescaledb background job explicitly
+            cur.execute("call public.run_job(%s)", (job_id,))
+
+            # run the underlying function explicitly
+            cur.execute("select ai._vectorizer_async_ext_job(null, jsonb_build_object('vectorizer_id', %s))"
                         , (vectorizer_id,))
             actual = cur.fetchone()[0]
             assert actual is True

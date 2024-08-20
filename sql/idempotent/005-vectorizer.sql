@@ -371,7 +371,7 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- _vectorizer_async_ext_job
-create or replace function ai._vectorizer_async_ext_job(_config jsonb) returns bool as
+create or replace function ai._vectorizer_async_ext_job(_job_id int default null, _config jsonb default null) returns bool as
 $func$
 declare
     _vectorizer_id int;
@@ -379,6 +379,10 @@ declare
     _queue_table name;
     _sql text;
 begin
+    if _config is null then
+        raise exception 'config is null';
+    end if;
+
     -- get the vectorizer id from the config
     select pg_catalog.jsonb_extract_path_text(_config, 'vectorizer_id')::int
     into strict _vectorizer_id
@@ -451,17 +455,18 @@ begin
         when 'pg_cron' then
             -- schedule the work proc with pg_cron
             select pg_catalog.format
-            ( $$select %I.schedule(%L, %L, $sql$select ai._vectorizer_async_ext_job(pg_catalog.jsonb_build_object('vectorizer_id', %L))$sql$)$$
+            ( $$select %I.schedule(%L, %L, $sql$select ai._vectorizer_async_ext_job(null, %L))$sql$)$$
             , _extension_schema
             , pg_catalog.jsonb_extract_path_text(_scheduling, 'schedule')
             , _vectorizer_id
+            , pg_catalog.jsonb_build_object('vectorizer_id', _vectorizer_id)::text
             ) into strict _sql
             ;
             execute _sql into strict _job_id;
         when 'timescaledb' then
             -- schedule the work proc with timescaledb background jobs
             select pg_catalog.format
-            ( $$select %I.add_job('ai._vectorizer_async_ext_job'::regproc, %s, config=>jsonb_build_object('vectorizer_id', %L))$$
+            ( $$select %I.add_job('ai._vectorizer_async_ext_job'::regproc, %s, config=>%L)$$
             , _extension_schema
             , ( -- gather up the arguments
                 select string_agg
@@ -477,7 +482,7 @@ begin
                 unnest(array['schedule_interval', 'initial_start', 'fixed_schedule', 'timezone']) with ordinality x(key, ord)
                 on (s.key = x.key)
               )
-            , _vectorizer_id
+            , pg_catalog.jsonb_build_object('vectorizer_id', _vectorizer_id)::text
             ) into strict _sql
             ;
             execute _sql into strict _job_id;
