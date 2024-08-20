@@ -361,6 +361,12 @@ Access method: heap
 """.strip()
 
 
+def psql_cmd(cmd: str) -> str:
+    cmd = f'''psql -X -d "{db_url('test')}" -c "{cmd}"'''
+    proc = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
+    return str(proc.stdout).strip()
+
+
 def test_vectorizer():
     with psycopg.connect(db_url("postgres"), autocommit=True, row_factory=namedtuple_row) as con:
         with con.cursor() as cur:
@@ -417,26 +423,18 @@ def test_vectorizer():
             assert actual is True
 
     # does the source table look right?
-    cmd = f'''psql -X -d "{db_url('test')}" -c "\d+ website.blog"'''
-    proc = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
-    actual = str(proc.stdout).strip()
+    actual = psql_cmd("\d+ website.blog")
     assert actual == SOURCE_TABLE
 
     # does the source trigger function look right?
-    cmd = f'''psql -X -d "{db_url('test')}" -c "\df+ website.vectorizer_src_trg_1()"'''
-    proc = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
-    actual = str(proc.stdout).strip()
+    actual = psql_cmd("\df+ website.vectorizer_src_trg_1()")
     assert actual == SOURCE_TRIGGER_FUNC
 
     # does the target table look right?
-    cmd = f'''psql -X -d "{db_url('test')}" -c "\d+ website.blog_embedding"'''
-    proc = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
-    actual = str(proc.stdout).strip()
+    actual = psql_cmd("\d+ website.blog_embedding")
     assert actual == TARGET_TABLE
 
     # does the queue table look right?
-    cmd = f'''psql -X -d "{db_url('test')}" -c "\d+ ai.vectorizer_q_1"'''
-    proc = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
-    actual = str(proc.stdout).strip()
+    actual = psql_cmd("\d+ ai.vectorizer_q_1")
     assert actual == QUEUE_TABLE
 
