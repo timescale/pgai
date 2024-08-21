@@ -57,26 +57,47 @@ def test_embedding_openai():
                     assert k in expected and v == expected[k]
 
 
-def test_chunking_config_token_text_splitter():
+def test_chunking_character_text_splitter():
     tests = [
         (
-            "select ai.chunking_config_token_text_splitter('body', 128, 10)",
+            "select ai.chunking_character_text_splitter('body', 128, 10)",
             {
-                "separator": " ",
+                "separator": "\n\n",
+                "is_separator_regex": False,
                 "chunk_size": 128,
                 "chunk_column": "body",
                 "chunk_overlap": 10,
-                "implementation": "token_text_splitter",
+                "implementation": "character_text_splitter",
             },
         ),
         (
-            "select ai.chunking_config_token_text_splitter('content', 256, 20, _separator=>E'\n')",
+            "select ai.chunking_character_text_splitter('content', 256, 20, _separator=>E'\n;')",
             {
-                "separator": "\n",
+                "separator": "\n;",
+                "is_separator_regex": False,
                 "chunk_size": 256,
                 "chunk_column": "content",
                 "chunk_overlap": 20,
-                "implementation": "token_text_splitter",
+                "implementation": "character_text_splitter",
+            },
+        ),
+        (
+            r"""
+                select ai.chunking_character_text_splitter
+                ( 'content'
+                , 256
+                , 20
+                , _separator=>'(\s+)'
+                , _is_separator_regex=>true
+                )
+            """,
+            {
+                "separator": r"(\s+)",
+                "is_separator_regex": True,
+                "chunk_size": 256,
+                "chunk_column": "content",
+                "chunk_overlap": 20,
+                "implementation": "character_text_splitter",
             },
         ),
     ]
@@ -90,34 +111,41 @@ def test_chunking_config_token_text_splitter():
                     assert k in expected and v == expected[k]
 
 
-def test_validate_chunking_config_token_text_splitter():
+def test_validate_chunking_character_text_splitter():
     ok = [
         """
-        select ai._validate_chunking_config_token_text_splitter
-        ( ai.chunking_config_token_text_splitter('body', 128, 10)
+        select ai._validate_chunking_character_text_splitter
+        ( ai.chunking_character_text_splitter('body', 128, 10)
         , 'public', 'thing'
         )
         """,
     ]
     bad = [
-        """
-        select ai._validate_chunking_config_token_text_splitter
-        ( ai.chunking_config_token_text_splitter('content', 128, 10)
-        , 'public', 'thing'
+        (
+            """
+            select ai._validate_chunking_character_text_splitter
+            ( ai.chunking_character_text_splitter('content', 128, 10)
+            , 'public', 'thing'
+            )
+            """,
+            "chunk column in config does not exist in the table: content",
         )
-        """,
     ]
-    with psycopg.connect(db_url("test")) as con:
+    with psycopg.connect(db_url("test"), autocommit=True) as con:
         with con.cursor() as cur:
             cur.execute("drop table if exists public.thing;")
             cur.execute("create table public.thing (id int, color text, weight float, body text)")
             for query in ok:
                 cur.execute(query)
                 assert True
-            for query in bad:
-                with pytest.raises(psycopg.errors.RaiseException):
+            for query, err in bad:
+                try:
                     cur.execute(query)
-            con.rollback()
+                except psycopg.ProgrammingError as ex:
+                    msg = str(ex.args[0])
+                    assert len(msg) >= len(err) and msg[:len(err)] == err
+                else:
+                    pytest.fail(f"expected exception: {err}")
 
 
 def test_scheduling_none():
@@ -367,16 +395,17 @@ def test_validate_formatting_python_template():
                     pytest.fail(f"expected exception: {err}")
 
 
-VECTORIZER_ROW = """
+VECTORIZER_ROW = r"""
 {
     "id": 1,
     "config": {
         "chunking": {
-            "separator": " ",
+            "separator": "\n\n",
             "chunk_size": 128,
             "chunk_column": "body",
             "chunk_overlap": 10,
-            "implementation": "token_text_splitter"
+            "implementation": "character_text_splitter",
+            "is_separator_regex": false
         },
         "embedding": {
             "model": "text-embedding-3-small",
@@ -525,7 +554,7 @@ def test_vectorizer():
             select ai.create_vectorizer
             ( 'website.blog'::regclass
             , _embedding=>ai.embedding_openai('text-embedding-3-small', 768)
-            , _chunking=>ai.chunking_config_token_text_splitter('body', 128, 10)
+            , _chunking=>ai.chunking_character_text_splitter('body', 128, 10)
             , _formatting=>ai.formatting_python_template
                     ( 'title: $title published: $published $chunk'
                     , _columns=>array['title', 'published']

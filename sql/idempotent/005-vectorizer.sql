@@ -34,28 +34,31 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- chunking_config_token_text_splitter
-create or replace function ai.chunking_config_token_text_splitter
-( _column name -- TODO: make optional in which case pick the ONLY text column?
+-- chunking_character_text_splitter
+create or replace function ai.chunking_character_text_splitter
+( _column name
 , _chunk_size int
 , _chunk_overlap int
-, _separator text default ' '
+, _separator text default E'\n\n'
+, _is_separator_regex bool default false
 ) returns jsonb
 as $func$
-    select pg_catalog.jsonb_build_object
-    ( 'implementation', 'token_text_splitter'
-    , 'chunk_column', _column
-    , 'chunk_size', _chunk_size
-    , 'chunk_overlap', _chunk_overlap
-    , 'separator', _separator
+    select json_object
+    ( 'implementation': 'character_text_splitter'
+    , 'chunk_column': _column
+    , 'chunk_size': _chunk_size
+    , 'chunk_overlap': _chunk_overlap
+    , 'separator': _separator
+    , 'is_separator_regex': _is_separator_regex
+    absent on null
     )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- _validate_chunking_config_token_text_splitter
-create or replace function ai._validate_chunking_config_token_text_splitter
+-- _validate_chunking_character_text_splitter
+create or replace function ai._validate_chunking_character_text_splitter
 ( _config jsonb
 , _source_schema name
 , _source_table name
@@ -554,7 +557,7 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.create_vectorizer
 ( _source regclass
 , _embedding jsonb
-, _chunking jsonb -- default
+, _chunking jsonb
 , _formatting jsonb default ai.formatting_python_template('$chunk')
 , _scheduling jsonb default ai.scheduling_timescaledb()
 -- TODO: indexing config?
@@ -589,6 +592,7 @@ begin
     end if;
 
     -- get source table name and schema name
+    -- TODO: ensure the the caller owns the source table
     select k.relname, n.nspname
     into strict _source_table, _source_schema
     from pg_catalog.pg_class k
@@ -626,8 +630,8 @@ begin
 
     -- validate the chunking config
     case _chunking operator(pg_catalog.->>) 'implementation'
-        when 'token_text_splitter' then
-            perform ai._validate_chunking_config_token_text_splitter
+        when 'character_text_splitter' then
+            perform ai._validate_chunking_character_text_splitter
             ( _chunking
             , _source_schema
             , _source_table
