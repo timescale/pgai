@@ -16,7 +16,7 @@ def db_url(user: str) -> str:
     return f"postgres://{user}@127.0.0.1:5432/test"
 
 
-def test_embedding_config_openai():
+def test_embedding_openai():
     tests = [
         (
             "select ai.embedding_openai('text-embedding-3-small', 128)",
@@ -120,10 +120,10 @@ def test_validate_chunking_config_token_text_splitter():
             con.rollback()
 
 
-def test_scheduling_config_none():
+def test_scheduling_none():
     tests = [
         (
-            "select ai.scheduling_config_none()",
+            "select ai.scheduling_none()",
             {
                 "implementation": "none",
             },
@@ -139,17 +139,24 @@ def test_scheduling_config_none():
                     assert k in expected and v == expected[k]
 
 
-def test_scheduling_config_pg_cron():
+def test_scheduling_pg_cron():
     tests = [
         (
-            "select ai.scheduling_config_pg_cron('*/5 * * * *')",
+            "select ai.scheduling_pg_cron()",
+            {
+                "implementation": "pg_cron",
+                "schedule": "*/10 * * * *",
+            },
+        ),
+        (
+            "select ai.scheduling_pg_cron('*/5 * * * *')",
             {
                 "implementation": "pg_cron",
                 "schedule": "*/5 * * * *",
             },
         ),
         (
-            "select ai.scheduling_config_pg_cron('0 * * * *')",
+            "select ai.scheduling_pg_cron('0 * * * *')",
             {
                 "implementation": "pg_cron",
                 "schedule": "0 * * * *",
@@ -166,17 +173,24 @@ def test_scheduling_config_pg_cron():
                     assert k in expected and v == expected[k]
 
 
-def test_scheduling_config_timescaledb():
+def test_scheduling_timescaledb():
     tests = [
         (
-            "select ai.scheduling_config_timescaledb(interval '5m')",
+            "select ai.scheduling_timescaledb()",
+            {
+                "implementation": "timescaledb",
+                "schedule_interval": "00:10:00",
+            },
+        ),
+        (
+            "select ai.scheduling_timescaledb(interval '5m')",
             {
                 "implementation": "timescaledb",
                 "schedule_interval": "00:05:00",
             },
         ),
         (
-            "select ai.scheduling_config_timescaledb(interval '1h', _timezone=>'America/Chicago')",
+            "select ai.scheduling_timescaledb(interval '1h', _timezone=>'America/Chicago')",
             {
                 "implementation": "timescaledb",
                 "schedule_interval": "01:00:00",
@@ -184,7 +198,7 @@ def test_scheduling_config_timescaledb():
             },
         ),
         (
-            "select ai.scheduling_config_timescaledb(interval '10m', _fixed_schedule=>true, _timezone=>'America/Chicago')",
+            "select ai.scheduling_timescaledb(interval '10m', _fixed_schedule=>true, _timezone=>'America/Chicago')",
             {
                 "implementation": "timescaledb",
                 "schedule_interval": "00:10:00",
@@ -193,7 +207,7 @@ def test_scheduling_config_timescaledb():
             },
         ),
         (
-            "select ai.scheduling_config_timescaledb(interval '15m', _initial_start=>'2025-01-06 America/Chicago'::timestamptz, _fixed_schedule=>false, _timezone=>'America/Chicago')",
+            "select ai.scheduling_timescaledb(interval '15m', _initial_start=>'2025-01-06 America/Chicago'::timestamptz, _fixed_schedule=>false, _timezone=>'America/Chicago')",
             {
                 "implementation": "timescaledb",
                 "schedule_interval": "00:15:00",
@@ -451,7 +465,7 @@ def test_vectorizer():
                     ( array['title', 'published']
                     , 'title: $title published: $published $chunk'
                     )
-            , _scheduling=>ai.scheduling_config_timescaledb
+            , _scheduling=>ai.scheduling_timescaledb
                     ( interval '5m'
                     , _initial_start=>'2050-01-06'::timestamptz
                     , _timezone=>'America/Chicago'
