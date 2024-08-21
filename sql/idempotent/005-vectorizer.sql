@@ -568,11 +568,13 @@ create or replace function ai.create_vectorizer
 , _target_column name default null
 , _queue_schema name default null
 , _queue_table name default null
+-- TODO: _grant_to name[] default array['embed_role']
 ) returns int
 as $func$
 declare
     _source_table name;
     _source_schema name;
+    _is_owner bool;
     _dimensions int;
     _source_pk jsonb;
     _vectorizer_id int;
@@ -592,13 +594,16 @@ begin
     end if;
 
     -- get source table name and schema name
-    -- TODO: ensure the the caller owns the source table
-    select k.relname, n.nspname
-    into strict _source_table, _source_schema
+    select k.relname, n.nspname, k.relowner operator(pg_catalog.=) current_user::regrole
+    into strict _source_table, _source_schema, _is_owner
     from pg_catalog.pg_class k
     inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
     where k.oid operator(pg_catalog.=) _source
     ;
+    -- TODO: consider allowing (in)direct members of the role that owns the source table
+    if not _is_owner then
+        raise exception 'only the owner of the source table may create a vectorizer on it';
+    end if;
 
     select (_embedding->'dimensions')::int into _dimensions;
     if _dimensions is null then
