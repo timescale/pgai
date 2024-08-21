@@ -19,27 +19,31 @@ def db_url(user: str) -> str:
 def test_embedding_config_openai():
     tests = [
         (
-            "select ai.embedding_config_openai('text-embedding-3-small')",
+            "select ai.embedding_openai('text-embedding-3-small', 128)",
             {
-                "provider": "openai",
-                "model": "text-embedding-3-small",
-            },
-        ),
-        (
-            "select ai.embedding_config_openai('text-embedding-3-small', _dimensions=>128)",
-            {
-                "provider": "openai",
+                "implementation": "openai",
                 "model": "text-embedding-3-small",
                 "dimensions": 128,
+                "api_key_name": "OPENAI_API_KEY",
             },
         ),
         (
-            "select ai.embedding_config_openai('text-embedding-3-small', _dimensions=>128, _user=>'bob')",
+            "select ai.embedding_openai('text-embedding-3-small', 128, _user=>'bob')",
             {
-                "provider": "openai",
+                "implementation": "openai",
                 "model": "text-embedding-3-small",
                 "dimensions": 128,
                 "user": "bob",
+                "api_key_name": "OPENAI_API_KEY",
+            },
+        ),
+        (
+            "select ai.embedding_openai('text-embedding-3-small', 128, _api_key_name=>'DEV_API_KEY')",
+            {
+                "implementation": "openai",
+                "model": "text-embedding-3-small",
+                "dimensions": 128,
+                "api_key_name": "DEV_API_KEY",
             },
         ),
     ]
@@ -297,8 +301,9 @@ VECTORIZER_ROW = """
         },
         "embedding": {
             "model": "text-embedding-3-small",
-            "provider": "openai",
-            "dimensions": 768
+            "dimensions": 768,
+            "api_key_name": "OPENAI_API_KEY",
+            "implementation": "openai"
         },
         "formatting": {
             "columns": [
@@ -367,7 +372,7 @@ SOURCE_TRIGGER_FUNC = """
                                                                                      List of functions
  Schema  |         Name         | Result data type | Argument data types | Type | Volatility | Parallel |  Owner   | Security | Access privileges | Language | Internal name | Description 
 ---------+----------------------+------------------+---------------------+------+------------+----------+----------+----------+-------------------+----------+---------------+-------------
- website | vectorizer_src_trg_1 | trigger          |                     | func | volatile   | unsafe   | postgres | invoker  |                   | plpgsql  |               | 
+ website | vectorizer_src_trg_1 | trigger          |                     | func | volatile   | safe     | postgres | invoker  |                   | plpgsql  |               | 
 (1 row)
 """.strip()
 
@@ -440,8 +445,7 @@ def test_vectorizer():
             cur.execute("""
             select ai.create_vectorizer
             ( 'website.blog'::regclass
-            , 768
-            , _embedding=>ai.embedding_config_openai('text-embedding-3-small', _dimensions=>768)
+            , _embedding=>ai.embedding_openai('text-embedding-3-small', 768)
             , _chunking=>ai.chunking_config_token_text_splitter('body', 128, 10)
             , _formatting=>ai.formatting_config_python_string_template
                     ( array['title', 'published']
@@ -462,8 +466,8 @@ def test_vectorizer():
                 from ai.vectorizer x 
                 where x.id = %s
             """, (vectorizer_id,))
-            actual = json.dumps(json.loads(cur.fetchone()[0]), sort_keys=True)
-            expected = json.dumps(json.loads(VECTORIZER_ROW), sort_keys=True)
+            actual = json.dumps(json.loads(cur.fetchone()[0]), sort_keys=True, indent=2)
+            expected = json.dumps(json.loads(VECTORIZER_ROW), sort_keys=True, indent=2)
             assert actual == expected
 
             # check that the queue has 3 rows
@@ -568,18 +572,18 @@ def test_vectorizer():
             assert actual == 0
 
     # does the source table look right?
-    actual = psql_cmd("\d+ website.blog")
+    actual = psql_cmd(r"\d+ website.blog")
     assert actual == SOURCE_TABLE
 
     # does the source trigger function look right?
-    actual = psql_cmd("\df+ website.vectorizer_src_trg_1()")
+    actual = psql_cmd(r"\df+ website.vectorizer_src_trg_1()")
     assert actual == SOURCE_TRIGGER_FUNC
 
     # does the target table look right?
-    actual = psql_cmd("\d+ website.blog_embedding")
+    actual = psql_cmd(r"\d+ website.blog_embedding")
     assert actual == TARGET_TABLE
 
     # does the queue table look right?
-    actual = psql_cmd("\d+ ai.vectorizer_q_1")
+    actual = psql_cmd(r"\d+ ai.vectorizer_q_1")
     assert actual == QUEUE_TABLE
 
