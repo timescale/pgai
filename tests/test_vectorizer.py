@@ -227,30 +227,41 @@ def test_scheduling_timescaledb():
                     assert k in expected and v == expected[k]
 
 
-def test_formatting_config_python_string_template():
+def test_formatting_python_template():
     tests = [
         (
             """
-            select ai.formatting_config_python_string_template
-            ( array['size', 'shape']
-            , 'size: $size shape: $shape $chunk'
+            select ai.formatting_python_template
+            ( 'size: $size shape: $shape $chunk'
             )
             """,
             {
-                "implementation": "python_string_template",
+                "implementation": "python_template",
+                "template": "size: $size shape: $shape $chunk",
+            },
+        ),
+        (
+            """
+            select ai.formatting_python_template
+            ( 'size: $size shape: $shape $chunk'
+            , _columns=>array['size', 'shape']
+            )
+            """,
+            {
+                "implementation": "python_template",
                 "columns": ["size", "shape"],
                 "template": "size: $size shape: $shape $chunk",
             },
         ),
         (
             """
-            select ai.formatting_config_python_string_template
-            ( array['color', 'weight', 'category']
-            , 'color: $color weight: $weight category: $category $chunk'
+            select ai.formatting_python_template
+            ( 'color: $color weight: $weight category: $category $chunk'
+            , _columns=>array['color', 'weight', 'category']
             )
             """,
             {
-                "implementation": "python_string_template",
+                "implementation": "python_template",
                 "columns": ["color", "weight", "category"],
                 "template": "color: $color weight: $weight category: $category $chunk",
             },
@@ -266,40 +277,94 @@ def test_formatting_config_python_string_template():
                     assert k in expected and v == expected[k]
 
 
-def test_validate_formatting_config_python_string_template():
+def test_validate_formatting_python_template():
     ok = [
-        """
-        select ai._validate_formatting_config_python_string_template
-        ( ai.formatting_config_python_string_template
-          ( array['color', 'weight']
-          , 'color: $color weight: $weight $chunk'
-          )
-        , 'public', 'thing'
-        )
-        """,
+        (
+            """
+            select ai._validate_formatting_python_template
+            ( ai.formatting_python_template('color: $color weight: $weight $chunk')
+            , 'public', 'thing'
+            )
+            """,
+            {
+                "implementation": "python_template",
+                "columns": ["id", "color", "weight"],
+                "template": "color: $color weight: $weight $chunk",
+            },
+        ),
+        (
+            """
+            select ai._validate_formatting_python_template
+            ( ai.formatting_python_template
+              ( 'color: $color weight: $weight $chunk'
+              , _columns=>array['color', 'weight']
+              )
+            , 'public', 'thing'
+            )
+            """,
+            {
+                "implementation": "python_template",
+                "columns": ["color", "weight"],
+                "template": "color: $color weight: $weight $chunk",
+            },
+        ),
     ]
     bad = [
-        """
-        select ai._validate_formatting_config_python_string_template
-        ( ai.formatting_config_python_string_template
-          ( array['color', 'weight', 'height']
-          , 'color: $color weight: $weight height: $height $chunk'
-          )
-        , 'public', 'thing'
-        )
-        """,
+        (
+            """
+            select ai._validate_formatting_python_template
+            ( ai.formatting_python_template
+              ( 'color: $color weight: $weight height: $height $chunk'
+              , _columns=>array['color', 'weight', 'height']
+              )
+            , 'public', 'thing'
+            )
+            """,
+            "columns in config do not exist in the table: height",
+        ),
+        (
+            """
+            select ai._validate_formatting_python_template
+            ( ai.formatting_python_template
+              ( 'color: $color weight: $weight height: $height' -- no $chunk
+              )
+            , 'public', 'thing'
+            )
+            """,
+            "template must contain $chunk placeholder",
+        ),
+        (
+            """
+            select ai._validate_formatting_python_template
+            ( ai.formatting_python_template
+              ( 'color: $color weight: $weight height: $height $chunk'
+              )
+            , 'public', 'thing2' -- has a column named "chunk"
+            )
+            """,
+            'formatting_python_template may not be used when source table has a column named "chunk"',
+        ),
     ]
-    with psycopg.connect(db_url("test")) as con:
+    with psycopg.connect(db_url("test"), autocommit=True) as con:
         with con.cursor() as cur:
             cur.execute("drop table if exists public.thing;")
             cur.execute("create table public.thing (id int, color text, weight float)")
-            for query in ok:
+            cur.execute("drop table if exists public.thing2;")
+            cur.execute("create table public.thing2 (id int, color text, weight float, chunk text)")
+            for query, expected in ok:
                 cur.execute(query)
-                assert True
-            for query in bad:
-                with pytest.raises(psycopg.errors.RaiseException):
+                actual = cur.fetchone()[0]
+                assert actual.keys() == expected.keys()
+                for k, v in actual.items():
+                    assert k in expected and v == expected[k]
+            for query, err in bad:
+                try:
                     cur.execute(query)
-            con.rollback()
+                except psycopg.ProgrammingError as ex:
+                    msg = str(ex.args[0])
+                    assert len(msg) >= len(err) and msg[:len(err)] == err
+                else:
+                    pytest.fail(f"expected exception: {err}")
 
 
 VECTORIZER_ROW = """
@@ -325,7 +390,7 @@ VECTORIZER_ROW = """
                 "published"
             ],
             "template": "title: $title published: $published $chunk",
-            "implementation": "python_string_template"
+            "implementation": "python_template"
         },
         "scheduling": {
             "job_id": 1000,
@@ -461,9 +526,9 @@ def test_vectorizer():
             ( 'website.blog'::regclass
             , _embedding=>ai.embedding_openai('text-embedding-3-small', 768)
             , _chunking=>ai.chunking_config_token_text_splitter('body', 128, 10)
-            , _formatting=>ai.formatting_config_python_string_template
-                    ( array['title', 'published']
-                    , 'title: $title published: $published $chunk'
+            , _formatting=>ai.formatting_python_template
+                    ( 'title: $title published: $published $chunk'
+                    , _columns=>array['title', 'published']
                     )
             , _scheduling=>ai.scheduling_timescaledb
                     ( interval '5m'
