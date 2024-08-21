@@ -8,33 +8,35 @@ as $python$
     import ai.vectorizer
     ai.vectorizer.execute_async_ext_vectorizer(plpy, _vectorizer_id)
 $python$
-language plpython3u volatile parallel safe security invoker
+language plpython3u volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- embedding_config_openai
-create or replace function ai.embedding_config_openai
+-- embedding_openai
+create or replace function ai.embedding_openai
 ( _model text
-, _dimensions int default null
+, _dimensions int
 , _user text default null
+, _api_key_name text default 'OPENAI_API_KEY'
 ) returns jsonb
 as $func$
     select json_object
-    ( 'provider': 'openai'
+    ( 'implementation': 'openai'
     , 'model': _model
     , 'dimensions': _dimensions
     , 'user': _user
+    , 'api_key_name': _api_key_name
     absent on null
     )
-$func$ language sql immutable parallel safe security invoker
+$func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
 -- chunking_config_token_text_splitter
 create or replace function ai.chunking_config_token_text_splitter
-( _column name
+( _column name -- TODO: make optional in which case pick the ONLY text column?
 , _chunk_size int
 , _chunk_overlap int
 , _separator text default ' '
@@ -47,7 +49,7 @@ as $func$
     , 'chunk_overlap', _chunk_overlap
     , 'separator', _separator
     )
-$func$ language sql immutable parallel safe security invoker
+$func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -80,14 +82,14 @@ begin
         raise exception 'chunk column in config does not exist in the table: %', _chunk_column;
     end if;
 end
-$func$ language plpgsql stable parallel safe security invoker
+$func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
 -- formatting_config_python_string_template
 create or replace function ai.formatting_config_python_string_template
-( _columns name[]
+( _columns name[] -- TODO: make optional and provide all columns by default
 , _template text
 ) returns jsonb
 as $func$
@@ -96,7 +98,7 @@ as $func$
     , 'columns', _columns
     , 'template', _template
     )
-$func$ language sql immutable parallel safe security invoker
+$func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -111,6 +113,7 @@ as $func$
 declare
     _columns text;
 begin
+    -- TODO: make sure no source column is named "chunk"
     -- ensure the the columns listed in the config exist in the table
     -- find the columns in the config that do NOT exist in the table. hoping for zero results
     select string_agg(x.x, ', ') into _columns
@@ -132,7 +135,7 @@ begin
         raise exception 'columns in config do not exist in the table: %', _columns;
     end if;
 end
-$func$ language plpgsql stable parallel safe security invoker
+$func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -141,26 +144,28 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.scheduling_config_none() returns jsonb
 as $func$
     select pg_catalog.jsonb_build_object('implementation', 'none')
-$func$ language sql immutable parallel safe security invoker
+$func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
 -- scheduling_config_pg_cron
-create or replace function ai.scheduling_config_pg_cron(_schedule text) returns jsonb
+create or replace function ai.scheduling_config_pg_cron
+( _schedule text -- todo: default to '*/10 * * * *'
+) returns jsonb
 as $func$
     select pg_catalog.jsonb_build_object
     ( 'implementation', 'pg_cron'
     , 'schedule', _schedule
     )
-$func$ language sql immutable parallel safe security invoker
+$func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
 -- scheduling_config_timescaledb
 create or replace function ai.scheduling_config_timescaledb
-( _schedule_interval interval
+( _schedule_interval interval -- TODO: default 10m
 , _initial_start timestamptz default null
 , _fixed_schedule bool default null
 , _timezone text default null
@@ -174,7 +179,7 @@ as $func$
     , 'timezone': _timezone
     absent on null
     )
-$func$ language sql immutable parallel safe security invoker
+$func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -333,7 +338,7 @@ begin
         values (%s);
         return null;
     end;
-    $plpgsql$ language plpgsql volatile parallel unsafe security invoker
+    $plpgsql$ language plpgsql volatile parallel safe security invoker
     set search_path to pg_catalog, pg_temp
     $sql$
     , _source_schema, _trigger_name
@@ -501,13 +506,13 @@ set search_path to pg_catalog, pg_temp
 -- create_vectorizer
 create or replace function ai.create_vectorizer
 ( _source regclass
-, _dimensions int
 , _embedding jsonb
-, _chunking jsonb
-, _formatting jsonb
-, _scheduling jsonb
-, _asynchronous bool default true
-, _external bool default true
+, _chunking jsonb -- default
+, _formatting jsonb -- default
+, _scheduling jsonb -- default
+-- TODO: indexing config?
+, _asynchronous bool default true -- remove?
+, _external bool default true -- remove?
 , _target_schema name default null
 , _target_table name default null
 , _target_column name default null
@@ -518,6 +523,7 @@ as $func$
 declare
     _source_table name;
     _source_schema name;
+    _dimensions int;
     _source_pk jsonb;
     _vectorizer_id int;
     _sql text;
@@ -543,6 +549,7 @@ begin
     where k.oid operator(pg_catalog.=) _source
     ;
 
+    select (_embedding->'dimensions')::int into _dimensions;
     if _dimensions is null then
         raise exception '_dimensions argument is required';
     end if;
@@ -650,6 +657,7 @@ begin
       , 'chunking', _chunking
       , 'formatting', _formatting
       , 'scheduling', _scheduling
+      -- TODO: indexing config
       )
     );
 
@@ -680,3 +688,11 @@ end
 $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
+
+
+-- TODO: drop vectorizer function
+
+
+-- TODO: queue remaining function
+
+
