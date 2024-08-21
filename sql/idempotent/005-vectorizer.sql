@@ -140,8 +140,8 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- scheduling_config_none
-create or replace function ai.scheduling_config_none() returns jsonb
+-- scheduling_none
+create or replace function ai.scheduling_none() returns jsonb
 as $func$
     select pg_catalog.jsonb_build_object('implementation', 'none')
 $func$ language sql immutable security invoker
@@ -149,9 +149,9 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- scheduling_config_pg_cron
-create or replace function ai.scheduling_config_pg_cron
-( _schedule text -- todo: default to '*/10 * * * *'
+-- scheduling_pg_cron
+create or replace function ai.scheduling_pg_cron
+( _schedule text default '*/10 * * * *'
 ) returns jsonb
 as $func$
     select pg_catalog.jsonb_build_object
@@ -163,9 +163,9 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- scheduling_config_timescaledb
-create or replace function ai.scheduling_config_timescaledb
-( _schedule_interval interval -- TODO: default 10m
+-- scheduling_timescaledb
+create or replace function ai.scheduling_timescaledb
+( _schedule_interval interval default interval '10m'
 , _initial_start timestamptz default null
 , _fixed_schedule bool default null
 , _timezone text default null
@@ -509,7 +509,7 @@ create or replace function ai.create_vectorizer
 , _embedding jsonb
 , _chunking jsonb -- default
 , _formatting jsonb -- default
-, _scheduling jsonb -- default
+, _scheduling jsonb default ai.scheduling_timescaledb()
 -- TODO: indexing config?
 , _asynchronous bool default true -- remove?
 , _external bool default true -- remove?
