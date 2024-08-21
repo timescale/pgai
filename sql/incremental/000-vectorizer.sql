@@ -11,6 +11,7 @@ create table ai.vectorizer
 , target_column name not null
 , queue_schema name
 , queue_table name
+-- TODO: trigger name / function
 , config jsonb not null
 , unique (target_schema, target_table)
 , check (case when not asynchronous then not external else true end)

@@ -1,9 +1,20 @@
+import random
+from typing import Optional
 
 from fastapi import FastAPI
 from pydantic import BaseModel
 import psycopg
 
+
 app = FastAPI()
+
+
+class PrimaryKeyColumn(BaseModel):
+    attnum: int
+    pknum: int
+    attname: str
+    typname: str
+    attnotnull: bool
 
 
 class Vectorizer(BaseModel):
@@ -12,7 +23,7 @@ class Vectorizer(BaseModel):
     external: bool
     source_schema: str
     source_table: str
-    source_pk: list[dict]
+    source_pk: list[PrimaryKeyColumn]
     target_schema: str
     target_table: str
     target_column: str
@@ -21,20 +32,22 @@ class Vectorizer(BaseModel):
     config: dict
 
 
-def work_the_queue(queue_schema: str, queue_table: str):
+def vectorize(v: Vectorizer) -> int:
     # pretend to work the queue
     with psycopg.connect("postgres://postgres@127.0.0.1:5432/test") as con:
-        with con.cursor() as cur:
-            cur.execute(f"""
-                delete from {queue_schema}.{queue_table}
-            """)
+        while True:
+            with con.cursor() as cur:
+                cur.execute(f"""
+                    delete from {v.queue_schema}.{v.queue_table}
+                """)
+                return cur.rowcount
 
 
 @app.post("/")
 async def execute_vectorizer(vectorizer: Vectorizer):
-    print(f"vectorizer: {vectorizer}")
+    print(f"vectorizer: {vectorizer.id}")
     # do this in a blocking manner to make the tests easier
     # we KNOW that when the HTTP request has returned that the work has been done
-    work_the_queue(vectorizer.queue_schema, vectorizer.queue_table)
-    print("returning...")
+    deleted = vectorize(vectorizer)
+    print(f"queue emptied: {deleted} rows deleted")
     return {"id": vectorizer.id}
