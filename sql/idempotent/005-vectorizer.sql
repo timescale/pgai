@@ -434,6 +434,59 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- _vectorizer_create_view
+create or replace function ai._vectorizer_create_view
+( _view_schema name
+, _view_name name
+, _source_schema name
+, _source_table name
+, _source_pk jsonb
+, _target_schema name
+, _target_table name
+) returns void as
+$func$
+declare
+    _sql text;
+begin
+    select pg_catalog.format
+    ( $sql$
+    create view %I.%I as
+    select
+      t.embedding_uuid
+    , t.chunk_seq
+    , t.chunk
+    , t.embedding
+    , s.*
+    from %I.%I t
+    left outer join %I.%I s
+    on (%s)
+    $sql$
+    , _view_schema, _view_name
+    , _target_schema, _target_table
+    , _source_schema, _source_table
+    , (
+        select pg_catalog.string_agg
+        (
+            pg_catalog.format
+            ( case when x.attnotnull then 't.%s = s.%s' else 't.%s is not distinct from s.%s' end
+            , x.attname
+            , x.attname
+            )
+            , ' and '
+            order by x.pknum
+        )
+        from pg_catalog.jsonb_to_recordset(_source_pk)
+            x(pknum int, attname name, attnotnull bool)
+      )
+    ) into strict _sql;
+    execute _sql;
+end
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- _vectorizer_create_queue_table
 create or replace function ai._vectorizer_create_queue_table
 ( _queue_schema name
@@ -681,6 +734,8 @@ create or replace function ai.create_vectorizer
 , _external bool default true -- remove?
 , _target_schema name default null
 , _target_table name default null
+, _view_schema name default null
+, _view_name name default null
 , _queue_schema name default null
 , _queue_table name default null
 , _grant_to name[] default array['vectorizer'] -- TODO: what is the final role name we want to use here?
@@ -748,6 +803,8 @@ begin
     _vectorizer_id = pg_catalog.nextval('ai.vectorizer_id_seq'::pg_catalog.regclass);
     _target_schema = coalesce(_target_schema, _source_schema);
     _target_table = coalesce(_target_table, pg_catalog.concat(_source_table, '_embedding_store'));
+    _view_schema = coalesce(_view_schema, _source_schema);
+    _view_name = coalesce(_view_name, pg_catalog.concat(_source_table, '_embedding'));
     _trigger_name = pg_catalog.concat('vectorizer_src_trg_', _vectorizer_id);
     _queue_schema = coalesce(_queue_schema, 'ai');
     _queue_table = coalesce(_queue_table, pg_catalog.concat('_vectorizer_q_', _vectorizer_id));
@@ -852,6 +909,19 @@ begin
     , _source_pk
     );
 
+    -- create view
+    perform ai._vectorizer_create_view -- TODO: add tests for this
+    ( _view_schema
+    , _view_name
+    , _source_schema
+    , _source_table
+    , _source_pk
+    , _target_schema
+    , _target_table
+    );
+
+    -- TODO: add grants for the view
+
     -- schedule the async ext job
     select ai._vectorizer_schedule_async_ext_job
     (_vectorizer_id
@@ -871,6 +941,8 @@ begin
     , source_pk
     , target_schema
     , target_table
+    , view_schema
+    , view_name
     , trigger_name
     , queue_schema
     , queue_table
@@ -885,6 +957,8 @@ begin
     , _source_pk
     , _target_schema
     , _target_table
+    , _view_schema
+    , _view_name
     , _trigger_name
     , _queue_schema
     , _queue_table
