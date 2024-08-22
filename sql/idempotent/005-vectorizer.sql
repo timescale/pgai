@@ -53,20 +53,11 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai._validate_indexing_diskann(_config jsonb) returns void
 as $func$
 declare
-    _implementation text;
     _storage_layout text;
 begin
-    _implementation = _config operator(pg_catalog.->>) 'implementation';
-    if _implementation is null then
-        raise exception 'implementation must not be null';
-    end if;
-    if _implementation operator(pg_catalog.!=) 'diskann' then
-        raise exception 'implementation must be "diskann" not "%"', _implementation;
-    end if;
     _storage_layout = _config operator(pg_catalog.->>) 'storage_layout';
-    if _storage_layout is not null
-       and _storage_layout operator(pg_catalog.!=) any(array['memory_optimized', 'plain']) then
-        raise exception 'storage_layout must be one of "memory_optimized" or "plain" not "%"', _storage_layout;
+    if _storage_layout is not null and not (_storage_layout operator(pg_catalog.=) any(array['memory_optimized', 'plain'])) then
+        raise exception 'invalid storage_layout';
     end if;
 end
 $func$ language plpgsql stable security invoker
@@ -103,8 +94,8 @@ declare
 begin
     _opclass = _config operator(pg_catalog.->>) 'opclass';
     if _opclass is not null
-       and _opclass operator(pg_catalog.!=) any(array['vector_ip_ops', 'vector_cosine_ops', 'vector_l1_ops']) then
-        raise exception 'opclass must be one of "vector_ip_ops", "vector_cosine_ops", or "vector_l1_ops" not "%"', _opclass;
+    and not (_opclass operator(pg_catalog.=) any(array['vector_ip_ops', 'vector_cosine_ops', 'vector_l1_ops'])) then
+        raise exception 'invalid opclass';
     end if;
 end
 $func$ language plpgsql stable security invoker
