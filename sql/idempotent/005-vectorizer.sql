@@ -92,7 +92,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- formatting_python_template
 create or replace function ai.formatting_python_template
-( _template text
+( _template text -- TODO: default to '$chunk'
 , _columns name[] default null
 ) returns jsonb
 as $func$
@@ -558,9 +558,9 @@ create or replace function ai.create_vectorizer
 ( _source regclass
 , _embedding jsonb
 , _chunking jsonb
+-- TODO: indexing config?
 , _formatting jsonb default ai.formatting_python_template('$chunk')
 , _scheduling jsonb default ai.scheduling_timescaledb()
--- TODO: indexing config?
 , _asynchronous bool default true -- remove?
 , _external bool default true -- remove?
 , _target_schema name default null
@@ -568,10 +568,11 @@ create or replace function ai.create_vectorizer
 , _target_column name default null
 , _queue_schema name default null
 , _queue_table name default null
--- TODO: _grant_to name[] default array['embed_role']
+, _grant_to name[] default array['vectorizer'] -- TODO: what is the final role name we want to use here?
 ) returns int
 as $func$
 declare
+    _found bool;
     _source_table name;
     _source_schema name;
     _trigger_name name;
@@ -592,6 +593,18 @@ begin
 
     if not _asynchronous and _external then
         raise exception 'synchronous vectorizers must be internal';
+    end if;
+
+    -- make sure all the roles listed in _grant_to exist
+    if _grant_to is not null then
+        -- do any roles NOT exist
+        select pg_catalog.count(*) filter (where pg_catalog.to_regrole(r) is null) operator(pg_catalog.>) 0
+        into strict _found
+        from pg_catalog.unnest(_grant_to) r
+        ;
+        if _found then
+            raise exception 'one or more _grant_to roles do not exist';
+        end if;
     end if;
 
     -- get source table name and schema name
@@ -645,6 +658,20 @@ begin
             );
     end case;
 
+    -- grant select on source table to _grant_to roles
+    if _grant_to is not null then
+        select pg_catalog.format
+        ( $sql$grant select on %I.%I to %s$sql$
+        , _source_schema
+        , _source_table
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(_grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+    end if;
+
     -- create the target table
     perform ai._vectorizer_create_target_table
     ( _source_schema
@@ -656,12 +683,40 @@ begin
     , _dimensions
     );
 
+    -- grant select, insert, update on target table to _grant_to roles
+    if _grant_to is not null then
+        select pg_catalog.format
+        ( $sql$grant select, insert, update on %I.%I to %s$sql$
+        , _target_schema
+        , _target_table
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(_grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+    end if;
+
     -- create queue table
     perform ai._vectorizer_create_queue_table
     ( _queue_schema
     , _queue_table
     , _source_pk
     );
+
+    -- grant select, update, delete on queue table to _grant_to roles
+    if _grant_to is not null then
+        select pg_catalog.format
+        ( $sql$grant select, update, delete on %I.%I to %s$sql$
+        , _queue_schema
+        , _queue_table
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(_grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+    end if;
 
     -- create trigger on source table to populate queue
     perform ai._vectorizer_create_source_trigger
@@ -720,6 +775,25 @@ begin
       -- TODO: indexing config
       )
     );
+
+    -- grant select on vectorizer table _grant_to roles
+    -- TODO: is there a better way to do this?
+    if _grant_to is not null then
+        -- grant select on the users that do NOT already have it
+        for _sql in
+        (
+            select pg_catalog.format($sql$grant select on ai.vectorizer to %I$sql$, x)
+            from pg_catalog.unnest(_grant_to) x
+            where not pg_catalog.has_table_privilege
+            ( x
+            , 'ai.vectorizer'
+            , 'select'
+            )
+        )
+        loop
+            execute _sql;
+        end loop;
+    end if;
 
     -- insert into queue any existing rows from source table
     select pg_catalog.format
@@ -841,4 +915,4 @@ $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
-
+-- TODO: create a view for console explorer
