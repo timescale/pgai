@@ -752,14 +752,18 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.vectorizer_queue_depth(_vectorizer_id int) returns bigint
 as $func$
 declare
-    _vectorizer ai.vectorizer%rowtype;
+    _queue_schema name;
+    _queue_table name;
     _sql text;
     _queue_depth bigint;
 begin
-    select * into strict _vectorizer
+    select queue_schema, queue_table into _queue_schema, _queue_table
     from ai.vectorizer v
     where v.id operator(pg_catalog.=) _vectorizer_id
     ;
+    if _queue_schema is null or _queue_table is null then
+        raise exception 'vectorizer has no queue table';
+    end if;
     select format
     ( $sql$
         select count(*)
@@ -770,7 +774,7 @@ begin
             for key share skip locked
         ) x
     $sql$
-    , _vectorizer.queue_schema, _vectorizer.queue_table
+    , _queue_schema, _queue_table
     ) into strict _sql
     ;
     execute _sql into strict _queue_depth;
