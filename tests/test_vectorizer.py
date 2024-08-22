@@ -529,6 +529,9 @@ def test_vectorizer():
         with con.cursor() as cur:
             # set up the test
             cur.execute("create extension if not exists timescaledb")
+            cur.execute("select to_regrole('bob') is null")
+            if cur.fetchone()[0] is True:
+                cur.execute("create user bob")
             cur.execute("drop schema if exists website cascade")
             cur.execute("create schema website")
             cur.execute("drop table if exists website.blog")
@@ -565,6 +568,7 @@ def test_vectorizer():
                     , _initial_start=>'2050-01-06'::timestamptz
                     , _timezone=>'America/Chicago'
                     )
+            , _grant_to=>array['bob']
             );
             """)
             vectorizer_id = cur.fetchone()[0]
@@ -583,6 +587,26 @@ def test_vectorizer():
             cur.execute("select ai.vectorizer_queue_depth(%s)", (vectorizer_id,))
             actual = cur.fetchone()[0]
             assert actual == 3
+
+            # bob should have select on the source table
+            cur.execute("select has_table_privilege('bob', 'website.blog', 'select')")
+            actual = cur.fetchone()[0]
+            assert actual
+
+            # bob should have select, update, delete on the queue table
+            cur.execute("select has_table_privilege('bob', 'ai.vectorizer_q_1', 'select, update, delete')")
+            actual = cur.fetchone()[0]
+            assert actual
+
+            # bob should have select, insert, update on the queue table
+            cur.execute("select has_table_privilege('bob', 'website.blog_embedding', 'select, insert, update')")
+            actual = cur.fetchone()[0]
+            assert actual
+
+            # bob should have select on the vectorizer table
+            cur.execute("select has_table_privilege('bob', 'ai.vectorizer', 'select')")
+            actual = cur.fetchone()[0]
+            assert actual
 
             # get timescaledb job's job_id
             cur.execute("""
@@ -736,6 +760,7 @@ def test_drop_vectorizer():
             ( 'wiki.post'::regclass
             , _embedding=>ai.embedding_openai('text-embedding-3-small', 768)
             , _chunking=>ai.chunking_character_text_splitter('content', 128, 10)
+            , _grant_to=>null
             );
             """)
             vectorizer_id = cur.fetchone()[0]
