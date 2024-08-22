@@ -1,6 +1,3 @@
-import random
-from typing import Optional
-
 from fastapi import FastAPI
 from pydantic import BaseModel
 import psycopg
@@ -27,6 +24,7 @@ class Vectorizer(BaseModel):
     target_schema: str
     target_table: str
     target_column: str
+    trigger_name: str
     queue_schema: str | None = None
     queue_table: str | None = None
     config: dict

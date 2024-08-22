@@ -278,7 +278,7 @@ begin
     select pg_catalog.format
     ( $sql$
     create table %I.%I
-    ( id uuid not null primary key default pg_catalog.gen_random_uuid()
+    ( chunk_uuid uuid not null primary key default pg_catalog.gen_random_uuid()
     , %s
     , chunk_seq int not null
     , chunk text not null
@@ -749,9 +749,70 @@ $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+create or replace function ai.drop_vectorizer(_vectorizer_id int) returns void
+as $func$
+declare
+    _vec ai.vectorizer%rowtype;
+    _trigger pg_catalog.pg_trigger%rowtype;
+    _sql text;
+begin
+    -- grab the vectorizer we need to drop
+    select v.* into strict _vec
+    from ai.vectorizer v
+    where v.id operator(pg_catalog.=) _vectorizer_id
+    ;
 
--- TODO: drop vectorizer function
+    -- look up the trigger so we can find the function/procedure backing the trigger
+    select * into strict _trigger
+    from pg_catalog.pg_trigger g
+    where g.tgname operator(pg_catalog.=) _vec.trigger_name
+    and g.tgrelid operator(pg_catalog.=) pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::regclass::oid
+    ;
 
+    -- drop the trigger on the source table
+    select pg_catalog.format
+    ( $sql$drop trigger %I on %I.%I$sql$
+    , _trigger.tgname
+    , _vec.source_schema
+    , _vec.source_table
+    ) into strict _sql
+    ;
+    execute _sql;
+
+    -- drop the function/procedure backing the trigger
+    select pg_catalog.format
+    ( $sql$drop %s %I.%I()$sql$
+    , case p.prokind when 'f' then 'function' when 'p' then 'procedure' end
+    , n.nspname
+    , p.proname
+    ) into strict _sql
+    from pg_catalog.pg_proc p
+    inner join pg_catalog.pg_namespace n on (n.oid operator(pg_catalog.=) p.pronamespace)
+    where p.oid operator(pg_catalog.=) _trigger.tgfoid
+    ;
+    execute _sql;
+
+    -- drop the queue table
+    select pg_catalog.format
+    ( $sql$drop table %I.%I$sql$
+    , n.nspname
+    , k.relname
+    ) into strict _sql
+    from pg_catalog.pg_class k
+    inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
+    where k.relname operator(pg_catalog.=) _vec.queue_table
+    and n.nspname operator(pg_catalog.=) _vec.queue_schema
+    ;
+    execute _sql;
+
+    -- delete the vectorizer row
+    delete from ai.vectorizer v
+    where v.id operator(pg_catalog.=) _vectorizer_id
+    ;
+end;
+$func$ language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
 
 create or replace function ai.vectorizer_queue_depth(_vectorizer_id int) returns bigint
 as $func$
@@ -761,7 +822,7 @@ declare
     _sql text;
     _queue_depth bigint;
 begin
-    select queue_schema, queue_table into _queue_schema, _queue_table
+    select v.queue_schema, v.queue_table into _queue_schema, _queue_table
     from ai.vectorizer v
     where v.id operator(pg_catalog.=) _vectorizer_id
     ;

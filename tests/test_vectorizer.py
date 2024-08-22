@@ -487,17 +487,17 @@ SOURCE_TRIGGER_FUNC = """
 
 
 TARGET_TABLE = """
-                                                    Table "website.blog_embedding"
-  Column   |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
------------+--------------------------+-----------+----------+-------------------+----------+-------------+--------------+-------------
- id        | uuid                     |           | not null | gen_random_uuid() | plain    |             |              | 
- title     | text                     |           | not null |                   | extended |             |              | 
- published | timestamp with time zone |           | not null |                   | plain    |             |              | 
- chunk_seq | integer                  |           | not null |                   | plain    |             |              | 
- chunk     | text                     |           | not null |                   | extended |             |              | 
- embedding | vector(768)              |           | not null |                   | external |             |              | 
+                                                     Table "website.blog_embedding"
+   Column   |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
+------------+--------------------------+-----------+----------+-------------------+----------+-------------+--------------+-------------
+ chunk_uuid | uuid                     |           | not null | gen_random_uuid() | plain    |             |              | 
+ title      | text                     |           | not null |                   | extended |             |              | 
+ published  | timestamp with time zone |           | not null |                   | plain    |             |              | 
+ chunk_seq  | integer                  |           | not null |                   | plain    |             |              | 
+ chunk      | text                     |           | not null |                   | extended |             |              | 
+ embedding  | vector(768)              |           | not null |                   | external |             |              | 
 Indexes:
-    "blog_embedding_pkey" PRIMARY KEY, btree (id)
+    "blog_embedding_pkey" PRIMARY KEY, btree (chunk_uuid)
     "blog_embedding_title_published_chunk_seq_key" UNIQUE CONSTRAINT, btree (title, published, chunk_seq)
 Foreign-key constraints:
     "blog_embedding_title_published_fkey" FOREIGN KEY (title, published) REFERENCES website.blog(title, published) ON DELETE CASCADE
@@ -699,3 +699,100 @@ def test_vectorizer():
     actual = psql_cmd(r"\d+ ai.vectorizer_q_1")
     assert actual == QUEUE_TABLE
 
+
+def test_drop_vectorizer():
+    with psycopg.connect(db_url("postgres"), autocommit=True, row_factory=namedtuple_row) as con:
+        with con.cursor() as cur:
+            # set up the test
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("drop schema if exists wiki cascade")
+            cur.execute("create schema wiki")
+            cur.execute("drop table if exists wiki.post")
+            cur.execute("""
+                create table wiki.post
+                ( id serial not null primary key
+                , title text not null
+                , published timestamptz
+                , category text
+                , tags text[]
+                , content text not null
+                )
+            """)
+            cur.execute("""
+                insert into wiki.post(title, published, category, tags, content)
+                values
+                  ( 'how to cook a hot dog'
+                  , '2024-01-06'::timestamptz
+                  , 'recipies'
+                  , array['grill', 'fast']
+                  , 'put it on a hot grill'
+                  )
+            """)
+
+            # create a vectorizer for the blog table
+            # language=PostgreSQL
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'wiki.post'::regclass
+            , _embedding=>ai.embedding_openai('text-embedding-3-small', 768)
+            , _chunking=>ai.chunking_character_text_splitter('content', 128, 10)
+            );
+            """)
+            vectorizer_id = cur.fetchone()[0]
+
+            cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
+            vectorizer = cur.fetchone()
+
+            # does the target table exist? (it should)
+            cur.execute(f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null")
+            actual = cur.fetchone()[0]
+            assert actual == True
+
+            # does the queue table exist? (it should)
+            cur.execute(f"select to_regclass('{vectorizer.queue_schema}.{vectorizer.queue_table}') is not null")
+            actual = cur.fetchone()[0]
+            assert actual == True
+
+            # do the trigger and backing function exist? (it should)
+            cur.execute(f"""
+                select g.tgfoid
+                from pg_trigger g
+                where g.tgname = '{vectorizer.trigger_name}'
+                and g.tgrelid = '{vectorizer.source_schema}.{vectorizer.source_table}'::regclass::oid
+                ;
+            """)
+            assert cur.rownumber is not None
+            pg_proc_oid = cur.fetchone()[0]
+
+            # drop the vectorizer
+            cur.execute("select ai.drop_vectorizer(%s)", (vectorizer_id,))
+
+            # does the target table exist? (it should)
+            cur.execute(f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null")
+            actual = cur.fetchone()[0]
+            assert actual == True
+
+            # does the queue table exist? (it should not)
+            cur.execute(f"select to_regclass('{vectorizer.queue_schema}.{vectorizer.queue_table}') is not null")
+            actual = cur.fetchone()[0]
+            assert actual == False
+
+            # does the trigger exist? (it should not)
+            cur.execute(f"""
+                select count(*)
+                from pg_trigger g
+                where g.tgname = '{vectorizer.trigger_name}'
+                and g.tgrelid = '{vectorizer.source_schema}.{vectorizer.source_table}'::regclass::oid
+                ;
+            """)
+            actual = cur.fetchone()[0]
+            assert actual == 0
+
+            # does the func that backed the trigger exist? (it should not)
+            cur.execute(f"""
+                select count(*)
+                from pg_proc
+                where oid = %s
+            """, (pg_proc_oid,))
+            actual = cur.fetchone()[0]
+            assert actual == 0
