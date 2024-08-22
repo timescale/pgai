@@ -676,6 +676,9 @@ def test_vectorizer():
             actual = cur.fetchone()[0]
             assert actual == 1
 
+            # check that using the GUC works
+            cur.execute("select set_config('ai.execute_vectorizer_url', 'http://localhost:8000', false)")
+
             # ping the external job explicitly
             # language=PostgreSQL
             cur.execute("select ai.execute_async_ext_vectorizer(%s)"
