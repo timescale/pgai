@@ -13,6 +13,132 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- indexing_none
+create or replace function ai.indexing_none() returns jsonb
+as $func$
+    select jsonb_build_object('implementation', 'none')
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- indexing_diskann
+create or replace function ai.indexing_diskann
+( _min_rows int default 100000
+, _storage_layout text default null
+, _num_neighbors int default null
+, _search_list_size int default null
+, _max_alpha float8 default null
+, _num_dimensions int default null
+, _num_bits_per_dimension int default null
+) returns jsonb
+as $func$
+    select json_object
+    ( 'implementation': 'diskann'
+    , 'min_rows': _min_rows
+    , 'storage_layout': _storage_layout
+    , 'num_neighbors': _num_neighbors
+    , 'search_list_size': _search_list_size
+    , 'max_alpha': _max_alpha
+    , 'num_dimensions': _num_dimensions
+    , 'num_bits_per_dimension': _num_bits_per_dimension
+    absent on null
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _validate_indexing_diskann
+create or replace function ai._validate_indexing_diskann(_config jsonb) returns void
+as $func$
+declare
+    _implementation text;
+    _storage_layout text;
+begin
+    _implementation = _config operator(pg_catalog.->>) 'implementation';
+    if _implementation is null then
+        raise exception 'implementation must not be null';
+    end if;
+    if _implementation operator(pg_catalog.!=) 'diskann' then
+        raise exception 'implementation must be "diskann" not "%"', _implementation;
+    end if;
+    _storage_layout = _config operator(pg_catalog.->>) 'storage_layout';
+    if _storage_layout is not null
+       and _storage_layout operator(pg_catalog.!=) any(array['memory_optimized', 'plain']) then
+        raise exception 'storage_layout must be one of "memory_optimized" or "plain" not "%"', _storage_layout;
+    end if;
+end
+$func$ language plpgsql stable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- indexing_hnsw
+create or replace function ai.indexing_hnsw
+( _min_rows int default 100000
+, _opclass text default null
+, _m int default null
+, _ef_construction int default null
+) returns jsonb
+as $func$
+    select json_object
+    ( 'implementation': 'hnsw'
+    , 'min_rows': _min_rows
+    , 'opclass': _opclass
+    , 'm': _m
+    , 'ef_construction': _ef_construction
+    absent on null
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _validate_indexing_hnsw
+create or replace function ai._validate_indexing_hnsw(_config jsonb) returns void
+as $func$
+declare
+    _opclass text;
+begin
+    _opclass = _config operator(pg_catalog.->>) 'opclass';
+    if _opclass is not null
+       and _opclass operator(pg_catalog.!=) any(array['vector_ip_ops', 'vector_cosine_ops', 'vector_l1_ops']) then
+        raise exception 'opclass must be one of "vector_ip_ops", "vector_cosine_ops", or "vector_l1_ops" not "%"', _opclass;
+    end if;
+end
+$func$ language plpgsql stable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _validate_indexing
+create or replace function ai._validate_indexing(_config jsonb) returns void
+as $func$
+declare
+    _implementation text;
+begin
+    _implementation = _config operator(pg_catalog.->>) 'implementation';
+    case _implementation
+        when 'none' then
+            -- ok
+        when 'diskann' then
+            perform ai._validate_indexing_diskann(_config);
+        when 'hnsw' then
+            perform ai._validate_indexing_hnsw(_config);
+        else
+            if _implementation is null then
+                raise exception 'indexing implementation not specified';
+            else
+                raise exception 'invalid indexing implementation: "%"', _implementation;
+            end if;
+    end case;
+end
+$func$ language plpgsql stable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- embedding_openai
 create or replace function ai.embedding_openai
 ( _model text
@@ -558,7 +684,7 @@ create or replace function ai.create_vectorizer
 ( _source regclass
 , _embedding jsonb
 , _chunking jsonb
--- TODO: indexing config?
+, _indexing jsonb default ai.indexing_diskann()
 , _formatting jsonb default ai.formatting_python_template()
 , _scheduling jsonb default ai.scheduling_timescaledb()
 , _asynchronous bool default true -- remove?
@@ -638,15 +764,7 @@ begin
     _queue_schema = coalesce(_queue_schema, 'ai');
     _queue_table = coalesce(_queue_table, pg_catalog.concat('_vectorizer_q_', _vectorizer_id));
 
-    -- validate the formatting config
-    case _formatting operator(pg_catalog.->>) 'implementation'
-        when 'python_template' then
-            _formatting = ai._validate_formatting_python_template
-            ( _formatting
-            , _source_schema
-            , _source_table
-            );
-    end case;
+    -- TODO: validate embedding config
 
     -- validate the chunking config
     case _chunking operator(pg_catalog.->>) 'implementation'
@@ -656,7 +774,26 @@ begin
             , _source_schema
             , _source_table
             );
+        else
+            raise exception 'unrecognized chunking config';
     end case;
+
+    -- validate the indexing config
+    perform ai._validate_indexing(_indexing);
+
+    -- validate the formatting config
+    case _formatting operator(pg_catalog.->>) 'implementation'
+        when 'python_template' then
+            _formatting = ai._validate_formatting_python_template
+            ( _formatting
+            , _source_schema
+            , _source_table
+            );
+        else
+            raise exception 'unrecognized formatting config';
+    end case;
+
+    -- TODO: validate the scheduling config
 
     -- grant select on source table to _grant_to roles
     if _grant_to is not null then
@@ -770,9 +907,9 @@ begin
       ( 'version', '@extversion@'
       , 'embedding', _embedding
       , 'chunking', _chunking
+      , 'indexing', _indexing
       , 'formatting', _formatting
       , 'scheduling', _scheduling
-      -- TODO: indexing config
       )
     );
 
