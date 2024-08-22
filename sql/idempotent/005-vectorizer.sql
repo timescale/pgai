@@ -395,7 +395,7 @@ begin
     select pg_catalog.format
     ( $sql$
     create table %I.%I
-    ( chunk_uuid uuid not null primary key default pg_catalog.gen_random_uuid()
+    ( embedding_uuid uuid not null primary key default pg_catalog.gen_random_uuid()
     , %s
     , chunk_seq int not null
     , chunk text not null
