@@ -780,7 +780,7 @@ begin
     execute _sql into strict _queue_depth;
     return _queue_depth;
 end;
-$func$ language plpgsql volatile security invoker
+$func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
