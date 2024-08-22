@@ -468,7 +468,7 @@ VECTORIZER_ROW = r"""
             "attnotnull": true
         }
     ],
-    "queue_table": "vectorizer_q_1",
+    "queue_table": "_vectorizer_q_1",
     "asynchronous": true,
     "queue_schema": "ai",
     "source_table": "blog",
@@ -528,14 +528,14 @@ Access method: heap
 
 
 QUEUE_TABLE = """
-                                                  Table "ai.vectorizer_q_1"
+                                                 Table "ai._vectorizer_q_1"
   Column   |           Type           | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
 -----------+--------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
  title     | text                     |           | not null |         | extended |             |              | 
  published | timestamp with time zone |           | not null |         | plain    |             |              | 
  queued_at | timestamp with time zone |           | not null | now()   | plain    |             |              | 
 Indexes:
-    "vectorizer_q_1_title_published_idx" btree (title, published)
+    "_vectorizer_q_1_title_published_idx" btree (title, published)
 Access method: heap
 """.strip()
 
@@ -616,7 +616,7 @@ def test_vectorizer():
             assert actual
 
             # bob should have select, update, delete on the queue table
-            cur.execute("select has_table_privilege('bob', 'ai.vectorizer_q_1', 'select, update, delete')")
+            cur.execute("select has_table_privilege('bob', 'ai._vectorizer_q_1', 'select, update, delete')")
             actual = cur.fetchone()[0]
             assert actual
 
@@ -724,7 +724,7 @@ def test_vectorizer():
                 with con2.cursor() as cur2:
                     cur2.execute("begin transaction")
                     # lock 1 row from the queue
-                    cur2.execute("select * from ai.vectorizer_q_1 where title = 'how to grill a steak' for update")
+                    cur2.execute("select * from ai._vectorizer_q_1 where title = 'how to grill a steak' for update")
                     locked = cur2.fetchone()
                     # check that vectorizer queue depth still gets the correct count
                     cur.execute("select ai.vectorizer_queue_depth(%s)", (vectorizer_id,))
@@ -745,7 +745,7 @@ def test_vectorizer():
     assert actual == TARGET_TABLE
 
     # does the queue table look right?
-    actual = psql_cmd(r"\d+ ai.vectorizer_q_1")
+    actual = psql_cmd(r"\d+ ai._vectorizer_q_1")
     assert actual == QUEUE_TABLE
 
 
