@@ -259,6 +259,15 @@ def test_formatting_python_template():
     tests = [
         (
             """
+            select ai.formatting_python_template()
+            """,
+            {
+                "implementation": "python_template",
+                "template": "$chunk",
+            },
+        ),
+        (
+            """
             select ai.formatting_python_template
             ( 'size: $size shape: $shape $chunk'
             )
@@ -307,6 +316,19 @@ def test_formatting_python_template():
 
 def test_validate_formatting_python_template():
     ok = [
+        (
+            """
+            select ai._validate_formatting_python_template
+            ( ai.formatting_python_template()
+            , 'public', 'thing'
+            )
+            """,
+            {
+                "implementation": "python_template",
+                "columns": ["id", "color", "weight"],
+                "template": "$chunk",
+            },
+        ),
         (
             """
             select ai._validate_formatting_python_template

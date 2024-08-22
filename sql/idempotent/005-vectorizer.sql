@@ -92,7 +92,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- formatting_python_template
 create or replace function ai.formatting_python_template
-( _template text -- TODO: default to '$chunk'
+( _template text default '$chunk'
 , _columns name[] default null
 ) returns jsonb
 as $func$
