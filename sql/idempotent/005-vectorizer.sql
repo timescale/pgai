@@ -749,6 +749,35 @@ set search_path to pg_catalog, pg_temp
 -- TODO: drop vectorizer function
 
 
--- TODO: queue remaining function
+create or replace function ai.vectorizer_queue_depth(_vectorizer_id int) returns bigint
+as $func$
+declare
+    _vectorizer ai.vectorizer%rowtype;
+    _sql text;
+    _queue_depth bigint;
+begin
+    select * into strict _vectorizer
+    from ai.vectorizer v
+    where v.id operator(pg_catalog.=) _vectorizer_id
+    ;
+    select format
+    ( $sql$
+        select count(*)
+        from
+        (
+            select 1
+            from %I.%I
+            for key share skip locked
+        ) x
+    $sql$
+    , _vectorizer.queue_schema, _vectorizer.queue_table
+    ) into strict _sql
+    ;
+    execute _sql into strict _queue_depth;
+    return _queue_depth;
+end;
+$func$ language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
 
 

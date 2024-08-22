@@ -579,10 +579,7 @@ def test_vectorizer():
             assert actual == expected
 
             # check that the queue has 3 rows
-            cur.execute("""
-                select count(*)
-                from ai.vectorizer_q_1
-            """)
+            cur.execute("select ai.vectorizer_queue_depth(%s)", (vectorizer_id,))
             actual = cur.fetchone()[0]
             assert actual == 3
 
@@ -612,10 +609,7 @@ def test_vectorizer():
             cur.execute("call public.run_job(%s)", (job_id,))
 
             # check that the queue has 0 rows
-            cur.execute("""
-                select count(*)
-                from ai.vectorizer_q_1
-            """)
+            cur.execute("select ai.vectorizer_queue_depth(%s)", (vectorizer_id,))
             actual = cur.fetchone()[0]
             assert actual == 0
 
@@ -632,10 +626,7 @@ def test_vectorizer():
             """)
 
             # check that the queue has 2 rows
-            cur.execute("""
-                select count(*)
-                from ai.vectorizer_q_1
-            """)
+            cur.execute("select ai.vectorizer_queue_depth(%s)", (vectorizer_id,))
             actual = cur.fetchone()[0]
             assert actual == 2
 
@@ -645,10 +636,7 @@ def test_vectorizer():
                         , (vectorizer_id,))
 
             # check that the queue has 0 rows
-            cur.execute("""
-                select count(*)
-                from ai.vectorizer_q_1
-            """)
+            cur.execute("select ai.vectorizer_queue_depth(%s)", (vectorizer_id,))
             actual = cur.fetchone()[0]
             assert actual == 0
 
@@ -659,10 +647,7 @@ def test_vectorizer():
             """)
 
             # check that the queue has 1 rows
-            cur.execute("""
-                select count(*)
-                from ai.vectorizer_q_1
-            """)
+            cur.execute("select ai.vectorizer_queue_depth(%s)", (vectorizer_id,))
             actual = cur.fetchone()[0]
             assert actual == 1
 
@@ -672,12 +657,30 @@ def test_vectorizer():
                         , (vectorizer_id,))
 
             # check that the queue has 0 rows
-            cur.execute("""
-                select count(*)
-                from ai.vectorizer_q_1
-            """)
+            cur.execute("select ai.vectorizer_queue_depth(%s)", (vectorizer_id,))
             actual = cur.fetchone()[0]
             assert actual == 0
+
+            # insert 2 rows into the source
+            cur.execute("""
+                insert into website.blog(title, published, body)
+                values
+                  ('how to grill a steak', '2020-01-06'::timestamptz, 'put it on a hot grill')
+                , ('how to make pizza', '2019-01-06'::timestamptz, 'pick up the phone and order delivery')
+            """)
+
+            # lock 1 row in the queue and check the queue depth
+            with psycopg.connect(db_url("postgres"), autocommit=False) as con2:
+                with con2.cursor() as cur2:
+                    cur2.execute("begin transaction")
+                    # lock 1 row from the queue
+                    cur2.execute("select * from ai.vectorizer_q_1 where title = 'how to grill a steak' for update")
+                    locked = cur2.fetchone()
+                    # check that vectorizer queue depth ignores the locked row
+                    cur.execute("select ai.vectorizer_queue_depth(%s)", (vectorizer_id,))
+                    actual = cur.fetchone()[0]
+                    assert actual == 1
+                    con2.rollback()
 
     # does the source table look right?
     actual = psql_cmd(r"\d+ website.blog")
