@@ -380,7 +380,6 @@ create or replace function ai._vectorizer_create_target_table
 , _source_pk jsonb
 , _target_schema name
 , _target_table name
-, _target_column name
 , _dimensions int
 ) returns void as
 $func$
@@ -399,7 +398,7 @@ begin
     , %s
     , chunk_seq int not null
     , chunk text not null
-    , %I @extschema:vector@.vector(%L) not null
+    , embedding @extschema:vector@.vector(%L) not null
     , unique (%s, chunk_seq)
     , foreign key (%s) references %I.%I (%s) on delete cascade
     )
@@ -420,7 +419,7 @@ begin
         from pg_catalog.jsonb_to_recordset(_source_pk)
             x(attnum int, attname name, typname name, attnotnull bool)
       )
-    , _target_column, _dimensions
+    , _dimensions
     , _pk_cols
     , _pk_cols
     , _source_schema, _source_table
@@ -682,7 +681,6 @@ create or replace function ai.create_vectorizer
 , _external bool default true -- remove?
 , _target_schema name default null
 , _target_table name default null
-, _target_column name default null
 , _queue_schema name default null
 , _queue_table name default null
 , _grant_to name[] default array['vectorizer'] -- TODO: what is the final role name we want to use here?
@@ -750,7 +748,6 @@ begin
     _vectorizer_id = pg_catalog.nextval('ai.vectorizer_id_seq'::pg_catalog.regclass);
     _target_schema = coalesce(_target_schema, _source_schema);
     _target_table = coalesce(_target_table, pg_catalog.concat(_source_table, '_embedding_store'));
-    _target_column = coalesce(_target_column, 'embedding');
     _trigger_name = pg_catalog.concat('vectorizer_src_trg_', _vectorizer_id);
     _queue_schema = coalesce(_queue_schema, 'ai');
     _queue_table = coalesce(_queue_table, pg_catalog.concat('_vectorizer_q_', _vectorizer_id));
@@ -807,7 +804,6 @@ begin
     , _source_pk
     , _target_schema
     , _target_table
-    , _target_column
     , _dimensions
     );
 
@@ -875,7 +871,6 @@ begin
     , source_pk
     , target_schema
     , target_table
-    , target_column
     , trigger_name
     , queue_schema
     , queue_table
@@ -890,7 +885,6 @@ begin
     , _source_pk
     , _target_schema
     , _target_table
-    , _target_column
     , _trigger_name
     , _queue_schema
     , _queue_table

@@ -637,7 +637,6 @@ VECTORIZER_ROW = r"""
     "target_table": "blog_embedding_store",
     "trigger_name": "vectorizer_src_trg_1",
     "source_schema": "website",
-    "target_column": "embedding",
     "target_schema": "website"
 }
 """
@@ -767,23 +766,26 @@ def test_vectorizer():
             expected = json.dumps(json.loads(VECTORIZER_ROW), sort_keys=True, indent=2)
             assert actual == expected
 
+            cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
+            vec = cur.fetchone()
+
             # check that the queue has 3 rows
             cur.execute("select ai.vectorizer_queue_depth(%s)", (vectorizer_id,))
             actual = cur.fetchone()[0]
             assert actual == 3
 
             # bob should have select on the source table
-            cur.execute("select has_table_privilege('bob', 'website.blog', 'select')")
+            cur.execute(f"select has_table_privilege('bob', 'website.blog', 'select')")
             actual = cur.fetchone()[0]
             assert actual
 
             # bob should have select, update, delete on the queue table
-            cur.execute("select has_table_privilege('bob', 'ai._vectorizer_q_1', 'select, update, delete')")
+            cur.execute(f"select has_table_privilege('bob', '{vec.queue_schema}.{vec.queue_table}', 'select, update, delete')")
             actual = cur.fetchone()[0]
             assert actual
 
-            # bob should have select, insert, update on the queue table
-            cur.execute("select has_table_privilege('bob', 'website.blog_embedding_store', 'select, insert, update')")
+            # bob should have select, insert, update on the target table
+            cur.execute(f"select has_table_privilege('bob', '{vec.target_schema}.{vec.target_table}', 'select, insert, update')")
             actual = cur.fetchone()[0]
             assert actual
 
@@ -886,7 +888,7 @@ def test_vectorizer():
                 with con2.cursor() as cur2:
                     cur2.execute("begin transaction")
                     # lock 1 row from the queue
-                    cur2.execute("select * from ai._vectorizer_q_1 where title = 'how to grill a steak' for update")
+                    cur2.execute(f"select * from {vec.queue_schema}.{vec.queue_table} where title = 'how to grill a steak' for update")
                     locked = cur2.fetchone()
                     # check that vectorizer queue depth still gets the correct count
                     cur.execute("select ai.vectorizer_queue_depth(%s)", (vectorizer_id,))
