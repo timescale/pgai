@@ -3,6 +3,9 @@ import json
 import httpx
 import backoff
 
+GUC_EXECUTE_VECTORIZER_URL = "ai.execute_vectorizer_url"
+DEFAULT_EXECUTE_VECTORIZER_URL = "http://localhost:8000"
+
 
 def execute_async_ext_vectorizer(plpy, vectorizer_id: int) -> None:
     plan = plpy.prepare(
@@ -18,6 +21,14 @@ def execute_async_ext_vectorizer(plpy, vectorizer_id: int) -> None:
         plpy.error(f"vectorizer {vectorizer_id} not found")
     vectorizer = json.loads(result[0]["vectorizer"])
 
+    plan = plpy.prepare("select pg_catalog.current_setting($1, true) as execute_vectorizer_url", ["text"])
+    result = plan.execute([GUC_EXECUTE_VECTORIZER_URL], 1)
+    url: str | None = None
+    if len(result) != 0:
+        url = result[0]["execute_vectorizer_url"]
+    if url is None:
+        url = DEFAULT_EXECUTE_VECTORIZER_URL
+
     def on_backoff(detail):
         plpy.warning(
             f"post_vectorizer_execution: {vectorizer_id} retry number: {detail['tries']} elapsed: {detail['elapsed']} wait: {detail['wait']}..."
@@ -27,9 +38,7 @@ def execute_async_ext_vectorizer(plpy, vectorizer_id: int) -> None:
         backoff.expo, httpx.HTTPError, max_tries=10, max_time=120, on_backoff=on_backoff
     )
     def post_vectorizer_execution(v: dict) -> httpx.Response:
-        return httpx.post("http://localhost:8000/", json=v)
-
-    # TODO: what is the final URL for this? use a GUC and default
+        return httpx.post(url, json=v)
 
     r = post_vectorizer_execution(vectorizer)
     if r.status_code != httpx.codes.OK:
