@@ -559,7 +559,7 @@ create or replace function ai.create_vectorizer
 , _embedding jsonb
 , _chunking jsonb
 -- TODO: indexing config?
-, _formatting jsonb default ai.formatting_python_template('$chunk')
+, _formatting jsonb default ai.formatting_python_template()
 , _scheduling jsonb default ai.scheduling_timescaledb()
 , _asynchronous bool default true -- remove?
 , _external bool default true -- remove?
