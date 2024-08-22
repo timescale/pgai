@@ -749,7 +749,7 @@ begin
 
     _vectorizer_id = pg_catalog.nextval('ai.vectorizer_id_seq'::pg_catalog.regclass);
     _target_schema = coalesce(_target_schema, _source_schema);
-    _target_table = coalesce(_target_table, pg_catalog.concat(_source_table, '_embedding'));
+    _target_table = coalesce(_target_table, pg_catalog.concat(_source_table, '_embedding_store'));
     _target_column = coalesce(_target_column, 'embedding');
     _trigger_name = pg_catalog.concat('vectorizer_src_trg_', _vectorizer_id);
     _queue_schema = coalesce(_queue_schema, 'ai');

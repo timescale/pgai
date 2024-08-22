@@ -587,6 +587,10 @@ VECTORIZER_ROW = r"""
             "implementation": "character_text_splitter",
             "is_separator_regex": false
         },
+        "indexing": {
+            "min_rows": 100000,
+            "implementation": "diskann"
+        },
         "embedding": {
             "model": "text-embedding-3-small",
             "dimensions": 768,
@@ -630,7 +634,7 @@ VECTORIZER_ROW = r"""
     "asynchronous": true,
     "queue_schema": "ai",
     "source_table": "blog",
-    "target_table": "blog_embedding",
+    "target_table": "blog_embedding_store",
     "trigger_name": "vectorizer_src_trg_1",
     "source_schema": "website",
     "target_column": "embedding",
@@ -650,7 +654,7 @@ SOURCE_TABLE = """
 Indexes:
     "blog_pkey" PRIMARY KEY, btree (title, published)
 Referenced by:
-    TABLE "website.blog_embedding" CONSTRAINT "blog_embedding_title_published_fkey" FOREIGN KEY (title, published) REFERENCES website.blog(title, published) ON DELETE CASCADE
+    TABLE "website.blog_embedding_store" CONSTRAINT "blog_embedding_store_title_published_fkey" FOREIGN KEY (title, published) REFERENCES website.blog(title, published) ON DELETE CASCADE
 Triggers:
     vectorizer_src_trg_1 AFTER INSERT OR UPDATE ON website.blog FOR EACH ROW EXECUTE FUNCTION website.vectorizer_src_trg_1()
 Access method: heap
@@ -667,7 +671,7 @@ SOURCE_TRIGGER_FUNC = """
 
 
 TARGET_TABLE = """
-                                                     Table "website.blog_embedding"
+                                                  Table "website.blog_embedding_store"
    Column   |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
 ------------+--------------------------+-----------+----------+-------------------+----------+-------------+--------------+-------------
  chunk_uuid | uuid                     |           | not null | gen_random_uuid() | plain    |             |              | 
@@ -677,10 +681,10 @@ TARGET_TABLE = """
  chunk      | text                     |           | not null |                   | extended |             |              | 
  embedding  | vector(768)              |           | not null |                   | external |             |              | 
 Indexes:
-    "blog_embedding_pkey" PRIMARY KEY, btree (chunk_uuid)
-    "blog_embedding_title_published_chunk_seq_key" UNIQUE CONSTRAINT, btree (title, published, chunk_seq)
+    "blog_embedding_store_pkey" PRIMARY KEY, btree (chunk_uuid)
+    "blog_embedding_store_title_published_chunk_seq_key" UNIQUE CONSTRAINT, btree (title, published, chunk_seq)
 Foreign-key constraints:
-    "blog_embedding_title_published_fkey" FOREIGN KEY (title, published) REFERENCES website.blog(title, published) ON DELETE CASCADE
+    "blog_embedding_store_title_published_fkey" FOREIGN KEY (title, published) REFERENCES website.blog(title, published) ON DELETE CASCADE
 Access method: heap
 """.strip()
 
@@ -779,7 +783,7 @@ def test_vectorizer():
             assert actual
 
             # bob should have select, insert, update on the queue table
-            cur.execute("select has_table_privilege('bob', 'website.blog_embedding', 'select, insert, update')")
+            cur.execute("select has_table_privilege('bob', 'website.blog_embedding_store', 'select, insert, update')")
             actual = cur.fetchone()[0]
             assert actual
 
@@ -899,7 +903,7 @@ def test_vectorizer():
     assert actual == SOURCE_TRIGGER_FUNC
 
     # does the target table look right?
-    actual = psql_cmd(r"\d+ website.blog_embedding")
+    actual = psql_cmd(r"\d+ website.blog_embedding_store")
     assert actual == TARGET_TABLE
 
     # does the queue table look right?
