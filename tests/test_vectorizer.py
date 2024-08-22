@@ -630,7 +630,9 @@ VECTORIZER_ROW = r"""
             "attnotnull": true
         }
     ],
+    "view_name": "blog_embedding",
     "queue_table": "_vectorizer_q_1",
+    "view_schema": "website",
     "asynchronous": true,
     "queue_schema": "ai",
     "source_table": "blog",
@@ -698,6 +700,32 @@ QUEUE_TABLE = """
 Indexes:
     "_vectorizer_q_1_title_published_idx" btree (title, published)
 Access method: heap
+""".strip()
+
+
+VIEW = """
+                                    View "website.blog_embedding"
+     Column     |           Type           | Collation | Nullable | Default | Storage  | Description 
+----------------+--------------------------+-----------+----------+---------+----------+-------------
+ embedding_uuid | uuid                     |           |          |         | plain    | 
+ chunk_seq      | integer                  |           |          |         | plain    | 
+ chunk          | text                     |           |          |         | extended | 
+ embedding      | vector(768)              |           |          |         | external | 
+ id             | integer                  |           |          |         | plain    | 
+ title          | text                     |           |          |         | extended | 
+ published      | timestamp with time zone |           |          |         | plain    | 
+ body           | text                     |           |          |         | extended | 
+View definition:
+ SELECT t.embedding_uuid,
+    t.chunk_seq,
+    t.chunk,
+    t.embedding,
+    s.id,
+    s.title,
+    s.published,
+    s.body
+   FROM website.blog_embedding_store t
+     LEFT JOIN website.blog s ON t.title = s.title AND t.published = s.published;
 """.strip()
 
 
@@ -911,6 +939,10 @@ def test_vectorizer():
     # does the queue table look right?
     actual = psql_cmd(r"\d+ ai._vectorizer_q_1")
     assert actual == QUEUE_TABLE
+
+    # does the view look right?
+    actual = psql_cmd(r"\d+ website.blog_embedding")
+    assert actual == VIEW
 
 
 def test_drop_vectorizer():
