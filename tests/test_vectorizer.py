@@ -671,17 +671,17 @@ SOURCE_TRIGGER_FUNC = """
 
 
 TARGET_TABLE = """
-                                                  Table "website.blog_embedding_store"
-   Column   |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
-------------+--------------------------+-----------+----------+-------------------+----------+-------------+--------------+-------------
- chunk_uuid | uuid                     |           | not null | gen_random_uuid() | plain    |             |              | 
- title      | text                     |           | not null |                   | extended |             |              | 
- published  | timestamp with time zone |           | not null |                   | plain    |             |              | 
- chunk_seq  | integer                  |           | not null |                   | plain    |             |              | 
- chunk      | text                     |           | not null |                   | extended |             |              | 
- embedding  | vector(768)              |           | not null |                   | external |             |              | 
+                                                    Table "website.blog_embedding_store"
+     Column     |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
+----------------+--------------------------+-----------+----------+-------------------+----------+-------------+--------------+-------------
+ embedding_uuid | uuid                     |           | not null | gen_random_uuid() | plain    |             |              | 
+ title          | text                     |           | not null |                   | extended |             |              | 
+ published      | timestamp with time zone |           | not null |                   | plain    |             |              | 
+ chunk_seq      | integer                  |           | not null |                   | plain    |             |              | 
+ chunk          | text                     |           | not null |                   | extended |             |              | 
+ embedding      | vector(768)              |           | not null |                   | external |             |              | 
 Indexes:
-    "blog_embedding_store_pkey" PRIMARY KEY, btree (chunk_uuid)
+    "blog_embedding_store_pkey" PRIMARY KEY, btree (embedding_uuid)
     "blog_embedding_store_title_published_chunk_seq_key" UNIQUE CONSTRAINT, btree (title, published, chunk_seq)
 Foreign-key constraints:
     "blog_embedding_store_title_published_fkey" FOREIGN KEY (title, published) REFERENCES website.blog(title, published) ON DELETE CASCADE
