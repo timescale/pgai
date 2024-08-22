@@ -636,7 +636,7 @@ begin
     _target_column = coalesce(_target_column, 'embedding');
     _trigger_name = pg_catalog.concat('vectorizer_src_trg_', _vectorizer_id);
     _queue_schema = coalesce(_queue_schema, 'ai');
-    _queue_table = coalesce(_queue_table, pg_catalog.concat('vectorizer_q_', _vectorizer_id));
+    _queue_table = coalesce(_queue_table, pg_catalog.concat('_vectorizer_q_', _vectorizer_id));
 
     -- validate the formatting config
     case _formatting operator(pg_catalog.->>) 'implementation'
