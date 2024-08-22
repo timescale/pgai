@@ -451,6 +451,7 @@ VECTORIZER_ROW = r"""
     "queue_schema": "ai",
     "source_table": "blog",
     "target_table": "blog_embedding",
+    "trigger_name": "vectorizer_src_trg_1",
     "source_schema": "website",
     "target_column": "embedding",
     "target_schema": "website"
@@ -676,10 +677,10 @@ def test_vectorizer():
                     # lock 1 row from the queue
                     cur2.execute("select * from ai.vectorizer_q_1 where title = 'how to grill a steak' for update")
                     locked = cur2.fetchone()
-                    # check that vectorizer queue depth ignores the locked row
+                    # check that vectorizer queue depth still gets the correct count
                     cur.execute("select ai.vectorizer_queue_depth(%s)", (vectorizer_id,))
                     actual = cur.fetchone()[0]
-                    assert actual == 1
+                    assert actual == 2
                     con2.rollback()
 
     # does the source table look right?

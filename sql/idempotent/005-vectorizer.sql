@@ -574,6 +574,7 @@ as $func$
 declare
     _source_table name;
     _source_schema name;
+    _trigger_name name;
     _is_owner bool;
     _dimensions int;
     _source_pk jsonb;
@@ -620,6 +621,7 @@ begin
     _target_schema = coalesce(_target_schema, _source_schema);
     _target_table = coalesce(_target_table, pg_catalog.concat(_source_table, '_embedding'));
     _target_column = coalesce(_target_column, 'embedding');
+    _trigger_name = pg_catalog.concat('vectorizer_src_trg_', _vectorizer_id);
     _queue_schema = coalesce(_queue_schema, 'ai');
     _queue_table = coalesce(_queue_table, pg_catalog.concat('vectorizer_q_', _vectorizer_id));
 
@@ -663,7 +665,7 @@ begin
 
     -- create trigger on source table to populate queue
     perform ai._vectorizer_create_source_trigger
-    ( pg_catalog.concat('vectorizer_src_trg_', _vectorizer_id)
+    ( _trigger_name
     , _queue_schema
     , _queue_table
     , _source_schema
@@ -691,6 +693,7 @@ begin
     , target_schema
     , target_table
     , target_column
+    , trigger_name
     , queue_schema
     , queue_table
     , config
@@ -705,6 +708,7 @@ begin
     , _target_schema
     , _target_table
     , _target_column
+    , _trigger_name
     , _queue_schema
     , _queue_table
     , pg_catalog.jsonb_build_object
@@ -765,15 +769,7 @@ begin
         raise exception 'vectorizer has no queue table';
     end if;
     select format
-    ( $sql$
-        select count(*)
-        from
-        (
-            select 1
-            from %I.%I
-            for key share skip locked
-        ) x
-    $sql$
+    ( $sql$select count(*) from %I.%I$sql$
     , _queue_schema, _queue_table
     ) into strict _sql
     ;
