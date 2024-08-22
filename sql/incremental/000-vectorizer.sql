@@ -8,7 +8,6 @@ create table ai.vectorizer
 , source_pk jsonb not null
 , target_schema name not null
 , target_table name not null
-, target_column name not null
 , trigger_name name
 , queue_schema name
 , queue_table name
