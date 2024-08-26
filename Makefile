@@ -92,6 +92,11 @@ docker-stop:
 docker-rm:
 	@./build.py docker-rm
 
+.PHONY: run
+run:
+	@./build.py run
+	@docker exec -it -u postgres pgai /bin/bash -c "set -e; if [ -f .env ]; then set -a; source .env; set +a; fi; psql"
+
 .PHONY: docker-shell
 docker-shell:
 	@docker exec -it -u root pgai /bin/bash
