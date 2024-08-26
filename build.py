@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 import os
 import subprocess
 import shutil
@@ -408,16 +409,46 @@ def docker_run() -> None:
     subprocess.run(cmd, shell=True, check=True, env=os.environ, text=True)
 
 
-def docker_stop() -> None:
-    subprocess.run(
-        """docker stop pgai""", shell=True, check=True, env=os.environ, text=True
+def docker_running() -> bool | None:
+    cmd = "docker container ls --filter name=pgai --format=json"
+    proc = subprocess.run(
+        cmd, shell=True, check=True, env=os.environ, text=True, capture_output=True
     )
+    output = str(proc.stdout).strip()
+    if output == "":
+        return False
+    output = json.loads(output)
+    return output["State"] == "running"
+
+
+def docker_stop() -> None:
+    if docker_running():
+        subprocess.run(
+            """docker stop pgai""", shell=True, check=True, env=os.environ, text=True
+        )
 
 
 def docker_rm() -> None:
+    status = docker_running()
+    if status is None:
+        return
+    if status is True:
+        docker_stop()
     subprocess.run(
         """docker rm pgai""", shell=True, check=True, env=os.environ, text=True
     )
+
+
+def run() -> None:
+    docker_rm()
+    docker_build()
+    docker_run()
+    cmd = "docker exec pgai make install"
+    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
+    cmd = 'docker exec -u postgres pgai psql -c "create extension ai cascade"'
+    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
+    cmd = "docker exec -it -d -w /pgai/tests pgai fastapi dev server.py"
+    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
 
 
 if __name__ == "__main__":
@@ -467,6 +498,8 @@ if __name__ == "__main__":
             docker_stop()
         elif action == "docker-rm":
             docker_rm()
+        elif action == "run":
+            run()
         else:
             print(f"{action} is not a valid action", file=sys.stderr)
             sys.exit(1)
