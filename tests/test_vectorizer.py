@@ -817,6 +817,11 @@ def test_vectorizer():
             actual = cur.fetchone()[0]
             assert actual
 
+            # bob should have select on the view
+            cur.execute(f"select has_table_privilege('bob', '{vec.view_schema}.{vec.view_name}', 'select')")
+            actual = cur.fetchone()[0]
+            assert actual
+
             # bob should have select on the vectorizer table
             cur.execute("select has_table_privilege('bob', 'ai.vectorizer', 'select')")
             actual = cur.fetchone()[0]
@@ -992,12 +997,17 @@ def test_drop_vectorizer():
             # does the target table exist? (it should)
             cur.execute(f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null")
             actual = cur.fetchone()[0]
-            assert actual == True
+            assert actual is True
 
             # does the queue table exist? (it should)
             cur.execute(f"select to_regclass('{vectorizer.queue_schema}.{vectorizer.queue_table}') is not null")
             actual = cur.fetchone()[0]
-            assert actual == True
+            assert actual is True
+
+            # does the view exist? (it should)
+            cur.execute(f"select to_regclass('{vectorizer.view_schema}.{vectorizer.view_name}') is not null")
+            actual = cur.fetchone()[0]
+            assert actual is True
 
             # do the trigger and backing function exist? (it should)
             cur.execute(f"""
@@ -1013,15 +1023,20 @@ def test_drop_vectorizer():
             # drop the vectorizer
             cur.execute("select ai.drop_vectorizer(%s)", (vectorizer_id,))
 
-            # does the target table exist? (it should)
+            # does the target table exist? (it SHOULD)
             cur.execute(f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null")
             actual = cur.fetchone()[0]
-            assert actual == True
+            assert actual is True
 
             # does the queue table exist? (it should not)
             cur.execute(f"select to_regclass('{vectorizer.queue_schema}.{vectorizer.queue_table}') is not null")
             actual = cur.fetchone()[0]
-            assert actual == False
+            assert actual is False
+
+            # does the view exist? (it SHOULD)
+            cur.execute(f"select to_regclass('{vectorizer.view_schema}.{vectorizer.view_name}') is not null")
+            actual = cur.fetchone()[0]
+            assert actual is True
 
             # does the trigger exist? (it should not)
             cur.execute(f"""
