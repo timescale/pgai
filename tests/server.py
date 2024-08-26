@@ -1,9 +1,41 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ValidationError
 import psycopg
+from typing import Union, Literal
 
 
 app = FastAPI()
+
+
+class IndexingNone(BaseModel):
+    implementation: Literal['none']
+
+
+class IndexingDiskANN(BaseModel):
+    implementation: Literal['diskann']
+    min_rows: int
+    storage_layout: str | None = None
+    num_neighbors: int | None = None
+    search_list_size: int | None = None
+    max_alpha: float | None = None
+    num_dimensions: int | None = None
+    num_bits_per_dimension: int | None = None
+
+
+class IndexingHNSW(BaseModel):
+    implementation: Literal['hnsw']
+    min_rows: int
+    opclass: str | None = None
+    m: int | None = None
+    ef_construction: int | None = None
+
+
+class Config(BaseModel):
+    version: str
+    indexing: Union[IndexingNone, IndexingDiskANN, IndexingHNSW] = Field(..., discriminator='implementation')
+    formatting: dict
+    embedding: dict
+    chunking: dict
 
 
 class PrimaryKeyColumn(BaseModel):
@@ -25,7 +57,7 @@ class Vectorizer(BaseModel):
     trigger_name: str
     queue_schema: str | None = None
     queue_table: str | None = None
-    config: dict
+    config: Config
 
 
 def vectorize(v: Vectorizer) -> int:
