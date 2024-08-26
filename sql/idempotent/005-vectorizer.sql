@@ -357,7 +357,7 @@ $func$
     select pg_catalog.jsonb_agg(x)
     from
     (
-        select e.attnum, e.pknum, a.attname, y.typname, a.attnotnull
+        select e.attnum, e.pknum, a.attname, y.typname
         from pg_catalog.pg_constraint k
         cross join lateral pg_catalog.unnest(k.conkey) with ordinality e(attnum, pknum)
         inner join pg_catalog.pg_attribute a
@@ -408,16 +408,15 @@ begin
         select pg_catalog.string_agg
         (
             pg_catalog.format
-            ( '%I %s %s'
+            ( '%I %s not null'
             , x.attname
             , x.typname
-            , case x.attnotnull when true then 'not null' else '' end
             )
             , E'\n, '
             order by x.attnum
         )
         from pg_catalog.jsonb_to_recordset(_source_pk)
-            x(attnum int, attname name, typname name, attnotnull bool)
+            x(attnum int, attname name, typname name)
       )
     , _dimensions
     , _pk_cols
@@ -468,7 +467,7 @@ begin
         select pg_catalog.string_agg
         (
             pg_catalog.format
-            ( case when x.attnotnull then 't.%s = s.%s' else 't.%s is not distinct from s.%s' end
+            ( 't.%s = s.%s'
             , x.attname
             , x.attname
             )
@@ -476,7 +475,7 @@ begin
             order by x.pknum
         )
         from pg_catalog.jsonb_to_recordset(_source_pk)
-            x(pknum int, attname name, attnotnull bool)
+            x(pknum int, attname name)
       )
     ) into strict _sql;
     execute _sql;
@@ -504,15 +503,14 @@ begin
         select pg_catalog.string_agg
         (
           pg_catalog.format
-          ( '%I %s %s'
+          ( '%I %s not null'
           , x.attname
           , x.typname
-          , case x.attnotnull when true then 'not null' else '' end
           )
           , E'\n, '
           order by x.attnum
         )
-        from pg_catalog.jsonb_to_recordset(_source_pk) x(attnum int, attname name, typname name, attnotnull bool)
+        from pg_catalog.jsonb_to_recordset(_source_pk) x(attnum int, attname name, typname name)
       )
     ) into strict _sql
     ;

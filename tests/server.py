@@ -11,7 +11,6 @@ class PrimaryKeyColumn(BaseModel):
     pknum: int
     attname: str
     typname: str
-    attnotnull: bool
 
 
 class Vectorizer(BaseModel):
