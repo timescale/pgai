@@ -134,7 +134,7 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.embedding_openai
 ( model text
 , dimensions int
-, "user" text default null
+, chat_user text default null
 , api_key_name text default 'OPENAI_API_KEY'
 ) returns jsonb
 as $func$
@@ -142,7 +142,7 @@ as $func$
     ( 'implementation': 'openai'
     , 'model': model
     , 'dimensions': dimensions
-    , 'user': "user"
+    , 'user': chat_user
     , 'api_key_name': api_key_name
     absent on null
     )
