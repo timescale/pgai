@@ -2,7 +2,6 @@ from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from openai import OpenAI
 from pydantic import BaseModel, Field
 import psycopg
 from typing import Union, Literal

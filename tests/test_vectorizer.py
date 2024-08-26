@@ -796,7 +796,7 @@ def test_vectorizer():
             vec = cur.fetchone()
 
             # check that the queue has 3 rows
-            cur.execute("select ai.vectorizer_queue_depth(%s)", (vectorizer_id,))
+            cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
             actual = cur.fetchone()[0]
             assert actual == 3
 
@@ -851,7 +851,7 @@ def test_vectorizer():
             cur.execute("call public.run_job(%s)", (job_id,))
 
             # check that the queue has 0 rows
-            cur.execute("select ai.vectorizer_queue_depth(%s)", (vectorizer_id,))
+            cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
             actual = cur.fetchone()[0]
             assert actual == 0
 
@@ -868,7 +868,7 @@ def test_vectorizer():
             """)
 
             # check that the queue has 2 rows
-            cur.execute("select ai.vectorizer_queue_depth(%s)", (vectorizer_id,))
+            cur.execute("select pending from ai.vectorizer_status where id = %s", (vectorizer_id,))
             actual = cur.fetchone()[0]
             assert actual == 2
 
@@ -878,7 +878,7 @@ def test_vectorizer():
                         , (vectorizer_id,))
 
             # check that the queue has 0 rows
-            cur.execute("select ai.vectorizer_queue_depth(%s)", (vectorizer_id,))
+            cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
             actual = cur.fetchone()[0]
             assert actual == 0
 
@@ -889,7 +889,7 @@ def test_vectorizer():
             """)
 
             # check that the queue has 1 rows
-            cur.execute("select ai.vectorizer_queue_depth(%s)", (vectorizer_id,))
+            cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
             actual = cur.fetchone()[0]
             assert actual == 1
 
@@ -902,7 +902,7 @@ def test_vectorizer():
                         , (vectorizer_id,))
 
             # check that the queue has 0 rows
-            cur.execute("select ai.vectorizer_queue_depth(%s)", (vectorizer_id,))
+            cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
             actual = cur.fetchone()[0]
             assert actual == 0
 
@@ -922,7 +922,7 @@ def test_vectorizer():
                     cur2.execute(f"select * from {vec.queue_schema}.{vec.queue_table} where title = 'how to grill a steak' for update")
                     locked = cur2.fetchone()
                     # check that vectorizer queue depth still gets the correct count
-                    cur.execute("select ai.vectorizer_queue_depth(%s)", (vectorizer_id,))
+                    cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
                     actual = cur.fetchone()[0]
                     assert actual == 2
                     con2.rollback()
@@ -1055,3 +1055,7 @@ def test_drop_vectorizer():
             """, (pg_proc_oid,))
             actual = cur.fetchone()[0]
             assert actual == 0
+
+
+# TODO: test pg_cron scheduling
+

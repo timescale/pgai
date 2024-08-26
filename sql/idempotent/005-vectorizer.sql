@@ -1094,7 +1094,7 @@ $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
-create or replace function ai.vectorizer_queue_depth(_vectorizer_id int) returns bigint
+create or replace function ai.vectorizer_queue_pending(_vectorizer_id int) returns bigint
 as $func$
 declare
     _queue_schema name;
@@ -1121,4 +1121,14 @@ $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
--- TODO: create a view for console explorer
+create or replace view ai.vectorizer_status as
+select
+  v.id
+, pg_catalog.format('%I.%I', v.source_schema, v.source_table) as source_name
+, pg_catalog.format('%I.%I', v.view_schema, v.view_name) as view_name
+, case when v.queue_table is not null then
+    ai.vectorizer_queue_pending(v.id)
+  else 0
+  end as pending
+from ai.vectorizer v
+;
