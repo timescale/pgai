@@ -730,8 +730,8 @@ create or replace function ai.create_vectorizer
 , _indexing jsonb default ai.indexing_diskann()
 , _formatting jsonb default ai.formatting_python_template()
 , _scheduling jsonb default ai.scheduling_timescaledb()
-, _asynchronous bool default true -- remove?
-, _external bool default true -- remove?
+, _asynchronous bool default true -- TODO: remove?
+, _external bool default true -- TODO: remove?
 , _target_schema name default null
 , _target_table name default null
 , _view_schema name default null
@@ -920,7 +920,19 @@ begin
     , _target_table
     );
 
-    -- TODO: add grants for the view
+    -- grant select view to _grant_to roles
+    if _grant_to is not null then
+        select pg_catalog.format
+        ( $sql$grant select on %I.%I to %s$sql$
+        , _view_schema
+        , _view_name
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(_grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+    end if;
 
     -- schedule the async ext job
     select ai._vectorizer_schedule_async_ext_job
