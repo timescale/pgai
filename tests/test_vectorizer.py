@@ -619,15 +619,13 @@ VECTORIZER_ROW = r"""
             "pknum": 1,
             "attnum": 2,
             "attname": "title",
-            "typname": "text",
-            "attnotnull": true
+            "typname": "text"
         },
         {
             "pknum": 2,
             "attnum": 3,
             "attname": "published",
-            "typname": "timestamptz",
-            "attnotnull": true
+            "typname": "timestamptz"
         }
     ],
     "view_name": "blog_embedding",
