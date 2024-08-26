@@ -1,10 +1,37 @@
-from fastapi import FastAPI
-from pydantic import BaseModel, Field, ValidationError
+from fastapi import FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from openai import OpenAI
+from pydantic import BaseModel, Field
 import psycopg
 from typing import Union, Literal
-
+from datetime import datetime
 
 app = FastAPI()
+
+
+class ChunkingCharacterTextSplitter(BaseModel):
+    implementation: Literal['character_text_splitter']
+    chunk_column: str
+    chunk_size: int
+    chunk_overlap: int
+    separator: str | None
+    is_separator_regex: bool | None
+
+
+class EmbeddingOpenAI(BaseModel):
+    implementation: Literal['openai']
+    model: str
+    dimensions: int
+    user: str | None = None
+    api_key_name: str | None = 'OPENAI_API_KEY'
+
+
+class FormattingPythonTemplate(BaseModel):
+    implementation: Literal['python_template']
+    columns: list[str]
+    template: str
 
 
 class IndexingNone(BaseModel):
@@ -14,7 +41,7 @@ class IndexingNone(BaseModel):
 class IndexingDiskANN(BaseModel):
     implementation: Literal['diskann']
     min_rows: int
-    storage_layout: str | None = None
+    storage_layout: Literal['memory_optimized'] | Literal['plain'] | None = None
     num_neighbors: int | None = None
     search_list_size: int | None = None
     max_alpha: float | None = None
@@ -25,17 +52,35 @@ class IndexingDiskANN(BaseModel):
 class IndexingHNSW(BaseModel):
     implementation: Literal['hnsw']
     min_rows: int
-    opclass: str | None = None
+    opclass: Literal['vector_ip_ops'] | Literal['vector_cosine_ops'] | Literal['vector_l1_ops'] | None = None
     m: int | None = None
     ef_construction: int | None = None
+
+
+class SchedulingNone(BaseModel):
+    implementation: Literal['none']
+
+
+class SchedulingPgCron(BaseModel):
+    implementation: Literal['pg_cron']
+    schedule: str
+
+
+class SchedulingTimescaledb(BaseModel):
+    implementation: Literal['timescaledb']
+    schedule_interval: str | None = None
+    initial_start: datetime | None = None
+    fixed_schedule: bool | None = None
+    timezone: str | None = None
 
 
 class Config(BaseModel):
     version: str
     indexing: Union[IndexingNone, IndexingDiskANN, IndexingHNSW] = Field(..., discriminator='implementation')
-    formatting: dict
-    embedding: dict
-    chunking: dict
+    formatting: FormattingPythonTemplate
+    embedding: EmbeddingOpenAI
+    scheduling: Union[SchedulingNone, SchedulingPgCron, SchedulingTimescaledb] = Field(..., discriminator='implementation')
+    chunking: ChunkingCharacterTextSplitter
 
 
 class PrimaryKeyColumn(BaseModel):
@@ -69,6 +114,14 @@ def vectorize(v: Vectorizer) -> int:
                     delete from {v.queue_schema}.{v.queue_table}
                 """)
                 return cur.rowcount
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=jsonable_encoder({"detail": exc.errors(), "body": exc.body}),
+    )
 
 
 @app.post("/")
