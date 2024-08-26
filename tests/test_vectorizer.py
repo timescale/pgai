@@ -28,7 +28,7 @@ def test_embedding_openai():
             },
         ),
         (
-            """select ai.embedding_openai('text-embedding-3-small', 128, "user"=>'bob')""",
+            """select ai.embedding_openai('text-embedding-3-small', 128, chat_user=>'bob')""",
             {
                 "implementation": "openai",
                 "model": "text-embedding-3-small",
