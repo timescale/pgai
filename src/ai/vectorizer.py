@@ -42,4 +42,4 @@ def execute_async_ext_vectorizer(plpy, vectorizer_id: int) -> None:
 
     r = post_vectorizer_execution(vectorizer)
     if r.status_code != httpx.codes.OK:
-        plpy.error(f"failed to signal vectorizer execution: {r.status_code}")
+        plpy.error(f"failed to signal vectorizer execution: {r.status_code}\n{r.text}")
