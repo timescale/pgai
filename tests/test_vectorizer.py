@@ -28,7 +28,7 @@ def test_embedding_openai():
             },
         ),
         (
-            "select ai.embedding_openai('text-embedding-3-small', 128, _user=>'bob')",
+            """select ai.embedding_openai('text-embedding-3-small', 128, "user"=>'bob')""",
             {
                 "implementation": "openai",
                 "model": "text-embedding-3-small",
@@ -38,7 +38,7 @@ def test_embedding_openai():
             },
         ),
         (
-            "select ai.embedding_openai('text-embedding-3-small', 128, _api_key_name=>'DEV_API_KEY')",
+            "select ai.embedding_openai('text-embedding-3-small', 128, api_key_name=>'DEV_API_KEY')",
             {
                 "implementation": "openai",
                 "model": "text-embedding-3-small",
@@ -71,7 +71,7 @@ def test_chunking_character_text_splitter():
             },
         ),
         (
-            "select ai.chunking_character_text_splitter('content', 256, 20, _separator=>E'\n;')",
+            "select ai.chunking_character_text_splitter('content', 256, 20, separator=>E'\n;')",
             {
                 "separator": "\n;",
                 "is_separator_regex": False,
@@ -87,8 +87,8 @@ def test_chunking_character_text_splitter():
                 ( 'content'
                 , 256
                 , 20
-                , _separator=>'(\s+)'
-                , _is_separator_regex=>true
+                , separator=>'(\s+)'
+                , is_separator_regex=>true
                 )
             """,
             {
@@ -140,14 +140,14 @@ def test_indexing_diskann():
             },
         ),
         (
-            "select ai.indexing_diskann(_min_rows=>500)",
+            "select ai.indexing_diskann(min_rows=>500)",
             {
                 "implementation": "diskann",
                 "min_rows": 500,
             },
         ),
         (
-            "select ai.indexing_diskann(_storage_layout=>'plain')",
+            "select ai.indexing_diskann(storage_layout=>'plain')",
             {
                 "implementation": "diskann",
                 "min_rows": 100_000,
@@ -157,12 +157,12 @@ def test_indexing_diskann():
         (
             """
             select ai.indexing_diskann
-            ( _storage_layout=>'memory_optimized'
-            , _num_neighbors=>50
-            , _search_list_size=>150
-            , _max_alpha=>1.2
-            , _num_dimensions=>768
-            , _num_bits_per_dimension=>2
+            ( storage_layout=>'memory_optimized'
+            , num_neighbors=>50
+            , search_list_size=>150
+            , max_alpha=>1.2
+            , num_dimensions=>768
+            , num_bits_per_dimension=>2
             )
             """,
             {
@@ -197,14 +197,14 @@ def test_indexing_hnsw():
             },
         ),
         (
-            "select ai.indexing_hnsw(_min_rows=>500)",
+            "select ai.indexing_hnsw(min_rows=>500)",
             {
                 "implementation": "hnsw",
                 "min_rows": 500,
             },
         ),
         (
-            "select ai.indexing_hnsw(_opclass=>'vector_cosine_ops')",
+            "select ai.indexing_hnsw(opclass=>'vector_cosine_ops')",
             {
                 "implementation": "hnsw",
                 "min_rows": 100_000,
@@ -212,7 +212,7 @@ def test_indexing_hnsw():
             },
         ),
         (
-            "select ai.indexing_hnsw(_m=>10, _ef_construction=>100)",
+            "select ai.indexing_hnsw(m=>10, ef_construction=>100)",
             {
                 "implementation": "hnsw",
                 "min_rows": 100_000,
@@ -235,22 +235,22 @@ def test_validate_indexing():
     ok = [
         "select ai._validate_indexing(ai.indexing_none())",
         "select ai._validate_indexing(ai.indexing_hnsw())",
-        "select ai._validate_indexing(ai.indexing_hnsw(_opclass=>'vector_ip_ops'))",
-        "select ai._validate_indexing(ai.indexing_hnsw(_opclass=>'vector_cosine_ops'))",
-        "select ai._validate_indexing(ai.indexing_hnsw(_opclass=>'vector_l1_ops'))",
-        "select ai._validate_indexing(ai.indexing_hnsw(_opclass=>null))",
+        "select ai._validate_indexing(ai.indexing_hnsw(opclass=>'vector_ip_ops'))",
+        "select ai._validate_indexing(ai.indexing_hnsw(opclass=>'vector_cosine_ops'))",
+        "select ai._validate_indexing(ai.indexing_hnsw(opclass=>'vector_l1_ops'))",
+        "select ai._validate_indexing(ai.indexing_hnsw(opclass=>null))",
         "select ai._validate_indexing(ai.indexing_diskann())",
-        "select ai._validate_indexing(ai.indexing_diskann(_storage_layout=>'plain'))",
-        "select ai._validate_indexing(ai.indexing_diskann(_storage_layout=>'memory_optimized'))",
-        "select ai._validate_indexing(ai.indexing_diskann(_storage_layout=>null))",
+        "select ai._validate_indexing(ai.indexing_diskann(storage_layout=>'plain'))",
+        "select ai._validate_indexing(ai.indexing_diskann(storage_layout=>'memory_optimized'))",
+        "select ai._validate_indexing(ai.indexing_diskann(storage_layout=>null))",
     ]
     bad = [
         (
-            "select ai._validate_indexing(ai.indexing_hnsw(_opclass=>'peter'))",
+            "select ai._validate_indexing(ai.indexing_hnsw(opclass=>'peter'))",
             "invalid opclass"
         ),
         (
-            "select ai._validate_indexing(ai.indexing_diskann(_storage_layout=>'super_advanced'))",
+            "select ai._validate_indexing(ai.indexing_diskann(storage_layout=>'super_advanced'))",
             "invalid storage"
         ),
     ]
@@ -376,7 +376,7 @@ def test_scheduling_timescaledb():
             },
         ),
         (
-            "select ai.scheduling_timescaledb(interval '1h', _timezone=>'America/Chicago')",
+            "select ai.scheduling_timescaledb(interval '1h', timezone=>'America/Chicago')",
             {
                 "implementation": "timescaledb",
                 "schedule_interval": "01:00:00",
@@ -384,7 +384,7 @@ def test_scheduling_timescaledb():
             },
         ),
         (
-            "select ai.scheduling_timescaledb(interval '10m', _fixed_schedule=>true, _timezone=>'America/Chicago')",
+            "select ai.scheduling_timescaledb(interval '10m', fixed_schedule=>true, timezone=>'America/Chicago')",
             {
                 "implementation": "timescaledb",
                 "schedule_interval": "00:10:00",
@@ -393,7 +393,14 @@ def test_scheduling_timescaledb():
             },
         ),
         (
-            "select ai.scheduling_timescaledb(interval '15m', _initial_start=>'2025-01-06 America/Chicago'::timestamptz, _fixed_schedule=>false, _timezone=>'America/Chicago')",
+            """
+            select ai.scheduling_timescaledb
+            ( interval '15m'
+            , initial_start=>'2025-01-06 America/Chicago'::timestamptz
+            , fixed_schedule=>false
+            , timezone=>'America/Chicago'
+            )
+            """,
             {
                 "implementation": "timescaledb",
                 "schedule_interval": "00:15:00",
@@ -439,7 +446,7 @@ def test_formatting_python_template():
             """
             select ai.formatting_python_template
             ( 'size: $size shape: $shape $chunk'
-            , _columns=>array['size', 'shape']
+            , columns=>array['size', 'shape']
             )
             """,
             {
@@ -452,7 +459,7 @@ def test_formatting_python_template():
             """
             select ai.formatting_python_template
             ( 'color: $color weight: $weight category: $category $chunk'
-            , _columns=>array['color', 'weight', 'category']
+            , columns=>array['color', 'weight', 'category']
             )
             """,
             {
@@ -505,7 +512,7 @@ def test_validate_formatting_python_template():
             select ai._validate_formatting_python_template
             ( ai.formatting_python_template
               ( 'color: $color weight: $weight $chunk'
-              , _columns=>array['color', 'weight']
+              , columns=>array['color', 'weight']
               )
             , 'public', 'thing'
             )
@@ -523,7 +530,7 @@ def test_validate_formatting_python_template():
             select ai._validate_formatting_python_template
             ( ai.formatting_python_template
               ( 'color: $color weight: $weight height: $height $chunk'
-              , _columns=>array['color', 'weight', 'height']
+              , columns=>array['color', 'weight', 'height']
               )
             , 'public', 'thing'
             )
@@ -766,18 +773,18 @@ def test_vectorizer():
             cur.execute("""
             select ai.create_vectorizer
             ( 'website.blog'::regclass
-            , _embedding=>ai.embedding_openai('text-embedding-3-small', 768)
-            , _chunking=>ai.chunking_character_text_splitter('body', 128, 10)
-            , _formatting=>ai.formatting_python_template
+            , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
+            , chunking=>ai.chunking_character_text_splitter('body', 128, 10)
+            , formatting=>ai.formatting_python_template
                     ( 'title: $title published: $published $chunk'
-                    , _columns=>array['title', 'published']
+                    , columns=>array['title', 'published']
                     )
-            , _scheduling=>ai.scheduling_timescaledb
+            , scheduling=>ai.scheduling_timescaledb
                     ( interval '5m'
-                    , _initial_start=>'2050-01-06'::timestamptz
-                    , _timezone=>'America/Chicago'
+                    , initial_start=>'2050-01-06'::timestamptz
+                    , timezone=>'America/Chicago'
                     )
-            , _grant_to=>array['bob']
+            , grant_to=>array['bob']
             );
             """)
             vectorizer_id = cur.fetchone()[0]
@@ -982,9 +989,9 @@ def test_drop_vectorizer():
             cur.execute("""
             select ai.create_vectorizer
             ( 'wiki.post'::regclass
-            , _embedding=>ai.embedding_openai('text-embedding-3-small', 768)
-            , _chunking=>ai.chunking_character_text_splitter('content', 128, 10)
-            , _grant_to=>null
+            , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
+            , chunking=>ai.chunking_character_text_splitter('content', 128, 10)
+            , grant_to=>null
             );
             """)
             vectorizer_id = cur.fetchone()[0]
