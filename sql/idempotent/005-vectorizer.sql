@@ -807,7 +807,12 @@ begin
     _queue_schema = coalesce(_queue_schema, 'ai');
     _queue_table = coalesce(_queue_table, pg_catalog.concat('_vectorizer_q_', _vectorizer_id));
 
-    -- TODO: validate embedding config
+    case _embedding operator(pg_catalog.->>) 'implementation'
+        when 'openai' then
+            -- ok
+        else
+            raise exception 'unrecognized chunking config';
+    end case;
 
     -- validate the chunking config
     case _chunking operator(pg_catalog.->>) 'implementation'
@@ -836,7 +841,17 @@ begin
             raise exception 'unrecognized formatting config';
     end case;
 
-    -- TODO: validate the scheduling config
+    -- validate the scheduling config
+    case _scheduling operator(pg_catalog.->>) 'implementation'
+        when 'timescaledb' then
+            -- ok
+        when 'pg_cron' then
+            -- ok
+        when 'none' then
+            -- ok
+        else
+            raise exception 'unrecognized scheduling config';
+    end case;
 
     -- grant select on source table to _grant_to roles
     if _grant_to is not null then
@@ -908,7 +923,7 @@ begin
     );
 
     -- create view
-    perform ai._vectorizer_create_view -- TODO: add tests for this
+    perform ai._vectorizer_create_view
     ( _view_schema
     , _view_name
     , _source_schema
