@@ -656,13 +656,14 @@ declare
     _implementation text;
     _sql text;
     _extension_schema name;
+    _found bool;
     _job_id bigint;
 begin
     select pg_catalog.jsonb_extract_path_text(scheduling, 'implementation')
     into strict _implementation
     ;
     case
-        when _implementation in ('pg_cron', 'timescaledb') then
+        when _implementation = 'timescaledb' then
             -- look up schema/name of the extension for scheduling. may be null
             select n.nspname into _extension_schema
             from pg_catalog.pg_extension x
@@ -670,8 +671,17 @@ begin
             where x.extname operator(pg_catalog.=) _implementation
             ;
             if _extension_schema is null then
-                raise exception '% extension is not found', _implementation;
+                raise exception 'timescaledb extension not found';
             end if;
+        when _implementation = 'pg_cron' then
+            select count(*) > 0 into strict _found
+            from pg_catalog.pg_extension x
+            where x.extname operator(pg_catalog.=) _implementation
+            ;
+            if not _found then
+                raise exception 'pg_cron extension not found';
+            end if;
+            _extension_schema = 'cron';
         when _implementation = 'none' then
             return null;
         else
@@ -683,11 +693,11 @@ begin
         when 'pg_cron' then
             -- schedule the work proc with pg_cron
             select pg_catalog.format
-            ( $$select %I.schedule(%L, %L, $sql$call ai._vectorizer_async_ext_job(null, %L))$sql$)$$
+            ( $$select %I.schedule(%L, %L, $sql$call ai._vectorizer_async_ext_job(null, pg_catalog.jsonb_build_object('vectorizer_id', %s))$sql$)$$
             , _extension_schema
+            , pg_catalog.concat('vectorizer_', vectorizer_id)
             , pg_catalog.jsonb_extract_path_text(scheduling, 'schedule')
             , vectorizer_id
-            , pg_catalog.jsonb_build_object('vectorizer_id', vectorizer_id)::text
             ) into strict _sql
             ;
             execute _sql into strict _job_id;
@@ -1107,6 +1117,8 @@ begin
     delete from ai.vectorizer v
     where v.id operator(pg_catalog.=) vectorizer_id
     ;
+
+    -- TODO: send http request for deletion
 end;
 $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
