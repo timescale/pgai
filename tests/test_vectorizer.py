@@ -740,7 +740,7 @@ def psql_cmd(cmd: str) -> str:
     return str(proc.stdout).strip()
 
 
-def test_vectorizer():
+def test_vectorizer_timescaledb():
     with psycopg.connect(db_url("postgres"), autocommit=True, row_factory=namedtuple_row) as con:
         with con.cursor() as cur:
             # set up the test
@@ -953,6 +953,63 @@ def test_vectorizer():
     # does the view look right?
     actual = psql_cmd(r"\d+ website.blog_embedding")
     assert actual == VIEW
+
+
+def test_vectorizer_pg_cron():
+    with psycopg.connect(db_url("postgres"), autocommit=True, row_factory=namedtuple_row) as con:
+        with con.cursor() as cur:
+            # set up the test
+            cur.execute("create extension if not exists pg_cron")
+            cur.execute("drop table if exists public.chat")
+            cur.execute("""
+                create table public.chat
+                ( id int not null primary key generated always as identity
+                , parent_id int references public.chat (id) on delete cascade
+                , author text not null
+                , msg text not null
+                , created_at timestamptz not null default now()
+                )
+            """)
+
+            # create a vectorizer for the blog table
+            # language=PostgreSQL
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'public.chat'::regclass
+            , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
+            , chunking=>ai.chunking_character_text_splitter('msg', 128, 10)
+            , formatting=>ai.formatting_python_template
+                    ( 'author: $author created_at: $created_at $chunk'
+                    , columns=>array['author', 'created_at']
+                    )
+            , scheduling=>ai.scheduling_pg_cron('*/10 * * * *')
+            , grant_to=>null
+            );
+            """)
+            vectorizer_id = cur.fetchone()[0]
+
+            # check the scheduling config
+            cur.execute("""
+                select x.config->'scheduling' = jsonb_build_object
+                ( 'implementation', 'pg_cron'
+                , 'schedule', '*/10 * * * *'
+                , 'job_id', 1
+                )
+                from ai.vectorizer x 
+                where x.id = %s
+            """, (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual is True
+
+            # check the pg_cron job table
+            cur.execute("""
+                select jobname, command
+                from cron.job
+                where jobid = 1
+            """)
+            actual = cur.fetchone()
+            assert actual.jobname == f"vectorizer_{vectorizer_id}"
+            assert actual.command == f"call ai._vectorizer_async_ext_job(null, pg_catalog.jsonb_build_object('vectorizer_id', {vectorizer_id}))"
 
 
 def test_drop_vectorizer():
