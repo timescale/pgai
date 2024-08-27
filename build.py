@@ -404,7 +404,9 @@ def docker_run() -> None:
     cmd = " ".join([
         "docker run -d --name pgai -p 127.0.0.1:5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust",
         f"--mount type=bind,src={project_dir()},dst=/pgai",
-        "pgai -c shared_preload_libraries='pg_cron, timescaledb'"
+        "pgai",
+        "-c shared_preload_libraries='pg_cron, timescaledb'",
+        "-c cron.database_name='test'"
     ])
     subprocess.run(cmd, shell=True, check=True, env=os.environ, text=True)
 
