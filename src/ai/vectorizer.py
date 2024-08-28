@@ -2,9 +2,24 @@ import json
 
 import httpx
 import backoff
+from backoff._typing import Details
 
 GUC_EXECUTE_VECTORIZER_URL = "ai.execute_vectorizer_url"
 DEFAULT_EXECUTE_VECTORIZER_URL = "http://localhost:8000"
+
+GUC_DELETE_VECTORIZER_URL = "ai.execute_vectorizer_url"
+DEFAULT_DELETE_VECTORIZER_URL = "http://localhost:8000/vectorizer/delete"
+
+
+def get_guc_value(plpy, setting: str, default: str) -> str:
+    plan = plpy.prepare("select pg_catalog.current_setting($1, true) as val", ["text"])
+    result = plan.execute([setting], 1)
+    val: str | None = None
+    if len(result) != 0:
+        val = result[0]["val"]
+    if val is None:
+        val = default
+    return val
 
 
 def execute_async_ext_vectorizer(plpy, vectorizer_id: int) -> None:
@@ -21,27 +36,40 @@ def execute_async_ext_vectorizer(plpy, vectorizer_id: int) -> None:
         plpy.error(f"vectorizer {vectorizer_id} not found")
     vectorizer = json.loads(result[0]["vectorizer"])
 
-    # get the url from a postgres setting if it has been set, otherwise use default
-    plan = plpy.prepare("select pg_catalog.current_setting($1, true) as execute_vectorizer_url", ["text"])
-    result = plan.execute([GUC_EXECUTE_VECTORIZER_URL], 1)
-    url: str | None = None
-    if len(result) != 0:
-        url = result[0]["execute_vectorizer_url"]
-    if url is None:
-        url = DEFAULT_EXECUTE_VECTORIZER_URL
+    the_url = get_guc_value(plpy, GUC_EXECUTE_VECTORIZER_URL, DEFAULT_EXECUTE_VECTORIZER_URL)
 
-    def on_backoff(detail):
+    def on_backoff(detail: Details):
         plpy.warning(
-            f"post_vectorizer_execution: {vectorizer_id} retry number: {detail['tries']} elapsed: {detail['elapsed']} wait: {detail['wait']}..."
+            f"{vectorizer_id} retry: {detail['tries']} elapsed: {detail['elapsed']} wait: {detail['wait']}..."
         )
 
     @backoff.on_exception(
-        backoff.expo, httpx.HTTPError, max_tries=10, max_time=120, on_backoff=on_backoff
+        backoff.expo, httpx.HTTPError, max_tries=10, max_time=120, on_backoff=on_backoff, raise_on_giveup=True
     )
-    def post_vectorizer_execution(v: dict) -> httpx.Response:
-        return httpx.post(url, json=v)
+    def post() -> httpx.Response:
+        return httpx.post(the_url, json=vectorizer)
 
-    r = post_vectorizer_execution(vectorizer)
+    r = post()
     if r.status_code != httpx.codes.OK:
         # TODO: only display error text in debug log?
         plpy.error(f"failed to signal vectorizer execution: {r.status_code}\n{r.text}")
+
+
+def delete_vectorizer(plpy, vectorizer_id: int) -> None:
+    the_url = get_guc_value(plpy, GUC_DELETE_VECTORIZER_URL, DEFAULT_DELETE_VECTORIZER_URL)
+
+    def on_backoff(detail: Details):
+        plpy.warning(
+            f"{vectorizer_id} retry: {detail['tries']} elapsed: {detail['elapsed']} wait: {detail['wait']}..."
+        )
+
+    @backoff.on_exception(
+        backoff.expo, httpx.HTTPError, max_tries=10, max_time=120, on_backoff=on_backoff, raise_on_giveup=True
+    )
+    def get() -> httpx.Response:
+        return httpx.get(the_url + f"/{vectorizer_id}")
+
+    r = get()
+    if r.status_code != httpx.codes.OK:
+        # TODO: only display error text in debug log?
+        plpy.error(f"failed to signal vectorizer deletion: {r.status_code}\n{r.text}")

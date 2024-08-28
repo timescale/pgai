@@ -15,12 +15,15 @@ def does_test_db_exist(cur: psycopg.Cursor) -> bool:
 
 
 def drop_pg_cron_if_exists(cur: psycopg.Cursor) -> None:
+    cur.execute("select count(*) > 0 from pg_extension where extname = 'pg_cron'")
+    if cur.fetchone()[0] is True:
+        cur.execute("select cron.unschedule(jobid) from cron.job")
     cur.execute("drop extension if exists pg_cron cascade")
 
 
 def drop_test_db(cur: psycopg.Cursor) -> None:
     cur.execute("select pg_terminate_backend(pid) from pg_stat_activity where datname = 'test'")
-    cur.execute("drop database test")
+    cur.execute("drop database test with (force)")
 
 
 def create_test_db(cur: psycopg.Cursor) -> None:

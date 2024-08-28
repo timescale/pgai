@@ -1,12 +1,24 @@
 
 
 -------------------------------------------------------------------------------
--- execute_vectorizer
+-- execute_async_ext_vectorizer
 create or replace function ai.execute_async_ext_vectorizer(vectorizer_id int) returns void
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.vectorizer
     ai.vectorizer.execute_async_ext_vectorizer(plpy, vectorizer_id)
+$python$
+language plpython3u volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _vectorizer_ext_delete
+create or replace function ai._vectorizer_ext_delete(vectorizer_id int) returns void
+as $python$
+    #ADD-PYTHON-LIB-DIR
+    import ai.vectorizer
+    ai.vectorizer.delete_vectorizer(plpy, vectorizer_id)
 $python$
 language plpython3u volatile security invoker
 set search_path to pg_catalog, pg_temp
@@ -1118,7 +1130,8 @@ begin
     where v.id operator(pg_catalog.=) vectorizer_id
     ;
 
-    -- TODO: send http request for deletion
+    -- send the http request
+    perform ai._vectorizer_ext_delete(vectorizer_id);
 end;
 $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
