@@ -372,7 +372,7 @@ def lint_sql() -> None:
     sql = sql_dir().joinpath(f"ai--{this_version()}.sql")
     cmd = " ".join([
         "pgspot --ignore-lang=plpython3u",
-        '--proc-without-search-path="ai._vectorizer_async_ext_job(_job_id integer,_config jsonb)"',
+        '--proc-without-search-path "ai._vectorizer_async_ext_job(job_id integer,config jsonb)"',
         f"{sql}"
     ])
     subprocess.run(cmd, shell=True, check=True, env=os.environ)

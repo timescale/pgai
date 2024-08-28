@@ -875,7 +875,7 @@ def test_vectorizer_timescaledb():
             """)
 
             # check that the queue has 2 rows
-            cur.execute("select pending from ai.vectorizer_status where id = %s", (vectorizer_id,))
+            cur.execute("select pending_items from ai.vectorizer_status where id = %s", (vectorizer_id,))
             actual = cur.fetchone()[0]
             assert actual == 2
 
@@ -1119,7 +1119,4 @@ def test_drop_vectorizer():
             """, (pg_proc_oid,))
             actual = cur.fetchone()[0]
             assert actual == 0
-
-
-# TODO: test pg_cron scheduling
 
