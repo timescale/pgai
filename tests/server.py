@@ -9,6 +9,8 @@ from datetime import datetime
 
 app = FastAPI()
 
+DB_URL = "postgres://postgres@127.0.0.1:5432/test"
+
 
 class ChunkingCharacterTextSplitter(BaseModel):
     implementation: Literal['character_text_splitter']
@@ -106,7 +108,7 @@ class Vectorizer(BaseModel):
 
 def vectorize(v: Vectorizer) -> int:
     # pretend to work the queue
-    with psycopg.connect("postgres://postgres@127.0.0.1:5432/test") as con:
+    with psycopg.connect(DB_URL) as con:
         while True:
             with con.cursor() as cur:
                 cur.execute(f"""
@@ -125,9 +127,14 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.post("/")
 async def execute_vectorizer(vectorizer: Vectorizer):
-    print(f"vectorizer: {vectorizer.id}")
+    print(f"execute vectorizer: {vectorizer.id}")
     # do this in a blocking manner to make the tests easier
     # we KNOW that when the HTTP request has returned that the work has been done
     deleted = vectorize(vectorizer)
     print(f"queue emptied: {deleted} rows deleted")
     return {"id": vectorizer.id}
+
+
+@app.get("/vectorizer/delete/{vectorizer_id}")
+async def delete_vectorizer(vectorizer_id: int):
+    print(f"delete vectorizer: {vectorizer_id}")
