@@ -1154,11 +1154,12 @@ set search_path to pg_catalog, pg_temp
 create or replace view ai.vectorizer_status as
 select
   v.id
-, pg_catalog.format('%I.%I', v.source_schema, v.source_table) as source_name
-, pg_catalog.format('%I.%I', v.view_schema, v.view_name) as view_name
+, pg_catalog.format('%I.%I', v.source_schema, v.source_table) as source_table
+, pg_catalog.format('%I.%I', v.target_schema, v.target_table) as target_table
+, pg_catalog.format('%I.%I', v.view_schema, v.view_name) as "view"
 , case when v.queue_table is not null then
     ai.vectorizer_queue_pending(v.id)
   else 0
-  end as pending
+  end as pending_items
 from ai.vectorizer v
 ;
