@@ -47,7 +47,6 @@ begin
         , applied_at timestamptz not null default pg_catalog.clock_timestamp()
         , body text not null
         );
-        perform pg_catalog.pg_extension_config_dump('ai.migration'::pg_catalog.regclass, '');
     end if;
 end;
 $bootstrap_extension$;
