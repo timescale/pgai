@@ -18,6 +18,7 @@ RUN set -e; \
     cmake \
     clang \
     git \
+    curl \
     vim
 
 RUN set -e; \
