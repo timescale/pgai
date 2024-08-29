@@ -12,6 +12,7 @@ RUN set -e; \
     postgresql-plpython3-16 \
     postgresql-16-pgvector \
     postgresql-16-cron \
+    postgresql-16-pgextwlist \
     postgresql-server-dev-16 \
     python3-pip \
     make \
