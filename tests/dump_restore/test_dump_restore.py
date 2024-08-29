@@ -11,6 +11,9 @@ if not enable_dump_restore_tests or enable_dump_restore_tests == "0":
     pytest.skip(allow_module_level=True)
 
 
+USER = "jane"  # NOT a superuser
+
+
 def db_url(user: str, dbname: str) -> str:
     return f"postgres://{user}@127.0.0.1:5432/{dbname}"
 
@@ -27,6 +30,19 @@ def docker_dir() -> str:
 
 def host_dir() -> Path:
     return Path(__file__).parent.absolute()
+
+
+def create_user() -> None:
+    with psycopg.connect(db_url(user="postgres", dbname="postgres"), autocommit=True) as con:
+        with con.cursor() as cur:
+            cur.execute("""
+                select count(*) > 0
+                from pg_catalog.pg_roles
+                where rolname = %s
+            """, (USER,))
+            exists: bool = cur.fetchone()[0]
+            if not exists:
+                cur.execute(f"create user {USER}")  # NOT a superuser
 
 
 def does_db_exist(cur: psycopg.Cursor, dbname: str) -> bool:
@@ -47,14 +63,14 @@ def create_database(dbname: str) -> None:
         with con.cursor() as cur:
             if does_db_exist(cur, dbname):
                 drop_db(cur, dbname)
-            cur.execute(f"create database {dbname}")
+            cur.execute(f"create database {dbname} with owner {USER}")
 
 
 def dump_db() -> None:
     host_dir().joinpath("dump.sql").unlink(missing_ok=True)
     cmd = " ".join([
         "pg_dump -Fp",
-        f'''-d "{db_url("postgres", "src")}"''',
+        f'''-d "{db_url(USER, "src")}"''',
         f'''-f {docker_dir()}/dump.sql'''
     ])
     if where_am_i() != "docker":
@@ -63,9 +79,12 @@ def dump_db() -> None:
 
 
 def restore_db() -> None:
+    with psycopg.connect(db_url(user=USER, dbname="dst")) as con:
+        with con.cursor() as cur:
+            cur.execute(f"create extension ai cascade")
     cmd = " ".join([
         "psql",
-        f'''-d "{db_url("postgres", "dst")}"''',
+        f'''-d "{db_url(USER, "dst")}"''',
         "-v VERBOSITY=verbose",
         f"-f {docker_dir()}/dump.sql",
     ])
@@ -91,7 +110,7 @@ def snapshot_db(dbname: str) -> None:
 def init_src() -> None:
     cmd = " ".join([
         "psql",
-        f'''-d "{db_url("postgres", "src")}"''',
+        f'''-d "{db_url(USER, "src")}"''',
         "-v ON_ERROR_STOP=1",
         f"-f {docker_dir()}/init.sql",
     ])
@@ -106,6 +125,7 @@ def read_file(filename: str) -> str:
 
 
 def test_dump_restore():
+    create_user()
     create_database("src")
     create_database("dst")
     init_src()
