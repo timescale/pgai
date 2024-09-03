@@ -905,7 +905,7 @@ def test_vectorizer_timescaledb():
 
             # ping the external job explicitly
             # language=PostgreSQL
-            cur.execute("select ai.execute_async_ext_vectorizer(%s)"
+            cur.execute("select ai.execute_vectorizer(%s)"
                         , (vectorizer_id,))
 
             # check that the queue has 0 rows
