@@ -588,7 +588,7 @@ begin
     $plpgsql$ language plpgsql volatile parallel safe security invoker
     set search_path to pg_catalog, pg_temp
     $sql$
-    , source_schema, trigger_name
+    , queue_schema, trigger_name
     , queue_schema, queue_table
     , (
         select pg_catalog.string_agg(pg_catalog.format('%I', x.attname), ', ' order by x.attnum)
@@ -611,7 +611,7 @@ begin
     $sql$
     , trigger_name
     , source_schema, source_table
-    , source_schema, trigger_name
+    , queue_schema, trigger_name
     ) into strict _sql
     ;
     execute _sql;
@@ -846,7 +846,7 @@ begin
     target_table = coalesce(target_table, pg_catalog.concat(_source_table, '_embedding_store'));
     view_schema = coalesce(view_schema, _source_schema);
     view_name = coalesce(view_name, pg_catalog.concat(_source_table, '_embedding'));
-    _trigger_name = pg_catalog.concat('vectorizer_src_trg_', _vectorizer_id);
+    _trigger_name = pg_catalog.concat('_vectorizer_src_trg_', _vectorizer_id);
     queue_schema = coalesce(queue_schema, 'ai');
     queue_table = coalesce(queue_table, pg_catalog.concat('_vectorizer_q_', _vectorizer_id));
 
