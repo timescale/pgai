@@ -16,3 +16,5 @@ create table ai.vectorizer
 );
 perform pg_catalog.pg_extension_config_dump('ai.vectorizer'::pg_catalog.regclass, '');
 perform pg_catalog.pg_extension_config_dump('ai.vectorizer_id_seq'::pg_catalog.regclass, '');
+
+-- TODO: add table for items that failed to be embedded
