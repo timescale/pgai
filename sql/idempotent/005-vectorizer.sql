@@ -633,7 +633,7 @@ declare
     _queue_schema name;
     _queue_table name;
     _sql text;
-    _item record;
+    _item bigint;
 begin
     set local search_path = pg_catalog, pg_temp;
     if config is null then
@@ -652,7 +652,7 @@ begin
     -- if there is at least one item in the queue, we need to execute the vectorizer
     select pg_catalog.format
     ( $sql$
-    select *
+    select 1
     from %I.%I
     for update skip locked
     limit 1
