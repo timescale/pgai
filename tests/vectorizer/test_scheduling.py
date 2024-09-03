@@ -134,3 +134,43 @@ def test_scheduling_timescaledb():
                 assert actual.keys() == expected.keys()
                 for k, v in actual.items():
                     assert k in expected and v == expected[k]
+
+
+def test_validate_scheduling():
+    ok = [
+        "select ai._validate_scheduling(ai.scheduling_none())",
+        "select ai._validate_scheduling(ai.scheduling_pg_cron('*/5 * * * *'))",
+        "select ai._validate_scheduling(ai.scheduling_timescaledb())",
+    ]
+    bad = [
+        (
+            "select ai._validate_scheduling(ai.indexing_hnsw(opclass=>'peter'))",
+            "invalid config_type for scheduling config"
+        ),
+        (
+            """select ai._validate_scheduling('{"config_type": "scheduling"}'::jsonb)""",
+            "scheduling implementation not specified"
+        ),
+        (
+            """
+            select ai._validate_scheduling
+            ( '{"config_type": "scheduling", "implementation": "grandfather clock"}'::jsonb
+            )
+            """,
+            'unrecognized scheduling implementation: "grandfather clock"'
+        ),
+    ]
+    with psycopg.connect(db_url("test"), autocommit=True) as con:
+        with con.cursor() as cur:
+            for query in ok:
+                cur.execute(query)
+                assert True
+            for query, err in bad:
+                try:
+                    cur.execute(query)
+                except psycopg.ProgrammingError as ex:
+                    msg = str(ex.args[0])
+                    assert len(msg) >= len(err) and msg[:len(err)] == err
+                else:
+                    pytest.fail(f"expected exception: {err}")
+

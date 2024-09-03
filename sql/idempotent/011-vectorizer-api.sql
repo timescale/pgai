@@ -90,38 +90,16 @@ begin
     perform ai._validate_embedding(embedding);
 
     -- validate the chunking config
-    perform ai._validate_chunking
-    ( chunking
-    , _source_schema
-    , _source_table
-    );
+    perform ai._validate_chunking(chunking, _source_schema, _source_table);
 
     -- validate the indexing config
     perform ai._validate_indexing(indexing);
 
     -- validate the formatting config
-    case formatting operator(pg_catalog.->>) 'implementation'
-        when 'python_template' then
-            formatting = ai._validate_formatting_python_template
-            ( formatting
-            , _source_schema
-            , _source_table
-            );
-        else
-            raise exception 'unrecognized formatting config';
-    end case;
+    formatting = ai._validate_formatting(formatting, _source_schema, _source_table);
 
     -- validate the scheduling config
-    case scheduling operator(pg_catalog.->>) 'implementation'
-        when 'timescaledb' then
-            -- ok
-        when 'pg_cron' then
-            -- ok
-        when 'none' then
-            -- ok
-        else
-            raise exception 'unrecognized scheduling config';
-    end case;
+    perform ai._validate_scheduling(scheduling);
 
     -- grant select on source table to _grant_to roles
     if grant_to is not null then

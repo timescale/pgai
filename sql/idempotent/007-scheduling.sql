@@ -47,3 +47,36 @@ as $func$
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
+
+
+-------------------------------------------------------------------------------
+-- _validate_scheduling
+create or replace function ai._validate_scheduling(config jsonb) returns void
+as $func$
+declare
+    _config_type text;
+    _implementation text;
+begin
+    _config_type = config operator ( pg_catalog.->> ) 'config_type';
+    if _config_type is null or _config_type != 'scheduling' then
+        raise exception 'invalid config_type for scheduling config';
+    end if;
+    _implementation = config operator(pg_catalog.->>) 'implementation';
+    case _implementation
+        when 'none' then
+            -- ok
+        when 'pg_cron' then
+            -- ok
+        when 'timescaledb' then
+            -- ok
+        else
+            if _implementation is null then
+                raise exception 'scheduling implementation not specified';
+            else
+                raise exception 'unrecognized scheduling implementation: "%"', _implementation;
+            end if;
+    end case;
+end
+$func$ language plpgsql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
