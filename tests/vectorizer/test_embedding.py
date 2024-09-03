@@ -56,3 +56,35 @@ def test_embedding_openai():
                 for k, v in actual.items():
                     assert k in expected and v == expected[k]
 
+
+def test_validate_embedding():
+    ok = [
+        "select ai._validate_embedding( ai.embedding_openai('text-embedding-3-small', 756))",
+    ]
+    bad = [
+        (
+            "select ai._validate_embedding(ai.chunking_character_text_splitter('content', 128, 10))",
+            "invalid config_type for embedding config",
+        ),
+        (
+            """select ai._validate_embedding('{"config_type": "embedding"}')""",
+            "embedding implementation not specified",
+        ),
+        (
+            """select ai._validate_embedding('{"config_type": "embedding", "implementation": "bob"}')""",
+            'invalid embedding implementation: "bob"',
+        ),
+    ]
+    with psycopg.connect(db_url("test"), autocommit=True) as con:
+        with con.cursor() as cur:
+            for query in ok:
+                cur.execute(query)
+                assert True
+            for query, err in bad:
+                try:
+                    cur.execute(query)
+                except psycopg.ProgrammingError as ex:
+                    msg = str(ex.args[0])
+                    assert len(msg) >= len(err) and msg[:len(err)] == err
+                else:
+                    pytest.fail(f"expected exception: {err}")
