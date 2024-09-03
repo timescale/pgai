@@ -1,8 +1,8 @@
 
 
 -------------------------------------------------------------------------------
--- execute_async_ext_vectorizer
-create or replace function ai.execute_async_ext_vectorizer(vectorizer_id int) returns void
+-- execute_vectorizer
+create or replace function ai.execute_vectorizer(vectorizer_id int) returns void
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.vectorizer
@@ -650,7 +650,7 @@ begin
         return;
     end if;
     -- execute the vectorizer
-    perform ai.execute_async_ext_vectorizer(_vectorizer_id);
+    perform ai.execute_vectorizer(_vectorizer_id);
     commit;
 end
 $func$
