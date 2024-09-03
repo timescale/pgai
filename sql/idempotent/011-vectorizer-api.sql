@@ -86,24 +86,15 @@ begin
     queue_schema = coalesce(queue_schema, 'ai');
     queue_table = coalesce(queue_table, pg_catalog.concat('_vectorizer_q_', _vectorizer_id));
 
-    case embedding operator(pg_catalog.->>) 'implementation'
-        when 'openai' then
-            -- ok
-        else
-            raise exception 'unrecognized chunking config';
-    end case;
+    -- validate the embedding config
+    perform ai._validate_embedding(embedding);
 
     -- validate the chunking config
-    case chunking operator(pg_catalog.->>) 'implementation'
-        when 'character_text_splitter' then
-            perform ai._validate_chunking_character_text_splitter
-            ( chunking
-            , _source_schema
-            , _source_table
-            );
-        else
-            raise exception 'unrecognized chunking config';
-    end case;
+    perform ai._validate_chunking
+    ( chunking
+    , _source_schema
+    , _source_table
+    );
 
     -- validate the indexing config
     perform ai._validate_indexing(indexing);
