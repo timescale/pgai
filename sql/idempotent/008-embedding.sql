@@ -10,6 +10,7 @@ create or replace function ai.embedding_openai
 as $func$
     select json_object
     ( 'implementation': 'openai'
+    , 'config_type': 'embedding'
     , 'model': model
     , 'dimensions': dimensions
     , 'user': chat_user

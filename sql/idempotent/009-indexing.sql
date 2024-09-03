@@ -3,7 +3,10 @@
 -- indexing_none
 create or replace function ai.indexing_none() returns jsonb
 as $func$
-    select jsonb_build_object('implementation', 'none')
+    select jsonb_build_object
+    ( 'implementation', 'none'
+    , 'config_type', 'indexing'
+    )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -22,6 +25,7 @@ create or replace function ai.indexing_diskann
 as $func$
     select json_object
     ( 'implementation': 'diskann'
+    , 'config_type': 'indexing'
     , 'min_rows': min_rows
     , 'storage_layout': storage_layout
     , 'num_neighbors': num_neighbors
@@ -62,6 +66,7 @@ create or replace function ai.indexing_hnsw
 as $func$
     select json_object
     ( 'implementation': 'hnsw'
+    , 'config_type': 'indexing'
     , 'min_rows': min_rows
     , 'opclass': opclass
     , 'm': m
@@ -94,8 +99,13 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai._validate_indexing(config jsonb) returns void
 as $func$
 declare
+    _config_type text;
     _implementation text;
 begin
+    _config_type = config operator ( pg_catalog.->> ) 'config_type';
+    if _config_type is null or _config_type != 'indexing' then
+        raise exception 'invalid config_type for indexing config';
+    end if;
     _implementation = config operator(pg_catalog.->>) 'implementation';
     case _implementation
         when 'none' then

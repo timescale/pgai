@@ -19,6 +19,7 @@ def test_indexing_none():
             "select ai.indexing_none()",
             {
                 "implementation": "none",
+                "config_type": "indexing",
             },
         ),
     ]
@@ -38,6 +39,7 @@ def test_indexing_diskann():
             "select ai.indexing_diskann()",
             {
                 "implementation": "diskann",
+                "config_type": "indexing",
                 "min_rows": 100_000,
             },
         ),
@@ -45,6 +47,7 @@ def test_indexing_diskann():
             "select ai.indexing_diskann(min_rows=>500)",
             {
                 "implementation": "diskann",
+                "config_type": "indexing",
                 "min_rows": 500,
             },
         ),
@@ -52,6 +55,7 @@ def test_indexing_diskann():
             "select ai.indexing_diskann(storage_layout=>'plain')",
             {
                 "implementation": "diskann",
+                "config_type": "indexing",
                 "min_rows": 100_000,
                 "storage_layout": "plain",
             },
@@ -69,6 +73,7 @@ def test_indexing_diskann():
             """,
             {
                 "implementation": "diskann",
+                "config_type": "indexing",
                 "min_rows": 100_000,
                 "storage_layout": "memory_optimized",
                 "num_neighbors": 50,
@@ -95,6 +100,7 @@ def test_indexing_hnsw():
             "select ai.indexing_hnsw()",
             {
                 "implementation": "hnsw",
+                "config_type": "indexing",
                 "min_rows": 100_000,
             },
         ),
@@ -102,6 +108,7 @@ def test_indexing_hnsw():
             "select ai.indexing_hnsw(min_rows=>500)",
             {
                 "implementation": "hnsw",
+                "config_type": "indexing",
                 "min_rows": 500,
             },
         ),
@@ -109,6 +116,7 @@ def test_indexing_hnsw():
             "select ai.indexing_hnsw(opclass=>'vector_cosine_ops')",
             {
                 "implementation": "hnsw",
+                "config_type": "indexing",
                 "min_rows": 100_000,
                 "opclass": "vector_cosine_ops",
             },
@@ -117,6 +125,7 @@ def test_indexing_hnsw():
             "select ai.indexing_hnsw(m=>10, ef_construction=>100)",
             {
                 "implementation": "hnsw",
+                "config_type": "indexing",
                 "min_rows": 100_000,
                 "m": 10,
                 "ef_construction": 100,
@@ -154,6 +163,10 @@ def test_validate_indexing():
         (
             "select ai._validate_indexing(ai.indexing_diskann(storage_layout=>'super_advanced'))",
             "invalid storage"
+        ),
+        (
+            "select ai._validate_indexing(ai.scheduling_none())",
+            "invalid config_type for indexing config"
         ),
     ]
     with psycopg.connect(db_url("test"), autocommit=True) as con:

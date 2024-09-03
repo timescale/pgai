@@ -19,6 +19,7 @@ def test_embedding_openai():
             "select ai.embedding_openai('text-embedding-3-small', 128)",
             {
                 "implementation": "openai",
+                "config_type": "embedding",
                 "model": "text-embedding-3-small",
                 "dimensions": 128,
                 "api_key_name": "OPENAI_API_KEY",
@@ -28,6 +29,7 @@ def test_embedding_openai():
             """select ai.embedding_openai('text-embedding-3-small', 128, chat_user=>'bob')""",
             {
                 "implementation": "openai",
+                "config_type": "embedding",
                 "model": "text-embedding-3-small",
                 "dimensions": 128,
                 "user": "bob",
@@ -38,6 +40,7 @@ def test_embedding_openai():
             "select ai.embedding_openai('text-embedding-3-small', 128, api_key_name=>'DEV_API_KEY')",
             {
                 "implementation": "openai",
+                "config_type": "embedding",
                 "model": "text-embedding-3-small",
                 "dimensions": 128,
                 "api_key_name": "DEV_API_KEY",

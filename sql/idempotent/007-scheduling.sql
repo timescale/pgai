@@ -3,7 +3,10 @@
 -- scheduling_none
 create or replace function ai.scheduling_none() returns jsonb
 as $func$
-    select pg_catalog.jsonb_build_object('implementation', 'none')
+    select pg_catalog.jsonb_build_object
+    ( 'implementation', 'none'
+    , 'config_type', 'scheduling'
+    )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -16,6 +19,7 @@ create or replace function ai.scheduling_pg_cron
 as $func$
     select pg_catalog.jsonb_build_object
     ( 'implementation', 'pg_cron'
+    , 'config_type', 'scheduling'
     , 'schedule', schedule
     )
 $func$ language sql immutable security invoker
@@ -33,6 +37,7 @@ create or replace function ai.scheduling_timescaledb
 as $func$
     select json_object
     ( 'implementation': 'timescaledb'
+    , 'config_type': 'scheduling'
     , 'schedule_interval': schedule_interval
     , 'initial_start': initial_start
     , 'fixed_schedule': fixed_schedule
