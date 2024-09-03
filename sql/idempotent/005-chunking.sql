@@ -3,8 +3,8 @@
 -- chunking_character_text_splitter
 create or replace function ai.chunking_character_text_splitter
 ( chunk_column name
-, chunk_size int
-, chunk_overlap int
+, chunk_size int default 800
+, chunk_overlap int default 400
 , separator text default E'\n\n'
 , is_separator_regex bool default false
 ) returns jsonb
@@ -23,11 +23,33 @@ $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
--- TODO: add recursive character text splitter
+-------------------------------------------------------------------------------
+-- chunking_recursive_character_text_splitter
+create or replace function ai.chunking_recursive_character_text_splitter
+( chunk_column name
+, chunk_size int default 800
+, chunk_overlap int default 400
+, separators text[] default null
+, is_separator_regex bool default false
+) returns jsonb
+as $func$
+    select json_object
+    ( 'implementation': 'recursive_character_text_splitter'
+    , 'config_type': 'chunking'
+    , 'chunk_column': chunk_column
+    , 'chunk_size': chunk_size
+    , 'chunk_overlap': chunk_overlap
+    , 'separators': separators
+    , 'is_separator_regex': is_separator_regex
+    absent on null
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
 
 -------------------------------------------------------------------------------
--- _validate_chunking_character_text_splitter
-create or replace function ai._validate_chunking_character_text_splitter
+-- _validate_chunking
+create or replace function ai._validate_chunking
 ( config jsonb
 , source_schema name
 , source_table name
@@ -35,19 +57,21 @@ create or replace function ai._validate_chunking_character_text_splitter
 as $func$
 declare
     _config_type text;
+    _implementation text;
     _chunk_column text;
     _found bool;
 begin
-    select config operator(pg_catalog.->>) 'config_type'
-    into _config_type
-    ;
+    _config_type = config operator(pg_catalog.->>) 'config_type';
     if _config_type is null or _config_type != 'chunking' then
         raise exception 'invalid config_type for chunking config';
     end if;
 
-    select config operator(pg_catalog.->>) 'chunk_column'
-    into strict _chunk_column
-    ;
+    _implementation = config operator(pg_catalog.->>) 'implementation';
+    if _implementation is null or _implementation not in ('character_text_splitter', 'recursive_character_text_splitter') then
+        raise exception 'invalid chunking config implementation';
+    end if;
+
+    _chunk_column = config operator(pg_catalog.->>) 'chunk_column';
 
     select count(*) > 0 into strict _found
     from pg_catalog.pg_class k
