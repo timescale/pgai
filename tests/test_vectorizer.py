@@ -620,7 +620,6 @@ VECTORIZER_ROW = r"""
             "schedule_interval": "00:05:00"
         }
     },
-    "external": true,
     "source_pk": [
         {
             "pknum": 1,
@@ -638,7 +637,6 @@ VECTORIZER_ROW = r"""
     "view_name": "blog_embedding",
     "queue_table": "_vectorizer_q_1",
     "view_schema": "website",
-    "asynchronous": true,
     "queue_schema": "ai",
     "source_table": "blog",
     "target_table": "blog_embedding_store",
