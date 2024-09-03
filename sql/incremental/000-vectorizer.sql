@@ -17,4 +17,12 @@ create table ai.vectorizer
 perform pg_catalog.pg_extension_config_dump('ai.vectorizer'::pg_catalog.regclass, '');
 perform pg_catalog.pg_extension_config_dump('ai.vectorizer_id_seq'::pg_catalog.regclass, '');
 
--- TODO: add table for items that failed to be embedded
+create table ai.vectorizer_errors
+( id int not null references ai.vectorizer (id) on delete cascade
+, message text
+, details jsonb
+, recorded timestamptz not null default now()
+);
+create index on ai.vectorizer_errors (id, recorded);
+perform pg_catalog.pg_extension_config_dump('ai.vectorizer'::pg_catalog.regclass, '');
+
