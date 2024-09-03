@@ -932,6 +932,30 @@ def test_vectorizer_timescaledb():
                     assert actual == 2
                     con2.rollback()
 
+            # disable the schedule
+            cur.execute("select ai.disable_vectorizer_schedule(%s)", (vectorizer_id,))
+
+            # check that the timescaledb job is disabled
+            cur.execute("""
+                select scheduled
+                from timescaledb_information.jobs j
+                where j.job_id = %s
+            """, (vec.config['scheduling']['job_id'],))
+            actual = cur.fetchone()[0]
+            assert actual is False
+
+            # enable the schedule
+            cur.execute("select ai.enable_vectorizer_schedule(%s)", (vectorizer_id,))
+
+            # check that the timescaledb job is enabled
+            cur.execute("""
+                select scheduled
+                from timescaledb_information.jobs j
+                where j.job_id = %s
+            """, (vec.config['scheduling']['job_id'],))
+            actual = cur.fetchone()[0]
+            assert actual is True
+
     # does the source table look right?
     actual = psql_cmd(r"\d+ website.blog")
     assert actual == SOURCE_TABLE
@@ -1009,6 +1033,30 @@ def test_vectorizer_pg_cron():
             assert actual.jobname == f"vectorizer_{vectorizer_id}"
             assert actual.command == f"call ai._vectorizer_async_ext_job(null, pg_catalog.jsonb_build_object('vectorizer_id', {vectorizer_id}))"
 
+            # disable the schedule
+            cur.execute("select ai.disable_vectorizer_schedule(%s)", (vectorizer_id,))
+
+            # check that the pg_cron job is disabled
+            cur.execute("""
+                select active
+                from cron.job
+                where jobid = 1
+            """)
+            actual = cur.fetchone()[0]
+            assert actual is False
+
+            # enable the schedule
+            cur.execute("select ai.enable_vectorizer_schedule(%s)", (vectorizer_id,))
+
+            # check that the pg_cron job is enabled
+            cur.execute("""
+                select active
+                from cron.job
+                where jobid = 1
+            """)
+            actual = cur.fetchone()[0]
+            assert actual is True
+
 
 def test_drop_vectorizer():
     with psycopg.connect(db_url("postgres"), autocommit=True, row_factory=namedtuple_row) as con:
@@ -1046,6 +1094,7 @@ def test_drop_vectorizer():
             ( 'wiki.post'::regclass
             , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
             , chunking=>ai.chunking_character_text_splitter('content', 128, 10)
+            , scheduling=>ai.scheduling_timescaledb()
             , grant_to=>null
             );
             """)
@@ -1118,3 +1167,11 @@ def test_drop_vectorizer():
             actual = cur.fetchone()[0]
             assert actual == 0
 
+            # does the timescaledb job exist? (it should not)
+            cur.execute(f"""
+                select count(*)
+                from timescaledb_information.jobs
+                where job_id = %s
+            """, (vectorizer.config['scheduling']['job_id'],))
+            actual = cur.fetchone()[0]
+            assert actual == 0

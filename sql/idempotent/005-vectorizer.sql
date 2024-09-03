@@ -185,6 +185,8 @@ $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-- TODO: add recursive character text splitter
+
 -------------------------------------------------------------------------------
 -- _validate_chunking_character_text_splitter
 create or replace function ai._validate_chunking_character_text_splitter
@@ -1066,10 +1068,129 @@ $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
-create or replace function ai.drop_vectorizer(vectorizer_id int) returns void
+-------------------------------------------------------------------------------
+-- disable_vectorizer_schedule
+create or replace function ai.disable_vectorizer_schedule(vectorizer_id int) returns void
 as $func$
 declare
     _vec ai.vectorizer%rowtype;
+    _schedule jsonb;
+    _job_id bigint;
+    _sql text;
+begin
+    select * into strict _vec
+    from ai.vectorizer v
+    where v.id operator(pg_catalog.=) vectorizer_id
+    ;
+    -- enable the scheduled job if exists
+    _schedule = _vec.config operator(pg_catalog.->) 'scheduling';
+    if _schedule is not null then
+        case _schedule operator(pg_catalog.->>) 'implementation'
+            when 'none' then -- ok
+            when 'timescaledb' then
+                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::bigint;
+                select pg_catalog.format
+                ( $$select %I.alter_job(job_id, scheduled=>false) from timescaledb_information.jobs where job_id = %L$$
+                , n.nspname
+                , _job_id
+                ) into _sql
+                from pg_catalog.pg_extension x
+                inner join pg_catalog.pg_namespace n on (x.extnamespace = n.oid)
+                where x.extname = 'timescaledb'
+                ;
+                if _sql is not null then
+                    execute _sql;
+                end if;
+            when 'pg_cron' then
+                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::bigint;
+                select pg_catalog.format
+                ( $$select cron.alter_job(jobid, active=>false) from cron.job where jobid = %L$$
+                , _job_id
+                ) into _sql
+                from pg_catalog.pg_extension x
+                where x.extname = 'pg_cron'
+                ;
+                if _sql is not null then
+                    execute _sql;
+                end if;
+        end case;
+    end if;
+end;
+$func$ language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- enable_vectorizer_schedule
+create or replace function ai.enable_vectorizer_schedule(vectorizer_id int) returns void
+as $func$
+declare
+    _vec ai.vectorizer%rowtype;
+    _schedule jsonb;
+    _job_id bigint;
+    _sql text;
+begin
+    select * into strict _vec
+    from ai.vectorizer v
+    where v.id operator(pg_catalog.=) vectorizer_id
+    ;
+    -- enable the scheduled job if exists
+    _schedule = _vec.config operator(pg_catalog.->) 'scheduling';
+    if _schedule is not null then
+        case _schedule operator(pg_catalog.->>) 'implementation'
+            when 'none' then -- ok
+            when 'timescaledb' then
+                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::bigint;
+                select pg_catalog.format
+                ( $$select %I.alter_job(job_id, scheduled=>true) from timescaledb_information.jobs where job_id = %L$$
+                , n.nspname
+                , _job_id
+                ) into _sql
+                from pg_catalog.pg_extension x
+                inner join pg_catalog.pg_namespace n on (x.extnamespace = n.oid)
+                where x.extname = 'timescaledb'
+                ;
+                if _sql is not null then
+                    execute _sql;
+                end if;
+            when 'pg_cron' then
+                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::bigint;
+                select pg_catalog.format
+                ( $$select cron.alter_job(jobid, active=>true) from cron.job where jobid = %L$$
+                , _job_id
+                ) into _sql
+                from pg_catalog.pg_extension x
+                where x.extname = 'pg_cron'
+                ;
+                if _sql is not null then
+                    execute _sql;
+                end if;
+        end case;
+    end if;
+end;
+$func$ language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- drop_vectorizer
+create or replace function ai.drop_vectorizer(vectorizer_id int) returns void
+as $func$
+/* drop_vectorizer
+This function does the following:
+1. drops the trigger from the source table
+2. drops the trigger function
+3. drops the queue table
+4. deletes the vectorizer row
+
+It does NOT:
+1. drop the target table containing the embeddings
+2. drop the view joining the target and source
+*/
+declare
+    _vec ai.vectorizer%rowtype;
+    _schedule jsonb;
+    _job_id bigint;
     _trigger pg_catalog.pg_trigger%rowtype;
     _sql text;
 begin
@@ -1078,6 +1199,40 @@ begin
     from ai.vectorizer v
     where v.id operator(pg_catalog.=) vectorizer_id
     ;
+
+    -- delete the scheduled job if exists
+    _schedule = _vec.config operator(pg_catalog.->) 'scheduling';
+    if _schedule is not null then
+        case _schedule operator(pg_catalog.->>) 'implementation'
+            when 'none' then -- ok
+            when 'timescaledb' then
+                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::bigint;
+                select pg_catalog.format
+                ( $$select %I.delete_job(job_id) from timescaledb_information.jobs where job_id = %L$$
+                , n.nspname
+                , _job_id
+                ) into _sql
+                from pg_catalog.pg_extension x
+                inner join pg_catalog.pg_namespace n on (x.extnamespace = n.oid)
+                where x.extname = 'timescaledb'
+                ;
+                if _sql is not null then
+                    execute _sql;
+                end if;
+            when 'pg_cron' then
+                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::bigint;
+                select pg_catalog.format
+                ( $$select cron.unschedule(jobid) from cron.job where jobid = %L$$
+                , _job_id
+                ) into _sql
+                from pg_catalog.pg_extension x
+                where x.extname = 'pg_cron'
+                ;
+                if _sql is not null then
+                    execute _sql;
+                end if;
+        end case;
+    end if;
 
     -- look up the trigger so we can find the function/procedure backing the trigger
     select * into strict _trigger
@@ -1127,13 +1282,13 @@ begin
     where v.id operator(pg_catalog.=) vectorizer_id
     ;
 
-    -- send the http request
-    perform ai._vectorizer_ext_delete(vectorizer_id);
 end;
 $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-------------------------------------------------------------------------------
+-- vectorizer_queue_pending
 create or replace function ai.vectorizer_queue_pending(vectorizer_id int) returns bigint
 as $func$
 declare
@@ -1161,6 +1316,8 @@ $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-------------------------------------------------------------------------------
+-- vectorizer_status
 create or replace view ai.vectorizer_status as
 select
   v.id
