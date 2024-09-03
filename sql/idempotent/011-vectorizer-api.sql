@@ -429,10 +429,11 @@ create or replace function ai.drop_vectorizer(vectorizer_id int) returns void
 as $func$
 /* drop_vectorizer
 This function does the following:
-1. drops the trigger from the source table
-2. drops the trigger function
-3. drops the queue table
-4. deletes the vectorizer row
+1. deletes the scheduled job if any
+2. drops the trigger from the source table
+3. drops the trigger function
+4. drops the queue table
+5. deletes the vectorizer row
 
 It does NOT:
 1. drop the target table containing the embeddings
