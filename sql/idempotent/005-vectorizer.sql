@@ -738,10 +738,7 @@ begin
             , _extension_schema
             , ( -- gather up the arguments
                 select string_agg
-                ( case s.key
-                    when 'schedule_interval' then pg_catalog.format('%L', s.value)
-                    else pg_catalog.format('%s=>%L', s.key, s.value)
-                  end
+                ( pg_catalog.format('%s=>%L', s.key, s.value)
                 , ', '
                 order by x.ord
                 )
