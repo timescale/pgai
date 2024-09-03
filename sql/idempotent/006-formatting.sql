@@ -26,19 +26,11 @@ create or replace function ai._validate_formatting_python_template
 ) returns jsonb
 as $func$
 declare
-    _config_type text;
     _template text;
     _found bool;
     _columns name[];
     _msg text;
 begin
-    select config operator(pg_catalog.->>) 'config_type'
-    into _config_type
-    ;
-    if _config_type is null or _config_type != 'formatting' then
-        raise exception 'invalid config_type for formatting config';
-    end if;
-
     select config operator(pg_catalog.->>) 'template'
     into strict _template
     ;
@@ -105,5 +97,36 @@ begin
     return config;
 end
 $func$ language plpgsql stable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _validate_formatting
+create or replace function ai._validate_formatting
+( config jsonb
+, source_schema name
+, source_table name
+) returns jsonb
+as $func$
+declare
+    _config_type text;
+begin
+    _config_type = config operator ( pg_catalog.->> ) 'config_type';
+    if _config_type is null or _config_type != 'formatting' then
+        raise exception 'invalid config_type for formatting config';
+    end if;
+    case config operator(pg_catalog.->>) 'implementation'
+        when 'python_template' then
+            config = ai._validate_formatting_python_template
+            ( config
+            , source_schema
+            , source_table
+            );
+        else
+            raise exception 'unrecognized formatting implementation';
+    end case;
+    return config;
+end
+$func$ language plpgsql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;

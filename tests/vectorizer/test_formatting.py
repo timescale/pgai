@@ -76,11 +76,11 @@ def test_formatting_python_template():
                     assert k in expected and v == expected[k]
 
 
-def test_validate_formatting_python_template():
+def test_validate_formatting():
     ok = [
         (
             """
-            select ai._validate_formatting_python_template
+            select ai._validate_formatting
             ( ai.formatting_python_template()
             , 'public', 'thing'
             )
@@ -94,7 +94,7 @@ def test_validate_formatting_python_template():
         ),
         (
             """
-            select ai._validate_formatting_python_template
+            select ai._validate_formatting
             ( ai.formatting_python_template('color: $color weight: $weight $chunk')
             , 'public', 'thing'
             )
@@ -108,7 +108,7 @@ def test_validate_formatting_python_template():
         ),
         (
             """
-            select ai._validate_formatting_python_template
+            select ai._validate_formatting
             ( ai.formatting_python_template
               ( 'color: $color weight: $weight $chunk'
               , columns=>array['color', 'weight']
@@ -127,7 +127,25 @@ def test_validate_formatting_python_template():
     bad = [
         (
             """
-            select ai._validate_formatting_python_template
+            select ai._validate_formatting
+            ( ai.scheduling_none()
+            , 'public', 'thing'
+            )
+            """,
+            "invalid config_type for formatting config",
+        ),
+        (
+            """
+            select ai._validate_formatting
+            ( '{"implementation": "jinja2", "config_type": "formatting"}'::jsonb
+            , 'public', 'thing'
+            )
+            """,
+            "unrecognized formatting implementation",
+        ),
+        (
+            """
+            select ai._validate_formatting
             ( ai.formatting_python_template
               ( 'color: $color weight: $weight height: $height $chunk'
               , columns=>array['color', 'weight', 'height']
@@ -139,7 +157,7 @@ def test_validate_formatting_python_template():
         ),
         (
             """
-            select ai._validate_formatting_python_template
+            select ai._validate_formatting
             ( ai.formatting_python_template
               ( 'color: $color weight: $weight height: $height' -- no $chunk
               )
@@ -150,7 +168,7 @@ def test_validate_formatting_python_template():
         ),
         (
             """
-            select ai._validate_formatting_python_template
+            select ai._validate_formatting
             ( ai.formatting_python_template
               ( 'color: $color weight: $weight height: $height $chunk'
               )
@@ -161,7 +179,7 @@ def test_validate_formatting_python_template():
         ),
         (
             """
-            select ai._validate_formatting_python_template
+            select ai._validate_formatting
             ( ai.scheduling_none()
             , 'public', 'thing2' -- has a column named "chunk"
             )
