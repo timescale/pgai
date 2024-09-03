@@ -72,7 +72,7 @@ begin
         raise exception 'invalid storage_layout';
     end if;
 end
-$func$ language plpgsql stable security invoker
+$func$ language plpgsql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -110,7 +110,7 @@ begin
         raise exception 'invalid opclass';
     end if;
 end
-$func$ language plpgsql stable security invoker
+$func$ language plpgsql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -137,7 +137,7 @@ begin
             end if;
     end case;
 end
-$func$ language plpgsql stable security invoker
+$func$ language plpgsql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
