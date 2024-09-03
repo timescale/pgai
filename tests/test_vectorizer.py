@@ -726,8 +726,8 @@ View definition:
     t.chunk,
     t.embedding,
     s.id,
-    s.title,
-    s.published,
+    t.title,
+    t.published,
     s.body
    FROM website.blog_embedding_store t
      LEFT JOIN website.blog s ON t.title = s.title AND t.published = s.published;

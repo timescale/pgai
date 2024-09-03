@@ -467,12 +467,30 @@ begin
     , t.chunk_seq
     , t.chunk
     , t.embedding
-    , s.*
+    , %s
     from %I.%I t
     left outer join %I.%I s
     on (%s)
     $sql$
     , view_schema, view_name
+    , (
+        -- take primary keys from the target table and other columns from source
+        -- this allows for join removal optimization
+        select pg_catalog.string_agg
+        (
+            pg_catalog.format
+            ( '%s.%I'
+            , case when x.attnum is not null then 't' else 's' end
+            , a.attname
+            )
+            , E'\n    , '
+            order by a.attnum
+        )
+        from pg_catalog.pg_attribute a
+        left outer join pg_catalog.jsonb_to_recordset(source_pk) x(attnum int) on (a.attnum operator(pg_catalog.=) x.attnum)
+        where a.attrelid operator(pg_catalog.=) pg_catalog.format('%I.%I', source_schema, source_table)::regclass::oid
+        and a.attnum operator(pg_catalog.>) 0
+      )
     , target_schema, target_table
     , source_schema, source_table
     , (
