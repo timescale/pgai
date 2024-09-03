@@ -93,8 +93,6 @@ class PrimaryKeyColumn(BaseModel):
 
 class Vectorizer(BaseModel):
     id: int
-    asynchronous: bool
-    external: bool
     source_schema: str
     source_table: str
     source_pk: list[PrimaryKeyColumn]

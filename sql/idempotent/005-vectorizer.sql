@@ -768,8 +768,6 @@ create or replace function ai.create_vectorizer
 , indexing jsonb default ai.indexing_diskann()
 , formatting jsonb default ai.formatting_python_template()
 , scheduling jsonb default ai.scheduling_timescaledb()
-, asynchronous bool default true -- TODO: remove?
-, external bool default true -- TODO: remove?
 , target_schema name default null
 , target_table name default null
 , view_schema name default null
@@ -791,18 +789,6 @@ declare
     _sql text;
     _job_id bigint;
 begin
-    if asynchronous and not external then
-        raise exception 'asynchronous internal vectorizers are not implemented yet';
-    end if;
-
-    if not asynchronous and not external then
-        raise exception 'synchronous internal vectorizers are not implemented yet';
-    end if;
-
-    if not asynchronous and external then
-        raise exception 'synchronous vectorizers must be internal';
-    end if;
-
     -- make sure all the roles listed in _grant_to exist
     if grant_to is not null then
         -- do any roles NOT exist
@@ -999,8 +985,6 @@ begin
 
     insert into ai.vectorizer
     ( id
-    , asynchronous
-    , external
     , source_schema
     , source_table
     , source_pk
@@ -1015,8 +999,6 @@ begin
     )
     values
     ( _vectorizer_id
-    , asynchronous
-    , external
     , _source_schema
     , _source_table
     , _source_pk
