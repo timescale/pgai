@@ -23,6 +23,7 @@ VECTORIZER_ROW = r"""
         "chunking": {
             "separator": "\n\n",
             "chunk_size": 128,
+            "config_type": "chunking",
             "chunk_column": "body",
             "chunk_overlap": 10,
             "implementation": "character_text_splitter",
@@ -30,11 +31,13 @@ VECTORIZER_ROW = r"""
         },
         "indexing": {
             "min_rows": 100000,
+            "config_type": "indexing",
             "implementation": "diskann"
         },
         "embedding": {
             "model": "text-embedding-3-small",
             "dimensions": 768,
+            "config_type": "embedding",
             "api_key_name": "OPENAI_API_KEY",
             "implementation": "openai"
         },
@@ -44,11 +47,13 @@ VECTORIZER_ROW = r"""
                 "published"
             ],
             "template": "title: $title published: $published $chunk",
+            "config_type": "formatting",
             "implementation": "python_template"
         },
         "scheduling": {
             "job_id": 1000,
             "timezone": "America/Chicago",
+            "config_type": "scheduling",
             "initial_start": "2050-01-06T00:00:00+00:00",
             "implementation": "timescaledb",
             "schedule_interval": "00:05:00"
@@ -448,6 +453,7 @@ def test_vectorizer_pg_cron():
             cur.execute("""
                 select x.config->'scheduling' = jsonb_build_object
                 ( 'implementation', 'pg_cron'
+                , 'config_type', 'scheduling'
                 , 'schedule', '*/10 * * * *'
                 , 'job_id', 1
                 )

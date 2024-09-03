@@ -21,6 +21,7 @@ def test_formatting_python_template():
             """,
             {
                 "implementation": "python_template",
+                "config_type": "formatting",
                 "template": "$chunk",
             },
         ),
@@ -32,6 +33,7 @@ def test_formatting_python_template():
             """,
             {
                 "implementation": "python_template",
+                "config_type": "formatting",
                 "template": "size: $size shape: $shape $chunk",
             },
         ),
@@ -44,6 +46,7 @@ def test_formatting_python_template():
             """,
             {
                 "implementation": "python_template",
+                "config_type": "formatting",
                 "columns": ["size", "shape"],
                 "template": "size: $size shape: $shape $chunk",
             },
@@ -57,6 +60,7 @@ def test_formatting_python_template():
             """,
             {
                 "implementation": "python_template",
+                "config_type": "formatting",
                 "columns": ["color", "weight", "category"],
                 "template": "color: $color weight: $weight category: $category $chunk",
             },
@@ -83,6 +87,7 @@ def test_validate_formatting_python_template():
             """,
             {
                 "implementation": "python_template",
+                "config_type": "formatting",
                 "columns": ["id", "color", "weight"],
                 "template": "$chunk",
             },
@@ -96,6 +101,7 @@ def test_validate_formatting_python_template():
             """,
             {
                 "implementation": "python_template",
+                "config_type": "formatting",
                 "columns": ["id", "color", "weight"],
                 "template": "color: $color weight: $weight $chunk",
             },
@@ -112,6 +118,7 @@ def test_validate_formatting_python_template():
             """,
             {
                 "implementation": "python_template",
+                "config_type": "formatting",
                 "columns": ["color", "weight"],
                 "template": "color: $color weight: $weight $chunk",
             },
@@ -152,6 +159,15 @@ def test_validate_formatting_python_template():
             """,
             'formatting_python_template may not be used when source table has a column named "chunk"',
         ),
+        (
+            """
+            select ai._validate_formatting_python_template
+            ( ai.scheduling_none()
+            , 'public', 'thing2' -- has a column named "chunk"
+            )
+            """,
+            'invalid config_type for formatting config',
+        )
     ]
     with psycopg.connect(db_url("test"), autocommit=True) as con:
         with con.cursor() as cur:
