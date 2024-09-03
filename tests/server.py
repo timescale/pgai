@@ -14,6 +14,7 @@ DB_URL = "postgres://postgres@127.0.0.1:5432/test"
 
 class ChunkingCharacterTextSplitter(BaseModel):
     implementation: Literal['character_text_splitter']
+    config_type: Literal['chunking']
     chunk_column: str
     chunk_size: int
     chunk_overlap: int
@@ -23,6 +24,7 @@ class ChunkingCharacterTextSplitter(BaseModel):
 
 class EmbeddingOpenAI(BaseModel):
     implementation: Literal['openai']
+    config_type: Literal['embedding']
     model: str
     dimensions: int
     user: str | None = None
@@ -31,16 +33,19 @@ class EmbeddingOpenAI(BaseModel):
 
 class FormattingPythonTemplate(BaseModel):
     implementation: Literal['python_template']
+    config_type: Literal['formatting']
     columns: list[str]
     template: str
 
 
 class IndexingNone(BaseModel):
     implementation: Literal['none']
+    config_type: Literal['indexing']
 
 
 class IndexingDiskANN(BaseModel):
     implementation: Literal['diskann']
+    config_type: Literal['indexing']
     min_rows: int
     storage_layout: Literal['memory_optimized'] | Literal['plain'] | None = None
     num_neighbors: int | None = None
@@ -52,6 +57,7 @@ class IndexingDiskANN(BaseModel):
 
 class IndexingHNSW(BaseModel):
     implementation: Literal['hnsw']
+    config_type: Literal['indexing']
     min_rows: int
     opclass: Literal['vector_ip_ops'] | Literal['vector_cosine_ops'] | Literal['vector_l1_ops'] | None = None
     m: int | None = None
@@ -60,15 +66,18 @@ class IndexingHNSW(BaseModel):
 
 class SchedulingNone(BaseModel):
     implementation: Literal['none']
+    config_type: Literal['scheduling']
 
 
 class SchedulingPgCron(BaseModel):
     implementation: Literal['pg_cron']
+    config_type: Literal['scheduling']
     schedule: str
 
 
 class SchedulingTimescaledb(BaseModel):
     implementation: Literal['timescaledb']
+    config_type: Literal['scheduling']
     schedule_interval: str | None = None
     initial_start: datetime | None = None
     fixed_schedule: bool | None = None

@@ -8,6 +8,7 @@ create or replace function ai.formatting_python_template
 as $func$
     select json_object
     ( 'implementation': 'python_template'
+    , 'config_type': 'formatting'
     , 'columns': columns
     , 'template': template
     absent on null
@@ -25,11 +26,19 @@ create or replace function ai._validate_formatting_python_template
 ) returns jsonb
 as $func$
 declare
+    _config_type text;
     _template text;
     _found bool;
     _columns name[];
     _msg text;
 begin
+    select config operator(pg_catalog.->>) 'config_type'
+    into _config_type
+    ;
+    if _config_type is null or _config_type != 'formatting' then
+        raise exception 'invalid config_type for formatting config';
+    end if;
+
     select config operator(pg_catalog.->>) 'template'
     into strict _template
     ;

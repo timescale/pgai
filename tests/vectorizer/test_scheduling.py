@@ -19,6 +19,7 @@ def test_scheduling_none():
             "select ai.scheduling_none()",
             {
                 "implementation": "none",
+                "config_type": "scheduling",
             },
         ),
     ]
@@ -38,6 +39,7 @@ def test_scheduling_pg_cron():
             "select ai.scheduling_pg_cron()",
             {
                 "implementation": "pg_cron",
+                "config_type": "scheduling",
                 "schedule": "*/10 * * * *",
             },
         ),
@@ -45,6 +47,7 @@ def test_scheduling_pg_cron():
             "select ai.scheduling_pg_cron('*/5 * * * *')",
             {
                 "implementation": "pg_cron",
+                "config_type": "scheduling",
                 "schedule": "*/5 * * * *",
             },
         ),
@@ -52,6 +55,7 @@ def test_scheduling_pg_cron():
             "select ai.scheduling_pg_cron('0 * * * *')",
             {
                 "implementation": "pg_cron",
+                "config_type": "scheduling",
                 "schedule": "0 * * * *",
             },
         ),
@@ -72,6 +76,7 @@ def test_scheduling_timescaledb():
             "select ai.scheduling_timescaledb()",
             {
                 "implementation": "timescaledb",
+                "config_type": "scheduling",
                 "schedule_interval": "00:10:00",
             },
         ),
@@ -79,6 +84,7 @@ def test_scheduling_timescaledb():
             "select ai.scheduling_timescaledb(interval '5m')",
             {
                 "implementation": "timescaledb",
+                "config_type": "scheduling",
                 "schedule_interval": "00:05:00",
             },
         ),
@@ -86,6 +92,7 @@ def test_scheduling_timescaledb():
             "select ai.scheduling_timescaledb(interval '1h', timezone=>'America/Chicago')",
             {
                 "implementation": "timescaledb",
+                "config_type": "scheduling",
                 "schedule_interval": "01:00:00",
                 "timezone": "America/Chicago",
             },
@@ -94,6 +101,7 @@ def test_scheduling_timescaledb():
             "select ai.scheduling_timescaledb(interval '10m', fixed_schedule=>true, timezone=>'America/Chicago')",
             {
                 "implementation": "timescaledb",
+                "config_type": "scheduling",
                 "schedule_interval": "00:10:00",
                 "timezone": "America/Chicago",
                 "fixed_schedule": True,
@@ -110,6 +118,7 @@ def test_scheduling_timescaledb():
             """,
             {
                 "implementation": "timescaledb",
+                "config_type": "scheduling",
                 "schedule_interval": "00:15:00",
                 "timezone": "America/Chicago",
                 "fixed_schedule": False,

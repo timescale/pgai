@@ -24,6 +24,7 @@ def test_chunking_character_text_splitter():
                 "chunk_column": "body",
                 "chunk_overlap": 10,
                 "implementation": "character_text_splitter",
+                "config_type": "chunking"
             },
         ),
         (
@@ -35,6 +36,7 @@ def test_chunking_character_text_splitter():
                 "chunk_column": "content",
                 "chunk_overlap": 20,
                 "implementation": "character_text_splitter",
+                "config_type": "chunking"
             },
         ),
         (
@@ -54,6 +56,7 @@ def test_chunking_character_text_splitter():
                 "chunk_column": "content",
                 "chunk_overlap": 20,
                 "implementation": "character_text_splitter",
+                "config_type": "chunking"
             },
         ),
     ]
@@ -85,6 +88,15 @@ def test_validate_chunking_character_text_splitter():
             )
             """,
             "chunk column in config does not exist in the table: content",
+        ),
+        (
+            """
+            select ai._validate_chunking_character_text_splitter
+            ( ai.scheduling_none()
+            , 'public', 'thing'
+            )
+            """,
+            "invalid config_type for chunking config",
         )
     ]
     with psycopg.connect(db_url("test"), autocommit=True) as con:

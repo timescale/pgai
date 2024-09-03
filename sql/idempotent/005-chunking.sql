@@ -11,6 +11,7 @@ create or replace function ai.chunking_character_text_splitter
 as $func$
     select json_object
     ( 'implementation': 'character_text_splitter'
+    , 'config_type': 'chunking'
     , 'chunk_column': chunk_column
     , 'chunk_size': chunk_size
     , 'chunk_overlap': chunk_overlap
@@ -33,9 +34,17 @@ create or replace function ai._validate_chunking_character_text_splitter
 ) returns void
 as $func$
 declare
+    _config_type text;
     _chunk_column text;
     _found bool;
 begin
+    select config operator(pg_catalog.->>) 'config_type'
+    into _config_type
+    ;
+    if _config_type is null or _config_type != 'chunking' then
+        raise exception 'invalid config_type for chunking config';
+    end if;
+
     select config operator(pg_catalog.->>) 'chunk_column'
     into strict _chunk_column
     ;
