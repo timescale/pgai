@@ -642,7 +642,7 @@ VECTORIZER_ROW = r"""
     "queue_schema": "ai",
     "source_table": "blog",
     "target_table": "blog_embedding_store",
-    "trigger_name": "vectorizer_src_trg_1",
+    "trigger_name": "_vectorizer_src_trg_1",
     "source_schema": "website",
     "target_schema": "website"
 }
@@ -662,16 +662,16 @@ Indexes:
 Referenced by:
     TABLE "website.blog_embedding_store" CONSTRAINT "blog_embedding_store_title_published_fkey" FOREIGN KEY (title, published) REFERENCES website.blog(title, published) ON DELETE CASCADE
 Triggers:
-    vectorizer_src_trg_1 AFTER INSERT OR UPDATE ON website.blog FOR EACH ROW EXECUTE FUNCTION website.vectorizer_src_trg_1()
+    _vectorizer_src_trg_1 AFTER INSERT OR UPDATE ON website.blog FOR EACH ROW EXECUTE FUNCTION ai._vectorizer_src_trg_1()
 Access method: heap
 """.strip()
 
 
 SOURCE_TRIGGER_FUNC = """
                                                                                      List of functions
- Schema  |         Name         | Result data type | Argument data types | Type | Volatility | Parallel |  Owner   | Security | Access privileges | Language | Internal name | Description 
----------+----------------------+------------------+---------------------+------+------------+----------+----------+----------+-------------------+----------+---------------+-------------
- website | vectorizer_src_trg_1 | trigger          |                     | func | volatile   | safe     | postgres | invoker  |                   | plpgsql  |               | 
+ Schema |         Name          | Result data type | Argument data types | Type | Volatility | Parallel |  Owner   | Security | Access privileges | Language | Internal name | Description 
+--------+-----------------------+------------------+---------------------+------+------------+----------+----------+----------+-------------------+----------+---------------+-------------
+ ai     | _vectorizer_src_trg_1 | trigger          |                     | func | volatile   | safe     | postgres | invoker  |                   | plpgsql  |               | 
 (1 row)
 """.strip()
 
@@ -939,7 +939,7 @@ def test_vectorizer_timescaledb():
     assert actual == SOURCE_TABLE
 
     # does the source trigger function look right?
-    actual = psql_cmd(r"\df+ website.vectorizer_src_trg_1()")
+    actual = psql_cmd(r"\df+ ai._vectorizer_src_trg_1()")
     assert actual == SOURCE_TRIGGER_FUNC
 
     # does the target table look right?
