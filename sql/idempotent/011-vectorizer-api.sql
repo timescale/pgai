@@ -28,6 +28,7 @@ create or replace function ai.create_vectorizer
 , queue_schema name default null
 , queue_table name default null
 , grant_to name[] default array['vectorizer'] -- TODO: what is the final role name we want to use here?
+, enqueue_existing bool default true
 ) returns int
 as $func$
 declare
@@ -199,27 +200,28 @@ begin
     perform ai._vectorizer_grant_to_vectorizer(grant_to);
 
     -- insert into queue any existing rows from source table
-    select pg_catalog.format
-    ( $sql$
-    insert into %I.%I (%s)
-    select %s
-    from %I.%I x
-    ;
-    $sql$
-    , queue_schema, queue_table
-    , (
-        select pg_catalog.string_agg(pg_catalog.format('%I', x.attname), ', ' order by x.attnum)
-        from pg_catalog.jsonb_to_recordset(_source_pk) x(attnum int, attname name)
-      )
-    , (
-        select pg_catalog.string_agg(pg_catalog.format('x.%I', x.attname), ', ' order by x.attnum)
-        from pg_catalog.jsonb_to_recordset(_source_pk) x(attnum int, attname name)
-      )
-    , _source_schema, _source_table
-    ) into strict _sql
-    ;
-    execute _sql;
-
+    if enqueue_existing is true then
+        select pg_catalog.format
+        ( $sql$
+        insert into %I.%I (%s)
+        select %s
+        from %I.%I x
+        ;
+        $sql$
+        , queue_schema, queue_table
+        , (
+            select pg_catalog.string_agg(pg_catalog.format('%I', x.attname), ', ' order by x.attnum)
+            from pg_catalog.jsonb_to_recordset(_source_pk) x(attnum int, attname name)
+          )
+        , (
+            select pg_catalog.string_agg(pg_catalog.format('x.%I', x.attname), ', ' order by x.attnum)
+            from pg_catalog.jsonb_to_recordset(_source_pk) x(attnum int, attname name)
+          )
+        , _source_schema, _source_table
+        ) into strict _sql
+        ;
+        execute _sql;
+    end if;
     return _vectorizer_id;
 end
 $func$ language plpgsql volatile security invoker
