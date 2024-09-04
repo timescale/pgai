@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1.3-labs
-FROM postgres:16
+ARG PG_MAJOR=16
+FROM postgres:${PG_MAJOR}
 
 ENV WHERE_AM_I=docker
 ENV DEBIAN_FRONTEND=noninteractive
@@ -9,11 +10,11 @@ RUN set -e; \
     apt-get update; \
     apt-get upgrade -y; \
     apt-get install -y --no-install-recommends \
-    postgresql-plpython3-16 \
-    postgresql-16-pgvector \
-    postgresql-16-cron \
-    postgresql-16-pgextwlist \
-    postgresql-server-dev-16 \
+    postgresql-plpython3-${PG_MAJOR} \
+    postgresql-${PG_MAJOR}-pgvector \
+    postgresql-${PG_MAJOR}-cron \
+    postgresql-${PG_MAJOR}-pgextwlist \
+    postgresql-server-dev-${PG_MAJOR} \
     python3-pip \
     make \
     cmake \
