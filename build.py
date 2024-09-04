@@ -357,11 +357,11 @@ def clean() -> None:
 
 def test_server() -> None:
     if where_am_i() == "host":
-        cmd = "docker exec -it -w /pgai/tests pgai fastapi dev server.py"
+        cmd = "docker exec -it -w /pgai/tests/vectorizer pgai fastapi dev server.py"
         subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
     else:
         cmd = "fastapi dev server.py"
-        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=tests_dir())
+        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=tests_dir().joinpath("vectorizer"))
 
 
 def test() -> None:
