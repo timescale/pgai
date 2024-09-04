@@ -14,7 +14,9 @@ HELP = """Available targets:
 - install           installs the project
 - uninstall         uninstalls the project
 - clean             removes build artifacts from the project directories
+- build             alias for build-sql
 - build-sql         constructs the sql files for the extension
+- build-install     runs build followed by install
 - clean-sql         removes sql file artifacts from the project directories
 - install-sql       installs the sql files into the postgres installation
 - uninstall-sql     removes the sql extension from the postgres installation
@@ -23,6 +25,7 @@ HELP = """Available targets:
 - clean-py          removes python build artifacts from the project directories
 - uninstall-py      removes the python package and dependencies from the system
 - test              runs the unit tests against the docker database
+- test-server       runs the test http server in the docker container
 - lint-sql          runs pgspot against the `ai--<this_version>.sql` file
 - lint-py           runs ruff linter against the python source files
 - lint              runs both sql and python linters
@@ -30,7 +33,8 @@ HELP = """Available targets:
 - docker-build      builds the development docker image
 - docker-run        launches a container in docker using the docker image
 - docker-stop       stops the container
-- docker-rm         deletes the development container"""
+- docker-rm         deletes the development container
+- run               builds+runs the development container and installs the extension"""
 
 
 def versions() -> list[str]:
