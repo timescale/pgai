@@ -10,3 +10,4 @@ tests/dump_restore/describe_schemas.sql
 tests/dump_restore/dump.sql
 tests/dump_restore/src.snapshot
 tests/dump_restore/dst.snapshot
+tests/privileges/*.actual
