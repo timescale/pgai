@@ -1,17 +1,5 @@
 
 -------------------------------------------------------------------------------
--- _vectorizer_ext_delete
-create or replace function ai._vectorizer_ext_delete(vectorizer_id int) returns void
-as $python$
-    #ADD-PYTHON-LIB-DIR
-    import ai.vectorizer
-    ai.vectorizer.delete_vectorizer(plpy, vectorizer_id)
-$python$
-language plpython3u volatile security invoker
-set search_path to pg_catalog, pg_temp
-;
-
--------------------------------------------------------------------------------
 -- _vectorizer_source_pk
 create or replace function ai._vectorizer_source_pk(source_table regclass) returns jsonb as
 $func$
