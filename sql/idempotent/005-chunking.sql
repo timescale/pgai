@@ -29,7 +29,7 @@ create or replace function ai.chunking_recursive_character_text_splitter
 ( chunk_column name
 , chunk_size int default 800
 , chunk_overlap int default 400
-, separators text[] default null
+, separators text[] default array[E'\n\n', E'\n', '.', '?', '!', ' ', '']
 , is_separator_regex bool default false
 ) returns jsonb
 as $func$
