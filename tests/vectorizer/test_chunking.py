@@ -87,6 +87,7 @@ def test_chunking_recursive_character_text_splitter():
         (
             "select ai.chunking_recursive_character_text_splitter('body')",
             {
+                "separators": ["\n\n", "\n", ".", "?", "!", " ", ""],
                 "is_separator_regex": False,
                 "chunk_size": 800,
                 "chunk_column": "body",
@@ -98,6 +99,7 @@ def test_chunking_recursive_character_text_splitter():
         (
             "select ai.chunking_recursive_character_text_splitter('body', 128, 10)",
             {
+                "separators": ["\n\n", "\n", ".", "?", "!", " ", ""],
                 "is_separator_regex": False,
                 "chunk_size": 128,
                 "chunk_column": "body",
