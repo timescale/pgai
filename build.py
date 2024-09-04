@@ -74,10 +74,30 @@ def idempotent_sql_files() -> list[Path]:
     return paths
 
 
+def check_idempotent_sql_files(paths: list[Path]) -> None:
+    prev = 0
+    for path in paths:
+        this = int(path.name[0:3])
+        if this != 999 and this != prev + 1:
+            print(f"idempotent sql files must be strictly ordered. this: {this} prev: {prev}", file=sys.stderr)
+            sys.exit(1)
+        prev = this
+
+
 def incremental_sql_files() -> list[Path]:
     paths = [x for x in incremental_sql_dir().glob("*.sql")]
     paths.sort()
     return paths
+
+
+def check_incremental_sql_files(paths: list[Path]) -> None:
+    prev = 0
+    for path in paths:
+        this = int(path.name[0:3])
+        if this != prev + 1:
+            print(f"incremental sql files must be strictly ordered. this: {this} prev: {prev}", file=sys.stderr)
+            sys.exit(1)
+        prev = this
 
 
 def output_sql_file() -> Path:
@@ -153,11 +173,15 @@ def build_sql() -> None:
         with sql_dir().joinpath("head.sql").open("r") as rf:
             shutil.copyfileobj(rf, wf)
         wf.write("\n\n\n")
-        for inc_file in incremental_sql_files():
+        files = incremental_sql_files()
+        check_incremental_sql_files(files)
+        for inc_file in files:
             code = build_incremental_sql_file(inc_file)
             wf.write(code)
             wf.write("\n\n\n")
-        for idm_file in idempotent_sql_files():
+        files = idempotent_sql_files()
+        check_idempotent_sql_files(files)
+        for idm_file in files:
             wf.write(f"{hr}\n-- {idm_file.name}\n")
             wf.write(build_idempotent_sql_file(idm_file))
             wf.write("\n\n\n")
