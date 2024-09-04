@@ -141,7 +141,3 @@ async def execute_vectorizer(vectorizer: Vectorizer):
     print(f"queue emptied: {deleted} rows deleted")
     return {"id": vectorizer.id}
 
-
-@app.get("/vectorizer/delete/{vectorizer_id}")
-async def delete_vectorizer(vectorizer_id: int):
-    print(f"delete vectorizer: {vectorizer_id}")
