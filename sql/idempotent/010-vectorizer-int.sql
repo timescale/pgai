@@ -22,6 +22,67 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- _vectorizer_grant_to_source
+create or replace function ai._vectorizer_grant_to_source
+( source_schema name
+, source_table name
+, grant_to name[]
+) returns void as
+$func$
+declare
+    _sql text;
+begin
+    -- grant select on source table to _grant_to roles
+    if grant_to is not null then
+        select pg_catalog.format
+        ( $sql$grant select on %I.%I to %s$sql$
+        , source_schema
+        , source_table
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+    end if;
+end;
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _vectorizer_grant_to_vectorizer
+create or replace function ai._vectorizer_grant_to_vectorizer(grant_to name[]) returns void as
+$func$
+declare
+    _sql text;
+begin
+    -- grant select on vectorizer table _grant_to roles
+    -- TODO: is there a better way to do this?
+    if grant_to is not null then
+        -- grant select on the users that do NOT already have it
+        for _sql in
+        (
+            select pg_catalog.format($sql$grant select on ai.vectorizer to %I$sql$, x)
+            from pg_catalog.unnest(grant_to) x
+            where not pg_catalog.has_table_privilege
+            ( x
+            , 'ai.vectorizer'
+            , 'select'
+            )
+        )
+        loop
+            execute _sql;
+        end loop;
+    end if;
+end;
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- _vectorizer_create_target_table
 create or replace function ai._vectorizer_create_target_table
 ( source_schema name
@@ -30,6 +91,7 @@ create or replace function ai._vectorizer_create_target_table
 , target_schema name
 , target_table name
 , dimensions int
+, grant_to name[]
 ) returns void as
 $func$
 declare
@@ -75,6 +137,20 @@ begin
     ) into strict _sql
     ;
     execute _sql;
+
+    -- grant select, insert, update on target table to _grant_to roles
+    if grant_to is not null then
+        select pg_catalog.format
+        ( $sql$grant select, insert, update on %I.%I to %s$sql$
+        , target_schema
+        , target_table
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+    end if;
 end;
 $func$
 language plpgsql volatile security invoker
@@ -91,6 +167,7 @@ create or replace function ai._vectorizer_create_view
 , source_pk jsonb
 , target_schema name
 , target_table name
+, grant_to name[]
 ) returns void as
 $func$
 declare
@@ -146,6 +223,20 @@ begin
       )
     ) into strict _sql;
     execute _sql;
+
+    -- grant select view to _grant_to roles
+    if grant_to is not null then
+        select pg_catalog.format
+        ( $sql$grant select on %I.%I to %s$sql$
+        , view_schema
+        , view_name
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+    end if;
 end
 $func$
 language plpgsql volatile security invoker
@@ -158,6 +249,7 @@ create or replace function ai._vectorizer_create_queue_table
 ( queue_schema name
 , queue_table name
 , source_pk jsonb
+, grant_to name[]
 ) returns void as
 $func$
 declare
@@ -193,6 +285,20 @@ begin
     ) into strict _sql
     ;
     execute _sql;
+
+    -- grant select, update, delete on queue table to _grant_to roles
+    if grant_to is not null then
+        select pg_catalog.format
+        ( $sql$grant select, update, delete on %I.%I to %s$sql$
+        , queue_schema
+        , queue_table
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+    end if;
 end;
 $func$
 language plpgsql volatile security invoker
