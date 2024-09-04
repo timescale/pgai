@@ -1,3 +1,5 @@
+PG_MAJOR?=16
+PG_BIN?="/usr/lib/postgresql/$(PG_MAJOR)/bin"
 
 .PHONY: default
 default: help
@@ -22,11 +24,11 @@ clean-py:
 
 .PHONY: install
 install:
-	@./build.py install
+	@PG_BIN=$(PG_BIN) ./build.py install
 
 .PHONY: install-sql
 install-sql:
-	@./build.py install-sql
+	@PG_BIN=$(PG_BIN) ./build.py install-sql
 
 .PHONY: install-prior-py
 install-prior-py:
@@ -38,11 +40,11 @@ install-py:
 
 .PHONY: uninstall
 uninstall:
-	@./build.py uninstall
+	@PG_BIN=$(PG_BIN) ./build.py uninstall
 
 .PHONY: uninstall-sql
 uninstall-sql:
-	@./build.py uninstall-sql
+	@PG_BIN=$(PG_BIN) ./build.py uninstall-sql
 
 .PHONY: uninstall-py
 uninstall-py:
@@ -78,7 +80,7 @@ format-py:
 
 .PHONY: docker-build
 docker-build:
-	@./build.py docker-build
+	@PG_MAJOR=$(PG_MAJOR) ./build.py docker-build
 
 .PHONY: docker-run
 docker-run:
@@ -94,7 +96,7 @@ docker-rm:
 
 .PHONY: run
 run:
-	@./build.py run
+	@PG_BIN=$(PG_BIN) ./build.py run
 	@docker exec -it -u postgres pgai /bin/bash -c "set -e; if [ -f .env ]; then set -a; source .env; set +a; fi; psql"
 
 .PHONY: docker-shell
