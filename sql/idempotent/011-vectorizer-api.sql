@@ -196,7 +196,7 @@ begin
     end if;
 
     -- schedule the async ext job
-    select ai._vectorizer_schedule_async_ext_job
+    select ai._vectorizer_schedule_job
     (_vectorizer_id
     , scheduling
     ) into _job_id
