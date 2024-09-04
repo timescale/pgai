@@ -7,6 +7,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+PG_MAJOR = "16"
+
 HELP = """Available targets:
 - help              displays this message and exits
 - install           installs the project
@@ -46,6 +48,10 @@ def this_version() -> str:
 
 def prior_versions() -> list[str]:
     return versions()[1:] if len(versions()) > 1 else []
+
+
+def pg_major() -> int:
+    return int(os.getenv("PG_MAJOR", "16"))
 
 
 def project_dir() -> Path:
@@ -201,23 +207,40 @@ def build_sql() -> None:
 
 def clean_sql() -> None:
     for f in sql_dir().glob(f"ai--*.*.*--{this_version()}.sql"):
-        f.unlink()
-    sql_dir().joinpath(f"ai--{this_version()}.sql").unlink()
+        f.unlink(missing_ok=True)
+    sql_dir().joinpath(f"ai--{this_version()}.sql").unlink(missing_ok=True)
+
+
+def postgres_bin_dir() -> Path:
+    bin_dir = os.getenv("PG_BIN")
+    if bin_dir:
+        return Path(bin_dir).resolve()
+    else:
+        bin_dir = Path(f"/usr/lib/postgresql/{pg_major()}/bin")
+        if bin_dir.exists():
+            return bin_dir.absolute()
+        else:
+            pg_config = shutil.which("pg_config")
+            if not bin:
+                print("pg_config not found", file=sys.stderr)
+                sys.exit(1)
+            return Path(pg_config).parent.resolve()
+
+
+def pg_config() -> Path:
+    return postgres_bin_dir().joinpath("pg_config")
 
 
 def extension_dir() -> Path:
-    if shutil.which("pg_config") is None:
-        print("pg_config not found", file=sys.stderr)
-        sys.exit(1)
     proc = subprocess.run(
-        "pg_config --sharedir",
+        f"{pg_config()} --sharedir",
         check=True,
         shell=True,
         env=os.environ,
         text=True,
         capture_output=True,
     )
-    return Path(str(proc.stdout).strip()).resolve().absolute().joinpath("extension")
+    return Path(str(proc.stdout).strip()).resolve().joinpath("extension")
 
 
 def install_sql() -> None:
@@ -420,7 +443,8 @@ def format_py() -> None:
 def docker_build() -> None:
     assert Path.cwd() == project_dir()
     subprocess.run(
-        """docker build -t pgai .""", shell=True, check=True, env=os.environ, text=True
+        f"""docker build --build-arg PG_MAJOR={pg_major()} -t pgai .""",
+        shell=True, check=True, env=os.environ, text=True
     )
 
 
