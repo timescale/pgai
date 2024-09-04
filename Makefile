@@ -22,9 +22,17 @@ clean-sql:
 clean-py:
 	@./build.py clean-py
 
+.PHONY: build
+build:
+	@PG_BIN=$(PG_BIN) ./build.py build
+
 .PHONY: install
 install:
 	@PG_BIN=$(PG_BIN) ./build.py install
+
+.PHONY: build-install
+build-install:
+	@PG_BIN=$(PG_BIN) ./build.py build-install
 
 .PHONY: install-sql
 install-sql:
