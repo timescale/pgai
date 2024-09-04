@@ -57,6 +57,10 @@ declare
     _config_type text;
     _implementation text;
 begin
+    if pg_catalog.jsonb_typeof(config) != 'object' then
+        raise exception 'scheduling config is not a jsonb object';
+    end if;
+
     _config_type = config operator ( pg_catalog.->> ) 'config_type';
     if _config_type is null or _config_type != 'scheduling' then
         raise exception 'invalid config_type for scheduling config';

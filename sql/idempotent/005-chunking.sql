@@ -61,6 +61,10 @@ declare
     _chunk_column text;
     _found bool;
 begin
+    if pg_catalog.jsonb_typeof(config) != 'object' then
+        raise exception 'chunking config is not a jsonb object';
+    end if;
+
     _config_type = config operator(pg_catalog.->>) 'config_type';
     if _config_type is null or _config_type != 'chunking' then
         raise exception 'invalid config_type for chunking config';
