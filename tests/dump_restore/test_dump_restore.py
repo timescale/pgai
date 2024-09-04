@@ -45,24 +45,10 @@ def create_user() -> None:
                 cur.execute(f"create user {USER}")  # NOT a superuser
 
 
-def does_db_exist(cur: psycopg.Cursor, dbname: str) -> bool:
-    cur.execute("""
-        select count(*) > 0
-        from pg_catalog.pg_database
-        where datname = %s
-    """, (dbname,))
-    return cur.fetchone()[0]
-
-
-def drop_db(cur: psycopg.Cursor, dbname: str) -> None:
-    cur.execute(f"drop database {dbname} with (force)")
-
-
 def create_database(dbname: str) -> None:
     with psycopg.connect(db_url(user="postgres", dbname="postgres"), autocommit=True) as con:
         with con.cursor() as cur:
-            if does_db_exist(cur, dbname):
-                drop_db(cur, dbname)
+            cur.execute(f"drop database if exists {dbname} with (force)")
             cur.execute(f"create database {dbname} with owner {USER}")
 
 
@@ -124,6 +110,26 @@ def read_file(filename: str) -> str:
         return f.read()
 
 
+def after_dst() -> None:
+    cmd = " ".join([
+        "psql",
+        f'''-d "{db_url(USER, "dst")}"''',
+        "-v ON_ERROR_STOP=1",
+        f"-f {docker_dir()}/after.sql",
+    ])
+    if where_am_i() != "docker":
+        cmd = f"docker exec -w {docker_dir()} pgai {cmd}"
+    subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
+
+
+def count_vectorizers() -> int:
+    with psycopg.connect(db_url(user=USER, dbname="dst"), autocommit=True) as con:
+        with con.cursor() as cur:
+            cur.execute("select count(*) from ai.vectorizer")
+            count: int = cur.fetchone()[0]
+            return count
+
+
 def test_dump_restore():
     create_user()
     create_database("src")
@@ -136,6 +142,6 @@ def test_dump_restore():
     src = read_file(str(host_dir().joinpath("src.snapshot")))
     dst = read_file(str(host_dir().joinpath("dst.snapshot")))
     assert dst == src
-
-
+    after_dst()  # make sure we can USE the restored db
+    assert count_vectorizers() == 2
 
