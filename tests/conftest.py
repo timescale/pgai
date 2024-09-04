@@ -48,6 +48,7 @@ def create_test_db(cur: psycopg.Cursor) -> None:
 
 @pytest.fixture(scope="session", autouse=True)
 def set_up_test_db() -> None:
+    # create a test user and test database owned by the test user
     with psycopg.connect(f"postgres://postgres@127.0.0.1:5432/postgres", autocommit=True) as con:
         with con.cursor() as cur:
             create_test_user(cur)
@@ -57,15 +58,12 @@ def set_up_test_db() -> None:
                     with con2.cursor() as cur2:
                         drop_pg_cron_if_exists(cur2)
             create_test_db(cur)
+    # grant some things to the test user in the test database
     with psycopg.connect(f"postgres://postgres@127.0.0.1:5432/test", autocommit=True) as con:
         with con.cursor() as cur:
             cur.execute("grant execute on function pg_read_binary_file(text) to test")
             cur.execute("grant pg_read_server_files to test")
+    # use the test user to create the extension in the test database
     with psycopg.connect(f"postgres://test@127.0.0.1:5432/test") as con:
         with con.cursor() as cur:
             cur.execute("create extension ai cascade")
-
-
-@pytest.fixture(scope="session", autouse=True)
-def load_dotenv() -> None:
-    dotenv.load_dotenv()
