@@ -281,7 +281,7 @@ def test_vectorizer_timescaledb():
             cur.execute("""
                 select j.schedule_interval = interval '5m'
                 and j.proc_schema = 'ai'
-                and j.proc_name = '_vectorizer_async_ext_job'
+                and j.proc_name = '_vectorizer_job'
                 and j.scheduled = true
                 and j.fixed_schedule = true
                 as is_ok
@@ -318,7 +318,7 @@ def test_vectorizer_timescaledb():
 
             # run the underlying function explicitly
             # language=PostgreSQL
-            cur.execute("call ai._vectorizer_async_ext_job(null, jsonb_build_object('vectorizer_id', %s))"
+            cur.execute("call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))"
                         , (vectorizer_id,))
 
             # check that the queue has 0 rows
@@ -471,7 +471,7 @@ def test_vectorizer_pg_cron():
             """)
             actual = cur.fetchone()
             assert actual.jobname == f"vectorizer_{vectorizer_id}"
-            assert actual.command == f"call ai._vectorizer_async_ext_job(null, pg_catalog.jsonb_build_object('vectorizer_id', {vectorizer_id}))"
+            assert actual.command == f"call ai._vectorizer_job(null, pg_catalog.jsonb_build_object('vectorizer_id', {vectorizer_id}))"
 
             # disable the schedule
             cur.execute("select ai.disable_vectorizer_schedule(%s)", (vectorizer_id,))

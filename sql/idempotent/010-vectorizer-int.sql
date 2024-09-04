@@ -259,8 +259,8 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- _vectorizer_async_ext_job
-create or replace procedure ai._vectorizer_async_ext_job
+-- _vectorizer_job
+create or replace procedure ai._vectorizer_job
 ( job_id int default null
 , config jsonb default null
 ) as
@@ -313,8 +313,8 @@ language plpgsql security invoker
 ;
 
 -------------------------------------------------------------------------------
--- _vectorizer_schedule_async_ext_job
-create or replace function ai._vectorizer_schedule_async_ext_job
+-- _vectorizer_schedule_job
+create or replace function ai._vectorizer_schedule_job
 ( vectorizer_id int
 , scheduling jsonb
 ) returns bigint as
@@ -360,7 +360,7 @@ begin
         when 'pg_cron' then
             -- schedule the work proc with pg_cron
             select pg_catalog.format
-            ( $$select %I.schedule(%L, %L, $sql$call ai._vectorizer_async_ext_job(null, pg_catalog.jsonb_build_object('vectorizer_id', %s))$sql$)$$
+            ( $$select %I.schedule(%L, %L, $sql$call ai._vectorizer_job(null, pg_catalog.jsonb_build_object('vectorizer_id', %s))$sql$)$$
             , _extension_schema
             , pg_catalog.concat('vectorizer_', vectorizer_id)
             , pg_catalog.jsonb_extract_path_text(scheduling, 'schedule')
@@ -371,7 +371,7 @@ begin
         when 'timescaledb' then
             -- schedule the work proc with timescaledb background jobs
             select pg_catalog.format
-            ( $$select %I.add_job('ai._vectorizer_async_ext_job'::regproc, %s, config=>%L)$$
+            ( $$select %I.add_job('ai._vectorizer_job'::regproc, %s, config=>%L)$$
             , _extension_schema
             , ( -- gather up the arguments
                 select string_agg
