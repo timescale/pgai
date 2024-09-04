@@ -41,11 +41,18 @@ def execute_async_ext_vectorizer(plpy, vectorizer_id: int) -> None:
         )
 
     @backoff.on_exception(
-        backoff.expo, httpx.HTTPError, max_tries=10, max_time=120, on_backoff=on_backoff, raise_on_giveup=True
+        backoff.expo,
+        httpx.HTTPError,
+        max_tries=10,
+        max_time=120,
+        on_backoff=on_backoff,
+        raise_on_giveup=True,
     )
     def post() -> httpx.Response:
         return httpx.post(the_url, json=vectorizer)
 
     r = post()
     if r.status_code != httpx.codes.OK:
-        plpy.error(f"failed to signal vectorizer execution: {r.status_code}", detail=r.text)
+        plpy.error(
+            f"failed to signal vectorizer execution: {r.status_code}", detail=r.text
+        )
