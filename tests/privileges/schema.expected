@@ -1,0 +1,20 @@
+ schema | user  | privilege | granted 
+--------+-------+-----------+---------
+ ai     | alice | create    | t
+ ai     | bob   | create    | f
+ ai     | fred  | create    | f
+ ai     | jill  | create    | f
+ ai     | alice | usage     | t
+ ai     | bob   | usage     | f
+ ai     | fred  | usage     | f
+ ai     | jill  | usage     | f
+ wiki   | alice | create    | t
+ wiki   | bob   | create    | f
+ wiki   | fred  | create    | f
+ wiki   | jill  | create    | f
+ wiki   | alice | usage     | t
+ wiki   | bob   | usage     | f
+ wiki   | fred  | usage     | f
+ wiki   | jill  | usage     | f
+(16 rows)
+
