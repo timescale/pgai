@@ -248,7 +248,10 @@ def install_sql() -> None:
     if not ext_dir.exists():
         print(f"extension directory does not exist: {ext_dir}", file=sys.stderr)
         sys.exit(1)
-    build_sql()
+    this_sql_file = sql_dir().joinpath(f"ai--{this_version()}.sql")
+    if not this_sql_file.exists():
+        print(f"required sql file is missing: {this_sql_file}", file=sys.stderr)
+        sys.exit(1)
     for src in sql_dir().glob("ai*.control"):
         dest = ext_dir.joinpath(src.name)
         shutil.copyfile(src, dest)
@@ -391,10 +394,19 @@ def uninstall() -> None:
     uninstall_py()
 
 
+def build() -> None:
+    build_sql()
+
+
 def install() -> None:
     install_prior_py()
     install_py()
     install_sql()
+
+
+def build_install() -> None:
+    build()
+    install()
 
 
 def clean() -> None:
@@ -509,6 +521,10 @@ if __name__ == "__main__":
     for action in sys.argv[1:]:
         if action == "install":
             install()
+        elif action == "build":
+            build()
+        elif action == "build-install":
+            build_install()
         elif action == "install-prior-py":
             install_prior_py()
         elif action == "install-py":
