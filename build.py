@@ -7,6 +7,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+PIP = "pip3"
 DEFAULT_PG_MAJOR = "16"
 
 HELP = """Available targets:
@@ -292,7 +293,7 @@ def install_old_py_deps() -> None:
         env = {k: v for k, v in os.environ.items()}
         env["PIP_BREAK_SYSTEM_PACKAGES"] = "1"
         subprocess.run(
-            f"pip install -vv --compile -r {old_reqs_file}",
+            f"{PIP} install -vv --compile -r {old_reqs_file}",
             shell=True,
             check=True,
             env=env,
@@ -328,7 +329,7 @@ def install_prior_py() -> None:
         )
         tmp_src_dir = tmp_dir.joinpath("src").resolve()
         subprocess.run(
-            f'pip install -vv --compile -t "{version_target_dir}" "{tmp_src_dir}"',
+            f'{PIP} install -vv --compile -t "{version_target_dir}" "{tmp_src_dir}"',
             check=True,
             shell=True,
             env=os.environ,
@@ -374,7 +375,7 @@ def install_py() -> None:
         ):  # delete package info if exists
             shutil.rmtree(d)
         subprocess.run(
-            f'pip install -vv --no-deps --compile -t "{version_target_dir}" "{src_dir()}"',
+            f'{PIP} install -vv --no-deps --compile -t "{version_target_dir}" "{src_dir()}"',
             check=True,
             shell=True,
             env=os.environ,
@@ -383,7 +384,7 @@ def install_py() -> None:
     else:
         version_target_dir.mkdir(exist_ok=True)
         subprocess.run(
-            f'pip install --verbose --compile -t "{version_target_dir}" "{src_dir()}"',
+            f'{PIP} install --verbose --compile -t "{version_target_dir}" "{src_dir()}"',
             check=True,
             shell=True,
             env=os.environ,
