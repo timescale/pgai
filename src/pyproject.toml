@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pgai"
-version = "0.4.0"
+dynamic = ["version"]
 requires-python = ">=3.10"
 dependencies = [
     "openai==1.30.2",
@@ -14,3 +14,9 @@ dependencies = [
     "cohere==5.5.8",
     "backoff==2.2.1",
 ]
+
+[tool.setuptools.dynamic]
+version = {attr = "ai.__version__"}
+
+[tool.setuptools]
+packages = ["ai"]
