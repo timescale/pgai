@@ -7,7 +7,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-PG_MAJOR = "16"
+DEFAULT_PG_MAJOR = "16"
 
 HELP = """Available targets:
 - help              displays this message and exits
@@ -55,19 +55,19 @@ def prior_versions() -> list[str]:
 
 
 def pg_major() -> int:
-    return int(os.getenv("PG_MAJOR", "16"))
+    return int(os.getenv("PG_MAJOR", DEFAULT_PG_MAJOR))
 
 
 def project_dir() -> Path:
-    return Path(__file__).resolve().absolute().parent
+    return Path(__file__).resolve().parent
 
 
 def sql_dir() -> Path:
-    return project_dir().joinpath("sql")
+    return project_dir().joinpath("sql").resolve()
 
 
 def src_dir() -> Path:
-    return project_dir().joinpath("src")
+    return project_dir().joinpath("src").resolve()
 
 
 def incremental_sql_dir() -> Path:
@@ -280,19 +280,23 @@ def python_install_dir() -> Path:
     # seriously.
     # you'll wreck old versions. look at build_idempotent_sql_file()
     return (
-        Path("/usr/local/lib/pgai").resolve().absolute()
+        Path("/usr/local/lib/pgai").resolve()
     )  # CONTROLS WHERE THE PYTHON LIB AND DEPS ARE INSTALLED
 
 
 def install_old_py_deps() -> None:
     # this is necessary for versions prior to 0.4.0
     # we will deprecate these versions and then get rid of this function
-    old_reqs_file = src_dir().joinpath("old_requirements.txt")
+    old_reqs_file = src_dir().joinpath("old_requirements.txt").resolve()
     if old_reqs_file.exists():
         env = {k: v for k, v in os.environ.items()}
         env["PIP_BREAK_SYSTEM_PACKAGES"] = "1"
         subprocess.run(
-            f"pip install --compile -r {old_reqs_file}", shell=True, check=True, env=env
+            f"pip install --verbose --compile -r {old_reqs_file}",
+            shell=True,
+            check=True,
+            env=env,
+            cwd=str(src_dir()),
         )
 
 
@@ -322,12 +326,13 @@ def install_prior_py() -> None:
             check=True,
             env=os.environ,
         )
-        tmp_src_dir = tmp_dir.joinpath("src")
+        tmp_src_dir = tmp_dir.joinpath("src").resolve()
         subprocess.run(
-            f'pip install --compile -t "{version_target_dir}" "{tmp_src_dir}"',
+            f'pip install --verbose --compile -t "{version_target_dir}" "{tmp_src_dir}"',
             check=True,
             shell=True,
             env=os.environ,
+            cwd=str(src_dir()),
         )
         shutil.rmtree(tmp_dir)
 
@@ -338,7 +343,7 @@ def build_pyproject_toml() -> None:
     # function just ensures that you can't screw up the current version. The
     # only place you have to update the version when starting a new release is
     # in the versions() function.
-    prj_file = src_dir().joinpath("pyproject.toml")
+    prj_file = src_dir().joinpath("pyproject.toml").resolve()
     content = prj_file.read_text()
     lines = []
     for line in content.splitlines(keepends=True):
@@ -350,6 +355,10 @@ def build_pyproject_toml() -> None:
 
 
 def install_py() -> None:
+    pyproject_toml = src_dir().joinpath("pyproject.toml").resolve()
+    if not pyproject_toml.exists():
+        print(f"pyproject.toml is missing: {pyproject_toml}", file=sys.stderr)
+        sys.exit(1)
     build_pyproject_toml()
     python_install_dir().mkdir(exist_ok=True)
     version = this_version()
@@ -365,18 +374,20 @@ def install_py() -> None:
         ):  # delete package info if exists
             shutil.rmtree(d)
         subprocess.run(
-            f'pip install --no-deps --compile -t "{version_target_dir}" "{src_dir()}"',
+            f'pip install --verbose --no-deps --compile -t "{version_target_dir}" "{src_dir()}"',
             check=True,
             shell=True,
             env=os.environ,
+            cwd=str(src_dir()),
         )
     else:
         version_target_dir.mkdir(exist_ok=True)
         subprocess.run(
-            f'pip install --compile -t "{version_target_dir}" "{src_dir()}"',
+            f'pip install --verbose --compile -t "{version_target_dir}" "{src_dir()}"',
             check=True,
             shell=True,
             env=os.environ,
+            cwd=str(src_dir()),
         )
 
 
@@ -483,7 +494,7 @@ def docker_running() -> bool | None:
     )
     output = str(proc.stdout).strip()
     if output == "":
-        return False
+        return None
     output = json.loads(output)
     return output["State"] == "running"
 
