@@ -337,29 +337,25 @@ def install_prior_py() -> None:
         shutil.rmtree(tmp_dir)
 
 
-def build_pyproject_toml() -> None:
-    # pyproject.toml is checked in to version control. So, all the previous
+def build_init_py() -> None:
+    # ai/__init__.py is checked in to version control. So, all the previous
     # versions will have the file with the correct version already in it. This
     # function just ensures that you can't screw up the current version. The
     # only place you have to update the version when starting a new release is
     # in the versions() function.
-    prj_file = src_dir().joinpath("pyproject.toml").resolve()
-    content = prj_file.read_text()
+    init_py = src_dir().joinpath("ai", "__init__.py").resolve()
+    content = init_py.read_text()
     lines = []
     for line in content.splitlines(keepends=True):
-        if line.startswith("version"):
-            lines.append(f'version = "{this_version()}"\n')
+        if line.startswith("__version__"):
+            lines.append(f'__version__ = "{this_version()}"\n')
         else:
             lines.append(line)
-    prj_file.write_text("".join(lines))
+    init_py.write_text("".join(lines))
 
 
 def install_py() -> None:
-    pyproject_toml = src_dir().joinpath("pyproject.toml").resolve()
-    if not pyproject_toml.exists():
-        print(f"pyproject.toml is missing: {pyproject_toml}", file=sys.stderr)
-        sys.exit(1)
-    build_pyproject_toml()
+    build_init_py()
     python_install_dir().mkdir(exist_ok=True)
     version = this_version()
     version_target_dir = python_install_dir().joinpath(version)
@@ -521,7 +517,7 @@ def run() -> None:
     docker_rm()
     docker_build()
     docker_run()
-    cmd = "docker exec pgai make install"
+    cmd = "docker exec pgai make build-install"
     subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
     cmd = 'docker exec -u postgres pgai psql -c "create extension ai cascade"'
     subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
