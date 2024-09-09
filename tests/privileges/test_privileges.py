@@ -219,6 +219,7 @@ def psql_file(user, dbname, file: str) -> None:
         "psql",
         f'''-d "{db_url(user, dbname)}"''',
         "-v ON_ERROR_STOP=1",
+        "-X",
         f"-f {docker_dir()}/{file}",
     ])
     if where_am_i() != "docker":
