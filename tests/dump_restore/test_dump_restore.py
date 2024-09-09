@@ -85,6 +85,7 @@ def snapshot_db(dbname: str) -> None:
         "psql",
         f'''-d "{db_url("postgres", dbname)}"''',
         "-v ON_ERROR_STOP=1",
+        "-X",
         f"-o {docker_dir()}/{dbname}.snapshot",
         f"-f {docker_dir()}/snapshot.sql",
     ])
