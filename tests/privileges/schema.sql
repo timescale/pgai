@@ -6,7 +6,7 @@ select
   n as "schema"
 , u as "user"
 , p as "privilege"
-, has_schema_privilege(u, n, p) as granted
+, case has_schema_privilege(u, n, p) when true then 'YES' else 'no' end as granted
 from unnest(:'users'::text[]) u
 cross join unnest(array['ai', 'wiki']) n
 cross join unnest(array['create', 'usage']) p

@@ -105,10 +105,11 @@ Access method: heap
 
 
 SOURCE_TRIGGER_FUNC = """
-                                                                                     List of functions
- Schema |         Name          | Result data type | Argument data types | Type | Volatility | Parallel |  Owner   | Security | Access privileges | Language | Internal name | Description 
---------+-----------------------+------------------+---------------------+------+------------+----------+----------+----------+-------------------+----------+---------------+-------------
- ai     | _vectorizer_src_trg_1 | trigger          |                     | func | volatile   | safe     | postgres | invoker  |                   | plpgsql  |               | 
+                                                                                      List of functions
+ Schema |         Name          | Result data type | Argument data types | Type | Volatility | Parallel |  Owner   | Security |  Access privileges  | Language | Internal name | Description 
+--------+-----------------------+------------------+---------------------+------+------------+----------+----------+----------+---------------------+----------+---------------+-------------
+ ai     | _vectorizer_src_trg_1 | trigger          |                     | func | volatile   | safe     | postgres | invoker  | postgres=X/postgres+| plpgsql  |               | 
+        |                       |                  |                     |      |            |          |          |          | bob=X/postgres      |          |               | 
 (1 row)
 """.strip()
 
@@ -338,7 +339,7 @@ def test_vectorizer_timescaledb():
             assert actual == 1
 
             # check that using the GUC works
-            cur.execute("select set_config('ai.execute_vectorizer_url', 'http://localhost:8000', false)")
+            cur.execute("select set_config('ai.vectorizer_url', 'http://localhost:8000', false)")
 
             # ping the external job explicitly
             # language=PostgreSQL
