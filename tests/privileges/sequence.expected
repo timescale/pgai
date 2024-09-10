@@ -6,8 +6,8 @@
  ai     | vectorizer_id_seq | bob   | update    | no
  ai     | vectorizer_id_seq | fred  | select    | no
  ai     | vectorizer_id_seq | fred  | update    | no
- ai     | vectorizer_id_seq | jill  | select    | no
- ai     | vectorizer_id_seq | jill  | update    | no
+ ai     | vectorizer_id_seq | jill  | select    | YES
+ ai     | vectorizer_id_seq | jill  | update    | YES
  wiki   | post_id_seq       | alice | select    | YES
  wiki   | post_id_seq       | alice | update    | YES
  wiki   | post_id_seq       | bob   | select    | no

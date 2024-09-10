@@ -19,7 +19,7 @@ def get_guc_value(plpy, setting: str, default: str) -> str:
     return val
 
 
-def execute_async_ext_vectorizer(plpy, vectorizer_id: int) -> None:
+def execute_vectorizer(plpy, vectorizer_id: int) -> None:
     plan = plpy.prepare(
         """
         select pg_catalog.to_jsonb(v) as vectorizer

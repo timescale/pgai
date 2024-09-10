@@ -6,7 +6,7 @@ create or replace function ai.execute_vectorizer(vectorizer_id int) returns void
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.vectorizer
-    ai.vectorizer.execute_async_ext_vectorizer(plpy, vectorizer_id)
+    ai.vectorizer.execute_vectorizer(plpy, vectorizer_id)
 $python$
 language plpython3u volatile security invoker
 set search_path to pg_catalog, pg_temp
@@ -136,6 +136,7 @@ begin
     , _source_schema
     , _source_table
     , _source_pk
+    , grant_to
     );
 
     -- create view
