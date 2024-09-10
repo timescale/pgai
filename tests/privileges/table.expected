@@ -9,13 +9,13 @@
  ai     | _vectorizer_q_1      | bob   | select    | no
  ai     | _vectorizer_q_1      | bob   | update    | no
  ai     | _vectorizer_q_1      | fred  | delete    | YES
- ai     | _vectorizer_q_1      | fred  | insert    | no
+ ai     | _vectorizer_q_1      | fred  | insert    | YES
  ai     | _vectorizer_q_1      | fred  | select    | YES
  ai     | _vectorizer_q_1      | fred  | update    | YES
- ai     | _vectorizer_q_1      | jill  | delete    | no
- ai     | _vectorizer_q_1      | jill  | insert    | no
- ai     | _vectorizer_q_1      | jill  | select    | no
- ai     | _vectorizer_q_1      | jill  | update    | no
+ ai     | _vectorizer_q_1      | jill  | delete    | YES
+ ai     | _vectorizer_q_1      | jill  | insert    | YES
+ ai     | _vectorizer_q_1      | jill  | select    | YES
+ ai     | _vectorizer_q_1      | jill  | update    | YES
  ai     | migration            | alice | delete    | YES
  ai     | migration            | alice | insert    | YES
  ai     | migration            | alice | select    | YES
@@ -44,10 +44,10 @@
  ai     | vectorizer           | fred  | insert    | no
  ai     | vectorizer           | fred  | select    | YES
  ai     | vectorizer           | fred  | update    | no
- ai     | vectorizer           | jill  | delete    | no
- ai     | vectorizer           | jill  | insert    | no
- ai     | vectorizer           | jill  | select    | no
- ai     | vectorizer           | jill  | update    | no
+ ai     | vectorizer           | jill  | delete    | YES
+ ai     | vectorizer           | jill  | insert    | YES
+ ai     | vectorizer           | jill  | select    | YES
+ ai     | vectorizer           | jill  | update    | YES
  ai     | vectorizer_errors    | alice | delete    | YES
  ai     | vectorizer_errors    | alice | insert    | YES
  ai     | vectorizer_errors    | alice | select    | YES
@@ -60,10 +60,10 @@
  ai     | vectorizer_errors    | fred  | insert    | no
  ai     | vectorizer_errors    | fred  | select    | no
  ai     | vectorizer_errors    | fred  | update    | no
- ai     | vectorizer_errors    | jill  | delete    | no
- ai     | vectorizer_errors    | jill  | insert    | no
- ai     | vectorizer_errors    | jill  | select    | no
- ai     | vectorizer_errors    | jill  | update    | no
+ ai     | vectorizer_errors    | jill  | delete    | YES
+ ai     | vectorizer_errors    | jill  | insert    | YES
+ ai     | vectorizer_errors    | jill  | select    | YES
+ ai     | vectorizer_errors    | jill  | update    | YES
  wiki   | post                 | alice | delete    | YES
  wiki   | post                 | alice | insert    | YES
  wiki   | post                 | alice | select    | YES
@@ -78,7 +78,7 @@
  wiki   | post                 | fred  | update    | no
  wiki   | post                 | jill  | delete    | no
  wiki   | post                 | jill  | insert    | no
- wiki   | post                 | jill  | select    | no
+ wiki   | post                 | jill  | select    | YES
  wiki   | post                 | jill  | update    | no
  wiki   | post_embedding_store | alice | delete    | YES
  wiki   | post_embedding_store | alice | insert    | YES
@@ -93,8 +93,8 @@
  wiki   | post_embedding_store | fred  | select    | YES
  wiki   | post_embedding_store | fred  | update    | YES
  wiki   | post_embedding_store | jill  | delete    | no
- wiki   | post_embedding_store | jill  | insert    | no
- wiki   | post_embedding_store | jill  | select    | no
- wiki   | post_embedding_store | jill  | update    | no
+ wiki   | post_embedding_store | jill  | insert    | YES
+ wiki   | post_embedding_store | jill  | select    | YES
+ wiki   | post_embedding_store | jill  | update    | YES
 (96 rows)
 

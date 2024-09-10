@@ -289,7 +289,7 @@ begin
     -- grant select, update, delete on queue table to _grant_to roles
     if grant_to is not null then
         select pg_catalog.format
-        ( $sql$grant select, update, delete on %I.%I to %s$sql$
+        ( $sql$grant select, insert, update, delete on %I.%I to %s$sql$
         , queue_schema
         , queue_table
         , (
@@ -314,11 +314,13 @@ create or replace function ai._vectorizer_create_source_trigger
 , source_schema name
 , source_table name
 , source_pk jsonb
+, grant_to name[]
 ) returns void as
 $func$
 declare
     _sql text;
 begin
+    -- create the trigger function
     select pg_catalog.format
     ( $sql$
     create function %I.%I() returns trigger
@@ -345,6 +347,30 @@ begin
     ;
     execute _sql;
 
+    -- revoke all on trigger function from public
+    select pg_catalog.format
+    ( $sql$
+    revoke all on function %I.%I() from public
+    $sql$
+    , queue_schema, trigger_name
+    ) into strict _sql
+    ;
+    execute _sql;
+
+    -- grant execute on trigger function to _grant_to roles
+    if grant_to is not null then
+        select pg_catalog.format
+        ( $sql$grant execute on function %I.%I to %s$sql$
+        , queue_schema, trigger_name
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+    end if;
+
+    -- create the trigger on the source table
     select pg_catalog.format
     ( $sql$
     create trigger %I

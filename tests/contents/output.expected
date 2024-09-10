@@ -22,8 +22,8 @@ CREATE EXTENSION
  function ai.embedding_openai(text,integer,text,text)
  function ai.enable_vectorizer_schedule(integer)
  function ai.execute_vectorizer(integer)
- function ai.executing_(integer,integer)
  function ai.formatting_python_template(text,name[])
+ function ai.grant_ai_usage(name,boolean)
  function ai.indexing_diskann(integer,text,integer,integer,double precision,integer,integer)
  function ai.indexing_hnsw(integer,text,integer,integer)
  function ai.indexing_none()
@@ -45,7 +45,6 @@ CREATE EXTENSION
  function ai.scheduling_timescaledb(interval,timestamp with time zone,boolean,text)
  function ai._validate_chunking(jsonb,name,name)
  function ai._validate_embedding(jsonb)
- function ai._validate_executing(jsonb)
  function ai._validate_formatting(jsonb,name,name)
  function ai._validate_formatting_python_template(jsonb,name,name)
  function ai._validate_indexing_diskann(jsonb)
@@ -53,7 +52,7 @@ CREATE EXTENSION
  function ai._validate_indexing(jsonb)
  function ai._validate_scheduling(jsonb)
  function ai._vectorizer_create_queue_table(name,name,jsonb,name[])
- function ai._vectorizer_create_source_trigger(name,name,name,name,name,jsonb)
+ function ai._vectorizer_create_source_trigger(name,name,name,name,name,jsonb,name[])
  function ai._vectorizer_create_target_table(name,name,jsonb,name,name,integer,name[])
  function ai._vectorizer_create_view(name,name,name,name,jsonb,name,name,name[])
  function ai._vectorizer_grant_to_source(name,name,name[])
@@ -67,7 +66,7 @@ CREATE EXTENSION
  table ai.vectorizer
  table ai.vectorizer_errors
  view ai.vectorizer_status
-(63 rows)
+(62 rows)
 
                                                               Table "ai.migration"
        Column       |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 

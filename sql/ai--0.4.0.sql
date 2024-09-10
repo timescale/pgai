@@ -2014,7 +2014,7 @@ begin
     -- grant select, update, delete on queue table to _grant_to roles
     if grant_to is not null then
         select pg_catalog.format
-        ( $sql$grant select, update, delete on %I.%I to %s$sql$
+        ( $sql$grant select, insert, update, delete on %I.%I to %s$sql$
         , queue_schema
         , queue_table
         , (
@@ -2039,11 +2039,13 @@ create or replace function ai._vectorizer_create_source_trigger
 , source_schema name
 , source_table name
 , source_pk jsonb
+, grant_to name[]
 ) returns void as
 $func$
 declare
     _sql text;
 begin
+    -- create the trigger function
     select pg_catalog.format
     ( $sql$
     create function %I.%I() returns trigger
@@ -2070,6 +2072,30 @@ begin
     ;
     execute _sql;
 
+    -- revoke all on trigger function from public
+    select pg_catalog.format
+    ( $sql$
+    revoke all on function %I.%I() from public
+    $sql$
+    , queue_schema, trigger_name
+    ) into strict _sql
+    ;
+    execute _sql;
+
+    -- grant execute on trigger function to _grant_to roles
+    if grant_to is not null then
+        select pg_catalog.format
+        ( $sql$grant execute on function %I.%I to %s$sql$
+        , queue_schema, trigger_name
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+    end if;
+
+    -- create the trigger on the source table
     select pg_catalog.format
     ( $sql$
     create trigger %I
@@ -2251,7 +2277,7 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.vectorizer
-    ai.vectorizer.execute_async_ext_vectorizer(plpy, vectorizer_id)
+    ai.vectorizer.execute_vectorizer(plpy, vectorizer_id)
 $python$
 language plpython3u volatile security invoker
 set search_path to pg_catalog, pg_temp
@@ -2381,6 +2407,7 @@ begin
     , _source_schema
     , _source_table
     , _source_pk
+    , grant_to
     );
 
     -- create view
@@ -2740,69 +2767,178 @@ from ai.vectorizer v
 
 
 --------------------------------------------------------------------------------
--- 012-executing.sql
-
--------------------------------------------------------------------------------
--- executing_
-create or replace function ai.executing_
-( batch_size int
-, concurrency int
-) returns jsonb
-as $func$
-    select json_object
-    ( 'implementation': 'platform'
-    , 'config_type': 'executing'
-    , 'batch_size': batch_size
-    , 'concurrency': concurrency
-    absent on null
-    )
-$func$ language sql immutable security invoker
-set search_path to pg_catalog, pg_temp
-;
-
--------------------------------------------------------------------------------
--- _validate_executing
-create or replace function ai._validate_executing(config jsonb) returns void
-as $func$
-declare
-    _config_type text;
-    _implementation text;
-begin
-    if pg_catalog.jsonb_typeof(config) != 'object' then
-        raise exception 'executing config is not a jsonb object';
-    end if;
-
-    _config_type = config operator ( pg_catalog.->> ) 'config_type';
-    if _config_type is null or _config_type != 'executing' then
-        raise exception 'invalid config_type for executing config';
-    end if;
-    _implementation = config operator(pg_catalog.->>) 'implementation';
-    case _implementation
-        when 'none' then
-            -- ok
-        else
-            if _implementation is null then
-                raise exception 'executing implementation not specified';
-            else
-                raise exception 'invalid executing implementation: "%"', _implementation;
-            end if;
-    end case;
-end
-$func$ language plpgsql immutable security invoker
-set search_path to pg_catalog, pg_temp
-;
-
-
-
---------------------------------------------------------------------------------
 -- 999-privileges.sql
 
+-------------------------------------------------------------------------------
+-- grant_ai_usage
+create or replace function ai.grant_ai_usage(to_user name, admin bool default false) returns void
+as $func$
+declare
+    _sql text;
+begin
+    -- schema
+    select pg_catalog.format
+    ( 'grant %s on schema ai to %I%s'
+    , case when admin then 'all privileges' else 'usage, create' end
+    , to_user
+    , case when admin then ' with grant option' else '' end
+    ) into strict _sql
+    ;
+    raise debug '%', _sql;
+    execute _sql;
 
-grant all privileges on schema ai to session_user with grant option;
-grant all privileges on all tables in schema ai to session_user with grant option;
-grant all privileges on all sequences in schema ai to session_user with grant option;
-grant all privileges on all procedures in schema ai to session_user with grant option;
-grant all privileges on all functions in schema ai to session_user with grant option;
+    -- tables, sequences, and views
+    for _sql in
+    (
+        select pg_catalog.format
+        ( 'grant %s on %s %I.%I to %I%s'
+        , case
+            when admin then 'all privileges'
+            else
+                case
+                    when k.relkind in ('r', 'p') then 'select, insert, update, delete'
+                    when k.relkind in ('S') then 'usage, select, update'
+                    when k.relkind in ('v') then 'select'
+                end
+          end
+        , case
+            when k.relkind in ('r', 'p') then 'table'
+            when k.relkind in ('S') then 'sequence'
+            when k.relkind in ('v') then ''
+          end
+        , n.nspname
+        , k.relname
+        , to_user
+        , case when admin then ' with grant option' else '' end
+        )
+        from pg_catalog.pg_depend d
+        inner join pg_catalog.pg_extension e on (d.refobjid operator(pg_catalog.=) e.oid)
+        inner join pg_catalog.pg_class k on (d.objid operator(pg_catalog.=) k.oid)
+        inner join pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
+        where d.refclassid operator(pg_catalog.=) 'pg_catalog.pg_extension'::pg_catalog.regclass
+        and d.deptype operator(pg_catalog.=) 'e'
+        and e.extname operator(pg_catalog.=) 'ai'
+        and k.relkind in ('r', 'p', 'S', 'v') -- tables, sequences, and views
+        and (admin, n.nspname, k.relname) not in
+        (
+            (false, 'ai', 'migration') -- only admins get any access to this table
+        )
+        order by n.nspname, k.relname
+    )
+    loop
+        raise debug '%', _sql;
+        execute _sql;
+    end loop;
+
+    -- procedures and functions
+    for _sql in
+    (
+        select pg_catalog.format
+        ( 'grant %s on %s %I.%I(%s) to %I%s'
+        , case when admin then 'all privileges' else 'execute' end
+        , case k.prokind
+              when 'f' then 'function'
+              when 'p' then 'procedure'
+          end
+        , n.nspname
+        , k.proname
+        , pg_catalog.pg_get_function_identity_arguments(k.oid)
+        , to_user
+        , case when admin then ' with grant option' else '' end
+        )
+        from pg_catalog.pg_depend d
+        inner join pg_catalog.pg_extension e on (d.refobjid operator(pg_catalog.=) e.oid)
+        inner join pg_catalog.pg_proc k on (d.objid operator(pg_catalog.=) k.oid)
+        inner join pg_namespace n on (k.pronamespace operator(pg_catalog.=) n.oid)
+        where d.refclassid operator(pg_catalog.=) 'pg_catalog.pg_extension'::pg_catalog.regclass
+        and d.deptype operator(pg_catalog.=) 'e'
+        and e.extname operator(pg_catalog.=) 'ai'
+        and k.prokind in ('f', 'p')
+        and case
+              when k.proname operator(pg_catalog.=) 'grant_ai_usage' then admin -- only admins get this function
+              else true
+            end
+    )
+    loop
+        raise debug '%', _sql;
+        execute _sql;
+    end loop;
+end
+$func$ language plpgsql volatile
+security invoker -- gotta have privs to give privs
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- grant admin usage to session user and pg_database_owner
+select ai.grant_ai_usage(pg_catalog."session_user"(), admin=>true);
+select ai.grant_ai_usage('pg_database_owner', admin=>true);
+
+-------------------------------------------------------------------------------
+-- revoke everything from public
+do language plpgsql $func$
+declare
+    _sql text;
+begin
+    -- schema
+    revoke all privileges on schema ai from public;
+
+    -- tables, sequences, and views
+    for _sql in
+    (
+        select pg_catalog.format
+        ( 'revoke all privileges on %s %I.%I from public'
+        , case
+            when k.relkind in ('r', 'p') then 'table'
+            when k.relkind in ('S') then 'sequence'
+            when k.relkind in ('v') then ''
+          end
+        , n.nspname
+        , k.relname
+        )
+        from pg_catalog.pg_depend d
+        inner join pg_catalog.pg_extension e on (d.refobjid operator(pg_catalog.=) e.oid)
+        inner join pg_catalog.pg_class k on (d.objid operator(pg_catalog.=) k.oid)
+        inner join pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
+        where d.refclassid operator(pg_catalog.=) 'pg_catalog.pg_extension'::pg_catalog.regclass
+        and d.deptype operator(pg_catalog.=) 'e'
+        and e.extname operator(pg_catalog.=) 'ai'
+        and k.relkind in ('r', 'p', 'S', 'v') -- tables, sequences, and views
+        order by n.nspname, k.relname
+    )
+    loop
+        raise debug '%', _sql;
+        execute _sql;
+    end loop;
+
+    -- procedures and functions
+    for _sql in
+    (
+        select pg_catalog.format
+        ( 'revoke all privileges on %s %I.%I(%s) from public'
+        , case k.prokind
+              when 'f' then 'function'
+              when 'p' then 'procedure'
+          end
+        , n.nspname
+        , k.proname
+        , pg_catalog.pg_get_function_identity_arguments(k.oid)
+        )
+        from pg_catalog.pg_depend d
+        inner join pg_catalog.pg_extension e on (d.refobjid operator(pg_catalog.=) e.oid)
+        inner join pg_catalog.pg_proc k on (d.objid operator(pg_catalog.=) k.oid)
+        inner join pg_namespace n on (k.pronamespace operator(pg_catalog.=) n.oid)
+        where d.refclassid operator(pg_catalog.=) 'pg_catalog.pg_extension'::pg_catalog.regclass
+        and d.deptype operator(pg_catalog.=) 'e'
+        and e.extname operator(pg_catalog.=) 'ai'
+        and k.prokind in ('f', 'p')
+    )
+    loop
+        raise debug '%', _sql;
+        execute _sql;
+    end loop;
+end
+$func$;
 
 
 
