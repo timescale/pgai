@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.3-labs
-ARG PG_MAJOR=16
+ARG PG_MAJOR
 FROM postgres:${PG_MAJOR}
 
 ENV WHERE_AM_I=docker
