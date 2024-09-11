@@ -7,8 +7,6 @@ import sys
 import tempfile
 from pathlib import Path
 
-DEFAULT_PG_MAJOR = "16"
-
 HELP = """Available targets:
 - help              displays this message and exits
 - install           installs the project
@@ -54,8 +52,8 @@ def prior_versions() -> list[str]:
     return versions()[1:] if len(versions()) > 1 else []
 
 
-def pg_major() -> int:
-    return int(os.getenv("PG_MAJOR", DEFAULT_PG_MAJOR))
+def pg_major() -> str:
+    return os.getenv("PG_MAJOR")
 
 
 def project_dir() -> Path:
@@ -472,6 +470,9 @@ def docker_build() -> None:
 
 
 def docker_run() -> None:
+    if does_container_exist():
+        print("pgai container already exists", file=sys.stderr)
+        sys.exit(1)
     cmd = " ".join([
         "docker run -d --name pgai -p 127.0.0.1:5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust",
         f"--mount type=bind,src={project_dir()},dst=/pgai",
@@ -483,34 +484,37 @@ def docker_run() -> None:
     subprocess.run(cmd, shell=True, check=True, env=os.environ, text=True)
 
 
-def docker_running() -> bool | None:
-    cmd = "docker container ls --filter name=pgai --format=json"
+def does_container_exist() -> bool:
+    cmd = '''docker ps --all --filter "name=pgai" --format "{{.Image}}"'''
     proc = subprocess.run(
         cmd, shell=True, check=True, env=os.environ, text=True, capture_output=True
     )
     output = str(proc.stdout).strip()
-    if output == "":
-        return None
-    output = json.loads(output)
-    return output["State"] == "running"
+    return output == "pgai"
+
+
+def is_container_running() -> bool:
+    cmd = '''docker ps --all --filter "name=pgai" --filter "status=running" --format "{{.Image}}"'''
+    proc = subprocess.run(
+        cmd, shell=True, check=True, env=os.environ, text=True, capture_output=True
+    )
+    output = str(proc.stdout).strip()
+    return output == "pgai"
 
 
 def docker_stop() -> None:
-    if docker_running():
+    if does_container_exist() and is_container_running():
         subprocess.run(
             """docker stop pgai""", shell=True, check=True, env=os.environ, text=True
         )
 
 
 def docker_rm() -> None:
-    status = docker_running()
-    if status is None:
-        return
-    if status is True:
-        docker_stop()
-    subprocess.run(
-        """docker rm pgai""", shell=True, check=True, env=os.environ, text=True
-    )
+    if does_container_exist():
+        subprocess.run(
+            """docker rm --force --volumes pgai""",
+            shell=True, check=True, env=os.environ, text=True
+        )
 
 
 def run() -> None:
