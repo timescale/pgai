@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import os
 import subprocess
 import shutil
@@ -87,7 +86,10 @@ def check_idempotent_sql_files(paths: list[Path]) -> None:
     for path in paths:
         this = int(path.name[0:3])
         if this != 999 and this != prev + 1:
-            print(f"idempotent sql files must be strictly ordered. this: {this} prev: {prev}", file=sys.stderr)
+            print(
+                f"idempotent sql files must be strictly ordered. this: {this} prev: {prev}",
+                file=sys.stderr,
+            )
             sys.exit(1)
         prev = this
 
@@ -103,7 +105,10 @@ def check_incremental_sql_files(paths: list[Path]) -> None:
     for path in paths:
         this = int(path.name[0:3])
         if this != prev + 1:
-            print(f"incremental sql files must be strictly ordered. this: {this} prev: {prev}", file=sys.stderr)
+            print(
+                f"incremental sql files must be strictly ordered. this: {this} prev: {prev}",
+                file=sys.stderr,
+            )
             sys.exit(1)
         prev = this
 
@@ -222,11 +227,11 @@ def postgres_bin_dir() -> Path:
         if bin_dir.exists():
             return bin_dir.absolute()
         else:
-            pg_config = shutil.which("pg_config")
+            p = shutil.which("pg_config")
             if not bin:
                 print("pg_config not found", file=sys.stderr)
                 sys.exit(1)
-            return Path(pg_config).parent.resolve()
+            return Path(p).parent.resolve()
 
 
 def pg_config() -> Path:
@@ -277,9 +282,9 @@ def python_install_dir() -> Path:
     # don't do it. i'm warning you
     # seriously.
     # you'll wreck old versions. look at build_idempotent_sql_file()
-    return (
-        Path("/usr/local/lib/pgai").resolve()
-    )  # CONTROLS WHERE THE PYTHON LIB AND DEPS ARE INSTALLED
+    return Path(
+        "/usr/local/lib/pgai"
+    ).resolve()  # CONTROLS WHERE THE PYTHON LIB AND DEPS ARE INSTALLED
 
 
 def install_old_py_deps() -> None:
@@ -364,7 +369,7 @@ def install_py() -> None:
         if d.exists():
             shutil.rmtree(d)
         for d in version_target_dir.glob(
-                "pgai-*.dist-info"
+            "pgai-*.dist-info"
         ):  # delete package info if exists
             shutil.rmtree(d)
         subprocess.run(
@@ -429,7 +434,13 @@ def test_server() -> None:
         subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
     else:
         cmd = "fastapi dev server.py"
-        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=tests_dir().joinpath("vectorizer"))
+        subprocess.run(
+            cmd,
+            shell=True,
+            check=True,
+            env=os.environ,
+            cwd=tests_dir().joinpath("vectorizer"),
+        )
 
 
 def test() -> None:
@@ -438,11 +449,13 @@ def test() -> None:
 
 def lint_sql() -> None:
     sql = sql_dir().joinpath(f"ai--{this_version()}.sql")
-    cmd = " ".join([
-        "pgspot --ignore-lang=plpython3u",
-        '--proc-without-search-path "ai._vectorizer_job(job_id integer,config jsonb)"',
-        f"{sql}"
-    ])
+    cmd = " ".join(
+        [
+            "pgspot --ignore-lang=plpython3u",
+            '--proc-without-search-path "ai._vectorizer_job(job_id integer,config jsonb)"',
+            f"{sql}",
+        ]
+    )
     subprocess.run(cmd, shell=True, check=True, env=os.environ)
 
 
@@ -465,7 +478,10 @@ def docker_build() -> None:
     assert Path.cwd() == project_dir()
     subprocess.run(
         f"""docker build --build-arg PG_MAJOR={pg_major()} -t pgai .""",
-        shell=True, check=True, env=os.environ, text=True
+        shell=True,
+        check=True,
+        env=os.environ,
+        text=True,
     )
 
 
@@ -473,14 +489,16 @@ def docker_run() -> None:
     if does_container_exist():
         print("pgai container already exists", file=sys.stderr)
         sys.exit(1)
-    cmd = " ".join([
-        "docker run -d --name pgai -p 127.0.0.1:5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust",
-        f"--mount type=bind,src={project_dir()},dst=/pgai",
-        "pgai",
-        "-c shared_preload_libraries='pg_cron, timescaledb, pgextwlist'",
-        "-c extwlist.extensions='ai,vector'",
-        "-c cron.database_name='test'"
-    ])
+    cmd = " ".join(
+        [
+            "docker run -d --name pgai -p 127.0.0.1:5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust",
+            f"--mount type=bind,src={project_dir()},dst=/pgai",
+            "pgai",
+            "-c shared_preload_libraries='pg_cron, timescaledb, pgextwlist'",
+            "-c extwlist.extensions='ai,vector'",
+            "-c cron.database_name='test'",
+        ]
+    )
     subprocess.run(cmd, shell=True, check=True, env=os.environ, text=True)
 
 
@@ -513,7 +531,10 @@ def docker_rm() -> None:
     if does_container_exist():
         subprocess.run(
             """docker rm --force --volumes pgai""",
-            shell=True, check=True, env=os.environ, text=True
+            shell=True,
+            check=True,
+            env=os.environ,
+            text=True,
         )
 
 
