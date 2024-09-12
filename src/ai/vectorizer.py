@@ -5,10 +5,10 @@ import backoff
 import httpx
 from backoff._typing import Details
 
-GUC_VECTORIZER_URL = "cloud.external_function_executor_url"
+GUC_VECTORIZER_URL = "ai.external_function_executor_url"
 DEFAULT_VECTORIZER_URL = "http://localhost:8000"
 
-GUC_VECTORIZER_PATH = "cloud.external_functions_executor_events_path"
+GUC_VECTORIZER_PATH = "ai.external_functions_executor_events_path"
 DEFAULT_VECTORIZER_PATH = "/api/v1/events"
 
 
