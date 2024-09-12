@@ -6,7 +6,7 @@
  ai     | jill  | create    | YES
  ai     | alice | usage     | YES
  ai     | bob   | usage     | no
- ai     | fred  | usage     | no
+ ai     | fred  | usage     | YES
  ai     | jill  | usage     | YES
  wiki   | alice | create    | YES
  wiki   | bob   | create    | no
@@ -14,7 +14,7 @@
  wiki   | jill  | create    | no
  wiki   | alice | usage     | YES
  wiki   | bob   | usage     | no
- wiki   | fred  | usage     | no
+ wiki   | fred  | usage     | YES
  wiki   | jill  | usage     | YES
 (16 rows)
 
