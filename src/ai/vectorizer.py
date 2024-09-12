@@ -1,11 +1,15 @@
 import json
+from urllib.parse import urljoin
 
 import httpx
 import backoff
 from backoff._typing import Details
 
-GUC_VECTORIZER_URL = "ai.vectorizer_url"
+GUC_VECTORIZER_URL = "cloud.external_function_executor_url"
 DEFAULT_VECTORIZER_URL = "http://localhost:8000"
+
+GUC_VECTORIZER_PATH = "cloud.external_functions_executor_events_path"
+DEFAULT_VECTORIZER_PATH = "/api/v1/events"
 
 
 def get_guc_value(plpy, setting: str, default: str) -> str:
@@ -33,7 +37,10 @@ def execute_vectorizer(plpy, vectorizer_id: int) -> None:
         plpy.error(f"vectorizer {vectorizer_id} not found")
     vectorizer = json.loads(result[0]["vectorizer"])
 
-    the_url = get_guc_value(plpy, GUC_VECTORIZER_URL, DEFAULT_VECTORIZER_URL)
+    the_url = urljoin(
+        get_guc_value(plpy, GUC_VECTORIZER_URL, DEFAULT_VECTORIZER_URL),
+        get_guc_value(plpy, GUC_VECTORIZER_PATH, DEFAULT_VECTORIZER_PATH),
+    )
 
     def on_backoff(detail: Details):
         plpy.warning(

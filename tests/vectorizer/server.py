@@ -132,7 +132,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
-@app.post("/")
+@app.post("/api/v1/events")
 async def execute_vectorizer(vectorizer: Vectorizer):
     print(f"execute vectorizer: {vectorizer.id}")
     # do this in a blocking manner to make the tests easier
