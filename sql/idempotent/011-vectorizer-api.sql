@@ -27,12 +27,12 @@ create or replace function ai.create_vectorizer
 , view_name name default null
 , queue_schema name default null
 , queue_table name default null
-, grant_to name[] default array['vectorizer'] -- TODO: what is the final role name we want to use here?
+, grant_to name[] default array['tsdbadmin']
 , enqueue_existing bool default true
 ) returns int
 as $func$
 declare
-    _found bool;
+    _missing_roles name[];
     _source_table name;
     _source_schema name;
     _trigger_name name;
@@ -45,13 +45,16 @@ declare
 begin
     -- make sure all the roles listed in _grant_to exist
     if grant_to is not null then
-        -- do any roles NOT exist
-        select pg_catalog.count(*) filter (where pg_catalog.to_regrole(r) is null) operator(pg_catalog.>) 0
-        into strict _found
+        select
+          pg_catalog.array_agg(r) filter (where pg_catalog.to_regrole(r) is null) -- missing
+        , pg_catalog.array_agg(r) filter (where pg_catalog.to_regrole(r) is not null) -- real roles
+        into strict
+          _missing_roles
+        , grant_to
         from pg_catalog.unnest(grant_to) r
         ;
-        if _found then
-            raise exception 'one or more _grant_to roles do not exist';
+        if pg_catalog.array_length(_missing_roles, 1) > 0 then
+            raise warning 'one or more grant_to roles do not exist: %', _missing_roles;
         end if;
     end if;
 
@@ -67,7 +70,7 @@ begin
         raise exception 'only the owner of the source table may create a vectorizer on it';
     end if;
 
-    select (embedding->'dimensions')::int into _dimensions;
+    select (embedding operator(pg_catalog.->) 'dimensions')::int into _dimensions;
     if _dimensions is null then
         raise exception '_dimensions argument is required';
     end if;

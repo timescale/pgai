@@ -222,7 +222,7 @@ def test_vectorizer_timescaledb():
                     , initial_start=>'2050-01-06'::timestamptz
                     , timezone=>'America/Chicago'
                     )
-            , grant_to=>array['bob']
+            , grant_to=>array['bob', 'fernando']
             );
             """)
             vectorizer_id = cur.fetchone()[0]
