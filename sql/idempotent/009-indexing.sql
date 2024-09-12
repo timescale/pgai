@@ -59,7 +59,7 @@ set search_path to pg_catalog, pg_temp
 -- indexing_hnsw
 create or replace function ai.indexing_hnsw
 ( min_rows int default 100000
-, opclass text default null
+, opclass text default 'vector_cosine_ops'
 , m int default null
 , ef_construction int default null
 ) returns jsonb
