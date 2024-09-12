@@ -102,6 +102,7 @@ def test_indexing_hnsw():
                 "implementation": "hnsw",
                 "config_type": "indexing",
                 "min_rows": 100_000,
+                "opclass": "vector_cosine_ops",
             },
         ),
         (
@@ -110,15 +111,16 @@ def test_indexing_hnsw():
                 "implementation": "hnsw",
                 "config_type": "indexing",
                 "min_rows": 500,
+                "opclass": "vector_cosine_ops",
             },
         ),
         (
-            "select ai.indexing_hnsw(opclass=>'vector_cosine_ops')",
+            "select ai.indexing_hnsw(opclass=>'vector_l1_ops')",
             {
                 "implementation": "hnsw",
                 "config_type": "indexing",
                 "min_rows": 100_000,
-                "opclass": "vector_cosine_ops",
+                "opclass": "vector_l1_ops",
             },
         ),
         (
@@ -129,6 +131,7 @@ def test_indexing_hnsw():
                 "min_rows": 100_000,
                 "m": 10,
                 "ef_construction": 100,
+                "opclass": "vector_cosine_ops",
             },
         ),
     ]

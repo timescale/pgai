@@ -54,6 +54,7 @@ CREATE EXTENSION
  function ai._vectorizer_create_queue_table(name,name,jsonb,name[])
  function ai._vectorizer_create_source_trigger(name,name,name,name,name,jsonb,name[])
  function ai._vectorizer_create_target_table(name,name,jsonb,name,name,integer,name[])
+ function ai._vectorizer_create_vector_index(name,name,jsonb)
  function ai._vectorizer_create_view(name,name,name,name,jsonb,name,name,name[])
  function ai._vectorizer_grant_to_source(name,name,name[])
  function ai._vectorizer_grant_to_vectorizer(name[])
@@ -61,12 +62,13 @@ CREATE EXTENSION
  function ai.vectorizer_queue_pending(integer)
  function ai._vectorizer_schedule_job(integer,jsonb)
  function ai._vectorizer_source_pk(regclass)
+ function ai._vectorizer_vector_index_exists(name,name,jsonb)
  sequence ai.vectorizer_id_seq
  table ai.migration
  table ai.vectorizer
  table ai.vectorizer_errors
  view ai.vectorizer_status
-(62 rows)
+(64 rows)
 
                                                               Table "ai.migration"
        Column       |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 

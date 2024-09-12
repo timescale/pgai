@@ -1647,7 +1647,7 @@ set search_path to pg_catalog, pg_temp
 -- indexing_hnsw
 create or replace function ai.indexing_hnsw
 ( min_rows int default 100000
-, opclass text default null
+, opclass text default 'vector_cosine_ops'
 , m int default null
 , ef_construction int default null
 ) returns jsonb
@@ -2164,6 +2164,116 @@ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+create or replace function ai._vectorizer_vector_index_exists
+( target_schema name
+, target_table name
+, indexing jsonb
+) returns bool as
+$func$
+declare
+    _implementation text;
+    _found bool;
+begin
+    _implementation = pg_catalog.jsonb_extract_path_text(indexing, 'implementation');
+    if _implementation not in ('diskann', 'hnsw') then
+        raise exception 'unrecognized index implementation: %s', _implementation;
+    end if;
+
+    -- look for an index on the target table where the indexed column is the "embedding" column
+    -- and the index is using the correct implementation
+    select pg_catalog.count(*) filter
+    ( where pg_catalog.pg_get_indexdef(i.indexrelid)
+      ilike pg_catalog.concat('% using ', _implementation, ' %')
+    ) > 0 into _found
+    from pg_catalog.pg_class k
+    inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
+    inner join pg_index i on (k.oid operator(pg_catalog.=) i.indrelid)
+    inner join pg_catalog.pg_attribute a
+        on (k.oid operator(pg_catalog.=) a.attrelid
+        and a.attname operator(pg_catalog.=) 'embedding'
+        and a.attnum operator(pg_catalog.=) i.indkey[0]
+        )
+    where n.nspname operator(pg_catalog.=) target_schema
+    and k.relname operator(pg_catalog.=) target_table
+    ;
+    return coalesce(_found, false);
+end
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+create or replace function ai._vectorizer_create_vector_index
+( target_schema name
+, target_table name
+, indexing jsonb
+) returns void as
+$func$
+declare
+    _implementation text;
+    _with_count bigint;
+    _with text[];
+    _sql text;
+begin
+    _implementation = pg_catalog.jsonb_extract_path_text(indexing, 'implementation');
+    case _implementation
+        when 'diskann' then
+            select
+              pg_catalog.count(*)
+            , pg_catalog.string_agg(pg_catalog.format('%s=%s', w.key, w.value), ', ')
+            into strict
+              _with_count
+            , _with
+            from pg_catalog.jsonb_each_text(indexing) w
+            where w.key in
+            ( 'storage_layout'
+            , 'num_neighbors'
+            , 'search_list_size'
+            , 'max_alpha'
+            , 'num_dimensions'
+            , 'num_bits_per_dimension'
+            )
+            ;
+
+            select pg_catalog.format
+            ( $sql$create index on %I.%I using diskann (embedding)%s$sql$
+            , target_schema, target_table
+            , case when _with_count operator(pg_catalog.>) 0
+                then pg_catalog.format(' with (%s)', _with)
+                else ''
+              end
+            ) into strict _sql;
+            execute _sql;
+        when 'hnsw' then
+            select
+              pg_catalog.count(*)
+            , pg_catalog.string_agg(pg_catalog.format('%s=%s', w.key, w.value), ', ')
+            into strict
+              _with_count
+            , _with
+            from pg_catalog.jsonb_each_text(indexing) w
+            where w.key in ('m', 'ef_construction')
+            ;
+
+            select pg_catalog.format
+            ( $sql$create index on %I.%I using hnsw (embedding %s)%s$sql$
+            , target_schema, target_table
+            , indexing operator(pg_catalog.->>) 'opclass'
+            , case when _with_count operator(pg_catalog.>) 0
+                then pg_catalog.format(' with (%s)', _with)
+                else ''
+              end
+            ) into strict _sql;
+            execute _sql;
+        else
+            raise exception 'unrecognized index implementation: %s', _implementation;
+    end case;
+end
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
 -------------------------------------------------------------------------------
 -- _vectorizer_job
 create or replace procedure ai._vectorizer_job
@@ -2173,10 +2283,12 @@ create or replace procedure ai._vectorizer_job
 $func$
 declare
     _vectorizer_id int;
-    _queue_schema name;
-    _queue_table name;
+    _vec ai.vectorizer%rowtype;
     _sql text;
-    _item bigint;
+    _count bigint;
+    _indexing jsonb;
+    _implementation text;
+    _min_rows bigint;
 begin
     set local search_path = pg_catalog, pg_temp;
     if config is null then
@@ -2188,7 +2300,7 @@ begin
     into strict _vectorizer_id
     ;
     -- look up the queue table for the vectorizer
-    select v.queue_schema, v.queue_table into strict _queue_schema, _queue_table
+    select * into strict _vec
     from ai.vectorizer v
     where v.id operator(pg_catalog.=) _vectorizer_id
     ;
@@ -2200,19 +2312,59 @@ begin
     for update skip locked
     limit 1
     $sql$
-    , _queue_schema, _queue_table
+    , _vec.queue_schema, _vec.queue_table
     ) into strict _sql
     ;
-    execute _sql into _item;
+    execute _sql into _count;
     commit;
     set local search_path = pg_catalog, pg_temp;
-    if _item is null then
-        -- nothing to do
+    if _count is not null then
+        -- execute the vectorizer
+        perform ai.execute_vectorizer(_vectorizer_id);
+    end if;
+    commit;
+    set local search_path = pg_catalog, pg_temp;
+
+    -- grab the indexing config
+    _indexing = pg_catalog.jsonb_extract_path(_vec.config, 'indexing');
+    if _indexing is null then
         return;
     end if;
-    -- execute the vectorizer
-    perform ai.execute_vectorizer(_vectorizer_id);
+
+    -- grab the indexing config's implementation
+    _implementation = pg_catalog.jsonb_extract_path_text(_indexing, 'implementation');
+    -- if implementation is missing or none, exit
+    if _implementation is null or _implementation = 'none' then
+        return;
+    end if;
+
+    -- see if the index already exists. if so, exit
+    if ai._vectorizer_vector_index_exists(_vec.target_schema, _vec.target_table, _indexing) then
+        return;
+    end if;
+
+    -- if min_rows has a value
+    _min_rows = coalesce(pg_catalog.jsonb_extract_path_text(_indexing, 'min_rows')::bigint, 0);
+    if _min_rows > 0 then
+        -- count the rows in the target table
+        select pg_catalog.format
+        ( $sql$select pg_catalog.count(*) from (select 1 from %I.%I limit %L) x$sql$
+        , _vec.target_schema
+        , _vec.target_table
+        , _min_rows
+        ) into strict _sql
+        ;
+        execute _sql into _count;
+    end if;
     commit;
+    set local search_path = pg_catalog, pg_temp;
+
+    -- if we have met or exceeded min_rows, create the index
+    if coalesce(_count, 0) >= _min_rows then
+        perform ai._vectorizer_create_vector_index(_vec.target_schema, _vec.target_table, _indexing);
+    end if;
+    commit;
+    set local search_path = pg_catalog, pg_temp;
 end
 $func$
 language plpgsql security invoker
