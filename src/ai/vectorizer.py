@@ -1,8 +1,8 @@
 import json
 from urllib.parse import urljoin
 
-import httpx
 import backoff
+import httpx
 from backoff._typing import Details
 
 GUC_VECTORIZER_URL = "cloud.external_function_executor_url"
@@ -35,7 +35,14 @@ def execute_vectorizer(plpy, vectorizer_id: int) -> None:
     result = plan.execute([vectorizer_id], 1)
     if not result:
         plpy.error(f"vectorizer {vectorizer_id} not found")
-    vectorizer = json.loads(result[0]["vectorizer"])
+
+    vectorizer = result[0]["vectorizer"]
+    try:
+        embedding_api_key = vectorizer["config"]["embedding"]["api_key_name"]
+        vectorizer["secrets"] = [embedding_api_key]
+    except KeyError:
+        pass
+    vectorizer_json = json.loads(vectorizer)
 
     the_url = urljoin(
         get_guc_value(plpy, GUC_VECTORIZER_URL, DEFAULT_VECTORIZER_URL),
@@ -56,7 +63,7 @@ def execute_vectorizer(plpy, vectorizer_id: int) -> None:
         raise_on_giveup=True,
     )
     def post() -> httpx.Response:
-        return httpx.post(the_url, json=vectorizer)
+        return httpx.post(the_url, json=vectorizer_json)
 
     r = post()
     if r.status_code != httpx.codes.OK:
