@@ -36,13 +36,12 @@ def execute_vectorizer(plpy, vectorizer_id: int) -> None:
     if not result:
         plpy.error(f"vectorizer {vectorizer_id} not found")
 
-    vectorizer = result[0]["vectorizer"]
-    try:
-        embedding_api_key = vectorizer["config"]["embedding"]["api_key_name"]
-        vectorizer["secrets"] = [embedding_api_key]
-    except KeyError:
-        pass
-    vectorizer_json = json.loads(vectorizer)
+    vectorizer = json.loads(result[0]["vectorizer"])
+
+    embedding_api_key = (
+        vectorizer.get("config", {}).get("embedding", {}).get("api_key_name", None)
+    )
+    vectorizer["secrets"] = [embedding_api_key] if embedding_api_key else []
 
     the_url = urljoin(
         get_guc_value(plpy, GUC_VECTORIZER_URL, DEFAULT_VECTORIZER_URL),
@@ -63,7 +62,7 @@ def execute_vectorizer(plpy, vectorizer_id: int) -> None:
         raise_on_giveup=True,
     )
     def post() -> httpx.Response:
-        return httpx.post(the_url, json=vectorizer_json)
+        return httpx.post(the_url, json=vectorizer)
 
     r = post()
     if r.status_code != httpx.codes.OK:
