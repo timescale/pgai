@@ -32,8 +32,19 @@ $func$
 declare
     _sql text;
 begin
-    -- grant select on source table to _grant_to roles
     if grant_to is not null then
+        -- grant usage on source schema to grant_to roles
+        select pg_catalog.format
+        ( $sql$grant usage on schema %I to %s$sql$
+        , source_schema
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+
+        -- grant select on source table to grant_to roles
         select pg_catalog.format
         ( $sql$grant select on %I.%I to %s$sql$
         , source_schema
@@ -58,23 +69,26 @@ $func$
 declare
     _sql text;
 begin
-    -- grant select on vectorizer table _grant_to roles
-    -- TODO: is there a better way to do this?
     if grant_to is not null then
-        -- grant select on the users that do NOT already have it
-        for _sql in
-        (
-            select pg_catalog.format($sql$grant select on ai.vectorizer to %I$sql$, x)
+        -- grant usage on schema ai to grant_to roles
+        select pg_catalog.format
+        ( $sql$grant usage on schema ai to %s$sql$
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
             from pg_catalog.unnest(grant_to) x
-            where not pg_catalog.has_table_privilege
-            ( x
-            , 'ai.vectorizer'
-            , 'select'
-            )
-        )
-        loop
-            execute _sql;
-        end loop;
+          )
+        ) into strict _sql;
+        execute _sql;
+
+        -- grant select on vectorizer table to grant_to roles
+        select pg_catalog.format
+        ( $sql$grant select on ai.vectorizer to %s$sql$
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
     end if;
 end;
 $func$
@@ -138,8 +152,19 @@ begin
     ;
     execute _sql;
 
-    -- grant select, insert, update on target table to _grant_to roles
     if grant_to is not null then
+        -- grant usage on target schema to grant_to roles
+        select pg_catalog.format
+        ( $sql$grant usage on schema %I to %s$sql$
+        , target_schema
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+
+        -- grant select, insert, update on target table to grant_to roles
         select pg_catalog.format
         ( $sql$grant select, insert, update on %I.%I to %s$sql$
         , target_schema
@@ -224,8 +249,19 @@ begin
     ) into strict _sql;
     execute _sql;
 
-    -- grant select view to _grant_to roles
     if grant_to is not null then
+        -- grant usage on view schema to grant_to roles
+        select pg_catalog.format
+        ( $sql$grant usage on schema %I to %s$sql$
+        , view_schema
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+
+        -- grant select on view to grant_to roles
         select pg_catalog.format
         ( $sql$grant select on %I.%I to %s$sql$
         , view_schema
@@ -255,6 +291,7 @@ $func$
 declare
     _sql text;
 begin
+    -- create the table
     select pg_catalog.format
     ( $sql$create table %I.%I(%s, queued_at timestamptz not null default now())$sql$
     , queue_schema, queue_table
@@ -275,6 +312,7 @@ begin
     ;
     execute _sql;
 
+    -- create the index
     select pg_catalog.format
     ( $sql$create index on %I.%I (%s)$sql$
     , queue_schema, queue_table
@@ -286,8 +324,19 @@ begin
     ;
     execute _sql;
 
-    -- grant select, update, delete on queue table to _grant_to roles
     if grant_to is not null then
+        -- grant usage on queue schema to grant_to roles
+        select pg_catalog.format
+        ( $sql$grant usage on schema %I to %s$sql$
+        , queue_schema
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+
+        -- grant select, update, delete on queue table to grant_to roles
         select pg_catalog.format
         ( $sql$grant select, insert, update, delete on %I.%I to %s$sql$
         , queue_schema
