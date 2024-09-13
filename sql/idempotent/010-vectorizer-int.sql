@@ -369,6 +369,13 @@ declare
     _sql text;
 begin
     -- create the trigger function
+    -- the trigger function is security definer
+    -- the owner of the source table is creating the trigger function
+    -- so the trigger function is run as the owner of the source table
+    -- who also owns the queue table
+    -- this means anyone with insert/update on the source is able
+    -- to enqueue rows in the queue table automatically
+    -- since the trigger function only does inserts, this should be safe
     select pg_catalog.format
     ( $sql$
     create function %I.%I() returns trigger
