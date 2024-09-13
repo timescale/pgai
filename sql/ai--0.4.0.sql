@@ -2094,6 +2094,13 @@ declare
     _sql text;
 begin
     -- create the trigger function
+    -- the trigger function is security definer
+    -- the owner of the source table is creating the trigger function
+    -- so the trigger function is run as the owner of the source table
+    -- who also owns the queue table
+    -- this means anyone with insert/update on the source is able
+    -- to enqueue rows in the queue table automatically
+    -- since the trigger function only does inserts, this should be safe
     select pg_catalog.format
     ( $sql$
     create function %I.%I() returns trigger
@@ -2150,6 +2157,8 @@ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-------------------------------------------------------------------------------
+-- _vectorizer_vector_index_exists
 create or replace function ai._vectorizer_vector_index_exists
 ( target_schema name
 , target_table name
@@ -2189,6 +2198,8 @@ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-------------------------------------------------------------------------------
+-- _vectorizer_create_vector_index
 create or replace function ai._vectorizer_create_vector_index
 ( target_schema name
 , target_table name
