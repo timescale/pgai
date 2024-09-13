@@ -2142,6 +2142,7 @@ declare
     _implementation text;
     _with_count bigint;
     _with text[];
+    _ext_schema name;
     _sql text;
 begin
     _implementation = pg_catalog.jsonb_extract_path_text(indexing, 'implementation');
@@ -2191,9 +2192,16 @@ begin
             where w.key in ('m', 'ef_construction')
             ;
 
+            select n.nspname into strict _ext_schema
+            from pg_catalog.pg_extension x
+            inner join pg_catalog.pg_namespace n on (x.extnamespace operator(pg_catalog.=) n.oid)
+            where x.extname operator(pg_catalog.=) 'vector'
+            ;
+
             select pg_catalog.format
-            ( $sql$create index on %I.%I using hnsw (embedding %s)%s$sql$
+            ( $sql$create index on %I.%I using hnsw (embedding %I.%s)%s$sql$
             , target_schema, target_table
+            , _ext_schema
             , indexing operator(pg_catalog.->>) 'opclass'
             , case when _with_count operator(pg_catalog.>) 0
                 then pg_catalog.format(' with (%s)', _with)
