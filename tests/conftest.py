@@ -28,13 +28,6 @@ def does_test_db_exist(cur: psycopg.Cursor) -> bool:
     return cur.fetchone()[0]
 
 
-def drop_pg_cron_if_exists(cur: psycopg.Cursor) -> None:
-    cur.execute("select count(*) > 0 from pg_extension where extname = 'pg_cron'")
-    if cur.fetchone()[0] is True:
-        cur.execute("select cron.unschedule(jobid) from cron.job")
-    cur.execute("drop extension if exists pg_cron cascade")
-
-
 def drop_test_db(cur: psycopg.Cursor) -> None:
     cur.execute("select pg_terminate_backend(pid) from pg_stat_activity where datname = 'test'")
     cur.execute("drop database test with (force)")
@@ -52,11 +45,6 @@ def set_up_test_db() -> None:
     with psycopg.connect(f"postgres://postgres@127.0.0.1:5432/postgres", autocommit=True) as con:
         with con.cursor() as cur:
             create_test_user(cur)
-            if does_test_db_exist(cur):
-                # drop the pg_cron extension from the test database, so we can kill all the connections to test database
-                with psycopg.connect(f"postgres://postgres@127.0.0.1:5432/test") as con2:
-                    with con2.cursor() as cur2:
-                        drop_pg_cron_if_exists(cur2)
             create_test_db(cur)
     # grant some things to the test user in the test database
     with psycopg.connect(f"postgres://postgres@127.0.0.1:5432/test", autocommit=True) as con:
