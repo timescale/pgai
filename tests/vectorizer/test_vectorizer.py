@@ -540,6 +540,95 @@ def test_drop_vectorizer():
             assert actual == 0
 
 
+def index_creation_tester(cur: psycopg.Cursor, vectorizer_id: int) -> None:
+    cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
+    vectorizer = cur.fetchone()
+
+    # make sure the index does NOT exist
+    cur.execute("""
+                select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
+                from ai.vectorizer v
+                where v.id = %s
+            """, (vectorizer_id,))
+    actual = cur.fetchone()[0]
+    assert actual is False
+
+    # run the job
+    cur.execute("call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))"
+                , (vectorizer_id,))
+
+    # make sure the index does NOT exist
+    cur.execute("""
+                select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
+                from ai.vectorizer v
+                where v.id = %s
+            """, (vectorizer_id,))
+    actual = cur.fetchone()[0]
+    assert actual is False
+
+    # insert 5 rows into the target
+    cur.execute(f"""
+                insert into {vectorizer.target_schema}.{vectorizer.target_table}
+                ( embedding_uuid
+                , id
+                , chunk_seq
+                , chunk 
+                , embedding
+                )
+                select
+                  gen_random_uuid()
+                , x
+                , 0
+                , 'i am a chunk'
+                , (select array_agg(random()) from generate_series(1, 3))::vector(3)
+                from generate_series(1,5) x
+            """)
+
+    # run the job
+    cur.execute("call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))"
+                , (vectorizer_id,))
+
+    # make sure the index does NOT exist (min_rows = 10)
+    cur.execute("""
+                select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
+                from ai.vectorizer v
+                where v.id = %s
+            """, (vectorizer_id,))
+    actual = cur.fetchone()[0]
+    assert actual is False
+
+    # insert 5 rows into the target
+    cur.execute(f"""
+                insert into {vectorizer.target_schema}.{vectorizer.target_table}
+                ( embedding_uuid
+                , id
+                , chunk_seq
+                , chunk 
+                , embedding
+                )
+                select
+                  gen_random_uuid()
+                , x
+                , 1
+                , 'i am a chunk'
+                , (select array_agg(random()) from generate_series(1, 3))::vector(3)
+                from generate_series(1,5) x
+            """)
+
+    # run the job
+    cur.execute("call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))"
+                , (vectorizer_id,))
+
+    # make sure the index ****DOES**** exist  (min_rows = 10 and 10 rows exist)
+    cur.execute("""
+                select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
+                from ai.vectorizer v
+                where v.id = %s
+            """, (vectorizer_id,))
+    actual = cur.fetchone()[0]
+    assert actual is True
+
+
 def test_diskann_index():
     # pgvectorscale must be installed by a superuser
     with psycopg.connect(db_url("postgres"), autocommit=True, row_factory=namedtuple_row) as con:
@@ -584,90 +673,47 @@ def test_diskann_index():
             """)
             vectorizer_id = cur.fetchone()[0]
 
-            cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
-            vectorizer = cur.fetchone()
+            index_creation_tester(cur, vectorizer_id)
 
-            # make sure the index does NOT exist
+
+def test_hnsw_index():
+    with psycopg.connect(db_url("test"), autocommit=True, row_factory=namedtuple_row) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("create schema if not exists vec")
+            cur.execute("drop table if exists vec.note1")
             cur.execute("""
-                select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
-                from ai.vectorizer v
-                where v.id = %s
-            """, (vectorizer_id,))
-            actual = cur.fetchone()[0]
-            assert actual is False
-
-            # run the job
-            cur.execute("call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))"
-                        , (vectorizer_id,))
-
-            # make sure the index does NOT exist
-            cur.execute("""
-                select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
-                from ai.vectorizer v
-                where v.id = %s
-            """, (vectorizer_id,))
-            actual = cur.fetchone()[0]
-            assert actual is False
-
-            # insert 5 rows into the target
-            cur.execute(f"""
-                insert into {vectorizer.target_schema}.{vectorizer.target_table}
-                ( embedding_uuid
-                , id
-                , chunk_seq
-                , chunk 
-                , embedding
+                create table vec.note1
+                ( id bigint not null primary key generated always as identity
+                , note text not null
                 )
-                select
-                  gen_random_uuid()
-                , x
-                , 0
-                , 'i am a chunk'
-                , (select array_agg(random()) from generate_series(1, 3))::vector(3)
-                from generate_series(1,5) x
+            """)
+            # insert 5 rows into source
+            cur.execute("""
+                insert into vec.note1 (note)
+                select 'i am a note'
+                from generate_series(1, 5)
             """)
 
-            # run the job
-            cur.execute("call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))"
-                        , (vectorizer_id,))
-
-            # make sure the index does NOT exist (min_rows = 10)
+            # create a vectorizer for the table
+            # language=PostgreSQL
             cur.execute("""
-                select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
-                from ai.vectorizer v
-                where v.id = %s
-            """, (vectorizer_id,))
-            actual = cur.fetchone()[0]
-            assert actual is False
-
-            # insert 5 rows into the target
-            cur.execute(f"""
-                insert into {vectorizer.target_schema}.{vectorizer.target_table}
-                ( embedding_uuid
-                , id
-                , chunk_seq
-                , chunk 
-                , embedding
+            select ai.create_vectorizer
+            ( 'vec.note1'::regclass
+            , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+            , chunking=>ai.chunking_character_text_splitter('note')
+            , scheduling=>
+                ai.scheduling_timescaledb
+                ( interval '5m'
+                , initial_start=>'2050-01-06'::timestamptz
+                , timezone=>'America/Chicago'
                 )
-                select
-                  gen_random_uuid()
-                , x
-                , 1
-                , 'i am a chunk'
-                , (select array_agg(random()) from generate_series(1, 3))::vector(3)
-                from generate_series(1,5) x
+            , indexing=>ai.indexing_hnsw(min_rows=>10)
+            , grant_to=>null
+            , enqueue_existing=>false
+            );
             """)
+            vectorizer_id = cur.fetchone()[0]
 
-            # run the job
-            cur.execute("call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))"
-                        , (vectorizer_id,))
-
-            # make sure the index ****DOES**** exist  (min_rows = 10 and 10 rows exist)
-            cur.execute("""
-                select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
-                from ai.vectorizer v
-                where v.id = %s
-            """, (vectorizer_id,))
-            actual = cur.fetchone()[0]
-            assert actual is True
-
+            index_creation_tester(cur, vectorizer_id)
