@@ -481,7 +481,14 @@ begin
         when 'diskann' then
             select
               pg_catalog.count(*)
-            , pg_catalog.string_agg(pg_catalog.format('%s=%s', w.key, w.value), ', ')
+            , pg_catalog.string_agg
+              ( case w.key
+                  when 'storage_layout' then pg_catalog.format('%s=%L', w.key, w.value)
+                  when 'max_alpha' then pg_catalog.format('%s=%s', w.key, w.value::float8)
+                  else pg_catalog.format('%s=%s', w.key, w.value::int)
+                end
+              , ', '
+              )
             into strict
               _with_count
             , _with
@@ -508,7 +515,7 @@ begin
         when 'hnsw' then
             select
               pg_catalog.count(*)
-            , pg_catalog.string_agg(pg_catalog.format('%s=%s', w.key, w.value), ', ')
+            , pg_catalog.string_agg(pg_catalog.format('%s=%s', w.key, w.value::int), ', ')
             into strict
               _with_count
             , _with
@@ -546,6 +553,7 @@ declare
     _vectorizer_id int;
     _vec ai.vectorizer%rowtype;
     _sql text;
+    _found bool;
     _count bigint;
     _indexing jsonb;
     _implementation text;
@@ -568,7 +576,7 @@ begin
     -- if there is at least one item in the queue, we need to execute the vectorizer
     select pg_catalog.format
     ( $sql$
-    select 1
+    select true
     from %I.%I
     for update skip locked
     limit 1
@@ -576,10 +584,10 @@ begin
     , _vec.queue_schema, _vec.queue_table
     ) into strict _sql
     ;
-    execute _sql into _count;
+    execute _sql into _found;
     commit;
     set local search_path = pg_catalog, pg_temp;
-    if _count is not null then
+    if _found is not null then
         -- execute the vectorizer
         perform ai.execute_vectorizer(_vectorizer_id);
     end if;
