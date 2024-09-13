@@ -12,7 +12,6 @@ RUN set -e; \
     apt-get install -y --no-install-recommends \
     postgresql-plpython3-${PG_MAJOR} \
     postgresql-${PG_MAJOR}-pgvector \
-    postgresql-${PG_MAJOR}-cron \
     postgresql-${PG_MAJOR}-pgextwlist \
     postgresql-server-dev-${PG_MAJOR} \
     python3-pip \

@@ -1450,21 +1450,6 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- scheduling_pg_cron
-create or replace function ai.scheduling_pg_cron
-( schedule text default '*/10 * * * *'
-) returns jsonb
-as $func$
-    select pg_catalog.jsonb_build_object
-    ( 'implementation', 'pg_cron'
-    , 'config_type', 'scheduling'
-    , 'schedule', schedule
-    )
-$func$ language sql immutable security invoker
-set search_path to pg_catalog, pg_temp
-;
-
--------------------------------------------------------------------------------
 -- scheduling_timescaledb
 create or replace function ai.scheduling_timescaledb
 ( schedule_interval interval default interval '10m'
@@ -1506,8 +1491,6 @@ begin
     _implementation = config operator(pg_catalog.->>) 'implementation';
     case _implementation
         when 'none' then
-            -- ok
-        when 'pg_cron' then
             -- ok
         when 'timescaledb' then
             -- ok
@@ -2094,6 +2077,13 @@ declare
     _sql text;
 begin
     -- create the trigger function
+    -- the trigger function is security definer
+    -- the owner of the source table is creating the trigger function
+    -- so the trigger function is run as the owner of the source table
+    -- who also owns the queue table
+    -- this means anyone with insert/update on the source is able
+    -- to enqueue rows in the queue table automatically
+    -- since the trigger function only does inserts, this should be safe
     select pg_catalog.format
     ( $sql$
     create function %I.%I() returns trigger
@@ -2150,6 +2140,8 @@ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-------------------------------------------------------------------------------
+-- _vectorizer_vector_index_exists
 create or replace function ai._vectorizer_vector_index_exists
 ( target_schema name
 , target_table name
@@ -2189,6 +2181,8 @@ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-------------------------------------------------------------------------------
+-- _vectorizer_create_vector_index
 create or replace function ai._vectorizer_create_vector_index
 ( target_schema name
 , target_table name
@@ -2392,15 +2386,6 @@ begin
             if _extension_schema is null then
                 raise exception 'timescaledb extension not found';
             end if;
-        when _implementation = 'pg_cron' then
-            select count(*) > 0 into strict _found
-            from pg_catalog.pg_extension x
-            where x.extname operator(pg_catalog.=) _implementation
-            ;
-            if not _found then
-                raise exception 'pg_cron extension not found';
-            end if;
-            _extension_schema = 'cron';
         when _implementation = 'none' then
             return null;
         else
@@ -2409,17 +2394,6 @@ begin
 
     -- schedule the job using the implementation chosen
     case _implementation
-        when 'pg_cron' then
-            -- schedule the work proc with pg_cron
-            select pg_catalog.format
-            ( $$select %I.schedule(%L, %L, $sql$call ai._vectorizer_job(null, pg_catalog.jsonb_build_object('vectorizer_id', %s))$sql$)$$
-            , _extension_schema
-            , pg_catalog.concat('vectorizer_', vectorizer_id)
-            , pg_catalog.jsonb_extract_path_text(scheduling, 'schedule')
-            , vectorizer_id
-            ) into strict _sql
-            ;
-            execute _sql into strict _job_id;
         when 'timescaledb' then
             -- schedule the work proc with timescaledb background jobs
             select pg_catalog.format
@@ -2730,18 +2704,6 @@ begin
                 if _sql is not null then
                     execute _sql;
                 end if;
-            when 'pg_cron' then
-                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::bigint;
-                select pg_catalog.format
-                ( $$select cron.alter_job(jobid, active=>false) from cron.job where jobid = %L$$
-                , _job_id
-                ) into _sql
-                from pg_catalog.pg_extension x
-                where x.extname = 'pg_cron'
-                ;
-                if _sql is not null then
-                    execute _sql;
-                end if;
         end case;
     end if;
 end;
@@ -2778,18 +2740,6 @@ begin
                 from pg_catalog.pg_extension x
                 inner join pg_catalog.pg_namespace n on (x.extnamespace = n.oid)
                 where x.extname = 'timescaledb'
-                ;
-                if _sql is not null then
-                    execute _sql;
-                end if;
-            when 'pg_cron' then
-                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::bigint;
-                select pg_catalog.format
-                ( $$select cron.alter_job(jobid, active=>true) from cron.job where jobid = %L$$
-                , _job_id
-                ) into _sql
-                from pg_catalog.pg_extension x
-                where x.extname = 'pg_cron'
                 ;
                 if _sql is not null then
                     execute _sql;
@@ -2845,18 +2795,6 @@ begin
                 from pg_catalog.pg_extension x
                 inner join pg_catalog.pg_namespace n on (x.extnamespace = n.oid)
                 where x.extname = 'timescaledb'
-                ;
-                if _sql is not null then
-                    execute _sql;
-                end if;
-            when 'pg_cron' then
-                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::bigint;
-                select pg_catalog.format
-                ( $$select cron.unschedule(jobid) from cron.job where jobid = %L$$
-                , _job_id
-                ) into _sql
-                from pg_catalog.pg_extension x
-                where x.extname = 'pg_cron'
                 ;
                 if _sql is not null then
                     execute _sql;

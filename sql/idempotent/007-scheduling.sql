@@ -12,21 +12,6 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- scheduling_pg_cron
-create or replace function ai.scheduling_pg_cron
-( schedule text default '*/10 * * * *'
-) returns jsonb
-as $func$
-    select pg_catalog.jsonb_build_object
-    ( 'implementation', 'pg_cron'
-    , 'config_type', 'scheduling'
-    , 'schedule', schedule
-    )
-$func$ language sql immutable security invoker
-set search_path to pg_catalog, pg_temp
-;
-
--------------------------------------------------------------------------------
 -- scheduling_timescaledb
 create or replace function ai.scheduling_timescaledb
 ( schedule_interval interval default interval '10m'
@@ -68,8 +53,6 @@ begin
     _implementation = config operator(pg_catalog.->>) 'implementation';
     case _implementation
         when 'none' then
-            -- ok
-        when 'pg_cron' then
             -- ok
         when 'timescaledb' then
             -- ok

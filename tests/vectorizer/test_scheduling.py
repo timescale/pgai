@@ -33,43 +33,6 @@ def test_scheduling_none():
                     assert k in expected and v == expected[k]
 
 
-def test_scheduling_pg_cron():
-    tests = [
-        (
-            "select ai.scheduling_pg_cron()",
-            {
-                "implementation": "pg_cron",
-                "config_type": "scheduling",
-                "schedule": "*/10 * * * *",
-            },
-        ),
-        (
-            "select ai.scheduling_pg_cron('*/5 * * * *')",
-            {
-                "implementation": "pg_cron",
-                "config_type": "scheduling",
-                "schedule": "*/5 * * * *",
-            },
-        ),
-        (
-            "select ai.scheduling_pg_cron('0 * * * *')",
-            {
-                "implementation": "pg_cron",
-                "config_type": "scheduling",
-                "schedule": "0 * * * *",
-            },
-        ),
-    ]
-    with psycopg.connect(db_url("test")) as con:
-        with con.cursor() as cur:
-            for query, expected in tests:
-                cur.execute(query)
-                actual = cur.fetchone()[0]
-                assert actual.keys() == expected.keys()
-                for k, v in actual.items():
-                    assert k in expected and v == expected[k]
-
-
 def test_scheduling_timescaledb():
     tests = [
         (
@@ -139,7 +102,6 @@ def test_scheduling_timescaledb():
 def test_validate_scheduling():
     ok = [
         "select ai._validate_scheduling(ai.scheduling_none())",
-        "select ai._validate_scheduling(ai.scheduling_pg_cron('*/5 * * * *'))",
         "select ai._validate_scheduling(ai.scheduling_timescaledb())",
     ]
     bad = [
