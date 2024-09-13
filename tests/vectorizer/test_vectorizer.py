@@ -12,10 +12,6 @@ if not enable_vectorizer_tests or enable_vectorizer_tests == "0":
     pytest.skip(allow_module_level=True)
 
 
-def db_url(user: str) -> str:
-    return f"postgres://{user}@127.0.0.1:5432/test"
-
-
 VECTORIZER_ROW = r"""
 {
     "id": 1,
@@ -101,10 +97,10 @@ Access method: heap
 
 
 SOURCE_TRIGGER_FUNC = """
-                                                                                      List of functions
- Schema |         Name          | Result data type | Argument data types | Type | Volatility | Parallel |  Owner   | Security |  Access privileges  | Language | Internal name | Description 
---------+-----------------------+------------------+---------------------+------+------------+----------+----------+----------+---------------------+----------+---------------+-------------
- ai     | _vectorizer_src_trg_1 | trigger          |                     | func | volatile   | safe     | postgres | definer  | postgres=X/postgres | plpgsql  |               | 
+                                                                                   List of functions
+ Schema |         Name          | Result data type | Argument data types | Type | Volatility | Parallel | Owner | Security | Access privileges | Language | Internal name | Description 
+--------+-----------------------+------------------+---------------------+------+------------+----------+-------+----------+-------------------+----------+---------------+-------------
+ ai     | _vectorizer_src_trg_1 | trigger          |                     | func | volatile   | safe     | test  | definer  | test=X/test       | plpgsql  |               | 
 (1 row)
 """.strip()
 
@@ -167,6 +163,10 @@ View definition:
 """.strip()
 
 
+def db_url(user: str) -> str:
+    return f"postgres://{user}@127.0.0.1:5432/test"
+
+
 def psql_cmd(cmd: str) -> str:
     cmd = f'''psql -X -d "{db_url('test')}" -c "{cmd}"'''
     proc = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
@@ -174,7 +174,7 @@ def psql_cmd(cmd: str) -> str:
 
 
 def test_vectorizer_timescaledb():
-    with psycopg.connect(db_url("postgres"), autocommit=True, row_factory=namedtuple_row) as con:
+    with psycopg.connect(db_url("test"), autocommit=True, row_factory=namedtuple_row) as con:
         with con.cursor() as cur:
             # set up the test
             cur.execute("create extension if not exists timescaledb")
@@ -364,7 +364,7 @@ def test_vectorizer_timescaledb():
             """)
 
             # lock 1 row in the queue and check the queue depth
-            with psycopg.connect(db_url("postgres"), autocommit=False) as con2:
+            with psycopg.connect(db_url("test"), autocommit=False) as con2:
                 with con2.cursor() as cur2:
                     cur2.execute("begin transaction")
                     # lock 1 row from the queue
@@ -422,9 +422,9 @@ def test_vectorizer_timescaledb():
 
 
 def test_drop_vectorizer():
-    with psycopg.connect(db_url("postgres"), autocommit=True, row_factory=namedtuple_row) as con:
+    with psycopg.connect(db_url("test"), autocommit=True, row_factory=namedtuple_row) as con:
         with con.cursor() as cur:
-            # set up the test
+            cur.execute("create extension if not exists ai cascade")
             cur.execute("create extension if not exists timescaledb")
             cur.execute("drop schema if exists wiki cascade")
             cur.execute("create schema wiki")
@@ -538,3 +538,136 @@ def test_drop_vectorizer():
             """, (vectorizer.config['scheduling']['job_id'],))
             actual = cur.fetchone()[0]
             assert actual == 0
+
+
+def test_diskann_index():
+    # pgvectorscale must be installed by a superuser
+    with psycopg.connect(db_url("postgres"), autocommit=True, row_factory=namedtuple_row) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists vectorscale cascade")
+    with psycopg.connect(db_url("test"), autocommit=True, row_factory=namedtuple_row) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("create schema if not exists vec")
+            cur.execute("drop table if exists vec.note0")
+            cur.execute("""
+                create table vec.note0
+                ( id bigint not null primary key generated always as identity
+                , note text not null
+                )
+            """)
+            # insert 5 rows into source
+            cur.execute("""
+                insert into vec.note0 (note)
+                select 'i am a note'
+                from generate_series(1, 5)
+            """)
+
+            # create a vectorizer for the table
+            # language=PostgreSQL
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'vec.note0'::regclass
+            , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+            , chunking=>ai.chunking_character_text_splitter('note')
+            , scheduling=>
+                ai.scheduling_timescaledb
+                ( interval '5m'
+                , initial_start=>'2050-01-06'::timestamptz
+                , timezone=>'America/Chicago'
+                )
+            , indexing=>ai.indexing_diskann(min_rows=>10)
+            , grant_to=>null
+            , enqueue_existing=>false
+            );
+            """)
+            vectorizer_id = cur.fetchone()[0]
+
+            cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
+            vectorizer = cur.fetchone()
+
+            # make sure the index does NOT exist
+            cur.execute("""
+                select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
+                from ai.vectorizer v
+                where v.id = %s
+            """, (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual is False
+
+            # run the job
+            cur.execute("call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))"
+                        , (vectorizer_id,))
+
+            # make sure the index does NOT exist
+            cur.execute("""
+                select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
+                from ai.vectorizer v
+                where v.id = %s
+            """, (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual is False
+
+            # insert 5 rows into the target
+            cur.execute(f"""
+                insert into {vectorizer.target_schema}.{vectorizer.target_table}
+                ( embedding_uuid
+                , id
+                , chunk_seq
+                , chunk 
+                , embedding
+                )
+                select
+                  gen_random_uuid()
+                , x
+                , 0
+                , 'i am a chunk'
+                , (select array_agg(random()) from generate_series(1, 3))::vector(3)
+                from generate_series(1,5) x
+            """)
+
+            # run the job
+            cur.execute("call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))"
+                        , (vectorizer_id,))
+
+            # make sure the index does NOT exist (min_rows = 10)
+            cur.execute("""
+                select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
+                from ai.vectorizer v
+                where v.id = %s
+            """, (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual is False
+
+            # insert 5 rows into the target
+            cur.execute(f"""
+                insert into {vectorizer.target_schema}.{vectorizer.target_table}
+                ( embedding_uuid
+                , id
+                , chunk_seq
+                , chunk 
+                , embedding
+                )
+                select
+                  gen_random_uuid()
+                , x
+                , 1
+                , 'i am a chunk'
+                , (select array_agg(random()) from generate_series(1, 3))::vector(3)
+                from generate_series(1,5) x
+            """)
+
+            # run the job
+            cur.execute("call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))"
+                        , (vectorizer_id,))
+
+            # make sure the index ****DOES**** exist  (min_rows = 10 and 10 rows exist)
+            cur.execute("""
+                select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
+                from ai.vectorizer v
+                where v.id = %s
+            """, (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual is True
+
