@@ -185,6 +185,9 @@ def test_vectorizer_timescaledb():
             cur.execute("select to_regrole('bob') is null")
             if cur.fetchone()[0] is True:
                 cur.execute("create user bob")
+            cur.execute("select to_regrole('adelaide') is null")
+            if cur.fetchone()[0] is True:
+                cur.execute("create user adelaide")
             cur.execute("drop schema if exists website cascade")
             cur.execute("create schema website")
             cur.execute("drop table if exists website.blog")
@@ -197,7 +200,8 @@ def test_vectorizer_timescaledb():
                 , primary key (title, published)
                 )
             """)
-            cur.execute("""grant insert, update, delete on website.blog to bob""")
+            cur.execute("""grant select, insert, update, delete on website.blog to bob, adelaide""")
+            cur.execute("""grant usage on schema website to adelaide""")
             cur.execute("""
                 insert into website.blog(title, published, body)
                 values
@@ -222,7 +226,7 @@ def test_vectorizer_timescaledb():
                     , initial_start=>'2050-01-06'::timestamptz
                     , timezone=>'America/Chicago'
                     )
-            , grant_to=>array['bob', 'fernando']
+            , grant_to=>array['bob', 'fernando'] -- bob is good. fernando doesn't exist. don't grant to adelaide
             );
             """)
             vectorizer_id = cur.fetchone()[0]
@@ -309,6 +313,9 @@ def test_vectorizer_timescaledb():
                         values
                           ('how to make ramen', '2021-01-06'::timestamptz, 'boil water. cook ramen in the water')
                     """)
+            # make sure adelaide can modify the source table and the trigger works
+            with psycopg.connect(db_url("adelaide"), autocommit=False) as con2:
+                with con2.cursor() as cur2:
                     # update a row into the source
                     cur2.execute("""
                         update website.blog set published = now()
@@ -419,106 +426,6 @@ def test_vectorizer_timescaledb():
     # does the view look right?
     actual = psql_cmd(r"\d+ website.blog_embedding")
     assert actual == VIEW
-
-
-def test_vectorizer_pg_cron():
-    with psycopg.connect(db_url("postgres"), autocommit=True, row_factory=namedtuple_row) as con:
-        with con.cursor() as cur:
-            # set up the test
-            cur.execute("select to_regrole('adelaide') is null")
-            if cur.fetchone()[0] is True:
-                cur.execute("create user adelaide")
-            cur.execute("create extension if not exists pg_cron")
-            cur.execute("drop table if exists public.chat")
-            cur.execute("""
-                create table public.chat
-                ( id int not null primary key generated always as identity
-                , parent_id int references public.chat (id) on delete cascade
-                , author text not null
-                , msg text not null
-                , created_at timestamptz not null default now()
-                )
-            """)
-            cur.execute("grant insert, update, delete on public.chat to adelaide")
-
-            # create a vectorizer for the blog table
-            # language=PostgreSQL
-            cur.execute("""
-            select ai.create_vectorizer
-            ( 'public.chat'::regclass
-            , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
-            , chunking=>ai.chunking_character_text_splitter('msg', 128, 10)
-            , formatting=>ai.formatting_python_template
-                    ( 'author: $author created_at: $created_at $chunk'
-                    , columns=>array['author', 'created_at']
-                    )
-            , scheduling=>ai.scheduling_pg_cron('*/10 * * * *')
-            , grant_to=>null
-            );
-            """)
-            vectorizer_id = cur.fetchone()[0]
-
-            # check the scheduling config
-            cur.execute("""
-                select x.config->'scheduling' = jsonb_build_object
-                ( 'implementation', 'pg_cron'
-                , 'config_type', 'scheduling'
-                , 'schedule', '*/10 * * * *'
-                , 'job_id', 1
-                )
-                from ai.vectorizer x 
-                where x.id = %s
-            """, (vectorizer_id,))
-            actual = cur.fetchone()[0]
-            assert actual is True
-
-            # check the pg_cron job table
-            cur.execute("""
-                select jobname, command
-                from cron.job
-                where jobid = 1
-            """)
-            actual = cur.fetchone()
-            assert actual.jobname == f"vectorizer_{vectorizer_id}"
-            assert actual.command == f"call ai._vectorizer_job(null, pg_catalog.jsonb_build_object('vectorizer_id', {vectorizer_id}))"
-
-            # disable the schedule
-            cur.execute("select ai.disable_vectorizer_schedule(%s)", (vectorizer_id,))
-
-            # check that the pg_cron job is disabled
-            cur.execute("""
-                select active
-                from cron.job
-                where jobid = 1
-            """)
-            actual = cur.fetchone()[0]
-            assert actual is False
-
-            # enable the schedule
-            cur.execute("select ai.enable_vectorizer_schedule(%s)", (vectorizer_id,))
-
-            # check that the pg_cron job is enabled
-            cur.execute("""
-                select active
-                from cron.job
-                where jobid = 1
-            """)
-            actual = cur.fetchone()[0]
-            assert actual is True
-
-            # make sure adelaide can modify the source table and the trigger works
-            with psycopg.connect(db_url("adelaide"), autocommit=False) as con2:
-                with con2.cursor() as cur2:
-                    # insert a row into the source
-                    cur2.execute("""
-                        insert into public.chat(author, msg)
-                        values ('adelaide', 'hello world')
-                    """)
-
-            # check that the queue has 1 rows
-            cur.execute("select pending_items from ai.vectorizer_status where id = %s", (vectorizer_id,))
-            actual = cur.fetchone()[0]
-            assert actual == 1
 
 
 def test_drop_vectorizer():

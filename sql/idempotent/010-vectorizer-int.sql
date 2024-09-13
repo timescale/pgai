@@ -678,15 +678,6 @@ begin
             if _extension_schema is null then
                 raise exception 'timescaledb extension not found';
             end if;
-        when _implementation = 'pg_cron' then
-            select count(*) > 0 into strict _found
-            from pg_catalog.pg_extension x
-            where x.extname operator(pg_catalog.=) _implementation
-            ;
-            if not _found then
-                raise exception 'pg_cron extension not found';
-            end if;
-            _extension_schema = 'cron';
         when _implementation = 'none' then
             return null;
         else
@@ -695,17 +686,6 @@ begin
 
     -- schedule the job using the implementation chosen
     case _implementation
-        when 'pg_cron' then
-            -- schedule the work proc with pg_cron
-            select pg_catalog.format
-            ( $$select %I.schedule(%L, %L, $sql$call ai._vectorizer_job(null, pg_catalog.jsonb_build_object('vectorizer_id', %s))$sql$)$$
-            , _extension_schema
-            , pg_catalog.concat('vectorizer_', vectorizer_id)
-            , pg_catalog.jsonb_extract_path_text(scheduling, 'schedule')
-            , vectorizer_id
-            ) into strict _sql
-            ;
-            execute _sql into strict _job_id;
         when 'timescaledb' then
             -- schedule the work proc with timescaledb background jobs
             select pg_catalog.format

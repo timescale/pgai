@@ -264,18 +264,6 @@ begin
                 if _sql is not null then
                     execute _sql;
                 end if;
-            when 'pg_cron' then
-                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::bigint;
-                select pg_catalog.format
-                ( $$select cron.alter_job(jobid, active=>false) from cron.job where jobid = %L$$
-                , _job_id
-                ) into _sql
-                from pg_catalog.pg_extension x
-                where x.extname = 'pg_cron'
-                ;
-                if _sql is not null then
-                    execute _sql;
-                end if;
         end case;
     end if;
 end;
@@ -312,18 +300,6 @@ begin
                 from pg_catalog.pg_extension x
                 inner join pg_catalog.pg_namespace n on (x.extnamespace = n.oid)
                 where x.extname = 'timescaledb'
-                ;
-                if _sql is not null then
-                    execute _sql;
-                end if;
-            when 'pg_cron' then
-                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::bigint;
-                select pg_catalog.format
-                ( $$select cron.alter_job(jobid, active=>true) from cron.job where jobid = %L$$
-                , _job_id
-                ) into _sql
-                from pg_catalog.pg_extension x
-                where x.extname = 'pg_cron'
                 ;
                 if _sql is not null then
                     execute _sql;
@@ -379,18 +355,6 @@ begin
                 from pg_catalog.pg_extension x
                 inner join pg_catalog.pg_namespace n on (x.extnamespace = n.oid)
                 where x.extname = 'timescaledb'
-                ;
-                if _sql is not null then
-                    execute _sql;
-                end if;
-            when 'pg_cron' then
-                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::bigint;
-                select pg_catalog.format
-                ( $$select cron.unschedule(jobid) from cron.job where jobid = %L$$
-                , _job_id
-                ) into _sql
-                from pg_catalog.pg_extension x
-                where x.extname = 'pg_cron'
                 ;
                 if _sql is not null then
                     execute _sql;
