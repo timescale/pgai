@@ -228,10 +228,6 @@
  f       | bob   | execute   | no      | ai     | scheduling_none()
  f       | fred  | execute   | no      | ai     | scheduling_none()
  f       | jill  | execute   | YES     | ai     | scheduling_none()
- f       | alice | execute   | YES     | ai     | scheduling_pg_cron(schedule text)
- f       | bob   | execute   | no      | ai     | scheduling_pg_cron(schedule text)
- f       | fred  | execute   | no      | ai     | scheduling_pg_cron(schedule text)
- f       | jill  | execute   | YES     | ai     | scheduling_pg_cron(schedule text)
  f       | alice | execute   | YES     | ai     | scheduling_timescaledb(schedule_interval interval, initial_start timestamp with time zone, fixed_schedule boolean, timezone text)
  f       | bob   | execute   | no      | ai     | scheduling_timescaledb(schedule_interval interval, initial_start timestamp with time zone, fixed_schedule boolean, timezone text)
  f       | fred  | execute   | no      | ai     | scheduling_timescaledb(schedule_interval interval, initial_start timestamp with time zone, fixed_schedule boolean, timezone text)
@@ -240,5 +236,5 @@
  f       | bob   | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer)
  f       | fred  | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer)
  f       | jill  | execute   | YES     | ai     | vectorizer_queue_pending(vectorizer_id integer)
-(240 rows)
+(236 rows)
 

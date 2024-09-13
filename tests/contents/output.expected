@@ -41,7 +41,6 @@ CREATE EXTENSION
  function ai.openai_moderate(text,text,text,text)
  function ai.openai_tokenize(text,text)
  function ai.scheduling_none()
- function ai.scheduling_pg_cron(text)
  function ai.scheduling_timescaledb(interval,timestamp with time zone,boolean,text)
  function ai._validate_chunking(jsonb,name,name)
  function ai._validate_embedding(jsonb)
@@ -68,7 +67,7 @@ CREATE EXTENSION
  table ai.vectorizer
  table ai.vectorizer_errors
  view ai.vectorizer_status
-(64 rows)
+(63 rows)
 
                                                               Table "ai.migration"
        Column       |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
