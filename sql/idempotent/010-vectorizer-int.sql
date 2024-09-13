@@ -432,6 +432,8 @@ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-------------------------------------------------------------------------------
+-- _vectorizer_vector_index_exists
 create or replace function ai._vectorizer_vector_index_exists
 ( target_schema name
 , target_table name
@@ -471,6 +473,8 @@ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-------------------------------------------------------------------------------
+-- _vectorizer_create_vector_index
 create or replace function ai._vectorizer_create_vector_index
 ( target_schema name
 , target_table name
