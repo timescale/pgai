@@ -16,6 +16,8 @@ RUN set -e; \
     postgresql-${PG_MAJOR}-pgextwlist \
     postgresql-server-dev-${PG_MAJOR} \
     python3-pip \
+    build-essential \
+    pkg-config \
     make \
     cmake \
     clang \
@@ -23,6 +25,7 @@ RUN set -e; \
     curl \
     vim
 
+# install timescaledb
 RUN set -e; \
     mkdir -p /build/timescaledb; \
     git clone https://github.com/timescale/timescaledb.git --branch 2.16.1 /build/timescaledb; \
@@ -32,14 +35,30 @@ RUN set -e; \
     make install; \
     rm -rf /build/timescaledb
 
+# install pgvectorscale
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+RUN set -e; \
+    rustup install stable; \
+    cargo install cargo-pgrx --version 0.11.4 --locked; \
+    cargo pgrx init --pg${PG_MAJOR} pg_config; \
+    mkdir -p /build/pgvectorscale; \
+    git clone --branch 0.3.0 https://github.com/timescale/pgvectorscale /build/pgvectorscale; \
+    cd /build/pgvectorscale/pgvectorscale; \
+    cargo pgrx install --release; \
+    rm -rf /build/pgvectorscale
+
+# install pgspot
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+RUN set -eux; \
+    git clone https://github.com/timescale/pgspot.git /build/pgspot; \
+    pip install /build/pgspot; \
+    rm -rf /build/pgspot
+
+# install our dev/test python dependencies
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 COPY requirements-test.txt /build/requirements-test.txt
 RUN pip install -r /build/requirements-test.txt
 RUN rm -r /build
-
-RUN set -eux; \
-    git clone https://github.com/timescale/pgspot.git /build/pgspot; \
-    pip install /build/pgspot; \
-    rm -r /build
 
 WORKDIR /pgai
