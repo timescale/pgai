@@ -363,7 +363,6 @@ create or replace function ai._vectorizer_create_source_trigger
 , source_schema name
 , source_table name
 , source_pk jsonb
-, grant_to name[]
 ) returns void as
 $func$
 declare
@@ -379,7 +378,7 @@ begin
         values (%s);
         return null;
     end;
-    $plpgsql$ language plpgsql volatile parallel safe security invoker
+    $plpgsql$ language plpgsql volatile parallel safe security definer
     set search_path to pg_catalog, pg_temp
     $sql$
     , queue_schema, trigger_name
@@ -405,19 +404,6 @@ begin
     ) into strict _sql
     ;
     execute _sql;
-
-    -- grant execute on trigger function to _grant_to roles
-    if grant_to is not null then
-        select pg_catalog.format
-        ( $sql$grant execute on function %I.%I to %s$sql$
-        , queue_schema, trigger_name
-        , (
-            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
-            from pg_catalog.unnest(grant_to) x
-          )
-        ) into strict _sql;
-        execute _sql;
-    end if;
 
     -- create the trigger on the source table
     select pg_catalog.format
