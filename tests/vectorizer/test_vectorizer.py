@@ -42,10 +42,6 @@ VECTORIZER_ROW = r"""
             "implementation": "openai"
         },
         "formatting": {
-            "columns": [
-                "title",
-                "published"
-            ],
             "template": "title: $title published: $published $chunk",
             "config_type": "formatting",
             "implementation": "python_template"
@@ -217,10 +213,7 @@ def test_vectorizer_timescaledb():
             ( 'website.blog'::regclass
             , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
             , chunking=>ai.chunking_character_text_splitter('body', 128, 10)
-            , formatting=>ai.formatting_python_template
-                    ( 'title: $title published: $published $chunk'
-                    , columns=>array['title', 'published']
-                    )
+            , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
             , scheduling=>ai.scheduling_timescaledb
                     ( interval '5m'
                     , initial_start=>'2050-01-06'::timestamptz
