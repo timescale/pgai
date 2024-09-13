@@ -104,7 +104,7 @@ docker-rm:
 
 .PHONY: run
 run:
-	@PG_BIN=$(PG_BIN) ./build.py run
+	@PG_MAJOR=$(PG_MAJOR) PG_BIN=$(PG_BIN) ./build.py run
 	@docker exec -it -u postgres pgai /bin/bash -c "set -e; if [ -f .env ]; then set -a; source .env; set +a; fi; psql"
 
 .PHONY: docker-shell
