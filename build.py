@@ -486,9 +486,6 @@ def docker_build() -> None:
 
 
 def docker_run() -> None:
-    if does_container_exist():
-        print("pgai container already exists", file=sys.stderr)
-        sys.exit(1)
     cmd = " ".join(
         [
             "docker run -d --name pgai -p 127.0.0.1:5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust",
@@ -501,44 +498,23 @@ def docker_run() -> None:
     subprocess.run(cmd, shell=True, check=True, env=os.environ, text=True)
 
 
-def does_container_exist() -> bool:
-    cmd = '''docker ps --all --filter "name=pgai" --format "{{.Image}}"'''
-    proc = subprocess.run(
-        cmd, shell=True, check=True, env=os.environ, text=True, capture_output=True
-    )
-    output = str(proc.stdout).strip()
-    return output == "pgai"
-
-
-def is_container_running() -> bool:
-    cmd = '''docker ps --all --filter "name=pgai" --filter "status=running" --format "{{.Image}}"'''
-    proc = subprocess.run(
-        cmd, shell=True, check=True, env=os.environ, text=True, capture_output=True
-    )
-    output = str(proc.stdout).strip()
-    return output == "pgai"
-
-
 def docker_stop() -> None:
-    if does_container_exist() and is_container_running():
-        subprocess.run(
-            """docker stop pgai""", shell=True, check=True, env=os.environ, text=True
-        )
+    subprocess.run(
+        """docker stop pgai""", shell=True, check=True, env=os.environ, text=True
+    )
 
 
 def docker_rm() -> None:
-    if does_container_exist():
-        subprocess.run(
-            """docker rm --force --volumes pgai""",
-            shell=True,
-            check=True,
-            env=os.environ,
-            text=True,
-        )
+    subprocess.run(
+        """docker rm --force --volumes pgai""",
+        shell=True,
+        check=True,
+        env=os.environ,
+        text=True,
+    )
 
 
 def run() -> None:
-    docker_rm()
     docker_build()
     docker_run()
     cmd = "docker exec pgai make build-install"
