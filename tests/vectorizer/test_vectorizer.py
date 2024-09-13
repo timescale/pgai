@@ -108,8 +108,7 @@ SOURCE_TRIGGER_FUNC = """
                                                                                       List of functions
  Schema |         Name          | Result data type | Argument data types | Type | Volatility | Parallel |  Owner   | Security |  Access privileges  | Language | Internal name | Description 
 --------+-----------------------+------------------+---------------------+------+------------+----------+----------+----------+---------------------+----------+---------------+-------------
- ai     | _vectorizer_src_trg_1 | trigger          |                     | func | volatile   | safe     | postgres | invoker  | postgres=X/postgres+| plpgsql  |               | 
-        |                       |                  |                     |      |            |          |          |          | bob=X/postgres      |          |               | 
+ ai     | _vectorizer_src_trg_1 | trigger          |                     | func | volatile   | safe     | postgres | definer  | postgres=X/postgres | plpgsql  |               | 
 (1 row)
 """.strip()
 
@@ -198,6 +197,7 @@ def test_vectorizer_timescaledb():
                 , primary key (title, published)
                 )
             """)
+            cur.execute("""grant insert, update, delete on website.blog to bob""")
             cur.execute("""
                 insert into website.blog(title, published, body)
                 values
@@ -300,17 +300,20 @@ def test_vectorizer_timescaledb():
             actual = cur.fetchone()[0]
             assert actual == 0
 
-            # insert a row into the source
-            cur.execute("""
-                insert into website.blog(title, published, body)
-                values
-                  ('how to make ramen', '2021-01-06'::timestamptz, 'boil water. cook ramen in the water')
-            """)
-            # update a row into the source
-            cur.execute("""
-                update website.blog set published = now()
-                where title = 'how to cook a hot dog'
-            """)
+            # make sure bob can modify the source table and the trigger works
+            with psycopg.connect(db_url("bob"), autocommit=False) as con2:
+                with con2.cursor() as cur2:
+                    # insert a row into the source
+                    cur2.execute("""
+                        insert into website.blog(title, published, body)
+                        values
+                          ('how to make ramen', '2021-01-06'::timestamptz, 'boil water. cook ramen in the water')
+                    """)
+                    # update a row into the source
+                    cur2.execute("""
+                        update website.blog set published = now()
+                        where title = 'how to cook a hot dog'
+                    """)
 
             # check that the queue has 2 rows
             cur.execute("select pending_items from ai.vectorizer_status where id = %s", (vectorizer_id,))
@@ -422,6 +425,9 @@ def test_vectorizer_pg_cron():
     with psycopg.connect(db_url("postgres"), autocommit=True, row_factory=namedtuple_row) as con:
         with con.cursor() as cur:
             # set up the test
+            cur.execute("select to_regrole('adelaide') is null")
+            if cur.fetchone()[0] is True:
+                cur.execute("create user adelaide")
             cur.execute("create extension if not exists pg_cron")
             cur.execute("drop table if exists public.chat")
             cur.execute("""
@@ -433,6 +439,7 @@ def test_vectorizer_pg_cron():
                 , created_at timestamptz not null default now()
                 )
             """)
+            cur.execute("grant insert, update, delete on public.chat to adelaide")
 
             # create a vectorizer for the blog table
             # language=PostgreSQL
@@ -498,6 +505,20 @@ def test_vectorizer_pg_cron():
             """)
             actual = cur.fetchone()[0]
             assert actual is True
+
+            # make sure adelaide can modify the source table and the trigger works
+            with psycopg.connect(db_url("adelaide"), autocommit=False) as con2:
+                with con2.cursor() as cur2:
+                    # insert a row into the source
+                    cur2.execute("""
+                        insert into public.chat(author, msg)
+                        values ('adelaide', 'hello world')
+                    """)
+
+            # check that the queue has 1 rows
+            cur.execute("select pending_items from ai.vectorizer_status where id = %s", (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual == 1
 
 
 def test_drop_vectorizer():
