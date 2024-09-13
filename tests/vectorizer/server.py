@@ -34,7 +34,6 @@ class EmbeddingOpenAI(BaseModel):
 class FormattingPythonTemplate(BaseModel):
     implementation: Literal['python_template']
     config_type: Literal['formatting']
-    columns: list[str]
     template: str
 
 

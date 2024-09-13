@@ -22,7 +22,7 @@ CREATE EXTENSION
  function ai.embedding_openai(text,integer,text,text)
  function ai.enable_vectorizer_schedule(integer)
  function ai.execute_vectorizer(integer)
- function ai.formatting_python_template(text,name[])
+ function ai.formatting_python_template(text)
  function ai.grant_ai_usage(name,boolean)
  function ai.indexing_diskann(integer,text,integer,integer,double precision,integer,integer)
  function ai.indexing_hnsw(integer,text,integer,integer)

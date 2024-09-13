@@ -100,7 +100,7 @@ begin
     perform ai._validate_indexing(indexing);
 
     -- validate the formatting config
-    formatting = ai._validate_formatting(formatting, _source_schema, _source_table);
+    perform ai._validate_formatting(formatting, _source_schema, _source_table);
 
     -- validate the scheduling config
     perform ai._validate_scheduling(scheduling);

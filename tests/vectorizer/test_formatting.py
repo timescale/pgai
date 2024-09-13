@@ -37,34 +37,6 @@ def test_formatting_python_template():
                 "template": "size: $size shape: $shape $chunk",
             },
         ),
-        (
-            """
-            select ai.formatting_python_template
-            ( 'size: $size shape: $shape $chunk'
-            , columns=>array['size', 'shape']
-            )
-            """,
-            {
-                "implementation": "python_template",
-                "config_type": "formatting",
-                "columns": ["size", "shape"],
-                "template": "size: $size shape: $shape $chunk",
-            },
-        ),
-        (
-            """
-            select ai.formatting_python_template
-            ( 'color: $color weight: $weight category: $category $chunk'
-            , columns=>array['color', 'weight', 'category']
-            )
-            """,
-            {
-                "implementation": "python_template",
-                "config_type": "formatting",
-                "columns": ["color", "weight", "category"],
-                "template": "color: $color weight: $weight category: $category $chunk",
-            },
-        ),
     ]
     with psycopg.connect(db_url("test")) as con:
         with con.cursor() as cur:
@@ -78,51 +50,18 @@ def test_formatting_python_template():
 
 def test_validate_formatting():
     ok = [
-        (
-            """
-            select ai._validate_formatting
-            ( ai.formatting_python_template()
-            , 'public', 'thing'
-            )
-            """,
-            {
-                "implementation": "python_template",
-                "config_type": "formatting",
-                "columns": ["id", "color", "weight"],
-                "template": "$chunk",
-            },
-        ),
-        (
-            """
-            select ai._validate_formatting
-            ( ai.formatting_python_template('color: $color weight: $weight $chunk')
-            , 'public', 'thing'
-            )
-            """,
-            {
-                "implementation": "python_template",
-                "config_type": "formatting",
-                "columns": ["id", "color", "weight"],
-                "template": "color: $color weight: $weight $chunk",
-            },
-        ),
-        (
-            """
-            select ai._validate_formatting
-            ( ai.formatting_python_template
-              ( 'color: $color weight: $weight $chunk'
-              , columns=>array['color', 'weight']
-              )
-            , 'public', 'thing'
-            )
-            """,
-            {
-                "implementation": "python_template",
-                "config_type": "formatting",
-                "columns": ["color", "weight"],
-                "template": "color: $color weight: $weight $chunk",
-            },
-        ),
+        """
+        select ai._validate_formatting
+        ( ai.formatting_python_template()
+        , 'public', 'thing'
+        )
+        """,
+        """
+        select ai._validate_formatting
+        ( ai.formatting_python_template('color: $color weight: $weight $chunk')
+        , 'public', 'thing'
+        )
+        """,
     ]
     bad = [
         (
@@ -142,18 +81,6 @@ def test_validate_formatting():
             )
             """,
             "unrecognized formatting implementation",
-        ),
-        (
-            """
-            select ai._validate_formatting
-            ( ai.formatting_python_template
-              ( 'color: $color weight: $weight height: $height $chunk'
-              , columns=>array['color', 'weight', 'height']
-              )
-            , 'public', 'thing'
-            )
-            """,
-            "columns in config do not exist in the table: height",
         ),
         (
             """
@@ -193,12 +120,8 @@ def test_validate_formatting():
             cur.execute("create table public.thing (id int, color text, weight float)")
             cur.execute("drop table if exists public.thing2;")
             cur.execute("create table public.thing2 (id int, color text, weight float, chunk text)")
-            for query, expected in ok:
+            for query in ok:
                 cur.execute(query)
-                actual = cur.fetchone()[0]
-                assert actual.keys() == expected.keys()
-                for k, v in actual.items():
-                    assert k in expected and v == expected[k]
             for query, err in bad:
                 try:
                     cur.execute(query)
