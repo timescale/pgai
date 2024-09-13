@@ -139,7 +139,6 @@ begin
     , _source_schema
     , _source_table
     , _source_pk
-    , grant_to
     );
 
     -- create view

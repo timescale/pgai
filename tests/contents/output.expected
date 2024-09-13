@@ -52,7 +52,7 @@ CREATE EXTENSION
  function ai._validate_indexing(jsonb)
  function ai._validate_scheduling(jsonb)
  function ai._vectorizer_create_queue_table(name,name,jsonb,name[])
- function ai._vectorizer_create_source_trigger(name,name,name,name,name,jsonb,name[])
+ function ai._vectorizer_create_source_trigger(name,name,name,name,name,jsonb)
  function ai._vectorizer_create_target_table(name,name,jsonb,name,name,integer,name[])
  function ai._vectorizer_create_vector_index(name,name,jsonb)
  function ai._vectorizer_create_view(name,name,name,name,jsonb,name,name,name[])
