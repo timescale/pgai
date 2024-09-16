@@ -16,7 +16,7 @@ CREATE EXTENSION
  function ai.cohere_rerank_simple(text,text,jsonb,text,integer,integer)
  function ai.cohere_rerank(text,text,jsonb,text,integer,text[],boolean,integer)
  function ai.cohere_tokenize(text,text,text)
- function ai.create_vectorizer(regclass,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name,name,name,name,name[],boolean)
+ function ai.create_vectorizer(regclass,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name,name,name,name,name[],boolean)
  function ai.disable_vectorizer_schedule(integer)
  function ai.drop_vectorizer(integer)
  function ai.embedding_openai(text,integer,text,text)
@@ -40,6 +40,8 @@ CREATE EXTENSION
  function ai.openai_list_models(text,text)
  function ai.openai_moderate(text,text,text,text)
  function ai.openai_tokenize(text,text)
+ function ai.processing_cloud_functions(integer)
+ function ai.processing_none()
  function ai.scheduling_none()
  function ai.scheduling_timescaledb(interval,timestamp with time zone,boolean,text)
  function ai._validate_chunking(jsonb,name,name)
@@ -49,6 +51,7 @@ CREATE EXTENSION
  function ai._validate_indexing_diskann(jsonb)
  function ai._validate_indexing_hnsw(jsonb)
  function ai._validate_indexing(jsonb)
+ function ai._validate_processing(jsonb)
  function ai._validate_scheduling(jsonb)
  function ai._vectorizer_create_queue_table(name,name,jsonb,name[])
  function ai._vectorizer_create_source_trigger(name,name,name,name,name,jsonb)
@@ -67,7 +70,7 @@ CREATE EXTENSION
  table ai.vectorizer
  table ai.vectorizer_errors
  view ai.vectorizer_status
-(63 rows)
+(66 rows)
 
                                                               Table "ai.migration"
        Column       |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 

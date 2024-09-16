@@ -83,6 +83,17 @@ class SchedulingTimescaledb(BaseModel):
     timezone: str | None = None
 
 
+class ProcessingNone(BaseModel):
+    implementation: Literal['none']
+    config_type: Literal['processing']
+
+
+class ProcessingCloudFunctions(BaseModel):
+    implementation: Literal['cloud_functions']
+    config_type: Literal['processing']
+    batch_size: int | None = None
+
+
 class Config(BaseModel):
     version: str
     indexing: Union[IndexingNone, IndexingDiskANN, IndexingHNSW] = Field(..., discriminator='implementation')
@@ -90,6 +101,7 @@ class Config(BaseModel):
     embedding: EmbeddingOpenAI
     scheduling: Union[SchedulingNone, SchedulingPgCron, SchedulingTimescaledb] = Field(..., discriminator='implementation')
     chunking: ChunkingCharacterTextSplitter
+    processing: Union[ProcessingNone, ProcessingCloudFunctions] = Field(..., discriminator='implementation')
 
 
 class PrimaryKeyColumn(BaseModel):
