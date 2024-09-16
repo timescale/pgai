@@ -1671,13 +1671,15 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- processing_cloud_functions
 create or replace function ai.processing_cloud_functions
-( batch_size int default 50
+( batch_size int default null
+, concurrency int default null
 ) returns jsonb
 as $func$
     select json_object
     ( 'implementation': 'cloud_functions'
     , 'config_type': 'processing'
     , 'batch_size': batch_size
+    , 'concurrency': concurrency
     absent on null
     )
 $func$ language sql immutable security invoker
@@ -1707,11 +1709,29 @@ begin
             -- ok
         when 'cloud_functions' then
             _val = pg_catalog.jsonb_extract_path(config, 'batch_size');
-            if pg_catalog.jsonb_typeof(_val) operator(pg_catalog.!=) 'number' then
-                raise exception 'batch_size must be a number';
+            if _val is not null then
+                if pg_catalog.jsonb_typeof(_val) operator(pg_catalog.!=) 'number' then
+                    raise exception 'batch_size must be a number';
+                end if;
+                if cast(_val as int) > 2048 then
+                    raise exception 'batch_size must be less than or equal to 2048';
+                end if;
+                if cast(_val as int) < 1 then
+                    raise exception 'batch_size must be greater than 0';
+                end if;
             end if;
-            if cast(_val as int) > 2048 then
-                raise exception 'batch_size must be less than or equal to 2048';
+
+            _val = pg_catalog.jsonb_extract_path(config, 'concurrency');
+            if _val is not null then
+                if pg_catalog.jsonb_typeof(_val) operator(pg_catalog.!=) 'number' then
+                    raise exception 'concurrency must be a number';
+                end if;
+                if cast(_val as int) > 50 then
+                    raise exception 'concurrency must be less than or equal to 50';
+                end if;
+                if cast(_val as int) < 1 then
+                    raise exception 'concurrency must be greater than 0';
+                end if;
             end if;
         else
             if _implementation is null then
