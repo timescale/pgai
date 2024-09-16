@@ -43,7 +43,6 @@ VECTORIZER_ROW = r"""
             "implementation": "python_template"
         },
         "processing": {
-            "batch_size": 50,
             "config_type": "processing",
             "implementation": "cloud_functions"
         },

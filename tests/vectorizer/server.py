@@ -92,6 +92,7 @@ class ProcessingCloudFunctions(BaseModel):
     implementation: Literal['cloud_functions']
     config_type: Literal['processing']
     batch_size: int | None = None
+    concurrency: int | None = None
 
 
 class Config(BaseModel):
