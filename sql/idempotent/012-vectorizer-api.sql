@@ -21,6 +21,7 @@ create or replace function ai.create_vectorizer
 , indexing jsonb default ai.indexing_diskann()
 , formatting jsonb default ai.formatting_python_template()
 , scheduling jsonb default ai.scheduling_timescaledb()
+, processing jsonb default ai.processing_cloud_functions()
 , target_schema name default null
 , target_table name default null
 , view_schema name default null
@@ -104,6 +105,8 @@ begin
 
     -- validate the scheduling config
     perform ai._validate_scheduling(scheduling);
+
+    perform ai._validate_processing(processing);
 
     -- grant select to source table
     perform ai._vectorizer_grant_to_source
@@ -196,6 +199,7 @@ begin
       , 'indexing', indexing
       , 'formatting', formatting
       , 'scheduling', scheduling
+      , 'processing', processing
       )
     );
 
