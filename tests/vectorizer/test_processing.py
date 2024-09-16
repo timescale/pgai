@@ -40,7 +40,6 @@ def test_processing_cloud_functions():
             {
                 "implementation": "cloud_functions",
                 "config_type": "processing",
-                "batch_size": 50,
             },
         ),
         (
@@ -49,6 +48,23 @@ def test_processing_cloud_functions():
                 "implementation": "cloud_functions",
                 "config_type": "processing",
                 "batch_size": 500,
+            },
+        ),
+        (
+            "select ai.processing_cloud_functions(concurrency=>3)",
+            {
+                "implementation": "cloud_functions",
+                "config_type": "processing",
+                "concurrency": 3,
+            },
+        ),
+        (
+            "select ai.processing_cloud_functions(batch_size=>500, concurrency=>3)",
+            {
+                "implementation": "cloud_functions",
+                "config_type": "processing",
+                "batch_size": 500,
+                "concurrency": 3,
             },
         ),
     ]
@@ -68,6 +84,8 @@ def test_validate_processing():
         "select ai._validate_processing(ai.processing_cloud_functions())",
         "select ai._validate_processing(ai.processing_cloud_functions(batch_size=>500))",
         "select ai._validate_processing(ai.processing_cloud_functions(batch_size=>2048))",
+        "select ai._validate_processing(ai.processing_cloud_functions(batch_size=>2048, concurrency=>1))",
+        "select ai._validate_processing(ai.processing_cloud_functions(concurrency=>10))",
     ]
     bad = [
         (
@@ -93,6 +111,30 @@ def test_validate_processing():
             )
             """,
             'batch_size must be less than or equal to 2048'
+        ),
+        (
+            """
+            select ai._validate_processing
+            ( ai.processing_cloud_functions(batch_size=>0)
+            )
+            """,
+            'batch_size must be greater than 0'
+        ),
+        (
+            """
+            select ai._validate_processing
+            ( ai.processing_cloud_functions(concurrency=>0)
+            )
+            """,
+            'concurrency must be greater than 0'
+        ),
+        (
+            """
+            select ai._validate_processing
+            ( ai.processing_cloud_functions(concurrency=>51)
+            )
+            """,
+            'concurrency must be less than or equal to 50'
         ),
     ]
     with psycopg.connect(db_url("test"), autocommit=True) as con:

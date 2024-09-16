@@ -40,7 +40,7 @@ CREATE EXTENSION
  function ai.openai_list_models(text,text)
  function ai.openai_moderate(text,text,text,text)
  function ai.openai_tokenize(text,text)
- function ai.processing_cloud_functions(integer)
+ function ai.processing_cloud_functions(integer,integer)
  function ai.processing_none()
  function ai.scheduling_none()
  function ai.scheduling_timescaledb(interval,timestamp with time zone,boolean,text)
