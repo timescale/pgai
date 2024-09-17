@@ -39,9 +39,9 @@ as $python$
     if temperature is not None:
         args["temperature"] = temperature
     if tool_choice is not None:
-        args["tool_choice"] = json.dumps(tool_choice)
+        args["tool_choice"] = json.loads(tool_choice)
     if tools is not None:
-        args["tools"] = json.dumps(tools)
+        args["tools"] = json.loads(tools)
     if top_k is not None:
         args["top_k"] = top_k
     if top_p is not None:
