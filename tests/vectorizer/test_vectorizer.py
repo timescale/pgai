@@ -178,9 +178,8 @@ def psql_cmd(cmd: str) -> str:
 
 
 def test_vectorizer_timescaledb():
-    with psycopg.connect(db_url("test"), autocommit=True, row_factory=namedtuple_row) as con:
+    with psycopg.connect(db_url("postgres"), autocommit=True, row_factory=namedtuple_row) as con:
         with con.cursor() as cur:
-            # set up the test
             cur.execute("create extension if not exists timescaledb")
             cur.execute("select to_regrole('bob') is null")
             if cur.fetchone()[0] is True:
@@ -188,6 +187,8 @@ def test_vectorizer_timescaledb():
             cur.execute("select to_regrole('adelaide') is null")
             if cur.fetchone()[0] is True:
                 cur.execute("create user adelaide")
+    with psycopg.connect(db_url("test"), autocommit=True, row_factory=namedtuple_row) as con:
+        with con.cursor() as cur:
             cur.execute("drop schema if exists website cascade")
             cur.execute("create schema website")
             cur.execute("drop table if exists website.blog")
