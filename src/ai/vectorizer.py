@@ -5,7 +5,7 @@ import backoff
 import httpx
 from backoff._typing import Details
 
-GUC_VECTORIZER_URL = "ai.external_function_executor_url"
+GUC_VECTORIZER_URL = "ai.external_functions_executor_url"
 DEFAULT_VECTORIZER_URL = "http://localhost:8000"
 
 GUC_VECTORIZER_PATH = "ai.external_functions_executor_events_path"
@@ -47,6 +47,7 @@ def execute_vectorizer(plpy, vectorizer_id: int) -> None:
         get_guc_value(plpy, GUC_VECTORIZER_URL, DEFAULT_VECTORIZER_URL),
         get_guc_value(plpy, GUC_VECTORIZER_PATH, DEFAULT_VECTORIZER_PATH),
     )
+    plpy.debug(f"posting execution request to {the_url}")
 
     def on_backoff(detail: Details):
         plpy.warning(
