@@ -228,7 +228,7 @@ def postgres_bin_dir() -> Path:
             return bin_dir.absolute()
         else:
             p = shutil.which("pg_config")
-            if not bin:
+            if not p:
                 print("pg_config not found", file=sys.stderr)
                 sys.exit(1)
             return Path(p).parent.resolve()
@@ -335,7 +335,7 @@ def install_prior_py() -> None:
             check=True,
             shell=True,
             env=os.environ,
-            cwd=str(src_dir()),
+            cwd=str(tmp_src_dir),
         )
         shutil.rmtree(tmp_dir)
 
