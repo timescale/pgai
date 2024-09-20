@@ -22,6 +22,16 @@ class ChunkingCharacterTextSplitter(BaseModel):
     is_separator_regex: bool | None
 
 
+class ChunkingRecursiveCharacterTextSplitter(BaseModel):
+    implementation: Literal['recursive_character_text_splitter']
+    config_type: Literal['chunking']
+    chunk_column: str
+    chunk_size: int
+    chunk_overlap: int
+    separators: list[str] | None
+    is_separator_regex: bool | None
+
+
 class EmbeddingOpenAI(BaseModel):
     implementation: Literal['openai']
     config_type: Literal['embedding']
@@ -101,7 +111,7 @@ class Config(BaseModel):
     formatting: FormattingPythonTemplate
     embedding: EmbeddingOpenAI
     scheduling: Union[SchedulingNone, SchedulingPgCron, SchedulingTimescaledb] = Field(..., discriminator='implementation')
-    chunking: ChunkingCharacterTextSplitter
+    chunking: Union[ChunkingCharacterTextSplitter, ChunkingRecursiveCharacterTextSplitter] = Field(..., discriminator='implementation')
     processing: Union[ProcessingNone, ProcessingCloudFunctions] = Field(..., discriminator='implementation')
 
 
