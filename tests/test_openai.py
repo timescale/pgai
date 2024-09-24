@@ -256,6 +256,35 @@ def test_openai_chat_complete_no_key(cur_with_api_key):
     assert actual is True
 
 
+def test_openai_chat_complete_simple(cur, openai_api_key):
+    cur.execute(
+        """
+        with x as
+        (
+            select ai.openai_chat_complete_simple('what is the typical weather like in Alabama in June', _api_key=>%s) as actual
+        )
+        select x.actual is not null
+        from x
+    """,
+        (openai_api_key,),
+    )
+    actual = cur.fetchone()[0]
+    assert actual is True
+
+
+def test_openai_chat_complete_simple_no_key(cur_with_api_key):
+    cur_with_api_key.execute("""
+        with x as
+        (
+            select ai.openai_chat_complete_simple('what is the typical weather like in Alabama in June') as actual
+        )
+        select x.actual is not null
+        from x
+    """)
+    actual = cur_with_api_key.fetchone()[0]
+    assert actual is True
+
+
 def test_openai_moderate(cur, openai_api_key):
     cur.execute(
         """
