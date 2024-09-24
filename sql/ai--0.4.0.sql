@@ -400,6 +400,26 @@ language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+------------------------------------------------------------------------------------
+-- openai_chat_complete_simple
+-- simple chat completion that only requires a message and only returns the response
+create or replace function ai.openai_chat_complete_simple
+( _message text
+, _api_key text default null
+) returns text
+as $$
+declare
+    model text := 'gpt-4o';
+    messages jsonb;
+begin
+    messages := jsonb_build_array(
+        jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant'),
+        jsonb_build_object('role', 'user', 'content', _message)
+    );
+    return ai.openai_chat_complete(model, messages, _api_key)->'choices'->0->'message'->>'content';
+end;
+$$ language plpgsql;
+
 -------------------------------------------------------------------------------
 -- openai_moderate
 -- classify text as potentially harmful or not
