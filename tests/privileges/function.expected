@@ -200,6 +200,10 @@
  f       | bob   | execute   | no      | ai     | openai_chat_complete(_model text, _messages jsonb, _api_key text, _base_url text, _frequency_penalty double precision, _logit_bias jsonb, _logprobs boolean, _top_logprobs integer, _max_tokens integer, _n integer, _presence_penalty double precision, _response_format jsonb, _seed integer, _stop text, _temperature double precision, _top_p double precision, _tools jsonb, _tool_choice jsonb, _user text)
  f       | fred  | execute   | no      | ai     | openai_chat_complete(_model text, _messages jsonb, _api_key text, _base_url text, _frequency_penalty double precision, _logit_bias jsonb, _logprobs boolean, _top_logprobs integer, _max_tokens integer, _n integer, _presence_penalty double precision, _response_format jsonb, _seed integer, _stop text, _temperature double precision, _top_p double precision, _tools jsonb, _tool_choice jsonb, _user text)
  f       | jill  | execute   | YES     | ai     | openai_chat_complete(_model text, _messages jsonb, _api_key text, _base_url text, _frequency_penalty double precision, _logit_bias jsonb, _logprobs boolean, _top_logprobs integer, _max_tokens integer, _n integer, _presence_penalty double precision, _response_format jsonb, _seed integer, _stop text, _temperature double precision, _top_p double precision, _tools jsonb, _tool_choice jsonb, _user text)
+ f       | alice | execute   | YES     | ai     | openai_chat_complete_simple(_message text, _api_key text)
+ f       | bob   | execute   | no      | ai     | openai_chat_complete_simple(_message text, _api_key text)
+ f       | fred  | execute   | no      | ai     | openai_chat_complete_simple(_message text, _api_key text)
+ f       | jill  | execute   | YES     | ai     | openai_chat_complete_simple(_message text, _api_key text)
  f       | alice | execute   | YES     | ai     | openai_detokenize(_model text, _tokens integer[])
  f       | bob   | execute   | no      | ai     | openai_detokenize(_model text, _tokens integer[])
  f       | fred  | execute   | no      | ai     | openai_detokenize(_model text, _tokens integer[])
@@ -248,5 +252,5 @@
  f       | bob   | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer)
  f       | fred  | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer)
  f       | jill  | execute   | YES     | ai     | vectorizer_queue_pending(vectorizer_id integer)
-(248 rows)
+(252 rows)
 

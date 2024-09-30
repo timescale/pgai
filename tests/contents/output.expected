@@ -32,6 +32,7 @@ CREATE EXTENSION
  function ai.ollama_generate(text,text,text,bytea[],double precision,jsonb,text,text,integer[])
  function ai.ollama_list_models(text)
  function ai.ollama_ps(text)
+ function ai.openai_chat_complete_simple(text,text)
  function ai.openai_chat_complete(text,jsonb,text,text,double precision,jsonb,boolean,integer,integer,integer,double precision,jsonb,integer,text,double precision,double precision,jsonb,jsonb,text)
  function ai.openai_detokenize(text,integer[])
  function ai.openai_embed(text,integer[],text,text,integer,text)
@@ -70,7 +71,7 @@ CREATE EXTENSION
  table ai.vectorizer
  table ai.vectorizer_errors
  view ai.vectorizer_status
-(66 rows)
+(67 rows)
 
                                                               Table "ai.migration"
        Column       |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
