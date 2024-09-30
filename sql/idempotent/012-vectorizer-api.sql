@@ -78,7 +78,7 @@ begin
 
     -- get the source table's primary key definition
     select ai._vectorizer_source_pk(source) into strict _source_pk;
-    if pg_catalog.jsonb_array_length(_source_pk) = 0 then
+    if _source_pk is null or pg_catalog.jsonb_array_length(_source_pk) = 0 then
         raise exception 'source table must have a primary key constraint';
     end if;
 
