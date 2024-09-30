@@ -607,8 +607,23 @@ begin
     commit;
     set local search_path = pg_catalog, pg_temp;
     if _found is not null then
-        -- execute the vectorizer
-        perform ai.execute_vectorizer(_vectorizer_id);
+        -- count total items in the queue
+        select pg_catalog.format
+        ( $sql$select count(1) from %I.%I$sql$
+        , _vec.queue_schema, _vec.queue_table
+        ) into strict _sql
+        ;
+        execute _sql into _count;
+        commit;
+        set local search_path = pg_catalog, pg_temp;
+        -- for every 50 items in the queue, execute a vectorizer max out at 10 vectorizers
+        _count = least(pg_catalog.ceil(_count::float8 / 50.0::float8), 10::float8)::bigint;
+        while _count > 0
+        loop
+            -- execute the vectorizer
+            perform ai.execute_vectorizer(_vectorizer_id);
+            _count = _count - 1;
+        end loop;
     end if;
     commit;
     set local search_path = pg_catalog, pg_temp;
