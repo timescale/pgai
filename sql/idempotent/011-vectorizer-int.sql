@@ -609,7 +609,7 @@ begin
     if _found is not null then
         -- count total items in the queue
         select pg_catalog.format
-        ( $sql$select count(1) from %I.%I$sql$
+        ( $sql$select count(1) from (select 1 from %I.%I limit 501) $sql$
         , _vec.queue_schema, _vec.queue_table
         ) into strict _sql
         ;
