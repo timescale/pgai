@@ -79,12 +79,14 @@ begin
 
     select count(*) > 0 into strict _found
     from pg_catalog.pg_class k
-    inner join pg_catalog.pg_namespace n on (k.relnamespace = n.oid)
-    inner join pg_catalog.pg_attribute a on (k.oid = a.attrelid)
+    inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
+    inner join pg_catalog.pg_attribute a on (k.oid operator(pg_catalog.=) a.attrelid)
+    inner join pg_catalog.pg_type y on (a.atttypid operator(pg_catalog.=) y.oid)
     where n.nspname operator(pg_catalog.=) source_schema
     and k.relname operator(pg_catalog.=) source_table
     and a.attnum operator(pg_catalog.>) 0
     and a.attname operator(pg_catalog.=) _chunk_column
+    and y.typname in ('text', 'varchar', 'char', 'bpchar')
     ;
     if not _found then
         raise exception 'chunk column in config does not exist in the table: %', _chunk_column;
