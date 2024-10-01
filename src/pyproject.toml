@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pgai"
+dynamic = ["version"]
+requires-python = ">=3.10"
+dependencies = [
+    "openai==1.30.2",
+    "tiktoken==0.7.0",
+    "ollama==0.2.1",
+    "anthropic==0.29.0",
+    "cohere==5.5.8",
+    "backoff==2.2.1",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "ai.__version__"}
+
+[tool.setuptools]
+packages = ["ai"]
