@@ -3,7 +3,9 @@
 
 ruff==0.5.5
 pytest==8.3.2
-psycopg[binary]==3.2.1
 python-dotenv==1.0.1
 fastapi==0.112.0
 fastapi-cli==0.0.5
+vcrpy==6.0.1
+pyright==1.1.381
+psycopg[binary]==3.2.1
