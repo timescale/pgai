@@ -67,6 +67,10 @@ def src_dir() -> Path:
     return project_dir().joinpath("src").resolve()
 
 
+def src_extension_dir() -> Path:
+    return src_dir().joinpath("extension").resolve()
+
+
 def incremental_sql_dir() -> Path:
     return sql_dir().joinpath("incremental")
 
@@ -290,7 +294,7 @@ def python_install_dir() -> Path:
 def install_old_py_deps() -> None:
     # this is necessary for versions prior to 0.4.0
     # we will deprecate these versions and then get rid of this function
-    old_reqs_file = src_dir().joinpath("old_requirements.txt").resolve()
+    old_reqs_file = src_extension_dir().joinpath("old_requirements.txt").resolve()
     if old_reqs_file.exists():
         env = {k: v for k, v in os.environ.items()}
         env["PIP_BREAK_SYSTEM_PACKAGES"] = "1"
@@ -299,7 +303,7 @@ def install_old_py_deps() -> None:
             shell=True,
             check=True,
             env=env,
-            cwd=str(src_dir()),
+            cwd=str(src_extension_dir()),
         )
 
 
@@ -346,7 +350,7 @@ def build_init_py() -> None:
     # function just ensures that you can't screw up the current version. The
     # only place you have to update the version when starting a new release is
     # in the versions() function.
-    init_py = src_dir().joinpath("ai", "__init__.py").resolve()
+    init_py = src_extension_dir().joinpath("ai", "__init__.py").resolve()
     content = init_py.read_text()
     lines = []
     for line in content.splitlines(keepends=True):
@@ -373,28 +377,28 @@ def install_py() -> None:
         ):  # delete package info if exists
             shutil.rmtree(d)
         subprocess.run(
-            f'pip3 install -v --no-deps --compile -t "{version_target_dir}" "{src_dir()}"',
+            f'pip3 install -v --no-deps --compile -t "{version_target_dir}" "{src_extension_dir()}"',
             check=True,
             shell=True,
             env=os.environ,
-            cwd=str(src_dir()),
+            cwd=str(src_extension_dir()),
         )
     else:
         version_target_dir.mkdir(exist_ok=True)
         subprocess.run(
-            f'pip3 install -v --compile -t "{version_target_dir}" "{src_dir()}"',
+            f'pip3 install -v --compile -t "{version_target_dir}" "{src_extension_dir()}"',
             check=True,
             shell=True,
             env=os.environ,
-            cwd=str(src_dir()),
+            cwd=str(src_extension_dir()),
         )
 
 
 def clean_py() -> None:
-    d = src_dir().joinpath("build")
+    d = src_extension_dir().joinpath("build")
     if d.exists():
         shutil.rmtree(d, ignore_errors=True)
-    d = src_dir().joinpath("pgai.egg-info")
+    d = src_extension_dir().joinpath("pgai.egg-info")
     if d.exists():
         shutil.rmtree(d, ignore_errors=True)
 
