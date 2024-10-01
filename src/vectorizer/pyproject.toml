@@ -3,13 +3,13 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pgai"
+name = "vectorizer"
 dynamic = ["version", "dependencies"]
 requires-python = ">=3.10"
 
 [tool.setuptools.dynamic]
-version = {attr = "ai.__version__"}
-dependencies = {file = ["requirements.txt"]}
+version = {attr = "vectorizer.__version__"}
+dependencies = {file = "requirements.txt"}
 
 [tool.setuptools]
-packages = ["ai"]
+packages = ["vectorizer"]
