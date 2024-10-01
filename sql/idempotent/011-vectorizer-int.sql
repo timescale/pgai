@@ -606,7 +606,7 @@ begin
     execute _sql into _found;
     commit;
     set local search_path = pg_catalog, pg_temp;
-    if _found is not null then
+    if coalesce(_found, false) is true then
         -- count total items in the queue
         select pg_catalog.format
         ( $sql$select count(1) from (select 1 from %I.%I limit 501) $sql$
@@ -618,6 +618,7 @@ begin
         set local search_path = pg_catalog, pg_temp;
         -- for every 50 items in the queue, execute a vectorizer max out at 10 vectorizers
         _count = least(pg_catalog.ceil(_count::float8 / 50.0::float8), 10::float8)::bigint;
+        raise debug 'job_id %: executing % vectorizers...', job_id, _count;
         while _count > 0
         loop
             -- execute the vectorizer
