@@ -7,31 +7,39 @@ import tempfile
 from pathlib import Path
 
 HELP = """Available targets:
-- help              displays this message and exits
-- install           installs the project
-- uninstall         uninstalls the project
-- clean             removes build artifacts from the project directories
-- build             alias for build-sql
-- build-sql         constructs the sql files for the extension
-- build-install     runs build followed by install
-- clean-sql         removes sql file artifacts from the project directories
-- install-sql       installs the sql files into the postgres installation
-- uninstall-sql     removes the sql extension from the postgres installation
-- install-prior-py  installs the python package and dependencies from previously released versions
-- install-py        installs the python package and dependencies for the current version
-- clean-py          removes python build artifacts from the project directories
-- uninstall-py      removes the python package and dependencies from the system
-- test              runs the unit tests against the docker database
-- test-server       runs the test http server in the docker container
-- lint-sql          runs pgspot against the `ai--<this_version>.sql` file
-- lint-py           runs ruff linter against the python source files
-- lint              runs both sql and python linters
-- format-py         runs ruff to check formatting of the python source files
-- docker-build      builds the development docker image
-- docker-run        launches a container in docker using the docker image
-- docker-stop       stops the container
-- docker-rm         deletes the development container
-- run               builds+runs the development container and installs the extension"""
+- help             displays this message and exits
+- build-install    runs build followed by install
+- install          installs the project
+- install-sql      installs the sql files into the postgres installation
+- install-prior-py installs the extension's python package for prior versions
+- install-py       installs the extension's python package
+- install-vec      installs the vectorizer python tool
+- uninstall        uninstalls the project
+- uninstall-sql    removes the sql extension from the postgres installation
+- uninstall-py     removes the extension's python package from the system
+- uninstall-vec    removes the vectorizer python tool from the system
+- build            alias for build-sql
+- build-sql        constructs the sql files for the extension
+- clean            removes python build artifacts from the src dir
+- clean-sql        removes sql file artifacts from the sql dir
+- clean-py         removes python build artifacts from the extension src dir
+- clean-vec        removes python build artifacts from the vectorizer src dir
+- test             runs the tests in the docker container
+- test-server      runs the test http server in the docker container
+- vectorizer       runs the vectorizer python tool in the docker container
+- lint-sql         runs pgspot against the `ai--<this_version>.sql` file
+- lint-py          runs ruff linter against the python source files
+- lint             runs both sql and python linters
+- format-py        runs ruff to check formatting of the python source files
+- docker-build     builds the dev docker image
+- docker-run       launches a container in docker using the docker image
+- docker-stop      stops the container
+- docker-rm        deletes the dev container
+- docker-build-vec builds the docker image for the vectorizer tool
+- docker-run-vec   runs a docker container for the vectorizer tool
+- docker-stop-vec  stops the docker container for the vectorizer tool
+- docker-rm-vec    deletes the docker container for the vectorizer tool
+- run              builds+runs the dev container and installs the extension"""
 
 
 def versions() -> list[str]:
@@ -649,7 +657,7 @@ if __name__ == "__main__":
             install_prior_py()
         elif action == "install-py":
             install_py()
-        elif action == "install-vectorizer":
+        elif action == "install-vec":
             install_vectorizer()
         elif action == "install-sql":
             install_sql()
@@ -659,13 +667,13 @@ if __name__ == "__main__":
             clean_sql()
         elif action == "clean-py":
             clean_py()
-        elif action == "clean-vectorizer":
+        elif action == "clean-vec":
             clean_vectorizer()
         elif action == "clean":
             clean()
         elif action == "uninstall-py":
             uninstall_py()
-        elif action == "uninstall-vectorizer":
+        elif action == "uninstall-vec":
             uninstall_vectorizer()
         elif action == "uninstall-sql":
             uninstall_sql()
@@ -687,19 +695,19 @@ if __name__ == "__main__":
             format_py()
         elif action == "docker-build":
             docker_build()
-        elif action == "docker-build-vectorizer":
+        elif action == "docker-build-vec":
             docker_build_vectorizer()
         elif action == "docker-run":
             docker_run()
-        elif action == "docker-run-vectorizer":
+        elif action == "docker-run-vec":
             docker_run_vectorizer()
         elif action == "docker-stop":
             docker_stop()
-        elif action == "docker-stop-vectorizer":
+        elif action == "docker-stop-vec":
             docker_stop_vectorizer()
         elif action == "docker-rm":
             docker_rm()
-        elif action == "docker-rm-vectorizer":
+        elif action == "docker-rm-vec":
             docker_rm_vectorizer()
         elif action == "run":
             run()
