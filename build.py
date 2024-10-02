@@ -501,6 +501,21 @@ def test_server() -> None:
         )
 
 
+def vectorizer() -> None:
+    if where_am_i() == "host":
+        cmd = "docker exec -it pgai vectorizer --version"
+        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
+    else:
+        cmd = "vectorizer --version"
+        subprocess.run(
+            cmd,
+            shell=True,
+            check=True,
+            env=os.environ,
+            cwd=project_dir(),
+        )
+
+
 def test() -> None:
     subprocess.run("pytest", shell=True, check=True, env=os.environ, cwd=tests_dir())
 
@@ -533,13 +548,24 @@ def format_py() -> None:
 
 
 def docker_build() -> None:
-    assert Path.cwd() == project_dir()
     subprocess.run(
         f"""docker build --build-arg PG_MAJOR={pg_major()} -t pgai .""",
         shell=True,
         check=True,
         env=os.environ,
         text=True,
+        cwd=project_dir(),
+    )
+
+
+def docker_build_vectorizer() -> None:
+    subprocess.run(
+        f"""docker build -t pgai/vectorizer:latest -t pgai/vectorizer:{this_version()} .""",
+        shell=True,
+        check=True,
+        env=os.environ,
+        text=True,
+        cwd=src_vectorizer_dir(),
     )
 
 
@@ -556,15 +582,40 @@ def docker_run() -> None:
     subprocess.run(cmd, shell=True, check=True, env=os.environ, text=True)
 
 
+def docker_run_vectorizer() -> None:
+    cmd = " ".join(
+        [
+            f"docker run -d --name vectorizer pgai/vectorizer:{this_version()}",
+        ]
+    )
+    subprocess.run(cmd, shell=True, check=True, env=os.environ, text=True)
+
+
 def docker_stop() -> None:
     subprocess.run(
         """docker stop pgai""", shell=True, check=True, env=os.environ, text=True
     )
 
 
+def docker_stop_vectorizer() -> None:
+    subprocess.run(
+        """docker stop vectorizer""", shell=True, check=True, env=os.environ, text=True
+    )
+
+
 def docker_rm() -> None:
     subprocess.run(
         """docker rm --force --volumes pgai""",
+        shell=True,
+        check=True,
+        env=os.environ,
+        text=True,
+    )
+
+
+def docker_rm_vectorizer() -> None:
+    subprocess.run(
+        """docker rm --force --volumes vectorizer""",
         shell=True,
         check=True,
         env=os.environ,
@@ -622,6 +673,8 @@ if __name__ == "__main__":
             uninstall()
         elif action == "test-server":
             test_server()
+        elif action == "vectorizer":
+            vectorizer()
         elif action == "test":
             test()
         elif action == "lint-sql":
@@ -634,12 +687,20 @@ if __name__ == "__main__":
             format_py()
         elif action == "docker-build":
             docker_build()
+        elif action == "docker-build-vectorizer":
+            docker_build_vectorizer()
         elif action == "docker-run":
             docker_run()
+        elif action == "docker-run-vectorizer":
+            docker_run_vectorizer()
         elif action == "docker-stop":
             docker_stop()
+        elif action == "docker-stop-vectorizer":
+            docker_stop_vectorizer()
         elif action == "docker-rm":
             docker_rm()
+        elif action == "docker-rm-vectorizer":
+            docker_rm_vectorizer()
         elif action == "run":
             run()
         else:
