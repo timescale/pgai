@@ -4,6 +4,7 @@ from pathlib import Path
 
 import psycopg
 import pytest
+from psycopg.rows import namedtuple_row
 
 # skip tests in this module if disabled
 enable_vectorizer_tool_tests = os.getenv("ENABLE_VECTORIZER_TOOL_TESTS")
@@ -32,8 +33,10 @@ def vectorizer_src_dir() -> Path:
 
 
 def test_bad_db_url():
+    _db_url = db_url("postgres", "this_is_not_a_db")
     env = os.environ.copy()
-    env["VECTORIZER_DB_URL"] = db_url("postgres", "this_is_not_a_db")
+    env["VECTORIZER_DB_URL"] = _db_url
+    env["OPENAI_API_KEY"] = "this_is_not_a_key"
     with pytest.raises(subprocess.CalledProcessError):
         subprocess.run("python3 -m vectorizer",
                        shell=True,
@@ -45,7 +48,7 @@ def test_bad_db_url():
                        )
     env.pop("VECTORIZER_DB_URL")
     with pytest.raises(subprocess.CalledProcessError):
-        subprocess.run(f"python3 -m vectorizer -d '{db_url('postgres', 'cli')}'",
+        subprocess.run(f"python3 -m vectorizer -d '{_db_url}'",
                        shell=True,
                        check=True,
                        text=True,
@@ -56,9 +59,12 @@ def test_bad_db_url():
 
 
 def test_pgai_not_installed():
-    create_database("cli")
+    db = "vcli1"
+    create_database(db)
+    _db_url = db_url("postgres", db)
     env = os.environ.copy()
-    env["VECTORIZER_DB_URL"] = db_url("postgres", "cli")
+    env["VECTORIZER_DB_URL"] = _db_url
+    env["OPENAI_API_KEY"] = "this_is_not_a_key"
     p = subprocess.run("python3 -m vectorizer",
                        shell=True,
                        capture_output=True,
@@ -69,7 +75,7 @@ def test_pgai_not_installed():
     assert p.returncode == 1
     assert str(p.stderr).strip() == "the pgai extension is not installed"
     env.pop("VECTORIZER_DB_URL")
-    p = subprocess.run(f"python3 -m vectorizer -d '{db_url('postgres', 'cli')}'",
+    p = subprocess.run(f"python3 -m vectorizer -d '{_db_url}'",
                        shell=True,
                        capture_output=True,
                        text=True,
@@ -78,3 +84,74 @@ def test_pgai_not_installed():
                        )
     assert p.returncode == 1
     assert str(p.stderr).strip() == "the pgai extension is not installed"
+
+
+def test_vectorizer():
+    db = "vcli2"
+    create_database(db)
+    _db_url = db_url("postgres", db)
+    with psycopg.connect(_db_url, autocommit=True, row_factory=namedtuple_row) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists vectorscale cascade")
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("drop table if exists note0")
+            cur.execute("""
+                create table note0
+                ( id bigint not null primary key generated always as identity
+                , note text not null
+                )
+            """)
+            # insert 5 rows into source
+            cur.execute("""
+                insert into note0 (note)
+                select 'how much wood would a woodchuck chuck if a woodchuck could chuck wood'
+                from generate_series(1, 5)
+            """)
+            # insert 5 rows into source
+            cur.execute("""
+                insert into note0 (note)
+                select 'if a woodchuck could chuck wood, a woodchuck would chuck as much wood as he could'
+                from generate_series(1, 5)
+            """)
+            # create a vectorizer for the table
+            cur.execute("""
+                select ai.create_vectorizer
+                ( 'note0'::regclass
+                , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+                , chunking=>ai.chunking_character_text_splitter('note')
+                , scheduling=>
+                    ai.scheduling_timescaledb
+                    ( interval '5m'
+                    , initial_start=>'2050-01-06'::timestamptz
+                    , timezone=>'America/Chicago'
+                    )
+                , indexing=>ai.indexing_diskann(min_rows=>10)
+                , grant_to=>null
+                , enqueue_existing=>false
+                )
+            """)
+            vectorizer_id = cur.fetchone()[0]
+            cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
+            vectorizer = cur.fetchone()
+
+    env = os.environ.copy()
+    env["VECTORIZER_DB_URL"] = _db_url
+    env["OPENAI_API_KEY"] = "this_is_not_a_key"
+    subprocess.run(f"python3 -m vectorizer -i {vectorizer_id}",
+        shell=True,
+        check=True,
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=vectorizer_src_dir(),
+        )
+
+    with psycopg.connect(_db_url, autocommit=True, row_factory=namedtuple_row) as con:
+        with con.cursor() as cur:
+            cur.execute(f"""
+                select count(*)
+                from {vectorizer.target_schema}.{vectorizer.target_table}
+            """)
+            count = cur.fetchone()[0]
+            assert count == 10
