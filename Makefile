@@ -22,6 +22,10 @@ clean-sql:
 clean-py:
 	@./build.py clean-py
 
+.PHONY: clean-vectorizer
+clean-vectorizer:
+	@./build.py clean-vectorizer
+
 .PHONY: build
 build:
 	@PG_BIN=$(PG_BIN) ./build.py build
@@ -46,6 +50,10 @@ install-prior-py:
 install-py:
 	@./build.py install-py
 
+.PHONY: install-vectorizer
+install-vectorizer:
+	@./build.py install-vectorizer
+
 .PHONY: uninstall
 uninstall:
 	@PG_BIN=$(PG_BIN) ./build.py uninstall
@@ -57,6 +65,10 @@ uninstall-sql:
 .PHONY: uninstall-py
 uninstall-py:
 	@./build.py uninstall-py
+
+.PHONY: uninstall-vectorizer
+uninstall-vectorizer:
+	@./build.py uninstall-vectorizer
 
 .PHONY: build-sql
 build-sql:
