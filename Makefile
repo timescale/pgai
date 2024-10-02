@@ -78,6 +78,10 @@ build-sql:
 test-server:
 	@./build.py test-server
 
+.PHONY: vectorizer
+vectorizer:
+	@./build.py vectorizer
+
 .PHONY: test
 test:
 	@./build.py test
@@ -102,17 +106,33 @@ format-py:
 docker-build:
 	@PG_MAJOR=$(PG_MAJOR) ./build.py docker-build
 
+.PHONY: docker-build-vectorizer
+docker-build-vectorizer:
+	@./build.py docker-build-vectorizer
+
 .PHONY: docker-run
 docker-run:
 	@./build.py docker-run
+
+.PHONY: docker-run-vectorizer
+docker-run-vectorizer:
+	@./build.py docker-run-vectorizer
 
 .PHONY: docker-stop
 docker-stop:
 	@./build.py docker-stop
 
+.PHONY: docker-stop-vectorizer
+docker-stop-vectorizer:
+	@./build.py docker-stop-vectorizer
+
 .PHONY: docker-rm
 docker-rm:
 	@./build.py docker-rm
+
+.PHONY: docker-rm-vectorizer
+docker-rm-vectorizer:
+	@./build.py docker-rm-vectorizer
 
 .PHONY: run
 run:
