@@ -7,8 +7,8 @@ default: help
 .PHONY: help
 help:
 	@./build.py help
-	@echo "- docker-shell      launches a bash shell in the container"
-	@echo "- docker-psql       launches a psql shell in the container"
+	@echo "- docker-shell     launches a bash shell in the container"
+	@echo "- docker-psql      launches a psql shell in the container"
 
 .PHONY: clean
 clean:
@@ -22,9 +22,9 @@ clean-sql:
 clean-py:
 	@./build.py clean-py
 
-.PHONY: clean-vectorizer
-clean-vectorizer:
-	@./build.py clean-vectorizer
+.PHONY: clean-vec
+clean-vec:
+	@./build.py clean-vec
 
 .PHONY: build
 build:
@@ -50,9 +50,9 @@ install-prior-py:
 install-py:
 	@./build.py install-py
 
-.PHONY: install-vectorizer
-install-vectorizer:
-	@./build.py install-vectorizer
+.PHONY: install-vec
+install-vec:
+	@./build.py install-vec
 
 .PHONY: uninstall
 uninstall:
@@ -66,9 +66,9 @@ uninstall-sql:
 uninstall-py:
 	@./build.py uninstall-py
 
-.PHONY: uninstall-vectorizer
-uninstall-vectorizer:
-	@./build.py uninstall-vectorizer
+.PHONY: uninstall-vec
+uninstall-vec:
+	@./build.py uninstall-vec
 
 .PHONY: build-sql
 build-sql:
@@ -106,33 +106,33 @@ format-py:
 docker-build:
 	@PG_MAJOR=$(PG_MAJOR) ./build.py docker-build
 
-.PHONY: docker-build-vectorizer
-docker-build-vectorizer:
-	@./build.py docker-build-vectorizer
+.PHONY: docker-build-vec
+docker-build-vec:
+	@./build.py docker-build-vec
 
 .PHONY: docker-run
 docker-run:
 	@./build.py docker-run
 
-.PHONY: docker-run-vectorizer
-docker-run-vectorizer:
-	@./build.py docker-run-vectorizer
+.PHONY: docker-run-vec
+docker-run-vec:
+	@./build.py docker-run-vec
 
 .PHONY: docker-stop
 docker-stop:
 	@./build.py docker-stop
 
-.PHONY: docker-stop-vectorizer
-docker-stop-vectorizer:
-	@./build.py docker-stop-vectorizer
+.PHONY: docker-stop-vec
+docker-stop-vec:
+	@./build.py docker-stop-vec
 
 .PHONY: docker-rm
 docker-rm:
 	@./build.py docker-rm
 
-.PHONY: docker-rm-vectorizer
-docker-rm-vectorizer:
-	@./build.py docker-rm-vectorizer
+.PHONY: docker-rm-vec
+docker-rm-vec:
+	@./build.py docker-rm-vec
 
 .PHONY: run
 run:
