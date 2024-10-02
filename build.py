@@ -71,6 +71,10 @@ def src_extension_dir() -> Path:
     return src_dir().joinpath("extension").resolve()
 
 
+def src_vectorizer_dir() -> Path:
+    return src_dir().joinpath("vectorizer").resolve()
+
+
 def incremental_sql_dir() -> Path:
     return sql_dir().joinpath("incremental")
 
@@ -299,7 +303,7 @@ def install_old_py_deps() -> None:
         env = {k: v for k, v in os.environ.items()}
         env["PIP_BREAK_SYSTEM_PACKAGES"] = "1"
         subprocess.run(
-            f"pip3 install -v --compile -r {old_reqs_file}",
+            f"pip3 install -v --compile --root-user-action=ignore -r {old_reqs_file}",
             shell=True,
             check=True,
             env=env,
@@ -335,7 +339,7 @@ def install_prior_py() -> None:
         )
         tmp_src_dir = tmp_dir.joinpath("src").resolve()
         subprocess.run(
-            f'pip3 install -v --compile -t "{version_target_dir}" "{tmp_src_dir}"',
+            f'pip3 install -v --compile --root-user-action=ignore -t "{version_target_dir}" "{tmp_src_dir}"',
             check=True,
             shell=True,
             env=os.environ,
@@ -377,7 +381,7 @@ def install_py() -> None:
         ):  # delete package info if exists
             shutil.rmtree(d)
         subprocess.run(
-            f'pip3 install -v --no-deps --compile -t "{version_target_dir}" "{src_extension_dir()}"',
+            f'pip3 install -v --no-deps --compile --root-user-action=ignore -t "{version_target_dir}" "{src_extension_dir()}"',
             check=True,
             shell=True,
             env=os.environ,
@@ -386,7 +390,7 @@ def install_py() -> None:
     else:
         version_target_dir.mkdir(exist_ok=True)
         subprocess.run(
-            f'pip3 install -v --compile -t "{version_target_dir}" "{src_extension_dir()}"',
+            f'pip3 install -v --compile --root-user-action=ignore -t "{version_target_dir}" "{src_extension_dir()}"',
             check=True,
             shell=True,
             env=os.environ,
@@ -407,9 +411,57 @@ def uninstall_py() -> None:
     shutil.rmtree(python_install_dir(), ignore_errors=True)
 
 
+def build_vectorizer_init_py() -> None:
+    # vectorizer/__init__.py is checked in to version control. So, all the previous
+    # versions will have the file with the correct version already in it. This
+    # function just ensures that you can't screw up the current version. The
+    # only place you have to update the version when starting a new release is
+    # in the versions() function.
+    init_py = src_vectorizer_dir().joinpath("vectorizer", "__init__.py").resolve()
+    content = init_py.read_text()
+    lines = []
+    for line in content.splitlines(keepends=True):
+        if line.startswith("__version__"):
+            lines.append(f'__version__ = "{this_version()}"\n')
+        else:
+            lines.append(line)
+    init_py.write_text("".join(lines))
+
+
+def install_vectorizer() -> None:
+    build_vectorizer_init_py()
+    subprocess.run(
+        f'pip3 install -v --compile --root-user-action=ignore "{src_vectorizer_dir()}"',
+        check=True,
+        shell=True,
+        env=os.environ,
+        cwd=str(src_vectorizer_dir()),
+    )
+
+
+def clean_vectorizer() -> None:
+    d = src_vectorizer_dir().joinpath("build")
+    if d.exists():
+        shutil.rmtree(d, ignore_errors=True)
+    d = src_vectorizer_dir().joinpath("vectorizer.egg-info")
+    if d.exists():
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def uninstall_vectorizer() -> None:
+    subprocess.run(
+        f'pip3 uninstall -v -y --root-user-action=ignore vectorizer',
+        check=True,
+        shell=True,
+        env=os.environ,
+        cwd=str(src_vectorizer_dir()),
+    )
+
+
 def uninstall() -> None:
     uninstall_sql()
     uninstall_py()
+    uninstall_vectorizer()
 
 
 def build() -> None:
@@ -420,6 +472,7 @@ def install() -> None:
     install_prior_py()
     install_py()
     install_sql()
+    install_vectorizer()
 
 
 def build_install() -> None:
@@ -430,6 +483,7 @@ def build_install() -> None:
 def clean() -> None:
     clean_sql()
     clean_py()
+    clean_vectorizer()
 
 
 def test_server() -> None:
@@ -544,6 +598,8 @@ if __name__ == "__main__":
             install_prior_py()
         elif action == "install-py":
             install_py()
+        elif action == "install-vectorizer":
+            install_vectorizer()
         elif action == "install-sql":
             install_sql()
         elif action == "build-sql":
@@ -552,10 +608,14 @@ if __name__ == "__main__":
             clean_sql()
         elif action == "clean-py":
             clean_py()
+        elif action == "clean-vectorizer":
+            clean_vectorizer()
         elif action == "clean":
             clean()
         elif action == "uninstall-py":
             uninstall_py()
+        elif action == "uninstall-vectorizer":
+            uninstall_vectorizer()
         elif action == "uninstall-sql":
             uninstall_sql()
         elif action == "uninstall":

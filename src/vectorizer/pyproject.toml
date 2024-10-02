@@ -13,3 +13,6 @@ dependencies = {file = "requirements.txt"}
 
 [tool.setuptools]
 packages = ["vectorizer"]
+
+[project.scripts]
+vectorizer = "vectorizer.cli:run"
