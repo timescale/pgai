@@ -486,7 +486,7 @@ declare
     _key2 int;
     _implementation text;
     _with_count bigint;
-    _with text[];
+    _with text;
     _ext_schema name;
     _sql text;
 begin

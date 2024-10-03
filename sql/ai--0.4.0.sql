@@ -2255,12 +2255,38 @@ create or replace function ai._vectorizer_create_vector_index
 ) returns void as
 $func$
 declare
+    _key1 int = 1982010642;
+    _key2 int;
     _implementation text;
     _with_count bigint;
-    _with text[];
+    _with text;
     _ext_schema name;
     _sql text;
 begin
+
+    -- use the target table's oid as the second key for the advisory lock
+    select k.oid::int into strict _key2
+    from pg_catalog.pg_class k
+    inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
+    where k.relname operator(pg_catalog.=) target_table
+    and n.nspname operator(pg_catalog.=) target_schema
+    ;
+
+    -- try to grab a transaction-level advisory lock specific to the target table
+    -- if we get it, no one else is building the vector index. proceed
+    -- if we don't get it, someone else is already working on it. abort
+    if not pg_catalog.pg_try_advisory_xact_lock(_key1, _key2) then
+        raise warning 'another process is already building a vector index on %.%', target_schema, target_table;
+        return;
+    end if;
+
+    -- double-check that the index doesn't exist now that we're holding the advisory lock
+    -- nobody likes redundant indexes
+    if ai._vectorizer_vector_index_exists(target_table, target_schema, indexing) then
+        raise notice 'the vector index on %.% already exists', target_schema, target_table;
+        return;
+    end if;
+
     _implementation = pg_catalog.jsonb_extract_path_text(indexing, 'implementation');
     case _implementation
         when 'diskann' then
@@ -2379,7 +2405,7 @@ begin
     execute _sql into _found;
     commit;
     set local search_path = pg_catalog, pg_temp;
-    if _found is not null then
+    if coalesce(_found, false) is true then
         -- count total items in the queue
         select pg_catalog.format
         ( $sql$select count(1) from (select 1 from %I.%I limit 501) $sql$
@@ -2391,6 +2417,7 @@ begin
         set local search_path = pg_catalog, pg_temp;
         -- for every 50 items in the queue, execute a vectorizer max out at 10 vectorizers
         _count = least(pg_catalog.ceil(_count::float8 / 50.0::float8), 10::float8)::bigint;
+        raise debug 'job_id %: executing % vectorizers...', job_id, _count;
         while _count > 0
         loop
             -- execute the vectorizer
