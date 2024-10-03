@@ -714,7 +714,7 @@ def test_hnsw_index():
                 , initial_start=>'2050-01-06'::timestamptz
                 , timezone=>'America/Chicago'
                 )
-            , indexing=>ai.indexing_hnsw(min_rows=>10)
+            , indexing=>ai.indexing_hnsw(min_rows=>10, m=>20)
             , grant_to=>null
             , enqueue_existing=>false
             );
@@ -722,3 +722,126 @@ def test_hnsw_index():
             vectorizer_id = cur.fetchone()[0]
 
             index_creation_tester(cur, vectorizer_id)
+
+
+def test_index_create_concurrency():
+    # pgvectorscale must be installed by a superuser
+    with psycopg.connect(db_url("postgres"), autocommit=True, row_factory=namedtuple_row) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists vectorscale cascade")
+    with psycopg.connect(db_url("test"), autocommit=True, row_factory=namedtuple_row) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("create schema if not exists vec")
+            cur.execute("drop table if exists vec.note2")
+            cur.execute("""
+                create table vec.note2
+                ( id bigint not null primary key generated always as identity
+                , note text not null
+                )
+            """)
+            # insert 10 rows into source
+            cur.execute("""
+                insert into vec.note2 (note)
+                select 'i am a note'
+                from generate_series(1, 10)
+            """)
+
+            # create a vectorizer for the table
+            # language=PostgreSQL
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'vec.note2'::regclass
+            , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+            , chunking=>ai.chunking_character_text_splitter('note')
+            , scheduling=>
+                ai.scheduling_timescaledb
+                ( interval '5m'
+                , initial_start=>'2050-01-06'::timestamptz
+                , timezone=>'America/Chicago'
+                )
+            , indexing=>ai.indexing_diskann(min_rows=>10, num_neighbors=>25, search_list_size=>50)
+            , grant_to=>null
+            , enqueue_existing=>false
+            );
+            """)
+            vectorizer_id = cur.fetchone()[0]
+
+            cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
+            vectorizer = cur.fetchone()
+
+            # make sure the index does NOT exist (min_rows = 10)
+            cur.execute("""
+                        select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
+                        from ai.vectorizer v
+                        where v.id = %s
+                    """, (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual is False
+
+            # insert 10 rows into the target
+            cur.execute(f"""
+                        insert into {vectorizer.target_schema}.{vectorizer.target_table}
+                        ( embedding_uuid
+                        , id
+                        , chunk_seq
+                        , chunk 
+                        , embedding
+                        )
+                        select
+                          gen_random_uuid()
+                        , x
+                        , 0
+                        , 'i am a chunk'
+                        , (select array_agg(random()) from generate_series(1, 3))::vector(3)
+                        from generate_series(1,10) x
+                    """)
+
+            # explicitly create the index but hold the transaction open and run the job in another transaction
+            with psycopg.connect(db_url("test"), autocommit=False) as con2:
+                with con2.cursor() as cur2:
+                    cur2.execute("""
+                        select ai._vectorizer_create_vector_index(v.target_schema, v.target_table, v.config->'indexing')
+                        from ai.vectorizer v
+                        where v.id = %s
+                        """, (vectorizer_id,))
+                    # hold the transaction open
+                    # try to explicitly create the index on the other connection
+                    cur.execute("""
+                        select ai._vectorizer_create_vector_index(v.target_schema, v.target_table, v.config->'indexing')
+                        from ai.vectorizer v
+                        where v.id = %s
+                        """, (vectorizer_id,))
+                    con2.commit()
+
+            # make sure the index DOES exist (min_rows = 10)
+            cur.execute("""
+                        select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
+                        from ai.vectorizer v
+                        where v.id = %s
+                    """, (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual is True
+
+            # make sure there is only ONE index
+            cur.execute("""
+                select pg_catalog.count(*) filter
+                ( where pg_catalog.pg_get_indexdef(i.indexrelid)
+                  ilike '%% using diskann %%'
+                )
+                from pg_catalog.pg_class k
+                inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
+                inner join pg_index i on (k.oid operator(pg_catalog.=) i.indrelid)
+                inner join pg_catalog.pg_attribute a
+                    on (k.oid operator(pg_catalog.=) a.attrelid
+                    and a.attname operator(pg_catalog.=) 'embedding'
+                    and a.attnum operator(pg_catalog.=) i.indkey[0]
+                    )
+                inner join ai.vectorizer v 
+                on (n.nspname operator(pg_catalog.=) v.target_schema
+                and k.relname operator(pg_catalog.=) v.target_table)
+                where v.id = %s
+            """, (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual == 1
