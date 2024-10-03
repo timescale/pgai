@@ -482,12 +482,38 @@ create or replace function ai._vectorizer_create_vector_index
 ) returns void as
 $func$
 declare
+    _key1 int = 1982010642;
+    _key2 int;
     _implementation text;
     _with_count bigint;
     _with text[];
     _ext_schema name;
     _sql text;
 begin
+
+    -- use the target table's oid as the second key for the advisory lock
+    select k.oid::int into strict _key2
+    from pg_catalog.pg_class k
+    inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
+    where k.relname operator(pg_catalog.=) target_table
+    and n.nspname operator(pg_catalog.=) target_schema
+    ;
+
+    -- try to grab a transaction-level advisory lock specific to the target table
+    -- if we get it, no one else is building the vector index. proceed
+    -- if we don't get it, someone else is already working on it. abort
+    if not pg_catalog.pg_try_advisory_xact_lock(_key1, _key2) then
+        raise warning 'another process is already building a vector index on %.%', target_schema, target_table;
+        return;
+    end if;
+
+    -- double-check that the index doesn't exist now that we're holding the advisory lock
+    -- nobody likes redundant indexes
+    if ai._vectorizer_vector_index_exists(target_table, target_schema, indexing) then
+        raise notice 'the vector index on %.% already exists', target_schema, target_table;
+        return;
+    end if;
+
     _implementation = pg_catalog.jsonb_extract_path_text(indexing, 'implementation');
     case _implementation
         when 'diskann' then
