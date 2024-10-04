@@ -1563,6 +1563,7 @@ create or replace function ai.indexing_diskann
 , max_alpha float8 default null
 , num_dimensions int default null
 , num_bits_per_dimension int default null
+, create_when_queue_empty boolean default true
 ) returns jsonb
 as $func$
     select json_object
@@ -1575,6 +1576,7 @@ as $func$
     , 'max_alpha': max_alpha
     , 'num_dimensions': num_dimensions
     , 'num_bits_per_dimension': num_bits_per_dimension
+    , 'create_when_queue_empty': create_when_queue_empty
     absent on null
     )
 $func$ language sql immutable security invoker
@@ -1604,6 +1606,7 @@ create or replace function ai.indexing_hnsw
 , opclass text default 'vector_cosine_ops'
 , m int default null
 , ef_construction int default null
+, create_when_queue_empty boolean default true
 ) returns jsonb
 as $func$
     select json_object
@@ -1613,6 +1616,7 @@ as $func$
     , 'opclass': opclass
     , 'm': m
     , 'ef_construction': ef_construction
+    , 'create_when_queue_empty': create_when_queue_empty
     absent on null
     )
 $func$ language sql immutable security invoker
@@ -2247,6 +2251,75 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- _vectorizer_should_create_vector_index
+create or replace function ai._vectorizer_should_create_vector_index(vectorizer ai.vectorizer) returns boolean
+as $func$
+declare
+    _indexing jsonb;
+    _implementation text;
+    _create_when_queue_empty bool;
+    _sql text;
+    _count bigint;
+    _min_rows bigint;
+begin
+    -- grab the indexing config
+    _indexing = pg_catalog.jsonb_extract_path(vectorizer.config, 'indexing');
+    if _indexing is null then
+        return false;
+    end if;
+
+    -- grab the indexing config's implementation
+    _implementation = pg_catalog.jsonb_extract_path_text(_indexing, 'implementation');
+    -- if implementation is missing or none, exit
+    if _implementation is null or _implementation = 'none' then
+        return false;
+    end if;
+
+    -- see if the index already exists. if so, exit
+    if ai._vectorizer_vector_index_exists(vectorizer.target_schema, vectorizer.target_table, _indexing) then
+        return false;
+    end if;
+
+    -- if flag set, only attempt to create the vector index if the queue table is empty
+    _create_when_queue_empty = coalesce(pg_catalog.jsonb_extract_path(_indexing, 'create_when_queue_empty')::boolean, true);
+    if _create_when_queue_empty then
+        -- count the rows in the queue table
+        select pg_catalog.format
+        ( $sql$select pg_catalog.count(1) from %I.%I limit 1$sql$
+        , vectorizer.queue_schema
+        , vectorizer.queue_table
+        ) into strict _sql
+        ;
+        execute _sql into _count;
+        if _count operator(pg_catalog.>) 0 then
+            raise notice 'queue for %.% is not empty. skipping vector index creation', vectorizer.target_schema, vectorizer.target_table;
+            return false;
+        end if;
+    end if;
+
+    -- if min_rows has a value
+    _min_rows = coalesce(pg_catalog.jsonb_extract_path_text(_indexing, 'min_rows')::bigint, 0);
+    if _min_rows > 0 then
+        -- count the rows in the target table
+        select pg_catalog.format
+        ( $sql$select pg_catalog.count(*) from (select 1 from %I.%I limit %L) x$sql$
+        , vectorizer.target_schema
+        , vectorizer.target_table
+        , _min_rows
+        ) into strict _sql
+        ;
+        execute _sql into _count;
+    end if;
+
+    -- if we have met or exceeded min_rows, create the index
+    return coalesce(_count, 0) >= _min_rows;
+end
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- _vectorizer_create_vector_index
 create or replace function ai._vectorizer_create_vector_index
 ( target_schema name
@@ -2374,8 +2447,6 @@ declare
     _found bool;
     _count bigint;
     _indexing jsonb;
-    _implementation text;
-    _min_rows bigint;
 begin
     set local search_path = pg_catalog, pg_temp;
     if config is null then
@@ -2386,11 +2457,30 @@ begin
     select pg_catalog.jsonb_extract_path_text(config, 'vectorizer_id')::int
     into strict _vectorizer_id
     ;
-    -- look up the queue table for the vectorizer
+
+    -- get the vectorizer
     select * into strict _vec
     from ai.vectorizer v
     where v.id operator(pg_catalog.=) _vectorizer_id
     ;
+
+    commit;
+    set local search_path = pg_catalog, pg_temp;
+
+    -- if the conditions are right, create the vectorizer index
+    if ai._vectorizer_should_create_vector_index(_vec) then
+        commit;
+        set local search_path = pg_catalog, pg_temp;
+        perform ai._vectorizer_create_vector_index
+        (_vec.target_schema
+        , _vec.target_table
+        , pg_catalog.jsonb_extract_path(_vec.config, 'indexing')
+        );
+    end if;
+
+    commit;
+    set local search_path = pg_catalog, pg_temp;
+
     -- if there is at least one item in the queue, we need to execute the vectorizer
     select pg_catalog.format
     ( $sql$
@@ -2424,47 +2514,6 @@ begin
             perform ai.execute_vectorizer(_vectorizer_id);
             _count = _count - 1;
         end loop;
-    end if;
-    commit;
-    set local search_path = pg_catalog, pg_temp;
-
-    -- grab the indexing config
-    _indexing = pg_catalog.jsonb_extract_path(_vec.config, 'indexing');
-    if _indexing is null then
-        return;
-    end if;
-
-    -- grab the indexing config's implementation
-    _implementation = pg_catalog.jsonb_extract_path_text(_indexing, 'implementation');
-    -- if implementation is missing or none, exit
-    if _implementation is null or _implementation = 'none' then
-        return;
-    end if;
-
-    -- see if the index already exists. if so, exit
-    if ai._vectorizer_vector_index_exists(_vec.target_schema, _vec.target_table, _indexing) then
-        return;
-    end if;
-
-    -- if min_rows has a value
-    _min_rows = coalesce(pg_catalog.jsonb_extract_path_text(_indexing, 'min_rows')::bigint, 0);
-    if _min_rows > 0 then
-        -- count the rows in the target table
-        select pg_catalog.format
-        ( $sql$select pg_catalog.count(*) from (select 1 from %I.%I limit %L) x$sql$
-        , _vec.target_schema
-        , _vec.target_table
-        , _min_rows
-        ) into strict _sql
-        ;
-        execute _sql into _count;
-    end if;
-    commit;
-    set local search_path = pg_catalog, pg_temp;
-
-    -- if we have met or exceeded min_rows, create the index
-    if coalesce(_count, 0) >= _min_rows then
-        perform ai._vectorizer_create_vector_index(_vec.target_schema, _vec.target_table, _indexing);
     end if;
     commit;
     set local search_path = pg_catalog, pg_temp;
