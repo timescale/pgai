@@ -41,6 +41,7 @@ def test_indexing_diskann():
                 "implementation": "diskann",
                 "config_type": "indexing",
                 "min_rows": 100_000,
+                "create_when_queue_empty": True,
             },
         ),
         (
@@ -49,6 +50,7 @@ def test_indexing_diskann():
                 "implementation": "diskann",
                 "config_type": "indexing",
                 "min_rows": 500,
+                "create_when_queue_empty": True,
             },
         ),
         (
@@ -58,6 +60,17 @@ def test_indexing_diskann():
                 "config_type": "indexing",
                 "min_rows": 100_000,
                 "storage_layout": "plain",
+                "create_when_queue_empty": True,
+            },
+        ),
+        (
+            "select ai.indexing_diskann(storage_layout=>'plain', create_when_queue_empty=>false)",
+            {
+                "implementation": "diskann",
+                "config_type": "indexing",
+                "min_rows": 100_000,
+                "storage_layout": "plain",
+                "create_when_queue_empty": False,
             },
         ),
         (
@@ -81,6 +94,32 @@ def test_indexing_diskann():
                 "max_alpha": 1.2,
                 "num_dimensions": 768,
                 "num_bits_per_dimension": 2,
+                "create_when_queue_empty": True,
+            },
+        ),
+        (
+            """
+            select ai.indexing_diskann
+            ( storage_layout=>'memory_optimized'
+            , num_neighbors=>50
+            , search_list_size=>150
+            , max_alpha=>1.2
+            , num_dimensions=>768
+            , num_bits_per_dimension=>2
+            , create_when_queue_empty=>false
+            )
+            """,
+            {
+                "implementation": "diskann",
+                "config_type": "indexing",
+                "min_rows": 100_000,
+                "storage_layout": "memory_optimized",
+                "num_neighbors": 50,
+                "search_list_size": 150,
+                "max_alpha": 1.2,
+                "num_dimensions": 768,
+                "num_bits_per_dimension": 2,
+                "create_when_queue_empty": False,
             },
         ),
     ]
@@ -103,6 +142,7 @@ def test_indexing_hnsw():
                 "config_type": "indexing",
                 "min_rows": 100_000,
                 "opclass": "vector_cosine_ops",
+                "create_when_queue_empty": True,
             },
         ),
         (
@@ -112,6 +152,7 @@ def test_indexing_hnsw():
                 "config_type": "indexing",
                 "min_rows": 500,
                 "opclass": "vector_cosine_ops",
+                "create_when_queue_empty": True,
             },
         ),
         (
@@ -121,6 +162,7 @@ def test_indexing_hnsw():
                 "config_type": "indexing",
                 "min_rows": 100_000,
                 "opclass": "vector_l1_ops",
+                "create_when_queue_empty": True,
             },
         ),
         (
@@ -132,6 +174,19 @@ def test_indexing_hnsw():
                 "m": 10,
                 "ef_construction": 100,
                 "opclass": "vector_cosine_ops",
+                "create_when_queue_empty": True,
+            },
+        ),
+        (
+            "select ai.indexing_hnsw(m=>10, ef_construction=>100, create_when_queue_empty=>false)",
+            {
+                "implementation": "hnsw",
+                "config_type": "indexing",
+                "min_rows": 100_000,
+                "m": 10,
+                "ef_construction": 100,
+                "opclass": "vector_cosine_ops",
+                "create_when_queue_empty": False,
             },
         ),
     ]
@@ -153,10 +208,12 @@ def test_validate_indexing():
         "select ai._validate_indexing(ai.indexing_hnsw(opclass=>'vector_cosine_ops'))",
         "select ai._validate_indexing(ai.indexing_hnsw(opclass=>'vector_l1_ops'))",
         "select ai._validate_indexing(ai.indexing_hnsw(opclass=>null))",
+        "select ai._validate_indexing(ai.indexing_hnsw(create_when_queue_empty=>false))",
         "select ai._validate_indexing(ai.indexing_diskann())",
         "select ai._validate_indexing(ai.indexing_diskann(storage_layout=>'plain'))",
         "select ai._validate_indexing(ai.indexing_diskann(storage_layout=>'memory_optimized'))",
         "select ai._validate_indexing(ai.indexing_diskann(storage_layout=>null))",
+        "select ai._validate_indexing(ai.indexing_diskann(create_when_queue_empty=>false))",
     ]
     bad = [
         (
