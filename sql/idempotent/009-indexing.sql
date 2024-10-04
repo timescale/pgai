@@ -21,6 +21,7 @@ create or replace function ai.indexing_diskann
 , max_alpha float8 default null
 , num_dimensions int default null
 , num_bits_per_dimension int default null
+, create_when_queue_empty boolean default true
 ) returns jsonb
 as $func$
     select json_object
@@ -33,6 +34,7 @@ as $func$
     , 'max_alpha': max_alpha
     , 'num_dimensions': num_dimensions
     , 'num_bits_per_dimension': num_bits_per_dimension
+    , 'create_when_queue_empty': create_when_queue_empty
     absent on null
     )
 $func$ language sql immutable security invoker
@@ -62,6 +64,7 @@ create or replace function ai.indexing_hnsw
 , opclass text default 'vector_cosine_ops'
 , m int default null
 , ef_construction int default null
+, create_when_queue_empty boolean default true
 ) returns jsonb
 as $func$
     select json_object
@@ -71,6 +74,7 @@ as $func$
     , 'opclass': opclass
     , 'm': m
     , 'ef_construction': ef_construction
+    , 'create_when_queue_empty': create_when_queue_empty
     absent on null
     )
 $func$ language sql immutable security invoker

@@ -28,6 +28,7 @@ VECTORIZER_ROW = r"""
         "indexing": {
             "min_rows": 100000,
             "config_type": "indexing",
+            "create_when_queue_empty": true,
             "implementation": "diskann"
         },
         "embedding": {
@@ -620,11 +621,48 @@ def index_creation_tester(cur: psycopg.Cursor, vectorizer_id: int) -> None:
                 from generate_series(1,5) x
             """)
 
+    # insert some rows into the queue. this should prevent the index from being created
+    cur.execute(f"insert into {vectorizer.queue_schema}.{vectorizer.queue_table}(id) select generate_series(1, 5)")
+
+    # should NOT create index
+    cur.execute(f"""
+        select ai._vectorizer_should_create_vector_index(v)
+        from ai.vectorizer v
+        where v.id = %s
+    """, (vectorizer_id,))
+    actual = cur.fetchone()[0]
+    assert actual is False
+
     # run the job
     cur.execute("call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))"
                 , (vectorizer_id,))
 
-    # make sure the index ****DOES**** exist  (min_rows = 10 and 10 rows exist)
+    # make sure the index does NOT exist (queue table is NOT empty)
+    cur.execute("""
+                select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
+                from ai.vectorizer v
+                where v.id = %s
+            """, (vectorizer_id,))
+    actual = cur.fetchone()[0]
+    assert actual is False
+
+    # empty the queue
+    cur.execute(f"delete from {vectorizer.queue_schema}.{vectorizer.queue_table}")
+
+    # SHOULD create index
+    cur.execute(f"""
+        select ai._vectorizer_should_create_vector_index(v)
+        from ai.vectorizer v
+        where v.id = %s
+    """, (vectorizer_id,))
+    actual = cur.fetchone()[0]
+    assert actual is True
+
+    # run the job
+    cur.execute("call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))"
+                , (vectorizer_id,))
+
+    # make sure the index ****DOES**** exist  (min_rows = 10 and 10 rows exist AND queue table is empty)
     cur.execute("""
                 select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
                 from ai.vectorizer v
@@ -761,7 +799,13 @@ def test_index_create_concurrency():
                 , initial_start=>'2050-01-06'::timestamptz
                 , timezone=>'America/Chicago'
                 )
-            , indexing=>ai.indexing_diskann(min_rows=>10, num_neighbors=>25, search_list_size=>50)
+            , indexing=>
+                ai.indexing_diskann
+                ( min_rows=>10
+                , num_neighbors=>25
+                , search_list_size=>50
+                , create_when_queue_empty=>false
+                )
             , grant_to=>null
             , enqueue_existing=>false
             );
