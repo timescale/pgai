@@ -2446,7 +2446,6 @@ declare
     _sql text;
     _found bool;
     _count bigint;
-    _indexing jsonb;
 begin
     set local search_path = pg_catalog, pg_temp;
     if config is null then

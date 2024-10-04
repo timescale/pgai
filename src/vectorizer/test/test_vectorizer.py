@@ -4,7 +4,7 @@ import psycopg
 import pytest
 from psycopg.rows import namedtuple_row
 
-from src.vectorizer.vectorizer import cli
+from src.vectorizer.vectorizer import cli, vectorizer
 
 # skip tests in this module if disabled
 enable_vectorizer_tool_tests = os.getenv("ENABLE_VECTORIZER_TOOL_TESTS")
@@ -89,4 +89,5 @@ def test_vectorizer_internal():
             assert vectorizer_actual is not None
             assert vectorizer_expected.source_table == vectorizer_actual.source_table
 
-
+            # run the vectorizer
+            cli.run_vectorizer(_db_url, vectorizer_actual, 1)

@@ -21,7 +21,6 @@ from .chunking import (
     LangChainCharacterTextSplitter,
     LangChainRecursiveCharacterTextSplitter,
 )
-from .db import ConnInfo
 from .embeddings import ChunkEmbeddingError, OpenAI
 from .formatting import ChunkValue, PythonTemplate
 from .processing import CloudFunctions
@@ -272,8 +271,8 @@ class ProcessingStats:
 class Worker:
     _queue_table_oid = None
 
-    def __init__(self, conn_info: ConnInfo, vectorizer: Vectorizer):
-        self.conn_info = conn_info
+    def __init__(self, db_url: str, vectorizer: Vectorizer):
+        self.db_url = db_url
         self.vectorizer = vectorizer
         self.queries = VectorizerQueryBuilder(vectorizer)
 
@@ -286,7 +285,7 @@ class Worker:
         """
         res = 0
         
-        async with await psycopg.AsyncConnection.connect(self.conn_info.url) as conn:
+        async with await psycopg.AsyncConnection.connect(self.db_url) as conn:
             await register_vector_async(conn)
             while True:
                 items_processed = await self._do_batch(conn)

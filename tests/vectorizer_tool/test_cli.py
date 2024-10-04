@@ -32,6 +32,13 @@ def vectorizer_src_dir() -> Path:
     return p
 
 
+@pytest.fixture(scope="module", autouse=True)
+def create_tiktoken_cache_dir_if_missing() -> None:
+    d = vectorizer_src_dir().joinpath("tiktoken_cache").resolve()
+    if not d.is_dir():
+        d.mkdir(exist_ok=True, parents=True)
+
+
 def test_bad_db_url():
     _db_url = db_url("postgres", "this_is_not_a_db")
     env = os.environ.copy()

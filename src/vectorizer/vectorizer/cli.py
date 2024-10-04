@@ -1,17 +1,19 @@
+import asyncio
 import logging
 import os
 import random
 import sys
+from pathlib import Path
 from typing import Sequence
 
 import click
 import psycopg
 import structlog
-from psycopg.rows import dict_row, namedtuple_row
 from dotenv import load_dotenv
+from psycopg.rows import dict_row, namedtuple_row
 
 from .__init__ import __version__
-from .vectorizer import Vectorizer
+from .vectorizer import Vectorizer, Worker
 
 load_dotenv()
 structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
@@ -29,7 +31,7 @@ def get_vectorizer_ids(cur: psycopg.Cursor, vectorizer_ids: Sequence[int] | None
     if vectorizer_ids is None or len(vectorizer_ids) == 0:
         cur.execute("select id from ai.vectorizer")
     else:
-        cur.execute("select id from ai.vectorizer where id = any(%s)", [list(vectorizer_ids),])
+        cur.execute("select id from ai.vectorizer where id = any(%s)", [list(vectorizer_ids), ])
     for row in cur.fetchall():
         valid_vectorizer_ids.append(row.id)
     random.shuffle(valid_vectorizer_ids)
@@ -39,7 +41,8 @@ def get_vectorizer_ids(cur: psycopg.Cursor, vectorizer_ids: Sequence[int] | None
 def get_vectorizer(db_url, vectorizer_id: int) -> Vectorizer | None:
     with psycopg.Connection.connect(db_url, row_factory=dict_row) as con:
         with con.cursor() as cur:
-            cur.execute("select pg_catalog.to_jsonb(v) as vectorizer from ai.vectorizer v where v.id = %s", (vectorizer_id,))
+            cur.execute("select pg_catalog.to_jsonb(v) as vectorizer from ai.vectorizer v where v.id = %s",
+                        (vectorizer_id,))
             row = cur.fetchone()
             if row is None:
                 return None
@@ -47,11 +50,46 @@ def get_vectorizer(db_url, vectorizer_id: int) -> Vectorizer | None:
             return Vectorizer(**vectorizer)
 
 
-def vectorize(db_url: str, vectorizer_ids: list[int] | None) -> None:
+def run_vectorizer(db_url: str, vectorizer: Vectorizer, concurrency: int) -> None:
+    async def run_workers() -> tuple[int]:
+        tasks = [asyncio.create_task(Worker(db_url, vectorizer).run())
+                 for _ in range(concurrency)
+                 ]
+        return await asyncio.gather(*tasks)
+    results = asyncio.run(run_workers())
+    items = sum(results)
+    log.info('finished processing vectorizer', items=items, vectorizer_id=vectorizer.id)
+
+
+@click.command()
+@click.version_option(version=__version__)
+@click.option('-d', '--db-url', type=click.STRING, envvar='VECTORIZER_DB_URL',
+              default='postgres://postgres@localhost:5432/postgres', show_default=True)
+@click.option('--tiktoken-cache-dir', envvar='TIKTOKEN_CACHE_DIR', type=click.Path(),
+              default=lambda: Path.cwd().joinpath('tiktoken_cache'), show_default=True)
+@click.option('-i', '--vectorizer-id', 'vectorizer_ids', type=click.INT, multiple=True)
+@click.option('-c', '--concurrency', type=click.IntRange(1), default=1, show_default=True)
+@click.option('--log-level',
+              type=click.Choice(['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL', 'CRITICAL'], case_sensitive=False),
+              default='INFO')
+def run(db_url: str, tiktoken_cache_dir: Path, vectorizer_ids: Sequence[int] | None = None, concurrency: int = 1,
+        log_level: str = 'INFO') -> None:
+    log_level = logging.getLevelNamesMapping()[log_level.upper()]
+    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(log_level))
+
     openai_api_key = os.getenv('OPENAI_API_KEY', None)
     if openai_api_key is None:
         log.critical('OPENAI_API_KEY environment variable is not set')
         sys.exit(1)
+
+    if tiktoken_cache_dir is None:
+        log.critical('tiktoken_cache_dir not provided')
+        sys.exit(1)
+    if not tiktoken_cache_dir.is_dir():
+        log.critical('tiktoken_cache_dir is not a directory', tiktoken_cache_dir=tiktoken_cache_dir)
+        sys.exit(1)
+    os.environ['TIKTOKEN_CACHE_DIR'] = str(tiktoken_cache_dir.resolve())
+
     with psycopg.Connection.connect(db_url) as con:
         with con.cursor(row_factory=namedtuple_row) as cur:
             pgai_version = get_pgai_version(cur)
@@ -62,21 +100,11 @@ def vectorize(db_url: str, vectorizer_ids: list[int] | None) -> None:
     if len(vectorizer_ids) == 0:
         log.warning('no vectorizers found')
         return
+
     for vectorizer_id in vectorizer_ids:
         vectorizer = get_vectorizer(db_url, vectorizer_id)
         if vectorizer is None:
             log.warning('vectorizer not found', vectorizer_id=vectorizer_id)
             continue
         log.info('running vectorizer', vectorizer_id=vectorizer_id)
-
-
-@click.command()
-@click.version_option(version=__version__)
-@click.option('-d', '--db-url', type=click.STRING, envvar='VECTORIZER_DB_URL',
-              default='postgres://postgres@localhost:5432/postgres', show_default=True)
-@click.option('-i', '--vectorizer-id', type=click.INT, multiple=True)
-@click.option('--log-level', type=click.Choice(['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL', 'CRITICAL'], case_sensitive=False), default='INFO')
-def run(db_url: str, vectorizer_id: Sequence[int] | None = None, log_level: str = 'INFO') -> None:
-    log_level = logging.getLevelNamesMapping()[log_level.upper()]
-    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(log_level))
-    vectorize(db_url, vectorizer_id)
+        run_vectorizer(db_url, vectorizer, concurrency)
