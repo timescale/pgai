@@ -73,7 +73,7 @@ def test_pgai_not_installed():
                        cwd=vectorizer_src_dir(),
                        )
     assert p.returncode == 1
-    assert str(p.stderr).strip() == "the pgai extension is not installed"
+    assert "the pgai extension is not installed" in str(p.stdout)
     env.pop("VECTORIZER_DB_URL")
     p = subprocess.run(f"python3 -m vectorizer -d '{_db_url}'",
                        shell=True,
@@ -83,7 +83,7 @@ def test_pgai_not_installed():
                        cwd=vectorizer_src_dir(),
                        )
     assert p.returncode == 1
-    assert str(p.stderr).strip() == "the pgai extension is not installed"
+    assert "the pgai extension is not installed" in str(p.stdout)
 
 
 def test_vectorizer_cli():

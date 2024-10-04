@@ -3,7 +3,7 @@ import re
 import time
 from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import Literal, Optional, Sequence, Union
+from typing import Literal, Optional, Sequence, Union, TypeAlias
 
 import openai
 import structlog
@@ -33,7 +33,7 @@ class ChunkEmbeddingError:
     error_details: str = ""
 
 
-type EmbeddingVector = list[float]
+EmbeddingVector: TypeAlias = list[float]
 
 
 class Embedder(ABC):
