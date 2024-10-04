@@ -311,7 +311,7 @@ def install_old_py_deps() -> None:
         env = {k: v for k, v in os.environ.items()}
         env["PIP_BREAK_SYSTEM_PACKAGES"] = "1"
         subprocess.run(
-            f"pip3 install -v --compile --root-user-action=ignore -r {old_reqs_file}",
+            f"pip3 install -v --compile -r {old_reqs_file}",
             shell=True,
             check=True,
             env=env,
@@ -347,7 +347,7 @@ def install_prior_py() -> None:
         )
         tmp_src_dir = tmp_dir.joinpath("src").resolve()
         subprocess.run(
-            f'pip3 install -v --compile --root-user-action=ignore -t "{version_target_dir}" "{tmp_src_dir}"',
+            f'pip3 install -v --compile -t "{version_target_dir}" "{tmp_src_dir}"',
             check=True,
             shell=True,
             env=os.environ,
@@ -389,7 +389,7 @@ def install_py() -> None:
         ):  # delete package info if exists
             shutil.rmtree(d)
         subprocess.run(
-            f'pip3 install -v --no-deps --compile --root-user-action=ignore -t "{version_target_dir}" "{src_extension_dir()}"',
+            f'pip3 install -v --no-deps --compile -t "{version_target_dir}" "{src_extension_dir()}"',
             check=True,
             shell=True,
             env=os.environ,
@@ -398,7 +398,7 @@ def install_py() -> None:
     else:
         version_target_dir.mkdir(exist_ok=True)
         subprocess.run(
-            f'pip3 install -v --compile --root-user-action=ignore -t "{version_target_dir}" "{src_extension_dir()}"',
+            f'pip3 install -v --compile -t "{version_target_dir}" "{src_extension_dir()}"',
             check=True,
             shell=True,
             env=os.environ,
@@ -439,7 +439,7 @@ def build_vectorizer_init_py() -> None:
 def install_vectorizer() -> None:
     build_vectorizer_init_py()
     subprocess.run(
-        f'pip3 install -v --compile --root-user-action=ignore "{src_vectorizer_dir()}"',
+        f'pip3 install -v --compile "{src_vectorizer_dir()}"',
         check=True,
         shell=True,
         env=os.environ,
@@ -458,7 +458,7 @@ def clean_vectorizer() -> None:
 
 def uninstall_vectorizer() -> None:
     subprocess.run(
-        f'pip3 uninstall -v -y --root-user-action=ignore vectorizer',
+        f'pip3 uninstall -v -y vectorizer',
         check=True,
         shell=True,
         env=os.environ,
