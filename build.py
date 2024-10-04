@@ -480,7 +480,7 @@ def install() -> None:
     install_prior_py()
     install_py()
     install_sql()
-    install_vectorizer()
+    # installing the vectorizer cli tool should be explicit
 
 
 def build_install() -> None:
