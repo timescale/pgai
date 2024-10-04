@@ -86,7 +86,7 @@ def test_pgai_not_installed():
     assert str(p.stderr).strip() == "the pgai extension is not installed"
 
 
-def test_vectorizer():
+def test_vectorizer_cli():
     db = "vcli2"
     create_database(db)
     _db_url = db_url("postgres", db)
