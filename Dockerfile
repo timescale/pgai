@@ -35,6 +35,7 @@ RUN set -e; \
     rm -rf /build/timescaledb
 
 # install pgvectorscale
+ARG RUSTFLAGS
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 RUN set -e; \
@@ -44,7 +45,10 @@ RUN set -e; \
     mkdir -p /build/pgvectorscale; \
     git clone --branch 0.3.0 https://github.com/timescale/pgvectorscale /build/pgvectorscale; \
     cd /build/pgvectorscale/pgvectorscale; \
-    cargo pgrx install --release; \
+    if [ -n "$RUSTFLAGS" ]; then \
+      export RUSTFLAGS=${RUSTFLAGS}; \
+    fi; \
+    cargo pgrx install --release --features pg${PG_MAJOR}; \
     rm -rf /build/pgvectorscale
 
 # install pgspot

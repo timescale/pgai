@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import platform
 import subprocess
 import shutil
 import sys
@@ -59,7 +60,7 @@ def prior_versions() -> list[str]:
     return versions()[1:] if len(versions()) > 1 else []
 
 
-def pg_major() -> str:
+def pg_major() -> str | None:
     return os.getenv("PG_MAJOR")
 
 
@@ -556,8 +557,12 @@ def format_py() -> None:
 
 
 def docker_build() -> None:
+    if platform.machine().lower() in {'i386', 'i686', 'x86_64'}:
+        rust_flags = "--build-arg RUSTFLAGS='-C target-feature=+avx2,+fma'"
+    else:
+        rust_flags = ""
     subprocess.run(
-        f"""docker build --build-arg PG_MAJOR={pg_major()} -t pgai .""",
+        f"""docker build --build-arg PG_MAJOR={pg_major()} {rust_flags} -t pgai .""",
         shell=True,
         check=True,
         env=os.environ,
