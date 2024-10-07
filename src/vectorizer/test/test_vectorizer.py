@@ -4,7 +4,7 @@ import psycopg
 import pytest
 from psycopg.rows import namedtuple_row
 
-from src.vectorizer.vectorizer import cli, vectorizer
+from src.vectorizer.vectorizer import cli
 
 # skip tests in this module if disabled
 enable_vectorizer_tool_tests = os.getenv("ENABLE_VECTORIZER_TOOL_TESTS")
