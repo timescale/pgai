@@ -6,7 +6,7 @@ import pytest
 
 # skip tests in this module if disabled
 enable_privileges_tests = os.getenv("ENABLE_PRIVILEGES_TESTS")
-if not enable_privileges_tests or enable_privileges_tests == "0":
+if enable_privileges_tests == "0":
     pytest.skip(allow_module_level=True)
 
 

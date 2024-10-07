@@ -7,7 +7,7 @@ import pytest
 
 # skip tests in this module if disabled
 enable_dump_restore_tests = os.getenv("ENABLE_DUMP_RESTORE_TESTS")
-if not enable_dump_restore_tests or enable_dump_restore_tests == "0":
+if enable_dump_restore_tests == "0":
     pytest.skip(allow_module_level=True)
 
 
