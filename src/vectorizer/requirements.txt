@@ -1,3 +1,4 @@
+click==8.1.7
 psycopg[binary]==3.2.1
 langchain-openai==0.1.23
 langchain-text-splitters==0.2.4
