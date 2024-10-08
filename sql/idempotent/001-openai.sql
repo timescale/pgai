@@ -210,13 +210,19 @@ declare
     model text := 'gpt-4o';
     messages jsonb;
 begin
-    messages := jsonb_build_array(
-        jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant'),
-        jsonb_build_object('role', 'user', 'content', _message)
+    messages := pg_catalog.jsonb_build_array(
+        pg_catalog.jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant'),
+        pg_catalog.jsonb_build_object('role', 'user', 'content', _message)
     );
-    return ai.openai_chat_complete(model, messages, _api_key)->'choices'->0->'message'->>'content';
+    return ai.openai_chat_complete(model, messages, _api_key)
+        operator(pg_catalog.->)'choices'
+        operator(pg_catalog.->)0
+        operator(pg_catalog.->)'message'
+        operator(pg_catalog.->>)'content';
 end;
-$$ language plpgsql;
+$$ language plpgsql volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
 
 -------------------------------------------------------------------------------
 -- openai_moderate
