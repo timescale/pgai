@@ -1,5 +1,3 @@
-from typing import Optional
-
 from pydantic.dataclasses import dataclass
 
 
@@ -7,4 +5,4 @@ from pydantic.dataclasses import dataclass
 class Secrets:
     """Secrets to be mapped into the event payload."""
 
-    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_API_KEY: str | None = None

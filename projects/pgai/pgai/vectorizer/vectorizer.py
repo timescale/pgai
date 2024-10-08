@@ -3,14 +3,13 @@ import threading
 import time
 from functools import cached_property
 from itertools import repeat
-from typing import Any, Union
-from typing import TypeAlias
+from typing import Any, TypeAlias
 
 import numpy as np
 import psycopg
 import structlog
 from ddtrace import tracer
-from pgvector.psycopg import register_vector_async
+from pgvector.psycopg import register_vector_async  # type: ignore
 from psycopg import AsyncConnection, sql
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
@@ -51,12 +50,10 @@ class Config:
     version: str
     embedding: OpenAI
     processing: CloudFunctions
-    chunking: Union[
-        LangChainCharacterTextSplitter, LangChainRecursiveCharacterTextSplitter
-    ] = Field(..., discriminator="implementation")
-    formatting: Union[PythonTemplate, ChunkValue] = Field(
-        ..., discriminator="implementation"
-    )
+    chunking: (
+        LangChainCharacterTextSplitter | LangChainRecursiveCharacterTextSplitter
+    ) = Field(..., discriminator="implementation")
+    formatting: PythonTemplate | ChunkValue = Field(..., discriminator="implementation")
 
 
 @dataclass
@@ -196,7 +193,7 @@ class VectorizerQueryBuilder:
             self.target_table_ident,
             self.pk_fields_sql,
         )
-    
+
     @cached_property
     def insert_embeddings_query(self) -> sql.Composed:
         return sql.SQL(
@@ -215,7 +212,7 @@ class VectorizerQueryBuilder:
             self.errors_table_ident,
         )
 
-    def _pks_placeholders_tuples(self, items_count) -> sql.Composed:
+    def _pks_placeholders_tuples(self, items_count: int) -> sql.Composed:
         """Generates a comma separated list of tuples with placeholders for the
         primary key fields of the source table.
 
@@ -241,6 +238,7 @@ class VectorizerQueryBuilder:
         )
         return tuples
 
+
 class ProcessingStats:
     total_processing_time: float
     total_chunks: int
@@ -248,13 +246,18 @@ class ProcessingStats:
     wall_start: float
 
     def __new__(cls):
-        if not hasattr(cls, '_instance'):
+        if not hasattr(cls, "_instance"):
             cls._instance = super().__new__(cls)
-            
-            logger.debug("ProcessingStats initialized", thread_id = threading.get_native_id(), active_count = threading.active_count(), task=id(asyncio.current_task()))
+
+            logger.debug(
+                "ProcessingStats initialized",
+                thread_id=threading.get_native_id(),
+                active_count=threading.active_count(),
+                task=id(asyncio.current_task()),
+            )
             cls._instance.total_processing_time = 0.0
             cls._instance.total_chunks = 0
-            cls._instance.wall_start = time.perf_counter()  
+            cls._instance.wall_start = time.perf_counter()
         return cls._instance
 
     def add_request_time(self, duration: float, chunk_count: int):
@@ -262,11 +265,23 @@ class ProcessingStats:
         self.total_chunks += chunk_count
 
     async def print_stats(self):
-        chunks_per_second_per_thread = self.total_chunks / self.total_processing_time if self.total_processing_time > 0 else 0
+        chunks_per_second_per_thread = (
+            self.total_chunks / self.total_processing_time
+            if self.total_processing_time > 0
+            else 0
+        )
         wall_time = time.perf_counter() - self.wall_start
         chunks_per_second = self.total_chunks / wall_time if wall_time > 0 else 0
-        await logger.adebug("Processing stats", wall_time = wall_time, 
-                      total_processing_time = self.total_processing_time, total_chunks = self.total_chunks, chunks_per_second = chunks_per_second, chunks_per_second_per_thread = chunks_per_second_per_thread, task=id(asyncio.current_task()))
+        await logger.adebug(
+            "Processing stats",
+            wall_time=wall_time,
+            total_processing_time=self.total_processing_time,
+            total_chunks=self.total_chunks,
+            chunks_per_second=chunks_per_second,
+            chunks_per_second_per_thread=chunks_per_second_per_thread,
+            task=id(asyncio.current_task()),
+        )
+
 
 class Worker:
     _queue_table_oid = None
@@ -284,7 +299,7 @@ class Worker:
             The number of tasks processed from the work queue.
         """
         res = 0
-        
+
         async with await psycopg.AsyncConnection.connect(self.db_url) as conn:
             await register_vector_async(conn)
             while True:
@@ -296,7 +311,7 @@ class Worker:
     @tracer.wrap()
     async def _do_batch(self, conn: AsyncConnection) -> int:
         processing_stats = ProcessingStats()
-        try:    
+        try:
             start_time = time.perf_counter()
             async with conn.transaction():
                 items = await self._fetch_work(conn)
@@ -319,10 +334,12 @@ class Worker:
                     return 0
 
                 num_chunks = await self._embed_and_write(conn, items)
-                
-                processing_stats.add_request_time(time.perf_counter() - start_time, num_chunks)
+
+                processing_stats.add_request_time(
+                    time.perf_counter() - start_time, num_chunks
+                )
                 await processing_stats.print_stats()
-                
+
                 return len(items)
         except EmbeddingProviderError as e:
             async with conn.transaction():
@@ -333,7 +350,7 @@ class Worker:
                         e.msg,
                         Jsonb(
                             {
-                                "provider": self.vectorizer.config.embedding.implementation,
+                                "provider": self.vectorizer.config.embedding.implementation,  # noqa
                                 "error_reason": str(e.__cause__),
                             }
                         ),
@@ -343,7 +360,7 @@ class Worker:
             # the lines about our wrapper exception being casused by
             # the actual exception.
             if e.__cause__ is not None:
-                raise e.__cause__
+                raise e.__cause__  # noqa
             raise e
         except Exception as e:
             async with conn.transaction():
@@ -355,8 +372,8 @@ class Worker:
                         Jsonb({"error_reason": str(e)}),
                     ),
                 )
-            raise e 
-    
+            raise e
+
     async def _fetch_work(self, conn: AsyncConnection) -> list[SourceRow]:
         """Fetches a batch of tasks from the work queue table. It's safe for
         concurrent use.
@@ -419,11 +436,11 @@ class Worker:
 
         await self._delete_embeddings(conn, items)
         records, errors = await self._generate_embeddings(items)
-        #await self._insert_embeddings(conn, records)
+        # await self._insert_embeddings(conn, records)
         await self._copy_embeddings(conn, records)
         if errors:
             await self._insert_vectorizer_errors(conn, errors)
-        
+
         return len(records)
 
     async def _delete_embeddings(self, conn: AsyncConnection, items: list[SourceRow]):
@@ -441,19 +458,22 @@ class Worker:
         """Inserts embeddings into the embedding table"""
         async with conn.cursor() as cursor:
             await cursor.executemany(self.queries.insert_embeddings_query, records)
-            
+
     @tracer.wrap()
     async def _copy_embeddings(
         self,
         conn: AsyncConnection,
         records: list[EmbeddingRecord],
     ):
-        """Inserts embeddings into the embedding table using COPY FROM STDIN WITH (FORMAT BINARY)"""
-        async with conn.cursor(binary=True) as cursor:
-            async with cursor.copy(self.queries.copy_embeddings_query) as copy:
-                copy.set_types(self.queries.copy_types)
-                for record in records:
-                    await copy.write_row(record)
+        """Inserts embeddings into the embedding table using
+        COPY FROM STDIN WITH (FORMAT BINARY)"""
+        async with (
+            conn.cursor(binary=True) as cursor,
+            cursor.copy(self.queries.copy_embeddings_query) as copy,
+        ):
+            copy.set_types(self.queries.copy_types)
+            for record in records:
+                await copy.write_row(record)
 
     async def _insert_vectorizer_errors(
         self,
@@ -480,8 +500,8 @@ class Worker:
         self, items: list[SourceRow]
     ) -> tuple[list[EmbeddingRecord], list[VectorizerErrorRecord]]:
         """Generates the embeddings for the items."""
-        records_without_embeddings = []
-        documents = []
+        records_without_embeddings: list[EmbeddingRecord] = []
+        documents: list[str] = []
         for item in items:
             pk = self._get_item_pk_values(item)
             chunks = self.vectorizer.config.chunking.into_chunks(item)
@@ -502,9 +522,11 @@ class Worker:
 
         assert len(embeddings) == len(records_without_embeddings)
 
-        records = []
-        errors = []
-        for record, embedding in zip(records_without_embeddings, embeddings):
+        records: list[EmbeddingRecord] = []
+        errors: list[VectorizerErrorRecord] = []
+        for record, embedding in zip(
+            records_without_embeddings, embeddings, strict=True
+        ):
             if isinstance(embedding, ChunkEmbeddingError):
                 errors.append(self._vectorizer_error_record(record, embedding))
             else:

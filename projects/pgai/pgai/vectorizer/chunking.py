@@ -7,6 +7,7 @@ from langchain_text_splitters import (
     RecursiveCharacterTextSplitter,
 )
 from pydantic import BaseModel
+from typing_extensions import override
 
 
 class Chunker(ABC):
@@ -32,6 +33,7 @@ class LangChainCharacterTextSplitter(BaseModel, Chunker):
             is_separator_regex=self.is_separator_regex,
         )
 
+    @override
     def into_chunks(self, item: dict[str, Any]) -> list[str]:
         return self._chunker.split_text(item[self.chunk_column])
 
@@ -53,5 +55,6 @@ class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
             is_separator_regex=self.is_separator_regex,
         )
 
+    @override
     def into_chunks(self, item: dict[str, Any]) -> list[str]:
         return self._chunker.split_text(item[self.chunk_column])

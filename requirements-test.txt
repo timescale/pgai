@@ -1,11 +1,12 @@
 # this requirements file is used in the development docker image for running tests, linting, etc.
 # it is also referred to from requirements-dev.txt for use on host development machines
 
-ruff==0.5.5
+ruff==0.6.9
 pytest==8.3.2
 python-dotenv==1.0.1
 fastapi==0.112.0
 fastapi-cli==0.0.5
 vcrpy==6.0.1
-pyright==1.1.381
+pyright==1.1.384
 psycopg[binary]==3.2.1
+testcontainers==4.8.1

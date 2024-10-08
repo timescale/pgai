@@ -82,8 +82,12 @@ test-server:
 vectorizer:
 	@./build.py vectorizer
 
+.PHONY: test-vectorizer
+test-vectorizer:
+	@cd projects/pgai && pytest
+
 .PHONY: test
-test:
+test: test-vectorizer
 	@./build.py test
 
 .PHONY: lint-sql
@@ -91,12 +95,16 @@ lint-sql:
 	@./build.py lint-sql
 
 .PHONY: lint-py
-lint-py:
+lint-py: type-check-py
 	@./build.py lint-py
 
 .PHONY: lint
-lint:
+lint: type-check-py
 	@./build.py lint
+
+.PHONY: type-check-py
+type-check-py:
+	pyright
 
 .PHONY: format-py
 format-py:
@@ -146,4 +154,3 @@ docker-shell:
 .PHONY: psql-shell
 psql-shell:
 	@docker exec -it -u postgres pgai /bin/bash -c "set -e; if [ -f .env ]; then set -a; source .env; set +a; fi; psql"
-

@@ -62,6 +62,8 @@ RUN set -eux; \
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 COPY requirements-test.txt /build/requirements-test.txt
 RUN pip install -r /build/requirements-test.txt
+COPY projects/pgai/requirements.txt /build/requirements-pgai.txt
+RUN pip install -r /build/requirements-pgai.txt
 RUN rm -r /build
 
 WORKDIR /pgai

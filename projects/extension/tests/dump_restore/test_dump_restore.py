@@ -67,7 +67,7 @@ def dump_db() -> None:
 def restore_db() -> None:
     with psycopg.connect(db_url(user=USER, dbname="dst")) as con:
         with con.cursor() as cur:
-            cur.execute(f"create extension ai cascade")
+            cur.execute("create extension ai cascade")
     cmd = " ".join([
         "psql",
         f'''-d "{db_url(USER, "dst")}"''',
@@ -145,4 +145,3 @@ def test_dump_restore():
     assert dst == src
     after_dst()  # make sure we can USE the restored db
     assert count_vectorizers() == 2
-

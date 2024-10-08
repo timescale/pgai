@@ -1,10 +1,10 @@
+import json
 import os
 import subprocess
-import json
 
 import psycopg
-from psycopg.rows import namedtuple_row
 import pytest
+from psycopg.rows import namedtuple_row
 
 # skip tests in this module if disabled
 enable_vectorizer_tests = os.getenv("ENABLE_VECTORIZER_TESTS")
@@ -249,7 +249,7 @@ def test_vectorizer_timescaledb():
             assert actual == 3
 
             # bob should have select on the source table
-            cur.execute(f"select has_table_privilege('bob', 'website.blog', 'select')")
+            cur.execute("select has_table_privilege('bob', 'website.blog', 'select')")
             actual = cur.fetchone()[0]
             assert actual
 
@@ -375,7 +375,7 @@ def test_vectorizer_timescaledb():
                     cur2.execute("begin transaction")
                     # lock 1 row from the queue
                     cur2.execute(f"select * from {vec.queue_schema}.{vec.queue_table} where title = 'how to grill a steak' for update")
-                    locked = cur2.fetchone()
+                    cur2.fetchone()
                     # check that vectorizer queue depth still gets the correct count
                     cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
                     actual = cur.fetchone()[0]
@@ -528,7 +528,7 @@ def test_drop_vectorizer():
             assert actual == 0
 
             # does the func that backed the trigger exist? (it should not)
-            cur.execute(f"""
+            cur.execute("""
                 select count(*)
                 from pg_proc
                 where oid = %s
@@ -537,7 +537,7 @@ def test_drop_vectorizer():
             assert actual == 0
 
             # does the timescaledb job exist? (it should not)
-            cur.execute(f"""
+            cur.execute("""
                 select count(*)
                 from timescaledb_information.jobs
                 where job_id = %s
@@ -625,7 +625,7 @@ def index_creation_tester(cur: psycopg.Cursor, vectorizer_id: int) -> None:
     cur.execute(f"insert into {vectorizer.queue_schema}.{vectorizer.queue_table}(id) select generate_series(1, 5)")
 
     # should NOT create index
-    cur.execute(f"""
+    cur.execute("""
         select ai._vectorizer_should_create_vector_index(v)
         from ai.vectorizer v
         where v.id = %s
@@ -650,7 +650,7 @@ def index_creation_tester(cur: psycopg.Cursor, vectorizer_id: int) -> None:
     cur.execute(f"delete from {vectorizer.queue_schema}.{vectorizer.queue_table}")
 
     # SHOULD create index
-    cur.execute(f"""
+    cur.execute("""
         select ai._vectorizer_should_create_vector_index(v)
         from ai.vectorizer v
         where v.id = %s

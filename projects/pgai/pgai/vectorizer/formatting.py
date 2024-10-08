@@ -15,7 +15,7 @@ class Formatter(ABC):
 class ChunkValue(BaseModel, Formatter):
     implementation: Literal["chunk_value"]
 
-    def format(self, chunk: str, item: dict[str, Any]) -> str:
+    def format(self, chunk: str, item: dict[str, Any]) -> str:  # noqa
         return chunk
 
 
