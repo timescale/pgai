@@ -2452,7 +2452,6 @@ declare
     _sql text;
     _found bool;
     _count bigint;
-    _indexing jsonb;
 begin
     set local search_path = pg_catalog, pg_temp;
     if config is null then
@@ -2504,18 +2503,17 @@ begin
     if coalesce(_found, false) is true then
         -- count total items in the queue
         select pg_catalog.format
-        ( $sql$select count(1) from (select 1 from %I.%I limit 501) $sql$
+        ( $sql$select pg_catalog.count(1) from (select 1 from %I.%I limit 501) $sql$
         , _vec.queue_schema, _vec.queue_table
         ) into strict _sql
         ;
-        execute _sql into _count;
+        execute _sql into strict _count;
         commit;
         set local search_path = pg_catalog, pg_temp;
         -- for every 50 items in the queue, execute a vectorizer max out at 10 vectorizers
         _count = least(pg_catalog.ceil(_count::float8 / 50.0::float8), 10::float8)::bigint;
         raise debug 'job_id %: executing % vectorizers...', job_id, _count;
-        while _count > 0
-        loop
+        while _count > 0 loop
             -- execute the vectorizer
             perform ai.execute_vectorizer(_vectorizer_id);
             _count = _count - 1;
@@ -2539,7 +2537,6 @@ declare
     _implementation text;
     _sql text;
     _extension_schema name;
-    _found bool;
     _job_id bigint;
 begin
     select pg_catalog.jsonb_extract_path_text(scheduling, 'implementation')
