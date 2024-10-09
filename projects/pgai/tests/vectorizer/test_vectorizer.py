@@ -3,7 +3,7 @@ import os
 import psycopg
 import pytest
 from psycopg.rows import namedtuple_row
-from psycopg.sql import SQL
+from psycopg.sql import SQL, Identifier
 
 from pgai import cli
 
@@ -25,9 +25,11 @@ def create_database(dbname: str) -> None:
         con.cursor() as cur,
     ):
         cur.execute(
-            SQL("drop database if exists {dbname} with (force)").format(dbname=dbname)
+            SQL("drop database if exists {dbname} with (force)").format(
+                dbname=Identifier(dbname)
+            )
         )
-        cur.execute(SQL("create database {dbname}").format(dbname=dbname))
+        cur.execute(SQL("create database {dbname}").format(dbname=Identifier(dbname)))
 
 
 def test_vectorizer_internal():
@@ -113,8 +115,8 @@ def test_vectorizer_internal():
 
         cur.execute(
             SQL("select count(*) from {target_schema}.{target_table}").format(
-                target_schema=vectorizer_expected.target_schema,  # type: ignore
-                target_table=vectorizer_expected.target_table,  # type: ignore
+                target_schema=Identifier(vectorizer_expected.target_schema),  # type: ignore
+                target_table=Identifier(vectorizer_expected.target_table),  # type: ignore
             )
         )
         actual = cur.fetchone()[0]  # type: ignore
