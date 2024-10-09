@@ -46,11 +46,9 @@ async def run_workers(
 
 
 def set_log_level(cf: CloudFunctions):
-    mapping = logging.getLevelNamesMapping()
-    if cf.log_level != "INFO" and cf.log_level in mapping:
-        structlog.configure(
-            wrapper_class=structlog.make_filtering_bound_logger(mapping[cf.log_level])
-        )
+    level = logging.getLevelName(cf.log_level)  # type: ignore
+    if cf.log_level != "INFO" and isinstance(level, int):
+        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(level))
 
 
 def lambda_handler(raw_event: dict[str, Any], _: Any) -> dict[str, int]:

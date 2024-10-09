@@ -87,7 +87,7 @@ test-vectorizer:
 	@cd projects/pgai && pytest
 
 .PHONY: test
-test: test-vectorizer
+test:
 	@./build.py test
 
 .PHONY: lint-sql
