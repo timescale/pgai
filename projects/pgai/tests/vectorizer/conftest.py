@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import psycopg
@@ -34,9 +35,11 @@ def __env_setup(monkeypatch):  # type:ignore
 
 @pytest.fixture(scope="session")
 def vcr_():
+    cassette_library_dir = Path(__file__).parent.joinpath("cassettes")
+    cassette_library_dir.mkdir(exist_ok=True)
     return vcr.VCR(
         serializer="yaml",
-        cassette_library_dir="tests/vectorizer/cassettes",
+        cassette_library_dir=str(cassette_library_dir),
         record_mode=vcr.mode.ONCE,
         filter_headers=["authorization"],
         match_on=["method", "scheme", "host", "port", "path", "query", "body"],
