@@ -64,7 +64,7 @@ def pg_major() -> str | None:
     return os.getenv("PG_MAJOR")
 
 
-def project_dir() -> Path:
+def root_dir() -> Path:
     return Path(__file__).resolve().parent
 
 
@@ -73,7 +73,7 @@ def sql_dir() -> Path:
 
 
 def projects_dir() -> Path:
-    return project_dir().joinpath("projects").resolve()
+    return root_dir().joinpath("projects").resolve()
 
 
 def project_extension_dir() -> Path:
@@ -135,7 +135,7 @@ def output_sql_file() -> Path:
 
 
 def tests_dir() -> Path:
-    return project_dir().joinpath("projects/extension/tests")
+    return project_extension_dir().joinpath("tests").absolute()
 
 
 def where_am_i() -> str:
@@ -255,7 +255,7 @@ def pg_config() -> Path:
     return postgres_bin_dir().joinpath("pg_config")
 
 
-def extension_dir() -> Path:
+def extension_install_dir() -> Path:
     proc = subprocess.run(
         f"{pg_config()} --sharedir",
         check=True,
@@ -268,7 +268,7 @@ def extension_dir() -> Path:
 
 
 def install_sql() -> None:
-    ext_dir = extension_dir()
+    ext_dir = extension_install_dir()
     if not ext_dir.exists():
         print(f"extension directory does not exist: {ext_dir}", file=sys.stderr)
         sys.exit(1)
@@ -285,7 +285,7 @@ def install_sql() -> None:
 
 
 def uninstall_sql() -> None:
-    ext_dir = extension_dir()
+    ext_dir = extension_install_dir()
     if not ext_dir.exists():
         return
     for f in ext_dir.glob("ai*.control"):
@@ -497,8 +497,8 @@ def clean() -> None:
 
 def test_server() -> None:
     if where_am_i() == "host":
-        cmd = "docker exec -it -w /projects/extension/tests/vectorizer pgai fastapi dev server.py"
-        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
+        cmd = "docker exec -it -w /pgai/projects/extension/tests/vectorizer pgai fastapi dev server.py"
+        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=root_dir())
     else:
         cmd = "fastapi dev server.py"
         subprocess.run(
@@ -513,7 +513,7 @@ def test_server() -> None:
 def vectorizer() -> None:
     if where_am_i() == "host":
         cmd = "docker exec -it pgai vectorizer --version"
-        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
+        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=root_dir())
     else:
         cmd = "vectorizer --version"
         subprocess.run(
@@ -521,7 +521,7 @@ def vectorizer() -> None:
             shell=True,
             check=True,
             env=os.environ,
-            cwd=project_dir(),
+            cwd=root_dir(),
         )
 
 
@@ -569,7 +569,7 @@ def docker_build() -> None:
         check=True,
         env=os.environ,
         text=True,
-        cwd=project_dir(),
+        cwd=root_dir(),
     )
 
 
@@ -593,7 +593,7 @@ def docker_run() -> None:
         [
             "docker run -d --name pgai -p 127.0.0.1:5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust",
             "-v /var/run/docker.sock:/var/run/docker.sock",
-            f"--mount type=bind,src={project_dir()},dst=/pgai",
+            f"--mount type=bind,src={root_dir()},dst=/pgai",
             env_var,  # Include the environment variable if on macOS
             "pgai",
             "-c shared_preload_libraries='timescaledb, pgextwlist'",
@@ -648,11 +648,11 @@ def run() -> None:
     docker_build()
     docker_run()
     cmd = "docker exec pgai make build-install"
-    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
+    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=root_dir())
     cmd = 'docker exec -u postgres pgai psql -c "create extension ai cascade"'
-    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
+    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=root_dir())
     cmd = "docker exec -it -d -w /pgai/tests pgai fastapi dev server.py"
-    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
+    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=root_dir())
 
 
 if __name__ == "__main__":
