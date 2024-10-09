@@ -36,9 +36,13 @@ def vectorizer_src_dir() -> Path:
     return p
 
 
+def tiktoken_cache_dir() -> Path:
+    return vectorizer_src_dir().parent.joinpath("pgai", "tiktoken_cache").resolve()
+
+
 @pytest.fixture(scope="module", autouse=True)
 def create_tiktoken_cache_dir_if_missing() -> None:
-    d = vectorizer_src_dir().joinpath("tiktoken_cache").resolve()
+    d = tiktoken_cache_dir()
     if not d.is_dir():
         d.mkdir(exist_ok=True, parents=True)
 
@@ -47,6 +51,7 @@ def test_bad_db_url():
     _db_url = db_url("postgres", "this_is_not_a_db")
     env = os.environ.copy()
     env["VECTORIZER_DB_URL"] = _db_url
+    env["TIKTOKEN_CACHE_DIR"] = str(tiktoken_cache_dir())
     env["OPENAI_API_KEY"] = "this_is_not_a_key"
     p = subprocess.run(
         "python3 -m pgai",
@@ -77,6 +82,7 @@ def test_pgai_not_installed():
     _db_url = db_url("postgres", db)
     env = os.environ.copy()
     env["VECTORIZER_DB_URL"] = _db_url
+    env["TIKTOKEN_CACHE_DIR"] = str(tiktoken_cache_dir())
     env["OPENAI_API_KEY"] = "this_is_not_a_key"
     p = subprocess.run(
         "python3 -m pgai",
@@ -151,6 +157,7 @@ def test_vectorizer_cli():
             vectorizer = cur.fetchone()
 
     env = os.environ.copy()
+    env["TIKTOKEN_CACHE_DIR"] = str(tiktoken_cache_dir())
     env["VECTORIZER_DB_URL"] = _db_url
     subprocess.run(
         f"python3 -m pgai -i {vectorizer_id}",
