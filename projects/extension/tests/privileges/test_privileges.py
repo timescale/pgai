@@ -35,13 +35,15 @@ def read_file(filename: str) -> str:
 
 
 def psql_file(user, dbname, file: str) -> None:
-    cmd = " ".join([
-        "psql",
-        f'''-d "{db_url(user, dbname)}"''',
-        "-v ON_ERROR_STOP=1",
-        "-X",
-        f"-f {docker_dir()}/{file}",
-    ])
+    cmd = " ".join(
+        [
+            "psql",
+            f'''-d "{db_url(user, dbname)}"''',
+            "-v ON_ERROR_STOP=1",
+            "-X",
+            f"-f {docker_dir()}/{file}",
+        ]
+    )
     if where_am_i() != "docker":
         cmd = f"docker exec -w {docker_dir()} pgai {cmd}"
     subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
@@ -82,4 +84,3 @@ def test_function_privileges():
 
 def test_jill_privileges():
     psql_file("jill", "privs", "jill.sql")
-

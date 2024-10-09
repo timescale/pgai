@@ -13,8 +13,8 @@ DB_URL = "postgres://postgres@127.0.0.1:5432/test"
 
 
 class ChunkingCharacterTextSplitter(BaseModel):
-    implementation: Literal['character_text_splitter']
-    config_type: Literal['chunking']
+    implementation: Literal["character_text_splitter"]
+    config_type: Literal["chunking"]
     chunk_column: str
     chunk_size: int
     chunk_overlap: int
@@ -23,8 +23,8 @@ class ChunkingCharacterTextSplitter(BaseModel):
 
 
 class ChunkingRecursiveCharacterTextSplitter(BaseModel):
-    implementation: Literal['recursive_character_text_splitter']
-    config_type: Literal['chunking']
+    implementation: Literal["recursive_character_text_splitter"]
+    config_type: Literal["chunking"]
     chunk_column: str
     chunk_size: int
     chunk_overlap: int
@@ -33,30 +33,30 @@ class ChunkingRecursiveCharacterTextSplitter(BaseModel):
 
 
 class EmbeddingOpenAI(BaseModel):
-    implementation: Literal['openai']
-    config_type: Literal['embedding']
+    implementation: Literal["openai"]
+    config_type: Literal["embedding"]
     model: str
     dimensions: int
     user: str | None = None
-    api_key_name: str | None = 'OPENAI_API_KEY'
+    api_key_name: str | None = "OPENAI_API_KEY"
 
 
 class FormattingPythonTemplate(BaseModel):
-    implementation: Literal['python_template']
-    config_type: Literal['formatting']
+    implementation: Literal["python_template"]
+    config_type: Literal["formatting"]
     template: str
 
 
 class IndexingNone(BaseModel):
-    implementation: Literal['none']
-    config_type: Literal['indexing']
+    implementation: Literal["none"]
+    config_type: Literal["indexing"]
 
 
 class IndexingDiskANN(BaseModel):
-    implementation: Literal['diskann']
-    config_type: Literal['indexing']
+    implementation: Literal["diskann"]
+    config_type: Literal["indexing"]
     min_rows: int
-    storage_layout: Literal['memory_optimized'] | Literal['plain'] | None = None
+    storage_layout: Literal["memory_optimized"] | Literal["plain"] | None = None
     num_neighbors: int | None = None
     search_list_size: int | None = None
     max_alpha: float | None = None
@@ -65,28 +65,33 @@ class IndexingDiskANN(BaseModel):
 
 
 class IndexingHNSW(BaseModel):
-    implementation: Literal['hnsw']
-    config_type: Literal['indexing']
+    implementation: Literal["hnsw"]
+    config_type: Literal["indexing"]
     min_rows: int
-    opclass: Literal['vector_ip_ops'] | Literal['vector_cosine_ops'] | Literal['vector_l1_ops'] | None = None
+    opclass: (
+        Literal["vector_ip_ops"]
+        | Literal["vector_cosine_ops"]
+        | Literal["vector_l1_ops"]
+        | None
+    ) = None
     m: int | None = None
     ef_construction: int | None = None
 
 
 class SchedulingNone(BaseModel):
-    implementation: Literal['none']
-    config_type: Literal['scheduling']
+    implementation: Literal["none"]
+    config_type: Literal["scheduling"]
 
 
 class SchedulingPgCron(BaseModel):
-    implementation: Literal['pg_cron']
-    config_type: Literal['scheduling']
+    implementation: Literal["pg_cron"]
+    config_type: Literal["scheduling"]
     schedule: str
 
 
 class SchedulingTimescaledb(BaseModel):
-    implementation: Literal['timescaledb']
-    config_type: Literal['scheduling']
+    implementation: Literal["timescaledb"]
+    config_type: Literal["scheduling"]
     schedule_interval: str | None = None
     initial_start: datetime | None = None
     fixed_schedule: bool | None = None
@@ -94,25 +99,33 @@ class SchedulingTimescaledb(BaseModel):
 
 
 class ProcessingNone(BaseModel):
-    implementation: Literal['none']
-    config_type: Literal['processing']
+    implementation: Literal["none"]
+    config_type: Literal["processing"]
 
 
 class ProcessingCloudFunctions(BaseModel):
-    implementation: Literal['cloud_functions']
-    config_type: Literal['processing']
+    implementation: Literal["cloud_functions"]
+    config_type: Literal["processing"]
     batch_size: int | None = None
     concurrency: int | None = None
 
 
 class Config(BaseModel):
     version: str
-    indexing: Union[IndexingNone, IndexingDiskANN, IndexingHNSW] = Field(..., discriminator='implementation')
+    indexing: Union[IndexingNone, IndexingDiskANN, IndexingHNSW] = Field(
+        ..., discriminator="implementation"
+    )
     formatting: FormattingPythonTemplate
     embedding: EmbeddingOpenAI
-    scheduling: Union[SchedulingNone, SchedulingPgCron, SchedulingTimescaledb] = Field(..., discriminator='implementation')
-    chunking: Union[ChunkingCharacterTextSplitter, ChunkingRecursiveCharacterTextSplitter] = Field(..., discriminator='implementation')
-    processing: Union[ProcessingNone, ProcessingCloudFunctions] = Field(..., discriminator='implementation')
+    scheduling: Union[SchedulingNone, SchedulingPgCron, SchedulingTimescaledb] = Field(
+        ..., discriminator="implementation"
+    )
+    chunking: Union[
+        ChunkingCharacterTextSplitter, ChunkingRecursiveCharacterTextSplitter
+    ] = Field(..., discriminator="implementation")
+    processing: Union[ProcessingNone, ProcessingCloudFunctions] = Field(
+        ..., discriminator="implementation"
+    )
 
 
 class PrimaryKeyColumn(BaseModel):
@@ -162,4 +175,3 @@ async def execute_vectorizer(vectorizer: Vectorizer):
     deleted = vectorize(vectorizer)
     print(f"queue emptied: {deleted} rows deleted")
     return {"id": vectorizer.id}
-

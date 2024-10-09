@@ -30,14 +30,16 @@ def host_dir() -> Path:
 
 
 def init() -> None:
-    cmd = " ".join([
-        "psql",
-        f'''-d "{db_url("postgres", "postgres")}"''',
-        "-v ON_ERROR_STOP=1",
-        "-X",
-        f"-o {docker_dir()}/output.actual",
-        f"-f {docker_dir()}/init.sql",
-    ])
+    cmd = " ".join(
+        [
+            "psql",
+            f'''-d "{db_url("postgres", "postgres")}"''',
+            "-v ON_ERROR_STOP=1",
+            "-X",
+            f"-o {docker_dir()}/output.actual",
+            f"-f {docker_dir()}/init.sql",
+        ]
+    )
     if where_am_i() != "docker":
         cmd = f"docker exec -w {docker_dir()} pgai {cmd}"
     subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))

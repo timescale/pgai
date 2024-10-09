@@ -218,15 +218,15 @@ def test_validate_indexing():
     bad = [
         (
             "select ai._validate_indexing(ai.indexing_hnsw(opclass=>'peter'))",
-            "invalid opclass"
+            "invalid opclass",
         ),
         (
             "select ai._validate_indexing(ai.indexing_diskann(storage_layout=>'super_advanced'))",
-            "invalid storage"
+            "invalid storage",
         ),
         (
             "select ai._validate_indexing(ai.scheduling_none())",
-            "invalid config_type for indexing config"
+            "invalid config_type for indexing config",
         ),
     ]
     with psycopg.connect(db_url("test"), autocommit=True) as con:
@@ -239,7 +239,6 @@ def test_validate_indexing():
                     cur.execute(query)
                 except psycopg.ProgrammingError as ex:
                     msg = str(ex.args[0])
-                    assert len(msg) >= len(err) and msg[:len(err)] == err
+                    assert len(msg) >= len(err) and msg[: len(err)] == err
                 else:
                     pytest.fail(f"expected exception: {err}")
-

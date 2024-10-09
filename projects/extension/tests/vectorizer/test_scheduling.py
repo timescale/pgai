@@ -107,11 +107,11 @@ def test_validate_scheduling():
     bad = [
         (
             "select ai._validate_scheduling(ai.indexing_hnsw(opclass=>'peter'))",
-            "invalid config_type for scheduling config"
+            "invalid config_type for scheduling config",
         ),
         (
             """select ai._validate_scheduling('{"config_type": "scheduling"}'::jsonb)""",
-            "scheduling implementation not specified"
+            "scheduling implementation not specified",
         ),
         (
             """
@@ -119,7 +119,7 @@ def test_validate_scheduling():
             ( '{"config_type": "scheduling", "implementation": "grandfather clock"}'::jsonb
             )
             """,
-            'unrecognized scheduling implementation: "grandfather clock"'
+            'unrecognized scheduling implementation: "grandfather clock"',
         ),
     ]
     with psycopg.connect(db_url("test"), autocommit=True) as con:
@@ -132,7 +132,6 @@ def test_validate_scheduling():
                     cur.execute(query)
                 except psycopg.ProgrammingError as ex:
                     msg = str(ex.args[0])
-                    assert len(msg) >= len(err) and msg[:len(err)] == err
+                    assert len(msg) >= len(err) and msg[: len(err)] == err
                 else:
                     pytest.fail(f"expected exception: {err}")
-

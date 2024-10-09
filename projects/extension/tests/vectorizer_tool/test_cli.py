@@ -17,18 +17,22 @@ def db_url(user: str, dbname: str) -> str:
 
 
 def create_database(dbname: str) -> None:
-    with psycopg.connect(db_url(user="postgres", dbname="postgres"), autocommit=True) as con:
+    with psycopg.connect(
+        db_url(user="postgres", dbname="postgres"), autocommit=True
+    ) as con:
         with con.cursor() as cur:
             cur.execute(f"drop database if exists {dbname} with (force)")
             cur.execute(f"create database {dbname}")
 
 
 def vectorizer_src_dir() -> Path:
-    p = (Path(__file__)
-         .parent  # vectorizer_tool
-         .parent  # tests
-         .parent  # project root
-         .joinpath("src", "vectorizer").resolve())
+    p = (
+        Path(__file__)
+        .parent.parent.parent.joinpath(  # vectorizer_tool  # tests  # project root
+            "src", "vectorizer"
+        )
+        .resolve()
+    )
     return p
 
 
@@ -45,24 +49,26 @@ def test_bad_db_url():
     env["VECTORIZER_DB_URL"] = _db_url
     env["OPENAI_API_KEY"] = "this_is_not_a_key"
     with pytest.raises(subprocess.CalledProcessError):
-        subprocess.run("python3 -m vectorizer",
-                       shell=True,
-                       check=True,
-                       text=True,
-                       capture_output=True,
-                       env=env,
-                       cwd=vectorizer_src_dir(),
-                       )
+        subprocess.run(
+            "python3 -m vectorizer",
+            shell=True,
+            check=True,
+            text=True,
+            capture_output=True,
+            env=env,
+            cwd=vectorizer_src_dir(),
+        )
     env.pop("VECTORIZER_DB_URL")
     with pytest.raises(subprocess.CalledProcessError):
-        subprocess.run(f"python3 -m vectorizer -d '{_db_url}'",
-                       shell=True,
-                       check=True,
-                       text=True,
-                       capture_output=True,
-                       env=env,
-                       cwd=vectorizer_src_dir(),
-                       )
+        subprocess.run(
+            f"python3 -m vectorizer -d '{_db_url}'",
+            shell=True,
+            check=True,
+            text=True,
+            capture_output=True,
+            env=env,
+            cwd=vectorizer_src_dir(),
+        )
 
 
 def test_pgai_not_installed():
@@ -72,23 +78,25 @@ def test_pgai_not_installed():
     env = os.environ.copy()
     env["VECTORIZER_DB_URL"] = _db_url
     env["OPENAI_API_KEY"] = "this_is_not_a_key"
-    p = subprocess.run("python3 -m vectorizer",
-                       shell=True,
-                       capture_output=True,
-                       text=True,
-                       env=env,
-                       cwd=vectorizer_src_dir(),
-                       )
+    p = subprocess.run(
+        "python3 -m vectorizer",
+        shell=True,
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=vectorizer_src_dir(),
+    )
     assert p.returncode == 1
     assert "the pgai extension is not installed" in str(p.stdout)
     env.pop("VECTORIZER_DB_URL")
-    p = subprocess.run(f"python3 -m vectorizer -d '{_db_url}'",
-                       shell=True,
-                       capture_output=True,
-                       text=True,
-                       env=env,
-                       cwd=vectorizer_src_dir(),
-                       )
+    p = subprocess.run(
+        f"python3 -m vectorizer -d '{_db_url}'",
+        shell=True,
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=vectorizer_src_dir(),
+    )
     assert p.returncode == 1
     assert "the pgai extension is not installed" in str(p.stdout)
 
@@ -144,14 +152,15 @@ def test_vectorizer_cli():
 
     env = os.environ.copy()
     env["VECTORIZER_DB_URL"] = _db_url
-    subprocess.run(f"python3 -m vectorizer -i {vectorizer_id}",
+    subprocess.run(
+        f"python3 -m vectorizer -i {vectorizer_id}",
         shell=True,
         check=True,
         capture_output=True,
         text=True,
         env=env,
         cwd=vectorizer_src_dir(),
-        )
+    )
 
     with psycopg.connect(_db_url, autocommit=True, row_factory=namedtuple_row) as con:
         with con.cursor() as cur:

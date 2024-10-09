@@ -90,11 +90,11 @@ def test_validate_processing():
     bad = [
         (
             "select ai._validate_processing(ai.indexing_hnsw())",
-            "invalid config_type for processing config"
+            "invalid config_type for processing config",
         ),
         (
             """select ai._validate_processing('{"config_type": "processing"}'::jsonb)""",
-            "processing implementation not specified"
+            "processing implementation not specified",
         ),
         (
             """
@@ -102,7 +102,7 @@ def test_validate_processing():
             ( '{"config_type": "processing", "implementation": "grandfather clock"}'::jsonb
             )
             """,
-            'unrecognized processing implementation: "grandfather clock"'
+            'unrecognized processing implementation: "grandfather clock"',
         ),
         (
             """
@@ -110,7 +110,7 @@ def test_validate_processing():
             ( ai.processing_cloud_functions(batch_size=>2049)
             )
             """,
-            'batch_size must be less than or equal to 2048'
+            "batch_size must be less than or equal to 2048",
         ),
         (
             """
@@ -118,7 +118,7 @@ def test_validate_processing():
             ( ai.processing_cloud_functions(batch_size=>0)
             )
             """,
-            'batch_size must be greater than 0'
+            "batch_size must be greater than 0",
         ),
         (
             """
@@ -126,7 +126,7 @@ def test_validate_processing():
             ( ai.processing_cloud_functions(concurrency=>0)
             )
             """,
-            'concurrency must be greater than 0'
+            "concurrency must be greater than 0",
         ),
         (
             """
@@ -134,7 +134,7 @@ def test_validate_processing():
             ( ai.processing_cloud_functions(concurrency=>51)
             )
             """,
-            'concurrency must be less than or equal to 50'
+            "concurrency must be less than or equal to 50",
         ),
     ]
     with psycopg.connect(db_url("test"), autocommit=True) as con:
@@ -147,7 +147,6 @@ def test_validate_processing():
                     cur.execute(query)
                 except psycopg.ProgrammingError as ex:
                     msg = str(ex.args[0])
-                    assert len(msg) >= len(err) and msg[:len(err)] == err
+                    assert len(msg) >= len(err) and msg[: len(err)] == err
                 else:
                     pytest.fail(f"expected exception: {err}")
-

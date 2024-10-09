@@ -111,15 +111,17 @@ def test_validate_formatting():
             , 'public', 'thing2' -- has a column named "chunk"
             )
             """,
-            'invalid config_type for formatting config',
-        )
+            "invalid config_type for formatting config",
+        ),
     ]
     with psycopg.connect(db_url("test"), autocommit=True) as con:
         with con.cursor() as cur:
             cur.execute("drop table if exists public.thing;")
             cur.execute("create table public.thing (id int, color text, weight float)")
             cur.execute("drop table if exists public.thing2;")
-            cur.execute("create table public.thing2 (id int, color text, weight float, chunk text)")
+            cur.execute(
+                "create table public.thing2 (id int, color text, weight float, chunk text)"
+            )
             for query in ok:
                 cur.execute(query)
             for query, err in bad:
@@ -127,6 +129,6 @@ def test_validate_formatting():
                     cur.execute(query)
                 except psycopg.ProgrammingError as ex:
                     msg = str(ex.args[0])
-                    assert len(msg) >= len(err) and msg[:len(err)] == err
+                    assert len(msg) >= len(err) and msg[: len(err)] == err
                 else:
                     pytest.fail(f"expected exception: {err}")

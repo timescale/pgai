@@ -24,7 +24,7 @@ def test_chunking_character_text_splitter():
                 "chunk_column": "body",
                 "chunk_overlap": 400,
                 "implementation": "character_text_splitter",
-                "config_type": "chunking"
+                "config_type": "chunking",
             },
         ),
         (
@@ -36,7 +36,7 @@ def test_chunking_character_text_splitter():
                 "chunk_column": "body",
                 "chunk_overlap": 10,
                 "implementation": "character_text_splitter",
-                "config_type": "chunking"
+                "config_type": "chunking",
             },
         ),
         (
@@ -48,7 +48,7 @@ def test_chunking_character_text_splitter():
                 "chunk_column": "content",
                 "chunk_overlap": 20,
                 "implementation": "character_text_splitter",
-                "config_type": "chunking"
+                "config_type": "chunking",
             },
         ),
         (
@@ -68,7 +68,7 @@ def test_chunking_character_text_splitter():
                 "chunk_column": "content",
                 "chunk_overlap": 20,
                 "implementation": "character_text_splitter",
-                "config_type": "chunking"
+                "config_type": "chunking",
             },
         ),
     ]
@@ -93,7 +93,7 @@ def test_chunking_recursive_character_text_splitter():
                 "chunk_column": "body",
                 "chunk_overlap": 400,
                 "implementation": "recursive_character_text_splitter",
-                "config_type": "chunking"
+                "config_type": "chunking",
             },
         ),
         (
@@ -105,7 +105,7 @@ def test_chunking_recursive_character_text_splitter():
                 "chunk_column": "body",
                 "chunk_overlap": 10,
                 "implementation": "recursive_character_text_splitter",
-                "config_type": "chunking"
+                "config_type": "chunking",
             },
         ),
         (
@@ -117,7 +117,7 @@ def test_chunking_recursive_character_text_splitter():
                 "chunk_column": "content",
                 "chunk_overlap": 20,
                 "implementation": "recursive_character_text_splitter",
-                "config_type": "chunking"
+                "config_type": "chunking",
             },
         ),
         (
@@ -137,7 +137,7 @@ def test_chunking_recursive_character_text_splitter():
                 "chunk_column": "content",
                 "chunk_overlap": 20,
                 "implementation": "recursive_character_text_splitter",
-                "config_type": "chunking"
+                "config_type": "chunking",
             },
         ),
     ]
@@ -193,12 +193,14 @@ def test_validate_chunking():
             )
             """,
             "invalid config_type for chunking config",
-        )
+        ),
     ]
     with psycopg.connect(db_url("test"), autocommit=True) as con:
         with con.cursor() as cur:
             cur.execute("drop table if exists public.thing;")
-            cur.execute("create table public.thing (id int, color text, weight float, body text)")
+            cur.execute(
+                "create table public.thing (id int, color text, weight float, body text)"
+            )
             for query in ok:
                 cur.execute(query)
                 assert True
@@ -207,6 +209,6 @@ def test_validate_chunking():
                     cur.execute(query)
                 except psycopg.ProgrammingError as ex:
                     msg = str(ex.args[0])
-                    assert len(msg) >= len(err) and msg[:len(err)] == err
+                    assert len(msg) >= len(err) and msg[: len(err)] == err
                 else:
                     pytest.fail(f"expected exception: {err}")

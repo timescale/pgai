@@ -179,7 +179,9 @@ def psql_cmd(cmd: str) -> str:
 
 
 def test_vectorizer_timescaledb():
-    with psycopg.connect(db_url("postgres"), autocommit=True, row_factory=namedtuple_row) as con:
+    with psycopg.connect(
+        db_url("postgres"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
         with con.cursor() as cur:
             cur.execute("create extension if not exists timescaledb")
             cur.execute("select to_regrole('bob') is null")
@@ -188,7 +190,9 @@ def test_vectorizer_timescaledb():
             cur.execute("select to_regrole('adelaide') is null")
             if cur.fetchone()[0] is True:
                 cur.execute("create user adelaide")
-    with psycopg.connect(db_url("test"), autocommit=True, row_factory=namedtuple_row) as con:
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
         with con.cursor() as cur:
             cur.execute("drop schema if exists website cascade")
             cur.execute("create schema website")
@@ -202,7 +206,9 @@ def test_vectorizer_timescaledb():
                 , primary key (title, published)
                 )
             """)
-            cur.execute("""grant select, insert, update, delete on website.blog to bob, adelaide""")
+            cur.execute(
+                """grant select, insert, update, delete on website.blog to bob, adelaide"""
+            )
             cur.execute("""grant usage on schema website to adelaide""")
             cur.execute("""
                 insert into website.blog(title, published, body)
@@ -231,11 +237,14 @@ def test_vectorizer_timescaledb():
             vectorizer_id = cur.fetchone()[0]
 
             # check the vectorizer that was created
-            cur.execute("""
+            cur.execute(
+                """
                 select jsonb_pretty(to_jsonb(x) #- array['config', 'version']) 
                 from ai.vectorizer x 
                 where x.id = %s
-            """, (vectorizer_id,))
+            """,
+                (vectorizer_id,),
+            )
             actual = json.dumps(json.loads(cur.fetchone()[0]), sort_keys=True, indent=2)
             expected = json.dumps(json.loads(VECTORIZER_ROW), sort_keys=True, indent=2)
             assert actual == expected
@@ -254,17 +263,23 @@ def test_vectorizer_timescaledb():
             assert actual
 
             # bob should have select, update, delete on the queue table
-            cur.execute(f"select has_table_privilege('bob', '{vec.queue_schema}.{vec.queue_table}', 'select, update, delete')")
+            cur.execute(
+                f"select has_table_privilege('bob', '{vec.queue_schema}.{vec.queue_table}', 'select, update, delete')"
+            )
             actual = cur.fetchone()[0]
             assert actual
 
             # bob should have select, insert, update on the target table
-            cur.execute(f"select has_table_privilege('bob', '{vec.target_schema}.{vec.target_table}', 'select, insert, update')")
+            cur.execute(
+                f"select has_table_privilege('bob', '{vec.target_schema}.{vec.target_table}', 'select, insert, update')"
+            )
             actual = cur.fetchone()[0]
             assert actual
 
             # bob should have select on the view
-            cur.execute(f"select has_table_privilege('bob', '{vec.view_schema}.{vec.view_name}', 'select')")
+            cur.execute(
+                f"select has_table_privilege('bob', '{vec.view_schema}.{vec.view_name}', 'select')"
+            )
             actual = cur.fetchone()[0]
             assert actual
 
@@ -274,15 +289,19 @@ def test_vectorizer_timescaledb():
             assert actual
 
             # get timescaledb job's job_id
-            cur.execute("""
+            cur.execute(
+                """
                 select (x.config->'scheduling'->>'job_id')::int 
                 from ai.vectorizer x 
                 where x.id = %s
-                """, (vectorizer_id,))
+                """,
+                (vectorizer_id,),
+            )
             job_id = cur.fetchone()[0]
 
             # check the timescaledb job that was created
-            cur.execute("""
+            cur.execute(
+                """
                 select j.schedule_interval = interval '5m'
                 and j.proc_schema = 'ai'
                 and j.proc_name = '_vectorizer_job'
@@ -291,7 +310,9 @@ def test_vectorizer_timescaledb():
                 as is_ok
                 from timescaledb_information.jobs j
                 where j.job_id = %s
-            """, (job_id,))
+            """,
+                (job_id,),
+            )
             actual = cur.fetchone()[0]
             assert actual is True
 
@@ -322,14 +343,19 @@ def test_vectorizer_timescaledb():
                     """)
 
             # check that the queue has 2 rows
-            cur.execute("select pending_items from ai.vectorizer_status where id = %s", (vectorizer_id,))
+            cur.execute(
+                "select pending_items from ai.vectorizer_status where id = %s",
+                (vectorizer_id,),
+            )
             actual = cur.fetchone()[0]
             assert actual == 2
 
             # run the underlying function explicitly
             # language=PostgreSQL
-            cur.execute("call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))"
-                        , (vectorizer_id,))
+            cur.execute(
+                "call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))",
+                (vectorizer_id,),
+            )
 
             # check that the queue has 0 rows
             cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
@@ -348,13 +374,16 @@ def test_vectorizer_timescaledb():
             assert actual == 1
 
             # check that using the GUCs work
-            cur.execute("select set_config('ai.external_functions_executor_url', 'http://localhost:8000', false)")
-            cur.execute("select set_config('ai.external_functions_executor_events_path', '/api/v1/events', false)")
+            cur.execute(
+                "select set_config('ai.external_functions_executor_url', 'http://localhost:8000', false)"
+            )
+            cur.execute(
+                "select set_config('ai.external_functions_executor_events_path', '/api/v1/events', false)"
+            )
 
             # ping the external job explicitly
             # language=PostgreSQL
-            cur.execute("select ai.execute_vectorizer(%s)"
-                        , (vectorizer_id,))
+            cur.execute("select ai.execute_vectorizer(%s)", (vectorizer_id,))
 
             # check that the queue has 0 rows
             cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
@@ -374,10 +403,14 @@ def test_vectorizer_timescaledb():
                 with con2.cursor() as cur2:
                     cur2.execute("begin transaction")
                     # lock 1 row from the queue
-                    cur2.execute(f"select * from {vec.queue_schema}.{vec.queue_table} where title = 'how to grill a steak' for update")
+                    cur2.execute(
+                        f"select * from {vec.queue_schema}.{vec.queue_table} where title = 'how to grill a steak' for update"
+                    )
                     cur2.fetchone()
                     # check that vectorizer queue depth still gets the correct count
-                    cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
+                    cur.execute(
+                        "select ai.vectorizer_queue_pending(%s)", (vectorizer_id,)
+                    )
                     actual = cur.fetchone()[0]
                     assert actual == 2
                     con2.rollback()
@@ -386,11 +419,14 @@ def test_vectorizer_timescaledb():
             cur.execute("select ai.disable_vectorizer_schedule(%s)", (vectorizer_id,))
 
             # check that the timescaledb job is disabled
-            cur.execute("""
+            cur.execute(
+                """
                 select scheduled
                 from timescaledb_information.jobs j
                 where j.job_id = %s
-            """, (vec.config['scheduling']['job_id'],))
+            """,
+                (vec.config["scheduling"]["job_id"],),
+            )
             actual = cur.fetchone()[0]
             assert actual is False
 
@@ -398,11 +434,14 @@ def test_vectorizer_timescaledb():
             cur.execute("select ai.enable_vectorizer_schedule(%s)", (vectorizer_id,))
 
             # check that the timescaledb job is enabled
-            cur.execute("""
+            cur.execute(
+                """
                 select scheduled
                 from timescaledb_information.jobs j
                 where j.job_id = %s
-            """, (vec.config['scheduling']['job_id'],))
+            """,
+                (vec.config["scheduling"]["job_id"],),
+            )
             actual = cur.fetchone()[0]
             assert actual is True
 
@@ -428,7 +467,9 @@ def test_vectorizer_timescaledb():
 
 
 def test_drop_vectorizer():
-    with psycopg.connect(db_url("test"), autocommit=True, row_factory=namedtuple_row) as con:
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
         with con.cursor() as cur:
             cur.execute("create extension if not exists ai cascade")
             cur.execute("create extension if not exists timescaledb")
@@ -473,17 +514,23 @@ def test_drop_vectorizer():
             vectorizer = cur.fetchone()
 
             # does the target table exist? (it should)
-            cur.execute(f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null")
+            cur.execute(
+                f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null"
+            )
             actual = cur.fetchone()[0]
             assert actual is True
 
             # does the queue table exist? (it should)
-            cur.execute(f"select to_regclass('{vectorizer.queue_schema}.{vectorizer.queue_table}') is not null")
+            cur.execute(
+                f"select to_regclass('{vectorizer.queue_schema}.{vectorizer.queue_table}') is not null"
+            )
             actual = cur.fetchone()[0]
             assert actual is True
 
             # does the view exist? (it should)
-            cur.execute(f"select to_regclass('{vectorizer.view_schema}.{vectorizer.view_name}') is not null")
+            cur.execute(
+                f"select to_regclass('{vectorizer.view_schema}.{vectorizer.view_name}') is not null"
+            )
             actual = cur.fetchone()[0]
             assert actual is True
 
@@ -502,17 +549,23 @@ def test_drop_vectorizer():
             cur.execute("select ai.drop_vectorizer(%s)", (vectorizer_id,))
 
             # does the target table exist? (it SHOULD)
-            cur.execute(f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null")
+            cur.execute(
+                f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null"
+            )
             actual = cur.fetchone()[0]
             assert actual is True
 
             # does the queue table exist? (it should not)
-            cur.execute(f"select to_regclass('{vectorizer.queue_schema}.{vectorizer.queue_table}') is not null")
+            cur.execute(
+                f"select to_regclass('{vectorizer.queue_schema}.{vectorizer.queue_table}') is not null"
+            )
             actual = cur.fetchone()[0]
             assert actual is False
 
             # does the view exist? (it SHOULD)
-            cur.execute(f"select to_regclass('{vectorizer.view_schema}.{vectorizer.view_name}') is not null")
+            cur.execute(
+                f"select to_regclass('{vectorizer.view_schema}.{vectorizer.view_name}') is not null"
+            )
             actual = cur.fetchone()[0]
             assert actual is True
 
@@ -528,20 +581,26 @@ def test_drop_vectorizer():
             assert actual == 0
 
             # does the func that backed the trigger exist? (it should not)
-            cur.execute("""
+            cur.execute(
+                """
                 select count(*)
                 from pg_proc
                 where oid = %s
-            """, (pg_proc_oid,))
+            """,
+                (pg_proc_oid,),
+            )
             actual = cur.fetchone()[0]
             assert actual == 0
 
             # does the timescaledb job exist? (it should not)
-            cur.execute("""
+            cur.execute(
+                """
                 select count(*)
                 from timescaledb_information.jobs
                 where job_id = %s
-            """, (vectorizer.config['scheduling']['job_id'],))
+            """,
+                (vectorizer.config["scheduling"]["job_id"],),
+            )
             actual = cur.fetchone()[0]
             assert actual == 0
 
@@ -551,24 +610,32 @@ def index_creation_tester(cur: psycopg.Cursor, vectorizer_id: int) -> None:
     vectorizer = cur.fetchone()
 
     # make sure the index does NOT exist
-    cur.execute("""
+    cur.execute(
+        """
                 select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
                 from ai.vectorizer v
                 where v.id = %s
-            """, (vectorizer_id,))
+            """,
+        (vectorizer_id,),
+    )
     actual = cur.fetchone()[0]
     assert actual is False
 
     # run the job
-    cur.execute("call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))"
-                , (vectorizer_id,))
+    cur.execute(
+        "call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))",
+        (vectorizer_id,),
+    )
 
     # make sure the index does NOT exist
-    cur.execute("""
+    cur.execute(
+        """
                 select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
                 from ai.vectorizer v
                 where v.id = %s
-            """, (vectorizer_id,))
+            """,
+        (vectorizer_id,),
+    )
     actual = cur.fetchone()[0]
     assert actual is False
 
@@ -591,15 +658,20 @@ def index_creation_tester(cur: psycopg.Cursor, vectorizer_id: int) -> None:
             """)
 
     # run the job
-    cur.execute("call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))"
-                , (vectorizer_id,))
+    cur.execute(
+        "call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))",
+        (vectorizer_id,),
+    )
 
     # make sure the index does NOT exist (min_rows = 10)
-    cur.execute("""
+    cur.execute(
+        """
                 select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
                 from ai.vectorizer v
                 where v.id = %s
-            """, (vectorizer_id,))
+            """,
+        (vectorizer_id,),
+    )
     actual = cur.fetchone()[0]
     assert actual is False
 
@@ -622,27 +694,37 @@ def index_creation_tester(cur: psycopg.Cursor, vectorizer_id: int) -> None:
             """)
 
     # insert some rows into the queue. this should prevent the index from being created
-    cur.execute(f"insert into {vectorizer.queue_schema}.{vectorizer.queue_table}(id) select generate_series(1, 5)")
+    cur.execute(
+        f"insert into {vectorizer.queue_schema}.{vectorizer.queue_table}(id) select generate_series(1, 5)"
+    )
 
     # should NOT create index
-    cur.execute("""
+    cur.execute(
+        """
         select ai._vectorizer_should_create_vector_index(v)
         from ai.vectorizer v
         where v.id = %s
-    """, (vectorizer_id,))
+    """,
+        (vectorizer_id,),
+    )
     actual = cur.fetchone()[0]
     assert actual is False
 
     # run the job
-    cur.execute("call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))"
-                , (vectorizer_id,))
+    cur.execute(
+        "call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))",
+        (vectorizer_id,),
+    )
 
     # make sure the index does NOT exist (queue table is NOT empty)
-    cur.execute("""
+    cur.execute(
+        """
                 select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
                 from ai.vectorizer v
                 where v.id = %s
-            """, (vectorizer_id,))
+            """,
+        (vectorizer_id,),
+    )
     actual = cur.fetchone()[0]
     assert actual is False
 
@@ -650,34 +732,46 @@ def index_creation_tester(cur: psycopg.Cursor, vectorizer_id: int) -> None:
     cur.execute(f"delete from {vectorizer.queue_schema}.{vectorizer.queue_table}")
 
     # SHOULD create index
-    cur.execute("""
+    cur.execute(
+        """
         select ai._vectorizer_should_create_vector_index(v)
         from ai.vectorizer v
         where v.id = %s
-    """, (vectorizer_id,))
+    """,
+        (vectorizer_id,),
+    )
     actual = cur.fetchone()[0]
     assert actual is True
 
     # run the job
-    cur.execute("call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))"
-                , (vectorizer_id,))
+    cur.execute(
+        "call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))",
+        (vectorizer_id,),
+    )
 
     # make sure the index ****DOES**** exist  (min_rows = 10 and 10 rows exist AND queue table is empty)
-    cur.execute("""
+    cur.execute(
+        """
                 select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
                 from ai.vectorizer v
                 where v.id = %s
-            """, (vectorizer_id,))
+            """,
+        (vectorizer_id,),
+    )
     actual = cur.fetchone()[0]
     assert actual is True
 
 
 def test_diskann_index():
     # pgvectorscale must be installed by a superuser
-    with psycopg.connect(db_url("postgres"), autocommit=True, row_factory=namedtuple_row) as con:
+    with psycopg.connect(
+        db_url("postgres"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
         with con.cursor() as cur:
             cur.execute("create extension if not exists vectorscale cascade")
-    with psycopg.connect(db_url("test"), autocommit=True, row_factory=namedtuple_row) as con:
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
         with con.cursor() as cur:
             cur.execute("create extension if not exists ai cascade")
             cur.execute("create extension if not exists timescaledb")
@@ -720,7 +814,9 @@ def test_diskann_index():
 
 
 def test_hnsw_index():
-    with psycopg.connect(db_url("test"), autocommit=True, row_factory=namedtuple_row) as con:
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
         with con.cursor() as cur:
             cur.execute("create extension if not exists ai cascade")
             cur.execute("create extension if not exists timescaledb")
@@ -764,10 +860,14 @@ def test_hnsw_index():
 
 def test_index_create_concurrency():
     # pgvectorscale must be installed by a superuser
-    with psycopg.connect(db_url("postgres"), autocommit=True, row_factory=namedtuple_row) as con:
+    with psycopg.connect(
+        db_url("postgres"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
         with con.cursor() as cur:
             cur.execute("create extension if not exists vectorscale cascade")
-    with psycopg.connect(db_url("test"), autocommit=True, row_factory=namedtuple_row) as con:
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
         with con.cursor() as cur:
             cur.execute("create extension if not exists ai cascade")
             cur.execute("create extension if not exists timescaledb")
@@ -816,11 +916,14 @@ def test_index_create_concurrency():
             vectorizer = cur.fetchone()
 
             # make sure the index does NOT exist (min_rows = 10)
-            cur.execute("""
+            cur.execute(
+                """
                         select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
                         from ai.vectorizer v
                         where v.id = %s
-                    """, (vectorizer_id,))
+                    """,
+                (vectorizer_id,),
+            )
             actual = cur.fetchone()[0]
             assert actual is False
 
@@ -845,31 +948,41 @@ def test_index_create_concurrency():
             # explicitly create the index but hold the transaction open and run the job in another transaction
             with psycopg.connect(db_url("test"), autocommit=False) as con2:
                 with con2.cursor() as cur2:
-                    cur2.execute("""
+                    cur2.execute(
+                        """
                         select ai._vectorizer_create_vector_index(v.target_schema, v.target_table, v.config->'indexing')
                         from ai.vectorizer v
                         where v.id = %s
-                        """, (vectorizer_id,))
+                        """,
+                        (vectorizer_id,),
+                    )
                     # hold the transaction open
                     # try to explicitly create the index on the other connection
-                    cur.execute("""
+                    cur.execute(
+                        """
                         select ai._vectorizer_create_vector_index(v.target_schema, v.target_table, v.config->'indexing')
                         from ai.vectorizer v
                         where v.id = %s
-                        """, (vectorizer_id,))
+                        """,
+                        (vectorizer_id,),
+                    )
                     con2.commit()
 
             # make sure the index DOES exist (min_rows = 10)
-            cur.execute("""
+            cur.execute(
+                """
                         select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
                         from ai.vectorizer v
                         where v.id = %s
-                    """, (vectorizer_id,))
+                    """,
+                (vectorizer_id,),
+            )
             actual = cur.fetchone()[0]
             assert actual is True
 
             # make sure there is only ONE index
-            cur.execute("""
+            cur.execute(
+                """
                 select pg_catalog.count(*) filter
                 ( where pg_catalog.pg_get_indexdef(i.indexrelid)
                   ilike '%% using diskann %%'
@@ -886,6 +999,8 @@ def test_index_create_concurrency():
                 on (n.nspname operator(pg_catalog.=) v.target_schema
                 and k.relname operator(pg_catalog.=) v.target_table)
                 where v.id = %s
-            """, (vectorizer_id,))
+            """,
+                (vectorizer_id,),
+            )
             actual = cur.fetchone()[0]
             assert actual == 1

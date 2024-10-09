@@ -33,20 +33,27 @@ def host_dir() -> Path:
 
 
 def create_user() -> None:
-    with psycopg.connect(db_url(user="postgres", dbname="postgres"), autocommit=True) as con:
+    with psycopg.connect(
+        db_url(user="postgres", dbname="postgres"), autocommit=True
+    ) as con:
         with con.cursor() as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 select count(*) > 0
                 from pg_catalog.pg_roles
                 where rolname = %s
-            """, (USER,))
+            """,
+                (USER,),
+            )
             exists: bool = cur.fetchone()[0]
             if not exists:
                 cur.execute(f"create user {USER}")  # NOT a superuser
 
 
 def create_database(dbname: str) -> None:
-    with psycopg.connect(db_url(user="postgres", dbname="postgres"), autocommit=True) as con:
+    with psycopg.connect(
+        db_url(user="postgres", dbname="postgres"), autocommit=True
+    ) as con:
         with con.cursor() as cur:
             cur.execute(f"drop database if exists {dbname} with (force)")
             cur.execute(f"create database {dbname} with owner {USER}")
@@ -54,11 +61,13 @@ def create_database(dbname: str) -> None:
 
 def dump_db() -> None:
     host_dir().joinpath("dump.sql").unlink(missing_ok=True)
-    cmd = " ".join([
-        "pg_dump -Fp",
-        f'''-d "{db_url(USER, "src")}"''',
-        f'''-f {docker_dir()}/dump.sql'''
-    ])
+    cmd = " ".join(
+        [
+            "pg_dump -Fp",
+            f'''-d "{db_url(USER, "src")}"''',
+            f"""-f {docker_dir()}/dump.sql""",
+        ]
+    )
     if where_am_i() != "docker":
         cmd = f"docker exec -w {docker_dir()} pgai {cmd}"
     subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
@@ -68,12 +77,14 @@ def restore_db() -> None:
     with psycopg.connect(db_url(user=USER, dbname="dst")) as con:
         with con.cursor() as cur:
             cur.execute("create extension ai cascade")
-    cmd = " ".join([
-        "psql",
-        f'''-d "{db_url(USER, "dst")}"''',
-        "-v VERBOSITY=verbose",
-        f"-f {docker_dir()}/dump.sql",
-    ])
+    cmd = " ".join(
+        [
+            "psql",
+            f'''-d "{db_url(USER, "dst")}"''',
+            "-v VERBOSITY=verbose",
+            f"-f {docker_dir()}/dump.sql",
+        ]
+    )
     if where_am_i() != "docker":
         cmd = f"docker exec -w {docker_dir()} pgai {cmd}"
     subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
@@ -81,26 +92,30 @@ def restore_db() -> None:
 
 def snapshot_db(dbname: str) -> None:
     host_dir().joinpath(f"{dbname}.snapshot").unlink(missing_ok=True)
-    cmd = " ".join([
-        "psql",
-        f'''-d "{db_url("postgres", dbname)}"''',
-        "-v ON_ERROR_STOP=1",
-        "-X",
-        f"-o {docker_dir()}/{dbname}.snapshot",
-        f"-f {docker_dir()}/snapshot.sql",
-    ])
+    cmd = " ".join(
+        [
+            "psql",
+            f'''-d "{db_url("postgres", dbname)}"''',
+            "-v ON_ERROR_STOP=1",
+            "-X",
+            f"-o {docker_dir()}/{dbname}.snapshot",
+            f"-f {docker_dir()}/snapshot.sql",
+        ]
+    )
     if where_am_i() != "docker":
         cmd = f"docker exec -w {docker_dir()} pgai {cmd}"
     subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
 
 
 def init_src() -> None:
-    cmd = " ".join([
-        "psql",
-        f'''-d "{db_url(USER, "src")}"''',
-        "-v ON_ERROR_STOP=1",
-        f"-f {docker_dir()}/init.sql",
-    ])
+    cmd = " ".join(
+        [
+            "psql",
+            f'''-d "{db_url(USER, "src")}"''',
+            "-v ON_ERROR_STOP=1",
+            f"-f {docker_dir()}/init.sql",
+        ]
+    )
     if where_am_i() != "docker":
         cmd = f"docker exec -w {docker_dir()} pgai {cmd}"
     subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
@@ -112,12 +127,14 @@ def read_file(filename: str) -> str:
 
 
 def after_dst() -> None:
-    cmd = " ".join([
-        "psql",
-        f'''-d "{db_url(USER, "dst")}"''',
-        "-v ON_ERROR_STOP=1",
-        f"-f {docker_dir()}/after.sql",
-    ])
+    cmd = " ".join(
+        [
+            "psql",
+            f'''-d "{db_url(USER, "dst")}"''',
+            "-v ON_ERROR_STOP=1",
+            f"-f {docker_dir()}/after.sql",
+        ]
+    )
     if where_am_i() != "docker":
         cmd = f"docker exec -w {docker_dir()} pgai {cmd}"
     subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
