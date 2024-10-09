@@ -133,6 +133,8 @@ def run(
     if not tiktoken_cache_dir:
         log.critical("tiktoken_cache_dir not provided")
         sys.exit(1)
+    if isinstance(tiktoken_cache_dir, str):
+        tiktoken_cache_dir = Path(tiktoken_cache_dir)
     if not tiktoken_cache_dir.is_dir():
         log.critical(
             "tiktoken_cache_dir is not a directory",
