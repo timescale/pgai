@@ -28,8 +28,8 @@ def create_database(dbname: str) -> None:
 def vectorizer_src_dir() -> Path:
     p = (
         Path(__file__)
-        .parent.parent.parent.joinpath(  # vectorizer_tool  # tests  # project root
-            "src", "vectorizer"
+        .parent.parent.parent.parent.joinpath(
+            "pgai"
         )
         .resolve()
     )
@@ -48,27 +48,27 @@ def test_bad_db_url():
     env = os.environ.copy()
     env["VECTORIZER_DB_URL"] = _db_url
     env["OPENAI_API_KEY"] = "this_is_not_a_key"
-    with pytest.raises(subprocess.CalledProcessError):
-        subprocess.run(
-            "python3 -m vectorizer",
-            shell=True,
-            check=True,
-            text=True,
-            capture_output=True,
-            env=env,
-            cwd=vectorizer_src_dir(),
-        )
+    p = subprocess.run(
+        "python3 -m pgai",
+        shell=True,
+        text=True,
+        capture_output=True,
+        env=env,
+        cwd=vectorizer_src_dir(),
+    )
+    assert p.returncode == 1
+    assert 'FATAL:  database "this_is_not_a_db" does not exist' in str(p.stderr)
     env.pop("VECTORIZER_DB_URL")
-    with pytest.raises(subprocess.CalledProcessError):
-        subprocess.run(
-            f"python3 -m vectorizer -d '{_db_url}'",
-            shell=True,
-            check=True,
-            text=True,
-            capture_output=True,
-            env=env,
-            cwd=vectorizer_src_dir(),
-        )
+    p = subprocess.run(
+        f"python3 -m pgai -d '{_db_url}'",
+        shell=True,
+        text=True,
+        capture_output=True,
+        env=env,
+        cwd=vectorizer_src_dir(),
+    )
+    assert p.returncode == 1
+    assert 'FATAL:  database "this_is_not_a_db" does not exist' in str(p.stderr)
 
 
 def test_pgai_not_installed():
@@ -79,7 +79,7 @@ def test_pgai_not_installed():
     env["VECTORIZER_DB_URL"] = _db_url
     env["OPENAI_API_KEY"] = "this_is_not_a_key"
     p = subprocess.run(
-        "python3 -m vectorizer",
+        "python3 -m pgai",
         shell=True,
         capture_output=True,
         text=True,
@@ -90,7 +90,7 @@ def test_pgai_not_installed():
     assert "the pgai extension is not installed" in str(p.stdout)
     env.pop("VECTORIZER_DB_URL")
     p = subprocess.run(
-        f"python3 -m vectorizer -d '{_db_url}'",
+        f"python3 -m pgai -d '{_db_url}'",
         shell=True,
         capture_output=True,
         text=True,
@@ -153,7 +153,7 @@ def test_vectorizer_cli():
     env = os.environ.copy()
     env["VECTORIZER_DB_URL"] = _db_url
     subprocess.run(
-        f"python3 -m vectorizer -i {vectorizer_id}",
+        f"python3 -m pgai -i {vectorizer_id}",
         shell=True,
         check=True,
         capture_output=True,
