@@ -22,7 +22,7 @@ def where_am_i() -> str:
 
 
 def docker_dir() -> str:
-    return "/pgai/tests/contents"
+    return "/pgai/projects/extension/tests/contents"
 
 
 def host_dir() -> Path:
