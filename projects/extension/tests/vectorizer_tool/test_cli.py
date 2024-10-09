@@ -26,13 +26,7 @@ def create_database(dbname: str) -> None:
 
 
 def vectorizer_src_dir() -> Path:
-    p = (
-        Path(__file__)
-        .parent.parent.parent.parent.joinpath(
-            "pgai"
-        )
-        .resolve()
-    )
+    p = Path(__file__).parent.parent.parent.parent.joinpath("pgai").resolve()
     return p
 
 
