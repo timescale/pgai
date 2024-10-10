@@ -14,7 +14,10 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.10"
+          cache: "pip" # caching pip dependencies
+
+      - run: pip install -r requirements-dev.txt
 
       - name: Verify Docker installation
         run: |
@@ -33,8 +36,8 @@ jobs:
       - name: Lint SQL and Python
         run: docker exec pgai make lint
 
-      #- name: Check Python Formatting
-      #  run: docker exec pgai make format-py
+      - name: Check Python Formatting
+        run: docker exec pgai make format-py
 
       - name: Install extension and vectorizer
         run: |
@@ -47,8 +50,13 @@ jobs:
       - name: Run tests
         run: docker exec pgai make test
 
+      - name: Run vectorizer tests
+        run: make test-vectorizer
+
+      - name: Run type check
+        run: make type-check-py
+
       - name: Stop and remove Docker container
         run: |
           make docker-stop
           make docker-rm
-
