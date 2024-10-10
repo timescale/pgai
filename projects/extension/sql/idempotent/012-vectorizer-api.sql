@@ -91,6 +91,21 @@ begin
     queue_schema = coalesce(queue_schema, 'ai');
     queue_table = coalesce(queue_table, pg_catalog.concat('_vectorizer_q_', _vectorizer_id));
 
+    -- make sure target table name is available
+    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', target_schema, target_table)) is not null then
+        raise exception 'an object named %.% already exists. specify an alternate target_table explicitly', target_schema, target_schema;
+    end if;
+
+    -- make sure queue table name is available
+    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', queue_schema, queue_table)) is not null then
+        raise exception 'an object named %.% already exists. specify an alternate queue_table explicitly', queue_schema, queue_table;
+    end if;
+
+    -- make sure view name is available
+    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
+        raise exception 'an object named %.% already exists. specify an alternate view_name explicitly', view_schema, view_name;
+    end if;
+
     -- validate the embedding config
     perform ai._validate_embedding(embedding);
 
