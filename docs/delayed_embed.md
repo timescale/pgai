@@ -92,7 +92,7 @@ BEGIN
   api_key := config->>'api_key';
   FOR r IN select id, contents from document_embedding where embedding IS NULL LIMIT 1 FOR UPDATE SKIP LOCKED LOOP
     update document_embedding
-    set embedding = openai_embed('text-embedding-ada-002', r.contents, api_key)
+    set embedding = ai.openai_embed('text-embedding-ada-002', r.contents, api_key)
       SELECT id
     where id = r.id;
   END LOOP;
