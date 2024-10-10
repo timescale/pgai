@@ -2728,7 +2728,14 @@ begin
     -- validate the scheduling config
     perform ai._validate_scheduling(scheduling);
 
+    -- validate the processing config
     perform ai._validate_processing(processing);
+
+    -- if scheduling is none then indexing must also be none
+    if scheduling operator(pg_catalog.->>) 'implementation' = 'none'
+    and indexing operator(pg_catalog.->>) 'implementation' != 'none' then
+        raise exception 'automatic indexing is not supported without scheduling. set indexing=>ai.indexing_none() when scheduling=>ai.scheduling_none()';
+    end if;
 
     -- grant select to source table
     perform ai._vectorizer_grant_to_source
