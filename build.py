@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import os
 import platform
-import subprocess
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -64,24 +64,24 @@ def pg_major() -> str | None:
     return os.getenv("PG_MAJOR")
 
 
-def project_dir() -> Path:
+def root_dir() -> Path:
     return Path(__file__).resolve().parent
 
 
 def sql_dir() -> Path:
-    return project_dir().joinpath("sql").resolve()
+    return project_extension_dir().joinpath("sql").resolve()
 
 
-def src_dir() -> Path:
-    return project_dir().joinpath("src").resolve()
+def projects_dir() -> Path:
+    return root_dir().joinpath("projects").resolve()
 
 
-def src_extension_dir() -> Path:
-    return src_dir().joinpath("extension").resolve()
+def project_extension_dir() -> Path:
+    return projects_dir().joinpath("extension").resolve()
 
 
-def src_vectorizer_dir() -> Path:
-    return src_dir().joinpath("vectorizer").resolve()
+def project_pgai_dir() -> Path:
+    return projects_dir().joinpath("pgai").resolve()
 
 
 def incremental_sql_dir() -> Path:
@@ -135,7 +135,7 @@ def output_sql_file() -> Path:
 
 
 def tests_dir() -> Path:
-    return project_dir().joinpath("tests")
+    return project_extension_dir().joinpath("tests").absolute()
 
 
 def where_am_i() -> str:
@@ -255,7 +255,7 @@ def pg_config() -> Path:
     return postgres_bin_dir().joinpath("pg_config")
 
 
-def extension_dir() -> Path:
+def extension_install_dir() -> Path:
     proc = subprocess.run(
         f"{pg_config()} --sharedir",
         check=True,
@@ -268,7 +268,7 @@ def extension_dir() -> Path:
 
 
 def install_sql() -> None:
-    ext_dir = extension_dir()
+    ext_dir = extension_install_dir()
     if not ext_dir.exists():
         print(f"extension directory does not exist: {ext_dir}", file=sys.stderr)
         sys.exit(1)
@@ -285,7 +285,7 @@ def install_sql() -> None:
 
 
 def uninstall_sql() -> None:
-    ext_dir = extension_dir()
+    ext_dir = extension_install_dir()
     if not ext_dir.exists():
         return
     for f in ext_dir.glob("ai*.control"):
@@ -307,7 +307,7 @@ def python_install_dir() -> Path:
 def install_old_py_deps() -> None:
     # this is necessary for versions prior to 0.4.0
     # we will deprecate these versions and then get rid of this function
-    old_reqs_file = src_extension_dir().joinpath("old_requirements.txt").resolve()
+    old_reqs_file = project_extension_dir().joinpath("old_requirements.txt").resolve()
     if old_reqs_file.exists():
         env = {k: v for k, v in os.environ.items()}
         env["PIP_BREAK_SYSTEM_PACKAGES"] = "1"
@@ -316,7 +316,7 @@ def install_old_py_deps() -> None:
             shell=True,
             check=True,
             env=env,
-            cwd=str(src_extension_dir()),
+            cwd=str(project_extension_dir()),
         )
 
 
@@ -363,7 +363,7 @@ def build_init_py() -> None:
     # function just ensures that you can't screw up the current version. The
     # only place you have to update the version when starting a new release is
     # in the versions() function.
-    init_py = src_extension_dir().joinpath("ai", "__init__.py").resolve()
+    init_py = project_extension_dir().joinpath("ai", "__init__.py").resolve()
     content = init_py.read_text()
     lines = []
     for line in content.splitlines(keepends=True):
@@ -390,28 +390,28 @@ def install_py() -> None:
         ):  # delete package info if exists
             shutil.rmtree(d)
         subprocess.run(
-            f'pip3 install -v --no-deps --compile -t "{version_target_dir}" "{src_extension_dir()}"',
+            f'pip3 install -v --no-deps --compile -t "{version_target_dir}" "{project_extension_dir()}"',
             check=True,
             shell=True,
             env=os.environ,
-            cwd=str(src_extension_dir()),
+            cwd=str(project_extension_dir()),
         )
     else:
         version_target_dir.mkdir(exist_ok=True)
         subprocess.run(
-            f'pip3 install -v --compile -t "{version_target_dir}" "{src_extension_dir()}"',
+            f'pip3 install -v --compile -t "{version_target_dir}" "{project_extension_dir()}"',
             check=True,
             shell=True,
             env=os.environ,
-            cwd=str(src_extension_dir()),
+            cwd=str(project_extension_dir()),
         )
 
 
 def clean_py() -> None:
-    d = src_extension_dir().joinpath("build")
+    d = project_extension_dir().joinpath("build")
     if d.exists():
         shutil.rmtree(d, ignore_errors=True)
-    d = src_extension_dir().joinpath("pgai.egg-info")
+    d = project_extension_dir().joinpath("pgai.egg-info")
     if d.exists():
         shutil.rmtree(d, ignore_errors=True)
 
@@ -420,13 +420,13 @@ def uninstall_py() -> None:
     shutil.rmtree(python_install_dir(), ignore_errors=True)
 
 
-def build_vectorizer_init_py() -> None:
-    # vectorizer/__init__.py is checked in to version control. So, all the previous
+def build_pgai_init_py() -> None:
+    # pgai/__init__.py is checked in to version control. So, all the previous
     # versions will have the file with the correct version already in it. This
     # function just ensures that you can't screw up the current version. The
     # only place you have to update the version when starting a new release is
     # in the versions() function.
-    init_py = src_vectorizer_dir().joinpath("vectorizer", "__init__.py").resolve()
+    init_py = project_pgai_dir().joinpath("pgai", "__init__.py").resolve()
     content = init_py.read_text()
     lines = []
     for line in content.splitlines(keepends=True):
@@ -438,32 +438,32 @@ def build_vectorizer_init_py() -> None:
 
 
 def install_vectorizer() -> None:
-    build_vectorizer_init_py()
+    build_pgai_init_py()
     subprocess.run(
-        f'pip3 install -v --compile "{src_vectorizer_dir()}"',
+        f'pip3 install -v --compile "{project_pgai_dir()}"',
         check=True,
         shell=True,
         env=os.environ,
-        cwd=str(src_vectorizer_dir()),
+        cwd=str(project_pgai_dir()),
     )
 
 
 def clean_vectorizer() -> None:
-    d = src_vectorizer_dir().joinpath("build")
+    d = project_pgai_dir().joinpath("build")
     if d.exists():
         shutil.rmtree(d, ignore_errors=True)
-    d = src_vectorizer_dir().joinpath("vectorizer.egg-info")
+    d = project_pgai_dir().joinpath("vectorizer.egg-info")
     if d.exists():
         shutil.rmtree(d, ignore_errors=True)
 
 
 def uninstall_vectorizer() -> None:
     subprocess.run(
-        f'pip3 uninstall -v -y vectorizer',
+        "pip3 uninstall -v -y vectorizer",
         check=True,
         shell=True,
         env=os.environ,
-        cwd=str(src_vectorizer_dir()),
+        cwd=str(project_pgai_dir()),
     )
 
 
@@ -497,8 +497,8 @@ def clean() -> None:
 
 def test_server() -> None:
     if where_am_i() == "host":
-        cmd = "docker exec -it -w /pgai/tests/vectorizer pgai fastapi dev server.py"
-        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
+        cmd = "docker exec -it -w /pgai/projects/extension/tests/vectorizer pgai fastapi dev server.py"
+        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=root_dir())
     else:
         cmd = "fastapi dev server.py"
         subprocess.run(
@@ -513,7 +513,7 @@ def test_server() -> None:
 def vectorizer() -> None:
     if where_am_i() == "host":
         cmd = "docker exec -it pgai vectorizer --version"
-        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
+        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=root_dir())
     else:
         cmd = "vectorizer --version"
         subprocess.run(
@@ -521,7 +521,7 @@ def vectorizer() -> None:
             shell=True,
             check=True,
             env=os.environ,
-            cwd=project_dir(),
+            cwd=root_dir(),
         )
 
 
@@ -542,7 +542,9 @@ def lint_sql() -> None:
 
 
 def lint_py() -> None:
-    subprocess.run(f"ruff check {src_dir()}", shell=True, check=True, env=os.environ)
+    subprocess.run(
+        f"ruff check {projects_dir()}", shell=True, check=True, env=os.environ
+    )
 
 
 def lint() -> None:
@@ -552,12 +554,12 @@ def lint() -> None:
 
 def format_py() -> None:
     subprocess.run(
-        f"ruff format --diff {src_dir()}", shell=True, check=True, env=os.environ
+        f"ruff format --diff {projects_dir()}", shell=True, check=True, env=os.environ
     )
 
 
 def docker_build() -> None:
-    if platform.machine().lower() in {'i386', 'i686', 'x86_64'}:
+    if platform.machine().lower() in {"i386", "i686", "x86_64"}:
         rust_flags = "--build-arg RUSTFLAGS='-C target-feature=+avx2,+fma'"
     else:
         rust_flags = ""
@@ -567,7 +569,7 @@ def docker_build() -> None:
         check=True,
         env=os.environ,
         text=True,
-        cwd=project_dir(),
+        cwd=root_dir(),
     )
 
 
@@ -578,15 +580,21 @@ def docker_build_vectorizer() -> None:
         check=True,
         env=os.environ,
         text=True,
-        cwd=src_vectorizer_dir(),
+        cwd=project_pgai_dir(),
     )
 
 
 def docker_run() -> None:
+    # Set TESTCONTAINERS_HOST_OVERRIDE when running on MacOS.
+    env_var = ""
+    if platform.system() == "Darwin":
+        env_var = "-e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal"
     cmd = " ".join(
         [
             "docker run -d --name pgai -p 127.0.0.1:5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust",
-            f"--mount type=bind,src={project_dir()},dst=/pgai",
+            "-v /var/run/docker.sock:/var/run/docker.sock",
+            f"--mount type=bind,src={root_dir()},dst=/pgai",
+            env_var,  # Include the environment variable if on macOS
             "pgai",
             "-c shared_preload_libraries='timescaledb, pgextwlist'",
             "-c extwlist.extensions='ai,vector'",
@@ -640,11 +648,11 @@ def run() -> None:
     docker_build()
     docker_run()
     cmd = "docker exec pgai make build-install"
-    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
+    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=root_dir())
     cmd = 'docker exec -u postgres pgai psql -c "create extension ai cascade"'
-    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
+    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=root_dir())
     cmd = "docker exec -it -d -w /pgai/tests pgai fastapi dev server.py"
-    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=project_dir())
+    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=root_dir())
 
 
 if __name__ == "__main__":

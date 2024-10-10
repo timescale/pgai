@@ -1,0 +1,76 @@
+interactions:
+- request:
+    body: '{"input": [[2252, 62, 16], [2252, 62, 17]], "model": "text-embedding-ada-002",
+        "encoding_format": "float"}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      connection:
+      - keep-alive
+      content-length:
+      - '78'
+      content-type:
+      - application/json
+      host:
+      - api.openai.com
+      user-agent:
+      - AsyncOpenAI/Python 1.42.0
+      x-stainless-arch:
+      - arm64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - MacOS
+      x-stainless-package-version:
+      - 1.42.0
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.4
+    method: POST
+    uri: https://api.openai.com/v1/embeddings
+  response:
+    body:
+      string: "{\n    \"error\": {\n        \"message\": \"Incorrect API key provided:
+        invalid. You can find your API key at https://platform.openai.com/account/api-keys.\",\n
+        \       \"type\": \"invalid_request_error\",\n        \"param\": null,\n        \"code\":
+        \"invalid_api_key\"\n    }\n}\n"
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-RAY:
+      - 8bdea12438fe1bac-MAD
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '257'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 04 Sep 2024 14:22:03 GMT
+      Server:
+      - cloudflare
+      Set-Cookie:
+      - __cf_bm=B02.tgmUlTMtdXEQOiBzZOU_sln3ceUM8cKZBfxzdsw-1725459723-1.0.1.1-osLM_Xbnp9vSCBx3p0xex.ZlJscAdKPPKXGc64Yj4fxpL2XAwgaSWpqRRYdwj95Np6Skwr9g2zdEDS2pA246WA;
+        path=/; expires=Wed, 04-Sep-24 14:52:03 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=_6vXM2ugLqEnxWEMQQu0lv__9uP7Q14aS4CxwR7Kbp8-1725459723094-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      X-Content-Type-Options:
+      - nosniff
+      alt-svc:
+      - h3=":443"; ma=86400
+      strict-transport-security:
+      - max-age=15552000; includeSubDomains; preload
+      vary:
+      - Origin
+      x-request-id:
+      - req_3ffff344ecaba2bb9c83b4b9f5d8d59a
+    status:
+      code: 401
+      message: Unauthorized
+version: 1
