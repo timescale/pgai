@@ -14,7 +14,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- scheduling_timescaledb
 create or replace function ai.scheduling_timescaledb
-( schedule_interval interval default interval '10m'
+( schedule_interval interval default interval '5m'
 , initial_start timestamptz default null
 , fixed_schedule bool default null
 , timezone text default null
