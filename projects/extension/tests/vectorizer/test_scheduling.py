@@ -40,15 +40,15 @@ def test_scheduling_timescaledb():
             {
                 "implementation": "timescaledb",
                 "config_type": "scheduling",
-                "schedule_interval": "00:10:00",
+                "schedule_interval": "00:05:00",
             },
         ),
         (
-            "select ai.scheduling_timescaledb(interval '5m')",
+            "select ai.scheduling_timescaledb(interval '10m')",
             {
                 "implementation": "timescaledb",
                 "config_type": "scheduling",
-                "schedule_interval": "00:05:00",
+                "schedule_interval": "00:10:00",
             },
         ),
         (
