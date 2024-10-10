@@ -2615,6 +2615,7 @@ create or replace function ai.create_vectorizer
 , formatting jsonb default ai.formatting_python_template()
 , scheduling jsonb default ai.scheduling_timescaledb()
 , processing jsonb default ai.processing_default()
+, destination name default null
 , target_schema name default null
 , target_table name default null
 , view_schema name default null
@@ -2677,9 +2678,19 @@ begin
 
     _vectorizer_id = pg_catalog.nextval('ai.vectorizer_id_seq'::pg_catalog.regclass);
     target_schema = coalesce(target_schema, _source_schema);
-    target_table = coalesce(target_table, pg_catalog.concat(_source_table, '_embedding_store'));
+    --target_table = coalesce(target_table, pg_catalog.concat(_source_table, '_embedding_store'));
+    target_table = case
+        when target_table is not null then target_table
+        when destination is not null then pg_catalog.concat(destination, '_store')
+        else pg_catalog.concat(_source_table, '_embedding_store')
+    end;
     view_schema = coalesce(view_schema, _source_schema);
-    view_name = coalesce(view_name, pg_catalog.concat(_source_table, '_embedding'));
+    --view_name = coalesce(view_name, pg_catalog.concat(_source_table, '_embedding'));
+    view_name = case
+        when view_name is not null then view_name
+        when destination is not null then destination
+        else pg_catalog.concat(_source_table, '_embedding')
+    end;
     _trigger_name = pg_catalog.concat('_vectorizer_src_trg_', _vectorizer_id);
     queue_schema = coalesce(queue_schema, 'ai');
     queue_table = coalesce(queue_table, pg_catalog.concat('_vectorizer_q_', _vectorizer_id));
