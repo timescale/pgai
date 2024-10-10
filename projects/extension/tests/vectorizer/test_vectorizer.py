@@ -1118,3 +1118,53 @@ def test_naming_collisions():
             );
             """)
             assert True
+
+
+def test_none_index_scheduling():
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("create schema if not exists vec")
+            cur.execute("drop table if exists vec.note3")
+            cur.execute("""
+                create table vec.note3
+                ( id bigint not null primary key generated always as identity
+                , note text not null
+                )
+            """)
+
+            # create a vectorizer for the table. this should fail
+            # language=PostgreSQL
+            with pytest.raises(
+                psycopg.errors.RaiseException,
+                match=".*automatic indexing is not supported without scheduling",
+            ):
+                cur.execute("""
+                select ai.create_vectorizer
+                ( 'vec.note3'::regclass
+                , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+                , chunking=>ai.chunking_character_text_splitter('note')
+                , scheduling=> ai.scheduling_none()
+                , indexing=>ai.indexing_hnsw(min_rows=>10, m=>20)
+                , grant_to=>null
+                , enqueue_existing=>false
+                );
+                """)
+
+            # create a vectorizer for the table. this should succeed
+            # language=PostgreSQL
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'vec.note3'::regclass
+            , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+            , chunking=>ai.chunking_character_text_splitter('note')
+            , scheduling=> ai.scheduling_none()
+            , indexing=>ai.indexing_none()
+            , grant_to=>null
+            , enqueue_existing=>false
+            );
+            """)
+            assert True
