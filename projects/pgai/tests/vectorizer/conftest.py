@@ -341,7 +341,7 @@ def base_event(
                 },
                 "processing": {
                     "config_type": "processing",
-                    "implementation": "cloud_functions",
+                    "implementation": "default",
                     "batch_size": batch_size,
                     "concurrency": concurrency,
                     "log_level": "INFO",
