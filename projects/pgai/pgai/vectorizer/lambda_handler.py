@@ -8,7 +8,7 @@ from pydantic import AliasChoices, Field, ValidationError
 from pydantic.dataclasses import dataclass
 
 from . import db
-from .processing import CloudFunctions
+from .processing import ProcessingDefault
 from .secrets import Secrets
 from .vectorizer import Vectorizer, Worker
 
@@ -45,7 +45,7 @@ async def run_workers(
     return await asyncio.gather(*tasks)
 
 
-def set_log_level(cf: CloudFunctions):
+def set_log_level(cf: ProcessingDefault):
     level = logging.getLevelName(cf.log_level)  # type: ignore
     if cf.log_level != "INFO" and isinstance(level, int):
         structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(level))
@@ -66,7 +66,7 @@ def lambda_handler(raw_event: dict[str, Any], _: Any) -> dict[str, int]:
     # The type error we are ignoring is because there's only one type available
     # for Config.processing. We keep the check to signal intent, in case we add
     # other types in the future.
-    if isinstance(event.vectorizer.config.processing, CloudFunctions):  # type: ignore
+    if isinstance(event.vectorizer.config.processing, ProcessingDefault):  # type: ignore
         set_log_level(event.vectorizer.config.processing)
 
     event.vectorizer.config.embedding.set_api_key(event.update_embeddings.secrets)

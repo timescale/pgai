@@ -98,13 +98,8 @@ class SchedulingTimescaledb(BaseModel):
     timezone: str | None = None
 
 
-class ProcessingNone(BaseModel):
-    implementation: Literal["none"]
-    config_type: Literal["processing"]
-
-
-class ProcessingCloudFunctions(BaseModel):
-    implementation: Literal["cloud_functions"]
+class ProcessingDefault(BaseModel):
+    implementation: Literal["default"]
     config_type: Literal["processing"]
     batch_size: int | None = None
     concurrency: int | None = None
@@ -123,9 +118,7 @@ class Config(BaseModel):
     chunking: Union[
         ChunkingCharacterTextSplitter, ChunkingRecursiveCharacterTextSplitter
     ] = Field(..., discriminator="implementation")
-    processing: Union[ProcessingNone, ProcessingCloudFunctions] = Field(
-        ..., discriminator="implementation"
-    )
+    processing: Union[ProcessingDefault] = Field(..., discriminator="implementation")
 
 
 class PrimaryKeyColumn(BaseModel):

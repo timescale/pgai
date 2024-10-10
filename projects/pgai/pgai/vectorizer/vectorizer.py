@@ -22,7 +22,7 @@ from .chunking import (
 )
 from .embeddings import ChunkEmbeddingError, OpenAI
 from .formatting import ChunkValue, PythonTemplate
-from .processing import CloudFunctions
+from .processing import ProcessingDefault
 
 logger = structlog.get_logger()
 
@@ -49,7 +49,7 @@ class PkAtt:
 class Config:
     version: str
     embedding: OpenAI
-    processing: CloudFunctions
+    processing: ProcessingDefault
     chunking: (
         LangChainCharacterTextSplitter | LangChainRecursiveCharacterTextSplitter
     ) = Field(..., discriminator="implementation")

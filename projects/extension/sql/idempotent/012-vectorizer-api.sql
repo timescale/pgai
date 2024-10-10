@@ -21,7 +21,7 @@ create or replace function ai.create_vectorizer
 , indexing jsonb default ai.indexing_diskann()
 , formatting jsonb default ai.formatting_python_template()
 , scheduling jsonb default ai.scheduling_timescaledb()
-, processing jsonb default ai.processing_cloud_functions()
+, processing jsonb default ai.processing_default()
 , target_schema name default null
 , target_table name default null
 , view_schema name default null
