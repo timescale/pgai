@@ -45,7 +45,7 @@ VECTORIZER_ROW = r"""
         },
         "processing": {
             "config_type": "processing",
-            "implementation": "cloud_functions"
+            "implementation": "default"
         },
         "scheduling": {
             "job_id": 1000,

@@ -1689,26 +1689,14 @@ set search_path to pg_catalog, pg_temp
 -- 010-processing.sql
 
 -------------------------------------------------------------------------------
--- processing_none
-create or replace function ai.processing_none() returns jsonb
-as $func$
-    select jsonb_build_object
-    ( 'implementation', 'none'
-    , 'config_type', 'processing'
-    )
-$func$ language sql immutable security invoker
-set search_path to pg_catalog, pg_temp
-;
-
--------------------------------------------------------------------------------
--- processing_cloud_functions
-create or replace function ai.processing_cloud_functions
+-- processing_default
+create or replace function ai.processing_default
 ( batch_size int default null
 , concurrency int default null
 ) returns jsonb
 as $func$
     select json_object
-    ( 'implementation': 'cloud_functions'
+    ( 'implementation': 'default'
     , 'config_type': 'processing'
     , 'batch_size': batch_size
     , 'concurrency': concurrency
@@ -1737,9 +1725,7 @@ begin
     end if;
     _implementation = config operator(pg_catalog.->>) 'implementation';
     case _implementation
-        when 'none' then
-            -- ok
-        when 'cloud_functions' then
+        when 'default' then
             _val = pg_catalog.jsonb_extract_path(config, 'batch_size');
             if _val is not null then
                 if pg_catalog.jsonb_typeof(_val) operator(pg_catalog.!=) 'number' then
@@ -2628,7 +2614,7 @@ create or replace function ai.create_vectorizer
 , indexing jsonb default ai.indexing_diskann()
 , formatting jsonb default ai.formatting_python_template()
 , scheduling jsonb default ai.scheduling_timescaledb()
-, processing jsonb default ai.processing_cloud_functions()
+, processing jsonb default ai.processing_default()
 , target_schema name default null
 , target_table name default null
 , view_schema name default null

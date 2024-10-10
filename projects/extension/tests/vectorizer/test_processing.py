@@ -13,55 +13,35 @@ def db_url(user: str) -> str:
     return f"postgres://{user}@127.0.0.1:5432/test"
 
 
-def test_processing_none():
+def test_processing_default():
     tests = [
         (
-            "select ai.processing_none()",
+            "select ai.processing_default()",
             {
-                "implementation": "none",
-                "config_type": "processing",
-            },
-        ),
-    ]
-    with psycopg.connect(db_url("test")) as con:
-        with con.cursor() as cur:
-            for query, expected in tests:
-                cur.execute(query)
-                actual = cur.fetchone()[0]
-                assert actual.keys() == expected.keys()
-                for k, v in actual.items():
-                    assert k in expected and v == expected[k]
-
-
-def test_processing_cloud_functions():
-    tests = [
-        (
-            "select ai.processing_cloud_functions()",
-            {
-                "implementation": "cloud_functions",
+                "implementation": "default",
                 "config_type": "processing",
             },
         ),
         (
-            "select ai.processing_cloud_functions(batch_size=>500)",
+            "select ai.processing_default(batch_size=>500)",
             {
-                "implementation": "cloud_functions",
+                "implementation": "default",
                 "config_type": "processing",
                 "batch_size": 500,
             },
         ),
         (
-            "select ai.processing_cloud_functions(concurrency=>3)",
+            "select ai.processing_default(concurrency=>3)",
             {
-                "implementation": "cloud_functions",
+                "implementation": "default",
                 "config_type": "processing",
                 "concurrency": 3,
             },
         ),
         (
-            "select ai.processing_cloud_functions(batch_size=>500, concurrency=>3)",
+            "select ai.processing_default(batch_size=>500, concurrency=>3)",
             {
-                "implementation": "cloud_functions",
+                "implementation": "default",
                 "config_type": "processing",
                 "batch_size": 500,
                 "concurrency": 3,
@@ -80,12 +60,11 @@ def test_processing_cloud_functions():
 
 def test_validate_processing():
     ok = [
-        "select ai._validate_processing(ai.processing_none())",
-        "select ai._validate_processing(ai.processing_cloud_functions())",
-        "select ai._validate_processing(ai.processing_cloud_functions(batch_size=>500))",
-        "select ai._validate_processing(ai.processing_cloud_functions(batch_size=>2048))",
-        "select ai._validate_processing(ai.processing_cloud_functions(batch_size=>2048, concurrency=>1))",
-        "select ai._validate_processing(ai.processing_cloud_functions(concurrency=>10))",
+        "select ai._validate_processing(ai.processing_default())",
+        "select ai._validate_processing(ai.processing_default(batch_size=>500))",
+        "select ai._validate_processing(ai.processing_default(batch_size=>2048))",
+        "select ai._validate_processing(ai.processing_default(batch_size=>2048, concurrency=>1))",
+        "select ai._validate_processing(ai.processing_default(concurrency=>10))",
     ]
     bad = [
         (
@@ -107,7 +86,7 @@ def test_validate_processing():
         (
             """
             select ai._validate_processing
-            ( ai.processing_cloud_functions(batch_size=>2049)
+            ( ai.processing_default(batch_size=>2049)
             )
             """,
             "batch_size must be less than or equal to 2048",
@@ -115,7 +94,7 @@ def test_validate_processing():
         (
             """
             select ai._validate_processing
-            ( ai.processing_cloud_functions(batch_size=>0)
+            ( ai.processing_default(batch_size=>0)
             )
             """,
             "batch_size must be greater than 0",
@@ -123,7 +102,7 @@ def test_validate_processing():
         (
             """
             select ai._validate_processing
-            ( ai.processing_cloud_functions(concurrency=>0)
+            ( ai.processing_default(concurrency=>0)
             )
             """,
             "concurrency must be greater than 0",
@@ -131,7 +110,7 @@ def test_validate_processing():
         (
             """
             select ai._validate_processing
-            ( ai.processing_cloud_functions(concurrency=>51)
+            ( ai.processing_default(concurrency=>51)
             )
             """,
             "concurrency must be less than or equal to 50",
