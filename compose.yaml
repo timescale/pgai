@@ -1,0 +1,30 @@
+services:
+  db:
+    build:
+      context: .
+      args:
+        PG_MAJOR: "16"
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+      start_interval: 10s
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - ./compose-init.sql:/docker-entrypoint-initdb.d/init.sql
+  vectorizer:
+    build: projects/pgai
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      VECTORIZER_DB_URL: "postgresql://postgres:postgres@db:5432/postgres"
+      VECTORIZER_LOG_LEVEL: DEBUG
+    depends_on:
+      db:
+        condition: service_healthy

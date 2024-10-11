@@ -1,11 +1,21 @@
 FROM python:3.12-slim
 
-WORKDIR /build
-COPY ./ /build/
-RUN pip3 install -v --compile --root-user-action=ignore /build
-WORKDIR /
-RUN rm -r /build
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-ENV PATH=/usr/local/bin/:$PATH
-ENTRYPOINT [ "vectorizer" ]
-CMD ["--version"]
+WORKDIR /app
+
+RUN useradd -ms /bin/bash pgaiuser
+
+RUN mkdir /app/tiktoken_cache && chown -R pgaiuser:pgaiuser /app/tiktoken_cache
+
+COPY ./requirements.txt /app/
+RUN pip3 install --no-cache-dir --disable-pip-version-check --compile --root-user-action=ignore -r requirements.txt
+
+USER pgaiuser
+
+COPY pyproject.toml /app
+COPY pgai /app/pgai
+
+ENTRYPOINT [ "python", "-m", "pgai" ]
+CMD ["-c", "4"]
