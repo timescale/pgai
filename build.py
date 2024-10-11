@@ -420,27 +420,26 @@ def uninstall_py() -> None:
     shutil.rmtree(python_install_dir(), ignore_errors=True)
 
 
-def build_pgai_init_py() -> None:
-    # pgai/__init__.py is checked in to version control. So, all the previous
-    # versions will have the file with the correct version already in it. This
-    # function just ensures that you can't screw up the current version. The
-    # only place you have to update the version when starting a new release is
-    # in the versions() function.
-    init_py = project_pgai_dir().joinpath("pgai", "__init__.py").resolve()
-    content = init_py.read_text()
-    lines = []
-    for line in content.splitlines(keepends=True):
-        if line.startswith("__version__"):
-            lines.append(f'__version__ = "{this_version()}"\n')
-        else:
-            lines.append(line)
-    init_py.write_text("".join(lines))
-
-
 def install_vectorizer() -> None:
-    build_pgai_init_py()
     subprocess.run(
         f'pip3 install -v --compile "{project_pgai_dir()}"',
+        check=True,
+        shell=True,
+        env=os.environ,
+        cwd=str(project_pgai_dir()),
+    )
+
+
+def build_vec_dist() -> None:
+    subprocess.run(
+        "python3 -m build --sdist --wheel",
+        check=True,
+        shell=True,
+        env=os.environ,
+        cwd=str(project_pgai_dir()),
+    )
+    subprocess.run(
+        "twine check dist/*",
         check=True,
         shell=True,
         env=os.environ,
@@ -672,6 +671,8 @@ if __name__ == "__main__":
             install_py()
         elif action == "install-vec":
             install_vectorizer()
+        elif action == "build-vec-dist":
+            build_vec_dist()
         elif action == "install-sql":
             install_sql()
         elif action == "build-sql":
