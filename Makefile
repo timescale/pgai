@@ -54,6 +54,12 @@ install-py:
 install-vec:
 	@./build.py install-vec
 
+.PHONY: build-vec-dist
+build-vec-dist:
+	@./build.py build-vec-dist
+	@cd projects/pgai && python -m build --sdist --wheel
+	@twine check projects/pgai/dist/*
+
 .PHONY: uninstall
 uninstall:
 	@PG_BIN=$(PG_BIN) ./build.py uninstall
