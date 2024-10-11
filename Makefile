@@ -158,3 +158,8 @@ docker-shell:
 .PHONY: psql-shell
 psql-shell:
 	@docker exec -it -u postgres pgai /bin/bash -c "set -e; if [ -f .env ]; then set -a; source .env; set +a; fi; psql"
+
+.PHONY: install-commit-hook
+install-commit-hook:
+	@curl --fail -o .git/hooks/commit-msg https://raw.githubusercontent.com/hazcod/semantic-commit-hook/master/commit-msg \
+  && chmod 500 .git/hooks/commit-msg
