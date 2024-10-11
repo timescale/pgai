@@ -50,6 +50,11 @@ making it easier for you to leverage the power of LLMs in your data workflows.
 Initially, vectorizers only work on [Timescale Cloud][timescale-cloud]. However 
 support for self-hosted installations will be added quickly.
 
+Vectorizer offers the following API:
+
+* [Create vectorizers](#create-vectorizers): automate the process of creating embeddings for table data
+* [Chunking configuration](#chunking-configuration): define the way text data is split into smaller, manageable pieces before being processed for embeddings
+* Embedding configuration to be completed
 
 ## Create vectorizers
 
