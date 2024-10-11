@@ -7,6 +7,18 @@ Start here. This page shows you:
 - [How to test pgai](#test-pgai): use the psql script to test your changes to pgai.
 - [The pgai build architecture](#the-pgai-build-architecture): work with multiple versions of pgai in the same environment.
 
+## PRs and commits
+
+The project uses [conventional commits][conventional-commits]. It's enforce by
+CI, you won't be able to merge PRs if your commits do not comply. This helps us
+automate the release process, changelog generation, etc.
+
+If you don't want to wait for the CI to get feedback on you commit. You can
+install the git hook that checks your commits locally. To do so, run:
+
+```bash
+make install-git-hooks
+```
 
 ## pgai Prerequisites
 
@@ -71,7 +83,7 @@ To make changes to pgai:
          ```bash
          make clean
          ```
-     
+
       5. Uninstall the extension
 
          ```bash
@@ -175,9 +187,9 @@ The SQL is organized into:
 * **Built scripts**: `./sql/ai--*.sql`
 
   `make build-sql` "compiles" the idempotent and incremental scripts into the final
-  form that is installed into a postgres environment as an extension. A script 
+  form that is installed into a postgres environment as an extension. A script
   named `./sql/ai--<current-version>.sql` is built. For every prior version
-  (other than 0.1.0, 0.2.0, and 0.3.0), the file is copied to 
+  (other than 0.1.0, 0.2.0, and 0.3.0), the file is copied to
   `./sql/ai--<prior-version>--<current-version>.sql` to give postgres an upgrade
   path from prior versions. The `./sql/ai.control` is also ensured to have the
   correct version listed in it.
@@ -186,7 +198,7 @@ The SQL is organized into:
   pull request. The scripts from prior versions are checked in and should not be modified after
   having been released.
 
-If you are exclusively working on SQL, you may want to forego the high-level make 
+If you are exclusively working on SQL, you may want to forego the high-level make
 targets in favor of the SQL-specific make targets:
 
 1. **Clean your environment**: run `make clean-sql` to delete `./sql/ai--*<current-version>.sql`.
@@ -204,11 +216,11 @@ targets in favor of the SQL-specific make targets:
 Python code used by the pgai is maintained in [./src](./src).
 
 Database functions
-written in [plpython3u](https://www.postgresql.org/docs/current/plpython.html) 
-can import the modules in this package and any dependencies specified in 
-[./src/pyproject.toml](./src/pyproject.toml). Including the following line at the 
+written in [plpython3u](https://www.postgresql.org/docs/current/plpython.html)
+can import the modules in this package and any dependencies specified in
+[./src/pyproject.toml](./src/pyproject.toml). Including the following line at the
 beginning of the database function body will allow you to import. The
-build process replaces this comment line with Python code that makes this 
+build process replaces this comment line with Python code that makes this
 possible. Note that the leading four spaces are required.
 
 ```python
@@ -225,8 +237,8 @@ targets in favor of the Python-specific make targets:
 1. **Install pgai**:
    To compile and install the python package with its associated dependencies.
    * Current version: run `make install-py`.
-   * Versions prior to 0.4.0: run `make install-prior-py`. 
-1. **Uninstall pgai**: run `make uninstall-py` and delete all versions of the Python code from 
+   * Versions prior to 0.4.0: run `make install-prior-py`.
+1. **Uninstall pgai**: run `make uninstall-py` and delete all versions of the Python code from
    `/usr/local/lib/pgai`.
 
 
@@ -235,3 +247,4 @@ targets in favor of the Python-specific make targets:
 Prior to pgai v0.4.0, Python dependencies were installed system-wide. Until pgai versions 0.1 - 0.3 are deprecated
 [old dependencies](./src/old_requirements.txt) are installed system-wide.
 
+[conventional-commits]: https://www.conventionalcommits.org/en/v1.0.0/
