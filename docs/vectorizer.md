@@ -102,20 +102,27 @@ in other management functions.
 
 ### Parameters
 
-`ai.create_vectorizer` takes the following parameters to customize the vectorizer:
+`ai.create_vectorizer` takes the following parameters:
 
-- `source`: the source table (as a `regclass`) that embeddings are generated for.
-- `embedding`: set embedding process, using `ai.embedding_openai()` to specify the model and dimensions.
-- `chunking`: choose how to split text data, using functions like `ai.chunking_character_text_splitter()`.
-- `indexing`: specify how to index the embeddings. For example, `ai.indexing_diskann()` or `ai.indexing_hnsw()`.
-- `formatting`: define the data format before embedding, using `ai.formatting_python_template()`.
-- `scheduling`: set how often to run the vectorizer. For example, `ai.scheduling_timescaledb()`.
-- `processing`: configure the way to process the embeddings. For example, `ai.processing_cloud_functions()`.
-- `target_schema`, `target_table`, `view_schema`, `view_name`: optional parameters to specify where to store embeddings and create views.
-- `queue_schema`, `queue_table`: optional parameters for the queue used in background processing.
-- `grant_to`: an array of role names to grant permissions to.
-- `enqueue_existing`: set to `true` if existing rows should be immediately queued for embedding.
+IAIN: not sure about the values in this table
 
+| Name             | Type                                                   | Default | Required | Description                                                                |
+|------------------|--------------------------------------------------------|---------|-|----------------------------------------------------------------------------|
+| source           | regclass                                               | -       |✔|     The source table that embeddings are generated for. |
+| embedding        | [Embedding configuration](#embedding-configuration)    | -       |✖|   Set the embedding process using `ai.embedding_openai()` to specify the model and dimensions.                                                                         |
+| chunking         | [Chunking configuration](#chunking-configuration)      | -       |✖|   Set the way to split text data, using functions like `ai.chunking_character_text_splitter()`.                                                                         |
+| indexing         | [Indexing configuration](#indexing-configuration)      | -       |✖| Specify how to index the embeddings. For example, `ai.indexing_diskann()` or `ai.indexing_hnsw()`.|
+| formatting       | [Formatting configuration](#formatting-configuration)  | -       | ✖|   Define the data format before embedding, using `ai.formatting_python_template()`.                                                                         |
+| scheduling       | [Scheduling configuration](#scheduling-configuration)  | -       |✖|    Set how often to run the vectorizer. For example, `ai.scheduling_timescaledb()`.                                                                        |
+| processing       | [Processing configuration](#processing-configuration ) | -       |✖| Configure the way to process the embeddings.                               |
+| target_schema    |                                                        | -       |✖| Specify where to store embeddings and create views.                        |
+| target_table     |                                                        | -       |✖| Specify where to store embeddings and create views.                        |
+| view_schema      |                                                        | -       |✖| Specify where to store embeddings and create views.                        |
+| view_name        |                                                        | -       |✖| Specify where to store embeddings and create views.                        |
+| queue_schema     |                                                        | -       |✖| Set the way the queue works in background processing.                      |
+| queue_table      |                                                        | -       |✖| Set the way the queue works in background processing.                      |
+| grant_to         | array                                                  | -       |✖ | An array containing the role names to grant permissions to.                |
+| enqueue_existing | bool                                                   | -       |✖| Set to `true` if existing rows should be immediately queued for embedding. |
 ## Chunking configuration
 
 The chunking configuration functions in `pgai` serve the important 
@@ -148,22 +155,13 @@ SELECT ai.chunking_character_text_splitter('body', 128, 10, E'\n;')
 
 `ai.chunking_character_text_splitter` takes the following parameters:
 
-```sql
-SELECT ai.chunking_character_text_splitter(
-    chunk_column name,
-    chunk_size int DEFAULT 800,
-    chunk_overlap int DEFAULT 400,
-    separator text DEFAULT E'\n\n',
-    is_separator_regex bool DEFAULT false
-)
-```
-
-- `chunk_column`: the name of the column containing the text to be chunked
-- `chunk_size`: the maximum number of characters per chunk
-- `chunk_overlap`: the number of characters to overlap between chunks
-- `separator`: the string or character used to split the text
-- `is_separator_regex`: whether the separator is a regular expression
-
+|Name| Type | Default | Required | Description                                               |
+|-|------|---------|-|-----------------------------------------------------------|
+|chunk_column| name | -       |✔| The name of the column containing the text to be chunked. |
+|chunk_size| int  | 800     |✖| The maximum number of characters per chunk                |
+|chunk_overlap| int  | 400     |✖| The number of characters to overlap between chunks        |
+|separator| text | E'\n\n' |✖| The string or character used to split the text            |
+|is_separator_regex| bool | false   |✖| Set to `true` if    `separator` is a regular expression.  |
 
 ### ai.chunking_recursive_character_text_splitter
 
@@ -214,22 +212,13 @@ Both of these functions return a JSON configuration object that you can use in
 
 `ai.chunking_recursive_character_text_splitter` takes the following parameters:
 
-```sql
-SELECT ai.chunking_recursive_character_text_splitter(
-    chunk_column name,
-    chunk_size int DEFAULT 800,
-    chunk_overlap int DEFAULT 400,
-    separators text[] DEFAULT array[E'\n\n', E'\n', '.', '?', '!', ' ', ''],
-    is_separator_regex bool DEFAULT false
-)
-```
-
-- `chunk_column`: the name of the column containing the text to be chunked
-- `chunk_size`: the maximum number of characters per chunk
-- `chunk_overlap`: the number of characters to overlap between chunks
-- `is_separator_regex`: whether the separator is a regular expression
-- `separators`: an array of separators to use, applied in order
-
+|Name| Type | Default | Required | Description                                               |
+|-|------|---------|-|-----------------------------------------------------------|
+|chunk_column| name | -       |✔| The name of the column containing the text to be chunked. |
+|chunk_size| int  | 800     |✖| The maximum number of characters per chunk                |
+|chunk_overlap| int  | 400     |✖| The number of characters to overlap between chunks        |
+|separator| text[] | array[E'\n\n', E'\n', '.', '?', '!', ' ', ''] |✖| The string or character used to split the text            |
+|is_separator_regex| bool | false   |✖| Set to `true` if    `separator` is a regular expression.  |
 
 ## Embedding configuration
 
@@ -293,11 +282,12 @@ SELECT ai.create_vectorizer(
 
 The function takes several parameters to customize the OpenAI embedding configuration:
 
-- `model`: use this required text parameter to specify the name of the OpenAI embedding model to use. For example, 'text-embedding-3-small'.
-- `dimensions`: use this required int parameter to define the number of dimensions for the embedding vectors. This should match the output dimensions of the chosen model.
-- `chat_user`: this optional text parameter is the identifier for the user making the API call. This can be useful for tracking API usage or for OpenAI's monitoring purposes.
-- `api_key_name`: use this optional text parameter to set the name of the environment variable that contains the OpenAI API key. This allows for flexible API key management without hardcoding keys in the database. The default value is 'OPENAI_API_KEY'.
-
+|Name| Type | Default | Required | Description                                                                                                                     |
+|-|------|-|-|---------------------------------------------------------------------------------------------------------------------------------|
+|model| text | -|✔| specify the name of the OpenAI embedding model to use. For example, 'text-embedding-3-small'.                                   |
+|dimensions| int  | -|✔| Define the number of dimensions for the embedding vectors. This should match the output dimensions of the chosen model.         |
+|chat_user| text | -|✖| The identifier for the user making the API call. This can be useful for tracking API usage or for OpenAI's monitoring purposes. |
+|api_key_name|  text    | 'OPENAI_API_KEY'|✖|  Set the name of the environment variable that contains the OpenAI API key. This allows for flexible API key management without hardcoding keys in the database.  |
 
 ## Formatting configuration
 
@@ -373,52 +363,80 @@ embeddings.
 
 `ai.formatting_python_template` takes the following parameter:
 
-```sql
-SELECT ai.formatting_python_template(template text DEFAULT '$chunk')
-```
-
-- `template`: A string that defines how the data should be formatted. `template` uses 
-   Python's string formatting syntax with $-prefixed variables.
+|Name| Type   | Default | Required | Description                                                                                                                 |
+|-|--------|-|-|-----------------------------------------------------------------------------------------------------------------------------|
+|template| string |'$chunk'|✔| A string using [Python string formatting](https://realpython.com/python-string-formatting/) with $-prefixed variables that defines how the data should be formatted. |
 
   - The $chunk placeholder is required and represents the text chunk that will be embedded.
   - Other placeholders can be used to reference columns from the source table.
   - The template allows for adding static text or structuring the input in a specific way.
 
-`ai.formatting_python_template` returns a JSON configuration object that you can use as an argument 
-for [ai.create_vectorizer](#create-vectorizers)
+### Returns 
 
-
+A JSON configuration object that you can use as an argument for [ai.create_vectorizer](#create-vectorizers)
 
 ## Indexing configuration
 
-The indexing configuration functions in the pgai extension are designed to 
+The indexing configuration functions in pgai are designed to 
 specify how the generated embeddings should be indexed for efficient similarity 
-searches. These functions allow users to choose and configure the indexing 
-method that best suits their needs in terms of performance, accuracy, and 
-resource usage. Let's examine each of these functions:
+searches. These functions enable you to choose and configure the indexing 
+method that best suits your needs in terms of performance, accuracy, and 
+resource usage. The available functions are:
 
-1. ai.indexing_none
+### ai.indexing_none
 
-Purpose:
+You use `ai.indexing_none` to:
 - Specify that no special indexing should be used for the embeddings.
-- Useful when you don't need fast similarity searches or when you're dealing 
-  with a small amount of data.
 
-Usage:
+This is useful when you don't need fast similarity searches or when you're dealing  
+with a small amount of data.
+
+#### Example usage
+
 ```sql
 SELECT ai.indexing_none()
 ```
 
+#### Parameters
+
 This function takes no parameters and simply returns a configuration object 
 indicating that no indexing should be used.
 
-2. ai.indexing_diskann
 
-Purpose:
+### ai.indexing_diskann
+
+You use `ai.indexing_diskann` to:
 - Configure indexing using the DiskANN algorithm, which is designed for high-performance approximate nearest neighbor search on large-scale datasets.
 - Suitable for very large datasets that need to be stored on disk.
 
-Usage:
+By providing these indexing options, pgai allows you to optimize your
+embedding storage and retrieval based on their specific use case and performance
+requirements. This flexibility is crucial for scaling AI-powered search and
+analysis capabilities within a PostgreSQL database.
+
+Key points about indexing:
+
+1. The choice of indexing method depends on your dataset size, query performance requirements, and available resources.
+
+2. DiskANN is generally better for very large datasets that don't fit in memory, while HNSW is often faster for in-memory datasets.
+
+3. The `min_rows` parameter allows you to delay index creation until you have enough data to justify the overhead.
+
+4. No index (`ai.indexing_none`) might be suitable for small datasets or when you're more concerned with insertion speed than query speed.
+
+5. These indexing methods are designed for approximate nearest neighbor search, which trades a small amount of accuracy for significant speed improvements in similarity searches.
+
+
+#### Example usage
+
+```sql
+SELECT ai.indexing_diskann(min_rows => 500000, storage_layout => 'memory_optimized')
+```
+
+#### Parameters
+
+`ai.indexing_diskann` takes the following parameters:
+
 ```sql
 SELECT ai.indexing_diskann(
     min_rows int DEFAULT 100000,
@@ -431,23 +449,44 @@ SELECT ai.indexing_diskann(
 )
 ```
 
-Parameters:
-- min_rows: Minimum number of rows before creating the index
-- storage_layout: Can be 'memory_optimized' or 'plain'
-- num_neighbors, search_list_size, max_alpha, num_dimensions, num_bits_per_dimension: Advanced DiskANN parameters
+- `min_rows`: the minimum number of rows before creating the index
+- `storage_layout`: can be 'memory_optimized' or 'plain'
+- `num_neighbors`, `search_list_size`, `max_alpha`, `num_dimensions`, `num_bits_per_dimension`: advanced 
+   [DiskANN](https://github.com/microsoft/DiskANN/tree/main) parameters
 
-Example:
+
+### ai.indexing_hnsw
+
+You use `ai.indexing_hnsw` to:
+- Configure indexing using the [Hierarchical Navigable Small World (HNSW) algorithm](https://en.wikipedia.org/wiki/Hierarchical_navigable_small_world), which is known for fast and accurate approximate nearest neighbor search.
+
+HNSW is suitable for in-memory datasets and scenarios where query speed is crucial.
+
+#### Example usage
+
 ```sql
-SELECT ai.indexing_diskann(min_rows => 500000, storage_layout => 'memory_optimized')
+SELECT ai.indexing_hnsw(min_rows => 50000, opclass => 'vector_l2_ops')
 ```
 
-3. ai.indexing_hnsw
+Usage in `ai.create_vectorizer`:
 
-Purpose:
-- Configure indexing using the Hierarchical Navigable Small World (HNSW) algorithm, which is known for fast and accurate approximate nearest neighbor search.
-- Suitable for in-memory datasets and scenarios where query speed is crucial.
+  These indexing configuration functions are typically used as arguments to the
+  `ai.create_vectorizer` function:
 
-Usage:
+  ```sql
+  SELECT ai.create_vectorizer(
+      'my_embeddings'::regclass,
+      embedding => ai.embedding_openai('text-embedding-3-small', 768),
+      chunking => ai.chunking_character_text_splitter('text_column'),
+      indexing => ai.indexing_hnsw(min_rows => 10000),
+      -- other parameters...
+  );
+  ```
+
+#### Parameters
+
+`ai.indexing_hnsw` takes the following parameters:
+
 ```sql
 SELECT ai.indexing_hnsw(
     min_rows int DEFAULT 100000,
@@ -457,158 +496,111 @@ SELECT ai.indexing_hnsw(
 )
 ```
 
-Parameters:
-- min_rows: Minimum number of rows before creating the index
-- opclass: The operator class for the index ('vector_cosine_ops', 'vector_l2_ops', or 'vector_ip_ops')
-- m, ef_construction: Advanced HNSW parameters
-
-Example:
-```sql
-SELECT ai.indexing_hnsw(min_rows => 50000, opclass => 'vector_l2_ops')
-```
-
-Usage in ai.create_vectorizer:
-
-These indexing configuration functions are typically used as arguments to the 
-`ai.create_vectorizer` function:
-
-```sql
-SELECT ai.create_vectorizer(
-    'my_embeddings'::regclass,
-    embedding => ai.embedding_openai('text-embedding-3-small', 768),
-    chunking => ai.chunking_character_text_splitter('text_column'),
-    indexing => ai.indexing_hnsw(min_rows => 10000),
-    -- other parameters...
-);
-```
-
-Key points about indexing:
-
-1. The choice of indexing method depends on your dataset size, query performance requirements, and available resources.
-
-2. DiskANN is generally better for very large datasets that don't fit in memory, while HNSW is often faster for in-memory datasets.
-
-3. The 'min_rows' parameter allows you to delay index creation until you have enough data to justify the overhead.
-
-4. No index (ai.indexing_none) might be suitable for small datasets or when you're more concerned with insertion speed than query speed.
-
-5. These indexing methods are designed for approximate nearest neighbor search, which trades a small amount of accuracy for significant speed improvements in similarity searches.
-
-By providing these indexing options, pgai allows users to optimize their 
-embedding storage and retrieval based on their specific use case and performance
-requirements. This flexibility is crucial for scaling AI-powered search and 
-analysis capabilities within a PostgreSQL database.
+- `min_rows`: the minimum number of rows before creating the index
+- `opclass`: the operator class for the index. Possible values are:`vector_cosine_ops`, `vector_l2_ops`, or `vector_ip_ops`
+- `m`, `ef_construction`: advanced [HNSW parameters](https://en.wikipedia.org/wiki/Hierarchical_navigable_small_world)
 
 ## Scheduling configuration
 
-The scheduling functions in the pgai extension are designed to configure when 
+The scheduling functions in pgai are designed for you to configure when 
 and how often the vectorizer should run to process new or updated data. These 
-functions allow users to set up automated, periodic execution of the embedding 
-generation process. Let's examine each of these functions:
+functions allow you to set up automated, periodic execution of the embedding 
+generation process.
 
-1. ai.scheduling_none
+By providing these scheduling options, pgai enables you to automate the process
+of keeping your embeddings up-to-date with minimal manual intervention. This is
+crucial for maintaining the relevance and accuracy of AI-powered search and
+analysis capabilities, especially in systems where data is frequently updated or
+added. The flexibility in scheduling also allows users to balance the freshness
+of embeddings against system resource usage and other operational
+considerations.
 
-Purpose:
+
+- `ai.scheduling_none` is useful when you want manual control over when the vectorizer runs.
+
+- `ai.scheduling_timescaledb` leverages TimescaleDB's robust job scheduling system, which is designed for reliability and scalability.
+
+
+
+### ai.scheduling_none
+
+You use `ai.scheduling_none` to
 - Specify that no automatic scheduling should be set up for the vectorizer.
-- Useful when you want to manually control when the vectorizer runs or when you're using an external scheduling system.
+- Manually control when the vectorizer runs or when you're using an external scheduling system.
 
-Usage:
+#### Example usage
+
 ```sql
 SELECT ai.scheduling_none()
 ```
 
+#### Parameters
+
 This function takes no parameters and simply returns a configuration object 
 indicating that no scheduling should be used.
 
-2. ai.scheduling_timescaledb
+### ai.scheduling_timescaledb
 
-Purpose:
+You use `ai.scheduling_timescaledb` to:
+
 - Configure automated scheduling using TimescaleDB's job scheduling system.
 - Allow periodic execution of the vectorizer to process new or updated data.
 - Provide fine-grained control over when and how often the vectorizer runs.
 
-Usage:
-```sql
-SELECT ai.scheduling_timescaledb(
-    schedule_interval interval DEFAULT interval '10m',
-    initial_start timestamptz DEFAULT null,
-    fixed_schedule bool DEFAULT null,
-    timezone text DEFAULT null
-)
-```
 
-Parameters:
-- schedule_interval: How often the vectorizer should run (default is every 10 minutes)
-- initial_start: When the first run should occur (optional)
-- fixed_schedule: Whether to use a fixed schedule (true) or a sliding window (false)
-- timezone: The timezone for the schedule (optional)
+#### Example usage
 
-Examples:
+- Basic usage (run every 10 minutes):
+  ```sql
+  SELECT ai.scheduling_timescaledb()
+  ```
 
-1. Basic usage (run every 10 minutes):
-```sql
-SELECT ai.scheduling_timescaledb()
-```
+- Custom interval (run every hour):
+  ```sql
+  SELECT ai.scheduling_timescaledb(interval '1 hour')
+  ```
 
-2. Custom interval (run every hour):
-```sql
-SELECT ai.scheduling_timescaledb(interval '1 hour')
-```
+- Specific start time and timezone:
+  ```sql
+  SELECT ai.scheduling_timescaledb(
+      interval '30 minutes',
+      initial_start => '2023-12-01 00:00:00'::timestamptz,
+      timezone => 'America/New_York'
+  )
+  ```
 
-3. Specific start time and timezone:
-```sql
-SELECT ai.scheduling_timescaledb(
-    interval '30 minutes',
-    initial_start => '2023-12-01 00:00:00'::timestamptz,
-    timezone => 'America/New_York'
-)
-```
+- Fixed schedule:
+  ```sql
+  SELECT ai.scheduling_timescaledb(
+      interval '1 day',
+      fixed_schedule => true,
+      timezone => 'UTC'
+  )
+  ```
 
-4. Fixed schedule:
-```sql
-SELECT ai.scheduling_timescaledb(
-    interval '1 day',
-    fixed_schedule => true,
-    timezone => 'UTC'
-)
-```
+- Usage in `ai.create_vectorizer`:
 
-Usage in `ai.create_vectorizer`:
+  These scheduling configuration functions are typically used as arguments to the
+  `ai.create_vectorizer` function:
+  
+  ```sql
+  SELECT ai.create_vectorizer(
+      'my_table'::regclass,
+      embedding => ai.embedding_openai('text-embedding-3-small', 768),
+      chunking => ai.chunking_character_text_splitter('text_column'),
+      scheduling => ai.scheduling_timescaledb(interval '15 minutes'),
+      -- other parameters...
+  );
+  ```
 
-These scheduling configuration functions are typically used as arguments to the 
-`ai.create_vectorizer` function:
+#### Parameters
 
-```sql
-SELECT ai.create_vectorizer(
-    'my_table'::regclass,
-    embedding => ai.embedding_openai('text-embedding-3-small', 768),
-    chunking => ai.chunking_character_text_splitter('text_column'),
-    scheduling => ai.scheduling_timescaledb(interval '15 minutes'),
-    -- other parameters...
-);
-```
-
-Key points about scheduling:
-
-1. ai.scheduling_none is useful when you want manual control over when the vectorizer runs.
-
-2. ai.scheduling_timescaledb leverages TimescaleDB's robust job scheduling system, which is designed for reliability and scalability.
-
-3. The schedule_interval determines how frequently the vectorizer checks for new or updated data to process.
-
-4. The initial_start parameter allows you to delay the start of scheduling, which can be useful for coordinating with other system processes or maintenance windows.
-
-5. The fixed_schedule option determines whether the job runs at fixed times (e.g., every day at midnight) or on a sliding window (e.g., every 24 hours from the last run).
-
-6. The timezone parameter ensures that schedules are interpreted correctly, especially important for fixed schedules or when coordinating with business hours.
-
-By providing these scheduling options, pgai allows users to automate the process
-of keeping their embeddings up-to-date with minimal manual intervention. This is
-crucial for maintaining the relevance and accuracy of AI-powered search and 
-analysis capabilities, especially in systems where data is frequently updated or
-added. The flexibility in scheduling also allows users to balance the freshness 
-of embeddings against system resource usage and other operational 
-considerations.
+|Name|Type| Default | Required | Description                                                                                                        | 
+|-|-|---------|-|--------------------------------------------------------------------------------------------------------------------|
+|schedule_interval|interval| '10m'   |✔| Set how frequently the vectorizer checks for new or updated data to process.                                       |
+|initial_start|timestamptz| -       |✖| Delay the start of scheduling. This is useful for coordinating with other system processes or maintenance windows. |
+|fixed_schedule|bool| -       |✖|Set to `true` to use a fixed schedule such as every day at midnight. Set to `false` for a sliding window such as every 24 hours from the last run|
+|timezone|text| - |✖|  Set the timezone this schedule operates in. This ensures that schedules are interpreted correctly, especially important for fixed schedules or when coordinating with business hours. |
 
 ## Enabling/Disabling vectorizer schedules
 
@@ -1008,3 +1000,17 @@ address any issues that may arise in your AI-powered data pipelines.
 
 
 [timescale-cloud]: https://console.cloud.timescale.com/
+
+
+
+
+IAIN
+
+|Name|Type| Default | Required | Description |
+|-|-|-|-|-|
+||| -|✔||
+||| -|✖||
+
+️
+
+IAIN
