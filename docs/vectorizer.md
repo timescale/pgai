@@ -2,86 +2,73 @@
 # Vectorizers
 
 A vectorizer provides users with a powerful and automated way to generate and 
-manage LLM embeddings for their PostgreSQL data. Here's a summary of what users 
+manage LLM embeddings for their PostgreSQL data. Here's a summary of what you 
 gain from this feature:
 
-1. Automated Embedding Generation: Users can create a vectorizer for a specified
+- **Automated embedding generation**: you can create a vectorizer for a specified
    table, which automatically generates embeddings for the data in that table.
 
-2. Configurable Embedding Process: The vectorizer is highly configurable, 
-   allowing users to specify:
-    - The embedding model and dimensions (e.g., OpenAI's text-embedding-3-small)
+- **Configurable embedding process**: a vectorizer is highly configurable, 
+   allowing you to specify:
+    - The embedding model and dimensions. For example, OpenAI's `text-embedding-3-small`
     - Chunking strategies for text data
     - Formatting templates for combining multiple fields
     - Indexing options for efficient similarity searches
     - Scheduling for background processing
 
-3. Integration with Multiple AI Providers: The vectorizer supports different 
+- **Integration with multiple AI providers**: a vectorizer supports different 
    embedding providers, initially including OpenAI, with more planned for the 
    future.
 
-5. Automatic Updates: The vectorizer creates triggers on the source table, 
+- **Automatic updates**: a vectorizer creates triggers on the source table, 
    ensuring that embeddings are automatically updated when the source data 
    changes.
 
-6. Efficient Storage and Retrieval: Embeddings are stored in a separate table 
+- **Efficient storage and retrieval**: embeddings are stored in a separate table 
    with appropriate indexing, optimizing for vector similarity searches.
 
-7. Background Processing: The vectorizer can be scheduled to run as a background
+- **Background processing**: you can schedule a vectorizer to run as a background
    job, minimizing impact on regular database operations.
 
-8. View Creation: A view is automatically created to join the original data with
+- **View creation**: a view is automatically created to join the original data with
    its embeddings, making it easy to query and use the embedded data.
 
-9. Scalability: The vectorizer includes options for batch processing and 
-   concurrency control, allowing it to handle large datasets efficiently.
+- **Scalability**: a vectorizer includes options for batch processing and 
+   concurrency control, This enables vectorizers to handle large datasets efficiently.
 
-10. Fine-grained Access Control: Users can specify which roles should have 
+- **Fine-grained access control**: you can specify which roles should have 
     access to the vectorizer and its related objects.
 
-11. Monitoring and Management: The extension provides functions to monitor the 
+- **Monitoring and management**: pgai provides functions to monitor the
     vectorizer's queue, enable/disable scheduling, and manage the vectorizer 
     lifecycle.
 
-This feature significantly simplifies the process of incorporating AI-powered 
-semantic search and analysis capabilities into existing PostgreSQL databases, 
-making it easier for users to leverage the power of LLMs in their data 
-workflows.
+Vectorizer significantly simplifies the process of incorporating AI-powered 
+semantic search and analysis capabilities into existing PostgreSQL databases. This 
+making it easier for you to leverage the power of LLMs in your data workflows.
 
-Initially, vectorizers only work on the Timescale cloud platform, however 
+Initially, vectorizers only work on [Timescale Cloud][timescale-cloud]. However 
 support for self-hosted installations will be added quickly.
 
 
-## Creating vectorizers
+## Create vectorizers
 
-The `ai.create_vectorizer` function is a key component of the pgai extension's 
-vectorizer feature. Its purpose is to set up and configure an automated system 
-for generating and managing embeddings for a specified table in the database. 
-Here's an explanation of its purpose and usage:
+You use the `ai.create_vectorizer` function in pgai to set up and configure an automated system 
+for generating and managing embeddings for a specified table in the database.
 
-Purpose:
-1. Automate the process of creating embeddings for table data
-2. Set up necessary infrastructure (tables, views, triggers) for embedding management
-3. Configure the embedding generation process according to user specifications
-4. Integrate with AI providers for embedding creation
-5. Set up scheduling for background processing of embeddings
+The purpose of `ai.create_vectorizer` is to:
+- Automate the process of creating embeddings for table data
+- Set up necessary infrastructure such as tables, views, and triggers for embedding management
+- Configure the embedding generation process according to user specifications
+- Integrate with AI providers for embedding creation
+- Set up scheduling for background processing of embeddings
 
-Usage:
-The function takes several parameters to customize the vectorizer:
+### Example usage
 
-1. source: The source table (as a regclass) for which embeddings will be generated.
-2. embedding: Configuration for the embedding process, using `ai.embedding_openai()` to specify the model and dimensions.
-3. chunking: Configuration for how to split text data, using functions like `ai.chunking_character_text_splitter()`.
-4. indexing: Specifies how to index the embeddings, e.g., `ai.indexing_diskann()` or `ai.indexing_hnsw()`.
-5. formatting: Defines how to format the data before embedding, using `ai.formatting_python_template()`.
-6. scheduling: Sets up when and how often to run the vectorizer, e.g., `ai.scheduling_timescaledb()`.
-7. processing: Configures how to process the embeddings, like `ai.processing_cloud_functions()`.
-8. target_schema, target_table, view_schema, view_name: Optional parameters to specify where to store embeddings and create views.
-9. queue_schema, queue_table: Optional parameters for the queue used in background processing.
-10. grant_to: An array of role names to grant permissions to.
-11. enqueue_existing: Boolean to determine if existing rows should be immediately queued for embedding.
+By using `ai.create_vectorizer`, you can quickly set up a sophisticated
+embedding system tailored to your specific needs, without having to manually
+create and manage all the necessary database objects and processes. For example:
 
-Example usage:
 ```sql
 SELECT ai.create_vectorizer(
     'website.blog'::regclass,
@@ -97,43 +84,65 @@ SELECT ai.create_vectorizer(
 );
 ```
 
-This function call would:
-1. Set up a vectorizer for the 'website.blog' table
-2. Use OpenAI's text-embedding-3-small model to create 768-dimensional embeddings
-3. Chunk the 'body' column into 128-character pieces with 10-character overlap
-4. Format each chunk with title and published date
-5. Schedule the vectorizer to run every 5 minutes starting from a future date
-6. Grant necessary permissions to roles 'bob' and 'alice'
+This function call:
+1. Sets up a vectorizer for the 'website.blog' table
+2. Uses OpenAI's `text-embedding-3-small` model to create 768 dimensional embeddings
+3. Chunks the `body` column into 128-character pieces with a 10-character overlap
+4. Formats each chunk with a `title` and a `published` date
+5. Schedules the vectorizer to run every `5` minutes starting from a date in the future
+6. Grants necessary permissions to the roles 'bob' and 'alice'
 
-The function returns an integer identifier for the created vectorizer, which can
-be used in other management functions.
+The function returns an integer identifier for the vectorizer created, which you can use
+in other management functions.
 
-By using `ai.create_vectorizer`, users can quickly set up a sophisticated 
-embedding system tailored to their specific needs, without having to manually 
-create and manage all the necessary database objects and processes.
+### Parameters
+
+`ai.create_vectorizer` takes the following parameters to customize the vectorizer:
+
+- `source`: the source table (as a `regclass`) that embeddings are generated for.
+- `embedding`: set embedding process, using `ai.embedding_openai()` to specify the model and dimensions.
+- `chunking`: choose how to split text data, using functions like `ai.chunking_character_text_splitter()`.
+- `indexing`: specify how to index the embeddings. For example, `ai.indexing_diskann()` or `ai.indexing_hnsw()`.
+- `formatting`: define the data format before embedding, using `ai.formatting_python_template()`.
+- `scheduling`: set how often to run the vectorizer. For example, `ai.scheduling_timescaledb()`.
+- `processing`: configure the way to process the embeddings. For example, `ai.processing_cloud_functions()`.
+- `target_schema`, `target_table`, `view_schema`, `view_name`: optional parameters to specify where to store embeddings and create views.
+- `queue_schema`, `queue_table`: optional parameters for the queue used in background processing.
+- `grant_to`: an array of role names to grant permissions to.
+- `enqueue_existing`: set to `true` if existing rows should be immediately queued for embedding.
 
 ## Chunking configuration
 
-The chunking configuration functions in the pgai extension serve the important 
+The chunking configuration functions in `pgai` serve the important 
 purpose of defining how text data should be split into smaller, manageable 
 pieces before being processed for embeddings. This is crucial because many 
 embedding models have input size limitations, and chunking allows for processing
 of larger text documents while maintaining context.
 
-There are two main chunking functions provided:
+The main chunking functions provided are:
 
-1. ai.chunking_character_text_splitter
-2. ai.chunking_recursive_character_text_splitter
+- [ai.chunking_character_text_splitter](#aichunking_character_text_splitter)
+- [ai.chunking_recursive_character_text_splitter](#aichunking_recursive_character_text_splitter)
 
-Let's examine each of these:
+### ai.chunking_character_text_splitter
 
-1. ai.chunking_character_text_splitter:
-
-Purpose:
+You use `ai.chunking_character_text_splitter` to:
 - Split text into chunks based on a specified separator
 - Control the size of chunks and amount of overlap between chunks
 
-Usage:
+#### Example usage
+
+To split the 'body' column into chunks of 128 characters, with 10
+character overlap, using '\n;' as the separator.
+
+```sql
+SELECT ai.chunking_character_text_splitter('body', 128, 10, E'\n;')
+```
+
+#### Parameters
+
+`ai.chunking_character_text_splitter` takes the following parameters:
+
 ```sql
 SELECT ai.chunking_character_text_splitter(
     chunk_column name,
@@ -144,27 +153,62 @@ SELECT ai.chunking_character_text_splitter(
 )
 ```
 
-Parameters:
-- chunk_column: The name of the column containing the text to be chunked
-- chunk_size: Maximum number of characters per chunk
-- chunk_overlap: Number of characters to overlap between chunks
-- separator: The string or character used to split the text
-- is_separator_regex: Whether the separator is a regular expression
+- `chunk_column`: the name of the column containing the text to be chunked
+- `chunk_size`: the maximum number of characters per chunk
+- `chunk_overlap`: the number of characters to overlap between chunks
+- `separator`: the string or character used to split the text
+- `is_separator_regex`: whether the separator is a regular expression
 
-Example:
-```sql
-SELECT ai.chunking_character_text_splitter('body', 128, 10, E'\n;')
-```
-This would split the 'body' column into chunks of 128 characters, with 10 
-character overlap, using '\n;' as the separator.
 
-2. ai.chunking_recursive_character_text_splitter:
+### ai.chunking_recursive_character_text_splitter
 
-Purpose:
+You use `ai.chunking_recursive_character_text_splitter` to:
 - Recursively split text into chunks using multiple separators
 - Provides more fine-grained control over the chunking process
 
-Usage:
+#### Example usage
+
+By using chunking functions, you can fine-tune how your text data is
+prepared for embedding, ensuring that the chunks are appropriately sized and
+maintain necessary context for their specific use case. This is particularly
+important for maintaining the quality and relevance of the generated embeddings,
+especially when dealing with long-form content or documents with specific
+structural elements.
+
+- Split the 'my_table' table into chunks of 128 characters, with a 10 character overlap
+
+  ```sql
+  SELECT ai.create_vectorizer(
+      'my_table'::regclass,
+      chunking => ai.chunking_character_text_splitter('body', 128, 10),
+      -- other parameters...
+  );
+  ```
+
+- Recursively split the 'content' column into chunks of 256 characters, with 20 character 
+  overlap, first trying to split on '\n;', then on spaces.
+
+  ```sql
+  SELECT ai.chunking_recursive_character_text_splitter(
+      'content', 
+      256, 
+      20, 
+      separators => array[E'\n;', ' ']
+  )
+  ```
+
+The key difference between these functions is that `chunking_recursive_character_text_splitter` 
+allows for a more sophisticated splitting strategy, potentially preserving more
+semantic meaning in the chunks.
+
+Both of these functions return a JSON configuration object that you can use in 
+[ai.create_vectorizer](#create-vectorizers)
+
+
+#### Parameters
+
+`ai.chunking_recursive_character_text_splitter` takes the following parameters:
+
 ```sql
 SELECT ai.chunking_recursive_character_text_splitter(
     chunk_column name,
@@ -175,68 +219,37 @@ SELECT ai.chunking_recursive_character_text_splitter(
 )
 ```
 
-Parameters:
-- chunk_column, chunk_size, chunk_overlap, is_separator_regex: Same as above
-- separators: An array of separators to use, applied in order
+- `chunk_column`: the name of the column containing the text to be chunked
+- `chunk_size`: the maximum number of characters per chunk
+- `chunk_overlap`: the number of characters to overlap between chunks
+- `is_separator_regex`: whether the separator is a regular expression
+- `separators`: an array of separators to use, applied in order
 
-Example:
-```sql
-SELECT ai.chunking_recursive_character_text_splitter(
-    'content', 
-    256, 
-    20, 
-    separators => array[E'\n;', ' ']
-)
-```
-This would recursively split the 'content' column into chunks of 256 characters,
-with 20 character overlap, first trying to split on '\n;', then on spaces.
-
-The key difference between these functions is that the recursive version allows 
-for a more sophisticated splitting strategy, potentially preserving more 
-semantic meaning in the chunks.
-
-Both of these functions return a JSON configuration object that can be used in 
-the `ai.create_vectorizer` function:
-
-```sql
-SELECT ai.create_vectorizer(
-    'my_table'::regclass,
-    chunking => ai.chunking_character_text_splitter('body', 128, 10),
-    -- other parameters...
-);
-```
-
-By using these chunking functions, users can fine-tune how their text data is 
-prepared for embedding, ensuring that the chunks are appropriately sized and 
-maintain necessary context for their specific use case. This is particularly 
-important for maintaining the quality and relevance of the generated embeddings,
-especially when dealing with long-form content or documents with specific 
-structural elements.
 
 ## Embedding configuration
 
-The `ai.embedding_openai` function is a configuration function within the pgai 
-extension that specifies settings for using OpenAI's embedding models. Its 
-purpose is to create a standardized configuration object that can be used by 
-other pgai functions, particularly `ai.create_vectorizer`, to set up embedding 
-generation using OpenAI's API.
+You use the `ai.embedding_openai` configuration function in pgai to create a standardized configuration 
+object that can be used by other pgai functions, particularly [ai.create_vectorizer](#create-vectorizers), 
+to set up embedding generation using OpenAI's API.
 
-Purpose:
-1. Define which OpenAI embedding model to use
-2. Specify the dimensionality of the embeddings
-3. Configure optional parameters like the user identifier for API calls
-4. Set the name of the environment variable that contains the OpenAI API key
+The purpose of `ai.embedding_openai` is to:
+- Define which OpenAI embedding model to use
+- Specify the dimensionality of the embeddings
+- Configure optional parameters like the user identifier for API calls
+- Set the name of the environment variable that contains the OpenAI API key
 
-Usage:
-The function takes several parameters to customize the OpenAI embedding 
-configuration:
+By using `ai.embedding_openai`, you can easily specify which OpenAI model you
+want to use for generating embeddings, ensure the correct dimensionality is set,
+and configure API access details. This function encapsulates the OpenAI-specific
+configuration, making it easier to switch between different embedding providers
+or models in the future by using a different configuration function.
 
-1. model (text, required): Specifies the name of the OpenAI embedding model to use, e.g., 'text-embedding-3-small'.
-2. dimensions (int, required): Defines the number of dimensions for the embedding vectors. This should match the output dimensions of the chosen model.
-3. chat_user (text, optional): An identifier for the user making the API call. This can be useful for tracking API usage or for OpenAI's monitoring purposes.
-4. api_key_name (text, optional, default 'OPENAI_API_KEY'): The name of the environment variable that contains the OpenAI API key. This allows for flexible API key management without hardcoding keys in the database.
+The function also provides a layer of abstraction, allowing the pgai extension
+to handle the details of interacting with the OpenAI API based on this
+configuration, simplifying the process for users who may not be familiar with
+the specifics of the OpenAI API.
 
-Example usage:
+### Example usage
 
 ```sql
 SELECT ai.embedding_openai(
@@ -247,7 +260,7 @@ SELECT ai.embedding_openai(
 );
 ```
 
-This function call would return a JSON configuration object that looks something like this:
+This function call returns a JSON configuration object that looks something like this:
 
 ```json
 {
@@ -260,7 +273,7 @@ This function call would return a JSON configuration object that looks something
 }
 ```
 
-This configuration object is typically used as an argument to ai.create_vectorizer:
+You use this configuration object as an argument for [ai.create_vectorizer](#create-vectorizers):
 
 ```sql
 SELECT ai.create_vectorizer(
@@ -270,100 +283,106 @@ SELECT ai.create_vectorizer(
 );
 ```
 
-By using `ai.embedding_openai`, users can easily specify which OpenAI model they
-want to use for generating embeddings, ensure the correct dimensionality is set,
-and configure API access details. This function encapsulates the OpenAI-specific
-configuration, making it easier to switch between different embedding providers 
-or models in the future by using a different configuration function.
 
-The function also provides a layer of abstraction, allowing the pgai extension 
-to handle the details of interacting with the OpenAI API based on this 
-configuration, simplifying the process for users who may not be familiar with 
-the specifics of the OpenAI API.
+### Parameters
+
+The function takes several parameters to customize the OpenAI embedding configuration:
+
+- `model`: use this required text parameter to specify the name of the OpenAI embedding model to use. For example, 'text-embedding-3-small'.
+- `dimensions`: use this required int parameter to define the number of dimensions for the embedding vectors. This should match the output dimensions of the chosen model.
+- `chat_user`: this optional text parameter is the identifier for the user making the API call. This can be useful for tracking API usage or for OpenAI's monitoring purposes.
+- `api_key_name`: use this optional text parameter to set the name of the environment variable that contains the OpenAI API key. This allows for flexible API key management without hardcoding keys in the database. The default value is 'OPENAI_API_KEY'.
+
 
 ## Formatting configuration
 
-The `ai.formatting_python_template` function in the pgai extension is used to 
-configure how data from the source table should be formatted before being sent 
-for embedding. Its primary purpose is to allow users to combine multiple fields 
-or add context to the text that will be embedded, which can significantly 
-enhance the quality and usefulness of the resulting embeddings.
+You use the `ai.formatting_python_template` function in `pgai` to 
+configure how data from the source table is formatted before being sent 
+for embedding. 
 
-Purpose:
-1. Define a template for formatting the data before embedding
-2. Allow combination of multiple fields from the source table
-3. Add consistent context or structure to the text being embedded
-4. Customize the input for the embedding model to improve relevance and searchability
+`ai.formatting_python_template` provides a flexible way to
+structure the input for embedding models. This enables you to incorporate relevant
+metadata or add consistent formatting to their text data. This can significantly
+enhance the quality and usefulness of the generated embeddings, especially in
+scenarios where context from multiple fields is important for understanding or
+searching the content.
 
-Usage:
-The function takes a single parameter:
+The purpose of `ai.formatting_python_template` is to:
+- Define a template for formatting the data before embedding
+- Allow the combination of multiple fields from the source table
+- Add consistent context or structure to the text being embedded
+- Customize the input for the embedding model to improve relevance and searchability
+
+This functionality can significantly enhance the quality and usefulness of the resulting 
+embeddings.
+
+### Example usage
+
+- Basic usage (default):
+  ```sql
+  SELECT ai.formatting_python_template()
+  ```
+  This uses the default template '$chunk', which simply uses the chunked text as-is.
+
+- Add context from other columns:
+
+  Adds the title and publication date to each chunk, providing more context for the embedding.
+  ```sql
+  SELECT ai.formatting_python_template('Title: $title\nDate: $published\nContent: $chunk')
+  ```
+
+- Combine multiple fields:
+
+  Prepends author and category information to each chunk.
+  ```sql
+  SELECT ai.formatting_python_template('Author: $author\nCategory: $category\n$chunk')
+  ```
+
+- Add consistent structure:
+
+  Adds start and end markers to each chunk, which could be useful for certain
+  types of embeddings or retrieval tasks.
+  ```sql
+  SELECT ai.formatting_python_template('BEGIN DOCUMENT\n$chunk\nEND DOCUMENT')
+  ```
+
+
+- Example usage within `ai.create_vectorizer`:
+
+  Each chunk of the `content` column is formatted with the
+  title, author, and publication date before being sent for embedding. This can
+  make the embeddings more informative and improve the accuracy of similarity
+  searches or other downstream tasks.
+
+  ```sql
+  SELECT ai.create_vectorizer(
+      'blog_posts'::regclass,
+      embedding => ai.embedding_openai('text-embedding-3-small', 768),
+      chunking => ai.chunking_character_text_splitter('content', 1000, 100),
+      formatting => ai.formatting_python_template('Title: $title\nAuthor: $author\nDate: $published\nContent: $chunk'),
+      -- other parameters...
+  );
+  ```
+
+### Parameters
+
+`ai.formatting_python_template` takes the following parameter:
 
 ```sql
 SELECT ai.formatting_python_template(template text DEFAULT '$chunk')
 ```
 
-Parameter:
-- template: A string that defines how the data should be formatted. It uses 
-- Python's string formatting syntax with $-prefixed variables.
+- `template`: A string that defines how the data should be formatted. `template` uses 
+   Python's string formatting syntax with $-prefixed variables.
 
-The function returns a JSON configuration object that can be used in the 
-`ai.create_vectorizer` function.
+  - The $chunk placeholder is required and represents the text chunk that will be embedded.
+  - Other placeholders can be used to reference columns from the source table.
+  - The template allows for adding static text or structuring the input in a specific way.
 
-Key points about the template:
-1. The $chunk placeholder is required and represents the text chunk that will be embedded.
-2. Other placeholders can be used to reference columns from the source table.
-3. The template allows for adding static text or structuring the input in a specific way.
+`ai.formatting_python_template` returns a JSON configuration object that you can use as an argument 
+for [ai.create_vectorizer](#create-vectorizers)
 
-Examples:
 
-1. Basic usage (default):
-```sql
-SELECT ai.formatting_python_template()
-```
-This uses the default template '$chunk', which simply uses the chunked text as-is.
-
-2. Adding context from other columns:
-```sql
-SELECT ai.formatting_python_template('Title: $title\nDate: $published\nContent: $chunk')
-```
-This template adds the title and publication date to each chunk, providing more context for the embedding.
-
-3. Combining multiple fields:
-```sql
-SELECT ai.formatting_python_template('Author: $author\nCategory: $category\n$chunk')
-```
-This template prepends author and category information to each chunk.
-
-4. Adding consistent structure:
-```sql
-SELECT ai.formatting_python_template('BEGIN DOCUMENT\n$chunk\nEND DOCUMENT')
-```
-This adds start and end markers to each chunk, which could be useful for certain
-types of embeddings or retrieval tasks.
-
-Example usage within ai.create_vectorizer:
-
-```sql
-SELECT ai.create_vectorizer(
-    'blog_posts'::regclass,
-    embedding => ai.embedding_openai('text-embedding-3-small', 768),
-    chunking => ai.chunking_character_text_splitter('content', 1000, 100),
-    formatting => ai.formatting_python_template('Title: $title\nAuthor: $author\nDate: $published\nContent: $chunk'),
-    -- other parameters...
-);
-```
-
-In this example, each chunk of the 'content' column will be formatted with the 
-title, author, and publication date before being sent for embedding. This can 
-make the embeddings more informative and improve the accuracy of similarity 
-searches or other downstream tasks.
-
-The `ai.formatting_python_template` function provides a flexible way to 
-structure the input for embedding models, allowing users to incorporate relevant
-metadata or add consistent formatting to their text data. This can significantly
-enhance the quality and usefulness of the generated embeddings, especially in 
-scenarios where context from multiple fields is important for understanding or 
-searching the content.
 
 ## Indexing configuration
 
@@ -981,3 +1000,6 @@ These monitoring tools are crucial for maintaining the health and performance of
 your pgai-enhanced database. They allow you to proactively manage your 
 vectorizers, ensure timely processing of embeddings, and quickly identify and 
 address any issues that may arise in your AI-powered data pipelines.
+
+
+[timescale-cloud]: https://console.cloud.timescale.com/
