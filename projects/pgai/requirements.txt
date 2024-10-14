@@ -10,3 +10,4 @@ datadog-lambda
 pgvector==0.3.3
 tiktoken==0.7.0
 typing_extensions==4.12.2
+pytimeparse==1.1.8
