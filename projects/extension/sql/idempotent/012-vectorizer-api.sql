@@ -16,8 +16,9 @@ set search_path to pg_catalog, pg_temp
 -- create_vectorizer
 create or replace function ai.create_vectorizer
 ( source regclass
-, embedding jsonb
-, chunking jsonb
+, destination name default null
+, embedding jsonb default null
+, chunking jsonb default null
 , indexing jsonb default ai.indexing_diskann()
 , formatting jsonb default ai.formatting_python_template()
 , scheduling jsonb default ai.scheduling_timescaledb()
@@ -58,6 +59,14 @@ begin
             raise warning 'one or more grant_to roles do not exist: %', _missing_roles;
         end if;
     end if;
+    
+    if embedding is null then
+        raise exception 'embedding configuration is required';
+    end if;
+    
+    if chunking is null then
+        raise exception 'chunking configuration is required';
+    end if;
 
     -- get source table name and schema name
     select k.relname, n.nspname, k.relowner operator(pg_catalog.=) current_user::regrole
@@ -66,6 +75,7 @@ begin
     inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
     where k.oid operator(pg_catalog.=) source
     ;
+
     -- TODO: consider allowing (in)direct members of the role that owns the source table
     if not _is_owner then
         raise exception 'only the owner of the source table may create a vectorizer on it';
@@ -84,26 +94,34 @@ begin
 
     _vectorizer_id = pg_catalog.nextval('ai.vectorizer_id_seq'::pg_catalog.regclass);
     target_schema = coalesce(target_schema, _source_schema);
-    target_table = coalesce(target_table, pg_catalog.concat(_source_table, '_embedding_store'));
+    target_table = case
+        when target_table is not null then target_table
+        when destination is not null then pg_catalog.concat(destination, '_store')
+        else pg_catalog.concat(_source_table, '_embedding_store')
+    end;
     view_schema = coalesce(view_schema, _source_schema);
-    view_name = coalesce(view_name, pg_catalog.concat(_source_table, '_embedding'));
+    view_name = case
+        when view_name is not null then view_name
+        when destination is not null then destination
+        else pg_catalog.concat(_source_table, '_embedding')
+    end;
     _trigger_name = pg_catalog.concat('_vectorizer_src_trg_', _vectorizer_id);
     queue_schema = coalesce(queue_schema, 'ai');
     queue_table = coalesce(queue_table, pg_catalog.concat('_vectorizer_q_', _vectorizer_id));
 
+    -- make sure view name is available
+    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
+        raise exception 'an object named %.% already exists. specify an alternate destination explicitly', view_schema, view_name;
+    end if;
+
     -- make sure target table name is available
     if pg_catalog.to_regclass(pg_catalog.format('%I.%I', target_schema, target_table)) is not null then
-        raise exception 'an object named %.% already exists. specify an alternate target_table explicitly', target_schema, target_schema;
+        raise exception 'an object named %.% already exists. specify an alternate destination or target_table explicitly', target_schema, target_schema;
     end if;
 
     -- make sure queue table name is available
     if pg_catalog.to_regclass(pg_catalog.format('%I.%I', queue_schema, queue_table)) is not null then
         raise exception 'an object named %.% already exists. specify an alternate queue_table explicitly', queue_schema, queue_table;
-    end if;
-
-    -- make sure view name is available
-    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
-        raise exception 'an object named %.% already exists. specify an alternate view_name explicitly', view_schema, view_name;
     end if;
 
     -- validate the embedding config

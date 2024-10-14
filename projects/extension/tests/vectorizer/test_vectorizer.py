@@ -1036,11 +1036,11 @@ def test_naming_collisions():
             );
             """)
 
-            # try to create another one, fail on target_table name collision
+            # try to create another one, fail on view_name / destination collision
             # language=PostgreSQL
             with pytest.raises(
                 psycopg.errors.RaiseException,
-                match=".*specify an alternate target_table explicitly*",
+                match=".*specify an alternate destination explicitly*",
             ):
                 cur.execute("""
                 select ai.create_vectorizer
@@ -1051,6 +1051,26 @@ def test_naming_collisions():
                 , indexing=>ai.indexing_none()
                 , grant_to=>null
                 , enqueue_existing=>false
+                );
+                """)
+
+            # try to create another one, fail on target_table name collision
+            # language=PostgreSQL
+            with pytest.raises(
+                psycopg.errors.RaiseException,
+                match=".*specify an alternate destination or target_table explicitly*",
+            ):
+                cur.execute("""
+                select ai.create_vectorizer
+                ( 'vec.note4'::regclass
+                , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+                , chunking=>ai.chunking_character_text_splitter('note')
+                , scheduling=>ai.scheduling_none()
+                , indexing=>ai.indexing_none()
+                , grant_to=>null
+                , enqueue_existing=>false
+                , view_schema=>'ai'
+                , view_name=>'note4_embedding2'
                 );
                 """)
 
@@ -1069,32 +1089,12 @@ def test_naming_collisions():
                 , indexing=>ai.indexing_none()
                 , grant_to=>null
                 , enqueue_existing=>false
+                , view_schema=>'ai'
+                , view_name=>'note4_embedding2'
                 , target_schema=>'vec'
                 , target_table=>'note4_embedding_store2'
                 , queue_schema=>'ai'
                 , queue_table=>'_vectorizer_q_1'
-                );
-                """)
-
-            # try to create another one, fail on view name collision
-            # language=PostgreSQL
-            with pytest.raises(
-                psycopg.errors.RaiseException,
-                match=".*specify an alternate view_name explicitly*",
-            ):
-                cur.execute("""
-                select ai.create_vectorizer
-                ( 'vec.note4'::regclass
-                , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-                , chunking=>ai.chunking_character_text_splitter('note')
-                , scheduling=>ai.scheduling_none()
-                , indexing=>ai.indexing_none()
-                , grant_to=>null
-                , enqueue_existing=>false
-                , target_schema=>'vec'
-                , target_table=>'note4_embedding_store2'
-                , queue_schema=>'ai'
-                , queue_table=>'this_is_a_queue_table'
                 );
                 """)
 
@@ -1117,7 +1117,51 @@ def test_naming_collisions():
             , view_name=>'note4_embedding2'
             );
             """)
-            assert True
+            vectorizer_id = cur.fetchone()[0]
+            cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
+            vectorizer = cur.fetchone()
+            assert vectorizer.target_schema == "vec"
+            assert vectorizer.target_table == "note4_embedding_store2"
+            assert vectorizer.queue_schema == "ai"
+            assert vectorizer.queue_table == "this_is_a_queue_table"
+            assert vectorizer.view_schema == "vec"
+            assert vectorizer.view_name == "note4_embedding2"
+            cur.execute("""
+                select to_regclass('vec.note4_embedding_store2') is not null
+                and to_regclass('ai.this_is_a_queue_table') is not null
+                and to_regclass('vec.note4_embedding2') is not null
+            """)
+            assert cur.fetchone()[0]
+
+            # try to create another one, this should work too (by using destination)!
+            # language=PostgreSQL
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'vec.note4'::regclass
+            , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+            , chunking=>ai.chunking_character_text_splitter('note')
+            , scheduling=>ai.scheduling_none()
+            , indexing=>ai.indexing_none()
+            , grant_to=>null
+            , enqueue_existing=>false
+            , destination=>'fernando'
+            );
+            """)
+            vectorizer_id = cur.fetchone()[0]
+            cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
+            vectorizer = cur.fetchone()
+            assert vectorizer.target_schema == "vec"
+            assert vectorizer.target_table == "fernando_store"
+            assert vectorizer.queue_schema == "ai"
+            assert vectorizer.queue_table == f"_vectorizer_q_{vectorizer.id}"
+            assert vectorizer.view_schema == "vec"
+            assert vectorizer.view_name == "fernando"
+            cur.execute(f"""
+                select to_regclass('vec.fernando_store') is not null
+                and to_regclass('ai._vectorizer_q_{vectorizer.id}') is not null
+                and to_regclass('vec.fernando') is not null
+            """)
+            assert cur.fetchone()[0]
 
 
 def test_none_index_scheduling():
