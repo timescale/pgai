@@ -8,7 +8,6 @@ from typing import Any, TypeAlias
 import numpy as np
 import psycopg
 import structlog
-from ddtrace import tracer
 from pgvector.psycopg import register_vector_async  # type: ignore
 from psycopg import AsyncConnection, sql
 from psycopg.rows import dict_row
@@ -308,7 +307,6 @@ class Worker:
                     return res
                 res += items_processed
 
-    @tracer.wrap()
     async def _do_batch(self, conn: AsyncConnection) -> int:
         processing_stats = ProcessingStats()
         try:
@@ -316,9 +314,6 @@ class Worker:
             async with conn.transaction():
                 items = await self._fetch_work(conn)
 
-                current_span = tracer.current_span()
-                if current_span:
-                    current_span.set_tag("items_from_queue.pulled", len(items))
                 await logger.adebug(f"Items pulled from queue: {len(items)}")
 
                 # Filter out items that were deleted from the source table.
@@ -419,7 +414,6 @@ class Worker:
             self._queue_table_oid = row["to_regclass"]
         return self._queue_table_oid
 
-    @tracer.wrap()
     async def _embed_and_write(self, conn: AsyncConnection, items: list[SourceRow]):
         """Embeds the items and writes them to the database:
 
@@ -449,7 +443,6 @@ class Worker:
         async with conn.cursor() as cursor:
             await cursor.execute(self.queries.delete_embeddings_query(len(items)), ids)
 
-    @tracer.wrap()
     async def _insert_embeddings(
         self,
         conn: AsyncConnection,
@@ -459,7 +452,6 @@ class Worker:
         async with conn.cursor() as cursor:
             await cursor.executemany(self.queries.insert_embeddings_query, records)
 
-    @tracer.wrap()
     async def _copy_embeddings(
         self,
         conn: AsyncConnection,

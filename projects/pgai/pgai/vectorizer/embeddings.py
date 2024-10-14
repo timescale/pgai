@@ -9,7 +9,6 @@ from typing import Any, Literal, TypeAlias
 import openai
 import structlog
 import tiktoken
-from ddtrace import tracer
 from openai import resources
 from pydantic import BaseModel
 from pydantic.dataclasses import dataclass
@@ -154,66 +153,38 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
         num_of_batches = math.ceil(len(encoded_documents) / OPENAI_MAX_CHUNKS_PER_BATCH)
         total_duration = 0.0
         embedding_stats = EmbeddingStats()
-        with tracer.trace("embeddings.do"):
-            current_span = tracer.current_span()
-            if current_span:
-                current_span.set_tag("batches.total", num_of_batches)
-            for i in range(0, len(encoded_documents), OPENAI_MAX_CHUNKS_PER_BATCH):
-                batch_num = i // OPENAI_MAX_CHUNKS_PER_BATCH + 1
-                batch = encoded_documents[i : i + OPENAI_MAX_CHUNKS_PER_BATCH]
+        for i in range(0, len(encoded_documents), OPENAI_MAX_CHUNKS_PER_BATCH):
+            batch_num = i // OPENAI_MAX_CHUNKS_PER_BATCH + 1
+            batch = encoded_documents[i : i + OPENAI_MAX_CHUNKS_PER_BATCH]
 
-                await logger.adebug(f"Batch {batch_num} of {num_of_batches}")
-                await logger.adebug(f"Chunks for this batch: {len(batch)}")
-                await logger.adebug(
-                    f"OpenAI Request {batch_num} of {num_of_batches} initiated"
-                )
-                with tracer.trace("embeddings.do.embedder.create"):
-                    current_span = tracer.current_span()
-                    if current_span:
-                        current_span.set_tag("batch.id", batch_num)
-                        current_span.set_tag("batch.chunks.total", len(batch))
-                    start_time = time.perf_counter()
-                    response_ = await self._embedder.create(
-                        input=batch,
-                        model=self.model,
-                        dimensions=self._openai_dimensions,
-                        user=self._openai_user,
-                        encoding_format="float",
-                    )
-                    request_duration = time.perf_counter() - start_time
-                    if current_span:
-                        current_span.set_metric(
-                            "embeddings.embedder.create_request.time.seconds",
-                            request_duration,
-                        )
+            await logger.adebug(f"Batch {batch_num} of {num_of_batches}")
+            await logger.adebug(f"Chunks for this batch: {len(batch)}")
+            await logger.adebug(
+                f"OpenAI Request {batch_num} of {num_of_batches} initiated"
+            )
+            start_time = time.perf_counter()
+            response_ = await self._embedder.create(
+                input=batch,
+                model=self.model,
+                dimensions=self._openai_dimensions,
+                user=self._openai_user,
+                encoding_format="float",
+            )
+            request_duration = time.perf_counter() - start_time
 
-                    await logger.adebug(
-                        f"OpenAI Request {batch_num} of {num_of_batches} "
-                        f"ended after: {request_duration} seconds. "
-                        f"Tokens usage: {response_.usage}"
-                    )
-                    total_duration += request_duration
+            await logger.adebug(
+                f"OpenAI Request {batch_num} of {num_of_batches} "
+                f"ended after: {request_duration} seconds. "
+                f"Tokens usage: {response_.usage}"
+            )
+            total_duration += request_duration
 
-                    response += [r.embedding for r in response_.data]
+            response += [r.embedding for r in response_.data]
 
-            embedding_stats.add_request_time(total_duration, len(encoded_documents))
-            await embedding_stats.print_stats()
-            current_span = tracer.current_span()
-            if current_span:
-                current_span.set_metric(
-                    "embeddings.embedder.all_create_requests.time.seconds",
-                    embedding_stats.total_request_time,
-                )
-                current_span.set_metric(
-                    "embeddings.embedder.all_create_requests.wall_time.seconds",
-                    embedding_stats.wall_time,
-                )
-                current_span.set_metric(
-                    "embeddings.embedder.all_create_requests.chunks.rate",
-                    embedding_stats.chunks_per_second(),
-                )
+        embedding_stats.add_request_time(total_duration, len(encoded_documents))
+        await embedding_stats.print_stats()
 
-            return response
+        return response
 
     async def _filter_by_length_and_embed(
         self, model_token_length: int, encoded_documents: list[list[int]]
