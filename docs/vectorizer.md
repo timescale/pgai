@@ -123,6 +123,7 @@ IAIN: not sure about the values in this table
 | queue_table      |                                                        | -       |✖| Set the way the queue works in background processing.                      |
 | grant_to         | array                                                  | -       |✖ | An array containing the role names to grant permissions to.                |
 | enqueue_existing | bool                                                   | -       |✖| Set to `true` if existing rows should be immediately queued for embedding. |
+
 ## Chunking configuration
 
 The chunking configuration functions in `pgai` serve the important 
@@ -602,74 +603,42 @@ You use `ai.scheduling_timescaledb` to:
 |fixed_schedule|bool| -       |✖|Set to `true` to use a fixed schedule such as every day at midnight. Set to `false` for a sliding window such as every 24 hours from the last run|
 |timezone|text| - |✖|  Set the timezone this schedule operates in. This ensures that schedules are interpreted correctly, especially important for fixed schedules or when coordinating with business hours. |
 
-## Enabling/Disabling vectorizer schedules
+## Enable and disable vectorizer schedules
 
 The `ai.enable_vectorizer_schedule` and `ai.disable_vectorizer_schedule` 
-functions are management tools in the pgai extension that allow users to control
-the execution of scheduled vectorizer jobs. These functions provide a way to 
-temporarily pause or resume the automatic processing of embeddings without 
-having to delete or recreate the vectorizer configuration. Let's examine each of 
-these functions:
+functions are management tools in pgai that enable you to control
+the execution of [scheduled vectorizer jobs](#scheduling-configuration). These functions 
+provide a way to temporarily pause or resume the automatic processing of embeddings, without 
+having to delete or recreate the vectorizer configuration. 
 
-1. ai.enable_vectorizer_schedule
+These functions provide an important layer of operational control for managing
+pgai vectorizers in production environments. They allow database administrators
+and application developers to balance the need for up-to-date embeddings with
+other system priorities and constraints, enhancing the overall flexibility and
+manageability of pgai.
 
-Purpose:
-- Activate or reactivate the scheduled job for a specific vectorizer.
-- Allow the vectorizer to resume automatic processing of new or updated data.
+Key points about schedule enable and disable:
 
-Usage:
-```sql
-SELECT ai.enable_vectorizer_schedule(vectorizer_id int)
-```
+- These functions provide fine-grained control over individual vectorizer schedules without affecting other 
+  vectorizers, or the overall system configuration.
 
-Parameter:
-- vectorizer_id: The identifier of the vectorizer whose schedule you want to enable.
+- Disabling a schedule does not delete the vectorizer or its configuration; it simply stops the automatic 
+  execution of the job.
 
-2. ai.disable_vectorizer_schedule
+- These functions are particularly useful in scenarios such as:
+  - System maintenance windows where you want to reduce database load
+  - Temporarily pausing processing during data migrations or large bulk updates
+  - Debugging or troubleshooting issues related to the vectorizer
+  - Implementing manual control over when embeddings are updated
 
-Purpose:
-- Deactivate the scheduled job for a specific vectorizer.
-- Temporarily stop the automatic processing of new or updated data.
+- When a schedule is disabled, new or updated data is not automatically processed. However, the data is still 
+   queued, and will be processed when the schedule is re-enabled, or when the vectorizer is run manually.
 
-Usage:
-```sql
-SELECT ai.disable_vectorizer_schedule(vectorizer_id int)
-```
+- These functions only affect vectorizers configured with [ai.scheduling_timescaledb](#aischeduling_timescaledb). 
+  Vectorizers configured with [ai.scheduling_none](#aischeduling_none) are not affected.
 
-Parameter:
-- vectorizer_id: The identifier of the vectorizer whose schedule you want to disable.
-
-Example usage:
-
-1. Disabling a vectorizer schedule:
-```sql
-SELECT ai.disable_vectorizer_schedule(1);
-```
-This would stop the automatic scheduling for the vectorizer with ID 1.
-
-2. Enabling a vectorizer schedule:
-```sql
-SELECT ai.enable_vectorizer_schedule(1);
-```
-This would resume the automatic scheduling for the vectorizer with ID 1.
-
-Key points about these functions:
-
-1. They provide fine-grained control over individual vectorizer schedules without affecting other vectorizers or the overall system configuration.
-
-2. Disabling a schedule does not delete the vectorizer or its configuration; it simply stops the automatic execution of the job.
-
-3. These functions are particularly useful in scenarios such as:
-    - System maintenance windows where you want to reduce database load
-    - Temporarily pausing processing during data migrations or large bulk updates
-    - Debugging or troubleshooting issues related to the vectorizer
-    - Implementing manual control over when embeddings are updated
-
-4. When a schedule is disabled, new or updated data will not be automatically processed. However, the data will still be queued, and will be processed when the schedule is re-enabled or when the vectorizer is manually run.
-
-5. These functions only affect vectorizers that use scheduled processing (i.e., those configured with ai.scheduling_timescaledb). Vectorizers configured with ai.scheduling_none are not affected.
-
-6. After re-enabling a schedule, the next run will occur based on the original scheduling configuration (e.g., if it was set to run every hour, it will run at the next hour mark after being enabled).
+- After re-enabling a schedule, the next run is based on the original scheduling configuration. For example, 
+  if the vectorizer was set to run every hour, it will run at the next hour mark after being enabled.
 
 Usage example in a maintenance scenario:
 
@@ -685,138 +654,170 @@ SELECT ai.enable_vectorizer_schedule(1);
 SELECT ai.enable_vectorizer_schedule(2);
 ```
 
-These functions provide an important layer of operational control for managing 
-pgai vectorizers in production environments. They allow database administrators 
-and application developers to balance the need for up-to-date embeddings with 
-other system priorities and constraints, enhancing the overall flexibility and 
-manageability of the pgai extension.
+### ai.enable_vectorizer_schedule
+
+You use `ai.enable_vectorizer_schedule` to:
+- Activate or reactivate the scheduled job for a specific vectorizer.
+- Allow the vectorizer to resume automatic processing of new or updated data.
+
+#### Example usage
+
+To resume the automatic scheduling for the vectorizer with ID 1.
+
+```sql
+SELECT ai.enable_vectorizer_schedule(1);
+```
+
+#### Parameters
+
+`ai.enable_vectorizer_schedule` takes the following parameters:
+
+|Name| Type | Default | Required | Description                                               |
+|-|------|---------|-|-----------------------------------------------------------|
+|vectorizer_id| int  | -       |✔| The identifier of the vectorizer whose schedule you want to enable. |
+
+
+### ai.disable_vectorizer_schedule
+
+You use `ai.disable_vectorizer_schedule` to:
+- Deactivate the scheduled job for a specific vectorizer.
+- Temporarily stop the automatic processing of new or updated data.
+
+
+#### Example usage
+
+To stop the automatic scheduling for the vectorizer with ID 1.
+
+```sql
+SELECT ai.enable_vectorizer_schedule(1);
+```
+
+#### Parameters
+
+`ai.enable_vectorizer_schedule` takes the following parameters:
+
+|Name| Type | Default | Required | Description                                                          |
+|-|------|---------|-|----------------------------------------------------------------------|
+|vectorizer_id| int  | -       |✔| The identifier of the vectorizer whose schedule you want to disable. |
 
 ## Processing configuration
 
-The processing configuration functions in the pgai extension are used to specify 
+You use the processing configuration functions in pgai to specify 
 how the vectorizer should process data when generating embeddings. These 
-functions allow users to choose between different processing strategies, 
+functions allow you to choose between different processing strategies, 
 balancing factors like performance, scalability, and infrastructure 
-requirements. Let's examine each of these functions:
+requirements. 
 
-1. ai.processing_none
+By providing these processing options, pgai enables you to choose the most appropriate strategy
+for your specific use case, infrastructure, and performance requirements.
 
-Purpose:
+Key points about these processing functions:
+
+- [ai.processing_none](#aiprocessing_none):
+  - offers simplicity, and keeps everything within the database.
+  - Uses the default in-database processing.
+  - Suitable for smaller datasets or when you want to keep all processing within the database.
+  - Simpler setup as it doesn't require additional infrastructure.
+
+- [ai.processing_cloud_functions](#aiprocessing_cloud_functions):
+  - Scale out the embedding generation process for larger datasets or higher throughput requirements.
+  - Enable distributed processing using cloud functions.
+  - Can improve performance and scalability, especially for large datasets.
+  - Reduce load on the database server by offloading embedding generation.
+  - Requires additional setup and infrastructure for cloud functions.
+  - Allows for fine-tuning of batch size and concurrency to optimize performance.
+
+
+### ai.processing_none
+
+You use `ai.processing_none` to:
 - Indicate that no special processing configuration is needed.
 - Use the default in-database processing for generating embeddings.
 
-Usage:
+#### Example usage
+
+To use the default processing:
+
 ```sql
 SELECT ai.processing_none()
 ```
 
+#### Parameters
+
 This function takes no parameters and returns a configuration object indicating 
 that default processing should be used.
 
-2. ai.processing_cloud_functions
+### ai.processing_cloud_functions
 
-Purpose:
-- Configure the vectorizer to use cloud functions for processing embeddings.
+You use `ai.processing_cloud_functions` to:
+- Configure the vectorizer to use cloud functions to proces embeddings.
 - Enable distributed and scalable processing of embeddings outside the database.
 - Allow for potential performance improvements and reduced load on the database server.
 
-Usage:
-```sql
-SELECT ai.processing_cloud_functions(
-    batch_size int DEFAULT null,
-    concurrency int DEFAULT null
-)
-```
+When using ai.processing_cloud_functions, you need to ensure that:
+- Your cloud functions are properly set up and configured.
+- The database can communicate with the cloud function service.
+- You have considered security implications of sending data to cloud functions.
 
-Parameters:
-- batch_size: The number of items to process in each batch (optional, default determined by the system)
-- concurrency: The number of concurrent processing tasks to run (optional, default determined by the system)
+#### Example usage
 
-Examples:
+- Basic usage (use system defaults):
+  ```sql
+  SELECT ai.processing_cloud_functions()
+  ```
 
-1. Basic usage (use system defaults):
-```sql
-SELECT ai.processing_cloud_functions()
-```
+- Specify batch size:
+  ```sql
+  SELECT ai.processing_cloud_functions(batch_size => 100)
+  ```
 
-2. Specifying batch size:
-```sql
-SELECT ai.processing_cloud_functions(batch_size => 100)
-```
+- Specifying batch size and concurrency:
+  ```sql
+  SELECT ai.processing_cloud_functions(batch_size => 50, concurrency => 5)
+  ```
 
-3. Specifying both batch size and concurrency:
-```sql
-SELECT ai.processing_cloud_functions(batch_size => 50, concurrency => 5)
-```
+- Usage in `ai.create_vectorizer`:
 
-Usage in `ai.create_vectorizer`:
+  These processing configuration functions are used as arguments to the
+  `ai.create_vectorizer` function:
+  
+  ```sql
+  SELECT ai.create_vectorizer(
+      'my_table'::regclass,
+      embedding => ai.embedding_openai('text-embedding-3-small', 768),
+      chunking => ai.chunking_character_text_splitter('text_column'),
+      processing => ai.processing_cloud_functions(batch_size => 200),
+      -- other parameters...
+  );
+  ```
 
-These processing configuration functions are used as arguments to the 
-`ai.create_vectorizer` function:
+#### Parameters
 
-```sql
-SELECT ai.create_vectorizer(
-    'my_table'::regclass,
-    embedding => ai.embedding_openai('text-embedding-3-small', 768),
-    chunking => ai.chunking_character_text_splitter('text_column'),
-    processing => ai.processing_cloud_functions(batch_size => 200),
-    -- other parameters...
-);
-```
+`ai.enable_vectorizer_schedule` takes the following parameters:
 
-Key points about these processing functions:
-
-1. ai.processing_none:
-    - Uses the default in-database processing.
-    - Suitable for smaller datasets or when you want to keep all processing within the database.
-    - Simpler setup as it doesn't require additional infrastructure.
-
-2. ai.processing_cloud_functions:
-    - Enables distributed processing using cloud functions.
-    - Can improve performance and scalability, especially for large datasets.
-    - Reduces load on the database server by offloading embedding generation.
-    - Requires additional setup and infrastructure for cloud functions.
-    - Allows for fine-tuning of batch size and concurrency to optimize performance.
-
-3. The batch_size parameter in ai.processing_cloud_functions:
-    - Controls how many items are processed in each cloud function invocation.
-    - Larger batch sizes can improve efficiency but may increase memory usage.
-    - The optimal batch size depends on your data and cloud function configuration.
-
-4. The concurrency parameter in ai.processing_cloud_functions:
-    - Determines how many cloud functions can run simultaneously.
-    - Higher concurrency can speed up processing but may increase costs and resource usage.
-    - The optimal concurrency depends on your cloud infrastructure and rate limits.
-
-5. When using ai.processing_cloud_functions, you need to ensure that:
-    - Your cloud functions are properly set up and configured.
-    - The database can communicate with the cloud function service.
-    - You have considered security implications of sending data to cloud functions.
-
-By providing these processing options, pgai allows users to choose the most appropriate strategy for their specific use case, infrastructure, and performance requirements. The ai.processing_none option offers simplicity and keeps everything within the database, while ai.processing_cloud_functions provides a way to scale out the embedding generation process for larger datasets or higher throughput requirements.
+|Name| Type | Default                      | Required | Description                                                                                                                                                                                                           |
+|-|------|------------------------------|-|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|batch_size| int  | Determined by the vectorizer |✖| The number of items to process in each batch. The optimal batch size depends on your data and cloud function configuration, larger batch sizes can improve efficiency but may increase memory usage.                  |
+|concurrency| int  | Determined by the vectorizer |✖| The number of concurrent processing tasks to run. The optimal concurrency depends on your cloud infrastructure and rate limits, higher concurrency can speed up processing but may increase costs and resource usage. |
 
 ## Dropping a vectorizer
 
-The ai.drop_vectorizer function is a management tool in the pgai extension 
-designed to remove a previously created vectorizer and clean up associated 
+`ai.drop_vectorizer` is a management tool in pgai that you use to 
+remove a previously created vectorizer and clean up the associated 
 resources. Its primary purpose is to provide a controlled way to delete a 
 vectorizer when it's no longer needed or when you want to reconfigure it from 
 scratch.
+
+The ai.drop_vectorizer function provides a clean way to remove vectorizers from
+your system, allowing for easy management and reconfiguration of your
+AI-enhanced database setup. It's an important tool for maintaining and evolving
+your pgai-powered applications over time.
+
 
 Purpose:
 1. Remove a specific vectorizer configuration from the system.
 2. Clean up associated database objects and scheduled jobs.
 3. Provide a safe way to undo the creation of a vectorizer.
-
-Usage:
-```sql
-SELECT ai.drop_vectorizer(vectorizer_id int)
-```
-
-Parameter:
-- vectorizer_id: The identifier of the vectorizer you want to drop.
-
-This function doesn't return a value, but it performs several cleanup operations.
 
 Key actions performed by ai.drop_vectorizer:
 
@@ -831,35 +832,36 @@ Important notes:
 1. It does NOT drop the target table containing the embeddings.
 2. It does NOT drop the view joining the target and source tables.
 
-This design allows you to keep the generated embeddings and the convenient view 
-even after dropping the vectorizer, which can be useful if you want to stop 
+This design allows you to keep the generated embeddings and the convenient view
+even after dropping the vectorizer, which can be useful if you want to stop
 automatic updates but still use the existing embeddings.
 
-Example usage:
+
+#### Example usage
+
+The following example removes the vectorizer with ID 1 and cleans up its associated resources:
 
 ```sql
 -- Assuming we have a vectorizer with ID 1
 SELECT ai.drop_vectorizer(1);
 ```
 
-This would remove the vectorizer with ID 1 and clean up its associated resources.
-
 Typical scenarios for using ai.drop_vectorizer:
 
 1. Reconfiguration: When you want to significantly change the configuration of a vectorizer, it's often easier to drop the old one and create a new one.
 
-```sql
--- Drop the old vectorizer
-SELECT ai.drop_vectorizer(old_vectorizer_id);
-
--- Create a new vectorizer with different configuration
-SELECT ai.create_vectorizer(
-    'my_table'::regclass,
-    embedding => ai.embedding_openai('text-embedding-3-large', 1536),  -- Using a different model
-    chunking => ai.chunking_character_text_splitter('content', 256, 20),  -- Different chunking
-    -- other parameters...
-);
-```
+  ```sql
+  -- Drop the old vectorizer
+  SELECT ai.drop_vectorizer(old_vectorizer_id);
+  
+  -- Create a new vectorizer with different configuration
+  SELECT ai.create_vectorizer(
+      'my_table'::regclass,
+      embedding => ai.embedding_openai('text-embedding-3-large', 1536),  -- Using a different model
+      chunking => ai.chunking_character_text_splitter('content', 256, 20),  -- Different chunking
+      -- other parameters...
+  );
+  ```
 
 2. Cleanup: When a table or feature is no longer needed, you can remove its associated vectorizer.
 
@@ -874,10 +876,17 @@ Best practices:
 3. After dropping a vectorizer, you may want to manually clean up the target table and view if they're no longer needed.
 4. Keep track of your vectorizer IDs, possibly by querying the ai.vectorizer table, to ensure you're dropping the correct one.
 
-The ai.drop_vectorizer function provides a clean way to remove vectorizers from 
-your system, allowing for easy management and reconfiguration of your 
-AI-enhanced database setup. It's an important tool for maintaining and evolving 
-your pgai-powered applications over time.
+#### Parameters
+
+`ai.drop_vectorizer` takes the following parameters:
+
+|Name| Type | Default | Required | Description |
+|-|------|-|-|-|
+|vectorizer_id| int  | -|✔|The identifier of the vectorizer you want to drop|
+
+This function doesn't return a value, but it performs several cleanup operations.
+
+
 
 ## Viewing vectorizer status
 
@@ -1005,6 +1014,19 @@ address any issues that may arise in your AI-powered data pipelines.
 
 
 IAIN
+
+
+#### Example usage
+
+To 
+
+```sql
+
+```
+
+#### Parameters
+
+`ai.enable_vectorizer_schedule` takes the following parameters:
 
 |Name|Type| Default | Required | Description |
 |-|-|-|-|-|
