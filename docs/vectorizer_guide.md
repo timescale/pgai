@@ -58,7 +58,7 @@ SELECT ai.create_vectorizer(
    'blog'::regclass,
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_openai('text-embedding-3-small', 768),
-    chunking => ai.chunking_character_text_splitter('contents'),
+    chunking => ai.chunking_recursive_character_text_splitter('contents'),
 );
 ```
 
@@ -79,7 +79,7 @@ SELECT ai.create_vectorizer(
     'blog'::regclass,
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_openai('text-embedding-3-small', 768),
-    chunking => ai.chunking_character_text_splitter('contents'),
+    chunking => ai.chunking_recursive_character_text_splitter('contents'),
     formatting => ai.formatting_python_template('$title: $chunk'),
 );
 ```
@@ -162,7 +162,7 @@ SELECT ai.create_vectorizer(
     'blog'::regclass,
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_openai('text-embedding-3-small', 768),
-    chunking => ai.chunking_character_text_splitter('contents', chunk_size => 700),
+    chunking => ai.chunking_recursive_character_text_splitter('contents', chunk_size => 700),
     formatting => ai.formatting_python_template('$title - by $author - $chunk'),
 );
 ```
@@ -181,7 +181,7 @@ SELECT ai.create_vectorizer(
     'blog'::regclass,
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_openai('text-embedding-3-small', 768),
-    chunking => ai.chunking_character_text_splitter('contents', chunk_size => 700),
+    chunking => ai.chunking_recursive_character_text_splitter('contents', chunk_size => 700),
     formatting => ai.formatting_python_template('$title - by $author - $chunk'),
     indexing => ai.indexing_hnsw(min_rows => 100000, opclass => 'vector_l2_ops')
 );
@@ -192,19 +192,31 @@ feature won't work if scheduling is disabled.
 
 ### Scheduling
 
-By default, scheduling uses TimescaleDB background jobs running every five
-minutes. You can disable this to run manually or through an external cron job:
+Scheduling allows you to control when the vectorizer should run when running on
+Timescale Cloud or another setup where work is done in cloud functions. A
+scheduled job checks whether there is work to be done and, if so, runs the cloud
+function to embed the data. It also handles creating the index on the embedding
+column once the table is large enough. This setup allows you to avoid
+unnecessary cloud function invocations when there is no work to be done. By
+default, scheduling uses TimescaleDB background jobs running every five minutes.
+
+When deploying locally, the vectorizer worker uses a polling mechanism to check whether
+there is work to be done. Thus, scheduling is not needed. You can disable scheduling with 
+the `scheduling` parameter:
 
 ```sql
 SELECT ai.create_vectorizer(
     'blog'::regclass,
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_openai('text-embedding-3-small', 768),
-    chunking => ai.chunking_character_text_splitter('contents', chunk_size => 700),
+    chunking => ai.chunking_recursive_character_text_splitter('contents', chunk_size => 700),
     formatting => ai.formatting_python_template('$title - by $author - $chunk'),
+    indexing => ai.indexing_none(),
     scheduling => ai.scheduling_none(),
 );
 ```
+
+**note**: when scheduling is disabled, the index will not be created automatically and needs to be created manually.
 
 ### Embedding storage table
 
