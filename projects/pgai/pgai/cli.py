@@ -1,16 +1,18 @@
 import asyncio
+import datetime
 import logging
 import os
 import random
 import sys
+import time
 from collections.abc import Sequence
-from pathlib import Path
 
 import click
 import psycopg
 import structlog
 from dotenv import load_dotenv
 from psycopg.rows import dict_row, namedtuple_row
+from pytimeparse import parse  # type: ignore
 
 from .__init__ import __version__
 from .vectorizer.secrets import Secrets
@@ -92,6 +94,30 @@ def run_vectorizer(db_url: str, vectorizer: Vectorizer, concurrency: int) -> Non
     log.info("finished processing vectorizer", items=items, vectorizer_id=vectorizer.id)
 
 
+class TimeDurationParamType(click.ParamType):
+    name = "time duration"
+
+    def convert(self, value, param, ctx):  # type: ignore
+        val = parse(value)
+        if val is not None:
+            return val
+        try:
+            val = int(value, 10)
+            if val < 0:
+                self.fail(
+                    "time duration can't be negative",
+                    param,
+                    ctx,
+                )
+            return val
+        except ValueError:
+            self.fail(
+                f"{value!r} is not a valid duration string or integer",
+                param,
+                ctx,
+            )
+
+
 @click.command()
 @click.version_option(version=__version__)
 @click.option(
@@ -101,17 +127,23 @@ def run_vectorizer(db_url: str, vectorizer: Vectorizer, concurrency: int) -> Non
     envvar="VECTORIZER_DB_URL",
     default="postgres://postgres@localhost:5432/postgres",
     show_default=True,
+    help="The database URL to connect to",
 )
 @click.option(
-    "--tiktoken-cache-dir",
-    envvar="TIKTOKEN_CACHE_DIR",
-    type=click.Path(),
-    default=lambda: Path.cwd().joinpath("tiktoken_cache"),
+    "-i",
+    "--vectorizer-id",
+    "vectorizer_ids",
+    type=click.INT,
+    multiple=True,
+    help="Only fetch work from the given vectorizer ids. If not provided, all vectorizers will be fetched.",  # noqa
+    default=None,
+)
+@click.option(
+    "-c",
+    "--concurrency",
+    type=click.IntRange(1),
+    default=1,
     show_default=True,
-)
-@click.option("-i", "--vectorizer-id", "vectorizer_ids", type=click.INT, multiple=True)
-@click.option(
-    "-c", "--concurrency", type=click.IntRange(1), default=1, show_default=True
 )
 @click.option(
     "--log-level",
@@ -120,28 +152,31 @@ def run_vectorizer(db_url: str, vectorizer: Vectorizer, concurrency: int) -> Non
     ),
     default="INFO",
 )
+@click.option(
+    "--poll-interval",
+    type=TimeDurationParamType(),
+    default="5m",
+    show_default=True,
+    help="The interval, in duration string or integer (seconds), to wait before checking for new work after processing all available work in the queue.",  # noqa
+)
+@click.option(
+    "--once",
+    type=click.BOOL,
+    default=False,
+    show_default=True,
+    help="Exit after processing all available work.",
+)
 def run(
     db_url: str,
-    tiktoken_cache_dir: Path,
-    vectorizer_ids: Sequence[int] | None = None,
-    concurrency: int = 1,
-    log_level: str = "INFO",
+    vectorizer_ids: Sequence[int] | None,
+    concurrency: int,
+    log_level: str,
+    poll_interval: int,
+    once: bool,
 ) -> None:
     log_level_: int = logging.getLevelNamesMapping()[log_level.upper()]
     structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(log_level_))
-
-    if not tiktoken_cache_dir:
-        log.critical("tiktoken_cache_dir not provided")
-        sys.exit(1)
-    if isinstance(tiktoken_cache_dir, str):
-        tiktoken_cache_dir = Path(tiktoken_cache_dir)
-    if not tiktoken_cache_dir.is_dir():
-        log.critical(
-            "tiktoken_cache_dir is not a directory",
-            tiktoken_cache_dir=tiktoken_cache_dir,
-        )
-        sys.exit(1)
-    os.environ["TIKTOKEN_CACHE_DIR"] = str(tiktoken_cache_dir.resolve())
+    poll_interval_str = datetime.timedelta(seconds=poll_interval)
 
     with (
         psycopg.Connection.connect(db_url) as con,
@@ -156,9 +191,14 @@ def run(
         log.warning("no vectorizers found")
         return
 
-    for vectorizer_id in vectorizer_ids:
-        vectorizer = get_vectorizer(db_url, vectorizer_id)
-        if vectorizer is None:
-            continue
-        log.info("running vectorizer", vectorizer_id=vectorizer_id)
-        run_vectorizer(db_url, vectorizer, concurrency)
+    while True:
+        for vectorizer_id in vectorizer_ids:
+            vectorizer = get_vectorizer(db_url, vectorizer_id)
+            if vectorizer is None:
+                continue
+            log.info("running vectorizer", vectorizer_id=vectorizer_id)
+            run_vectorizer(db_url, vectorizer, concurrency)
+        if once:
+            return
+        time.sleep(poll_interval)
+        log.info(f"sleeping for {poll_interval_str} before polling for new work")
