@@ -142,7 +142,7 @@ IAIN: not sure about the values in this table
 
 #### Returns
 
-The id of the vectorizer that was created.
+The id of the vectorizer that you created.
 
 ## Chunking configuration
 
