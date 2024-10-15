@@ -43,8 +43,8 @@ gain from Vectorizers:
     lifecycle.
 
 Vectorizer significantly simplifies the process of incorporating AI-powered 
-semantic search and analysis capabilities into existing PostgreSQL databases. This 
-making it easier for you to leverage the power of LLMs in your data workflows.
+semantic search and analysis capabilities into existing PostgreSQL databases.  
+Making it easier for you to leverage the power of LLMs in your data workflows.
 
 Initially, vectorizers only work on [Timescale Cloud][timescale-cloud]. However 
 support for self-hosted installations will be added quickly.
@@ -413,10 +413,10 @@ Key points about indexing:
 
 - The choice of indexing method depends on your dataset size, query performance requirements, and available resources.
 
-- [ai.indexing_none](#aiindexing_none) might be suitable for small datasets or when you're more concerned with insertion speed than query speed.
+- [ai.indexing_none](#aiindexing_none) is better suited for small datasets, or when you're more concerned with insertion speed than query speed.
 
-- [ai.indexing_diskann](#aiindexing_diskann) is generally better for very large datasets that don't fit in memory, 
-   while [ai.indexing_hnsw](#aiindexing_hnsw) is often faster for in-memory datasets.
+- [ai.indexing_diskann](#aiindexing_diskann) is generally better for very large datasets that don't fit in memory.
+- [ai.indexing_hnsw](#aiindexing_hnsw) is often faster for in-memory datasets.
 
 - The `min_rows` parameter enables you to delay index creation until you have enough data to justify the overhead.
 
@@ -432,8 +432,7 @@ The available functions are:
 
 You use `ai.indexing_none` to specify that no special indexing should be used for the embeddings.
 
-This is useful when you don't need fast similarity searches or when you're dealing  
-with a small amount of data.
+This is useful when you don't need fast similarity searches or when you're dealing with a small amount of data.
 
 #### Example usage
 
@@ -1011,6 +1010,8 @@ You use `ai.vectorizer_status` to:
 `ai.vectorizer_status` does not take any parameters.
 
 #### Returns
+
+`ai.vectorizer_status` returns the following:
 
 | Column name   | Description                                                           |
 |---------------|-----------------------------------------------------------------------|
