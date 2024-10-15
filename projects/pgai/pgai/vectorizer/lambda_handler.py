@@ -37,7 +37,6 @@ async def run_workers(
     vectorizer: Vectorizer,
 ) -> list[int]:
     """Runs the embedding tasks and wait for them to finish."""
-    # TODO: handle timeout so that lambdas are not killed by AWS
     tasks = [
         asyncio.create_task(Worker(conn_info.url, vectorizer).run())
         for _ in range(concurrency)
