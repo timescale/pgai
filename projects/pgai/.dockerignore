@@ -1,3 +1,6 @@
 build
-vectorizer.egg-info
+pgai.egg-info
 Dockerfile
+__pycache__
+pytest.ini
+dist

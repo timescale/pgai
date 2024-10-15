@@ -98,7 +98,6 @@ def run_vectorizer(db_url: str, vectorizer: Vectorizer, concurrency: int) -> Non
     "-d",
     "--db-url",
     type=click.STRING,
-    envvar="VECTORIZER_DB_URL",
     default="postgres://postgres@localhost:5432/postgres",
     show_default=True,
 )

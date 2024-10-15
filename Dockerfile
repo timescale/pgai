@@ -64,6 +64,8 @@ COPY requirements-test.txt /build/requirements-test.txt
 RUN pip install -r /build/requirements-test.txt
 COPY projects/pgai/requirements.txt /build/requirements-pgai.txt
 RUN pip install -r /build/requirements-pgai.txt
-RUN rm -r /build
 
 WORKDIR /pgai
+
+COPY . .
+RUN make install
