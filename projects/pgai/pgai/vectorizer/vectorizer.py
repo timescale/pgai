@@ -36,17 +36,41 @@ VECTORIZER_FAILED = "vectorizer failed with unexpected error"
 
 
 class EmbeddingProviderError(Exception):
+    """
+    Raised when an embedding provider API request fails.
+    """
+
     msg = "embedding provider failed"
 
 
 @dataclass
 class PkAtt:
+    """
+    Represents an attribute of a primary key.
+
+    Attributes:
+        attname (str): The name of the attribute (column).
+        typname (str): The type of the attribute.
+    """
+
     attname: str
     typname: str
 
 
 @dataclass
 class Config:
+    """
+    Holds the configuration for the vectorizer including embedding, processing,
+    chunking, and formatting.
+
+    Attributes:
+        version: The version of the configuration.
+        embedding: The embedding's provider configuration.
+        processing: Processing settings such as batch size and concurrency.
+        chunking: The chunking strategy.
+        formatting: Formatting strategy to apply to the chunks.
+    """
+
     version: str
     embedding: OpenAI
     processing: ProcessingDefault
@@ -58,6 +82,25 @@ class Config:
 
 @dataclass
 class Vectorizer:
+    """
+    Represents a vectorizer configuration that processes data from a source
+    table to generate embeddings.
+
+    Attributes:
+        id (int): The unique identifier of the vectorizer.
+        config (Config): The configuration object for the vectorizer.
+        queue_table (str): The name of the queue table.
+        queue_schema (str): The schema where the queue table is located.
+        source_schema (str): The schema of the source table.
+        source_table (str): The source table where the data comes from.
+        target_schema (str): The schema of the target table where embeddings are saved.
+        target_table (str): The target table where embeddings are saved.
+        source_pk (list[PkAtt]): List of primary key attributes from the source table.
+        errors_schema (str): The schema where the error log is saved. Default is "ai".
+        errors_table (str): The table where errors are logged.
+            Default is "vectorizer_errors".
+    """
+
     id: int
     config: Config
     queue_table: str
@@ -72,41 +115,102 @@ class Vectorizer:
 
 
 class VectorizerQueryBuilder:
+    """
+    A query builder class for generating SQL queries related to the vectorizer
+    operations.
+
+    Attributes:
+        vectorizer (Vectorizer): The vectorizer for which queries are built.
+    """
+
     def __init__(self, vectorizer: Vectorizer):
         self.vectorizer = vectorizer
 
     @property
     def pk_fields_sql(self) -> sql.Composed:
+        """Generates the SQL expression for a comma separated list of the
+        attributes of a primary key. For example, if the primary key has 2
+        fields (author, title), it will return a sql.Composed object that
+        represents the SQL expresion "author, title".
+        """
         return sql.SQL(" ,").join(
             [sql.Identifier(a.attname) for a in self.vectorizer.source_pk]
         )
 
     @cached_property
     def pk_attnames(self) -> list[str]:
+        """
+        Returns a list of primary key attribute names. For example, if the
+        primary key has 2 fields (author, title), it will return ["author", "title"].
+        """
         return [a.attname for a in self.vectorizer.source_pk]
 
     @property
     def pk_fields(self) -> list[sql.Identifier]:
+        """
+        Returns the SQL identifiers for primary key fields.
+        """
         return [sql.Identifier(a.attname) for a in self.vectorizer.source_pk]
 
     @property
     def target_table_ident(self) -> sql.Identifier:
+        """
+        Returns the SQL identifier for the fully qualified name of the target table.
+        """
+
         return sql.Identifier(
             self.vectorizer.target_schema, self.vectorizer.target_table
         )
 
     @property
     def errors_table_ident(self) -> sql.Identifier:
+        """
+        Returns the SQL identifier for the fully qualified name of the errors table.
+        """
         return sql.Identifier(
             self.vectorizer.errors_schema, self.vectorizer.errors_table
         )
 
     @property
     def queue_table_ident(self) -> sql.Identifier:
+        """
+        Returns the SQL identifier for the fully qualified name of the queue table.
+        """
         return sql.Identifier(self.vectorizer.queue_schema, self.vectorizer.queue_table)
 
     @cached_property
     def fetch_work_query(self) -> sql.Composed:
+        """
+        Generates the SQL query to fetch work items from the queue table.
+
+        The query is safe to run concurrently from multiple workers. It handles
+        duplicate work items by allowing only one instance of the duplicates to
+        be proccessed at a time.
+
+        For a thorough explanation of the query, see:
+
+        https://www.timescale.com/blog/how-we-designed-a-resilient-vector-embedding-creation-system-for-postgresql-data/#process-the-work-queue
+
+        The main takeaways are:
+
+        > ... the system retrieves a specified number of entries from the work
+        queue, determined by the batch queue size parameter. A FOR UPDATE lock
+        is taken to ensure that concurrently executing scripts don’t try
+        processing the same queue items. The SKIP LOCKED directive ensures that
+        if any entry is currently being handled by another script, the system
+        will skip it instead of waiting, avoiding unnecessary delays.
+
+        > Due to the possibility of duplicate entries for the same blog_id
+        within the work-queue table, simply locking said table is insufficient
+        ... A Postgres advisory lock, prefixed with the table identifier to
+        avoid potential overlaps with other such locks, is employed. The try
+        variant, analogous to the earlier application of SKIP LOCKED, ensures
+        the system avoids waiting on locks. The inclusion of the ORDER BY
+        blog_id clause helps prevent potential deadlocks...
+
+        The only differece, between the blog and this query, is that we handle
+        composite primary keys.
+        """
         return sql.SQL("""
                 WITH selected_rows AS (
                     SELECT {pk_fields}
@@ -240,6 +344,20 @@ class VectorizerQueryBuilder:
 
 
 class ProcessingStats:
+    """
+    Tracks processing statistics for chunk processing tasks.
+
+    Records the total processing time, number of chunks processed,
+    and wall time. It also logs statistics such as chunks processed per second.
+
+    Attributes:
+        total_processing_time (float): The total time spent processing chunks.
+        total_chunks (int): The total number of chunks processed.
+        wall_time (float): The total wall time from when processing started.
+        wall_start (float): The time when processing started, used for
+            calculating the elapsed time.
+    """
+
     total_processing_time: float
     total_chunks: int
     wall_time: float
@@ -261,10 +379,27 @@ class ProcessingStats:
         return cls._instance
 
     def add_request_time(self, duration: float, chunk_count: int):
+        """
+        Adds the time and chunk count of a processing request to the accumulated totals.
+
+        Args:
+            duration (float): The time taken for the request.
+            chunk_count (int): The number of chunks processed in the request.
+        """
         self.total_processing_time += duration
         self.total_chunks += chunk_count
 
     async def print_stats(self):
+        """
+        Logs the processing statistics, including total time, chunks processed,
+        and chunks processed per second.
+
+        This method calculates two main rates:
+        - Chunks processed per second overall.
+        - Chunks processed per second per thread.
+
+        The statistics are logged only to the DEBUG log level.
+        """
         chunks_per_second_per_thread = (
             self.total_chunks / self.total_processing_time
             if self.total_processing_time > 0
@@ -284,6 +419,20 @@ class ProcessingStats:
 
 
 class Worker:
+    """
+    Responsible for processing items from the work queue and generating embeddings.
+
+    The Worker fetches tasks from a database queue table, processes them using
+    the vectorizer, and writes the resulting embeddings or errors back to the
+    database.
+
+    Attributes:
+        db_url (str): The URL of the database to connect to.
+        vectorizer (Vectorizer): The vectorizer configuration used for processing.
+        queries (VectorizerQueryBuilder): A query builder instance used for
+            generating SQL queries.
+    """
+
     _queue_table_oid = None
 
     def __init__(self, db_url: str, vectorizer: Vectorizer):
@@ -292,11 +441,12 @@ class Worker:
         self.queries = VectorizerQueryBuilder(vectorizer)
 
     async def run(self) -> int:
-        """Embedding loop. Fetches tasks from the work queue, processes them in the
-        context of a transaction.
+        """
+        Embedding loop. Continuously fetches tasks from the work queue and
+        processes them within the context of a transaction.
 
         Returns:
-            The number of tasks processed from the work queue.
+            int: The number of tasks processed from the work queue.
         """
         res = 0
 
@@ -310,6 +460,16 @@ class Worker:
 
     @tracer.wrap()
     async def _do_batch(self, conn: AsyncConnection) -> int:
+        """
+        Processes a batch of tasks. Fetches items from the queue, filters out
+        deleted items, generates embeddings, and writes them to the database.
+
+        Args:
+            conn (AsyncConnection): The asynchronous database connection.
+
+        Returns:
+            int: The number of items processed in the batch.
+        """
         processing_stats = ProcessingStats()
         try:
             start_time = time.perf_counter()
@@ -375,24 +535,20 @@ class Worker:
             raise e
 
     async def _fetch_work(self, conn: AsyncConnection) -> list[SourceRow]:
-        """Fetches a batch of tasks from the work queue table. It's safe for
-        concurrent use.
+        """
+        Fetches a batch of tasks from the work queue table. Safe for concurrent use.
 
         Follows the approach described in:
-
         https://www.timescale.com/blog/how-we-designed-a-resilient-vector-embedding-creation-system-for-postgresql-data/
 
         Args:
-            conn: connection to the database.
+            conn (AsyncConnection): The database connection.
 
         Returns:
-            The rows from the source table that need to be embedded.
+            list[SourceRow]: The rows from the source table that need to be embedded.
         """
         queue_table_oid = await self._get_queue_table_oid(conn)
         async with conn.cursor(row_factory=dict_row) as cursor:
-            # TODO: What if the transaction is rolled back? Are we going to keep
-            # processing the same task over an over. Do we abort? Move the work
-            # tasks to a dead letter queue ? Retry many times?
             await cursor.execute(
                 self.queries.fetch_work_query,
                 (
@@ -403,6 +559,15 @@ class Worker:
             return await cursor.fetchall()
 
     async def _get_queue_table_oid(self, conn: AsyncConnection) -> int:
+        """
+        Retrieves the OID (Object Identifier) of the queue table.
+
+        Args:
+            conn (AsyncConnection): The database connection.
+
+        Returns:
+            int: The OID of the queue table.
+        """
         if self._queue_table_oid is not None:
             return self._queue_table_oid
 
@@ -412,26 +577,27 @@ class Worker:
             )
             row = await cursor.fetchone()
             if not row:
-                # TODO: if the work queue table doesn't exists how do we handle it?
-                # We should have a specific code for errors of this kind. Tables
-                # not existing, columns not existing, etc.
                 raise Exception("work queue table doesn't exist")
             self._queue_table_oid = row["to_regclass"]
         return self._queue_table_oid
 
     @tracer.wrap()
     async def _embed_and_write(self, conn: AsyncConnection, items: list[SourceRow]):
-        """Embeds the items and writes them to the database:
+        """
+        Embeds the items and writes them to the database.
 
-        - Deletes items from the embdedding table that are going to be updated.
-        - Generates the documents to embedded. Generates the chunks from the
-          source column, and formats the chunks based on the formatting
-          configuration.
-        - Sends the documents to the embeddings provider to generate the
-          embeddings.
-        - Writes the embeddings to the database.
-        - Write any non-fatal errors, like individual chunks that couldn't be
-          embed.
+        - Deletes existing embeddings for the items.
+        - Generates the documents to be embedded, chunks them, and formats the chunks.
+        - Sends the documents to the embedding provider and writes embeddings
+          to the database.
+        - Logs any non-fatal errors encountered during embedding.
+
+        Args:
+            conn (AsyncConnection): The database connection.
+            items (list[SourceRow]): The items to be embedded.
+
+        Returns:
+            int: The number of records written to the database.
         """
 
         await self._delete_embeddings(conn, items)
@@ -444,20 +610,16 @@ class Worker:
         return len(records)
 
     async def _delete_embeddings(self, conn: AsyncConnection, items: list[SourceRow]):
-        """Deletes the embeddings for the given item."""
+        """
+        Deletes the embeddings for the given items from the target table.
+
+        Args:
+            conn (AsyncConnection): The database connection.
+            items (list[SourceRow]): The items whose embeddings need to be deleted.
+        """
         ids = [item[pk] for item in items for pk in self.queries.pk_attnames]
         async with conn.cursor() as cursor:
             await cursor.execute(self.queries.delete_embeddings_query(len(items)), ids)
-
-    @tracer.wrap()
-    async def _insert_embeddings(
-        self,
-        conn: AsyncConnection,
-        records: list[EmbeddingRecord],
-    ):
-        """Inserts embeddings into the embedding table"""
-        async with conn.cursor() as cursor:
-            await cursor.executemany(self.queries.insert_embeddings_query, records)
 
     @tracer.wrap()
     async def _copy_embeddings(
@@ -465,8 +627,14 @@ class Worker:
         conn: AsyncConnection,
         records: list[EmbeddingRecord],
     ):
-        """Inserts embeddings into the embedding table using
-        COPY FROM STDIN WITH (FORMAT BINARY)"""
+        """
+        Inserts embeddings into the embedding table using COPY FROM STDIN WITH
+        (FORMAT BINARY).
+
+        Args:
+            conn (AsyncConnection): The database connection.
+            records (list[EmbeddingRecord]): The embedding records to be copied.
+        """
         async with (
             conn.cursor(binary=True) as cursor,
             cursor.copy(self.queries.copy_embeddings_query) as copy,
@@ -480,7 +648,13 @@ class Worker:
         conn: AsyncConnection,
         records: list[VectorizerErrorRecord],
     ):
-        """Inserts vectorizer errors into the errors table"""
+        """
+        Inserts vectorizer errors into the errors table.
+
+        Args:
+            conn (AsyncConnection): The database connection.
+            records (list[VectorizerErrorRecord]): The error records to be inserted.
+        """
         async with conn.cursor() as cursor:
             await cursor.executemany(self.queries.insert_errors_query, records)
 
@@ -489,7 +663,13 @@ class Worker:
         conn: AsyncConnection,
         record: VectorizerErrorRecord,
     ):
-        """Inserts a vectorizer error into the errors table"""
+        """
+        Inserts a single vectorizer error into the errors table.
+
+        Args:
+            conn (AsyncConnection): The database connection.
+            record (VectorizerErrorRecord): The error record to be inserted.
+        """
         async with conn.cursor() as cursor:
             await cursor.execute(self.queries.insert_errors_query, record)
 
@@ -499,7 +679,16 @@ class Worker:
     async def _generate_embeddings(
         self, items: list[SourceRow]
     ) -> tuple[list[EmbeddingRecord], list[VectorizerErrorRecord]]:
-        """Generates the embeddings for the items."""
+        """
+        Generates the embeddings for the given items.
+
+        Args:
+            items (list[SourceRow]): The items to generate embeddings for.
+
+        Returns:
+            tuple[list[EmbeddingRecord], list[VectorizerErrorRecord]]: A tuple
+                of embedding records and error records.
+        """
         records_without_embeddings: list[EmbeddingRecord] = []
         documents: list[str] = []
         for item in items:

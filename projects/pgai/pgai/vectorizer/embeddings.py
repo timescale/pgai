@@ -31,6 +31,14 @@ logger = structlog.get_logger()
 
 @dataclass
 class ChunkEmbeddingError:
+    """
+    A data class to represent an error that occurs during chunk embedding.
+
+    Attributes:
+        error (str): A brief description of the error.
+        error_details (str): Detailed information about the error.
+    """
+
     error: str = ""
     error_details: str = ""
 
@@ -39,24 +47,66 @@ EmbeddingVector: TypeAlias = list[float]
 
 
 class Embedder(ABC):
+    """
+    Abstract base class for an Embedder.
+
+    This class defines the interface for embedding text documents into vectors
+    or returning embedding errors.
+    """
+
     @abstractmethod
     async def embed(
         self, documents: list[str]
     ) -> Sequence[EmbeddingVector | ChunkEmbeddingError]:
-        pass
+        """
+        Embeds a list of documents into vectors.
+
+        Args:
+            documents (list[str]): A list of strings representing the documents
+            to be embedded.
+
+        Returns:
+            Sequence[EmbeddingVector | ChunkEmbeddingError]: A sequence of
+            embedding vectors or errors encountered during embedding.
+        """
 
 
 class ApiKeyMixin:
+    """
+    A mixin class that provides functionality for managing API keys.
+
+    Attributes:
+        api_key_name (str): The name of the API key attribute.
+    """
+
     api_key_name: str
     _api_key_: str | None = None
 
     @property
     def _api_key(self) -> str:
+        """
+        Retrieves the stored API key.
+
+        Raises:
+            ValueError: If the API key has not been set.
+
+        Returns:
+            str: The API key.
+        """
         if self._api_key_ is None:
             raise ValueError("API key not set")
         return self._api_key_
 
     def set_api_key(self, secrets: Secrets):
+        """
+        Sets the API key from the provided secrets.
+
+        Args:
+            secrets (Any): An object containing the API key as an attribute.
+
+        Raises:
+            ValueError: If the API key is missing from the secrets.
+        """
         api_key = getattr(secrets, self.api_key_name)
         if api_key is None:
             raise ValueError(f"missing API key: {self.api_key_name}")
@@ -64,6 +114,19 @@ class ApiKeyMixin:
 
 
 class EmbeddingStats:
+    """
+    Singleton class that tracks embedding statistics.
+
+    This class measures total request time, total chunks processed, and
+    calculates the number of chunks processed per second.
+
+    Attributes:
+        total_request_time (float): The total time spent on embedding requests.
+        total_chunks (int): The total number of chunks processed.
+        wall_time (float): The total elapsed time since the start of tracking.
+        wall_start (float): The time at which tracking started.
+    """
+
     total_request_time: float
     total_chunks: int
     wall_time: float
@@ -80,10 +143,25 @@ class EmbeddingStats:
         return cls._instance
 
     def add_request_time(self, duration: float, chunk_count: int):
+        """
+        Adds the duration of an embedding request and the number of chunks
+        processed.
+
+        Args:
+            duration (float): The time taken for the request.
+            chunk_count (int): The number of chunks processed in the request.
+        """
         self.total_request_time += duration
         self.total_chunks += chunk_count
 
     def chunks_per_second(self):
+        """
+        Calculates the number of chunks processed per second.
+
+        Returns:
+            float: The number of chunks processed per second. Returns 0 if no
+            requests have been processed.
+        """
         return (
             self.total_chunks / self.total_request_time
             if self.total_request_time > 0
@@ -91,6 +169,10 @@ class EmbeddingStats:
         )
 
     async def print_stats(self):
+        """
+        Logs embedding statistics, including request time, total chunks, and
+        chunks per second.
+        """
         self.wall_time = time.perf_counter() - self.wall_start
         await logger.adebug(
             "Embedding stats",
@@ -102,6 +184,17 @@ class EmbeddingStats:
 
 
 class OpenAI(ApiKeyMixin, BaseModel, Embedder):
+    """
+    Embedder that uses OpenAI's API to embed documents into vector representations.
+
+    Attributes:
+        implementation (Literal["openai"]): The literal identifier for this
+            implementation.
+        model (str): The name of the OpenAI model used for embeddings.
+        dimensions (int | None): Optional dimensions for the embeddings.
+        user (str | None): Optional user identifier for OpenAI API usage.
+    """
+
     implementation: Literal["openai"]
     model: str
     dimensions: int | None = None
@@ -125,6 +218,23 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
     async def embed(
         self, documents: list[str]
     ) -> Sequence[EmbeddingVector | ChunkEmbeddingError]:
+        """
+        Embeds a list of documents into vectors using OpenAI's embeddings API.
+        The documents are first encoded into tokens before being embedded.
+
+        If a request to generate embeddings fails because one or more chunks
+        exceed the model's token limit, the offending chunks are filtered out
+        and the request is retried. The returned result will contain a
+        ChunkEmbeddingError in place of an EmbeddingVector for the chunks that
+        exceeded the model's token limit.
+
+        Args:
+            documents (list[str]): A list of documents to be embedded.
+
+        Returns:
+            Sequence[EmbeddingVector | ChunkEmbeddingError]: The embeddings or
+            errors for each document.
+        """
         encoded_documents = await self._encode(documents)
         await logger.adebug(f"Chunks produced: {len(documents)}")
         try:
@@ -150,6 +260,16 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
     async def _do_embed(
         self, encoded_documents: list[list[int]]
     ) -> list[EmbeddingVector]:
+        """
+        Performs the actual embedding of encoded documents by sending requests
+        to OpenAI's API.
+
+        Args:
+            encoded_documents (list[list[int]]): A list of encoded documents.
+
+        Returns:
+            list[EmbeddingVector]: A list of embedding vectors for each document.
+        """
         response: list[list[float]] = []
         num_of_batches = math.ceil(len(encoded_documents) / OPENAI_MAX_CHUNKS_PER_BATCH)
         total_duration = 0.0
@@ -218,6 +338,20 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
     async def _filter_by_length_and_embed(
         self, model_token_length: int, encoded_documents: list[list[int]]
     ) -> Sequence[EmbeddingVector | ChunkEmbeddingError]:
+        """
+        Filters out documents that exceed the model's token limit and embeds
+        the valid ones. Chunks that exceed the limit are replaced in the
+        response with an ChunkEmbeddingError instead of an EmbeddingVector.
+
+        Args:
+            model_token_length (int): The token length limit for the model.
+            encoded_documents (list[list[int]]): A list of encoded documents.
+
+        Returns:
+            Sequence[EmbeddingVector | ChunkEmbeddingError]: EmbeddingVector
+            for the chunks that were successfuly embedded, ChunkEmbeddingError
+            for the chunks that exceeded the model's token limit.
+        """
         valid_documents: list[list[int]] = []
         invalid_documents_idxs: list[int] = []
         for i, doc in enumerate(encoded_documents):
@@ -251,6 +385,16 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
         return embeddings
 
     async def _encode(self, documents: list[str]) -> list[list[int]]:
+        """
+        Encodes a list of documents into a list of tokenized documents, using
+        the corresponding encoder for the model.
+
+        Args:
+            documents (list[str]): A list of text documents to be tokenized.
+
+        Returns:
+            list[list[int]]: A list of tokenized documents.
+        """
         total_tokens = 0
         encoded_documents: list[list[int]] = []
         for document in documents:
