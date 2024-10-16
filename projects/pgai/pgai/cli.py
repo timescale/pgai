@@ -97,10 +97,10 @@ def run_vectorizer(db_url: str, vectorizer: Vectorizer, concurrency: int) -> Non
 class TimeDurationParamType(click.ParamType):
     name = "time duration"
 
-    def convert(self, value, param, ctx):  # type: ignore
-        val = parse(value)
+    def convert(self, value, param, ctx) -> int:  # type: ignore
+        val: int | None = parse(value)  # type: ignore
         if val is not None:
-            return val
+            return val  # type: ignore
         try:
             val = int(value, 10)
             if val < 0:
