@@ -5,5 +5,3 @@
 -r requirements-test.txt
 -r projects/extension/requirements.txt
 -r projects/pgai/requirements.txt
-build==1.2.2.post1
-twine==5.1.1

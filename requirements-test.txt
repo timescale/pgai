@@ -10,3 +10,5 @@ vcrpy==6.0.1
 pyright==1.1.384
 psycopg[binary]==3.2.1
 testcontainers==4.8.1
+build==1.2.2.post1
+twine==5.1.1

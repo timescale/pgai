@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -420,9 +421,33 @@ def uninstall_py() -> None:
     shutil.rmtree(python_install_dir(), ignore_errors=True)
 
 
+def pgai_version() -> str:
+    content = project_pgai_dir().joinpath("pgai", "__init__.py").resolve().read_text()
+    for line in content.splitlines(keepends=True):
+        if line.startswith("__version__"):
+            m = re.search(r'"(.*)"', line)
+            if not m:
+                print("could not determine the pgai version", file=sys.stderr)
+                sys.exit(1)
+            g = m.groups()
+            if not g or len(g) != 1:
+                print("could not determine the pgai version", file=sys.stderr)
+                sys.exit(1)
+            version = g[0].strip('"')
+            return version
+    print("could not determine the pgai version", file=sys.stderr)
+    sys.exit(1)
+
+
+def pgai_wheel() -> Path:
+    return project_pgai_dir().joinpath("dist", f"pgai-{pgai_version()}-py3-none-any.whl").resolve()
+
+
 def install_vectorizer() -> None:
+    if not pgai_wheel().is_file():
+        build_vectorizer()
     subprocess.run(
-        f'pip3 install -v --compile "{project_pgai_dir()}"',
+        f'pip3 install -v --compile "{pgai_wheel()}"',
         check=True,
         shell=True,
         env=os.environ,
@@ -430,7 +455,7 @@ def install_vectorizer() -> None:
     )
 
 
-def build_vec_dist() -> None:
+def build_vectorizer() -> None:
     subprocess.run(
         "python3 -m build --sdist --wheel",
         check=True,
@@ -451,14 +476,17 @@ def clean_vectorizer() -> None:
     d = project_pgai_dir().joinpath("build")
     if d.exists():
         shutil.rmtree(d, ignore_errors=True)
-    d = project_pgai_dir().joinpath("vectorizer.egg-info")
+    d = project_pgai_dir().joinpath("pgai.egg-info")
+    if d.exists():
+        shutil.rmtree(d, ignore_errors=True)
+    d = project_pgai_dir().joinpath("dist")
     if d.exists():
         shutil.rmtree(d, ignore_errors=True)
 
 
 def uninstall_vectorizer() -> None:
     subprocess.run(
-        "pip3 uninstall -v -y vectorizer",
+        "pip3 uninstall -v -y pgai",
         check=True,
         shell=True,
         env=os.environ,
@@ -671,8 +699,8 @@ if __name__ == "__main__":
             install_py()
         elif action == "install-vec":
             install_vectorizer()
-        elif action == "build-vec-dist":
-            build_vec_dist()
+        elif action == "build-vec":
+            build_vectorizer()
         elif action == "install-sql":
             install_sql()
         elif action == "build-sql":
