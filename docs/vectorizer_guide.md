@@ -1,4 +1,4 @@
-# Vectorizer Guide
+# Automate AI embedding with Vectorizer
 
 Vector embeddings have emerged as a powerful tool for transforming text into
 compact, semantically rich representations. This approach unlocks the potential
@@ -19,25 +19,31 @@ representing only a part of a row's data -- we've simplified the entire workflow
 
 Our system empowers you to:
 
-1. Designate any text column for embedding using customizable rules. 
-1. Automatically generate and maintain searchable embedding tables. 
-1. Keep embeddings continuously synchronized with source data (asynchronously).
-1. Utilize a convenient view that seamlessly joins base tables with their
-embeddings.
+- Designate any text column for embedding using customizable rules. 
+- Automatically generate and maintain searchable embedding tables. 
+- Keep embeddings continuously synchronized with source data (asynchronously).
+- Utilize a convenient view that seamlessly joins base tables with their embeddings.
 
-This guide offers a comprehensive overview of the Vectorizer feature,
+This page offers a comprehensive overview of Vectorizer features,
 demonstrating how it streamlines the process of working with vector embeddings
-in your database. A more detailed technical specification is available
-[here](./vectorizer.md).
+in your database. For a more detailed technical specification, see the
+[Vectorizer API reference](./vectorizer.md).
 
 Let's explore how the Vectorizer can transform your approach to unstructured,
-textual, data analysis and semantic search.
+textual, data analysis and semantic search:
 
-## Basic usage of the vectorizer
+- [Define a vectorizer](#define-a-vectorizer)
+- [Query an embedding](#query-an-embedding)
+- [Inject context into vectorizer chunks](#inject-context-into-vectorizer-chunks)
+- [Improve query performance on your Vectorizer](#improve-query-performance-on-your-vectorizer)
+- [Control vectorizer run time](#control-vectorizer-run-time-)
+- [The embedding storage table](#the-embedding-storage-table)
+- [Monitor a vectorizer](#monitor-a-vectorizer)
 
-### Defining the vectorizer
 
-Users can configure the system to automatically generate and update embeddings
+## Define a vectorizer
+
+You can configure the system to automatically generate and update embeddings
 for a table's data. Let's consider the following example table:
 
 ```sql
@@ -62,11 +68,11 @@ SELECT ai.create_vectorizer(
 );
 ```
 
-In this example, the `contents` field is split into multiple chunks if it's
-lengthy, resulting in several embeddings for a single blog post. Chunking helps
+In this example, if the `contents` field is lengthy, it is split into multiple chunks, 
+resulting in several embeddings for a single blog post. Chunking helps
 ensure that each embedding is semantically coherent, typically representing a
-single thought or concept (a useful mental model is to think of embedding one
-paragraph at a time).
+single thought or concept. A useful mental model is to think of embedding one
+paragraph at a time.
 
 However, splitting text into chunks can sometimes lead to a loss of context. To
 mitigate this, you can reintroduce context into each chunk. For instance, you
@@ -87,14 +93,14 @@ SELECT ai.create_vectorizer(
 This approach ensures that each chunk retains important contextual information,
 improving the quality and relevance of the embeddings.
 
-### Querying the embedding
+## Query an embedding
 
 The `create_vectorizer` command generates a view with the same name as the
 specified destination. This view contains all the embeddings for the blog table.
 Note that you'll typically have multiple rows in the view for each blog entry,
-as multiple embeddings are usually generated per source document.
+as multiple embeddings are usually generated for each source document.
 
-The view includes all columns from the blog table, plus these additional columns:
+The view includes all columns from the blog table, plus the following additional columns:
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -143,18 +149,16 @@ ORDER BY
 LIMIT 10;
 ```
 
-## Advanced vectorizer usage
-
-### Formatting 
+## Inject context into vectorizer chunks
 
 Formatting allows you to inject additional information into each chunk. This is
 needed because splitting up the text into chunks can lead to a loss of important
 context. For instance, you might want to include the authors and title with each
 chunk. This is achieved using Python template strings, which have access to all
-columns in the row and a special '$chunk' variable containing the chunk's text.
+columns in the row and a special `$chunk` variable containing the chunk's text.
 
 You may need to reduce the chunk size to ensure the formatted text fits within
-token limits. Adjust the 'chunk_size' parameter of the text_splitter
+token limits. Adjust the `chunk_size` parameter of the text_splitter
 accordingly:
 
 ```sql
@@ -167,14 +171,15 @@ SELECT ai.create_vectorizer(
 );
 ```
 
-The default format string is simply '$chunk'.
+The default format string is simply `$chunk`.
 
-### Indexing
+## Improve query performance on your Vectorizer
 
-The vectorizer can create a vector index on the embedding column to improve
-query performance. By default, a vectorscale index is created after 100,000
-rows, but you can specify other vector index types. Here's an example using an
-HNSW index:
+A vector index on the embedding column improves query performance. By default, a 
+vectorscale index is created after 100,000 rows of vector data are present. This 
+behaviour is configurable, you can also specify other vector index types. The following
+example uses a HNSW index:
+
 
 ```sql
 SELECT ai.create_vectorizer(
@@ -188,9 +193,9 @@ SELECT ai.create_vectorizer(
 ```
 
 Note: Indexing relies on a background job that runs periodically, so this
-feature won't work if scheduling is disabled.
+feature will not work if scheduling is disabled.
 
-### Scheduling
+## Control vectorizer run time 
 
 Scheduling allows you to control when the vectorizer should run when running on
 Timescale Cloud or another setup where work is done in cloud functions. A
@@ -216,9 +221,9 @@ SELECT ai.create_vectorizer(
 );
 ```
 
-**note**: when scheduling is disabled, the index will not be created automatically and needs to be created manually.
+Note: when scheduling is disabled, the index is not created automatically. You need to create it manually.
 
-### Embedding storage table
+## The embedding storage table
 
 The view is based on a table storing blog embeddings, named
 `blog_contents_embeddings_store`. You can query this table directly for
@@ -236,7 +241,7 @@ CREATE TABLE blog_embedding_store(
 );
 ```
 
-## Monitoring the vectorizer
+## Monitor a vectorizer
 
 Since embeddings are created asynchronously, there may be a delay before they
 become available. Use the `vectorizer_status` view to monitor the vectorizer's
