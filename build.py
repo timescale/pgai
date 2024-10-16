@@ -440,7 +440,11 @@ def pgai_version() -> str:
 
 
 def pgai_wheel() -> Path:
-    return project_pgai_dir().joinpath("dist", f"pgai-{pgai_version()}-py3-none-any.whl").resolve()
+    return (
+        project_pgai_dir()
+        .joinpath("dist", f"pgai-{pgai_version()}-py3-none-any.whl")
+        .resolve()
+    )
 
 
 def install_vectorizer() -> None:
