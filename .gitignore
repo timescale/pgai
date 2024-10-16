@@ -12,3 +12,4 @@ projects/extension/tests/dump_restore/src.snapshot
 projects/extension/tests/dump_restore/dst.snapshot
 projects/extension/tests/*/*.actual
 dist
+wiki.dump
