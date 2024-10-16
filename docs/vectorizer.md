@@ -120,29 +120,29 @@ in other management functions.
 
 `ai.create_vectorizer` takes the following parameters:
 
-IAIN: not sure about the values in this table
+| Name             | Type                                                   | Default                           | Required | Description                                                                                        |
+|------------------|--------------------------------------------------------|-----------------------------------|-|----------------------------------------------------------------------------------------------------|
+| source           | regclass                                               | -                                 |✔| The source table that embeddings are generated for.                                                |
+| destination      | name                                                   | -                                 | ✖| A name for the table the embeddings are stored in.                                                 |
+| embedding        | [Embedding configuration](#embedding-configuration)    | -                                 |✖| Set the embedding process using `ai.embedding_openai()` to specify the model and dimensions.       |
+| chunking         | [Chunking configuration](#chunking-configuration)      | -                                 |✖| Set the way to split text data, using functions like `ai.chunking_character_text_splitter()`.      |
+| indexing         | [Indexing configuration](#indexing-configuration)      | `ai.indexing_diskann()`           |✖| Specify how to index the embeddings. For example, `ai.indexing_diskann()` or `ai.indexing_hnsw()`. |
+| formatting       | [Formatting configuration](#formatting-configuration)  | `ai.formatting_python_template()` | ✖| Define the data format before embedding, using `ai.formatting_python_template()`.                  |
+| scheduling       | [Scheduling configuration](#scheduling-configuration)  | `ai.scheduling_timescaledb()`     |✖| Set how often to run the vectorizer. For example, `ai.scheduling_timescaledb()`.                   |
+| processing       | [Processing configuration](#processing-configuration ) | `ai.processing_default()`         |✖| Configure the way to process the embeddings.                                                       |
+| target_schema    | name                                                   | -                                 |✖| Specify where to store embeddings and create views.                                                |
+| target_table     | name                                                   | -                                 |✖| Specify where to store embeddings and create views.                                                |
+| view_schema      | name                                                   | -                                 |✖| Specify where to store embeddings and create views.                                                |
+| view_name        | name                                                   | -                                 |✖| Specify where to store embeddings and create views.                                                |
+| queue_schema     | name                                                   | -                                 |✖| Set the way the queue works in background processing.                                              |
+| queue_table      |  name                                                      | -                                 |✖| Set the way the queue works in background processing.                                              |
+| grant_to         | name[]                                                  | `array['tsdbadmin']`              |✖ | An array containing the role names to grant permissions to.                                        |
+| enqueue_existing | bool                                                   | `true`                             |✖| Set to `true` if existing rows should be immediately queued for embedding.   |
 
-| Name             | Type                                                   | Default | Required | Description                                                                |
-|------------------|--------------------------------------------------------|---------|-|----------------------------------------------------------------------------|
-| source           | regclass                                               | -       |✔|     The source table that embeddings are generated for. |
-| embedding        | [Embedding configuration](#embedding-configuration)    | -       |✖|   Set the embedding process using `ai.embedding_openai()` to specify the model and dimensions.                                                                         |
-| chunking         | [Chunking configuration](#chunking-configuration)      | -       |✖|   Set the way to split text data, using functions like `ai.chunking_character_text_splitter()`.                                                                         |
-| indexing         | [Indexing configuration](#indexing-configuration)      | -       |✖| Specify how to index the embeddings. For example, `ai.indexing_diskann()` or `ai.indexing_hnsw()`.|
-| formatting       | [Formatting configuration](#formatting-configuration)  | -       | ✖|   Define the data format before embedding, using `ai.formatting_python_template()`.                                                                         |
-| scheduling       | [Scheduling configuration](#scheduling-configuration)  | -       |✖|    Set how often to run the vectorizer. For example, `ai.scheduling_timescaledb()`.                                                                        |
-| processing       | [Processing configuration](#processing-configuration ) | -       |✖| Configure the way to process the embeddings.                               |
-| target_schema    |                                                        | -       |✖| Specify where to store embeddings and create views.                        |
-| target_table     |                                                        | -       |✖| Specify where to store embeddings and create views.                        |
-| view_schema      |                                                        | -       |✖| Specify where to store embeddings and create views.                        |
-| view_name        |                                                        | -       |✖| Specify where to store embeddings and create views.                        |
-| queue_schema     |                                                        | -       |✖| Set the way the queue works in background processing.                      |
-| queue_table      |                                                        | -       |✖| Set the way the queue works in background processing.                      |
-| grant_to         | array                                                  | -       |✖ | An array containing the role names to grant permissions to.                |
-| enqueue_existing | bool                                                   | -       |✖| Set to `true` if existing rows should be immediately queued for embedding. |
 
 #### Returns
 
-The id of the vectorizer that you created.
+The `int` id of the vectorizer that you created.
 
 ## Chunking configuration
 
@@ -707,7 +707,7 @@ SELECT ai.enable_vectorizer_schedule(1);
 
 #### Returns
 
-IAIN: I don't know what this function returns.
+`ai.enable_vectorizer_schedule` does not return a value,
 
 ### ai.disable_vectorizer_schedule
 
@@ -734,7 +734,7 @@ SELECT ai.enable_vectorizer_schedule(1);
 
 #### Returns
 
-IAIN: I don't know what this function returns.
+`ai.disable_vectorizer_schedule` does not return a value,
 
 ## Processing configuration
 
@@ -928,7 +928,7 @@ Examples:
 
 #### Returns
 
-`ai.drop_vectorizer` doesn't return a value, but it performs several cleanup operations.
+`ai.drop_vectorizer` does not return a value, but it performs several cleanup operations.
 
 ## View vectorizer status
 
