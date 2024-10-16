@@ -1,5 +1,5 @@
 
-# Vectorizers
+# Vectorizer API reference
 
 A vectorizer provides users with a powerful and automated way to generate and 
 manage LLM embeddings for their PostgreSQL data. Here's a summary of what users 
