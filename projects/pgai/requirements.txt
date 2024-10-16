@@ -1,13 +1,13 @@
-click==8.1.7
-psycopg[binary]==3.2.1
-langchain-openai==0.1.23
-langchain-text-splitters==0.2.4
-pydantic==2.9.1
-openai==1.44.0
-python-dotenv==1.0.1
-structlog==24.4.0
-datadog-lambda
-pgvector==0.3.3
-tiktoken==0.7.0
-typing_extensions==4.12.2
-pytimeparse==1.1.8
+click>=8.0,<9.0
+psycopg[binary]>=3.2,<4.0
+langchain-openai>=0.1,<1.0
+langchain-text-splitters>=0.2,<1.0
+pydantic>=2.0,<3.0
+openai>=1.44,<2.0
+python-dotenv>=1.0,<2.0
+structlog>=24.0,<25.0
+pgvector>=0.3,<1.0
+tiktoken>=0.7,<1.0
+typing_extensions>=4.0,<5.0
+datadog_lambda>=6.9,<7.0
+pytimeparse >=1.1,<2.0
