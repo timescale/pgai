@@ -68,8 +68,8 @@ SELECT ai.create_vectorizer(
 );
 ```
 
-In this example, if the `contents` field is lengthy, it is split into multiple chunks
-lengthy, resulting in several embeddings for a single blog post. Chunking helps
+In this example, if the `contents` field is lengthy, it is split into multiple chunks, 
+resulting in several embeddings for a single blog post. Chunking helps
 ensure that each embedding is semantically coherent, typically representing a
 single thought or concept. A useful mental model is to think of embedding one
 paragraph at a time.
@@ -175,10 +175,11 @@ The default format string is simply `$chunk`.
 
 ## Improve query performance on your Vectorizer
 
-To improve query performance, you create a vector index on the embedding column 
-in a Vectorizer. By default, a vectorscale index is created after 100,000
-rows, but you can specify other vector index types. Here's an example using an
-HNSW index:
+A vector index on the embedding column improves query performance. By default, a 
+vectorscale index is created after 100,000 rows of vector data are present. This 
+behaviour is configurable, you can also specify other vector index types. The following
+example uses a HNSW index:
+
 
 ```sql
 SELECT ai.create_vectorizer(
