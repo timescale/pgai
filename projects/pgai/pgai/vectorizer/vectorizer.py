@@ -1,6 +1,7 @@
 import asyncio
 import threading
 import time
+from collections.abc import Callable
 from functools import cached_property
 from itertools import repeat
 from typing import Any, TypeAlias
@@ -434,11 +435,18 @@ class Worker:
     """
 
     _queue_table_oid = None
+    _continue_processing: Callable[[int, int], bool]
 
-    def __init__(self, db_url: str, vectorizer: Vectorizer):
+    def __init__(
+        self,
+        db_url: str,
+        vectorizer: Vectorizer,
+        continue_processing: None | Callable[[int, int], bool] = None,
+    ):
         self.db_url = db_url
         self.vectorizer = vectorizer
         self.queries = VectorizerQueryBuilder(vectorizer)
+        self._continue_processing = continue_processing or (lambda _loops, _res: True)
 
     async def run(self) -> int:
         """
@@ -449,14 +457,18 @@ class Worker:
             int: The number of tasks processed from the work queue.
         """
         res = 0
+        loops = 0
 
         async with await psycopg.AsyncConnection.connect(self.db_url) as conn:
             await register_vector_async(conn)
             while True:
+                if not self._continue_processing(loops, res):
+                    return res
                 items_processed = await self._do_batch(conn)
                 if items_processed == 0:
                     return res
                 res += items_processed
+                loops += 1
 
     @tracer.wrap()
     async def _do_batch(self, conn: AsyncConnection) -> int:
