@@ -20,7 +20,7 @@ jobs:
       - run: pip install -r requirements-dev.txt
 
       - name: Build the pgai distributable and check artifacts
-        run: make build-vec-dist
+        run: make build-vec
 
       - name: Verify Docker installation
         run: |
