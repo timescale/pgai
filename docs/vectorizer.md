@@ -601,7 +601,7 @@ You use `ai.scheduling_timescaledb` to:
 
 - Usage in `ai.create_vectorizer`:
 
-  These scheduling configuration functions are typically used as arguments to the
+  These scheduling configuration functions are used as arguments to the
   `ai.create_vectorizer` function:
   
   ```sql
@@ -647,8 +647,8 @@ Key points about schedule enable and disable:
 - These functions provide fine-grained control over individual vectorizer schedules without affecting other 
   vectorizers, or the overall system configuration.
 
-- Disabling a schedule does not delete the vectorizer or its configuration; it simply stops the automatic 
-  execution of the job.
+- Disabling a schedule does not delete the vectorizer or its configuration; it simply stops scheduling future
+  executions of the job.
 
 - These functions are particularly useful in scenarios such as:
   - System maintenance windows where you want to reduce database load.
