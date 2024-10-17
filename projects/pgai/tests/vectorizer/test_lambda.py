@@ -106,7 +106,9 @@ def test_handler_ok(
             assert record == {
                 id_att: expected_item.pk_att_1,
                 id2_att: expected_item.pk_att_2,
-                "chunk": expected_item.content,
+                "chunk": expected_item.format_chunk(
+                    request.getfixturevalue("formatting")["implementation"]
+                ),
                 "chunk_seq": 0,
             }
 
