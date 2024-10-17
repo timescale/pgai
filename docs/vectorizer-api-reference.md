@@ -59,7 +59,7 @@ Vectorizer offers the following APIs:
 - [Create vectorizers](#create-vectorizers): automate the process of creating embeddings for table data.
 - [Chunking configuration](#chunking-configuration): define the way text data is split into smaller, manageable pieces 
   before being processed for embeddings.
-- [Embedding configuration](#embedding-configuration): specify the LLM provider, model, and parameters to be
+- [Embedding configuration](#embedding-configuration): specify the LLM provider, model, and the parameters to be
   used when generating the embeddings
 - [Formatting configuration](#formatting-configuration): configure the way data from the source table is formatted
   before it is sent for embedding.
