@@ -1,0 +1,17 @@
+{
+  "packages": {
+    "projects/pgai": {
+      "component": "pgai"
+    }
+  },
+  "separate-pull-requests": true,
+  "include-component-in-tag": true,
+  "release-type": "python",
+  "bump-minor-pre-major": true,
+  "pull-request-header": ":robot: Release ready",
+  "changelog-sections": [
+    { "type": "feat", "section": "Features", "hidden": false },
+    { "type": "fix", "section": "Bug Fixes", "hidden": false },
+    { "type": "chore", "section": "Miscellaneous", "hidden": false }
+  ]
+}

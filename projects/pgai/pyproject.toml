@@ -1,0 +1,165 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pgai"
+description = "AI workflows in your PostgreSQL database"
+dynamic = ["version", "dependencies"]
+requires-python = ">=3.10"
+readme = "README.md"
+keywords = ["ai", "postgres"]
+classifiers = [
+  "License :: OSI Approved :: PostgreSQL License",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Database",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Typing :: Typed",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Operating System :: POSIX",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+]
+
+[project.urls]
+Homepage = "https://github.com/timescale/pgai"
+Repository = "https://github.com/timescale/pgai"
+"Bug Tracker" = "https://github.com/timescale/pgai/issues"
+Documentation = "https://github.com/timescale/pgai/tree/main/docs"
+
+[tool.setuptools.dynamic]
+version = {attr = "pgai.__version__"}
+dependencies = {file = "requirements.txt"}
+
+[tool.setuptools.packages.find]
+where = ["."]  # list of folders that contain the packages (["."] by default)
+include = ["pgai*"]  # package names should match these glob patterns (["*"] by default)
+namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
+
+[project.scripts]
+vectorizer = "pgai.cli:run"
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+]
+
+[tool.pyright]
+# this enables practically every flag given by pyright.
+# there are a couple of flags that are still disabled by
+# default in strict mode as they are experimental and niche.
+typeCheckingMode = "strict"
+
+reportImplicitOverride = true
+exclude = [
+    "**/.bzr",
+    "**/.direnv",
+    "**/.eggs",
+    "**/.git",
+    "**/.git-rewrite",
+    "**/.hg",
+    "**/.ipynb_checkpoints",
+    "**/.mypy_cache",
+    "**/.nox",
+    "**/.pants.d",
+    "**/.pyenv",
+    "**/.pytest_cache",
+    "**/.pytype",
+    "**/.ruff_cache",
+    "**/.svn",
+    "**/.tox",
+    "**/.venv",
+    "**/.vscode",
+    "**/__pypackages__",
+    "**/_build",
+    "**/buck-out",
+    "pgai/build",
+    "**/dist",
+    "**/node_modules",
+    "**/site-packages",
+    "**/venv",
+]
+
+
+[tool.ruff]
+line-length = 88
+indent-width = 4
+output-format = "grouped"
+target-version = "py310"
+
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+
+[tool.ruff.lint]
+
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # unused arguments
+    "ARG",
+    # trailing whitespace
+    "W291",
+    # print statements
+    "PIE",
+    # flakes8-quote
+    "Q"
+]
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
