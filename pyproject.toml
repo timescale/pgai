@@ -10,6 +10,8 @@ typeCheckingMode = "strict"
 
 exclude = [
     "./build.py",
+    "examples/",
+    "scripts/",
     "projects/extension/",
     "**/.bzr",
     "**/.direnv",
