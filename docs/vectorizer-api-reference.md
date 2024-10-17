@@ -59,8 +59,8 @@ Vectorizer offers the following APIs:
 - [Create vectorizers](#create-vectorizers): automate the process of creating embeddings for table data.
 - [Chunking configuration](#chunking-configuration): define the way text data is split into smaller, manageable pieces 
   before being processed for embeddings.
-- [Embedding configuration](#embedding-configuration): create a standardized configuration object that can be used by 
-  other pgai functions.
+- [Embedding configuration](#embedding-configuration): specify the LLM provider, model, and parameters to be
+  used when generating the embeddings
 - [Formatting configuration](#formatting-configuration): configure the way data from the source table is formatted
   before it is sent for embedding.
 - [Indexing configuration](#indexing-configuration): specify the way generated embeddings should be indexed for 
@@ -107,7 +107,7 @@ SELECT ai.create_vectorizer(
     formatting => ai.formatting_python_template('title: $title published: $published $chunk'),
     scheduling => ai.scheduling_timescaledb(
         interval '5m',
-        initial_start => '2050-01-06'::timestamptz,
+        initial_start => '2025-01-06'::timestamptz,
         timezone => 'America/Chicago'
     ),
     grant_to => array['bob', 'alice']
@@ -133,20 +133,20 @@ in other management functions.
 |------------------|--------------------------------------------------------|-----------------------------------|-|----------------------------------------------------------------------------------------------------|
 | source           | regclass                                               | -                                 |✔| The source table that embeddings are generated for.                                                |
 | destination      | name                                                   | -                                 | ✖| A name for the table the embeddings are stored in.                                                 |
-| embedding        | [Embedding configuration](#embedding-configuration)    | -                                 |✖| Set the embedding process using `ai.embedding_openai()` to specify the model and dimensions.       |
-| chunking         | [Chunking configuration](#chunking-configuration)      | -                                 |✖| Set the way to split text data, using functions like `ai.chunking_character_text_splitter()`.      |
+| embedding        | [Embedding configuration](#embedding-configuration)    | -                                 |✔| Set the embedding process using `ai.embedding_openai()` to specify the model and dimensions.       |
+| chunking         | [Chunking configuration](#chunking-configuration)      | -                                 |✔| Set the way to split text data, using functions like `ai.chunking_character_text_splitter()`.      |
 | indexing         | [Indexing configuration](#indexing-configuration)      | `ai.indexing_diskann()`           |✖| Specify how to index the embeddings. For example, `ai.indexing_diskann()` or `ai.indexing_hnsw()`. |
 | formatting       | [Formatting configuration](#formatting-configuration)  | `ai.formatting_python_template()` | ✖| Define the data format before embedding, using `ai.formatting_python_template()`.                  |
 | scheduling       | [Scheduling configuration](#scheduling-configuration)  | `ai.scheduling_timescaledb()`     |✖| Set how often to run the vectorizer. For example, `ai.scheduling_timescaledb()`.                   |
 | processing       | [Processing configuration](#processing-configuration ) | `ai.processing_default()`         |✖| Configure the way to process the embeddings.                                                       |
-| target_schema    | name                                                   | -                                 |✖| Specify where to store embeddings and create views.                                                |
-| target_table     | name                                                   | -                                 |✖| Specify where to store embeddings and create views.                                                |
-| view_schema      | name                                                   | -                                 |✖| Specify where to store embeddings and create views.                                                |
-| view_name        | name                                                   | -                                 |✖| Specify where to store embeddings and create views.                                                |
-| queue_schema     | name                                                   | -                                 |✖| Set the way the queue works in background processing.                                              |
-| queue_table      |  name                                                      | -                                 |✖| Set the way the queue works in background processing.                                              |
+| target_schema    | name                                                   | -                                 |✖| Specify the schema where the embeddings will be stored.                                            |
+| target_table     | name                                                   | -                                 |✖| Specify name of the table where the embeddings will be stored.                                     |
+| view_schema      | name                                                   | -                                 |✖| Specify the schema where the view is created.                                                      |
+| view_name        | name                                                   | -                                 |✖| Specify the name of the view to be created.                                                        |
+| queue_schema     | name                                                   | -                                 |✖| Specify the schema where the work queue table is created..                                         |
+| queue_table      |  name                                                      | -                                 |✖| Specify the name of the work queue table.                                                          |
 | grant_to         | name[]                                                  | `array['tsdbadmin']`              |✖ | An array containing the role names to grant permissions to.                                        |
-| enqueue_existing | bool                                                   | `true`                             |✖| Set to `true` if existing rows should be immediately queued for embedding.   |
+| enqueue_existing | bool                                                   | `true`                             |✖| Set to `true` if existing rows should be immediately queued for embedding.                         |
 
 
 #### Returns
@@ -183,12 +183,16 @@ You use `ai.chunking_character_text_splitter` to:
 
 #### Example usage
 
-To split the `body` column into chunks of 128 characters, with 10
-character overlap, using '\n;' as the separator:
+- Split the `body` column of the `my_table` table into chunks of 128 characters, with 10
+  character overlap, using '\n;' as the separator:
 
-```sql
-SELECT ai.chunking_character_text_splitter('body', 128, 10, E'\n;')
-```
+  ```sql
+  SELECT ai.create_vectorizer(
+      'my_table'::regclass,
+      chunking => ai.chunking_character_text_splitter('body', 128, 10, E'\n'),
+      -- other parameters...
+  );
+  ```
 
 #### Parameters
 
@@ -212,16 +216,6 @@ A JSON configuration object that you can use in [ai.create_vectorizer](#create-v
 You use it to recursively split text into chunks using multiple separators.
 
 #### Example usage
-
-- Split the `my_table` table into chunks of 128 characters, with a 10 character overlap:
-
-  ```sql
-  SELECT ai.create_vectorizer(
-      'my_table'::regclass,
-      chunking => ai.chunking_character_text_splitter('body', 128, 10),
-      -- other parameters...
-  );
-  ```
 
 - Recursively split the `content` column into chunks of 256 characters, with a 20 character 
   overlap, first trying to split on '\n;', then on spaces:
@@ -249,7 +243,7 @@ You use it to recursively split text into chunks using multiple separators.
 |chunk_size| int  | 800     |✖| The maximum number of characters per chunk               |
 |chunk_overlap| int  | 400     |✖| The number of characters to overlap between chunks       |
 |separator| text[] | array[E'\n\n', E'\n', '.', '?', '!', ' ', ''] |✖| The string or character used to split the text |
-|is_separator_regex| bool | false   |✖| Set to `true` if    `separator` is a regular expression. |
+|is_separator_regex| bool | false   |✖| Set to `true` if `separator` is a regular expression. |
 
 #### Returns
 
@@ -257,23 +251,14 @@ A JSON configuration object that you can use in [ai.create_vectorizer](#create-v
 
 ## Embedding configuration
 
-You use the `ai.embedding_openai` configuration function in pgai to create a standardized configuration 
-object that can be used by [ai.create_vectorizer](#create-vectorizers) to set up embedding generation 
-using OpenAI's API.
-
-`ai.embedding_openai` also provides a layer of abstraction, allowing pgai
-to handle the details of interacting with the OpenAI API based on this
-configuration, simplifying the process for users who may not be familiar with
-the specifics of the OpenAI API.
+You use the `ai.embedding_openai` function to specify the OpenAI model and 
+embedding options used when generating embeddings.
 
 The purpose of `ai.embedding_openai` is to:
 - Define which OpenAI embedding model to use.
 - Specify the dimensionality of the embeddings.
 - Configure optional parameters like the user identifier for API calls.
 - Set the name of the environment variable that contains the OpenAI API key.
-
-This makes it easier to switch between different embedding providers or models in the future by using a different,
-configuration function.
 
 ### Example usage
 
@@ -324,9 +309,6 @@ The purpose of `ai.formatting_python_template` is to:
 - Allow the combination of multiple fields from the source table.
 - Add consistent context or structure to the text being embedded.
 - Customize the input for the embedding model to improve relevance and searchability.
-
-This functionality can significantly enhance the quality and usefulness of the resulting 
-embeddings.
 
 Formatting happens after chunking and the special `$chunk` variable contains the chunked text.
 
@@ -383,9 +365,9 @@ Formatting happens after chunking and the special `$chunk` variable contains the
 
 `ai.formatting_python_template` takes the following parameter:
 
-|Name| Type   | Default | Required | Description                                                                                                                 |
-|-|--------|-|-|-----------------------------------------------------------------------------------------------------------------------------|
-|template| string |`$chunk`|✔| A string using [Python string formatting](https://realpython.com/python-string-formatting/) with $-prefixed variables that defines how the data should be formatted. |
+|Name| Type   | Default | Required | Description                                                                                                                                                                       |
+|-|--------|-|-|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|template| string |`$chunk`|✔| A string using [Python template strings](https://docs.python.org/3/library/string.html#template-strings) with $-prefixed variables that defines how the data should be formatted. |
 
   - The $chunk placeholder is required and represents the text chunk that will be embedded.
   - Other placeholders can be used to reference columns from the source table.
@@ -813,8 +795,6 @@ automatic updates but still use the existing embeddings.
 Best practices are:
 
 - Before dropping a vectorizer, ensure that you will not need the automatic embedding updates it provides.
-- If you want to preserve the embeddings, make sure to backup or rename the target table before dropping the vectorizer, 
-  especially if you plan to create a new vectorizer with the same name.
 - After dropping a vectorizer, you may want to manually clean up the target table and view if they're no longer needed.
 - To ensure that you are dropping the correct vectorizer, keep track of your vectorizer IDs. You can do this by querying 
   the `ai.vectorizer` table.
@@ -848,9 +828,6 @@ Examples:
   ```
 
 - Cleanup: when a table or feature is no longer needed, you can remove its associated vectorizer.
-
-- Troubleshooting: if you're experiencing issues with a vectorizer, sometimes it's helpful to drop 
-  it and recreate it.
 
 - Resource management: if you need to free up resources such as scheduled job slots, you might drop vectorizers that are no longer actively used.
 
