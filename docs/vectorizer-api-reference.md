@@ -1,8 +1,8 @@
 
 # Vectorizer API reference
 
-For an overview of Vectorizer and how it works, see [The Vectorizer Guide](./vectorizer.md). This 
-document provides an API reference for the Vectorizer functions.
+This page is provides an API reference for Vectorizer functions. For an overview
+of Vectorizer and how it works, see the [Vectorizer Guide](./vectorizer.md).
 
 A vectorizer provides you with a powerful and automated way to generate and 
 manage LLM embeddings for your PostgreSQL data. Here's a summary of what you 
@@ -16,8 +16,9 @@ gain from Vectorizers:
    ensuring that embeddings are automatically updated when the source data 
    changes.
    
-- **Background processing**: The process to create embeddings run asynchrounously in the background,
-  minimizing impact on regular database operations such as INSERT, UPDATE, and DELETE.
+- **Background processing**: the process to create embeddings runs
+asynchrounously in the background. This minimizes the impact on regular database
+operations such as INSERT, UPDATE, and DELETE.
   
 - **Scalability**: a vectorizer processes data in batches and can run concurrently. 
   This enables vectorizers to handle large datasets efficiently.
@@ -559,48 +560,48 @@ You use `ai.scheduling_timescaledb` to:
 
 - Basic usage (run every 5 minutes). This is the default:
 
-```sql
-SELECT ai.create_vectorizer(
-    'my_table'::regclass,
-    scheduling => ai.scheduling_timescaledb(),
-    -- other parameters...
-);
-```
+  ```sql
+  SELECT ai.create_vectorizer(
+      'my_table'::regclass,
+      scheduling => ai.scheduling_timescaledb(),
+      -- other parameters...
+  );
+  ```
 
 - Custom interval (run every hour):
-```sql
-SELECT ai.create_vectorizer(
-    'my_table'::regclass,
-    scheduling => ai.scheduling_timescaledb(interval '1 hour'),
-    -- other parameters...
-);
-```
+  ```sql
+  SELECT ai.create_vectorizer(
+      'my_table'::regclass,
+      scheduling => ai.scheduling_timescaledb(interval '1 hour'),
+      -- other parameters...
+  );
+  ```
 
 - Specific start time and timezone:
-```sql
-SELECT ai.create_vectorizer(
-    'my_table'::regclass,
-    scheduling => ai.scheduling_timescaledb(
-      interval '30 minutes',
-      initial_start => '2024-01-01 00:00:00'::timestamptz,
-      timezone => 'America/New_York'
-    ),
-    -- other parameters...
-);
-```
+  ```sql
+  SELECT ai.create_vectorizer(
+      'my_table'::regclass,
+      scheduling => ai.scheduling_timescaledb(
+        interval '30 minutes',
+        initial_start => '2024-01-01 00:00:00'::timestamptz,
+        timezone => 'America/New_York'
+      ),
+      -- other parameters...
+  );
+  ```
 
 - Fixed schedule:
-```sql
-SELECT ai.create_vectorizer(
-    'my_table'::regclass,
-    scheduling => ai.scheduling_timescaledb(
-      interval '1 day',
-      fixed_schedule => true,
-      timezone => 'UTC'
-    ),
-    -- other parameters...
-);
-```
+  ```sql
+  SELECT ai.create_vectorizer(
+      'my_table'::regclass,
+      scheduling => ai.scheduling_timescaledb(
+        interval '1 day',
+        fixed_schedule => true,
+        timezone => 'UTC'
+      ),
+      -- other parameters...
+  );
+  ```
 
 #### Parameters
 
