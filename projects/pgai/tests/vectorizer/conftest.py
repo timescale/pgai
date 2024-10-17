@@ -193,6 +193,34 @@ class ItemFixture:
     pk_att_2: int
     content: str
 
+    def format_chunk(self, implementation: str) -> str:
+        """This is a hardcoded implementation of the formatting logic that
+        is defined by the `formatting` fixture below.
+        """
+        if implementation == "python_template":
+            return f"id: {self.pk_att_1} id2: {self.pk_att_2} {self.content}"
+        elif implementation == "chunk_value":
+            return self.content
+        else:
+            raise ValueError(f"Unknown formatting implementation: {implementation}")
+
+
+@pytest.fixture(params=["chunk_value", "python_template"])
+def formatting(request: pytest.FixtureRequest) -> dict[str, Any]:
+    implementation = request.param
+    formatters = {
+        "python_template": {
+            "implementation": "python_template",
+            "template": "id: $id id2: $id2 $chunk",
+        },
+        "chunk_value": {"implementation": "chunk_value"},
+    }
+
+    try:
+        return formatters[implementation]
+    except KeyError as e:
+        raise ValueError(f"Unknown formatting implementation: {implementation}") from e
+
 
 @pytest.fixture
 def items_fixtures(request: pytest.FixtureRequest) -> list[ItemFixture]:
@@ -283,23 +311,6 @@ def chunking(request: pytest.FixtureRequest) -> dict[str, Any]:
         return chunkers[implementation]
     except KeyError as e:
         raise ValueError(f"Unknown chunking implementation: {implementation}") from e
-
-
-@pytest.fixture(params=["chunk_value", "python_template"])
-def formatting(request: pytest.FixtureRequest) -> dict[str, Any]:
-    implementation = request.param
-    formatters = {
-        "python_template": {
-            "implementation": "python_template",
-            "template": "id: $id id2: $id2 $chunk",
-        },
-        "chunk_value": {"implementation": "chunk_value"},
-    }
-
-    try:
-        return formatters[implementation]
-    except KeyError as e:
-        raise ValueError(f"Unknown formatting implementation: {implementation}") from e
 
 
 @pytest.fixture
