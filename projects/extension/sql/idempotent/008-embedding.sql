@@ -3,7 +3,7 @@
 -- embedding_openai
 create or replace function ai.embedding_openai
 ( model text
-, dimensions int
+, dimensions int default null
 , chat_user text default null
 , api_key_name text default 'OPENAI_API_KEY'
 ) returns jsonb
