@@ -202,6 +202,8 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
 
     @cached_property
     def _openai_dimensions(self) -> int | openai.NotGiven:
+        if self.model == "text-embedding-ada-002":
+            return openai.NOT_GIVEN
         return self.dimensions if self.dimensions is not None else openai.NOT_GIVEN
 
     @cached_property

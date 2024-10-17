@@ -121,3 +121,81 @@ def test_vectorizer_internal():
         )
         actual = cur.fetchone()[0]  # type: ignore
         assert actual == 10
+
+        # make sure there were no errors
+        cur.execute("select count(*) from ai.vectorizer_errors")
+        actual = cur.fetchone()[0]  # type: ignore
+        assert actual == 0
+
+
+def test_text_embedding_ada_002():
+    db = "vcli0"
+    create_database(db)
+    _db_url = db_url("postgres", db)
+    with (
+        psycopg.connect(_db_url, autocommit=True, row_factory=namedtuple_row) as con,
+        con.cursor() as cur,
+    ):
+        cur.execute("create extension if not exists vectorscale cascade")
+        cur.execute("create extension if not exists ai cascade")
+        cur.execute("create extension if not exists timescaledb")
+        cur.execute("drop table if exists note1")
+        cur.execute("""
+                create table note1
+                ( id bigint not null primary key generated always as identity
+                , note text not null
+                )
+            """)
+        # insert 5 rows into source
+        cur.execute("""
+                insert into note1 (note)
+                select 'how much wood would a woodchuck chuck if a woodchuck could chuck wood'
+                from generate_series(1, 5)
+            """)  # noqa
+        # create a vectorizer for the table
+        cur.execute("""
+                select ai.create_vectorizer
+                ( 'note1'::regclass
+                , embedding=>ai.embedding_openai('text-embedding-ada-002', 1536)
+                , chunking=>ai.chunking_character_text_splitter('note')
+                , scheduling=>
+                    ai.scheduling_timescaledb
+                    ( interval '5m'
+                    , initial_start=>'2050-01-06'::timestamptz
+                    , timezone=>'America/Chicago'
+                    )
+                , indexing=>ai.indexing_diskann(min_rows=>10)
+                , grant_to=>null
+                , enqueue_existing=>true
+                )
+            """)
+        row = cur.fetchone()
+        if row is None:
+            raise ValueError("vectorizer_id is None")
+        vectorizer_id = row[0]
+        if not isinstance(vectorizer_id, int):
+            raise ValueError("vectorizer_id is not an integer")
+
+        vectorizer = cli.get_vectorizer(_db_url, vectorizer_id)
+        assert vectorizer is not None
+
+        # run the vectorizer
+        cli.run_vectorizer(_db_url, vectorizer, 1)
+
+        cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
+        actual = cur.fetchone()[0]  # type: ignore
+        assert actual == 0
+
+        cur.execute(
+            SQL("select count(*) from {target_schema}.{target_table}").format(
+                target_schema=Identifier(vectorizer.target_schema),  # type: ignore
+                target_table=Identifier(vectorizer.target_table),  # type: ignore
+            )
+        )
+        actual = cur.fetchone()[0]  # type: ignore
+        assert actual == 5
+
+        # make sure there were no errors
+        cur.execute("select count(*) from ai.vectorizer_errors")
+        actual = cur.fetchone()[0]  # type: ignore
+        assert actual == 0

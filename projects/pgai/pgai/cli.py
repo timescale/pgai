@@ -76,6 +76,8 @@ def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer | None:
         secrets = Secrets(OPENAI_API_KEY=api_key)
         vectorizer = Vectorizer(**vectorizer)
         vectorizer.config.embedding.set_api_key(secrets)
+        vectorizer.errors_schema = "ai"
+        vectorizer.errors_table = "vectorizer_errors"
         return vectorizer
 
 
