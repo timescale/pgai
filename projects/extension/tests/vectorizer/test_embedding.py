@@ -16,6 +16,15 @@ def db_url(user: str) -> str:
 def test_embedding_openai():
     tests = [
         (
+            "select ai.embedding_openai('text-embedding-ada-002')",
+            {
+                "implementation": "openai",
+                "config_type": "embedding",
+                "model": "text-embedding-ada-002",
+                "api_key_name": "OPENAI_API_KEY",
+            },
+        ),
+        (
             "select ai.embedding_openai('text-embedding-3-small', 128)",
             {
                 "implementation": "openai",
@@ -59,6 +68,7 @@ def test_embedding_openai():
 
 def test_validate_embedding():
     ok = [
+        "select ai._validate_embedding( ai.embedding_openai('text-embedding-ada-002'))",
         "select ai._validate_embedding( ai.embedding_openai('text-embedding-3-small', 756))",
     ]
     bad = [
