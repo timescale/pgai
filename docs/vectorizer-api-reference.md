@@ -1,12 +1,26 @@
 
 # Vectorizer API reference
 
+For an overview of Vectorizer and how it works, see [The Vectorizer Guide](./vectorizer.md). This 
+document provides an API reference for the Vectorizer functions.
+
 A vectorizer provides you with a powerful and automated way to generate and 
 manage LLM embeddings for your PostgreSQL data. Here's a summary of what you 
 gain from Vectorizers:
 
 - **Automated embedding generation**: you can create a vectorizer for a specified
-   table, which automatically generates embeddings for the data in that table.
+   table, which automatically generates embeddings for the data in that table and
+   keeps them in sync with the source data.
+
+- **Automatic synchronization**: a vectorizer creates triggers on the source table, 
+   ensuring that embeddings are automatically updated when the source data 
+   changes.
+   
+- **Background processing**: The process to create embeddings run asynchrounously in the background,
+  minimizing impact on regular database operations such as INSERT, UPDATE, and DELETE.
+  
+- **Scalability**: a vectorizer processes data in batches and can run concurrently. 
+  This enables vectorizers to handle large datasets efficiently.
 
 - **Configurable embedding process**: a vectorizer is highly configurable, 
    allowing you to specify:
@@ -20,37 +34,28 @@ gain from Vectorizers:
    embedding providers, initially including OpenAI, with more planned for the 
    future.
 
-- **Automatic updates**: a vectorizer creates triggers on the source table, 
-   ensuring that embeddings are automatically updated when the source data 
-   changes.
-
 - **Efficient storage and retrieval**: embeddings are stored in a separate table 
    with appropriate indexing, optimizing for vector similarity searches.
-
-- **Background processing**: you can schedule a vectorizer to run as a background
-   job, minimizing impact on regular database operations.
 
 - **View creation**: a view is automatically created to join the original data with
    its embeddings, making it easy to query and use the embedded data.
 
-- **Scalability**: a vectorizer includes options for batch processing and 
-   concurrency control. This enables vectorizers to handle large datasets efficiently.
-
 - **Fine-grained access control**: you can specify the roles that have 
-    access to a vectorizer and its related objects.
+   access to a vectorizer and its related objects.
 
 - **Monitoring and management**:  monitor the vectorizer's queue, enable/disable scheduling, and manage the vectorizer 
-    lifecycle.
+  lifecycle.
 
 Vectorizer significantly simplifies the process of incorporating AI-powered 
 semantic search and analysis capabilities into existing PostgreSQL databases.  
 Making it easier for you to leverage the power of LLMs in your data workflows.
 
-Initially, vectorizers only work on [Timescale Cloud][timescale-cloud]. However 
-support for self-hosted installations will be added quickly.
+Vectorizers are available on [Timescale Cloud][timescale-cloud]. You can
+also run it yourself, please see the [Self Hosting Guide](TODO).
 
 Vectorizer offers the following APIs:
 
+**Create and configure vectorizers**
 - [Create vectorizers](#create-vectorizers): automate the process of creating embeddings for table data.
 - [Chunking configuration](#chunking-configuration): define the way text data is split into smaller, manageable pieces 
   before being processed for embeddings.
@@ -62,12 +67,16 @@ Vectorizer offers the following APIs:
   efficient similarity searches.
 - [Scheduling configuration](#scheduling-configuration): configure when and how often the vectorizer should run in order 
   to process new or updated data.
-- [Enable and disable vectorizer schedules](#enable-and-disable-vectorizer-schedules): temporarily pause or resume the 
-  automatic processing of embeddings, without having to delete or recreate the vectorizer configuration.
 - [Processing configuration](#processing-configuration): specify the way the vectorizer should process data when 
   generating embeddings.
+
+**Manage vectorizers**
+- [Enable and disable vectorizer schedules](#enable-and-disable-vectorizer-schedules): temporarily pause or resume the 
+  automatic processing of embeddings, without having to delete or recreate the vectorizer configuration.
 - [Drop a vectorizer](#drop-a-vectorizer): remove a vectorizer that you created previously, and clean up the associated
   resources.
+
+**Monitor vectorizers**
 - [View vectorizer status](#view-vectorizer-status): monitoring tools in pgai that provide insights into the state and 
   performance of vectorizers.
 
@@ -218,12 +227,16 @@ You use it to recursively split text into chunks using multiple separators.
   overlap, first trying to split on '\n;', then on spaces:
 
   ```sql
-  SELECT ai.chunking_recursive_character_text_splitter(
-      'content', 
-      256, 
-      20, 
-      separators => array[E'\n;', ' ']
-  )
+    SELECT ai.create_vectorizer(
+      'my_table'::regclass,
+      chunking => ai.chunking_recursive_character_text_splitter(
+        'content', 
+        256, 
+        20, 
+        separators => array[E'\n;', ' ']
+      ),
+      -- other parameters...
+  );
   ```
 
 #### Parameters
@@ -245,8 +258,8 @@ A JSON configuration object that you can use in [ai.create_vectorizer](#create-v
 ## Embedding configuration
 
 You use the `ai.embedding_openai` configuration function in pgai to create a standardized configuration 
-object that can be used by other pgai functions, particularly [ai.create_vectorizer](#create-vectorizers), 
-to set up embedding generation using OpenAI's API.
+object that can be used by [ai.create_vectorizer](#create-vectorizers) to set up embedding generation 
+using OpenAI's API.
 
 `ai.embedding_openai` also provides a layer of abstraction, allowing pgai
 to handle the details of interacting with the OpenAI API based on this
@@ -264,34 +277,17 @@ configuration function.
 
 ### Example usage
 
-```sql
-SELECT ai.embedding_openai(
-    'text-embedding-3-small', 
-    768, 
-    chat_user => 'bob',
-    api_key_name => 'MY_OPENAI_API_KEY'
-);
-```
-
-This function call returns a JSON configuration object that looks something like this:
-
-```json
-{
-    "implementation": "openai",
-    "config_type": "embedding",
-    "model": "text-embedding-3-small",
-    "dimensions": 768,
-    "user": "bob",
-    "api_key_name": "MY_OPENAI_API_KEY"
-}
-```
-
-You use this configuration object as an argument for [ai.create_vectorizer](#create-vectorizers):
+This function is usually used to create an embedding configuration object that is passed as an argument to [ai.create_vectorizer](#create-vectorizers):
 
 ```sql
 SELECT ai.create_vectorizer(
     'my_table'::regclass,
-    embedding => ai.embedding_openai('text-embedding-3-small', 768),
+    embedding => ai.embedding_openai(
+      'text-embedding-3-small', 
+      768, 
+      chat_user => 'bob',
+      api_key_name => 'MY_OPENAI_API_KEY_NAME'
+    ),
     -- other parameters...
 );
 ```
@@ -305,7 +301,7 @@ The function takes several parameters to customize the OpenAI embedding configur
 |model| text | -|✔| Specify the name of the OpenAI embedding model to use. For example, `text-embedding-3-small`.                                                                   |
 |dimensions| int  | -|✔| Define the number of dimensions for the embedding vectors. This should match the output dimensions of the chosen model.                                        |
 |chat_user| text | -|✖| The identifier for the user making the API call. This can be useful for tracking API usage or for OpenAI's monitoring purposes.                                |
-|api_key_name|  text    | `OPENAI_API_KEY`|✖| Set the name of the environment variable that contains the OpenAI API key. This allows for flexible API key management without hardcoding keys in the database. |
+|api_key_name|  text    | `OPENAI_API_KEY`|✖| Set the name of the environment variable that contains the OpenAI API key. This allows for flexible API key management without hardcoding keys in the database. On Timescale Cloud, you should set this to the name of the secret that contains the OpenAI API key. |
 
 #### Returns
 
@@ -317,12 +313,11 @@ You use the `ai.formatting_python_template` function in `pgai` to
 configure the way data from the source table is formatted before it is sent 
 for embedding. 
 
-`ai.formatting_python_template` provides a flexible way to
-structure the input for embedding models. This enables you to incorporate relevant
-metadata or add consistent formatting to their text data. This can significantly
-enhance the quality and usefulness of the generated embeddings, especially in
-scenarios where context from multiple fields is important for understanding or
-searching the content.
+`ai.formatting_python_template` provides a flexible way to structure the input
+for embedding models. This enables you to incorporate relevant metadata and additional
+text. This can significantly enhance the quality and usefulness of the generated
+embeddings, especially in scenarios where context from multiple fields is
+important for understanding or searching the content.
 
 The purpose of `ai.formatting_python_template` is to:
 - Define a template for formatting the data before embedding.
@@ -333,49 +328,53 @@ The purpose of `ai.formatting_python_template` is to:
 This functionality can significantly enhance the quality and usefulness of the resulting 
 embeddings.
 
+Formatting happens after chunking and the special `$chunk` variable contains the chunked text.
+
 ### Example usage
 
-- Basic usage (default):
-  ```sql
-  SELECT ai.formatting_python_template()
-  ```
-  The default `$chunk` template uses the chunked text as-is.
+- Default formatting:
 
+  The default formatter uses the `$chunk` template, resulting in outputing the chunk text as-is.
+  
+  ```sql
+  SELECT ai.create_vectorizer(
+      'blog_posts'::regclass,
+      formatting => ai.formatting_python_template('$chunk'),
+      -- other parameters...
+  );
+  ``` 
+ 
 - Add context from other columns:
 
   Add the title and publication date to each chunk, providing more context for the embedding.
   ```sql
-  SELECT ai.formatting_python_template('Title: $title\nDate: $published\nContent: $chunk')
+  SELECT ai.create_vectorizer(
+      'blog_posts'::regclass,
+      formatting => ai.formatting_python_template('Title: $title\nDate: $published\nContent: $chunk'),
+      -- other parameters...
+  );
   ```
-
+  
 - Combine multiple fields:
 
   Prepend author and category information to each chunk.
-  ```sql
-  SELECT ai.formatting_python_template('Author: $author\nCategory: $category\n$chunk')
+    ```sql
+  SELECT ai.create_vectorizer(
+      'blog_posts'::regclass,
+      formatting => ai.formatting_python_template('Author: $author\nCategory: $category\n$chunk'),
+      -- other parameters...
+  );
   ```
 
 - Add consistent structure:
 
   Add start and end markers to each chunk, which could be useful for certain
   types of embeddings or retrieval tasks.
-  ```sql
-  SELECT ai.formatting_python_template('BEGIN DOCUMENT\n$chunk\nEND DOCUMENT')
-  ```
-
-- Example usage within `ai.create_vectorizer`:
-
-  Format each chunk of the `content` column with the
-  title, author, and publication date before being sent for embedding. This can
-  make the embeddings more informative and improve the accuracy of similarity
-  searches or other downstream tasks.
-
+  
   ```sql
   SELECT ai.create_vectorizer(
       'blog_posts'::regclass,
-      embedding => ai.embedding_openai('text-embedding-3-small', 768),
-      chunking => ai.chunking_character_text_splitter('content', 1000, 100),
-      formatting => ai.formatting_python_template('Title: $title\nAuthor: $author\nDate: $published\nContent: $chunk'),
+      formatting => ai.formatting_python_template('BEGIN DOCUMENT\n$chunk\nEND DOCUMENT'),
       -- other parameters...
   );
   ```
@@ -413,10 +412,8 @@ Key points about indexing:
 
 - The choice of indexing method depends on your dataset size, query performance requirements, and available resources.
 
-- [ai.indexing_none](#aiindexing_none) is better suited for small datasets, or when you're more concerned with insertion speed than query speed.
-
-- [ai.indexing_diskann](#aiindexing_diskann) is generally better for very large datasets that don't fit in memory.
-- [ai.indexing_hnsw](#aiindexing_hnsw) is often faster for in-memory datasets.
+- [ai.indexing_none](#aiindexing_none) is better suited for small datasets, or when want to perform index creation manually.
+- [ai.indexing_diskann](#aiindexing_diskann) is generally recommended for larger datasets that require an index.
 
 - The `min_rows` parameter enables you to delay index creation until you have enough data to justify the overhead.
 
@@ -437,7 +434,11 @@ This is useful when you don't need fast similarity searches or when you're deali
 #### Example usage
 
 ```sql
-SELECT ai.indexing_none()
+  SELECT ai.create_vectorizer(
+      'blog_posts'::regclass,
+      indexing => ai.indexing_none(),
+      -- other parameters...
+  );
 ```
 
 #### Parameters
@@ -457,7 +458,11 @@ stored on disk.
 #### Example usage
 
 ```sql
-SELECT ai.indexing_diskann(min_rows => 500000, storage_layout => 'memory_optimized')
+  SELECT ai.create_vectorizer(
+      'blog_posts'::regclass,
+      indexing => ai.indexing_diskann(min_rows => 500000, storage_layout => 'memory_optimized'),
+      -- other parameters...
+  );
 ```
 
 #### Parameters
@@ -473,6 +478,7 @@ SELECT ai.indexing_diskann(min_rows => 500000, storage_layout => 'memory_optimiz
 |   max_alpha   |  float8    | -       |✖| Advanced  [DiskANN](https://github.com/microsoft/DiskANN/tree/main) parameter.|
 |  num_dimensions    |    int  | -       |✖|Advanced  [DiskANN](https://github.com/microsoft/DiskANN/tree/main) parameter.|
 |   num_bits_per_dimension   |   int   | -       |✖| Advanced  [DiskANN](https://github.com/microsoft/DiskANN/tree/main) parameter.|
+|   create_when_queue_empty   |   boolean   | true       |✖| Create the index only after all of the embeddings have been generated. |
 
 
 #### Returns
@@ -489,21 +495,12 @@ HNSW is suitable for in-memory datasets and scenarios where query speed is cruci
 #### Example usage
 
 ```sql
-SELECT ai.indexing_hnsw(min_rows => 50000, opclass => 'vector_l2_ops')
-```
-
-You typically use indexing configuration functions as arguments to the
-  `ai.create_vectorizer` function:
-
-  ```sql
   SELECT ai.create_vectorizer(
-      'my_embeddings'::regclass,
-      embedding => ai.embedding_openai('text-embedding-3-small', 768),
-      chunking => ai.chunking_character_text_splitter('text_column'),
-      indexing => ai.indexing_hnsw(min_rows => 10000),
+      'blog_posts'::regclass,
+      indexing => ai.indexing_hnsw(min_rows => 50000, opclass => 'vector_l2_ops'),
       -- other parameters...
   );
-  ```
+```
 
 #### Parameters
 
@@ -515,6 +512,7 @@ You typically use indexing configuration functions as arguments to the
 |opclass| text  | `vector_cosine_ops` |✖| The operator class for the index. Possible values are:`vector_cosine_ops`, `vector_l2_ops`, or `vector_ip_ops` |
 |m| int  | -                   |✖| Advanced [HNSW parameters](https://en.wikipedia.org/wiki/Hierarchical_navigable_small_world)                   |
 |ef_construction| int  | -                   |✖|  Advanced [HNSW parameters](https://en.wikipedia.org/wiki/Hierarchical_navigable_small_world)                                                                                                              |
+| create_when_queue_empty| boolean | true |✖| Create the index only after all of the embeddings have been generated. |
 
 
 #### Returns
@@ -525,7 +523,7 @@ A JSON configuration object that you can use as an argument for [ai.create_vecto
 
 You use scheduling functions in pgai to configure when and how often the vectorizer should run to process new or 
 updated data. These functions allow you to set up automated, periodic execution of the embedding 
-generation process.
+generation process. These are advanced options and most users should use the default.
 
 By providing these scheduling options, pgai enables you to automate the process
 of keeping your embeddings up-to-date with minimal manual intervention. This is
@@ -537,8 +535,8 @@ considerations.
 
 The available functions are:
 
-- [ai.scheduling_none](#aischeduling_none): when you want manual control over when the vectorizer runs.
-- [ai.scheduling_timescaledb](#aischeduling_timescaledb): leverages TimescaleDB's robust job scheduling system, which is designed for reliability and scalability.
+- [ai.scheduling_none](#aischeduling_none): when you want manual control over when the vectorizer runs. Use this when you're using an external scheduling system, as is the case with self-hosted deployments.
+- [ai.scheduling_timescaledb](#aischeduling_timescaledb): leverages TimescaleDB's robust job scheduling system, which is designed for reliability and scalability. Use this when you're using Timescale Cloud.
 
 
 ### ai.scheduling_none
@@ -547,10 +545,16 @@ You use `ai.scheduling_none` to
 - Specify that no automatic scheduling should be set up for the vectorizer.
 - Manually control when the vectorizer runs or when you're using an external scheduling system.
 
+You should use this for self-hosted deployments.
+
 #### Example usage
 
 ```sql
-SELECT ai.scheduling_none()
+SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    scheduling => ai.scheduling_none(),
+    -- other parameters...
+);
 ```
 
 #### Parameters
@@ -571,48 +575,50 @@ You use `ai.scheduling_timescaledb` to:
 
 #### Example usage
 
-- Basic usage (run every 10 minutes):
-  ```sql
-  SELECT ai.scheduling_timescaledb()
-  ```
+- Basic usage (run every 5 minutes). This is the default:
+
+```sql
+SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    scheduling => ai.scheduling_timescaledb(),
+    -- other parameters...
+);
+```
 
 - Custom interval (run every hour):
-  ```sql
-  SELECT ai.scheduling_timescaledb(interval '1 hour')
-  ```
+```sql
+SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    scheduling => ai.scheduling_timescaledb(interval '1 hour'),
+    -- other parameters...
+);
+```
 
 - Specific start time and timezone:
-  ```sql
-  SELECT ai.scheduling_timescaledb(
+```sql
+SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    scheduling => ai.scheduling_timescaledb(
       interval '30 minutes',
-      initial_start => '2023-12-01 00:00:00'::timestamptz,
+      initial_start => '2024-01-01 00:00:00'::timestamptz,
       timezone => 'America/New_York'
-  )
-  ```
+    ),
+    -- other parameters...
+);
+```
 
 - Fixed schedule:
-  ```sql
-  SELECT ai.scheduling_timescaledb(
+```sql
+SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    scheduling => ai.scheduling_timescaledb(
       interval '1 day',
       fixed_schedule => true,
       timezone => 'UTC'
-  )
-  ```
-
-- Usage in `ai.create_vectorizer`:
-
-  These scheduling configuration functions are used as arguments to the
-  `ai.create_vectorizer` function:
-  
-  ```sql
-  SELECT ai.create_vectorizer(
-      'my_table'::regclass,
-      embedding => ai.embedding_openai('text-embedding-3-small', 768),
-      chunking => ai.chunking_character_text_splitter('text_column'),
-      scheduling => ai.scheduling_timescaledb(interval '15 minutes'),
-      -- other parameters...
-  );
-  ```
+    ),
+    -- other parameters...
+);
+```
 
 #### Parameters
 
@@ -628,6 +634,41 @@ You use `ai.scheduling_timescaledb` to:
 #### Returns
 
 A JSON configuration object that you can use as an argument for [ai.create_vectorizer](#create-vectorizers).
+
+## Processing configuration
+
+You use the processing configuration functions in pgai to specify 
+the way the vectorizer should process data when generating embeddings,
+such as the batch size and concurrency. These are advanced options and most 
+users should use the default.
+
+### ai.processing_default
+
+You use `ai.processing_default` to specify the concurrency and batch size for the vectorizer.
+
+#### Example usage
+
+```sql
+  SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    processing => ai.processing_default(batch_size => 200, concurrency => 5),
+    -- other parameters...
+  );
+```
+
+#### Parameters
+
+`ai.processing_default` takes the following parameters:
+
+|Name| Type | Default                      | Required | Description                                                                                                                                                                                                           |
+|-|------|------------------------------|-|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|batch_size| int  | Determined by the vectorizer |✖| The number of items to process in each batch. The optimal batch size depends on your data and cloud function configuration, larger batch sizes can improve efficiency but may increase memory usage.                  |
+|concurrency| int  | Determined by the vectorizer |✖| The number of concurrent processing tasks to run. The optimal concurrency depends on your cloud infrastructure and rate limits, higher concurrency can speed up processing but may increase costs and resource usage. |
+
+#### Returns
+
+A JSON configuration object that you can use as an argument for [ai.create_vectorizer](#create-vectorizers).
+
 
 ## Enable and disable vectorizer schedules
 
@@ -721,12 +762,12 @@ You use `ai.disable_vectorizer_schedule` to:
 To stop the automatic scheduling for the vectorizer with ID 1.
 
 ```sql
-SELECT ai.enable_vectorizer_schedule(1);
+SELECT ai.disable_vectorizer_schedule(1);
 ```
 
 #### Parameters
 
-`ai.enable_vectorizer_schedule` takes the following parameters:
+`ai.disable_vectorizer_schedule` takes the following parameters:
 
 |Name| Type | Default | Required | Description                                                          |
 |-|------|---------|-|----------------------------------------------------------------------|
@@ -736,112 +777,6 @@ SELECT ai.enable_vectorizer_schedule(1);
 
 `ai.disable_vectorizer_schedule` does not return a value,
 
-## Processing configuration
-
-You use the processing configuration functions in pgai to specify 
-the way the vectorizer should process data when generating embeddings. These 
-functions allow you to choose between different processing strategies, 
-balancing factors like performance, scalability, and infrastructure 
-requirements. 
-
-By providing these processing options, pgai enables you to choose the most appropriate strategy
-for your specific use case, infrastructure, and performance requirements.
-
-The available functions are:
-
-- [ai.processing_none](#aiprocessing_none):
-  - Offers simplicity, and keeps everything within the database.
-  - Uses the default in-database processing.
-  - Suitable for smaller datasets or when you want to keep all processing within the database.
-  - Simpler setup as it doesn't require additional infrastructure.
-
-- [ai.processing_cloud_functions](#aiprocessing_cloud_functions):
-  - Scale out the embedding generation process for larger datasets or higher throughput requirements.
-  - Enable distributed processing using cloud functions.
-  - Can improve performance and scalability, especially for large datasets.
-  - Reduce load on the database server by offloading embedding generation.
-  - Requires additional setup and infrastructure for cloud functions.
-  - Allows for fine-tuning of batch size and concurrency to optimize performance.
-
-
-### ai.processing_none
-
-You use `ai.processing_none` to:
-- Indicate that no special processing configuration is needed.
-- Use the default in-database processing for generating embeddings.
-
-#### Example usage
-
-To use the default processing:
-
-```sql
-SELECT ai.processing_none()
-```
-
-#### Parameters
-
-This function takes no parameters.
-
-#### Returns
-
-A JSON configuration object that you can use as an argument for [ai.create_vectorizer](#create-vectorizers).
-
-### ai.processing_cloud_functions
-
-You use `ai.processing_cloud_functions` to:
-- Configure the vectorizer to use cloud functions to proces embeddings.
-- Enable distributed and scalable processing of embeddings outside the database.
-- Allow for potential performance improvements and reduced load on the database server.
-
-When using `ai.processing_cloud_functions`, you need to ensure that:
-- Your cloud functions are properly set up and configured.
-- The database can communicate with the cloud function service.
-- You have considered security implications of sending data to cloud functions.
-
-#### Example usage
-
-- Basic usage (use system defaults):
-  ```sql
-  SELECT ai.processing_cloud_functions()
-  ```
-
-- Specify batch size:
-  ```sql
-  SELECT ai.processing_cloud_functions(batch_size => 100)
-  ```
-
-- Specifying batch size and concurrency:
-  ```sql
-  SELECT ai.processing_cloud_functions(batch_size => 50, concurrency => 5)
-  ```
-
-- Usage in `ai.create_vectorizer`:
-
-  These processing configuration functions are used as arguments to the
-  `ai.create_vectorizer` function:
-  
-  ```sql
-  SELECT ai.create_vectorizer(
-      'my_table'::regclass,
-      embedding => ai.embedding_openai('text-embedding-3-small', 768),
-      chunking => ai.chunking_character_text_splitter('text_column'),
-      processing => ai.processing_cloud_functions(batch_size => 200),
-      -- other parameters...
-  );
-  ```
-
-#### Parameters
-
-`ai.enable_vectorizer_schedule` takes the following parameters:
-
-|Name| Type | Default                      | Required | Description                                                                                                                                                                                                           |
-|-|------|------------------------------|-|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|batch_size| int  | Determined by the vectorizer |✖| The number of items to process in each batch. The optimal batch size depends on your data and cloud function configuration, larger batch sizes can improve efficiency but may increase memory usage.                  |
-|concurrency| int  | Determined by the vectorizer |✖| The number of concurrent processing tasks to run. The optimal concurrency depends on your cloud infrastructure and rate limits, higher concurrency can speed up processing but may increase costs and resource usage. |
-
-#### Returns
-
-A JSON configuration object that you can use as an argument for [ai.create_vectorizer](#create-vectorizers).
 
 ## Drop a vectorizer
 
@@ -873,7 +808,6 @@ This design allows you to keep the generated embeddings and the convenient view
 even after dropping the vectorizer. This is useful if you want to stop
 automatic updates but still use the existing embeddings.
 
-
 #### Example usage
 
 Best practices are:
@@ -894,12 +828,15 @@ Examples:
   SELECT ai.drop_vectorizer(1);
   ```
 
-
 - Vectorizer reconfiguration: when you want to significantly change the configuration of a vectorizer, it's often easier to drop the old one and create a new one.
 
   ```sql
   -- Drop the old vectorizer
   SELECT ai.drop_vectorizer(old_vectorizer_id);
+ 
+  -- Drop the data
+  DROP VIEW my_table_embedding;
+  DROP TABLE my_table_embedding_store;
   
   -- Create a new vectorizer with different configuration
   SELECT ai.create_vectorizer(
@@ -915,8 +852,7 @@ Examples:
 - Troubleshooting: if you're experiencing issues with a vectorizer, sometimes it's helpful to drop 
   it and recreate it.
 
-- Resource management: if you need to free up resources such as scheduled job slots, you might drop vectorizers 
-  that are no longer actively used.
+- Resource management: if you need to free up resources such as scheduled job slots, you might drop vectorizers that are no longer actively used.
 
 #### Parameters
 
@@ -941,28 +877,34 @@ your pgai-enhanced database. They allow you to proactively manage your
 vectorizers, ensure timely processing of embeddings, and quickly identify and
 address any issues that may arise in your AI-powered data pipelines.
 
-For effective monitoring, you use `ai.vectorizer_status` and `ai.vectorizer_queue_pending` together. 
+For effective monitoring, you use `ai.vectorizer_status`.
+
 For example:
 ```sql
--- First, get an overview of all vectorizers
+-- Get an overview of all vectorizers
 SELECT * FROM ai.vectorizer_status;
-
--- Then, if you see a vectorizer with many pending items, you can investigate further
-SELECT ai.vectorizer_queue_pending(vectorizer_id_with_many_pending_items);
 ```
 
-Regular monitoring using these tools helps ensure that your vectorizers are keeping up with data changes, and that 
-embeddings remain up-to-date.
+Sample output:
 
-The pending items count helps you to:
+| id | source_table | target_table | view | pending_items |
+|----|--------------|--------------|------|---------------|
+| 1 | public.blog | public.blog_contents_embedding_store | public.blog_contents_embeddings | 1 |
+
+The `pending_items` column indicates the number of items still awaiting embedding creation. The pending items count helps you to:
 - Identify bottlenecks in processing.
 - Determine if you need to adjust scheduling or processing configurations.
 - Monitor the impact of large data imports or updates on your vectorizers.
 
-Available functions are:
+Regular monitoring using these tools helps ensure that your vectorizers are keeping up with data changes, and that 
+embeddings remain up-to-date.
+
+
+Available views are:
 - [ai.vectorizer_status](#aivectorizer_status-view): view, monitor and display information about a vectorizer. 
-- [ai.vectorizer_queue_pending](#aivectorizer_queue_pending-function): retrieve detailed information about a specific
-  vectorizer's queue.
+
+Available functions are:
+- [ai.vectorizer_queue_pending](#aivectorizer_queue_pending-function): retrieve just the queue count for a vectorizer.
 
 
 ### ai.vectorizer_status view
@@ -989,26 +931,6 @@ You use `ai.vectorizer_status` to:
    WHERE pending_items > 1000;
    ```
 
-- Operational reporting:
-   ```sql
-   -- Get a daily summary of vectorizer performance
-   SELECT 
-     id, 
-     source_table, 
-     pending_items,
-     CASE 
-       WHEN pending_items = 0 THEN 'Up to date'
-       WHEN pending_items < 100 THEN 'Minor backlog'
-       WHEN pending_items < 1000 THEN 'Moderate backlog'
-       ELSE 'Significant backlog'
-     END AS status
-   FROM ai.vectorizer_status;
-   ```
-
-#### Parameters
-
-`ai.vectorizer_status` does not take any parameters.
-
 #### Returns
 
 `ai.vectorizer_status` returns the following:
@@ -1023,8 +945,8 @@ You use `ai.vectorizer_status` to:
 
 ### ai.vectorizer_queue_pending function
 
-`ai.vectorizer_queue_pending` enables you to retrieve detailed information about a specific 
-vectorizer's queue when you need to focus on a particular vectorizer or troubleshoot issues.
+`ai.vectorizer_queue_pending` enables you to retrieve the number of items in a vectorizer queue 
+when you need to focus on a particular vectorizer or troubleshoot issues.
 
 You use `vectorizer_queue_pending` to:
 - Retrieve the number of pending items for a specific vectorizer.
@@ -1032,19 +954,11 @@ You use `vectorizer_queue_pending` to:
 
 #### Example usage
 
-- Return the number of pending items for the vectorizer with ID 1:
+Return the number of pending items for the vectorizer with ID 1:
 
   ```sql
   SELECT ai.vectorizer_queue_pending(1);
   ```
-
-- Performance tuning:
-   ```sql
-   -- Check if recent configuration changes have reduced the backlog
-   SELECT ai.vectorizer_queue_pending(vectorizer_id);
-   -- Run this query before and after configuration changes to compare
-   ```
-
 
 #### Parameters
 
@@ -1059,6 +973,4 @@ You use `vectorizer_queue_pending` to:
 
 The number of items in the queue for the specified vectorizer
 
-
 [timescale-cloud]: https://console.cloud.timescale.com/
-
