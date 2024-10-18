@@ -32,6 +32,7 @@ in your database. For a more detailed technical specification, see the
 Let's explore how the Vectorizer can transform your approach to unstructured,
 textual, data analysis and semantic search:
 
+- [Setup your API Keys](#setup-your-api-keys)
 - [Define a vectorizer](#define-a-vectorizer)
 - [Query an embedding](#query-an-embedding)
 - [Inject context into vectorizer chunks](#inject-context-into-vectorizer-chunks)
@@ -40,6 +41,33 @@ textual, data analysis and semantic search:
 - [The embedding storage table](#the-embedding-storage-table)
 - [Monitor a vectorizer](#monitor-a-vectorizer)
 
+
+## Setup your API Keys 
+
+Before using Vectorizer, you need to setup your API keys for the embedding
+service you are using. You can store several API keys, by giving them a name and
+referencing them in the `embedding` section of the Vectorizer configuration. The default,
+names of the API keys try to match the embedding provider's default name. For example,
+for OpenAI, the default name is `OPENAI_API_KEY`.
+
+Setting up your API keys is done differently depending on whether you are using Vectorizer in
+Timescale Cloud or on a self-hosted Postgres server.
+
+### Timescale Cloud
+
+If you are using Vectorizer in Timescale Cloud, you can setup your API keys in the 
+[Timescale Cloud Console](https://console.cloud.timescale.com/). 
+Specifically, you need to set up the API keys in your [Project
+Settings](https://console.cloud.timescale.com/dashboard/settings) > `AI Model
+API Keys` tab. These settings are then stored securely in Timescale Cloud and
+not in your database.
+
+### Self-hosted Postgres
+
+When running the vectorizer worker through a CLI or docker container, you need
+to set an environment variable that is the same as your API key name. For
+example, if your API key name is `OPENAI_API_KEY`, you need to set the
+`OPENAI_API_KEY` environment variable to your OpenAI API key.
 
 ## Define a vectorizer
 
