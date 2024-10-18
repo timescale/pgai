@@ -11,13 +11,12 @@
 </div>
 
 pgai simplifies the process of building [search](https://en.wikipedia.org/wiki/Similarity_search), and
-[Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation)(RAG) AI applications with PostgreSQL.
+[Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation) (RAG) AI applications with PostgreSQL.
 
 pgai brings embedding and generation AI models closer to the database. With pgai, you can now do the following directly from within PostgreSQL in a SQL query:
 
-* Create [embeddings](#embed) for your data.
-* Retrieve LLM [chat completions](#chat-complete) from models like OpenAI GPT4o and Llama 3.
-* Generate responses for models such as Ollama.
+* Create vector [embeddings](#embed) for your data.
+* Retrieve LLM [chat completions](#chat-complete) from models like Claude Sonnet 3.5, OpenAI GPT4o, Cohere Command, and Llama 3 (via Ollama).
 * Reason over your data and facilitate use cases like [classification, summarization, and data enrichment](docs/advanced.md) on your existing relational data in PostgreSQL.
 
 Here's how to get started with pgai:
@@ -25,7 +24,7 @@ Here's how to get started with pgai:
 * **Everyone**: Use pgai in your PostgreSQL database.
   1. [Install pgai](#installation).
   1. Use pgai to integrate AI from your provider:
-    * [Ollama](./docs/ollama.md) - configure pgai for Ollama, then use the model to embed, chat complete and generate. 
+    * [Ollama](./docs/ollama.md) - configure pgai for Ollama, then use the model to embed, chat complete and generate.
     * [OpenAI](./docs/openai.md) - configure pgai for OpenAI, then use the model to tokenize, embed, chat complete and moderate. This page also includes advanced examples.
     * [Anthropic](./docs/anthropic.md) - configure pgai for Anthropic, then use the model to generate content.
     * [Cohere](./docs/cohere.md) - configure pgai for Cohere, then use the model to tokenize, embed, chat complete, classify, and rerank.
@@ -41,8 +40,8 @@ The fastest ways to run PostgreSQL with the pgai extension are to:
 
 1. Create your database environment. Either:
    * [Use a pre-built Docker container](#use-a-pre-built-docker-container).
-   * [Install from source](#install-from-source).
    * [Use a Timescale Cloud service](#use-a-timescale-cloud-service).
+   * [Install from source](#install-from-source).
 
 2. [Enable the pgai extension](#enable-the-pgai-extension-in-your-database).
 
@@ -50,94 +49,58 @@ The fastest ways to run PostgreSQL with the pgai extension are to:
 
 ### Use a pre-built Docker container
 
-[Run the TimescaleDB Docker image](https://docs.timescale.com/self-hosted/latest/install/installation-docker/).
+[Run the TimescaleDB Docker image](https://docs.timescale.com/self-hosted/latest/install/installation-docker/), then
+[enable the pgai extension](#enable-the-pgai-extension-in-your-database).
+
+### Use a Timescale Cloud service
+
+pgai is available for [new][create-a-new-service] or existing Timescale Cloud services. For any service,
+[enable the pgai extension](#enable-the-pgai-extension-in-your-database).
 
 
 ### Install from source
 
-You can install pgai from source on an existing PostgreSQL server. Ensure you
-have [Python3][python3] and [pip][pip] installed system-wide. You can check if
-they are already installed with:
+To install pgai from source on a PostgreSQL server:
 
-```bash
-python3 --version
-pip --version
-```
+1. **Install the prerequisite software system-wide**
+   - **Python3**: if running `python3 --version` in Terminal returns `command
+     not found`, download and install the latest version of [Python3][python3].
 
-Additionally, you will need to install the [plpython3][plpython3u] and
-[pgvector][pgvector] extensions. To check if the extensions are already
-available in your database, run the query:
+   - **Pip**: if running `pip --version` in Terminal returns `command not found`:
+     - **Standard installation**: use one of the pip [supported methods][pip].
+     - **Virtual environment**: usually, pip is automatically installed if you are working in a
+       [Python virtual environment][python-virtual-environment]. If you are running PostgreSQL in a virtual
+       environment, pgai requires several python packages. Set the `PYTHONPATH` and `VIRTUAL_ENV`
+       environment variables before you start your PostgreSQL server.
 
-```sql
-select * from pg_available_extensions where name in ('vector', 'plpython3u')
-```
+       ```bash
+       PYTHONPATH=/path/to/venv/lib/python3.12/site-packages \
+       VIRTUAL_ENV=/path/to/venv \
+       pg_ctl -D /path/to/data -l logfile start
+       ```
+   - **PL/Python**: follow [How to install Postgres 16 with plpython3u: Recipes for macOS, Ubuntu, Debian, CentOS, Docker][pgai-plpython].
 
-You should have one row per extension:
+      _macOS_: the standard PostgreSQL brew in Homebrew does not include the `plpython3` extension. These instructions show
+      how to install from an alternate tap.
 
-```
--[ RECORD 1 ]-------------------------
-name              | plpython3u
-default_version   | 1.0
-installed_version | 1.0
-comment           | PL/Python3U untrusted procedural language
--[ RECORD 2 ]-------------------------
-name              | vector
-default_version   | 0.7.2
-installed_version | 0.7.2
-comment           | vector data type and ivfflat and hnsw access methods
-```
+     - **[Postgresql plugin][asdf-postgres] for the [asdf][asdf] version manager**: set the `--with-python` option
+       when installing PostgreSQL:
 
-To install them, run the queries:
+       ```bash
+       POSTGRES_EXTRA_CONFIGURE_OPTIONS=--with-python asdf install postgres 16.3
+       ```
 
-```sql
-create extension plpython3u;
-create extension vector;
-```
+   - **pgvector**: follow the [install instructions][pgvector-install] from the official repository.
 
-Otherwise, for pgvector you can follow the [install
-instructions][pgvector-install] from the official repository.
+   These extensions are automatically added to your PostgreSQL database when you
+   [Enable the pgai extension](#enable-the-pgai-extension-in-your-database).
 
-For plpython3, follow the [How to install Postgres 16 with plpython3u: Recipes
-for macOS, Ubuntu, Debian, CentOS, Docker][pgai-plpython] instructions from the
-postgres-ai repository.
+1. Make this `pgai` extension:
 
-> [!NOTE]
-> For macOS users, unfortunately the standard brew the standard postgresql
-> formula in Homebrew is missing the `plpython3` extension. The instructions
-> above suggest an alternative brew formula.
-
-If you are installing PostgreSQL using the [Postgresql plugin][asdf-postgres]
-for the [asdf][asdf] version manager, set the --with-python option during
-installation:
-
-```bash
-POSTGRES_EXTRA_CONFIGURE_OPTIONS=--with-python asdf install postgres 16.3
-```
-
-After installing these prerequisites, run:
-
-```bash
-make install
-```
-
-#### Python virtual environment
-
-The extension requires several python packages, if you prefer working with
-python virtual environments, set the `PYTHONPATH` and `VIRTUAL_ENV` environment
-variables when starting your PostgreSQL server.
-
-```bash
-PYTHONPATH=/path/to/venv/lib/python3.12/site-packages \
-VIRTUAL_ENV=/path/to/venv \
-pg_ctl -D /path/to/data -l logfile start
-```
-
-### Use a Timescale Cloud service
-
-Create a new [Timescale Service](https://console.cloud.timescale.com/dashboard/create_services).
-
-If you want to use an existing service, pgai is added as an available extension on the first maintenance window
-after the pgai release date.
+    ```bash
+    make install
+    ```
+1. [Enable the pgai extension](#enable-the-pgai-extension-in-your-database).
 
 ### Enable the pgai extension in your database
 
@@ -181,7 +144,9 @@ for the most demanding AI, time-series, analytics, and event workloads. Timescal
 [asdf-postgres]: https://github.com/smashedtoatoms/asdf-postgres
 [asdf]: https://github.com/asdf-vm/asdf
 [python3]: https://www.python.org/downloads/
-[pip]: https://pip.pypa.io/en/stable/
+[pip]: https://pip.pypa.io/en/stable/installation/#supported-methods
 [plpython3u]: https://www.postgresql.org/docs/current/plpython.html
 [pgvector]: https://github.com/pgvector/pgvector
 [pgvector-install]: https://github.com/pgvector/pgvector?tab=readme-ov-file#installation
+[python-virtual-environment]: https://packaging.python.org/en/latest/tutorials/installing-packages/#creating-and-using-virtual-environments
+[create-a-new-service]: https://console.cloud.timescale.com/dashboard/create_services
