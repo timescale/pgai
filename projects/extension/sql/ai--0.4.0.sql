@@ -2652,14 +2652,6 @@ begin
             raise warning 'one or more grant_to roles do not exist: %', _missing_roles;
         end if;
     end if;
-
-    -- get source table name and schema name
-    select k.relname, n.nspname, k.relowner operator(pg_catalog.=) current_user::regrole
-    into strict _source_table, _source_schema, _is_owner
-    from pg_catalog.pg_class k
-    inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
-    where k.oid operator(pg_catalog.=) source
-    ;
     
     if embedding is null then
         raise exception 'embedding configuration is required';
@@ -2668,7 +2660,15 @@ begin
     if chunking is null then
         raise exception 'chunking configuration is required';
     end if;
-    
+
+    -- get source table name and schema name
+    select k.relname, n.nspname, k.relowner operator(pg_catalog.=) current_user::regrole
+    into strict _source_table, _source_schema, _is_owner
+    from pg_catalog.pg_class k
+    inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
+    where k.oid operator(pg_catalog.=) source
+    ;
+
     -- TODO: consider allowing (in)direct members of the role that owns the source table
     if not _is_owner then
         raise exception 'only the owner of the source table may create a vectorizer on it';

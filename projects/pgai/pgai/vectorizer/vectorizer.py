@@ -707,7 +707,7 @@ class Worker:
             pk = self._get_item_pk_values(item)
             chunks = self.vectorizer.config.chunking.into_chunks(item)
             records_without_embeddings.extend(
-                [pk + [chunk_id, chunk] for chunk_id, chunk in enumerate(chunks, 1)]
+                [pk + [chunk_id, chunk] for chunk_id, chunk in enumerate(chunks, 0)]
             )
             documents.extend(
                 [
