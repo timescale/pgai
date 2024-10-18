@@ -107,7 +107,7 @@ def test_handler_ok(
                 id_att: expected_item.pk_att_1,
                 id2_att: expected_item.pk_att_2,
                 "chunk": expected_item.content,
-                "chunk_seq": 1,
+                "chunk_seq": 0,
             }
 
             assert (
@@ -230,7 +230,7 @@ def test_document_in_batch_exceeds_model_context_length(
             id_att: expected_item.pk_att_1,
             id2_att: expected_item.pk_att_2,
             "chunk": expected_item.content,
-            "chunk_seq": 1,
+            "chunk_seq": 0,
         }
 
         assert (
@@ -251,7 +251,7 @@ def test_document_in_batch_exceeds_model_context_length(
         assert records == [
             {
                 "details": {
-                    "chunk_id": 1,
+                    "chunk_id": 0,
                     "error_reason": "chunk exceeds the text-embedding-ada-002 model context length of 8192 tokens",  # noqa
                     "pk": {
                         "id": 2,
