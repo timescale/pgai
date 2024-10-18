@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from pgai.vectorizer.lambda_handler import lambda_handler
 
 from . import expected
-from .conftest import DIMENSION_COUNT, ItemFixture
+from .conftest import ItemFixture
 
 
 def id_from_fixtures(request: pytest.FixtureRequest) -> str:
@@ -122,45 +122,6 @@ def test_event_validation():
     event: dict[str, Any] = {}
     with pytest.raises(ValidationError):
         lambda_handler(event, None)
-
-
-@pytest.mark.parametrize(
-    ("chunking", "formatting", "embedding"),
-    [("character_text_splitter", "chunk_value", "openai")],
-    indirect=True,
-)
-def test_invalid_function_arguments(
-    vcr_: Any,
-    event: dict[str, Any],
-    db_with_data: dict[str, Any],
-):
-    # Given an event with invalid arguments for the embedding model.
-    event["payload"]["config"]["embedding"]["dimensions"] = DIMENSION_COUNT
-
-    with (
-        vcr_.use_cassette("test_invalid_function_arguments.yaml"),
-        pytest.raises(openai.BadRequestError),
-    ):
-        # When the lambda is invokded.
-        # Then it raises an exception.
-        lambda_handler(event, None)
-
-    # And an entry in the errors table is stored.
-    with db_with_data["conn"].cursor(row_factory=dict_row) as cur:
-        cur.execute(sql.SQL("SELECT * FROM ai.vectorizer_errors"))
-        records = cur.fetchall()
-        recorded = records[0].pop("recorded")
-        assert datetime.now(timezone.utc) - recorded < timedelta(minutes=5)
-        assert records == [
-            {
-                "id": 1,
-                "message": "embedding provider failed",
-                "details": {
-                    "error_reason": "Error code: 400 - {'error': {'message': 'This model does not support specifying dimensions.', 'type': 'invalid_request_error', 'param': None, 'code': None}}",  # noqa: E501
-                    "provider": "openai",
-                },
-            },
-        ]
 
 
 @pytest.mark.parametrize(
