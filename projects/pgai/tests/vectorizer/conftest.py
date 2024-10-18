@@ -197,7 +197,7 @@ class ItemFixture:
 @pytest.fixture
 def items_fixtures(request: pytest.FixtureRequest) -> list[ItemFixture]:
     items_count = getattr(request, "param", 1)
-    return [ItemFixture(i, i, f"post_{i}") for i in range(1, items_count + 1)]
+    return [ItemFixture(i, i, f"id: {i} id2: {i} post_{i}") for i in range(1, items_count + 1)]
 
 
 @pytest.fixture
