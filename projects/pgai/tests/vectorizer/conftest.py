@@ -246,6 +246,7 @@ def embedding(request: pytest.FixtureRequest) -> dict[str, Any]:
         "openai": {
             "implementation": "openai",
             "model": "text-embedding-ada-002",
+            "dimensions": DIMENSION_COUNT,
             "api_key_name": "OPENAI_API_KEY",
         },
     }
