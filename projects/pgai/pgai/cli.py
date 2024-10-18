@@ -15,7 +15,6 @@ from psycopg.rows import dict_row, namedtuple_row
 from pytimeparse import parse  # type: ignore
 
 from .__init__ import __version__
-from .vectorizer.secrets import Secrets
 from .vectorizer.vectorizer import Vectorizer, Worker
 
 load_dotenv()
@@ -73,7 +72,7 @@ def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer | None:
                 vectorizer_id=vectorizer_id,
             )
             return None
-        secrets = Secrets(OPENAI_API_KEY=api_key)
+        secrets: dict[str, str | None] = {api_key_name: api_key}
         vectorizer = Vectorizer(**vectorizer)
         vectorizer.config.embedding.set_api_key(secrets)
         return vectorizer
