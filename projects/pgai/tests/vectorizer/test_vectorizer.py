@@ -73,7 +73,6 @@ def test_vectorizer_internal():
                 select ai.create_vectorizer
                 ( 'note0'::regclass
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-                , formatting=>ai.formatting_python_template('$id: $chunk')
                 , chunking=>ai.chunking_character_text_splitter('note')
                 , scheduling=>
                     ai.scheduling_timescaledb
@@ -110,12 +109,10 @@ def test_vectorizer_internal():
         # run the vectorizer
         cli.run_vectorizer(_db_url, vectorizer_actual, 1)
 
-        # make sure the queue was emptied
         cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
         actual = cur.fetchone()[0]  # type: ignore
         assert actual == 0
 
-        # make sure we got 10 rows out
         cur.execute(
             SQL("select count(*) from {target_schema}.{target_table}").format(
                 target_schema=Identifier(vectorizer_expected.target_schema),  # type: ignore
@@ -124,17 +121,3 @@ def test_vectorizer_internal():
         )
         actual = cur.fetchone()[0]  # type: ignore
         assert actual == 10
-
-        # make sure the chunks were formatted correctly
-        cur.execute(
-            SQL("""
-                select count(*) = count(*)
-                filter (where chunk = format('%s: %s', id, note))
-                from {view_schema}.{view_name}
-                """).format(
-                view_schema=Identifier(vectorizer_expected.view_schema),  # type: ignore
-                view_name=Identifier(vectorizer_expected.view_name),  # type: ignore
-            )
-        )
-        actual = cur.fetchone()[0]  # type: ignore
-        assert actual is True

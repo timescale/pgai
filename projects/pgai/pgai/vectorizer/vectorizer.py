@@ -706,10 +706,15 @@ class Worker:
         for item in items:
             pk = self._get_item_pk_values(item)
             chunks = self.vectorizer.config.chunking.into_chunks(item)
-            for chunk_id, chunk in enumerate(chunks, 0):
-                formatted = self.vectorizer.config.formatting.format(chunk, item)
-                records_without_embeddings.append(pk + [chunk_id, formatted])
-                documents.append(formatted)
+            records_without_embeddings.extend(
+                [pk + [chunk_id, chunk] for chunk_id, chunk in enumerate(chunks, 1)]
+            )
+            documents.extend(
+                [
+                    self.vectorizer.config.formatting.format(chunk, item)
+                    for chunk in chunks
+                ]
+            )
 
         try:
             embeddings = await self.vectorizer.config.embedding.embed(documents)
