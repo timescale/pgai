@@ -15,8 +15,6 @@ from pydantic import BaseModel
 from pydantic.dataclasses import dataclass
 from typing_extensions import override
 
-from .secrets import Secrets
-
 MAX_RETRIES = 3
 
 TOKEN_CONTEXT_LENGTH_ERROR = "chunk exceeds model context length"
@@ -97,7 +95,7 @@ class ApiKeyMixin:
             raise ValueError("API key not set")
         return self._api_key_
 
-    def set_api_key(self, secrets: Secrets):
+    def set_api_key(self, secrets: dict[str, str | None]):
         """
         Sets the API key from the provided secrets.
 
@@ -107,7 +105,8 @@ class ApiKeyMixin:
         Raises:
             ValueError: If the API key is missing from the secrets.
         """
-        api_key = getattr(secrets, self.api_key_name)
+
+        api_key = secrets.get(self.api_key_name, None)
         if api_key is None:
             raise ValueError(f"missing API key: {self.api_key_name}")
         self._api_key_ = api_key
