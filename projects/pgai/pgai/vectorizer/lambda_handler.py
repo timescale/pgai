@@ -9,7 +9,6 @@ from pydantic.dataclasses import dataclass
 
 from . import db
 from .processing import ProcessingDefault
-from .secrets import Secrets
 from .vectorizer import Vectorizer, Worker
 
 TIKTOKEN_CACHE_DIR = os.path.join(
@@ -22,7 +21,7 @@ logger = structlog.get_logger()
 @dataclass
 class UpdateEmbeddings:
     db: db.ConnInfo
-    secrets: Secrets
+    secrets: dict[str, str | None]
 
 
 @dataclass
