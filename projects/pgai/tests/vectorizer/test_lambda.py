@@ -125,6 +125,43 @@ def test_event_validation():
 
 
 @pytest.mark.parametrize(
+    ("chunking", "formatting", "embedding"),
+    [("character_text_splitter", "chunk_value", "openai")],
+    indirect=True,
+)
+def test_invalid_function_arguments(
+    event: dict[str, Any],
+    db_with_data: dict[str, Any],
+):
+    # Given an event with invalid arguments for the embedding model.
+    event["payload"]["config"]["embedding"]["dimensions"] = 128
+
+    with pytest.raises(
+        ValueError, match=".*dimensions must be 1536 for text-embedding-ada-002*"
+    ):
+        # When the lambda is invokded.
+        # Then it raises an exception.
+        lambda_handler(event, None)
+
+    # And an entry in the errors table is stored.
+    with db_with_data["conn"].cursor(row_factory=dict_row) as cur:
+        cur.execute(sql.SQL("SELECT * FROM ai.vectorizer_errors"))
+        records = cur.fetchall()
+        recorded = records[0].pop("recorded")
+        assert datetime.now(timezone.utc) - recorded < timedelta(minutes=5)
+        assert records == [
+            {
+                "details": {
+                    "error_reason": "dimensions must be 1536 for text-embedding-ada-002",
+                    "provider": "openai",
+                },
+                "id": 1,
+                "message": "embedding provider failed",
+            }
+        ]
+
+
+@pytest.mark.parametrize(
     ("items_fixtures", "batch_size", "chunking", "formatting"),
     [(2, 2, "recursive_character_text_splitter", "chunk_value")],
     indirect=["items_fixtures", "chunking", "formatting"],
