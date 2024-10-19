@@ -48,3 +48,51 @@ pgai = "pgai.cli:cli"
 addopts = [
     "--import-mode=importlib",
 ]
+
+[tool.pyright]
+# this enables practically every flag given by pyright.
+# there are a couple of flags that are still disabled by
+# default in strict mode as they are experimental and niche.
+typeCheckingMode = "strict"
+
+exclude = [
+  ".venv",
+]
+reportImplicitOverride = true
+
+[tool.ruff]
+line-length = 88
+indent-width = 4
+output-format = "grouped"
+target-version = "py310"
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint]
+
+select = [
+  # pycodestyle
+  "E",
+  # Pyflakes
+  "F",
+  # pyupgrade
+  "UP",
+  # flake8-bugbear
+  "B",
+  # flake8-simplify
+  "SIM",
+  # isort
+  "I",
+  # unused arguments
+  "ARG",
+  # trailing whitespace
+  "W291",
+  # print statements
+  "PIE",
+  # flakes8-quote
+  "Q"
+]
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
