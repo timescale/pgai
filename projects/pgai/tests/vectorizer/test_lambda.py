@@ -145,22 +145,24 @@ def test_invalid_function_arguments(
         # Then it raises an exception.
         lambda_handler(event, None)
 
+    expected_errors = [
+        {
+            "details": {
+                "error_reason": "dimensions must be 1536 for text-embedding-ada-002",
+                "provider": "openai",
+            },
+            "id": 1,
+            "message": "embedding provider failed",
+        }
+    ]
+
     # And an entry in the errors table is stored.
     with db_with_data["conn"].cursor(row_factory=dict_row) as cur:
         cur.execute(sql.SQL("SELECT * FROM ai.vectorizer_errors"))
         records = cur.fetchall()
         recorded = records[0].pop("recorded")
         assert datetime.now(timezone.utc) - recorded < timedelta(minutes=5)
-        assert records == [
-            {
-                "details": {
-                    "error_reason": "dimensions must be 1536 for text-embedding-ada-002",
-                    "provider": "openai",
-                },
-                "id": 1,
-                "message": "embedding provider failed",
-            }
-        ]
+        assert records == expected_errors
 
 
 @pytest.mark.parametrize(

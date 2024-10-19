@@ -108,7 +108,7 @@ lint: type-check-py
 
 .PHONY: type-check-py
 type-check-py:
-	pyright
+	@./build.py type-check-py
 
 .PHONY: format-py
 format-py:

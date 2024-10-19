@@ -589,6 +589,12 @@ def format_py() -> None:
     )
 
 
+def type_check_py() -> None:
+    subprocess.run(
+        "pyright", shell=True, check=True, env=os.environ, cwd=project_pgai_dir()
+    )
+
+
 def docker_build() -> None:
     if platform.machine().lower() in {"i386", "i686", "x86_64"}:
         rust_flags = "--build-arg RUSTFLAGS='-C target-feature=+avx2,+fma'"
@@ -739,6 +745,8 @@ if __name__ == "__main__":
             lint()
         elif action == "format-py":
             format_py()
+        elif action == "type-check-py":
+            type_check_py()
         elif action == "docker-build":
             docker_build()
         elif action == "docker-build-vec":
