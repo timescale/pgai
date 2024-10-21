@@ -395,7 +395,7 @@ Key points about indexing:
 
 - The choice of indexing method depends on your dataset size, query performance requirements, and available resources.
 
-- [ai.indexing_none](#aiindexing_none) is better suited for small datasets, or when want to perform index creation manually.
+- [ai.indexing_none](#aiindexing_none) is better suited for small datasets, or when you want to perform index creation manually.
 - [ai.indexing_diskann](#aiindexing_diskann) is generally recommended for larger datasets that require an index.
 
 - The `min_rows` parameter enables you to delay index creation until you have enough data to justify the overhead.
@@ -404,8 +404,8 @@ Key points about indexing:
 
 The available functions are:
 
-- [ai.indexing_none](#aiindexing_none): configure indexing using the [Hierarchical Navigable Small World (HNSW) algorithm](https://en.wikipedia.org/wiki/Hierarchical_navigable_small_world).
-- [ai.indexing_diskann](#aiindexing_diskann): configure indexing using the DiskANN algorithm.
+- [ai.indexing_none](#aiindexing_none): when you do not want indexes created automatically.
+- [ai.indexing_diskann](#aiindexing_diskann): configure indexing using the [DiskANN algorithm](https://github.com/timescale/pgvectorscale).
 - [ai.indexing_hnsw](#aiindexing_hnsw): configure indexing using the [Hierarchical Navigable Small World (HNSW) algorithm](https://en.wikipedia.org/wiki/Hierarchical_navigable_small_world).
 
 ### ai.indexing_none
