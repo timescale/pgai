@@ -42,7 +42,7 @@ include = ["pgai*"]  # package names should match these glob patterns (["*"] by 
 namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
 
 [project.scripts]
-vectorizer = "pgai.cli:run"
+pgai = "pgai.cli:cli"
 
 [tool.pytest.ini_options]
 addopts = [
