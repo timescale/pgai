@@ -19,10 +19,10 @@ representing only a part of a row's data -- we've simplified the entire workflow
 
 Our system empowers you to:
 
-- Designate any text column for embedding using customizable rules. 
-- Automatically generate and maintain searchable embedding tables. 
-- Keep embeddings continuously synchronized with source data (asynchronously).
-- Utilize a convenient view that seamlessly joins base tables with their embeddings.
+- Designate any text column for embedding using customizable rules
+- Automatically generate and maintain searchable embedding tables 
+- Keep embeddings continuously synchronized with source data (asynchronously)
+- Utilize a convenient view that seamlessly joins base tables with their embeddings
 
 This page offers a comprehensive overview of Vectorizer features,
 demonstrating how it streamlines the process of working with vector embeddings
@@ -37,7 +37,7 @@ textual, data analysis and semantic search:
 - [Query an embedding](#query-an-embedding)
 - [Inject context into vectorizer chunks](#inject-context-into-vectorizer-chunks)
 - [Improve query performance on your Vectorizer](#improve-query-performance-on-your-vectorizer)
-- [Control vectorizer run time](#control-vectorizer-run-time-)
+- [Control vectorizer run time](#control-the-vectorizer-run-time-)
 - [The embedding storage table](#the-embedding-storage-table)
 - [Monitor a vectorizer](#monitor-a-vectorizer)
 
@@ -45,29 +45,29 @@ textual, data analysis and semantic search:
 ## Setup your API Keys 
 
 Before using Vectorizer, you need to setup your API keys for the embedding
-service you are using. You can store several API keys, by giving them a name and
-referencing them in the `embedding` section of the Vectorizer configuration. The default,
-names of the API keys try to match the embedding provider's default name. For example,
-for OpenAI, the default name is `OPENAI_API_KEY`.
+service you are using. To store several API keys, you give each key a name and
+reference them in the `embedding` section of the Vectorizer configuration. The default
+API key names match the embedding provider's default name. For example, for OpenAI, the default 
+key name is `OPENAI_API_KEY`.
 
 Setting up your API keys is done differently depending on whether you are using Vectorizer in
 Timescale Cloud or on a self-hosted Postgres server.
 
-### Timescale Cloud
+- Timescale Cloud
 
-If you are using Vectorizer in Timescale Cloud, you can setup your API keys in the 
-[Timescale Cloud Console](https://console.cloud.timescale.com/). 
-Specifically, you need to set up the API keys in your [Project
-Settings](https://console.cloud.timescale.com/dashboard/settings) > `AI Model
-API Keys` tab. These settings are then stored securely in Timescale Cloud and
-not in your database.
+  1. In [Timescale Console > Project Settings](https://console.cloud.timescale.com/dashboard/settings), click `AI Model API Keys`.
+  1. Click `Add AI Model API Keys`, add your key, then click `Add API key`.
 
-### Self-hosted Postgres
+  Your API key is stored securely in Timescale Cloud and not in your database.
 
-When running the vectorizer worker through a CLI or docker container, you need
-to set an environment variable that is the same as your API key name. For
-example, if your API key name is `OPENAI_API_KEY`, you need to set the
-`OPENAI_API_KEY` environment variable to your OpenAI API key.
+- Self-hosted Postgres
+
+  Set an environment variable that is the [same as your API key name](./self-hosting-vectorizer.md#install-and-configure-vectorizer-cli). 
+  For example:
+  ```bash
+  export OPENAI_API_KEY="Your OpenAI API key"
+  vectorizer
+  ```
 
 ## Define a vectorizer
 
@@ -223,15 +223,13 @@ SELECT ai.create_vectorizer(
 Note: Indexing relies on a background job that runs periodically, so this
 feature will not work if scheduling is disabled.
 
-## Control vectorizer run time 
+## Control the vectorizer run time 
 
-Scheduling allows you to control when the vectorizer should run when running on
-Timescale Cloud or another setup where work is done in cloud functions. A
-scheduled job checks whether there is work to be done and, if so, runs the cloud
-function to embed the data. It also handles creating the index on the embedding
-column once the table is large enough. This setup allows you to avoid
-unnecessary cloud function invocations when there is no work to be done. By
-default, scheduling uses TimescaleDB background jobs running every five minutes.
+When you use Vectorizer on Timescale Cloud, you use 
+scheduling to control the time when vectorizers run. A scheduled job checks if
+there is work to be done and, if so, runs the cloud function to embed the data.
+By default, scheduling uses TimescaleDB background jobs running every five minutes.
+Once the table is large enough, scheduling also handles index creation on the embedding column. 
 
 When deploying locally, the vectorizer worker uses a polling mechanism to check whether
 there is work to be done. Thus, scheduling is not needed. You can disable scheduling with 
