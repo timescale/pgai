@@ -1,155 +1,163 @@
 
-# Self-hosting Vectorizer
+# Run vectorizers in a self-hosted database using Vectorizer CLI
 
-The vectorizer CLI worker asynchronously processes the Vectorizers defined in 
-your database.
+When you install pgai on Timescale Cloud or another cloud installation, you use 
+scheduling to control the times when vectorizers are run. A scheduled job checks in your 
+service checks if there is work to be done for the vectorizers. If there is, the job runs the cloud function to 
+embed the data.
 
-Vectorizer workers are available on [Timescale Cloud][timescale-cloud]. You can
-also self-host it. This guide will help you run the Vectorizer worker on your
-own.
+When you have [defined vectorizers](./vectorizer.md#define-a-vectorizer) on a self-hosted Postgres installation, you 
+run workers in Vectorizer CLI to asynchronously processes them. By default, when you run the `vectorizer` worker, it 
+loops over the vectorizers defined in your database and processes each vectorizer in turn.
 
-## Installation
+This page shows you how to install and run and manage the workers that run the vectorizers in your database:
 
-To self-host the vectorizer, you will need to install the 
-[pgai package](https://pypi.org/project/pgai/) from PyPI.
+- [Install and configure Vectorizer CLI](#install-and-configure-vectorizer-cli): setup the environment
+  to securely run vectorizers defined in a self-hosted Postgres installation
+- [Run vectorizers workers from Vectorizer CLI](#run-vectorizers-workers-from-vectorizer-cli): run specific
+  vectorizers in your database as either single, parallel or concurrent tasks
+- [Set the time between vectorizer worker runs](#set-the-time-between-vectorizer-worker-runs): control the time between 
+  vectorizer worker runs
 
-```bash
-pip install pgai
-```
+## Install and configure Vectorizer CLI
 
-At this point, `vectorizer` will be on your PATH.
+To be able to run vectorizers in your self-hosted database:
 
-## Connecting to your database
+1. **Install [pgai](https://pypi.org/project/pgai/) from PyPI**
 
-Vectorizer needs to know how to connect to your database. You can specify a
-Postgres [connection string](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING) by
+   ```bash
+   pip install pgai
+   ```
 
-- using the `-d` or `--db-url` command line argument
+   The Vectorizer CLI, `vectorizer` is now in your `$PATH`.
+
+1. **Setup the connection to your self-hosted database**
+
+   Specify a [Postgres connection string](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING) 
+     using either:
+
+     - The `-d` or `--db-url` command line argument:
+       ```bash
+       vectorizer -d "postgres://user:password@host:port/dbname"
+       ```
+     - The `VECTORIZER_DB_URL` environment variable:
+       ```bash
+       export VECTORIZER_DB_URL="postgres://user:password@host:port/dbname"
+       vectorizer
+       ```
+
+      If you do not configure the connection string, the default value is 
+      `postgres://postgres@localhost:5432/postgres`.
+
+1. **Configure your API keys**
+
+    For each vectorizer that you define in a self-hosted database, you must 
+    [specify the name of the API key](./vectorizer-api-reference.md#embedding-configuration) used to 
+    securely connect to the external embeddings provider. For a worker in Vectorizer CLI to 
+    run the vectorizers in your database, you need to set the value of your API key in an environment 
+    variable that matches the API key name defined for the vectorizer. For example, if your API key 
+    name is `OPENAI_API_KEY`:
+  
+    ```bash
+    export OPENAI_API_KEY="Your OpenAI API key"
+    vectorizer
+    ```
+
+## Run vectorizers workers from Vectorizer CLI
+
+By default, when you run a vectorizer worker, it loops over the vectorizers defined in 
+your database and processes each vectorizer in turn. Five minutes after completing each 
+vectorizer run, the vectorizer worker loops over the vectorizers again. You can also the vectorizer
+`-i` / `--vectorizer-id` command line argument to manage which vectorizers that are run by that
+worker instance. You can use a vectorizer worker to:
+
+- Run a single vectorizer:
+
+  To run the vectorizer with id 42:
   ```bash
-  vectorizer -d "postgres://user:password@host:port/dbname"
+  vectorizer -i 42
   ```
-- using the `VECTORIZER_DB_URL` environment variable
+
+- Run multiple specific vectorizers: 
+
+  To run the vectorizers with ids `42`, `64`, and `8`:
+
   ```bash
-  export VECTORIZER_DB_URL="postgres://user:password@host:port/dbname"
-  vectorizer
+  vectorizer -i 42 -i 64 -i 8
   ```
 
-The connection string will default to `postgres://postgres@localhost:5432/postgres` if not specified.
+- Run multiple vectorizers in concurrent vectorizer workers:
 
+  To run the vectorizers with id `42` and `64` in different vectorizer workers:
+  1. In a first shell, run:
 
-## API Keys
+     ```bash
+     vectorizer -id 42
+     ```
 
-Vectorizers use external embedding providers like OpenAI to generate embeddings.
-These typically require an API key. Each vectorizer defined in the database will
-specify the name of an API key in the `embedding` section of the Vectorizer
-configuration. The default, names of the API keys try to match the embedding
-provider's default name. For example, for OpenAI, the default name is
-`OPENAI_API_KEY`.
+  1. In another shell, run: 
 
-You need to set an environment variable that is the same as the API key name
-defined in the vectorizer. For example, if your API key name is `OPENAI_API_KEY`
-, you need to set the `OPENAI_API_KEY` environment variable to your OpenAI API
-key.
+     ```bash
+     vectorizer -id 64
+     ```
 
-```bash
-export OPENAI_API_KEY="not-a-real-key"
-vectorizer
-```
+- Run concurrent vectorizer workers on a single vectorizer
 
-## Choosing Vectorizers to process
+  More than one vectorizer worker can efficiently process the same vectorizer id
+  at the same time. To run the vectorizer with id `41` in different vectorizer workers:
 
-By default, the vectorizer worker will loop over all the vectorizers defined in 
-the database and process each one. If only want to process one vectorizer use 
-the `-i` / `--vectorizer-id` command line argument to pass the id of the
-vectorizer you want.
+  1. In a first shell, run:
+  
+     ```bash
+     vectorizer -id 42
+     ```
 
-You can look up the ids for vectorizers in the `ai.vectorizer` table.
+  1. In another shell, run:
 
-To run the vectorizer worker on only the vectorizer with id 42, run this:
+     ```bash
+     vectorizer -id 42
+     ```
 
-```bash
-vectorizer -i 42
-```
+You find the vectorizers id in the `ai.vectorizer` table.
 
-In fact, the `-i` / `--vectorizer-id` argument can be specified multiple times.
-To run the vectorizer worker against vectorizers 42, 64, and 8, run this:
+## Set the time between vectorizer worker runs
 
-```bash
-vectorizer -i 42 -i 64 -i 8
-```
+When you run a vectorizer worker, it loops over the vectorizers defined in your database.
+Each vectorizer worker processes vectorizer queue until it is empty. By 
+default, the vectorizer worker sleeps for five minutes, then start over.
 
-## Modes of operation
+To control the time between vectorizer worker iterations, set the integer seconds or a duration string 
+in the `--poll-interval` parameter: 
 
-When run, the vectorizer will loop over the vectorizers defined in the database.
-For each vectorizer, it will process the respective queue until it is empty. By 
-default, the vectorizer will then sleep for five minutes and start over.
+- Run every hour:
 
-To change how long it should sleep between iterations, use the `--poll-interval`
-command line argument. You can use integer seconds or a duration string.
+  ```bash
+  vectorizer --poll-interval=1h
+  ```
 
-**Examples:**
+- Run every 45 minutes:
 
-```bash
-vectorizer --poll-interval=1h
-```
+  ```bash
+  vectorizer --poll-interval=45m
+  ```
 
-```bash
-vectorizer --poll-interval=45m
-```
+- Run every 900 seconds:
 
-```bash
-vectorizer --poll-interval=900
-```
+  ```bash
+  vectorizer --poll-interval=900
+  ```
 
-If you want the vectorizer to only run once and then exit, pass the `--once` 
-flag. This is useful if you want to run the vectorizer worker on a cron job.
+- Run once and then exit: 
 
-```bash
-vectorizer --once
-```
+  ```bash
+  vectorizer --once
+  ```
+  This is useful if you want to run the vectorizer worker on a cron job.
 
-## Concurrency
-
-### Multiple workers on different vectorizers
-
-You can run multiple instances of the vectorizer worker against the same 
-database processing different vectorizer ids.
-
-Run this in one shell
-
-```bash
-vectorizer -id 42
-```
-
-And this in another
-
-```bash
-vectorizer -id 64
-```
-
-### Multiple workers on the same vectorizer
-
-More than one vectorizer worker can efficiently process the same vectorizer id 
-at the same time.
-
-Run this in one shell
-
-```bash
-vectorizer -id 42
-```
-
-And this in another
-
-```bash
-vectorizer -id 42
-```
-
-You now have two vectorizer workers processing the vectorizer with id 42.
-
-### Multiple asynchronous tasks within one vectorizer
+### Set the number of asynchronous tasks running in a vectorizer worker
 
 Use the `-c` / `--concurrency` option to cause the vectorizer worker to use 
-multiple asynchronous tasks to process a queue.
+multiple asynchronous tasks to process a queue:
 
 ```bash
 vectorizer -c 3
