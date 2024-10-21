@@ -69,6 +69,13 @@ Timescale Cloud or on a self-hosted Postgres server.
   vectorizer
   ```
 
+To validate that your API key is set correctly, run the following SQL query:
+```sql
+SELECT *
+FROM ai.openai_list_models();
+```
+If you get a list of available models you are all set.
+
 ## Define a vectorizer
 
 You can configure the system to automatically generate and update embeddings
@@ -92,9 +99,14 @@ SELECT ai.create_vectorizer(
    'blog'::regclass,
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_openai('text-embedding-3-small', 768),
-    chunking => ai.chunking_recursive_character_text_splitter('contents'),
+    chunking => ai.chunking_recursive_character_text_splitter('contents')
 );
 ```
+
+>Note: If you are self-hosting you need to run the vectorizer-worker yourself,
+check [how to run the vectorizer](./self-hosting-vectorizer.md).
+The SQL to create vectorizers stays the same though. It's just the actual embedding
+generation that is done by the vectorizer-worker.
 
 In this example, if the `contents` field is lengthy, it is split into multiple chunks, 
 resulting in several embeddings for a single blog post. Chunking helps
@@ -114,7 +126,7 @@ SELECT ai.create_vectorizer(
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_openai('text-embedding-3-small', 768),
     chunking => ai.chunking_recursive_character_text_splitter('contents'),
-    formatting => ai.formatting_python_template('$title: $chunk'),
+    formatting => ai.formatting_python_template('$title: $chunk')
 );
 ```
 
@@ -140,13 +152,15 @@ The view includes all columns from the blog table, plus the following additional
 To find the closest embeddings to a query, use this canonical SQL query:
 
 ```sql
-SELECT 
-   chunk,
-   embedding <=> <query embedding> as distance
+SELECT chunk,
+   embedding <=> ai.openai_embed('text-embedding-3-small', 'my query string', _dimensions=>768)  as distance
 FROM blog_contents_embeddings
-ORDER BY distance 
-LIMIT 10;
+ORDER BY distance
+   LIMIT 10;
 ```
+The `openai_embed` function generates an embedding for the provided string. The
+`<=>` operator calculates the distance between the query embedding and each
+row's embedding vector. So this is a simple way to do semantic search.
 
 You can combine this with metadata filters by adding a WHERE clause:
 
@@ -195,7 +209,7 @@ SELECT ai.create_vectorizer(
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_openai('text-embedding-3-small', 768),
     chunking => ai.chunking_recursive_character_text_splitter('contents', chunk_size => 700),
-    formatting => ai.formatting_python_template('$title - by $author - $chunk'),
+    formatting => ai.formatting_python_template('$title - by $author - $chunk')
 );
 ```
 
@@ -243,7 +257,7 @@ SELECT ai.create_vectorizer(
     chunking => ai.chunking_recursive_character_text_splitter('contents', chunk_size => 700),
     formatting => ai.formatting_python_template('$title - by $author - $chunk'),
     indexing => ai.indexing_none(),
-    scheduling => ai.scheduling_none(),
+    scheduling => ai.scheduling_none()
 );
 ```
 

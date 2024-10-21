@@ -1,4 +1,3 @@
-
 # Run vectorizers in a self-hosted database using Vectorizer CLI
 
 When you install pgai on Timescale Cloud or another cloud installation, you use 
@@ -22,6 +21,11 @@ This page shows you how to install and run and manage the workers that run the v
 
 To be able to run vectorizers in your self-hosted database:
 
+**Prerequisites**
+- A Python 3.11+ installation
+- A Postgres database with the `pgai` extension installed
+- [An OpenAI API key ](https://platform.openai.com/docs/api-reference/api-keys)
+
 1. **Install [pgai](https://pypi.org/project/pgai/) from PyPI**
 
    ```bash
@@ -30,37 +34,26 @@ To be able to run vectorizers in your self-hosted database:
 
    The Vectorizer CLI, `vectorizer` is now in your `$PATH`.
 
-1. **Setup the connection to your self-hosted database**
+2. **Run the vectorizer worker**
 
-   Specify a [Postgres connection string](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING) 
-     using either:
+   To run the vectorizer worker, you need to set the connection string to your self-hosted database 
+   and the API key for the external embeddings provider as environment variables:
+   
+   ```bash
+   export VECTORIZER_DB_URL="postgres://user:password@host:port/dbname"
+   export OPENAI_API_KEY="Your OpenAI API key"
+   ```
+ 
+   Then run the vectorizer worker:
 
-     - The `-d` or `--db-url` command line argument:
-       ```bash
-       vectorizer -d "postgres://user:password@host:port/dbname"
-       ```
-     - The `VECTORIZER_DB_URL` environment variable:
-       ```bash
-       export VECTORIZER_DB_URL="postgres://user:password@host:port/dbname"
-       vectorizer
-       ```
-
-      If you do not configure the connection string, the default value is 
-      `postgres://postgres@localhost:5432/postgres`.
-
-1. **Configure your API keys**
-
-    For each vectorizer that you define in a self-hosted database, you must 
-    [specify the name of the API key](./vectorizer-api-reference.md#embedding-configuration) used to 
-    securely connect to the external embeddings provider. For a worker in Vectorizer CLI to 
-    run the vectorizers in your database, you need to set the value of your API key in an environment 
-    variable that matches the API key name defined for the vectorizer. For example, if your API key 
-    name is `OPENAI_API_KEY`:
-  
-    ```bash
-    export OPENAI_API_KEY="Your OpenAI API key"
-    vectorizer
-    ```
+   ```bash
+   vectorizer
+   ```
+   
+   You can also specify the connection string as a cli argument via the `-d` or `--db-url` argument:
+   ```bash
+   vectorizer -d "postgres://user:password@host:port/dbname"
+   ```
 
 ## Run vectorizers workers from Vectorizer CLI
 
