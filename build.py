@@ -543,10 +543,10 @@ def test_server() -> None:
 
 def vectorizer() -> None:
     if where_am_i() == "host":
-        cmd = "docker exec -it pgai vectorizer --version"
+        cmd = "docker exec -it pgai pgai vectorizer-worker --version"
         subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=root_dir())
     else:
-        cmd = "vectorizer --version"
+        cmd = "pgai vectorizer-worker --version"
         subprocess.run(
             cmd,
             shell=True,
