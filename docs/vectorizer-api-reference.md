@@ -404,7 +404,7 @@ Key points about indexing:
 
 The available functions are:
 
-- [ai.indexing_none](#aiindexing_none): when you want manual control over when indexes are created.
+- [ai.indexing_none](#aiindexing_none): when you do not want indexes created automatically.
 - [ai.indexing_diskann](#aiindexing_diskann): configure indexing using the [DiskANN algorithm](https://github.com/timescale/pgvectorscale).
 - [ai.indexing_hnsw](#aiindexing_hnsw): configure indexing using the [Hierarchical Navigable Small World (HNSW) algorithm](https://en.wikipedia.org/wiki/Hierarchical_navigable_small_world).
 
