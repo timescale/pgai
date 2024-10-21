@@ -23,6 +23,6 @@ select ai.create_vectorizer
 , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
 , scheduling=>ai.scheduling_none()
 , indexing=>ai.indexing_none()
-, grant_to=>null
+, grant_to=>ai.grant_to('bob')
 );
 

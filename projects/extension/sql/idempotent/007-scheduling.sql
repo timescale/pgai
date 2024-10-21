@@ -12,6 +12,18 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- scheduling_default
+create or replace function ai.scheduling_default() returns jsonb
+as $func$
+    select pg_catalog.jsonb_build_object
+    ( 'implementation', 'default'
+    , 'config_type', 'scheduling'
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- scheduling_timescaledb
 create or replace function ai.scheduling_timescaledb
 ( schedule_interval interval default interval '5m'
@@ -33,6 +45,25 @@ $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-------------------------------------------------------------------------------
+-- _resolve_scheduling_default
+create or replace function ai._resolve_scheduling_default() returns jsonb
+as $func$
+declare
+    _setting text;
+begin
+    select pg_catalog.current_setting('ai.scheduling_default', missing_ok=>true) into _setting;
+    case _setting
+        when 'scheduling_timescaledb' then
+            return ai.scheduling_timescaledb();
+        when 'scheduling_none' then
+            return ai.scheduling_none();
+    end case;
+    return ai.scheduling_none();
+end;
+$func$ language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
 
 -------------------------------------------------------------------------------
 -- _validate_scheduling

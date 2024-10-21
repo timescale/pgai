@@ -12,6 +12,18 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- indexing_default
+create or replace function ai.indexing_default() returns jsonb
+as $func$
+    select jsonb_build_object
+    ( 'implementation', 'default'
+    , 'config_type', 'indexing'
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- indexing_diskann
 create or replace function ai.indexing_diskann
 ( min_rows int default 100000
@@ -38,6 +50,28 @@ as $func$
     absent on null
     )
 $func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _resolve_indexing_default
+create or replace function ai._resolve_indexing_default() returns jsonb
+as $func$
+declare
+    _setting text;
+begin
+    select pg_catalog.current_setting('ai.indexing_default', missing_ok=>true) into _setting;
+    case _setting
+        when 'indexing_diskann' then
+            return ai.indexing_diskann();
+        when 'indexing_hnsw' then
+            return ai.indexing_hnsw();
+        when 'indexing_none' then
+            return ai.indexing_none();
+    end case;
+    return ai.indexing_none();
+end;
+$func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
