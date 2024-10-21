@@ -9,6 +9,7 @@ from typing import Any, Literal, TypeAlias
 import openai
 import structlog
 import tiktoken
+from datadog_lambda.metric import lambda_metric
 from ddtrace import tracer
 from openai import resources
 from pydantic import BaseModel
@@ -304,11 +305,10 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
                         encoding_format="float",
                     )
                     request_duration = time.perf_counter() - start_time
-                    if current_span:
-                        current_span.set_metric(
-                            "embeddings.embedder.create_request.time.seconds",
-                            request_duration,
-                        )
+                    lambda_metric(
+                        metric_name='embeddings.embedder.create_request.time.seconds',
+                        value=request_duration
+                    )
 
                     await logger.adebug(
                         f"OpenAI Request {batch_num} of {num_of_batches} "
@@ -321,20 +321,19 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
 
             embedding_stats.add_request_time(total_duration, len(encoded_documents))
             await embedding_stats.print_stats()
-            current_span = tracer.current_span()
-            if current_span:
-                current_span.set_metric(
-                    "embeddings.embedder.all_create_requests.time.seconds",
-                    embedding_stats.total_request_time,
-                )
-                current_span.set_metric(
-                    "embeddings.embedder.all_create_requests.wall_time.seconds",
-                    embedding_stats.wall_time,
-                )
-                current_span.set_metric(
-                    "embeddings.embedder.all_create_requests.chunks.rate",
-                    embedding_stats.chunks_per_second(),
-                )
+
+            lambda_metric(
+                metric_name='embeddings.embedder.all_create_requests.time.seconds',
+                value=embedding_stats.total_request_time
+            )
+            lambda_metric(
+                metric_name='embeddings.embedder.all_create_requests.wall_time.seconds',
+                value=embedding_stats.wall_time
+            )
+            lambda_metric(
+                metric_name='embeddings.embedder.all_create_requests.chunks.rate',
+                value=embedding_stats.chunks_per_second()
+            )
 
             return response
 
