@@ -161,6 +161,7 @@ class TimeDurationParamType(click.ParamType):
 @click.option(
     "--once",
     type=click.BOOL,
+    is_flag=True,
     default=False,
     show_default=True,
     help="Exit after processing all available work.",
