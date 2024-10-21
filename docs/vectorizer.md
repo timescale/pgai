@@ -46,7 +46,7 @@ textual, data analysis and semantic search:
 
 Before using Vectorizer, you need to setup your API keys for the embedding
 service you are using. To store several API keys, you give each key a name and
-referencing them in the `embedding` section of the Vectorizer configuration. The default
+reference them in the `embedding` section of the Vectorizer configuration. The default
 API key names match the embedding provider's default name. For example, for OpenAI, the default 
 key name is `OPENAI_API_KEY`.
 
@@ -225,7 +225,7 @@ feature will not work if scheduling is disabled.
 
 ## Control the vectorizer run time 
 
-When you use Vectorizer on Timescale Cloud or another cloud installation, you use 
+When you use Vectorizer on Timescale Cloud, you use 
 scheduling to control the time when vectorizers run. A scheduled job checks if
 there is work to be done and, if so, runs the cloud function to embed the data.
 By default, scheduling uses TimescaleDB background jobs running every five minutes.
