@@ -106,12 +106,7 @@ SELECT ai.create_vectorizer(
     embedding => ai.embedding_openai('text-embedding-3-small', 768),
     chunking => ai.chunking_character_text_splitter('body', 128, 10),
     formatting => ai.formatting_python_template('title: $title published: $published $chunk'),
-    scheduling => ai.scheduling_timescaledb(
-        interval '5m',
-        initial_start => '2025-01-06'::timestamptz,
-        timezone => 'America/Chicago'
-    ),
-    grant_to => array['bob', 'alice']
+    grant_to => ai.grant_to('bob', 'alice')
 );
 ```
 
@@ -120,8 +115,7 @@ This function call:
 2. Uses OpenAI's `text-embedding-3-small` model to create 768 dimensional embeddings.
 3. Chunks the `body` column into 128-character pieces with a 10-character overlap.
 4. Formats each chunk with a `title` and a `published` date.
-5. Schedules the vectorizer to run every `5` minutes starting from a date in the future.
-6. Grants necessary permissions to the roles `bob` and `alice`.
+5. Grants necessary permissions to the roles `bob` and `alice`.
 
 The function returns an integer identifier for the vectorizer created, which you can use
 in other management functions.
@@ -131,23 +125,23 @@ in other management functions.
 `ai.create_vectorizer` takes the following parameters:
 
 | Name             | Type                                                   | Default                           | Required | Description                                                                                        |
-|------------------|--------------------------------------------------------|-----------------------------------|-|----------------------------------------------------------------------------------------------------|
-| source           | regclass                                               | -                                 |✔| The source table that embeddings are generated for.                                                |
-| destination      | name                                                   | -                                 | ✖| A name for the table the embeddings are stored in.                                                 |
-| embedding        | [Embedding configuration](#embedding-configuration)    | -                                 |✔| Set the embedding process using `ai.embedding_openai()` to specify the model and dimensions.       |
-| chunking         | [Chunking configuration](#chunking-configuration)      | -                                 |✔| Set the way to split text data, using functions like `ai.chunking_character_text_splitter()`.      |
-| indexing         | [Indexing configuration](#indexing-configuration)      | `ai.indexing_diskann()`           |✖| Specify how to index the embeddings. For example, `ai.indexing_diskann()` or `ai.indexing_hnsw()`. |
-| formatting       | [Formatting configuration](#formatting-configuration)  | `ai.formatting_python_template()` | ✖| Define the data format before embedding, using `ai.formatting_python_template()`.                  |
-| scheduling       | [Scheduling configuration](#scheduling-configuration)  | `ai.scheduling_timescaledb()`     |✖| Set how often to run the vectorizer. For example, `ai.scheduling_timescaledb()`.                   |
-| processing       | [Processing configuration](#processing-configuration ) | `ai.processing_default()`         |✖| Configure the way to process the embeddings.                                                       |
-| target_schema    | name                                                   | -                                 |✖| Specify the schema where the embeddings will be stored.                                            |
-| target_table     | name                                                   | -                                 |✖| Specify name of the table where the embeddings will be stored.                                     |
-| view_schema      | name                                                   | -                                 |✖| Specify the schema where the view is created.                                                      |
-| view_name        | name                                                   | -                                 |✖| Specify the name of the view to be created.                                                        |
-| queue_schema     | name                                                   | -                                 |✖| Specify the schema where the work queue table is created..                                         |
-| queue_table      |  name                                                      | -                                 |✖| Specify the name of the work queue table.                                                          |
-| grant_to         | name[]                                                  | `array['tsdbadmin']`              |✖ | An array containing the role names to grant permissions to.                                        |
-| enqueue_existing | bool                                                   | `true`                             |✖| Set to `true` if existing rows should be immediately queued for embedding.                         |
+|------------------|--------------------------------------------------------|-----------------------------------|----------|----------------------------------------------------------------------------------------------------|
+| source           | regclass                                               | -                                 | ✔        | The source table that embeddings are generated for.                                                |
+| destination      | name                                                   | -                                 | ✖        | A name for the table the embeddings are stored in.                                                 |
+| embedding        | [Embedding configuration](#embedding-configuration)    | -                                 | ✔        | Set the embedding process using `ai.embedding_openai()` to specify the model and dimensions.       |
+| chunking         | [Chunking configuration](#chunking-configuration)      | -                                 | ✔        | Set the way to split text data, using functions like `ai.chunking_character_text_splitter()`.      |
+| indexing         | [Indexing configuration](#indexing-configuration)      | `ai.indexing_default()`           | ✖        | Specify how to index the embeddings. For example, `ai.indexing_diskann()` or `ai.indexing_hnsw()`. |
+| formatting       | [Formatting configuration](#formatting-configuration)  | `ai.formatting_python_template()` | ✖        | Define the data format before embedding, using `ai.formatting_python_template()`.                  |
+| scheduling       | [Scheduling configuration](#scheduling-configuration)  | `ai.scheduling_default()`         | ✖        | Set how often to run the vectorizer. For example, `ai.scheduling_timescaledb()`.                   |
+| processing       | [Processing configuration](#processing-configuration ) | `ai.processing_default()`         | ✖        | Configure the way to process the embeddings.                                                       |
+| target_schema    | name                                                   | -                                 | ✖        | Specify the schema where the embeddings will be stored.                                            |
+| target_table     | name                                                   | -                                 | ✖        | Specify name of the table where the embeddings will be stored.                                     |
+| view_schema      | name                                                   | -                                 | ✖        | Specify the schema where the view is created.                                                      |
+| view_name        | name                                                   | -                                 | ✖        | Specify the name of the view to be created.                                                        |
+| queue_schema     | name                                                   | -                                 | ✖        | Specify the schema where the work queue table is created..                                         |
+| queue_table      | name                                                   | -                                 | ✖        | Specify the name of the work queue table.                                                          |
+| grant_to         | [Grant To configuration][#grant-to-configuration]      | `ai.grant_to_default()`           | ✖        | Specify which users should be able to use objects created by the vectorizer.                       |
+| enqueue_existing | bool                                                   | `true`                            | ✖        | Set to `true` if existing rows should be immediately queued for embedding.                         |
 
 
 #### Returns
@@ -404,9 +398,34 @@ Key points about indexing:
 
 The available functions are:
 
+- [ai.indexing_default](#aiindexing_default): when you do not want indexes created automatically.
 - [ai.indexing_none](#aiindexing_none): when you do not want indexes created automatically.
 - [ai.indexing_diskann](#aiindexing_diskann): configure indexing using the [DiskANN algorithm](https://github.com/timescale/pgvectorscale).
 - [ai.indexing_hnsw](#aiindexing_hnsw): configure indexing using the [Hierarchical Navigable Small World (HNSW) algorithm](https://en.wikipedia.org/wiki/Hierarchical_navigable_small_world).
+
+### ai.indexing_default
+
+You use `ai.indexing_default` to use the platform-specific default value for indexing.
+
+On Timescale Cloud, the default is `ai.indexing_diskann()`. On self-hosted, the default is `ai.indexing_none()`.
+
+#### Example usage
+
+```sql
+  SELECT ai.create_vectorizer(
+      'blog_posts'::regclass,
+      indexing => ai.indexing_default(),
+      -- other parameters...
+  );
+```
+
+#### Parameters
+
+This function takes no parameters.
+
+#### Returns
+
+A JSON configuration object that you can use as an argument for [ai.create_vectorizer](#create-vectorizers).
 
 ### ai.indexing_none
 
@@ -518,9 +537,34 @@ considerations.
 
 The available functions are:
 
+- [ai.scheduling_default](#aischeduling_default): to use the plwhen you want manual control over when the vectorizer runs. Use this when you're using an external scheduling system, as is the case with self-hosted deployments.
 - [ai.scheduling_none](#aischeduling_none): when you want manual control over when the vectorizer runs. Use this when you're using an external scheduling system, as is the case with self-hosted deployments.
 - [ai.scheduling_timescaledb](#aischeduling_timescaledb): leverages TimescaleDB's robust job scheduling system, which is designed for reliability and scalability. Use this when you're using Timescale Cloud.
 
+
+### ai.scheduling_default
+
+You use `ai.scheduling_default` to use the platform-specific default scheduling configuration.
+
+On Timescale Cloud, the default is `ai.scheduling_timescaledb()`. On self-hosted, the default is `ai.scheduling_none()`.
+
+#### Example usage
+
+```sql
+SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    scheduling => ai.scheduling_default(),
+    -- other parameters...
+);
+```
+
+#### Parameters
+
+This function takes no parameters.
+
+#### Returns
+
+A JSON configuration object that you can use as an argument for [ai.create_vectorizer](#create-vectorizers).
 
 ### ai.scheduling_none
 
@@ -652,6 +696,78 @@ You use `ai.processing_default` to specify the concurrency and batch size for th
 
 A JSON configuration object that you can use as an argument for [ai.create_vectorizer](#create-vectorizers).
 
+## Grant To configuration
+
+You use the grant to configuration functions in pgai to specify which users should be able to use
+objects created by the vectorizer.
+
+### ai.grant_to_default
+
+You use `ai.grant_to_default` to use the platform-specific default scheduling configuration.
+
+On Timescale Cloud, the default is `ai.grant_to_timescale()`. On self-hosted, the default is `ai.grant_to()`.
+
+#### Example usage
+
+```sql
+  SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    grant_to => ai.grant_to_default(),
+    -- other parameters...
+  );
+```
+
+#### Parameters
+
+This function takes no parameters.
+
+#### Returns
+
+A JSON configuration object that you can use as an argument for [ai.create_vectorizer](#create-vectorizers).
+
+### ai.grant_to_timescale
+
+Grant permissions to a comma-separated list of users, as well as the default user on Timescale Cloud (`tsdbadmin`).
+
+#### Example usage
+
+```sql
+  SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    grant_to => ai.grant_to_timescale('bob', 'alice'),
+    -- other parameters...
+  );
+```
+
+#### Parameters
+
+This function takes a comma-separated list of usernames to grant permissions to.
+
+#### Returns
+
+A JSON configuration object that you can use as an argument for [ai.create_vectorizer](#create-vectorizers).
+
+### ai.grant_to
+
+Grant permissions to a comma-separated list of users.
+
+#### Example usage
+
+```sql
+  SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    grant_to => ai.grant_to('bob', 'alice'),
+    -- other parameters...
+  );
+```
+
+#### Parameters
+
+This function takes a comma-separated list of usernames to grant permissions to.
+
+#### Returns
+
+A JSON configuration object that you can use as an argument for [ai.create_vectorizer](#create-vectorizers).
 
 ## Enable and disable vectorizer schedules
 
