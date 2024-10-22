@@ -408,6 +408,8 @@ The available functions are:
 You use `ai.indexing_default` to use the platform-specific default value for indexing.
 
 On Timescale Cloud, the default is `ai.indexing_diskann()`. On self-hosted, the default is `ai.indexing_none()`.
+A timescaledb background job is used for automatic index creation. Since timescaledb may not be installed
+in a self-hosted environment, we default to `ai.indexing_none()`.
 
 #### Example usage
 
@@ -547,6 +549,8 @@ The available functions are:
 You use `ai.scheduling_default` to use the platform-specific default scheduling configuration.
 
 On Timescale Cloud, the default is `ai.scheduling_timescaledb()`. On self-hosted, the default is `ai.scheduling_none()`.
+A timescaledb background job is used to periodically trigger a cloud vectorizer on Timescale Cloud.
+This is not available in a self-hosted environment.
 
 #### Example usage
 
