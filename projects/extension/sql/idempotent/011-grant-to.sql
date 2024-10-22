@@ -46,7 +46,7 @@ declare
 begin
     select pg_catalog.current_setting('ai.grant_to_default', true) into _setting;
     case _setting
-        when 'grant_to_timesale' then
+        when 'grant_to_timescale' then
             return ai.grant_to_timescale();
         when 'grant_to' then
             return ai.grant_to();
