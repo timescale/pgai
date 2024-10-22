@@ -155,7 +155,7 @@ SELECT chunk,
    embedding <=> ai.openai_embed('text-embedding-3-small', 'my query string', _dimensions=>768)  as distance
 FROM blog_contents_embeddings
 ORDER BY distance
-   LIMIT 10;
+LIMIT 10;
 ```
 The `openai_embed` function generates an embedding for the provided string. The
 `<=>` operator calculates the distance between the query embedding and each
