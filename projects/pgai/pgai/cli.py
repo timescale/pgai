@@ -117,7 +117,7 @@ class TimeDurationParamType(click.ParamType):
             )
 
 
-@click.command()
+@click.command(name="worker")
 @click.version_option(version=__version__)
 @click.option(
     "-d",
@@ -166,7 +166,7 @@ class TimeDurationParamType(click.ParamType):
     show_default=True,
     help="Exit after processing all available work.",
 )
-def run(
+def vectorizer_worker(
     db_url: str,
     vectorizer_ids: Sequence[int] | None,
     concurrency: int,
@@ -202,3 +202,19 @@ def run(
             return
         time.sleep(poll_interval)
         log.info(f"sleeping for {poll_interval_str} before polling for new work")
+
+
+@click.group()
+@click.version_option(version=__version__)
+def vectorizer():
+    pass
+
+
+@click.group()
+@click.version_option(version=__version__)
+def cli():
+    pass
+
+
+vectorizer.add_command(vectorizer_worker)
+cli.add_command(vectorizer)

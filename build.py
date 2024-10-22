@@ -543,10 +543,10 @@ def test_server() -> None:
 
 def vectorizer() -> None:
     if where_am_i() == "host":
-        cmd = "docker exec -it pgai vectorizer --version"
+        cmd = "docker exec -it pgai pgai vectorizer-worker --version"
         subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=root_dir())
     else:
-        cmd = "vectorizer --version"
+        cmd = "pgai vectorizer-worker --version"
         subprocess.run(
             cmd,
             shell=True,
@@ -586,6 +586,12 @@ def lint() -> None:
 def format_py() -> None:
     subprocess.run(
         f"ruff format --diff {projects_dir()}", shell=True, check=True, env=os.environ
+    )
+
+
+def type_check_py() -> None:
+    subprocess.run(
+        "pyright", shell=True, check=True, env=os.environ, cwd=project_pgai_dir()
     )
 
 
@@ -739,6 +745,8 @@ if __name__ == "__main__":
             lint()
         elif action == "format-py":
             format_py()
+        elif action == "type-check-py":
+            type_check_py()
         elif action == "docker-build":
             docker_build()
         elif action == "docker-build-vec":

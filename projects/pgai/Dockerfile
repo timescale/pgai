@@ -11,5 +11,5 @@ RUN pip3 install --no-cache-dir --disable-pip-version-check --compile --root-use
 USER pgaiuser
 COPY pyproject.toml /app
 COPY pgai /app/pgai
-ENTRYPOINT [ "python", "-m", "pgai" ]
+ENTRYPOINT ["python", "-m", "pgai", "vectorizer", "worker"]
 CMD ["-c", "4"]
