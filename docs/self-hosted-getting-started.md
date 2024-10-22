@@ -23,12 +23,12 @@ a self-hosted database instance with automatic embedding vectorization:
           - ./data:/var/lib/postgresql/data
     
       vectorizer:
-        image: timescale/pgai-vectorizer-worker
+        image: timescale/pgai-vectorizer-worker:rc
         environment:
           VECTORIZER_DB_URL: postgres://postgres:postgres@db:5432/postgres
           OPENAI_API_KEY: your-api-key
         depends_on:
-          - timescaledb
+          - db
     ```
 
 2. Connect to your db instance with your DB client of choice. We need to enable the pgai extension and create a simple blog table with the following schema:
@@ -64,20 +64,23 @@ a self-hosted database instance with automatic embedding vectorization:
        'blog'::regclass,
        destination => 'blog_contents_embeddings',
        embedding => ai.embedding_openai('text-embedding-3-small', 768),
-       chunking => ai.chunking_recursive_character_text_splitter('contents')
+       chunking => ai.chunking_recursive_character_text_splitter('contents'),
+       scheduling => ai.scheduling_none()
     );
     ```
     If you check the logs of the vectorizer worker, you should see that it has picked up the table and is processing it.
 
 
-5. Now we can run a simple semantic search query to see the embeddings in action:
+5. You'll need to restart the vectorizer now, since it fails to run if pgai is not installed or no vectorizer is defined yet. A simple `docker-compose up -d` should do the trick.
+
+
+6. Now we can run a simple semantic search query to see the embeddings in action:
     ```sql
     SELECT
         chunk,
         embedding <=>  ai.openai_embed('text-embedding-3-small', 'pgai', _dimensions=>768) as distance
     FROM blog_contents_embeddings
-    ORDER BY distance
-    LIMIT 10;
+    ORDER BY distance;
     ```
  
     The results should look somewhat like this:
@@ -91,6 +94,6 @@ a self-hosted database instance with automatic embedding vectorization:
     | Cloud computing has revolutionized the way businesses operate... | 0.958 |
 
 
-That's it you're done. You now have a table in postgres for which pgai automatically creates and syncs embeddings for you so you can use it for semantic search or a RAG application or any other AI application you can think of!
+That's it, you're done. You now have a table in postgres for which pgai automatically creates and syncs embeddings for you so you can use it for semantic search or a RAG application or any other AI application you can think of!
 
 
