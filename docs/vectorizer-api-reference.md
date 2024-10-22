@@ -537,7 +537,7 @@ considerations.
 
 The available functions are:
 
-- [ai.scheduling_default](#aischeduling_default): to use the plwhen you want manual control over when the vectorizer runs. Use this when you're using an external scheduling system, as is the case with self-hosted deployments.
+- [ai.scheduling_default](#aischeduling_default): uses the platform-specific default scheduling configuration. On Timescale Cloud this is equivalent to `ai.scheduling_timescaledb()`. On self-hosted deployments, this is equivalent to `ai.scheduling_none()`.
 - [ai.scheduling_none](#aischeduling_none): when you want manual control over when the vectorizer runs. Use this when you're using an external scheduling system, as is the case with self-hosted deployments.
 - [ai.scheduling_timescaledb](#aischeduling_timescaledb): leverages TimescaleDB's robust job scheduling system, which is designed for reliability and scalability. Use this when you're using Timescale Cloud.
 
