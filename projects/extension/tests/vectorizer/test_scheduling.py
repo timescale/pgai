@@ -99,6 +99,52 @@ def test_scheduling_timescaledb():
                     assert k in expected and v == expected[k]
 
 
+@pytest.mark.parametrize(
+    "setting,expected",
+    [
+        (
+            None,  # default case - no setting
+            {
+                "implementation": "none",
+                "config_type": "scheduling",
+            },
+        ),
+        (
+            "scheduling_timescaledb",
+            {
+                "implementation": "timescaledb",
+                "config_type": "scheduling",
+                "schedule_interval": "00:05:00",
+            },
+        ),
+        (
+            "scheduling_none",
+            {
+                "implementation": "none",
+                "config_type": "scheduling",
+            },
+        ),
+        (
+            "invalid_value",  # should default to none
+            {
+                "implementation": "none",
+                "config_type": "scheduling",
+            },
+        ),
+    ],
+)
+def test_scheduling_default(setting, expected):
+    with psycopg.connect(db_url("test")) as con:
+        with con.cursor() as cur:
+            if setting is not None:
+                cur.execute(f"set ai.scheduling_default = %s", (setting,))
+            cur.execute("select ai._resolve_scheduling_default()")
+            actual = cur.fetchone()[0]
+            assert actual.keys() == expected.keys()
+            for k, v in actual.items():
+                assert k in expected and v == expected[k]
+
+
 def test_validate_scheduling():
     ok = [
         "select ai._validate_scheduling(ai.scheduling_none())",
