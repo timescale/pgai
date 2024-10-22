@@ -1,7 +1,7 @@
 # Quick Start: Run a self-hosted database instance with automatic vectorization
 
 If you want to see how it works, follow these steps to setup 
-a self-hosted database instance with automatic embedding vectorization:
+a self-hosted database instance with automatic embedding vectorization. If you get stuck anywhere check out the [troubleshooting section](#troubleshooting) at the bottom or reach out on [Discord](https://discord.gg/KRdHVXAmkp).
 
 ## Pre-requisites
 - Docker installed on your machine
@@ -9,8 +9,9 @@ a self-hosted database instance with automatic embedding vectorization:
 
 ## Setup
 
-1. Run the following docker-compose file to start a TimescaleDB instance and the Vectorizer worker: 
+1. Copy this docker-compose file onto your machine and replace `your-api-key` with your OpenAI API key: 
     ```yaml
+    name: pgai
     services:
       db:
         image: timescale/timescaledb-ha:cicd-024349a-arm64
@@ -21,17 +22,15 @@ a self-hosted database instance with automatic embedding vectorization:
           - "5432:5432"
         volumes:
           - ./data:/var/lib/postgresql/data
-    
-      pgai-vectorizer-worker:
+      vectorizer-worker:
         image: timescale/pgai-vectorizer-worker:0.1.0rc4
         environment:
           VECTORIZER_DB_URL: postgres://postgres:postgres@db:5432/postgres
           OPENAI_API_KEY: your-api-key
-        depends_on:
-          - db
     ```
+    Save it as `docker-compose.yml` and run `docker-compose up -d db` in the same directory as the file to start the database.
 
-2. Connect to your db instance with your DB client of choice. We need to enable the pgai extension and create a simple blog table with the following schema:
+2. Connect to your db instance with your DB client of choice. Or simply run `docker exec -it pgai-db-1 psql -U postgres`. We need to enable the pgai extension and create a simple blog table with the following schema:
     ```sql
     CREATE EXTENSION IF NOT EXISTS ai CASCADE;
     CREATE TABLE blog (
@@ -43,7 +42,7 @@ a self-hosted database instance with automatic embedding vectorization:
     );
     ```
    
-3. Insert some data into your new table. E.g. you can run these insert statements:
+3. Next up we should insert some data into your new table. E.g. you can run these insert statements:
     ```sql
     INSERT INTO blog (title, authors, contents, metadata)
     VALUES
@@ -71,10 +70,11 @@ a self-hosted database instance with automatic embedding vectorization:
     If you check the logs of the vectorizer worker, you should see that it has picked up the table and is processing it.
 
 
-5. You'll need to restart the vectorizer now, since it fails to run if pgai is not installed or no vectorizer is defined yet. A simple `docker-compose up -d` should do the trick.
+5. Now we can start the vectorizer worker by running `docker-compose up -d vectorizer-worker`. This will start the worker and will start processing the rows according to the vectorizer we just created.
 
 
-6. Now we can run a simple semantic search query to see the embeddings in action:
+6. Now we can run a simple semantic search query to see the embeddings in action, we search for "pgai" here but you can search anything you like:
+
     ```sql
     SELECT
         chunk,
@@ -82,7 +82,7 @@ a self-hosted database instance with automatic embedding vectorization:
     FROM blog_contents_embeddings
     ORDER BY distance;
     ```
- 
+     
     The results should look somewhat like this:
     
     | chunk | distance |
@@ -96,4 +96,9 @@ a self-hosted database instance with automatic embedding vectorization:
 
 That's it, you're done. You now have a table in postgres for which pgai automatically creates and syncs embeddings for you so you can use it for semantic search or a RAG application or any other AI application you can think of!
 
+## Troubleshooting
+If you run into any issues these commands might be helpful:
+- `docker-compose logs -f pgai-vectorizer-worker` to see the logs of the vectorizer worker
+- `docker-compose logs -f db` to see the logs of the database
+- `select ai.vectorizer_queue_pending(1) \watch` to see the status of your vectorizer queue
 
