@@ -68,13 +68,6 @@ Timescale Cloud or on a self-hosted Postgres server.
   export OPENAI_API_KEY="Your OpenAI API key"
   ```
 
-To validate that your API key is set correctly, run the following SQL query:
-```sql
-SELECT *
-FROM ai.openai_list_models();
-```
-If you get a list of available models you are all set.
-
 ## Define a vectorizer
 
 You can configure the system to automatically generate and update embeddings
