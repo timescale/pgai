@@ -22,8 +22,8 @@ a self-hosted database instance with automatic embedding vectorization:
         volumes:
           - ./data:/var/lib/postgresql/data
     
-      vectorizer:
-        image: timescale/pgai-vectorizer-worker:rc
+      pgai-vectorizer-worker:
+        image: timescale/pgai-vectorizer-worker:0.1.0rc4
         environment:
           VECTORIZER_DB_URL: postgres://postgres:postgres@db:5432/postgres
           OPENAI_API_KEY: your-api-key
