@@ -3199,6 +3199,33 @@ from ai.vectorizer v
 
 
 --------------------------------------------------------------------------------
+-- 014-secrets.sql
+-------------------------------------------------------------------------------
+-- reveal_secret
+create or replace function ai.reveal_secret(secret_name text) returns text
+as $python$
+    if "ai.version" not in GD:
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        python_lib_dir = r[0]["python_lib_dir"]
+        from pathlib import Path
+        python_lib_dir = Path(python_lib_dir).joinpath("0.4.0")
+        import site
+        site.addsitedir(str(python_lib_dir))
+        from ai import __version__ as ai_version
+        assert("0.4.0" == ai_version)
+        GD["ai.version"] = "0.4.0"
+    else:
+        if GD["ai.version"] != "0.4.0":
+            plpy.fatal("the pgai extension version has changed. start a new session")
+    import ai.vectorizer
+    return ai.secrets.reveal_secret(plpy, secret_name)
+$python$
+language plpython3u volatile security invoker
+set search_path to pg_catalog, pg_temp;
+
+
+
+--------------------------------------------------------------------------------
 -- 999-privileges.sql
 
 -------------------------------------------------------------------------------
