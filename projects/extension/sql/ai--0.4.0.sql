@@ -2714,7 +2714,7 @@ create or replace function ai.create_vectorizer
 , view_name name default null
 , queue_schema name default null
 , queue_table name default null
-, grant_to name[] default ai.grant_to(variadic array[]::name[])
+, grant_to name[] default ai.grant_to()
 , enqueue_existing bool default true
 ) returns int
 as $func$
