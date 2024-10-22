@@ -176,6 +176,10 @@
  f       | bob   | execute   | no      | ai     | grant_ai_usage(to_user name, admin boolean)
  f       | fred  | execute   | no      | ai     | grant_ai_usage(to_user name, admin boolean)
  f       | jill  | execute   | no      | ai     | grant_ai_usage(to_user name, admin boolean)
+ f       | alice | execute   | YES     | ai     | grant_to()
+ f       | bob   | execute   | no      | ai     | grant_to()
+ f       | fred  | execute   | no      | ai     | grant_to()
+ f       | jill  | execute   | YES     | ai     | grant_to()
  f       | alice | execute   | YES     | ai     | grant_to(VARIADIC grantees name[])
  f       | bob   | execute   | no      | ai     | grant_to(VARIADIC grantees name[])
  f       | fred  | execute   | no      | ai     | grant_to(VARIADIC grantees name[])
@@ -272,5 +276,5 @@
  f       | bob   | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer)
  f       | fred  | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer)
  f       | jill  | execute   | YES     | ai     | vectorizer_queue_pending(vectorizer_id integer)
-(272 rows)
+(276 rows)
 

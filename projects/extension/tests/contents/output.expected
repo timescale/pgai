@@ -24,6 +24,7 @@ CREATE EXTENSION
  function ai.execute_vectorizer(integer)
  function ai.formatting_python_template(text)
  function ai.grant_ai_usage(name,boolean)
+ function ai.grant_to()
  function ai.grant_to(name[])
  function ai.indexing_default()
  function ai.indexing_diskann(integer,text,integer,integer,double precision,integer,integer,boolean)
@@ -76,7 +77,7 @@ CREATE EXTENSION
  table ai.vectorizer
  table ai.vectorizer_errors
  view ai.vectorizer_status
-(72 rows)
+(73 rows)
 
                                                               Table "ai.migration"
        Column       |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 

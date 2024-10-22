@@ -18,6 +18,20 @@ def test_grant_to():
         (
             "",
             """
+            select ai.grant_to()
+            """,
+            [],
+        ),
+        (
+            "SET ai.grant_to_default='bob, barry, sal'",  # test spaces
+            """
+            select ai.grant_to()
+            """,
+            ["bob", "barry", "sal"],
+        ),
+        (
+            "",
+            """
             select ai.grant_to('ted')
             """,
             ["ted"],
@@ -29,6 +43,20 @@ def test_grant_to():
             """,
             ["barry", "may", "sal", "bob"],
         ),
+        (
+            "SET ai.grant_to_default='bob , barry , sal '",
+            """
+            select ai.grant_to(variadic array[]::name[])
+            """,
+            ["barry", "sal", "bob"],
+        ),
+        (
+            "",
+            """
+            select ai.grant_to(variadic array[]::name[])
+            """,
+            [],
+        ),
     ]
     with psycopg.connect(db_url("test")) as con:
         with con.cursor() as cur:
@@ -36,4 +64,4 @@ def test_grant_to():
                 cur.execute(setup)
                 cur.execute(query)
                 actual = cur.fetchone()[0]
-                assert actual == expected
+                assert actual.sort() == expected.sort()
