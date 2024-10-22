@@ -44,7 +44,7 @@ as $func$
 declare
     _setting text;
 begin
-    select pg_catalog.current_setting('ai.grant_to_default', missing_ok=>true) into _setting;
+    select pg_catalog.current_setting('ai.grant_to_default', true) into _setting;
     case _setting
         when 'grant_to_timesale' then
             return ai.grant_to_timescale();

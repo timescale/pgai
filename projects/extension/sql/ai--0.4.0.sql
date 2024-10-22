@@ -1467,7 +1467,7 @@ as $func$
 declare
     _setting text;
 begin
-    select pg_catalog.current_setting('ai.scheduling_default', missing_ok=>true) into _setting;
+    select pg_catalog.current_setting('ai.scheduling_default', true) into _setting;
     case _setting
         when 'scheduling_timescaledb' then
             return ai.scheduling_timescaledb();
@@ -1639,13 +1639,13 @@ as $func$
 declare
     _setting text;
 begin
-    select pg_catalog.current_setting('ai.indexing_default', missing_ok=>true) into _setting;
+    select pg_catalog.current_setting('ai.indexing_default', true) into _setting;
     case _setting
         when 'indexing_diskann' then
             return ai.indexing_diskann();
         when 'indexing_hnsw' then
             return ai.indexing_hnsw();
-        when 'indexing_none' then
+        else
             return ai.indexing_none();
     end case;
     return ai.indexing_none();
@@ -1840,7 +1840,7 @@ as $func$
     select jsonb_build_object
     ( 'implementation', 'timescale'
     , 'config_type', 'grant_to'
-    , 'grant_to', jsonb_build_array('tsdbadmin') operator(pg_catalog.||) pg_catalog.to_jsonb(grantees)
+    , 'grant_to', pg_catalog.jsonb_build_array('tsdbadmin') operator(pg_catalog.||) pg_catalog.to_jsonb(grantees)
     )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
@@ -1878,7 +1878,7 @@ as $func$
 declare
     _setting text;
 begin
-    select pg_catalog.current_setting('ai.grant_to_default', missing_ok=>true) into _setting;
+    select pg_catalog.current_setting('ai.grant_to_default', true) into _setting;
     case _setting
         when 'grant_to_timesale' then
             return ai.grant_to_timescale();

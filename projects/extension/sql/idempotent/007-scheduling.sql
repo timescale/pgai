@@ -52,7 +52,7 @@ as $func$
 declare
     _setting text;
 begin
-    select pg_catalog.current_setting('ai.scheduling_default', missing_ok=>true) into _setting;
+    select pg_catalog.current_setting('ai.scheduling_default', true) into _setting;
     case _setting
         when 'scheduling_timescaledb' then
             return ai.scheduling_timescaledb();

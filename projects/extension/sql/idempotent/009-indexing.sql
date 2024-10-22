@@ -60,13 +60,13 @@ as $func$
 declare
     _setting text;
 begin
-    select pg_catalog.current_setting('ai.indexing_default', missing_ok=>true) into _setting;
+    select pg_catalog.current_setting('ai.indexing_default', true) into _setting;
     case _setting
         when 'indexing_diskann' then
             return ai.indexing_diskann();
         when 'indexing_hnsw' then
             return ai.indexing_hnsw();
-        when 'indexing_none' then
+        else
             return ai.indexing_none();
     end case;
     return ai.indexing_none();
