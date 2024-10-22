@@ -37,4 +37,3 @@ def test_grant_to():
                 cur.execute(query)
                 actual = cur.fetchone()[0]
                 assert actual == expected
-
