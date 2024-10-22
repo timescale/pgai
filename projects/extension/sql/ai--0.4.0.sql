@@ -1427,6 +1427,18 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- scheduling_default
+create or replace function ai.scheduling_default() returns jsonb
+as $func$
+    select pg_catalog.jsonb_build_object
+    ( 'implementation', 'default'
+    , 'config_type', 'scheduling'
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- scheduling_timescaledb
 create or replace function ai.scheduling_timescaledb
 ( schedule_interval interval default interval '5m'
@@ -1448,6 +1460,25 @@ $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-------------------------------------------------------------------------------
+-- _resolve_scheduling_default
+create or replace function ai._resolve_scheduling_default() returns jsonb
+as $func$
+declare
+    _setting text;
+begin
+    select pg_catalog.current_setting('ai.scheduling_default', true) into _setting;
+    case _setting
+        when 'scheduling_timescaledb' then
+            return ai.scheduling_timescaledb();
+        when 'scheduling_none' then
+            return ai.scheduling_none();
+    end case;
+    return ai.scheduling_none();
+end;
+$func$ language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
 
 -------------------------------------------------------------------------------
 -- _validate_scheduling
@@ -1560,6 +1591,18 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- indexing_default
+create or replace function ai.indexing_default() returns jsonb
+as $func$
+    select jsonb_build_object
+    ( 'implementation', 'default'
+    , 'config_type', 'indexing'
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- indexing_diskann
 create or replace function ai.indexing_diskann
 ( min_rows int default 100000
@@ -1586,6 +1629,28 @@ as $func$
     absent on null
     )
 $func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _resolve_indexing_default
+create or replace function ai._resolve_indexing_default() returns jsonb
+as $func$
+declare
+    _setting text;
+begin
+    select pg_catalog.current_setting('ai.indexing_default', true) into _setting;
+    case _setting
+        when 'indexing_diskann' then
+            return ai.indexing_diskann();
+        when 'indexing_hnsw' then
+            return ai.indexing_hnsw();
+        else
+            return ai.indexing_none();
+    end case;
+    return ai.indexing_none();
+end;
+$func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -1766,7 +1831,34 @@ set search_path to pg_catalog, pg_temp
 
 
 --------------------------------------------------------------------------------
--- 011-vectorizer-int.sql
+-- 011-grant-to.sql
+-------------------------------------------------------------------------------
+-- grant_to
+create or replace function ai.grant_to(variadic grantees name[]) returns name[]
+as $func$
+    select coalesce(pg_catalog.array_agg(cast(x as name)), array[]::name[])
+    from (
+        select pg_catalog.unnest(grantees) x
+        union
+        select trim(pg_catalog.string_to_table(pg_catalog.current_setting('ai.grant_to_default', true), ',')) x
+    ) _;
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- grant_to
+create or replace function ai.grant_to() returns name[]
+as $func$
+    select ai.grant_to(variadic array[]::name[])
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+
+
+--------------------------------------------------------------------------------
+-- 012-vectorizer-int.sql
 
 -------------------------------------------------------------------------------
 -- _vectorizer_source_pk
@@ -2578,7 +2670,7 @@ set search_path to pg_catalog, pg_temp
 
 
 --------------------------------------------------------------------------------
--- 012-vectorizer-api.sql
+-- 013-vectorizer-api.sql
 
 
 -------------------------------------------------------------------------------
@@ -2612,9 +2704,9 @@ create or replace function ai.create_vectorizer
 , destination name default null
 , embedding jsonb default null
 , chunking jsonb default null
-, indexing jsonb default ai.indexing_diskann()
+, indexing jsonb default ai.indexing_default()
 , formatting jsonb default ai.formatting_python_template()
-, scheduling jsonb default ai.scheduling_timescaledb()
+, scheduling jsonb default ai.scheduling_default()
 , processing jsonb default ai.processing_default()
 , target_schema name default null
 , target_table name default null
@@ -2622,7 +2714,7 @@ create or replace function ai.create_vectorizer
 , view_name name default null
 , queue_schema name default null
 , queue_table name default null
-, grant_to name[] default array['tsdbadmin']
+, grant_to name[] default ai.grant_to()
 , enqueue_existing bool default true
 ) returns int
 as $func$
@@ -2638,7 +2730,7 @@ declare
     _sql text;
     _job_id bigint;
 begin
-    -- make sure all the roles listed in _grant_to exist
+    -- make sure all the roles listed in grant_to exist
     if grant_to is not null then
         select
           pg_catalog.array_agg(r) filter (where pg_catalog.to_regrole(r) is null) -- missing
@@ -2723,11 +2815,21 @@ begin
     -- validate the chunking config
     perform ai._validate_chunking(chunking, _source_schema, _source_table);
 
+    -- if ai.indexing_default, resolve the default
+    if indexing operator(pg_catalog.->>) 'implementation' = 'default' then
+        indexing = ai._resolve_indexing_default();
+    end if;
+
     -- validate the indexing config
     perform ai._validate_indexing(indexing);
 
     -- validate the formatting config
     perform ai._validate_formatting(formatting, _source_schema, _source_table);
+
+    -- if ai.scheduling_default, resolve the default
+    if scheduling operator(pg_catalog.->>) 'implementation' = 'default' then
+        scheduling = ai._resolve_scheduling_default();
+    end if;
 
     -- validate the scheduling config
     perform ai._validate_scheduling(scheduling);
