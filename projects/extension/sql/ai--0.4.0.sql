@@ -1471,10 +1471,9 @@ begin
     case _setting
         when 'scheduling_timescaledb' then
             return ai.scheduling_timescaledb();
-        when 'scheduling_none' then
+        else
             return ai.scheduling_none();
     end case;
-    return ai.scheduling_none();
 end;
 $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
@@ -1648,7 +1647,6 @@ begin
         else
             return ai.indexing_none();
     end case;
-    return ai.indexing_none();
 end;
 $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
