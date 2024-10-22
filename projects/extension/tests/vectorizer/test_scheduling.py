@@ -137,7 +137,7 @@ def test_scheduling_default(setting, expected):
     with psycopg.connect(db_url("test")) as con:
         with con.cursor() as cur:
             if setting is not None:
-                cur.execute(f"set ai.scheduling_default = %s", (setting,))
+                cur.execute("set ai.scheduling_default = %s", (setting,))
             cur.execute("select ai._resolve_scheduling_default()")
             actual = cur.fetchone()[0]
             assert actual.keys() == expected.keys()
