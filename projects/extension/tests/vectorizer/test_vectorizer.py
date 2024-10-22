@@ -26,10 +26,8 @@ VECTORIZER_ROW = r"""
             "is_separator_regex": false
         },
         "indexing": {
-            "min_rows": 100000,
             "config_type": "indexing",
-            "create_when_queue_empty": true,
-            "implementation": "diskann"
+            "implementation": "none"
         },
         "embedding": {
             "model": "text-embedding-3-small",
@@ -231,7 +229,7 @@ def test_vectorizer_timescaledb():
                     , initial_start=>'2050-01-06'::timestamptz
                     , timezone=>'America/Chicago'
                     )
-            , grant_to=>array['bob', 'fernando'] -- bob is good. fernando doesn't exist. don't grant to adelaide
+            , grant_to=>ai.grant_to('bob', 'fernando') -- bob is good. fernando doesn't exist. don't grant to adelaide
             );
             """)
             vectorizer_id = cur.fetchone()[0]

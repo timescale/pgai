@@ -22,7 +22,7 @@ select ai.create_vectorizer
 , chunking=>ai.chunking_character_text_splitter('content', 128, 10)
 , scheduling=>ai.scheduling_none()
 , indexing=>ai.indexing_none()
-, grant_to=>array['fred', 'jill']
+, grant_to=>ai.grant_to('fred', 'jill')
 );
 
 

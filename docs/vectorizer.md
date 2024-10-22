@@ -203,9 +203,9 @@ The default format string is simply `$chunk`.
 
 ## Improve query performance on your Vectorizer
 
-A vector index on the embedding column improves query performance. By default, a 
-vectorscale index is created after 100,000 rows of vector data are present. This 
-behaviour is configurable, you can also specify other vector index types. The following
+A vector index on the embedding column improves query performance. On Timescale Cloud, a vectorscale
+index is automatically created after 100,000 rows of vector data are present.
+This behaviour is configurable, you can also specify other vector index types. The following
 example uses a HNSW index:
 
 
@@ -221,31 +221,17 @@ SELECT ai.create_vectorizer(
 ```
 
 Note: Indexing relies on a background job that runs periodically, so this
-feature will not work if scheduling is disabled.
+feature will not work if scheduling is disabled (which is the default for self-hosted installations).
 
 ## Control the vectorizer run time 
 
-When you use Vectorizer on Timescale Cloud, you use 
-scheduling to control the time when vectorizers run. A scheduled job checks if
-there is work to be done and, if so, runs the cloud function to embed the data.
+When you use Vectorizer on Timescale Cloud, you use scheduling to control the time when vectorizers run.
+A scheduled job checks if there is work to be done and, if so, runs the cloud function to embed the data.
 By default, scheduling uses TimescaleDB background jobs running every five minutes.
 Once the table is large enough, scheduling also handles index creation on the embedding column. 
 
-When deploying locally, the vectorizer worker uses a polling mechanism to check whether
-there is work to be done. Thus, scheduling is not needed. You can disable scheduling with 
-the `scheduling` parameter:
-
-```sql
-SELECT ai.create_vectorizer(
-    'blog'::regclass,
-    destination => 'blog_contents_embeddings',
-    embedding => ai.embedding_openai('text-embedding-3-small', 768),
-    chunking => ai.chunking_recursive_character_text_splitter('contents', chunk_size => 700),
-    formatting => ai.formatting_python_template('$title - by $author - $chunk'),
-    indexing => ai.indexing_none(),
-    scheduling => ai.scheduling_none(),
-);
-```
+When you self-host vectorizer, the vectorizer worker uses a polling mechanism to check whether
+there is work to be done. Thus, scheduling is not needed, and is deactivated by default.
 
 Note: when scheduling is disabled, the index is not created automatically. You need to create it manually.
 

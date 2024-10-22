@@ -19,9 +19,9 @@ create or replace function ai.create_vectorizer
 , destination name default null
 , embedding jsonb default null
 , chunking jsonb default null
-, indexing jsonb default ai.indexing_diskann()
+, indexing jsonb default ai.indexing_default()
 , formatting jsonb default ai.formatting_python_template()
-, scheduling jsonb default ai.scheduling_timescaledb()
+, scheduling jsonb default ai.scheduling_default()
 , processing jsonb default ai.processing_default()
 , target_schema name default null
 , target_table name default null
@@ -29,7 +29,7 @@ create or replace function ai.create_vectorizer
 , view_name name default null
 , queue_schema name default null
 , queue_table name default null
-, grant_to name[] default array['tsdbadmin']
+, grant_to name[] default ai.grant_to()
 , enqueue_existing bool default true
 ) returns int
 as $func$
@@ -45,7 +45,7 @@ declare
     _sql text;
     _job_id bigint;
 begin
-    -- make sure all the roles listed in _grant_to exist
+    -- make sure all the roles listed in grant_to exist
     if grant_to is not null then
         select
           pg_catalog.array_agg(r) filter (where pg_catalog.to_regrole(r) is null) -- missing
@@ -130,11 +130,21 @@ begin
     -- validate the chunking config
     perform ai._validate_chunking(chunking, _source_schema, _source_table);
 
+    -- if ai.indexing_default, resolve the default
+    if indexing operator(pg_catalog.->>) 'implementation' = 'default' then
+        indexing = ai._resolve_indexing_default();
+    end if;
+
     -- validate the indexing config
     perform ai._validate_indexing(indexing);
 
     -- validate the formatting config
     perform ai._validate_formatting(formatting, _source_schema, _source_table);
+
+    -- if ai.scheduling_default, resolve the default
+    if scheduling operator(pg_catalog.->>) 'implementation' = 'default' then
+        scheduling = ai._resolve_scheduling_default();
+    end if;
 
     -- validate the scheduling config
     perform ai._validate_scheduling(scheduling);
