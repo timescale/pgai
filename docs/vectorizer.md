@@ -103,12 +103,7 @@ SELECT ai.create_vectorizer(
 );
 ```
 
->Note: If you are self-hosting you need to run the vectorizer-worker yourself,
-check [how to run the vectorizer](./self-hosting-vectorizer.md).
-The SQL to create vectorizers stays the same though. It's just the actual embedding
-generation that is done by the vectorizer-worker.
-
-In this example, if the `contents` field is lengthy, it is split into multiple chunks, 
+In the previous example, if the `contents` field is lengthy, it is split into multiple chunks, 
 resulting in several embeddings for a single blog post. Chunking helps
 ensure that each embedding is semantically coherent, typically representing a
 single thought or concept. A useful mental model is to think of embedding one
@@ -132,6 +127,10 @@ SELECT ai.create_vectorizer(
 
 This approach ensures that each chunk retains important contextual information,
 improving the quality and relevance of the embeddings.
+
+On Timescale Cloud, vectorizers are created automatically, and scheduled using TimescaleDB background jobs running
+every five minutes. If you are self-hosting you need to [run the vectorizer-worker](./self-hosting-vectorizer.md)
+manually to create and run the vectorizer.
 
 ## Query an embedding
 

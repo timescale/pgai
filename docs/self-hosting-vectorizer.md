@@ -17,14 +17,16 @@ This page shows you how to install and run and manage the workers that run the v
 - [Set the time between vectorizer worker runs](#set-the-time-between-vectorizer-worker-runs): control the time between 
   vectorizer worker runs
 
+## Prerequisites
+
+To use vectorizer worker you need:
+- [Python3][python3] and [pip][pip] installed system-wide on the machine you run vectorizer workers
+- A self-hosted Postgres database with [pgai installed](/README.md#installation)
+- [An OpenAI API key ](https://platform.openai.com/docs/api-reference/api-keys)
+
 ## Install and configure Vectorizer CLI
 
 To be able to run vectorizers in your self-hosted database:
-
-**Prerequisites**
-- A Python 3.11+ installation
-- A Postgres database with the `pgai` extension installed
-- [An OpenAI API key ](https://platform.openai.com/docs/api-reference/api-keys)
 
 1. **Install [pgai](https://pypi.org/project/pgai/) from PyPI**
 
@@ -32,25 +34,25 @@ To be able to run vectorizers in your self-hosted database:
    pip install pgai
    ```
 
-   The Vectorizer CLI, `vectorizer` is now in your `$PATH`.
+   The Vectorizer worker, `vectorizer` is now in your `$PATH`.
 
-2. **Run the vectorizer worker**
+1. **Run the vectorizer worker**
 
-   To run the vectorizer worker, you need to set the connection string to your self-hosted database 
-   and the API key for the external embeddings provider as environment variables:
+   1. Set the connection string to your self-hosted database and the API key for the external embeddings
+      provider as environment variables:
    
-   ```bash
-   export VECTORIZER_DB_URL="postgres://user:password@host:port/dbname"
-   export OPENAI_API_KEY="Your OpenAI API key"
-   ```
+      ```bash
+      export VECTORIZER_DB_URL="postgres://user:password@host:port/dbname"
+      export OPENAI_API_KEY="Your OpenAI API key"
+      ```
  
-   Then run the vectorizer worker:
+   1. Run the vectorizer worker:
 
-   ```bash
-   vectorizer
-   ```
+      ```bash
+      vectorizer
+      ```
    
-   You can also specify the connection string as a cli argument via the `-d` or `--db-url` argument:
+   You can also use the `-d` or `--db-url` arguments to set a Postgres connection string:
    ```bash
    vectorizer -d "postgres://user:password@host:port/dbname"
    ```
@@ -154,3 +156,6 @@ multiple asynchronous tasks to process a queue:
 ```bash
 vectorizer -c 3
 ```
+
+[python3]: https://www.python.org/downloads/
+[pip]: https://pip.pypa.io/en/stable/
