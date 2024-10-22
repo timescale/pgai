@@ -66,7 +66,6 @@ Timescale Cloud or on a self-hosted Postgres server.
   For example:
   ```bash
   export OPENAI_API_KEY="Your OpenAI API key"
-  vectorizer
   ```
 
 To validate that your API key is set correctly, run the following SQL query:
