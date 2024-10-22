@@ -13,7 +13,7 @@ a self-hosted database instance with automatic embedding vectorization:
     ```yaml
     services:
       db:
-        image: timescale/timescaledb-ha:cicd-5aefd3c-arm64
+        image: timescale/timescaledb-ha:cicd-024349a-arm64
         environment:
           POSTGRES_PASSWORD: postgres
           OPENAI_API_KEY: your-api-key
