@@ -16,7 +16,7 @@ CREATE EXTENSION
  function ai.cohere_rerank_simple(text,text,jsonb,text,integer,integer)
  function ai.cohere_rerank(text,text,jsonb,text,integer,text[],boolean,integer)
  function ai.cohere_tokenize(text,text,text)
- function ai.create_vectorizer(regclass,name,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name,name,name,name,jsonb,boolean)
+ function ai.create_vectorizer(regclass,name,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name,name,name,name,name[],boolean)
  function ai.disable_vectorizer_schedule(integer)
  function ai.drop_vectorizer(integer)
  function ai.embedding_openai(text,integer,text,text)
@@ -24,9 +24,7 @@ CREATE EXTENSION
  function ai.execute_vectorizer(integer)
  function ai.formatting_python_template(text)
  function ai.grant_ai_usage(name,boolean)
- function ai.grant_to_default()
  function ai.grant_to(name[])
- function ai.grant_to_timescale(name[])
  function ai.indexing_default()
  function ai.indexing_diskann(integer,text,integer,integer,double precision,integer,integer,boolean)
  function ai.indexing_hnsw(integer,text,integer,integer,boolean)
@@ -46,7 +44,6 @@ CREATE EXTENSION
  function ai.openai_moderate(text,text,text,text)
  function ai.openai_tokenize(text,text)
  function ai.processing_default(integer,integer)
- function ai._resolve_grant_to_default()
  function ai._resolve_indexing_default()
  function ai._resolve_scheduling_default()
  function ai.scheduling_default()
@@ -79,7 +76,7 @@ CREATE EXTENSION
  table ai.vectorizer
  table ai.vectorizer_errors
  view ai.vectorizer_status
-(75 rows)
+(72 rows)
 
                                                               Table "ai.migration"
        Column       |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 

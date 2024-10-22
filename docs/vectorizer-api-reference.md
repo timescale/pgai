@@ -698,58 +698,14 @@ A JSON configuration object that you can use as an argument for [ai.create_vecto
 
 ## Grant To configuration
 
-You use the grant to configuration functions in pgai to specify which users should be able to use
+You use the grant to configuration function in pgai to specify which users should be able to use
 objects created by the vectorizer.
-
-### ai.grant_to_default
-
-You use `ai.grant_to_default` to use the platform-specific default scheduling configuration.
-
-On Timescale Cloud, the default is `ai.grant_to_timescale()`. On self-hosted, the default is `ai.grant_to()`.
-
-#### Example usage
-
-```sql
-  SELECT ai.create_vectorizer(
-    'my_table'::regclass,
-    grant_to => ai.grant_to_default(),
-    -- other parameters...
-  );
-```
-
-#### Parameters
-
-This function takes no parameters.
-
-#### Returns
-
-A JSON configuration object that you can use as an argument for [ai.create_vectorizer](#create-vectorizers).
-
-### ai.grant_to_timescale
-
-Grant permissions to a comma-separated list of users, as well as the default user on Timescale Cloud (`tsdbadmin`).
-
-#### Example usage
-
-```sql
-  SELECT ai.create_vectorizer(
-    'my_table'::regclass,
-    grant_to => ai.grant_to_timescale('bob', 'alice'),
-    -- other parameters...
-  );
-```
-
-#### Parameters
-
-This function takes a comma-separated list of usernames to grant permissions to.
-
-#### Returns
-
-A JSON configuration object that you can use as an argument for [ai.create_vectorizer](#create-vectorizers).
 
 ### ai.grant_to
 
 Grant permissions to a comma-separated list of users.
+
+Includes the users specified in the `ai.grant_to_default` setting.
 
 #### Example usage
 
@@ -767,7 +723,7 @@ This function takes a comma-separated list of usernames to grant permissions to.
 
 #### Returns
 
-A JSON configuration object that you can use as an argument for [ai.create_vectorizer](#create-vectorizers).
+An array of name values, that you can use as an argument for [ai.create_vectorizer](#create-vectorizers).
 
 ## Enable and disable vectorizer schedules
 

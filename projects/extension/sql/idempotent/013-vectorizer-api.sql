@@ -29,7 +29,7 @@ create or replace function ai.create_vectorizer
 , view_name name default null
 , queue_schema name default null
 , queue_table name default null
-, grant_to jsonb default ai.grant_to_default()
+, grant_to name[] default ai.grant_to(variadic array[]::name[])
 , enqueue_existing bool default true
 ) returns int
 as $func$
@@ -44,27 +44,16 @@ declare
     _vectorizer_id int;
     _sql text;
     _job_id bigint;
-    _grant_to name[];
 begin
-    -- if ai.grant_to_default, resolve the default
-    if grant_to operator(pg_catalog.->>) 'implementation' = 'default' then
-        grant_to = ai._resolve_grant_to_default();
-    end if;
-
-    -- extract the grant_to list as a name[]
-    select pg_catalog.array_agg(cast(x as name)) into _grant_to
-    from pg_catalog.jsonb_array_elements_text(grant_to operator(pg_catalog.->) 'grant_to') x
-    ;
-
-    -- make sure all the roles listed in _grant_to exist
-    if _grant_to is not null then
+    -- make sure all the roles listed in grant_to exist
+    if grant_to is not null then
         select
           pg_catalog.array_agg(r) filter (where pg_catalog.to_regrole(r) is null) -- missing
         , pg_catalog.array_agg(r) filter (where pg_catalog.to_regrole(r) is not null) -- real roles
         into strict
           _missing_roles
-        , _grant_to
-        from pg_catalog.unnest(_grant_to) r
+        , grant_to
+        from pg_catalog.unnest(grant_to) r
         ;
         if pg_catalog.array_length(_missing_roles, 1) > 0 then
             raise warning 'one or more grant_to roles do not exist: %', _missing_roles;
@@ -173,7 +162,7 @@ begin
     perform ai._vectorizer_grant_to_source
     ( _source_schema
     , _source_table
-    , _grant_to
+    , grant_to
     );
 
     -- create the target table
@@ -184,7 +173,7 @@ begin
     , target_schema
     , target_table
     , _dimensions
-    , _grant_to
+    , grant_to
     );
 
     -- create queue table
@@ -192,7 +181,7 @@ begin
     ( queue_schema
     , queue_table
     , _source_pk
-    , _grant_to
+    , grant_to
     );
 
     -- create trigger on source table to populate queue
@@ -214,7 +203,7 @@ begin
     , _source_pk
     , target_schema
     , target_table
-    , _grant_to
+    , grant_to
     );
 
     -- schedule the async ext job
@@ -265,7 +254,7 @@ begin
     );
 
     -- grant select on the vectorizer table
-    perform ai._vectorizer_grant_to_vectorizer(_grant_to);
+    perform ai._vectorizer_grant_to_vectorizer(grant_to);
 
     -- insert into queue any existing rows from source table
     if enqueue_existing is true then
