@@ -53,7 +53,7 @@ def resolve_secret(plpy, secret_name: str) -> str:
     if secret != "":
         return secret
 
-    if secret_enabled(plpy):
+    if secret_manager_enabled(plpy):
         secret_optional = reveal_secret(plpy, secret_name)
         if secret_optional is not None:
             return secret_optional
@@ -62,12 +62,12 @@ def resolve_secret(plpy, secret_name: str) -> str:
     return ""
 
 
-def secret_enabled(plpy) -> bool:
+def secret_manager_enabled(plpy) -> bool:
     return get_guc_value(plpy, GUC_SECRETS_MANAGER_URL, "") != ""
 
 
 def reveal_secret(plpy, secret_name: str) -> str | None:
-    if not secret_enabled(plpy):
+    if not secret_manager_enabled(plpy):
         plpy.error("secrets manager is not enabled")
         return None
 
