@@ -68,23 +68,6 @@ To follow the steps in this page, you need to:
    ```shell
    docker-compose up -d vectorizer-worker
    ```
-   You see the vectorizer running:
-   ```shell
-   [+] Running 11/11
-   ✔ vectorizer-worker Pulled                                                                                                                                           22.3s 
-     ✔ a480a496ba95 Pull complete                                                                                                                                        6.0s 
-     ✔ f281ad68d612 Pull complete                                                                                                                                        6.1s 
-     ✔ aa77a90b11d9 Pull complete                                                                                                                                        6.5s 
-     ✔ 0dd753b657c9 Pull complete                                                                                                                                        6.5s 
-     ✔ 38e39325ccaf Pull complete                                                                                                                                        6.5s 
-     ✔ 8d50dded1d76 Pull complete                                                                                                                                        6.5s 
-     ✔ 5a73fecc1c3f Pull complete                                                                                                                                        6.5s 
-     ✔ 03f1e7e22d43 Pull complete                                                                                                                                       20.0s 
-     ✔ 33c61f413670 Pull complete                                                                                                                                       20.0s 
-     ✔ dc491244f87c Pull complete                                                                                                                                       20.0s 
-     [+] Running 1/1
-     [+] Running 1/2ai-vectorizer-worker-1  
-    ```
 
 1. **Check the vectorizer worker logs** 
    ```shell
@@ -95,10 +78,6 @@ To follow the steps in this page, you need to:
    ```shell
     vectorizer-worker-1  | 2024-10-23 12:56:36 [info     ] running vectorizer             vectorizer_id=1
     ```
-   
-    To see the status of your vectorizer queue, use the following query 
-    `select ai.vectorizer_queue_pending(1) \watch`. To see the the database logs run 
-    `docker-compose logs -f db`. 
 
 1. **See the embeddings in action**
 
