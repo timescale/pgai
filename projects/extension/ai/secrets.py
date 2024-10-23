@@ -46,7 +46,7 @@ def check_secret_permissions(plpy, secret_name: str) -> bool:
     return len(result) > 0
 
 
-def resolve_secret(plpy, secret_name: str) -> str:
+def reveal_secret(plpy, secret_name: str) -> str | None:
     # first try the guc, then the secrets manager, then error
     secret_name_lower = secret_name.lower()
     secret = get_guc_value(plpy, f"ai.{secret_name_lower}", "")
@@ -54,19 +54,18 @@ def resolve_secret(plpy, secret_name: str) -> str:
         return secret
 
     if secret_manager_enabled(plpy):
-        secret_optional = reveal_secret(plpy, secret_name)
+        secret_optional = fetch_secret(plpy, secret_name)
         if secret_optional is not None:
             return secret_optional
 
-    plpy.error("missing api key")
-    return ""
+    return None
 
 
 def secret_manager_enabled(plpy) -> bool:
     return get_guc_value(plpy, GUC_SECRETS_MANAGER_URL, "") != ""
 
 
-def reveal_secret(plpy, secret_name: str) -> str | None:
+def fetch_secret(plpy, secret_name: str) -> str | None:
     if not secret_manager_enabled(plpy):
         plpy.error("secrets manager is not enabled")
         return None

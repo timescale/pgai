@@ -1,10 +1,13 @@
 from typing import Optional
 from anthropic import Anthropic
-from .secrets import resolve_secret
+from .secrets import reveal_secret
 
 
 def find_api_key(plpy) -> str:
-    return resolve_secret(plpy, "ANTHROPIC_API_KEY")
+    key = reveal_secret(plpy, "ANTHROPIC_API_KEY")
+    if key is None:
+        plpy.error("missing ANTHROPIC_API_KEY secret")
+    return key
 
 
 def make_client(

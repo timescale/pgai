@@ -1,11 +1,14 @@
 import openai
 from datetime import datetime
 from typing import Optional, Generator, Union
-from .secrets import resolve_secret
+from .secrets import reveal_secret
 
 
 def get_openai_api_key(plpy) -> str:
-    return resolve_secret(plpy, "OPENAI_API_KEY")
+    key = reveal_secret(plpy, "OPENAI_API_KEY")
+    if key is None:
+        plpy.error("missing OPENAI_API_KEY secret")
+    return key
 
 
 def get_openai_base_url(plpy) -> Optional[str]:

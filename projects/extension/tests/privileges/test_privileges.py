@@ -94,20 +94,53 @@ def test_secret_privileges():
             cur.execute(
                 "SET ai.external_functions_executor_url='http://localhost:8000'"
             )
-            got_error = False
-            try:
+            with pytest.raises(Exception, match="user does not have access"):
                 cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
-            except Exception:
-                got_error = True
-            assert got_error
 
-    # alice can access all the secrets and grant them to jill
+    # jill cannot revoke from alice
+    with psycopg.connect(db_url("jill", "privs")) as con:
+        with con.cursor() as cur:
+            with pytest.raises(Exception, match="permission denied for function"):
+                cur.execute("select ai.revoke_secret('*', 'alice')")
+
+    # jill cannot grant to alice
+    with psycopg.connect(db_url("jill", "privs")) as con:
+        with con.cursor() as cur:
+            with pytest.raises(Exception, match="permission denied for function"):
+                cur.execute("select ai.grant_secret('*', 'alice')")
+
+    # jill cannot access ai._secrets_permissions
+    with psycopg.connect(db_url("jill", "privs")) as con:
+        with con.cursor() as cur:
+            with pytest.raises(Exception, match="permission denied for table"):
+                cur.execute("select * from ai._secret_permissions")
+
+    # alice can access all the secrets and grant them to fred and joey
     with psycopg.connect(db_url("alice", "privs")) as con:
         with con.cursor() as cur:
             cur.execute(
                 "SET ai.external_functions_executor_url='http://localhost:8000'"
             )
             cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
+            cur.execute("select ai.grant_secret('OPENAI_API_KEY', 'joey')")
+            cur.execute("select ai.grant_secret('*', 'joey2')")
+            cur.execute("select ai.grant_secret('OPENAI_API_KEY', 'fred')")
+
+    # jill still cannot access any secrets
+    with psycopg.connect(db_url("jill", "privs")) as con:
+        with con.cursor() as cur:
+            cur.execute(
+                "SET ai.external_functions_executor_url='http://localhost:8000'"
+            )
+            with pytest.raises(Exception, match="user does not have access"):
+                cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
+
+    # alice can grant the secret to jill
+    with psycopg.connect(db_url("alice", "privs")) as con:
+        with con.cursor() as cur:
+            cur.execute(
+                "SET ai.external_functions_executor_url='http://localhost:8000'"
+            )
             cur.execute("select ai.grant_secret('OPENAI_API_KEY', 'jill')")
 
     # jill can access the secret granted to her but not the other one
@@ -117,12 +150,18 @@ def test_secret_privileges():
                 "SET ai.external_functions_executor_url='http://localhost:8000'"
             )
             cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
-            got_error = False
-            try:
+            with pytest.raises(Exception, match="user does not have access"):
                 cur.execute("select ai.reveal_secret('OPENAI_API_KEY_2')")
-            except Exception:
-                got_error = True
-            assert got_error
+
+    # fred cannot access any secrets even though alice granted them to him
+    # because he doesn't have access to ai functions at all
+    with psycopg.connect(db_url("fred", "privs")) as con:
+        with con.cursor() as cur:
+            cur.execute(
+                "SET ai.external_functions_executor_url='http://localhost:8000'"
+            )
+            with pytest.raises(Exception, match="permission denied for function"):
+                cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
 
     # alice can revoke the secret from jill
     with psycopg.connect(db_url("alice", "privs")) as con:
@@ -137,12 +176,8 @@ def test_secret_privileges():
             cur.execute(
                 "SET ai.external_functions_executor_url='http://localhost:8000'"
             )
-            got_error = False
-            try:
+            with pytest.raises(Exception, match="user does not have access"):
                 cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
-            except Exception:
-                got_error = True
-            assert got_error
 
     # alice can grant the secret to all keys for jill
     with psycopg.connect(db_url("alice", "privs")) as con:
@@ -174,9 +209,5 @@ def test_secret_privileges():
             cur.execute(
                 "SET ai.external_functions_executor_url='http://localhost:8000'"
             )
-            got_error = False
-            try:
+            with pytest.raises(Exception, match="user does not have access"):
                 cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
-            except Exception:
-                got_error = True
-            assert got_error
