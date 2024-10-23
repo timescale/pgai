@@ -81,7 +81,7 @@ to run your AI queries:
         , 'content', 'Name five famous people from Birmingham, Alabama.'
         )
       )
-    , _api_key=>$1
+    , api_key=>$1
     ) AS actual
     \bind :anthropic_api_key
     \g
@@ -129,7 +129,7 @@ to run your AI queries:
                 SELECT ai.anthropic_generate
                 ( 'claude-3-5-sonnet-20240620'
                 , %s
-                , _api_key=>%s
+                , api_key=>%s
                 )
             """, (Json(messages), ANTHROPIC_API_KEY))
             records = cur.fetchall()
