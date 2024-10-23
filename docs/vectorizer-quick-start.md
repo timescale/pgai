@@ -67,7 +67,7 @@ To follow the steps in this page, you need to:
    
    In a new terminal, start the vectorizer worker:
    ```shell
-   `docker-compose up -d vectorizer-worker`
+   docker-compose up -d vectorizer-worker
    ```
    You see the vectorizer running:
    ```shell
@@ -103,7 +103,7 @@ To follow the steps in this page, you need to:
 
 1. **See the embeddings in action**
 
-   Run a the following search query to retrieve the embeddings. For example:
+   Run the following search query to retrieve the embeddings:
 
     ```sql
     SELECT
