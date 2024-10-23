@@ -37,7 +37,7 @@ def test_cohere_list_models(cur, cohere_api_key):
     cur.execute(
         """
         select count(*) > 0
-        from ai.cohere_list_models(_api_key=>%s)
+        from ai.cohere_list_models(api_key=>%s)
     """,
         (cohere_api_key,),
     )
@@ -57,7 +57,7 @@ def test_cohere_list_models_no_key(cur_with_api_key):
 def test_cohere_list_models_endpoint(cur_with_api_key):
     cur_with_api_key.execute("""
         select count(*) > 0
-        from ai.cohere_list_models(_endpoint=>'embed')
+        from ai.cohere_list_models(endpoint=>'embed')
     """)
     actual = cur_with_api_key.fetchone()[0]
     assert actual is True
@@ -71,7 +71,7 @@ def test_cohere_tokenize(cur, cohere_api_key):
             ai.cohere_tokenize
             ( 'command'
             , 'What one programmer can do in one month, two programmers can do in two months.'
-            , _api_key=>%s
+            , api_key=>%s
             )
         , 1
         )
@@ -102,7 +102,7 @@ def test_detokenize(cur, cohere_api_key):
         select ai.cohere_detokenize
         ( 'command'
         , array[5171,2011,36613,1863,1978,1703,2011,2812,19,2253,38374,1863,1978,1703,2253,3784,21]
-        , _api_key=>%s
+        , api_key=>%s
         )
     """,
         (cohere_api_key,),
@@ -131,7 +131,7 @@ def test_cohere_detokenize_no_key(cur_with_api_key):
 def test_cohere_list_models_default_only(cur_with_api_key):
     cur_with_api_key.execute("""
         select count(*) > 0
-        from ai.cohere_list_models(_endpoint=>'generate', _default_only=>true)
+        from ai.cohere_list_models(endpoint=>'generate', default_only=>true)
     """)
     actual = cur_with_api_key.fetchone()[0]
     assert actual is True
@@ -145,8 +145,8 @@ def test_cohere_embed(cur, cohere_api_key):
             ai.cohere_embed
             ( 'embed-english-light-v3.0'
             , 'how much wood would a woodchuck chuck if a woodchuck could chuck wood?'
-            , _api_key=>%s
-            , _input_type=>'search_document'
+            , api_key=>%s
+            , input_type=>'search_document'
             )
         )
     """,
@@ -163,8 +163,8 @@ def test_cohere_embed_no_key(cur_with_api_key):
             ai.cohere_embed
             ( 'embed-english-light-v3.0'
             , 'if a woodchuck could chuck wood, a woodchuck would chuck as much wood as he could'
-            , _input_type=>'search_document'
-            , _truncate=>'end'
+            , input_type=>'search_document'
+            , truncate=>'end'
             )
         )
     """)
@@ -190,7 +190,7 @@ def test_cohere_classify(cur_with_api_key):
             select ai.cohere_classify
             ( 'embed-english-light-v3.0'
             , array['bird', 'airplane', 'corn']
-            , _examples=>(select jsonb_agg(jsonb_build_object('text', examples.example, 'label', examples.label)) from examples)
+            , examples=>(select jsonb_agg(jsonb_build_object('text', examples.example, 'label', examples.label)) from examples)
             )->'classifications'
         )) x(input text, prediction text)
     """)
@@ -214,7 +214,7 @@ def test_cohere_classify_simple(cur_with_api_key):
         from ai.cohere_classify_simple
         ( 'embed-english-light-v3.0'
         , array['bird', 'airplane', 'corn']
-        , _examples=>(select jsonb_agg(jsonb_build_object('text', examples.example, 'label', examples.label)) from examples)
+        , examples=>(select jsonb_agg(jsonb_build_object('text', examples.example, 'label', examples.label)) from examples)
         ) x
     """)
     actual = cur_with_api_key.fetchone()[0]
@@ -234,7 +234,7 @@ def test_cohere_rerank(cur_with_api_key):
             , 'What one programmer can do in one month, two programmers can do in two months.'
             , 'how much wood would a woodchuck chuck if a woodchuck could chuck wood?'
             )
-          , _return_documents=>true
+          , return_documents=>true
           ) as actual
         )
         select y."index" as actual
@@ -263,8 +263,8 @@ def test_cohere_rerank_advanced(cur_with_api_key):
             ( 'rerank-english-v3.0'
             , 'How long does it take for two programmers to work on something?'
             , (select jsonb_agg(x) from docs x)
-            , _rank_fields=>array['quote']
-            , _return_documents=>true
+            , rank_fields=>array['quote']
+            , return_documents=>true
             ) as actual
         )
         select y."document"->>'author' as actual
@@ -302,7 +302,7 @@ def test_cohere_chat_complete(cur_with_api_key):
         select ai.cohere_chat_complete
         ( 'command-r-plus'
         , 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
-        , _seed=>42
+        , seed=>42
         )->>'text' is not null
     """)
     actual = cur_with_api_key.fetchone()[0]

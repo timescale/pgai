@@ -46,7 +46,7 @@ def test_anthropic_generate(cur, anthropic_api_key):
                 , 'content', 'Name five famous people from Birmingham, Alabama.'
                 )
               )
-            , _api_key=>%s
+            , api_key=>%s
             ) as actual
         )
         select jsonb_extract_path_text(x.actual, 'content', '0', 'text') is not null 
