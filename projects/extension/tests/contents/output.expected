@@ -47,6 +47,7 @@ CREATE EXTENSION
  function ai.processing_default(integer,integer)
  function ai._resolve_indexing_default()
  function ai._resolve_scheduling_default()
+ function ai.reveal_secret(text)
  function ai.scheduling_default()
  function ai.scheduling_none()
  function ai.scheduling_timescaledb(interval,timestamp with time zone,boolean,text)
@@ -77,7 +78,7 @@ CREATE EXTENSION
  table ai.vectorizer
  table ai.vectorizer_errors
  view ai.vectorizer_status
-(73 rows)
+(74 rows)
 
                                                               Table "ai.migration"
        Column       |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
