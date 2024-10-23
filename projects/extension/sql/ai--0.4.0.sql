@@ -121,7 +121,7 @@ $outer_migration_block$;
 -- openai_tokenize
 -- encode text as tokens for a given model
 -- https://github.com/openai/tiktoken/blob/main/README.md
-create or replace function ai.openai_tokenize(_model text, _text text) returns int[]
+create or replace function ai.openai_tokenize(model text, text_input text) returns int[]
 as $python$
     if "ai.version" not in GD:
         r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
@@ -137,8 +137,8 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import tiktoken
-    encoding = tiktoken.encoding_for_model(_model)
-    tokens = encoding.encode(_text)
+    encoding = tiktoken.encoding_for_model(model)
+    tokens = encoding.encode(text_input)
     return tokens
 $python$
 language plpython3u strict immutable parallel safe security invoker
@@ -149,7 +149,7 @@ set search_path to pg_catalog, pg_temp
 -- openai_detokenize
 -- decode tokens for a given model back into text
 -- https://github.com/openai/tiktoken/blob/main/README.md
-create or replace function ai.openai_detokenize(_model text, _tokens int[]) returns text
+create or replace function ai.openai_detokenize(model text, tokens int[]) returns text
 as $python$
     if "ai.version" not in GD:
         r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
@@ -165,8 +165,8 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import tiktoken
-    encoding = tiktoken.encoding_for_model(_model)
-    content = encoding.decode(_tokens)
+    encoding = tiktoken.encoding_for_model(model)
+    content = encoding.decode(tokens)
     return content
 $python$
 language plpython3u strict immutable parallel safe security invoker
@@ -177,7 +177,7 @@ set search_path to pg_catalog, pg_temp
 -- openai_list_models
 -- list models supported on the openai platform
 -- https://platform.openai.com/docs/api-reference/models/list
-create or replace function ai.openai_list_models(_api_key text default null, _base_url text default null)
+create or replace function ai.openai_list_models(api_key text default null, base_url text default null)
 returns table
 ( id text
 , created timestamptz
@@ -198,7 +198,7 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.openai
-    for tup in ai.openai.list_models(plpy, _api_key, _base_url):
+    for tup in ai.openai.list_models(plpy, api_key, base_url):
         yield tup
 $python$
 language plpython3u volatile parallel safe security invoker
@@ -210,12 +210,12 @@ set search_path to pg_catalog, pg_temp
 -- generate an embedding from a text value
 -- https://platform.openai.com/docs/api-reference/embeddings/create
 create or replace function ai.openai_embed
-( _model text
-, _input text
-, _api_key text default null
-, _base_url text default null
-, _dimensions int default null
-, _user text default null
+( model text
+, input_text text
+, api_key text default null
+, base_url text default null
+, dimensions int default null
+, openai_user text default null
 ) returns @extschema:vector@.vector
 as $python$
     if "ai.version" not in GD:
@@ -232,7 +232,7 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.openai
-    for tup in ai.openai.embed(plpy, _model, _input, api_key=_api_key, base_url=_base_url, dimensions=_dimensions, user=_user):
+    for tup in ai.openai.embed(plpy, model, input_text, api_key=api_key, base_url=base_url, dimensions=dimensions, user=openai_user):
         return tup[1]
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -244,12 +244,12 @@ set search_path to pg_catalog, pg_temp
 -- generate embeddings from an array of text values
 -- https://platform.openai.com/docs/api-reference/embeddings/create
 create or replace function ai.openai_embed
-( _model text
-, _input text[]
-, _api_key text default null
-, _base_url text default null
-, _dimensions int default null
-, _user text default null
+( model text
+, input_texts text[]
+, api_key text default null
+, base_url text default null
+, dimensions int default null
+, openai_user text default null
 ) returns table
 ( "index" int
 , embedding @extschema:vector@.vector
@@ -269,7 +269,7 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.openai
-    for tup in ai.openai.embed(plpy, _model, _input, api_key=_api_key, base_url=_base_url, dimensions=_dimensions, user=_user):
+    for tup in ai.openai.embed(plpy, model, input_texts, api_key=api_key, base_url=base_url, dimensions=dimensions, user=openai_user):
         yield tup
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -281,12 +281,12 @@ set search_path to pg_catalog, pg_temp
 -- generate embeddings from an array of tokens
 -- https://platform.openai.com/docs/api-reference/embeddings/create
 create or replace function ai.openai_embed
-( _model text
-, _input int[]
-, _api_key text default null
-, _base_url text default null
-, _dimensions int default null
-, _user text default null
+( model text
+, input_tokens int[]
+, api_key text default null
+, base_url text default null
+, dimensions int default null
+, openai_user text default null
 ) returns @extschema:vector@.vector
 as $python$
     if "ai.version" not in GD:
@@ -303,7 +303,7 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.openai
-    for tup in ai.openai.embed(plpy, _model, _input, api_key=_api_key, base_url=_base_url, dimensions=_dimensions, user=_user):
+    for tup in ai.openai.embed(plpy, model, input_tokens, api_key=api_key, base_url=base_url, dimensions=dimensions, user=openai_user):
         return tup[1]
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -315,25 +315,25 @@ set search_path to pg_catalog, pg_temp
 -- text generation / chat completion
 -- https://platform.openai.com/docs/api-reference/chat/create
 create or replace function ai.openai_chat_complete
-( _model text
-, _messages jsonb
-, _api_key text default null
-, _base_url text default null
-, _frequency_penalty float8 default null
-, _logit_bias jsonb default null
-, _logprobs boolean default null
-, _top_logprobs int default null
-, _max_tokens int default null
-, _n int default null
-, _presence_penalty float8 default null
-, _response_format jsonb default null
-, _seed int default null
-, _stop text default null
-, _temperature float8 default null
-, _top_p float8 default null
-, _tools jsonb default null
-, _tool_choice jsonb default null
-, _user text default null
+( model text
+, messages jsonb
+, api_key text default null
+, base_url text default null
+, frequency_penalty float8 default null
+, logit_bias jsonb default null
+, logprobs boolean default null
+, top_logprobs int default null
+, max_tokens int default null
+, n int default null
+, presence_penalty float8 default null
+, response_format jsonb default null
+, seed int default null
+, stop text default null
+, temperature float8 default null
+, top_p float8 default null
+, tools jsonb default null
+, tool_choice jsonb default null
+, openai_user text default null
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
@@ -350,48 +350,48 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.openai
-    client = ai.openai.make_client(plpy, _api_key, _base_url)
+    client = ai.openai.make_client(plpy, api_key, base_url)
     import json
 
-    _messages_1 = json.loads(_messages)
-    if not isinstance(_messages_1, list):
-        plpy.error("_messages is not an array")
+    messages_1 = json.loads(messages)
+    if not isinstance(messages_1, list):
+        plpy.error("messages is not an array")
 
-    _logit_bias_1 = None
-    if _logit_bias is not None:
-      _logit_bias_1 = json.loads(_logit_bias)
+    logit_bias_1 = None
+    if logit_bias is not None:
+      logit_bias_1 = json.loads(logit_bias)
 
-    _response_format_1 = None
-    if _response_format is not None:
-      _response_format_1 = json.loads(_response_format)
+    response_format_1 = None
+    if response_format is not None:
+      response_format_1 = json.loads(response_format)
 
-    _tools_1 = None
-    if _tools is not None:
-      _tools_1 = json.loads(_tools)
+    tools_1 = None
+    if tools is not None:
+      tools_1 = json.loads(tools)
 
-    _tool_choice_1 = None
-    if _tool_choice is not None:
-      _tool_choice_1 = json.loads(_tool_choice)
+    tool_choice_1 = None
+    if tool_choice is not None:
+      tool_choice_1 = json.loads(tool_choice)
 
     response = client.chat.completions.create(
-      model=_model
-    , messages=_messages_1
-    , frequency_penalty=_frequency_penalty
-    , logit_bias=_logit_bias_1
-    , logprobs=_logprobs
-    , top_logprobs=_top_logprobs
-    , max_tokens=_max_tokens
-    , n=_n
-    , presence_penalty=_presence_penalty
-    , response_format=_response_format_1
-    , seed=_seed
-    , stop=_stop
+      model=model
+    , messages=messages_1
+    , frequency_penalty=frequency_penalty
+    , logit_bias=logit_bias_1
+    , logprobs=logprobs
+    , top_logprobs=top_logprobs
+    , max_tokens=max_tokens
+    , n=n
+    , presence_penalty=presence_penalty
+    , response_format=response_format_1
+    , seed=seed
+    , stop=stop
     , stream=False
-    , temperature=_temperature
-    , top_p=_top_p
-    , tools=_tools_1
-    , tool_choice=_tool_choice_1
-    , user=_user
+    , temperature=temperature
+    , top_p=top_p
+    , tools=tools_1
+    , tool_choice=tool_choice_1
+    , user=openai_user
     )
 
     return response.model_dump_json()
@@ -404,8 +404,8 @@ set search_path to pg_catalog, pg_temp
 -- openai_chat_complete_simple
 -- simple chat completion that only requires a message and only returns the response
 create or replace function ai.openai_chat_complete_simple
-( _message text
-, _api_key text default null
+( message text
+, api_key text default null
 ) returns text
 as $$
 declare
@@ -414,9 +414,9 @@ declare
 begin
     messages := pg_catalog.jsonb_build_array(
         pg_catalog.jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant'),
-        pg_catalog.jsonb_build_object('role', 'user', 'content', _message)
+        pg_catalog.jsonb_build_object('role', 'user', 'content', message)
     );
-    return ai.openai_chat_complete(model, messages, _api_key)
+    return ai.openai_chat_complete(model, messages, api_key)
         operator(pg_catalog.->)'choices'
         operator(pg_catalog.->)0
         operator(pg_catalog.->)'message'
@@ -431,10 +431,10 @@ set search_path to pg_catalog, pg_temp
 -- classify text as potentially harmful or not
 -- https://platform.openai.com/docs/api-reference/moderations/create
 create or replace function ai.openai_moderate
-( _model text
-, _input text
-, _api_key text default null
-, _base_url text default null
+( model text
+, input_text text
+, api_key text default null
+, base_url text default null
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
@@ -451,8 +451,8 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.openai
-    client = ai.openai.make_client(plpy, _api_key, _base_url)
-    moderation = client.moderations.create(input=_input, model=_model)
+    client = ai.openai.make_client(plpy, api_key, base_url)
+    moderation = client.moderations.create(input=input_text, model=model)
     return moderation.model_dump_json()
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -468,7 +468,7 @@ set search_path to pg_catalog, pg_temp
 -- ollama_list_models
 -- https://github.com/ollama/ollama/blob/main/docs/api.md#list-local-models
 --
-create or replace function ai.ollama_list_models(_host text default null)
+create or replace function ai.ollama_list_models(host text default null)
 returns table
 ( "name" text
 , model text
@@ -497,7 +497,7 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.ollama
-    client = ai.ollama.make_client(plpy, _host)
+    client = ai.ollama.make_client(plpy, host)
     import json
     resp = client.list()
     models = resp.get("models")
@@ -525,7 +525,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- ollama_ps
 -- https://github.com/ollama/ollama/blob/main/docs/api.md#list-running-models
-create or replace function ai.ollama_ps(_host text default null)
+create or replace function ai.ollama_ps(host text default null)
 returns table
 ( "name" text
 , model text
@@ -555,7 +555,7 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.ollama
-    client = ai.ollama.make_client(plpy, _host)
+    client = ai.ollama.make_client(plpy, host)
     import json
     resp = client.ps()
     models = resp.get("models")
@@ -585,11 +585,11 @@ set search_path to pg_catalog, pg_temp
 -- ollama_embed
 -- https://github.com/ollama/ollama/blob/main/docs/api.md#generate-embeddings
 create or replace function ai.ollama_embed
-( _model text
-, _input text
-, _host text default null
-, _keep_alive float8 default null
-, _options jsonb default null
+( model text
+, input_text text
+, host text default null
+, keep_alive float8 default null
+, embedding_options jsonb default null
 ) returns @extschema:vector@.vector
 as $python$
     if "ai.version" not in GD:
@@ -606,12 +606,12 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.ollama
-    client = ai.ollama.make_client(plpy, _host)
-    _options_1 = None
-    if _options is not None:
+    client = ai.ollama.make_client(plpy, host)
+    embedding_options_1 = None
+    if embedding_options is not None:
         import json
-        _options_1 = {k: v for k, v in json.loads(_options).items()}
-    resp = client.embeddings(_model, _input, options=_options, keep_alive=_keep_alive)
+        embedding_options_1 = {k: v for k, v in json.loads(embedding_options).items()}
+    resp = client.embeddings(model, input_text, options=embedding_options_1, keep_alive=keep_alive)
     return resp.get("embedding")
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -622,15 +622,15 @@ set search_path to pg_catalog, pg_temp
 -- ollama_generate
 -- https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-completion
 create or replace function ai.ollama_generate
-( _model text
-, _prompt text
-, _host text default null
-, _images bytea[] default null
-, _keep_alive float8 default null
-, _options jsonb default null
-, _system text default null
-, _template text default null
-, _context int[] default null
+( model text
+, prompt text
+, host text default null
+, images bytea[] default null
+, keep_alive float8 default null
+, embedding_options jsonb default null
+, system_prompt text default null
+, template text default null
+, context int[] default null
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
@@ -647,35 +647,34 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.ollama
-    client = ai.ollama.make_client(plpy, _host)
+    client = ai.ollama.make_client(plpy, host)
 
     import json
     args = {}
 
-    if _keep_alive is not None:
-        args["keep_alive"] = _keep_alive
+    if keep_alive is not None:
+        args["keep_alive"] = keep_alive
 
-    if _options is not None:
-        args["options"] = {k: v for k, v in json.loads(_options).items()}
+    if embedding_options is not None:
+        args["options"] = {k: v for k, v in json.loads(embedding_options).items()}
 
-    if _system is not None:
-        args["system"] = _system
+    if system_prompt is not None:
+        args["system"] = system_prompt
 
-    if _template is not None:
-        args["template"] = _template
+    if template is not None:
+        args["template"] = template
 
-    if _context is not None:
-        args["context"] = _context
+    if context is not None:
+        args["context"] = context
 
-    _images_1 = None
-    if _images is not None:
+    if images is not None:
         import base64
-        _images_1 = []
-        for image in _images:
-            _images_1.append(base64.b64encode(image).decode('utf-8'))
-        args["images"] = _images_1
+        images_1 = []
+        for image in images:
+            images_1.append(base64.b64encode(image).decode('utf-8'))
+        args["images"] = images_1
 
-    resp = client.generate(_model, _prompt, stream=False, **args)
+    resp = client.generate(model, prompt, stream=False, **args)
     return json.dumps(resp)
 $python$
 language plpython3u volatile parallel safe security invoker
@@ -686,11 +685,11 @@ set search_path to pg_catalog, pg_temp
 -- ollama_chat_complete
 -- https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-chat-completion
 create or replace function ai.ollama_chat_complete
-( _model text
-, _messages jsonb
-, _host text default null
-, _keep_alive float8 default null
-, _options jsonb default null
+( model text
+, messages jsonb
+, host text default null
+, keep_alive float8 default null
+, chat_options jsonb default null
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
@@ -707,30 +706,30 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.ollama
-    client = ai.ollama.make_client(plpy, _host)
+    client = ai.ollama.make_client(plpy, host)
 
     import json
     import base64
     args = {}
 
-    if _keep_alive is not None:
-        args["keep_alive"] = _keep_alive
+    if keep_alive is not None:
+        args["keep_alive"] = keep_alive
 
-    if _options is not None:
-        args["options"] = {k: v for k, v in json.loads(_options).items()}
+    if chat_options is not None:
+        args["options"] = {k: v for k, v in json.loads(chat_options).items()}
 
-    _messages_1 = json.loads(_messages)
-    if not isinstance(_messages_1, list):
-        plpy.error("_messages is not an array")
+    messages_1 = json.loads(messages)
+    if not isinstance(messages_1, list):
+        plpy.error("messages is not an array")
 
     # the python api expects bytes objects for images
     # decode the base64 encoded images into raw binary
-    for message in _messages_1:
+    for message in messages_1:
         if 'images' in message:
             decoded = [base64.b64decode(image) for image in message["images"]]
             message["images"] = decoded
 
-    resp = client.chat(_model, _messages_1, stream=False, **args)
+    resp = client.chat(model, messages_1, stream=False, **args)
 
     return json.dumps(resp)
 $python$

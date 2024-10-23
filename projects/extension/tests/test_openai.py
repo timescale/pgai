@@ -37,7 +37,7 @@ def test_openai_list_models(cur, openai_api_key):
     cur.execute(
         """
         select count(*) > 0 as actual
-        from ai.openai_list_models(_api_key=>%s)
+        from ai.openai_list_models(api_key=>%s)
     """,
         (openai_api_key,),
     )
@@ -78,7 +78,7 @@ def test_openai_embed(cur, openai_api_key):
             ai.openai_embed
             ( 'text-embedding-ada-002'
             , 'the purple elephant sits on a red mushroom'
-            , _api_key=>%s
+            , api_key=>%s
             )
         )
     """,
@@ -110,8 +110,8 @@ def test_openai_embed_2(cur, openai_api_key):
             ai.openai_embed
             ( 'text-embedding-3-large'
             , 'the purple elephant sits on a red mushroom'
-            , _api_key=>%s
-            , _dimensions=>768
+            , api_key=>%s
+            , dimensions=>768
             )
         )
     """,
@@ -128,7 +128,7 @@ def test_openai_embed_2_no_key(cur_with_api_key):
             ai.openai_embed
             ( 'text-embedding-3-large'
             , 'the purple elephant sits on a red mushroom'
-            , _dimensions=>768
+            , dimensions=>768
             )
         )
     """)
@@ -144,8 +144,8 @@ def test_openai_embed_3(cur, openai_api_key):
             ai.openai_embed
             ( 'text-embedding-3-large'
             , 'the purple elephant sits on a red mushroom'
-            , _api_key=>%s
-            , _user=>'bob'
+            , api_key=>%s
+            , openai_user=>'bob'
             )
         )
     """,
@@ -162,7 +162,7 @@ def test_openai_embed_3_no_key(cur_with_api_key):
             ai.openai_embed
             ( 'text-embedding-3-large'
             , 'the purple elephant sits on a red mushroom'
-            , _user=>'bob'
+            , openai_user=>'bob'
             )
         )
     """)
@@ -190,7 +190,7 @@ def test_openai_embed_5(cur, openai_api_key):
             ai.openai_embed
             ( 'text-embedding-ada-002'
             , array[1820,25977,46840,23874,389,264,2579,58466]
-            , _api_key=>%s
+            , api_key=>%s
             )
         )
     """,
@@ -225,7 +225,7 @@ def test_openai_chat_complete(cur, openai_api_key):
             ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
             , jsonb_build_object('role', 'user', 'content', 'what is the typical weather like in Alabama in June')
             )
-          , _api_key=>%s
+          , api_key=>%s
           ) as actual
         )
         select jsonb_extract_path_text(x.actual, 'choices', '0', 'message', 'content') is not null
@@ -261,7 +261,7 @@ def test_openai_chat_complete_simple(cur, openai_api_key):
         """
         with x as
         (
-            select ai.openai_chat_complete_simple('what is the typical weather like in Alabama in June', _api_key=>%s) as actual
+            select ai.openai_chat_complete_simple('what is the typical weather like in Alabama in June', api_key=>%s) as actual
         )
         select x.actual is not null
         from x
@@ -293,7 +293,7 @@ def test_openai_moderate(cur, openai_api_key):
             select ai.openai_moderate
             ( 'text-moderation-stable'
             , 'I want to kill them.'
-            , _api_key=>%s
+            , api_key=>%s
             ) as actual
         )
         select jsonb_extract_path_text(x.actual, 'results', '0', 'flagged')::bool
