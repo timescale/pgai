@@ -1,5 +1,5 @@
 
-# Run vectorizers in a self-hosted database using pgai vectorizer worker
+# Run vectorizers using pgai vectorizer worker
 
 When you install pgai on Timescale Cloud or another cloud installation, you use 
 scheduling to control the times when vectorizers are run. A scheduled job detects whether work is to be done for the 
