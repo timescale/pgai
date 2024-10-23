@@ -753,7 +753,7 @@ create or replace function ai.anthropic_generate
 , base_url text default null
 , timeout float8 default null
 , max_retries int default null
-, system text default null
+, system_prompt text default null
 , user_id text default null
 , stop_sequences text[] default null
 , temperature float8 default null
@@ -783,8 +783,8 @@ as $python$
     messages_1 = json.loads(messages)
 
     args = {}
-    if system is not None:
-        args["system"] = system
+    if system_prompt is not None:
+        args["system"] = system_prompt
     if user_id is not None:
         args["metadata"] = {"user_id", user_id}
     if stop_sequences is not None:
@@ -864,7 +864,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- cohere_tokenize
 -- https://docs.cohere.com/reference/tokenize
-create or replace function ai.cohere_tokenize(model text, text text, api_key text default null) returns int[]
+create or replace function ai.cohere_tokenize(model text, text_input text, api_key text default null) returns int[]
 as $python$
     if "ai.version" not in GD:
         r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
@@ -882,7 +882,7 @@ as $python$
     import ai.cohere
     client = ai.cohere.make_client(plpy, api_key)
 
-    response = client.tokenize(text=text, model=model)
+    response = client.tokenize(text=text_input, model=model)
     return response.tokens
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -922,10 +922,10 @@ set search_path to pg_catalog, pg_temp
 -- https://docs.cohere.com/reference/embed-1
 create or replace function ai.cohere_embed
 ( model text
-, input text
+, input_text text
 , api_key text default null
 , input_type text default null
-, truncate text default null
+, truncate_long_inputs text default null
 ) returns @extschema:vector@.vector
 as $python$
     if "ai.version" not in GD:
@@ -947,9 +947,9 @@ as $python$
     args={}
     if input_type is not None:
         args["input_type"] = input_type
-    if truncate is not None:
-        args["truncate"] = truncate
-    response = client.embed(texts=[input], model=model, **args)
+    if truncate_long_inputs is not None:
+        args["truncate"] = truncate_long_inputs
+    response = client.embed(texts=[input_text], model=model, **args)
     return response.embeddings[0]
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -964,7 +964,7 @@ create or replace function ai.cohere_classify
 , inputs text[]
 , api_key text default null
 , examples jsonb default null
-, truncate text default null
+, truncate_long_inputs text default null
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
@@ -987,8 +987,8 @@ as $python$
     args = {}
     if examples is not None:
         args["examples"] = json.loads(examples)
-    if truncate is not None:
-        args["truncate"] = truncate
+    if truncate_long_inputs is not None:
+        args["truncate"] = truncate_long_inputs
 
     response = client.classify(inputs=inputs, model=model, **args)
     return response.json()
@@ -1005,7 +1005,7 @@ create or replace function ai.cohere_classify_simple
 , inputs text[]
 , api_key text default null
 , examples jsonb default null
-, truncate text default null
+, truncate_long_inputs text default null
 ) returns table
 ( input text
 , prediction text
@@ -1031,8 +1031,8 @@ as $python$
     args = {}
     if examples is not None:
         args["examples"] = json.loads(examples)
-    if truncate is not None:
-        args["truncate"] = truncate
+    if truncate_long_inputs is not None:
+        args["truncate"] = truncate_long_inputs
     response = client.classify(inputs=inputs, model=model, **args)
     for x in response.classifications:
         yield x.input, x.prediction, x.confidence
