@@ -20,13 +20,39 @@ def test_reveal_secrets():
             """
             select ai.reveal_secret('OPENAI_API_KEY')
             """,
-            [],
-            True,
+            None,
+            False,
         ),
         (
             "SET ai.external_functions_executor_url='http://localhost:8000'",
             """
             select ai.reveal_secret('OPENAI_API_KEY')
+            """,
+            "test",
+            False,
+        ),
+        (
+            "SET ai.openai_api_key='test_guc'",
+            """
+            select ai.reveal_secret('OPENAI_API_KEY')
+            """,
+            "test_guc",
+            False,
+        ),
+        (
+            # guc overrides secret
+            "SET ai.openai_api_key='test_guc'; SET ai.external_functions_executor_url='http://localhost:8000'",
+            """
+            select ai.reveal_secret('OPENAI_API_KEY')
+            """,
+            "test_guc",
+            False,
+        ),
+        (
+            # guc with different name doesn't override
+            "SET ai.openai_api_key='test_guc'; SET ai.external_functions_executor_url='http://localhost:8000'",
+            """
+            select ai.reveal_secret('OPENAI_API_KEY_2')
             """,
             "test",
             False,
@@ -52,14 +78,10 @@ def test_reveal_secrets():
         with psycopg.connect(db_url("test")) as con:
             with con.cursor() as cur:
                 cur.execute(setup)
-                try:
-                    cur.execute(query)
-                except Exception as e:
-                    if is_error:
-                        continue
-                    else:
-                        raise e
                 if is_error:
-                    assert False
-                actual = cur.fetchone()[0]
-                assert actual == expected
+                    with pytest.raises(Exception):
+                        cur.execute(query)
+                else:
+                    cur.execute(query)
+                    actual = cur.fetchone()[0]
+                    assert actual == expected

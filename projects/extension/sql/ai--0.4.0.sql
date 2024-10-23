@@ -3259,7 +3259,8 @@ set search_path to pg_catalog, pg_temp;
 create or replace view ai.secret_permissions as
 SELECT * 
 FROM ai._secret_permissions
-WHERE to_regrole("role") is not null AND pg_has_role(current_user, "role", 'member');
+WHERE pg_catalog.to_regrole("role") is not null 
+      AND pg_catalog.pg_has_role(current_user, "role", 'member');
 
 create or replace function ai.grant_secret(secret_name text, grant_to_role text) returns void
 as $func$
