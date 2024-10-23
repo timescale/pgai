@@ -123,7 +123,6 @@ class TimeDurationParamType(click.ParamType):
     "-d",
     "--db-url",
     type=click.STRING,
-    envvar="VECTORIZER_DB_URL",
     default="postgres://postgres@localhost:5432/postgres",
     show_default=True,
     help="The database URL to connect to",
