@@ -27,7 +27,7 @@ RUN set -e; \
 # install timescaledb
 RUN set -e; \
     mkdir -p /build/timescaledb; \
-    git clone https://github.com/timescale/timescaledb.git --branch 2.16.1 /build/timescaledb; \
+    git clone https://github.com/timescale/timescaledb.git --branch 2.17.1 /build/timescaledb; \
     cd /build/timescaledb;  \
     bash ./bootstrap; \
     cd build && make; \
@@ -40,10 +40,10 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 RUN set -e; \
     rustup install stable; \
-    cargo install cargo-pgrx --version 0.11.4 --locked; \
+    cargo install cargo-pgrx --version 0.12.5 --locked; \
     cargo pgrx init --pg${PG_MAJOR} pg_config; \
     mkdir -p /build/pgvectorscale; \
-    git clone --branch 0.3.0 https://github.com/timescale/pgvectorscale /build/pgvectorscale; \
+    git clone --branch 0.4.0 https://github.com/timescale/pgvectorscale /build/pgvectorscale; \
     cd /build/pgvectorscale/pgvectorscale; \
     if [ -n "$RUSTFLAGS" ]; then \
       export RUSTFLAGS=${RUSTFLAGS}; \
