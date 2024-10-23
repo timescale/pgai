@@ -64,13 +64,13 @@ to run your AI queries:
    You can also log into the database, then set `openai_api_key` using the `\getenv` [metacommand](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMAND-GETENV):
 
       ```sql
-       \getenv openai_api_key OPENAI_API_KEY
+      \getenv openai_api_key OPENAI_API_KEY
       ```
 
-4. Pass your API key to your parameterized query:
+3. Pass your API key to your parameterized query:
     ```sql
     SELECT * 
-    FROM ai.openai_list_models(_api_key=>$1)
+    FROM ai.openai_list_models(api_key=>$1)
     ORDER BY created DESC
     \bind :openai_api_key
     \g
@@ -79,6 +79,21 @@ to run your AI queries:
    Use [\bind](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMAND-BIND) to pass the value of `openai_api_key` to the parameterized query.
 
    The `\bind` metacommand is available in psql version 16+.
+
+4. Once you have used `\getenv` to load the environment variable to a psql variable
+   you can optionally set it as a session-level parameter which can then be used explicitly.
+   ```sql
+   SELECT set_config('ai.openai_api_key', $1, false) IS NOT NULL
+   \bind :openai_api_key
+   \g
+   ```
+   
+   ```sql
+   SELECT * 
+   FROM ai.openai_list_models()
+   ORDER BY created DESC
+   ;
+   ```
 
 ### Handle API keys using pgai from python
 
@@ -111,7 +126,7 @@ to run your AI queries:
     with psycopg2.connect(DB_URL) as conn:
         with conn.cursor() as cur:
             # pass the API key as a parameter to the query. don't use string manipulations
-            cur.execute("SELECT * FROM ai.openai_list_models(_api_key=>%s) ORDER BY created DESC", (OPENAI_API_KEY,))
+            cur.execute("SELECT * FROM ai.openai_list_models(api_key=>%s) ORDER BY created DESC", (OPENAI_API_KEY,))
             records = cur.fetchall()
     ```
 
@@ -237,7 +252,7 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
     SELECT ai.openai_embed
     ( 'text-embedding-ada-002'
     , 'the purple elephant sits on a red mushroom'
-    , _dimensions=>768
+    , dimensions=>768
     );
     ```
   This only works for certain models.
@@ -248,7 +263,7 @@ Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using 
     SELECT ai.openai_embed
     ( 'text-embedding-ada-002'
     , 'the purple elephant sits on a red mushroom'
-    , _user=>'bac1aaf7-4460-42d3-bba5-2957b057f4a5'
+    , openai_user=>'bac1aaf7-4460-42d3-bba5-2957b057f4a5'
     );
     ```
 

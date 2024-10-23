@@ -32,7 +32,7 @@ def host_dir() -> Path:
     return Path(__file__).parent.absolute()
 
 
-def create_user() -> None:
+def create_user(user: str) -> None:
     with psycopg.connect(
         db_url(user="postgres", dbname="postgres"), autocommit=True
     ) as con:
@@ -43,11 +43,11 @@ def create_user() -> None:
                 from pg_catalog.pg_roles
                 where rolname = %s
             """,
-                (USER,),
+                (user,),
             )
             exists: bool = cur.fetchone()[0]
             if not exists:
-                cur.execute(f"create user {USER}")  # NOT a superuser
+                cur.execute(f"create user {user}")  # NOT a superuser
 
 
 def create_database(dbname: str) -> None:
@@ -63,7 +63,7 @@ def dump_db() -> None:
     host_dir().joinpath("dump.sql").unlink(missing_ok=True)
     cmd = " ".join(
         [
-            "pg_dump -Fp",
+            "pg_dump -Fp --no-comments",
             f'''-d "{db_url(USER, "src")}"''',
             f"""-f {docker_dir()}/dump.sql""",
         ]
@@ -149,7 +149,8 @@ def count_vectorizers() -> int:
 
 
 def test_dump_restore():
-    create_user()
+    create_user(USER)
+    create_user("ethel")
     create_database("src")
     create_database("dst")
     init_src()
