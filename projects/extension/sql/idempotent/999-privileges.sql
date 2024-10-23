@@ -51,7 +51,8 @@ begin
         and k.relkind in ('r', 'p', 'S', 'v') -- tables, sequences, and views
         and (admin, n.nspname, k.relname) not in
         (
-            (false, 'ai', 'migration') -- only admins get any access to this table
+            (false, 'ai', 'migration'), -- only admins get any access to this table
+            (false, 'ai', '_secret_permissions') -- only admins get any access to this table
         )
         order by n.nspname, k.relname
     )
@@ -85,7 +86,7 @@ begin
         and e.extname operator(pg_catalog.=) 'ai'
         and k.prokind in ('f', 'p')
         and case
-              when k.proname operator(pg_catalog.=) 'grant_ai_usage' then admin -- only admins get this function
+              when k.proname in ('grant_ai_usage', 'grant_secret', 'revoke_secret') then admin -- only admins get these function
               else true
             end
     )
@@ -93,6 +94,12 @@ begin
         raise debug '%', _sql;
         execute _sql;
     end loop;
+    
+    -- secret permissions
+    if admin then
+        -- grant access to all secrets to admin users
+        insert into ai.secret_permissions (name, "role") VALUES ('*', to_user);
+    end if;
 end
 $func$ language plpgsql volatile
 security invoker -- gotta have privs to give privs
@@ -169,4 +176,3 @@ begin
     end loop;
 end
 $func$;
-

@@ -14,7 +14,7 @@ DB_URL = os.environ["DB_URL"]
 
 def load():
     print("fetching dataset...")
-    data = load_dataset(f"Cohere/wikipedia-22-12", 'en', split='train', streaming=True, trust_remote_code=True)
+    data = load_dataset("Cohere/wikipedia-22-12", 'en', split='train', streaming=True, trust_remote_code=True)
 
     to_load = -1
     ans = 'q'

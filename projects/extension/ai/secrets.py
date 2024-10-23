@@ -20,6 +20,32 @@ def get_guc_value(plpy, setting: str, default: str) -> str:
     return val
 
 
+def check_secret_permissions(plpy, secret_name: str) -> bool:
+    # check if the user has access to all secrets
+    plan = plpy.prepare(
+        """
+                        SELECT 1
+                        FROM ai.secret_permissions 
+                        WHERE name = '*'""",
+        [],
+    )
+    result = plan.execute([], 1)
+    if len(result) > 0:
+        return True
+
+    # check if the user has access to the specific secret
+    plan = plpy.prepare(
+        """
+                        SELECT 1
+                        FROM ai.secret_permissions 
+                        WHERE name = $1 
+                        """,
+        ["text"],
+    )
+    result = plan.execute([secret_name], 1)
+    return len(result) > 0
+
+
 def resolve_secret(plpy, secret_name: str) -> str:
     # first try the guc, then the secrets manager, then error
     secret_name_lower = secret_name.lower()
@@ -43,6 +69,10 @@ def secret_enabled(plpy) -> bool:
 def reveal_secret(plpy, secret_name: str) -> str | None:
     if not secret_enabled(plpy):
         plpy.error("secrets manager is not enabled")
+        return None
+
+    if not check_secret_permissions(plpy, secret_name):
+        plpy.error(f"user does not have access to secret '{secret_name}'")
         return None
 
     the_url = urljoin(

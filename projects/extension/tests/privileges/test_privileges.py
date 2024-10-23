@@ -2,6 +2,7 @@ import os
 import subprocess
 from pathlib import Path
 
+import psycopg
 import pytest
 
 # skip tests in this module if disabled
@@ -84,3 +85,98 @@ def test_function_privileges():
 
 def test_jill_privileges():
     psql_file("jill", "privs", "jill.sql")
+
+
+def test_secret_privileges():
+    # jill cannot access any secrets
+    with psycopg.connect(db_url("jill", "privs")) as con:
+        with con.cursor() as cur:
+            cur.execute(
+                "SET ai.external_functions_executor_url='http://localhost:8000'"
+            )
+            got_error = False
+            try:
+                cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
+            except Exception:
+                got_error = True
+            assert got_error
+
+    # alice can access all the secrets and grant them to jill
+    with psycopg.connect(db_url("alice", "privs")) as con:
+        with con.cursor() as cur:
+            cur.execute(
+                "SET ai.external_functions_executor_url='http://localhost:8000'"
+            )
+            cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
+            cur.execute("select ai.grant_secret('OPENAI_API_KEY', 'jill')")
+
+    # jill can access the secret granted to her but not the other one
+    with psycopg.connect(db_url("jill", "privs")) as con:
+        with con.cursor() as cur:
+            cur.execute(
+                "SET ai.external_functions_executor_url='http://localhost:8000'"
+            )
+            cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
+            got_error = False
+            try:
+                cur.execute("select ai.reveal_secret('OPENAI_API_KEY_2')")
+            except Exception:
+                got_error = True
+            assert got_error
+
+    # alice can revoke the secret from jill
+    with psycopg.connect(db_url("alice", "privs")) as con:
+        with con.cursor() as cur:
+            cur.execute(
+                "SET ai.external_functions_executor_url='http://localhost:8000'"
+            )
+            cur.execute("select ai.revoke_secret('OPENAI_API_KEY', 'jill')")
+
+    with psycopg.connect(db_url("jill", "privs")) as con:
+        with con.cursor() as cur:
+            cur.execute(
+                "SET ai.external_functions_executor_url='http://localhost:8000'"
+            )
+            got_error = False
+            try:
+                cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
+            except Exception:
+                got_error = True
+            assert got_error
+
+    # alice can grant the secret to all keys for jill
+    with psycopg.connect(db_url("alice", "privs")) as con:
+        with con.cursor() as cur:
+            cur.execute(
+                "SET ai.external_functions_executor_url='http://localhost:8000'"
+            )
+            cur.execute("select ai.grant_secret('*', 'jill')")
+
+    # jill can access all the secrets
+    with psycopg.connect(db_url("jill", "privs")) as con:
+        with con.cursor() as cur:
+            cur.execute(
+                "SET ai.external_functions_executor_url='http://localhost:8000'"
+            )
+            cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
+            cur.execute("select ai.reveal_secret('OPENAI_API_KEY_2')")
+
+    # alice can revoke the * privilege from jill
+    with psycopg.connect(db_url("alice", "privs")) as con:
+        with con.cursor() as cur:
+            cur.execute(
+                "SET ai.external_functions_executor_url='http://localhost:8000'"
+            )
+            cur.execute("select ai.revoke_secret('*', 'jill')")
+
+    with psycopg.connect(db_url("jill", "privs")) as con:
+        with con.cursor() as cur:
+            cur.execute(
+                "SET ai.external_functions_executor_url='http://localhost:8000'"
+            )
+            got_error = False
+            try:
+                cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
+            except Exception:
+                got_error = True
+            assert got_error

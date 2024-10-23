@@ -114,6 +114,43 @@ end;
 $outer_migration_block$;
 
 
+-------------------------------------------------------------------------------
+-- 002-secret_permissions.sql
+do $outer_migration_block$ /*002-secret_permissions.sql*/
+declare
+    _sql text;
+    _migration record;
+    _migration_name text = $migration_name$002-secret_permissions.sql$migration_name$;
+    _migration_body text =
+$migration_body$
+create table ai._secret_permissions
+( 
+  name text not null check(name = '*' or name ~ '^[A-Za-z0-9_.]+$')
+, "role" text not null
+, primary key (name, "role")
+);
+perform pg_catalog.pg_extension_config_dump('ai._secret_permissions'::pg_catalog.regclass, '');
+--only admins will have access to this table
+revoke all on ai._secret_permissions from public;
+
+$migration_body$;
+begin
+    select * into _migration from ai.migration where "name" operator(pg_catalog.=) _migration_name;
+    if _migration is not null then
+        raise notice 'migration %s already applied. skipping.', _migration_name;
+        if _migration.body operator(pg_catalog.!=) _migration_body then
+            raise warning 'the contents of migration "%s" have changed', _migration_name;
+        end if;
+        return;
+    end if;
+    _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
+    execute _sql;
+    insert into ai.migration ("name", body, applied_at_version)
+    values (_migration_name, _migration_body, $version$0.4.0$version$);
+end;
+$outer_migration_block$;
+
+
 --------------------------------------------------------------------------------
 -- 001-openai.sql
 
@@ -3224,6 +3261,24 @@ language plpython3u volatile security invoker
 set search_path to pg_catalog, pg_temp;
 
 
+create or replace view ai.secret_permissions as
+SELECT * 
+FROM ai._secret_permissions
+WHERE to_regrole("role") is not null AND pg_has_role(current_user, "role", 'member');
+
+create or replace function ai.grant_secret(secret_name text, grant_to_role text) returns void
+as $func$
+    insert into ai._secret_permissions (name, "role") VALUES (secret_name, grant_to_role);
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp;
+
+create or replace function ai.revoke_secret(secret_name text, revoke_from_role text) returns void
+as $func$
+    delete from ai._secret_permissions where name = secret_name and "role" = revoke_from_role;
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp;
+
+
 
 --------------------------------------------------------------------------------
 -- 999-privileges.sql
@@ -3280,7 +3335,8 @@ begin
         and k.relkind in ('r', 'p', 'S', 'v') -- tables, sequences, and views
         and (admin, n.nspname, k.relname) not in
         (
-            (false, 'ai', 'migration') -- only admins get any access to this table
+            (false, 'ai', 'migration'), -- only admins get any access to this table
+            (false, 'ai', '_secret_permissions') -- only admins get any access to this table
         )
         order by n.nspname, k.relname
     )
@@ -3314,7 +3370,7 @@ begin
         and e.extname operator(pg_catalog.=) 'ai'
         and k.prokind in ('f', 'p')
         and case
-              when k.proname operator(pg_catalog.=) 'grant_ai_usage' then admin -- only admins get this function
+              when k.proname in ('grant_ai_usage', 'grant_secret', 'revoke_secret') then admin -- only admins get these function
               else true
             end
     )
@@ -3322,6 +3378,12 @@ begin
         raise debug '%', _sql;
         execute _sql;
     end loop;
+    
+    -- secret permissions
+    if admin then
+        -- grant access to all secrets to admin users
+        insert into ai.secret_permissions (name, "role") VALUES ('*', to_user);
+    end if;
 end
 $func$ language plpgsql volatile
 security invoker -- gotta have privs to give privs
@@ -3398,7 +3460,6 @@ begin
     end loop;
 end
 $func$;
-
 
 
 

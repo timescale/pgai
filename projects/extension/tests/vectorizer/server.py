@@ -179,7 +179,7 @@ async def get_secrets(secret_name: str = Header(None, alias="Secret-Name")):
         )
 
     # For now, we'll just return the test key if the secret_name matches
-    if secret_name == "OPENAI_API_KEY":
+    if secret_name == "OPENAI_API_KEY" or secret_name == "OPENAI_API_KEY_2":
         return {secret_name: "test"}
     elif secret_name == "ERROR_SECRET":
         return JSONResponse(
