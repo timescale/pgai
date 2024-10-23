@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, Header
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -168,3 +168,26 @@ async def execute_vectorizer(vectorizer: Vectorizer):
     deleted = vectorize(vectorizer)
     print(f"queue emptied: {deleted} rows deleted")
     return {"id": vectorizer.id}
+
+
+@app.get("/api/v1/projects/secrets")
+async def get_secrets(secret_name: str = Header(None, alias="Secret-Name")):
+    if not secret_name:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"error": "Secret-Name header is required"},
+        )
+
+    # For now, we'll just return the test key if the secret_name matches
+    if secret_name == "OPENAI_API_KEY":
+        return {secret_name: "test"}
+    elif secret_name == "ERROR_SECRET":
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"error": "error secret"},
+        )
+    else:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"error": f"Secret '{secret_name}' not found"},
+        )
