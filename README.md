@@ -15,14 +15,16 @@ pgai simplifies the process of building [search](https://en.wikipedia.org/wiki/S
 
 pgai brings embedding and generation AI models closer to the database. With pgai, you can now do the following directly from within PostgreSQL in a SQL query:
 
-* Create vector [embeddings](#embed) for your data.
-* Retrieve LLM [chat completions](#chat-complete) from models like Claude Sonnet 3.5, OpenAI GPT4o, Cohere Command, and Llama 3 (via Ollama).
+* [Create vector embeddings for your data](/docs/vectorizer-quick-start.md).
+* Retrieve LLM chat completions from models like [Claude Sonnet 3.5](/docs/anthropic.md), [OpenAI GPT4o](/docs/openai.md), [Cohere Command](/docs/cohere.md), and [Llama 3 (via Ollama)](/docs/ollama.md).
 * Reason over your data and facilitate use cases like [classification, summarization, and data enrichment](docs/advanced.md) on your existing relational data in PostgreSQL.
 
 Here's how to get started with pgai:
 
+* **TL;DR**: [test drive automatic embedding vectorization](/docs/vectorizer-quick-start.md) using a pre-built Docker developer environment containing 
+   a self-hosted Postgres instance with pgai, vectorizer, and vectorizer workers installed. 
 * **Everyone**: Use pgai in your PostgreSQL database.
-  1. [Install pgai](#installation).
+  1. [Install pgai](#installation) in Timescale Cloud, a pre-built Docker image or from source. 
   1. Use pgai to integrate AI from your provider:
     * [Ollama](./docs/ollama.md) - configure pgai for Ollama, then use the model to embed, chat complete and generate.
     * [OpenAI](./docs/openai.md) - configure pgai for OpenAI, then use the model to tokenize, embed, chat complete and moderate. This page also includes advanced examples.
