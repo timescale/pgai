@@ -3,7 +3,7 @@
 -- ollama_list_models
 -- https://github.com/ollama/ollama/blob/main/docs/api.md#list-local-models
 --
-create or replace function ai.ollama_list_models(_host text default null)
+create or replace function ai.ollama_list_models(host text default null)
 returns table
 ( "name" text
 , model text
@@ -20,7 +20,7 @@ returns table
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.ollama
-    client = ai.ollama.make_client(plpy, _host)
+    client = ai.ollama.make_client(plpy, host)
     import json
     resp = client.list()
     models = resp.get("models")
@@ -48,7 +48,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- ollama_ps
 -- https://github.com/ollama/ollama/blob/main/docs/api.md#list-running-models
-create or replace function ai.ollama_ps(_host text default null)
+create or replace function ai.ollama_ps(host text default null)
 returns table
 ( "name" text
 , model text
@@ -66,7 +66,7 @@ returns table
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.ollama
-    client = ai.ollama.make_client(plpy, _host)
+    client = ai.ollama.make_client(plpy, host)
     import json
     resp = client.ps()
     models = resp.get("models")
@@ -96,21 +96,21 @@ set search_path to pg_catalog, pg_temp
 -- ollama_embed
 -- https://github.com/ollama/ollama/blob/main/docs/api.md#generate-embeddings
 create or replace function ai.ollama_embed
-( _model text
-, _input text
-, _host text default null
-, _keep_alive float8 default null
-, _options jsonb default null
+( model text
+, input_text text
+, host text default null
+, keep_alive float8 default null
+, embedding_options jsonb default null
 ) returns @extschema:vector@.vector
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.ollama
-    client = ai.ollama.make_client(plpy, _host)
-    _options_1 = None
-    if _options is not None:
+    client = ai.ollama.make_client(plpy, host)
+    embedding_options_1 = None
+    if embedding_options is not None:
         import json
-        _options_1 = {k: v for k, v in json.loads(_options).items()}
-    resp = client.embeddings(_model, _input, options=_options, keep_alive=_keep_alive)
+        embedding_options_1 = {k: v for k, v in json.loads(embedding_options).items()}
+    resp = client.embeddings(model, input_text, options=embedding_options_1, keep_alive=keep_alive)
     return resp.get("embedding")
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -121,48 +121,47 @@ set search_path to pg_catalog, pg_temp
 -- ollama_generate
 -- https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-completion
 create or replace function ai.ollama_generate
-( _model text
-, _prompt text
-, _host text default null
-, _images bytea[] default null
-, _keep_alive float8 default null
-, _options jsonb default null
-, _system text default null
-, _template text default null
-, _context int[] default null
+( model text
+, prompt text
+, host text default null
+, images bytea[] default null
+, keep_alive float8 default null
+, embedding_options jsonb default null
+, system_prompt text default null
+, template text default null
+, context int[] default null
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.ollama
-    client = ai.ollama.make_client(plpy, _host)
+    client = ai.ollama.make_client(plpy, host)
 
     import json
     args = {}
 
-    if _keep_alive is not None:
-        args["keep_alive"] = _keep_alive
+    if keep_alive is not None:
+        args["keep_alive"] = keep_alive
 
-    if _options is not None:
-        args["options"] = {k: v for k, v in json.loads(_options).items()}
+    if embedding_options is not None:
+        args["options"] = {k: v for k, v in json.loads(embedding_options).items()}
 
-    if _system is not None:
-        args["system"] = _system
+    if system_prompt is not None:
+        args["system"] = system_prompt
 
-    if _template is not None:
-        args["template"] = _template
+    if template is not None:
+        args["template"] = template
 
-    if _context is not None:
-        args["context"] = _context
+    if context is not None:
+        args["context"] = context
 
-    _images_1 = None
-    if _images is not None:
+    if images is not None:
         import base64
-        _images_1 = []
-        for image in _images:
-            _images_1.append(base64.b64encode(image).decode('utf-8'))
-        args["images"] = _images_1
+        images_1 = []
+        for image in images:
+            images_1.append(base64.b64encode(image).decode('utf-8'))
+        args["images"] = images_1
 
-    resp = client.generate(_model, _prompt, stream=False, **args)
+    resp = client.generate(model, prompt, stream=False, **args)
     return json.dumps(resp)
 $python$
 language plpython3u volatile parallel safe security invoker
@@ -173,39 +172,39 @@ set search_path to pg_catalog, pg_temp
 -- ollama_chat_complete
 -- https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-chat-completion
 create or replace function ai.ollama_chat_complete
-( _model text
-, _messages jsonb
-, _host text default null
-, _keep_alive float8 default null
-, _options jsonb default null
+( model text
+, messages jsonb
+, host text default null
+, keep_alive float8 default null
+, chat_options jsonb default null
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.ollama
-    client = ai.ollama.make_client(plpy, _host)
+    client = ai.ollama.make_client(plpy, host)
 
     import json
     import base64
     args = {}
 
-    if _keep_alive is not None:
-        args["keep_alive"] = _keep_alive
+    if keep_alive is not None:
+        args["keep_alive"] = keep_alive
 
-    if _options is not None:
-        args["options"] = {k: v for k, v in json.loads(_options).items()}
+    if chat_options is not None:
+        args["options"] = {k: v for k, v in json.loads(chat_options).items()}
 
-    _messages_1 = json.loads(_messages)
-    if not isinstance(_messages_1, list):
-        plpy.error("_messages is not an array")
+    messages_1 = json.loads(messages)
+    if not isinstance(messages_1, list):
+        plpy.error("messages is not an array")
 
     # the python api expects bytes objects for images
     # decode the base64 encoded images into raw binary
-    for message in _messages_1:
+    for message in messages_1:
         if 'images' in message:
             decoded = [base64.b64decode(image) for image in message["images"]]
             message["images"] = decoded
 
-    resp = client.chat(_model, _messages_1, stream=False, **args)
+    resp = client.chat(model, messages_1, stream=False, **args)
 
     return json.dumps(resp)
 $python$

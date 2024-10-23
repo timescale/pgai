@@ -9,19 +9,19 @@ This page shows you how to:
 
 To use pgai with Ollama, Ollama must be running and network-accessible to your database.
 
-To specify the Ollama network address, Ollama functions in pgai use the `_host` parameter. Alternatively, the `ai.ollama_host` config setting can used.
-If you do not pass a `_host` argument, and the `ai.ollama_host` config setting is missing, pgai defaults to 
+To specify the Ollama network address, Ollama functions in pgai use the `host` parameter. Alternatively, the `ai.ollama_host` config setting can used.
+If you do not pass a `host` argument, and the `ai.ollama_host` config setting is missing, pgai defaults to 
 `http://localhost:11434`, and a warning is appended to the log file.
 
 You set the network for your Ollama configuration either:
 
-* Explicitly with the `_host` parameter:
+* Explicitly with the `host` parameter:
 
   ```sql
   select ai.ollama_generate
   ( 'llama3'
   , 'what is the typical weather like in Alabama in June'
-  , _host=>'http://host.for.ollama:port' -- tells pgai that Ollama is running on the host when pgai is in a docker container
+  , host=>'http://host.for.ollama:port' -- tells pgai that Ollama is running on the host when pgai is in a docker container
   )
   ```
 
@@ -110,7 +110,7 @@ select jsonb_pretty(
     ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
     , jsonb_build_object('role', 'user', 'content', 'Give a short description of what a large language model is')
     )
-  , _options=> jsonb_build_object
+  , chat_options=> jsonb_build_object
     ( 'seed', 42
     , 'temperature', 0.6
     )
@@ -153,7 +153,7 @@ select ai.ollama_chat_complete
   ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
   , jsonb_build_object('role', 'user', 'content', 'Give a short description of what a large language model is')
   )
-, _options=> jsonb_build_object
+, chat_options=> jsonb_build_object
   ( 'seed', 42
   , 'temperature', 0.6
   )
@@ -197,9 +197,9 @@ In summary, a large language model is a powerful AI tool capable of processing a
 select ai.ollama_generate
 ( 'llava:7b'
 , 'Please describe this image.'
-, _images=> array[pg_read_binary_file('/pgai/tests/postgresql-vs-pinecone.jpg')]
-, _system=>'you are a helpful assistant'
-, _options=> jsonb_build_object
+, images=> array[pg_read_binary_file('/pgai/tests/postgresql-vs-pinecone.jpg')]
+, system_prompt=>'you are a helpful assistant'
+, embedding_options=> jsonb_build_object
   ( 'seed', 42
   , 'temperature', 0.9
   )
