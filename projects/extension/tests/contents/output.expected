@@ -24,6 +24,7 @@ CREATE EXTENSION
  function ai.execute_vectorizer(integer)
  function ai.formatting_python_template(text)
  function ai.grant_ai_usage(name,boolean)
+ function ai.grant_secret(text,text)
  function ai.grant_to()
  function ai.grant_to(name[])
  function ai.indexing_default()
@@ -48,6 +49,7 @@ CREATE EXTENSION
  function ai._resolve_indexing_default()
  function ai._resolve_scheduling_default()
  function ai.reveal_secret(text)
+ function ai.revoke_secret(text,text)
  function ai.scheduling_default()
  function ai.scheduling_none()
  function ai.scheduling_timescaledb(interval,timestamp with time zone,boolean,text)
@@ -75,10 +77,30 @@ CREATE EXTENSION
  function ai._vectorizer_vector_index_exists(name,name,jsonb)
  sequence ai.vectorizer_id_seq
  table ai.migration
+ table ai._secret_permissions
  table ai.vectorizer
  table ai.vectorizer_errors
+ view ai.secret_permissions
  view ai.vectorizer_status
-(74 rows)
+(78 rows)
+
+                                    Table "ai._secret_permissions"
+ Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
+--------+------+-----------+----------+---------+----------+-------------+--------------+-------------
+ name   | text |           | not null |         | extended |             |              | 
+ role   | text |           | not null |         | extended |             |              | 
+Indexes:
+    "_secret_permissions_pkey" PRIMARY KEY, btree (name, role)
+Check constraints:
+    "_secret_permissions_name_check" CHECK (name = '*'::text OR name ~ '^[A-Za-z0-9_.]+$'::text)
+Access method: heap
+
+             Index "ai._secret_permissions_pkey"
+ Column | Type | Key? | Definition | Storage  | Stats target 
+--------+------+------+------------+----------+--------------
+ name   | text | yes  | name       | extended | 
+ role   | text | yes  | role       | extended | 
+primary key, btree, for table "ai._secret_permissions"
 
                                                               Table "ai.migration"
        Column       |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
@@ -96,6 +118,17 @@ Access method: heap
 --------+------+------+------------+----------+--------------
  name   | text | yes  | name       | extended | 
 primary key, btree, for table "ai.migration"
+
+                      View "ai.secret_permissions"
+ Column | Type | Collation | Nullable | Default | Storage  | Description 
+--------+------+-----------+----------+---------+----------+-------------
+ name   | text |           |          |         | extended | 
+ role   | text |           |          |         | extended | 
+View definition:
+ SELECT name,
+    role
+   FROM ai._secret_permissions
+  WHERE to_regrole(role) IS NOT NULL AND pg_has_role(CURRENT_USER, role::name, 'member'::text);
 
                                                           Table "ai.vectorizer"
     Column     |  Type   | Collation | Nullable |             Default              | Storage  | Compression | Stats target | Description 

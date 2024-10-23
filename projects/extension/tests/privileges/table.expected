@@ -1,5 +1,21 @@
  schema |        table         | user  | privilege | granted 
 --------+----------------------+-------+-----------+---------
+ ai     | _secret_permissions  | alice | delete    | YES
+ ai     | _secret_permissions  | alice | insert    | YES
+ ai     | _secret_permissions  | alice | select    | YES
+ ai     | _secret_permissions  | alice | update    | YES
+ ai     | _secret_permissions  | bob   | delete    | no
+ ai     | _secret_permissions  | bob   | insert    | no
+ ai     | _secret_permissions  | bob   | select    | no
+ ai     | _secret_permissions  | bob   | update    | no
+ ai     | _secret_permissions  | fred  | delete    | no
+ ai     | _secret_permissions  | fred  | insert    | no
+ ai     | _secret_permissions  | fred  | select    | no
+ ai     | _secret_permissions  | fred  | update    | no
+ ai     | _secret_permissions  | jill  | delete    | no
+ ai     | _secret_permissions  | jill  | insert    | no
+ ai     | _secret_permissions  | jill  | select    | no
+ ai     | _secret_permissions  | jill  | update    | no
  ai     | _vectorizer_q_1      | alice | delete    | YES
  ai     | _vectorizer_q_1      | alice | insert    | YES
  ai     | _vectorizer_q_1      | alice | select    | YES
@@ -96,5 +112,5 @@
  wiki   | post_embedding_store | jill  | insert    | YES
  wiki   | post_embedding_store | jill  | select    | YES
  wiki   | post_embedding_store | jill  | update    | YES
-(96 rows)
+(112 rows)
 

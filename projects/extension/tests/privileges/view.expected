@@ -1,12 +1,16 @@
- schema |       view        | user  | privilege | granted 
---------+-------------------+-------+-----------+---------
- ai     | vectorizer_status | alice | select    | YES
- ai     | vectorizer_status | bob   | select    | no
- ai     | vectorizer_status | fred  | select    | no
- ai     | vectorizer_status | jill  | select    | YES
- wiki   | post_embedding    | alice | select    | YES
- wiki   | post_embedding    | bob   | select    | no
- wiki   | post_embedding    | fred  | select    | YES
- wiki   | post_embedding    | jill  | select    | YES
-(8 rows)
+ schema |        view        | user  | privilege | granted 
+--------+--------------------+-------+-----------+---------
+ ai     | secret_permissions | alice | select    | YES
+ ai     | secret_permissions | bob   | select    | no
+ ai     | secret_permissions | fred  | select    | no
+ ai     | secret_permissions | jill  | select    | YES
+ ai     | vectorizer_status  | alice | select    | YES
+ ai     | vectorizer_status  | bob   | select    | no
+ ai     | vectorizer_status  | fred  | select    | no
+ ai     | vectorizer_status  | jill  | select    | YES
+ wiki   | post_embedding     | alice | select    | YES
+ wiki   | post_embedding     | bob   | select    | no
+ wiki   | post_embedding     | fred  | select    | YES
+ wiki   | post_embedding     | jill  | select    | YES
+(12 rows)
 
