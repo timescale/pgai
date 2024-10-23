@@ -164,7 +164,7 @@ def test_cohere_embed_no_key(cur_with_api_key):
             ( 'embed-english-light-v3.0'
             , 'if a woodchuck could chuck wood, a woodchuck would chuck as much wood as he could'
             , input_type=>'search_document'
-            , truncate=>'end'
+            , truncate_long_inputs=>'end'
             )
         )
     """)
