@@ -3212,7 +3212,7 @@ as $python$
     else:
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
-    import ai.vectorizer
+    import ai.secrets
     return ai.secrets.reveal_secret(plpy, secret_name)
 $python$
 language plpython3u volatile security invoker
