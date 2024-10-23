@@ -43,7 +43,7 @@ to run your AI queries:
     SELECT ai.cohere_chat_complete
     ( 'command-r-plus'
     , 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
-    , _seed=>42
+    , seed=>42
     )->>'text'
     ;
     ```
@@ -73,8 +73,8 @@ to run your AI queries:
     SELECT ai.cohere_chat_complete
     ( 'command-r-plus'
     , 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
-    , _api_key=>$1
-    , _seed=>42
+    , api_key=>$1
+    , seed=>42
     )->>'text'
     \bind :cohere_api_key
     \g
@@ -119,8 +119,8 @@ to run your AI queries:
                 SELECT ai.cohere_chat_complete
                 ( 'command-r-plus'
                 , 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
-                , _api_key=>%s
-                , _seed=>42
+                , api_key=>%s
+                , seed=>42
                 )->>'text'
             """, (COHERE_API_KEY, ))
             records = cur.fetchall()
@@ -182,7 +182,7 @@ This section shows you how to use AI directly from your database using SQL.
   
   ```sql
   select *
-  from ai.cohere_list_models(_endpoint=>'embed')
+  from ai.cohere_list_models(endpoint=>'embed')
   ;
   ```
   
@@ -205,7 +205,7 @@ This section shows you how to use AI directly from your database using SQL.
   
   ```sql
   select * 
-  from ai.cohere_list_models(_endpoint=>'generate', _default_only=>true);
+  from ai.cohere_list_models(endpoint=>'generate', default_only=>true);
   ```
   
   Results
@@ -265,7 +265,7 @@ Embed content.
 select ai.cohere_embed
 ( 'embed-english-light-v3.0'
 , 'if a woodchuck could chuck wood, a woodchuck would chuck as much wood as he could'
-, _input_type=>'search_document'
+, input_type=>'search_document'
 );
 ```
 
@@ -299,7 +299,7 @@ from jsonb_to_recordset
     ai.cohere_classify
     ( 'embed-english-light-v3.0'
     , array['bird', 'airplane', 'corn'] --inputs we want to classify
-    , _examples=>(select jsonb_agg(jsonb_build_object('text', examples.example, 'label', examples.label)) from examples)
+    , examples=>(select jsonb_agg(jsonb_build_object('text', examples.example, 'label', examples.label)) from examples)
     )->'classifications'
 ) x(input text, prediction text, confidence float8)
 ;
@@ -335,7 +335,7 @@ select *
 from ai.cohere_classify_simple
 ( 'embed-english-light-v3.0'
 , array['bird', 'airplane', 'corn']
-, _examples=>(select jsonb_agg(jsonb_build_object('text', examples.example, 'label', examples.label)) from examples)
+, examples=>(select jsonb_agg(jsonb_build_object('text', examples.example, 'label', examples.label)) from examples)
 ) x
 ;
 ```
@@ -371,7 +371,7 @@ from jsonb_to_recordset
       , 'What one programmer can do in one month, two programmers can do in two months.'
       , 'how much wood would a woodchuck chuck if a woodchuck could chuck wood?'
       )
-    , _return_documents=>true
+    , return_documents=>true
     )->'results'
 ) x("index" int, "document" jsonb, relevance_score float8)
 order by relevance_score desc
@@ -430,7 +430,7 @@ Complete chat prompts
 select ai.cohere_chat_complete
 ( 'command-r-plus'
 , 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
-, _seed=>42
+, seed=>42
 )->>'text'
 ;
 ```
@@ -438,8 +438,7 @@ select ai.cohere_chat_complete
 Results:
 
 ```text
-According to a tongue-twister poem often attributed to Robert Hobart Davis and Richard Wayne Peck, a woodchuck (also known as a groundhog) would chuck, or throw, “as much wood as a woodchuck would, if a woodchuck could chuck wood.” 
+According to a tongue-twister poem often attributed to Robert Hobart Davis and Richard Wayne Peck, a woodchuck (also known as a groundhog) would chuck, or throw, "as much wood as a woodchuck would, if a woodchuck could chuck wood." 
 
 In a more serious biological context, woodchucks are known to be capable of causing significant damage to wood-based structures and landscapes due to their burrowing and chewing habits. They can chew through small trees and branches, although the exact amount of wood they could chuck or chew through would depend on various factors such as the size and age of the woodchuck, the type and condition of the wood, and the woodchuck's motivation and determination.
 ```
-
