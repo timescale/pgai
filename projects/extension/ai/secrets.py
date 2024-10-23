@@ -41,6 +41,10 @@ def secret_enabled(plpy) -> bool:
 
 
 def reveal_secret(plpy, secret_name: str) -> str | None:
+    if not secret_enabled(plpy):
+        plpy.error("secrets manager is not enabled")
+        return None
+
     the_url = urljoin(
         get_guc_value(plpy, GUC_SECRETS_MANAGER_URL, ""),
         DEFAULT_SECRETS_MANAGER_PATH,
