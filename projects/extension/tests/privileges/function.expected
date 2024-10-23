@@ -260,6 +260,10 @@
  f       | bob   | execute   | no      | ai     | processing_default(batch_size integer, concurrency integer)
  f       | fred  | execute   | no      | ai     | processing_default(batch_size integer, concurrency integer)
  f       | jill  | execute   | YES     | ai     | processing_default(batch_size integer, concurrency integer)
+ f       | alice | execute   | YES     | ai     | reveal_secret(secret_name text)
+ f       | bob   | execute   | no      | ai     | reveal_secret(secret_name text)
+ f       | fred  | execute   | no      | ai     | reveal_secret(secret_name text)
+ f       | jill  | execute   | YES     | ai     | reveal_secret(secret_name text)
  f       | alice | execute   | YES     | ai     | scheduling_default()
  f       | bob   | execute   | no      | ai     | scheduling_default()
  f       | fred  | execute   | no      | ai     | scheduling_default()
@@ -276,5 +280,5 @@
  f       | bob   | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer)
  f       | fred  | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer)
  f       | jill  | execute   | YES     | ai     | vectorizer_queue_pending(vectorizer_id integer)
-(276 rows)
+(280 rows)
 

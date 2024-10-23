@@ -1,14 +1,10 @@
 from typing import Optional
 from anthropic import Anthropic
+from .secrets import resolve_secret
 
 
 def find_api_key(plpy) -> str:
-    r = plpy.execute(
-        "select pg_catalog.current_setting('ai.anthropic_api_key', true) as api_key"
-    )
-    if len(r) == 0:
-        plpy.error("missing api key")
-    return r[0]["api_key"]
+    return resolve_secret(plpy, "ANTHROPIC_API_KEY")
 
 
 def make_client(
