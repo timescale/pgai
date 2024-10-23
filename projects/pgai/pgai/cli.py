@@ -117,6 +117,16 @@ class TimeDurationParamType(click.ParamType):
             )
 
 
+def get_log_level(level: str) -> int:
+    level_upper = level.upper()
+    # We are targeting python 3.10 that's why we need to use getLevelName which
+    # is deprecated, but still there for backwards compatibility.
+    level_name = logging.getLevelName(level_upper)  # type: ignore
+    if level_upper != "INFO" and isinstance(level_name, int):
+        return level_name
+    return logging.getLevelName("INFO")  # type: ignore
+
+
 @click.command(name="worker")
 @click.version_option(version=__version__)
 @click.option(
@@ -173,8 +183,10 @@ def vectorizer_worker(
     poll_interval: int,
     once: bool,
 ) -> None:
-    log_level_: int = logging.getLevelNamesMapping()[log_level.upper()]
-    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(log_level_))
+    structlog.configure(
+        wrapper_class=structlog.make_filtering_bound_logger(get_log_level(log_level))
+    )
+    log.debug("starting vectorizer worker")
     poll_interval_str = datetime.timedelta(seconds=poll_interval)
 
     with (
