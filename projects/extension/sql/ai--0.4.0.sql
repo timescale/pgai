@@ -742,26 +742,25 @@ set search_path to pg_catalog, pg_temp
 
 --------------------------------------------------------------------------------
 -- 003-anthropic.sql
-
 -------------------------------------------------------------------------------
 -- anthropic_generate
 -- https://docs.anthropic.com/en/api/messages
 create or replace function ai.anthropic_generate
-( _model text
-, _messages jsonb
-, _max_tokens int default 1024
-, _api_key text default null
-, _base_url text default null
-, _timeout float8 default null
-, _max_retries int default null
-, _system text default null
-, _user_id text default null
-, _stop_sequences text[] default null
-, _temperature float8 default null
-, _tool_choice jsonb default null
-, _tools jsonb default null
-, _top_k int default null
-, _top_p float8 default null
+( model text
+, messages jsonb
+, max_tokens int default 1024
+, api_key text default null
+, base_url text default null
+, timeout float8 default null
+, max_retries int default null
+, system text default null
+, user_id text default null
+, stop_sequences text[] default null
+, temperature float8 default null
+, tool_choice jsonb default null
+, tools jsonb default null
+, top_k int default null
+, top_p float8 default null
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
@@ -778,30 +777,30 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.anthropic
-    client = ai.anthropic.make_client(plpy, api_key=_api_key, base_url=_base_url, timeout=_timeout, max_retries=_max_retries)
+    client = ai.anthropic.make_client(plpy, api_key=api_key, base_url=base_url, timeout=timeout, max_retries=max_retries)
 
     import json
-    _messages_1 = json.loads(_messages)
+    messages_1 = json.loads(messages)
 
     args = {}
-    if _system is not None:
-        args["system"] = _system
-    if _user_id is not None:
-        args["metadata"] = {"user_id", _user_id}
-    if _stop_sequences is not None:
-        args["stop_sequences"] = _stop_sequences
-    if _temperature is not None:
-        args["temperature"] = _temperature
-    if _tool_choice is not None:
-        args["tool_choice"] = json.dumps(_tool_choice)
-    if _tools is not None:
-        args["tools"] = json.dumps(_tools)
-    if _top_k is not None:
-        args["top_k"] = _top_k
-    if _top_p is not None:
-        args["top_p"] = _top_p
+    if system is not None:
+        args["system"] = system
+    if user_id is not None:
+        args["metadata"] = {"user_id", user_id}
+    if stop_sequences is not None:
+        args["stop_sequences"] = stop_sequences
+    if temperature is not None:
+        args["temperature"] = temperature
+    if tool_choice is not None:
+        args["tool_choice"] = json.dumps(tool_choice)
+    if tools is not None:
+        args["tools"] = json.dumps(tools)
+    if top_k is not None:
+        args["top_k"] = top_k
+    if top_p is not None:
+        args["top_p"] = top_p
 
-    message = client.messages.create(model=_model, messages=_messages_1, max_tokens=_max_tokens, **args)
+    message = client.messages.create(model=model, messages=messages_1, max_tokens=max_tokens, **args)
     return message.to_json()
 $python$
 language plpython3u volatile parallel safe security invoker
@@ -809,17 +808,15 @@ set search_path to pg_catalog, pg_temp
 ;
 
 
-
 --------------------------------------------------------------------------------
 -- 004-cohere.sql
-
 -------------------------------------------------------------------------------
 -- cohere_list_models
 -- https://docs.cohere.com/reference/list-models
 create or replace function ai.cohere_list_models
-( _api_key text default null
-, _endpoint text default null
-, _default_only bool default null
+( api_key text default null
+, endpoint text default null
+, default_only bool default null
 )
 returns table
 ( "name" text
@@ -844,13 +841,13 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.cohere
-    client = ai.cohere.make_client(plpy, _api_key)
+    client = ai.cohere.make_client(plpy, api_key)
 
     args = {}
-    if _endpoint is not None:
-        args["endpoint"] = _endpoint
-    if _default_only is not None:
-        args["default_only"] = _default_only
+    if endpoint is not None:
+        args["endpoint"] = endpoint
+    if default_only is not None:
+        args["default_only"] = default_only
     page_token = None
     while True:
         resp = client.models.list(page_size=1000, page_token=page_token, **args)
@@ -867,7 +864,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- cohere_tokenize
 -- https://docs.cohere.com/reference/tokenize
-create or replace function ai.cohere_tokenize(_model text, _text text, _api_key text default null) returns int[]
+create or replace function ai.cohere_tokenize(model text, text text, api_key text default null) returns int[]
 as $python$
     if "ai.version" not in GD:
         r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
@@ -883,9 +880,9 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.cohere
-    client = ai.cohere.make_client(plpy, _api_key)
+    client = ai.cohere.make_client(plpy, api_key)
 
-    response = client.tokenize(text=_text, model=_model)
+    response = client.tokenize(text=text, model=model)
     return response.tokens
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -895,7 +892,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- cohere_detokenize
 -- https://docs.cohere.com/reference/detokenize
-create or replace function ai.cohere_detokenize(_model text, _tokens int[], _api_key text default null) returns text
+create or replace function ai.cohere_detokenize(model text, tokens int[], api_key text default null) returns text
 as $python$
     if "ai.version" not in GD:
         r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
@@ -911,9 +908,9 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.cohere
-    client = ai.cohere.make_client(plpy, _api_key)
+    client = ai.cohere.make_client(plpy, api_key)
 
-    response = client.detokenize(tokens=_tokens, model=_model)
+    response = client.detokenize(tokens=tokens, model=model)
     return response.text
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -924,11 +921,11 @@ set search_path to pg_catalog, pg_temp
 -- cohere_embed
 -- https://docs.cohere.com/reference/embed-1
 create or replace function ai.cohere_embed
-( _model text
-, _input text
-, _api_key text default null
-, _input_type text default null
-, _truncate text default null
+( model text
+, input text
+, api_key text default null
+, input_type text default null
+, truncate text default null
 ) returns @extschema:vector@.vector
 as $python$
     if "ai.version" not in GD:
@@ -945,14 +942,14 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.cohere
-    client = ai.cohere.make_client(plpy, _api_key)
+    client = ai.cohere.make_client(plpy, api_key)
 
     args={}
-    if _input_type is not None:
-        args["input_type"] = _input_type
-    if _truncate is not None:
-        args["truncate"] = _truncate
-    response = client.embed(texts=[_input], model=_model, **args)
+    if input_type is not None:
+        args["input_type"] = input_type
+    if truncate is not None:
+        args["truncate"] = truncate
+    response = client.embed(texts=[input], model=model, **args)
     return response.embeddings[0]
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -963,11 +960,11 @@ set search_path to pg_catalog, pg_temp
 -- cohere_classify
 -- https://docs.cohere.com/reference/classify
 create or replace function ai.cohere_classify
-( _model text
-, _inputs text[]
-, _api_key text default null
-, _examples jsonb default null
-, _truncate text default null
+( model text
+, inputs text[]
+, api_key text default null
+, examples jsonb default null
+, truncate text default null
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
@@ -984,16 +981,16 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.cohere
-    client = ai.cohere.make_client(plpy, _api_key)
+    client = ai.cohere.make_client(plpy, api_key)
 
     import json
     args = {}
-    if _examples is not None:
-        args["examples"] = json.loads(_examples)
-    if _truncate is not None:
-        args["truncate"] = _truncate
+    if examples is not None:
+        args["examples"] = json.loads(examples)
+    if truncate is not None:
+        args["truncate"] = truncate
 
-    response = client.classify(inputs=_inputs, model=_model, **args)
+    response = client.classify(inputs=inputs, model=model, **args)
     return response.json()
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -1004,11 +1001,11 @@ set search_path to pg_catalog, pg_temp
 -- cohere_classify_simple
 -- https://docs.cohere.com/reference/classify
 create or replace function ai.cohere_classify_simple
-( _model text
-, _inputs text[]
-, _api_key text default null
-, _examples jsonb default null
-, _truncate text default null
+( model text
+, inputs text[]
+, api_key text default null
+, examples jsonb default null
+, truncate text default null
 ) returns table
 ( input text
 , prediction text
@@ -1029,14 +1026,14 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.cohere
-    client = ai.cohere.make_client(plpy, _api_key)
+    client = ai.cohere.make_client(plpy, api_key)
     import json
     args = {}
-    if _examples is not None:
-        args["examples"] = json.loads(_examples)
-    if _truncate is not None:
-        args["truncate"] = _truncate
-    response = client.classify(inputs=_inputs, model=_model, **args)
+    if examples is not None:
+        args["examples"] = json.loads(examples)
+    if truncate is not None:
+        args["truncate"] = truncate
+    response = client.classify(inputs=inputs, model=model, **args)
     for x in response.classifications:
         yield x.input, x.prediction, x.confidence
 $python$
@@ -1048,14 +1045,14 @@ set search_path to pg_catalog, pg_temp
 -- cohere_rerank
 -- https://docs.cohere.com/reference/rerank
 create or replace function ai.cohere_rerank
-( _model text
-, _query text
-, _documents jsonb
-, _api_key text default null
-, _top_n integer default null
-, _rank_fields text[] default null
-, _return_documents bool default null
-, _max_chunks_per_doc int default null
+( model text
+, query text
+, documents jsonb
+, api_key text default null
+, top_n integer default null
+, rank_fields text[] default null
+, return_documents bool default null
+, max_chunks_per_doc int default null
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
@@ -1072,19 +1069,19 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.cohere
-    client = ai.cohere.make_client(plpy, _api_key)
+    client = ai.cohere.make_client(plpy, api_key)
     import json
     args = {}
-    if _top_n is not None:
-        args["top_n"] = _top_n
-    if _rank_fields is not None:
-        args["rank_fields"] = _rank_fields
-    if _return_documents is not None:
-        args["return_documents"] = _return_documents
-    if _max_chunks_per_doc is not None:
-        args["max_chunks_per_doc"] = _max_chunks_per_doc
-    _documents_1 = json.loads(_documents)
-    response = client.rerank(model=_model, query=_query, documents=_documents_1, **args)
+    if top_n is not None:
+        args["top_n"] = top_n
+    if rank_fields is not None:
+        args["rank_fields"] = rank_fields
+    if return_documents is not None:
+        args["return_documents"] = return_documents
+    if max_chunks_per_doc is not None:
+        args["max_chunks_per_doc"] = max_chunks_per_doc
+    documents_1 = json.loads(documents)
+    response = client.rerank(model=model, query=query, documents=documents_1, **args)
     return response.json()
 $python$ language plpython3u immutable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
@@ -1094,12 +1091,12 @@ set search_path to pg_catalog, pg_temp
 -- cohere_rerank_simple
 -- https://docs.cohere.com/reference/rerank
 create or replace function ai.cohere_rerank_simple
-( _model text
-, _query text
-, _documents jsonb
-, _api_key text default null
-, _top_n integer default null
-, _max_chunks_per_doc int default null
+( model text
+, query text
+, documents jsonb
+, api_key text default null
+, top_n integer default null
+, max_chunks_per_doc int default null
 ) returns table
 ( "index" int
 , "document" jsonb
@@ -1110,13 +1107,13 @@ select *
 from pg_catalog.jsonb_to_recordset
 (
     ai.cohere_rerank
-    ( _model
-    , _query
-    , _documents
-    , _api_key=>_api_key
-    , _top_n=>_top_n
-    , _return_documents=>true
-    , _max_chunks_per_doc=>_max_chunks_per_doc
+    ( model
+    , query
+    , documents
+    , api_key=>api_key
+    , top_n=>top_n
+    , return_documents=>true
+    , max_chunks_per_doc=>max_chunks_per_doc
     ) operator(pg_catalog.->) 'results'
 ) x("index" int, "document" jsonb, relevance_score float8)
 $func$ language sql immutable parallel safe security invoker
@@ -1127,29 +1124,29 @@ set search_path to pg_catalog, pg_temp
 -- cohere_chat_complete
 -- https://docs.cohere.com/reference/chat
 create or replace function ai.cohere_chat_complete
-( _model text
-, _message text
-, _api_key text default null
-, _preamble text default null
-, _chat_history jsonb default null
-, _conversation_id text default null
-, _prompt_truncation text default null
-, _connectors jsonb default null
-, _search_queries_only bool default null
-, _documents jsonb default null
-, _citation_quality text default null
-, _temperature float8 default null
-, _max_tokens int default null
-, _max_input_tokens int default null
-, _k int default null
-, _p float8 default null
-, _seed int default null
-, _stop_sequences text[] default null
-, _frequency_penalty float8 default null
-, _presence_penalty float8 default null
-, _tools jsonb default null
-, _tool_results jsonb default null
-, _force_single_step bool default null
+( model text
+, message text
+, api_key text default null
+, preamble text default null
+, chat_history jsonb default null
+, conversation_id text default null
+, prompt_truncation text default null
+, connectors jsonb default null
+, search_queries_only bool default null
+, documents jsonb default null
+, citation_quality text default null
+, temperature float8 default null
+, max_tokens int default null
+, max_input_tokens int default null
+, k int default null
+, p float8 default null
+, seed int default null
+, stop_sequences text[] default null
+, frequency_penalty float8 default null
+, presence_penalty float8 default null
+, tools jsonb default null
+, tool_results jsonb default null
+, force_single_step bool default null
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
@@ -1166,57 +1163,56 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.cohere
-    client = ai.cohere.make_client(plpy, _api_key)
+    client = ai.cohere.make_client(plpy, api_key)
 
     import json
     args = {}
-    if _preamble is not None:
-        args["preamble"] = _preamble
-    if _chat_history is not None:
-        args["chat_history"] = json.loads(_chat_history)
-    if _conversation_id is not None:
-        args["conversation_id"] = _conversation_id
-    if _prompt_truncation is not None:
-        args["prompt_truncation"] = _prompt_truncation
-    if _connectors is not None:
-        args["connectors"] = json.loads(_connectors)
-    if _search_queries_only is not None:
-        args["search_queries_only"] = _search_queries_only
-    if _documents is not None:
-        args["documents"] = json.loads(_documents)
-    if _citation_quality is not None:
-        args["citation_quality"] = _citation_quality
-    if _temperature is not None:
-        args["temperature"] = _temperature
-    if _max_tokens is not None:
-        args["max_tokens"] = _max_tokens
-    if _max_input_tokens is not None:
-        args["max_input_tokens"] = _max_input_tokens
-    if _k is not None:
-        args["k"] = _k
-    if _p is not None:
-        args["p"] = _p
-    if _seed is not None:
-        args["seed"] = _seed
-    if _stop_sequences is not None:
-        args["stop_sequences"] = _stop_sequences
-    if _frequency_penalty is not None:
-        args["frequency_penalty"] = _frequency_penalty
-    if _presence_penalty is not None:
-        args["presence_penalty"] = _presence_penalty
-    if _tools is not None:
-        args["tools"] = json.loads(_tools)
-    if _tool_results is not None:
-        args["tool_results"] = json.loads(_tool_results)
-    if _force_single_step is not None:
-        args["force_single_step"] = _force_single_step
+    if preamble is not None:
+        args["preamble"] = preamble
+    if chat_history is not None:
+        args["chat_history"] = json.loads(chat_history)
+    if conversation_id is not None:
+        args["conversation_id"] = conversation_id
+    if prompt_truncation is not None:
+        args["prompt_truncation"] = prompt_truncation
+    if connectors is not None:
+        args["connectors"] = json.loads(connectors)
+    if search_queries_only is not None:
+        args["search_queries_only"] = search_queries_only
+    if documents is not None:
+        args["documents"] = json.loads(documents)
+    if citation_quality is not None:
+        args["citation_quality"] = citation_quality
+    if temperature is not None:
+        args["temperature"] = temperature
+    if max_tokens is not None:
+        args["max_tokens"] = max_tokens
+    if max_input_tokens is not None:
+        args["max_input_tokens"] = max_input_tokens
+    if k is not None:
+        args["k"] = k
+    if p is not None:
+        args["p"] = p
+    if seed is not None:
+        args["seed"] = seed
+    if stop_sequences is not None:
+        args["stop_sequences"] = stop_sequences
+    if frequency_penalty is not None:
+        args["frequency_penalty"] = frequency_penalty
+    if presence_penalty is not None:
+        args["presence_penalty"] = presence_penalty
+    if tools is not None:
+        args["tools"] = json.loads(tools)
+    if tool_results is not None:
+        args["tool_results"] = json.loads(tool_results)
+    if force_single_step is not None:
+        args["force_single_step"] = force_single_step
 
-    response = client.chat(model=_model, message=_message, **args)
+    response = client.chat(model=model, message=message, **args)
     return response.json()
 $python$ language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
-
 
 
 --------------------------------------------------------------------------------
