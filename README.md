@@ -17,19 +17,20 @@ pgai brings embedding and generation AI models closer to the database. With pgai
 
 * [Create vector embeddings for your data](/docs/vectorizer-quick-start.md).
 * Retrieve LLM chat completions from models like [Claude Sonnet 3.5](/docs/anthropic.md), [OpenAI GPT4o](/docs/openai.md), [Cohere Command](/docs/cohere.md), and [Llama 3 (via Ollama)](/docs/ollama.md).
-* Reason over your data and facilitate use cases like [classification, summarization, and data enrichment](docs/advanced.md) on your existing relational data in PostgreSQL.
+* Reason over your data and facilitate use cases like [classification, summarization, and data enrichment](/docs/openai.md) on your existing relational data in PostgreSQL.
 
 Here's how to get started with pgai:
 
-* **TL;DR**: [test drive automatic embedding vectorization](/docs/vectorizer-quick-start.md) using a pre-built Docker developer environment containing 
-   a self-hosted Postgres instance with pgai, vectorizer, and vectorizer workers installed. 
+* **TL;DR**:
+  * [Test drive automatic embedding vectorization](/docs/vectorizer-quick-start.md): quicky create embeddings using 
+     a pre-built Docker developer environment with a self-hosted Postgres instance with pgai, vectorizer, and vectorizer worker installed. 
 * **Everyone**: Use pgai in your PostgreSQL database.
   1. [Install pgai](#installation) in Timescale Cloud, a pre-built Docker image or from source. 
   1. Use pgai to integrate AI from your provider:
-    * [Ollama](./docs/ollama.md) - configure pgai for Ollama, then use the model to embed, chat complete and generate.
-    * [OpenAI](./docs/openai.md) - configure pgai for OpenAI, then use the model to tokenize, embed, chat complete and moderate. This page also includes advanced examples.
-    * [Anthropic](./docs/anthropic.md) - configure pgai for Anthropic, then use the model to generate content.
-    * [Cohere](./docs/cohere.md) - configure pgai for Cohere, then use the model to tokenize, embed, chat complete, classify, and rerank.
+     * [Ollama](./docs/ollama.md) - configure pgai for Ollama, then use the model to embed, chat complete and generate.
+     * [OpenAI](./docs/openai.md) - configure pgai for OpenAI, then use the model to tokenize, embed, chat complete and moderate. This page also includes advanced examples.
+     * [Anthropic](./docs/anthropic.md) - configure pgai for Anthropic, then use the model to generate content.
+     * [Cohere](./docs/cohere.md) - configure pgai for Cohere, then use the model to tokenize, embed, chat complete, classify, and rerank.
 * **Extension contributor**: Contribute to pgai and improve the project.
   * [Develop and test changes to the pgai extension](./DEVELOPMENT.md).
   * See the [Issues tab](https://github.com/timescale/pgai/issues) for a list of feature ideas to contribute.

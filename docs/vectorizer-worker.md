@@ -105,7 +105,7 @@ On your local machine:
 1. **Run the vectorizer worker**
 
     After you [define a vectorizer in your database](/docs/vectorizer.md#define-a-vectorizer), you run 
-    a vectorizer worker to generate and run your embeddings:
+    a vectorizer worker to generate and update your embeddings:
 
     1. Set the connection string to your self-hosted database and the API key for the external embeddings
       provider as environment variables:
