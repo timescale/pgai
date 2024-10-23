@@ -113,15 +113,15 @@ To follow the steps in this page, you need to:
     ORDER BY distance;
     ```
 
-   The results look like :
+The results look like:
 
-   | chunk | distance |
-       |------|--------|
-   | "PostgreSQL is a powerful, open source object-relational database system..." | 0.677 |
-   | "As we look towards the future, artificial intelligence continues to evolve..." | 0.781 |
-   | Blogging can be a great way to share your thoughts and expertise... | 0.862 |
-   | Maintaining a healthy diet can be challenging for busy professionals... | 0.873 |
-   | Cloud computing has revolutionized the way businesses operate... | 0.958 |
+| chunk | distance |
+|------|--------|
+| "PostgreSQL is a powerful, open source object-relational database system..." | 0.677 |
+| "As we look towards the future, artificial intelligence continues to evolve..." | 0.781 |
+| Blogging can be a great way to share your thoughts and expertise... | 0.862 |
+| Maintaining a healthy diet can be challenging for busy professionals... | 0.873 |
+| Cloud computing has revolutionized the way businesses operate... | 0.958 |
 
 
 That's it, you're done. You now have a table in Postgres that pgai vectorizer automatically creates 
