@@ -9,7 +9,7 @@ create or replace function ai.anthropic_generate
 , base_url text default null
 , timeout float8 default null
 , max_retries int default null
-, system text default null
+, system_prompt text default null
 , user_id text default null
 , stop_sequences text[] default null
 , temperature float8 default null
@@ -27,8 +27,8 @@ as $python$
     messages_1 = json.loads(messages)
 
     args = {}
-    if system is not None:
-        args["system"] = system
+    if system_prompt is not None:
+        args["system"] = system_prompt
     if user_id is not None:
         args["metadata"] = {"user_id", user_id}
     if stop_sequences is not None:
