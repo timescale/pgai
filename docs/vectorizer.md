@@ -26,7 +26,7 @@ Our system empowers you to:
 
 This page offers a comprehensive overview of Vectorizer features,
 demonstrating how it streamlines the process of working with vector embeddings
-in your database. To quickly test drive embeddings using a pre-built Docker developer environment, see the 
+in your database. To quickly try out embeddings using a pre-built Docker developer environment, see the 
 [Vectorizer quick start](/docs/vectorizer-quick-start.md). For a more detailed technical specification, see the
 [Vectorizer API reference](./vectorizer-api-reference.md).
 
@@ -67,7 +67,6 @@ Timescale Cloud or on a self-hosted Postgres server.
   For example:
   ```bash
   export OPENAI_API_KEY="Your OpenAI API key"
-  pgai vectrorizer worker
   ```
 
 ## Define a vectorizer
@@ -147,7 +146,7 @@ To find the closest embeddings to a query, use this canonical SQL query:
 ```sql
 SELECT 
    chunk,
-   embedding <=> <query embedding> as distance
+   embedding <=> ai.openai_embed(...) as distance
 FROM blog_contents_embeddings
 ORDER BY distance
 LIMIT 10;

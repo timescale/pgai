@@ -1,8 +1,7 @@
 # Vectorizer quick start
 
 This page shows you how to create a vectorizer in a self-hosted Postgres instance, then use 
-a pgai vectorizer worker to create embeddings from data in your database. You view the 
-embeddings with a standard SQL query. 
+the pgai vectorizer worker to create embeddings from data in your database. To finish off we show how simple it is to do a semantic search query on the embedded data in one query!
 
 ## Prerequisites
 
@@ -22,7 +21,7 @@ To follow the steps in this page, you need to:
     CREATE EXTENSION IF NOT EXISTS ai CASCADE;
     ```
 
-1. **Create the `blog` table with the following schema**
+1. **Create a `blog` table with the following schema**
     ```sql
     CREATE TABLE blog (
         id SERIAL PRIMARY KEY,
