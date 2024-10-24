@@ -115,6 +115,15 @@ def test_secret_privileges():
             with pytest.raises(Exception, match="permission denied for table"):
                 cur.execute("select * from ai._secret_permissions")
 
+    # jill cannot access the env var
+    with psycopg.connect(db_url("jill", "privs")) as con:
+        with con.cursor() as cur:
+            cur.execute(
+                "SET ai.external_functions_executor_url='http://localhost:8000'"
+            )
+            with pytest.raises(Exception, match="user does not have access"):
+                cur.execute("select ai.reveal_secret('TEST_ENV_SECRET')")
+
     # alice can access all the secrets and grant them to fred and joey
     with psycopg.connect(db_url("alice", "privs")) as con:
         with con.cursor() as cur:
@@ -122,6 +131,7 @@ def test_secret_privileges():
                 "SET ai.external_functions_executor_url='http://localhost:8000'"
             )
             cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
+            cur.execute("select ai.reveal_secret('TEST_ENV_SECRET')")
             cur.execute("select ai.grant_secret('OPENAI_API_KEY', 'joey')")
             cur.execute("select ai.grant_secret('*', 'joey2')")
             cur.execute("select ai.grant_secret('OPENAI_API_KEY', 'fred')")
@@ -142,6 +152,7 @@ def test_secret_privileges():
                 "SET ai.external_functions_executor_url='http://localhost:8000'"
             )
             cur.execute("select ai.grant_secret('OPENAI_API_KEY', 'jill')")
+            cur.execute("select ai.grant_secret('TEST_ENV_SECRET', 'jill')")
 
     # jill can access the secret granted to her but not the other one
     with psycopg.connect(db_url("jill", "privs")) as con:
@@ -150,6 +161,7 @@ def test_secret_privileges():
                 "SET ai.external_functions_executor_url='http://localhost:8000'"
             )
             cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
+            cur.execute("select ai.reveal_secret('TEST_ENV_SECRET')")
             with pytest.raises(Exception, match="user does not have access"):
                 cur.execute("select ai.reveal_secret('OPENAI_API_KEY_2')")
 
@@ -195,6 +207,7 @@ def test_secret_privileges():
             )
             cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
             cur.execute("select ai.reveal_secret('OPENAI_API_KEY_2')")
+            cur.execute("select ai.reveal_secret('TEST_ENV_SECRET')")
 
     # alice can revoke the * privilege from jill
     with psycopg.connect(db_url("alice", "privs")) as con:
