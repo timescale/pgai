@@ -21,6 +21,8 @@ When you install pgai on Timescale Cloud, you use scheduling to control the time
 are run. On a self-hosted Postgres installation, you use pgai vectorizer worker to asynchronously processes 
 your vectorizers.
 
+Here's how to get started with pgai:
+
 * **TL;DR**:
   * [Try out automatic embedding vectorization](/docs/vectorizer-quick-start.md): quickly create embeddings using
     a pre-built Docker developer environment with a self-hosted Postgres instance with pgai and our vectorizer worker
