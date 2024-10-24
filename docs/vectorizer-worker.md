@@ -126,7 +126,7 @@ On your local machine:
    ```
 
    You can also use the run command
-   `docker run timescale/pgai-vectorizer-worker:0.1.0rc4 --db-url <Same value as PGAI_VECTORIZER_WORKER_DB_URL>`
+   `docker run timescale/pgai-vectorizer-worker:{tag version}  --db-url <Same value as PGAI_VECTORIZER_WORKER_DB_URL>`
 
 ### Install vectorizer worker in your local environment
 
@@ -180,25 +180,29 @@ A vectorizer worker can:
 
   To run the vectorizer with id 42:
   - local: `pgai vectorizer worker -i 42`
-  - Docker: `command: ["-i", "42"]`
+  - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 42`
+  - Docker Compose: `command: ["-i", "42"]`
 
 - Run multiple specific vectorizers: 
 
   To run the vectorizers with ids `42`, `64`, and `8`:
   - local: `pgai vectorizer worker -i 42 -i 64 -i 8`
-  - Docker: `command: ["-i", "42", "-i", "64", "-i", "8"]`
+  - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 42 -i 64 -i 8`
+  - Docker Compose: `command: ["-i", "42", "-i", "64", "-i", "8"]`
 
 - Run multiple vectorizers in concurrent vectorizer workers:
 
   To run the vectorizers with id `42` and `64` in different vectorizer workers:
   1. In a first shell, run:
      - local: `pgai vectorizer worker -i 42`
-     - Docker: `command: ["-i", "42"]`
+     - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version}  -i 42`
+     - Docker Compose: `command: ["-i", "42"]`
 
   1. In another shell, run: 
 
      - local: `pgai vectorizer worker -i 64`
-     - Docker: `command: ["-i", "64"]`
+     - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 64`
+     - Docker Compose: `command: ["-i", "64"]`
 
 - Run concurrent vectorizer workers on a single vectorizer
 
@@ -208,12 +212,14 @@ A vectorizer worker can:
   1. In a first shell, run:
 
      - local: `pgai vectorizer worker -i 42`
-     - Docker: `command: ["-i", "42"]`
+     - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 42`
+     - Docker Compose: `command: ["-i", "42"]`
 
   1. In another shell, run:
 
      - local: `pgai vectorizer worker -i 42`
-     - Docker: `command: ["-i", "42"]`
+     - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 42`
+     - Docker Compose: `command: ["-i", "42"]`
 
 You find the vectorizer ids in the `ai.vectorizer` table.
 
@@ -229,22 +235,26 @@ in the `--poll-interval` parameter:
 - Run every hour:
 
   - local: `pgai vectorizer worker --poll-interval=1h`
-  - Docker: `command: ["--poll-interval", "1h"]`
+  - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --poll-interval=1h`
+  - Docker Compose: `command: ["--poll-interval", "1h"]`
 
 - Run every 45 minutes:
 
   - local: `pgai vectorizer worker --poll-interval=45m`
-  - Docker: `command: ["--poll-interval", "45m"]`
+  - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --poll-interval=45m`
+  - Docker Compose: `command: ["--poll-interval", "45m"]`
 
 - Run every 900 seconds:
 
   - local: `pgai vectorizer worker --poll-interval=900`
-  - Docker: `command: ["--poll-interval", "900"]`
+  - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --poll-interval=900`
+  - Docker Compose: `command: ["--poll-interval", "900"]`
 
 - Run once and then exit: 
 
   - local: `pgai vectorizer worker --once`
-  - Docker: `command: ["--once"]`
+  - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --once`
+  - Docker Compose: `command: ["--once"]`
 
   This is useful if you want to run the vectorizer worker on a cron job.
 
@@ -254,7 +264,8 @@ Use the `-c` / `--concurrency` option to cause the vectorizer worker to use
 multiple asynchronous tasks to process a queue:
 
 - local: `pgai vectorizer worker -c 3`
-- Docker: `command: ["-c", "3"]`
+- Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -c 3`
+- Docker Compose: `command: ["-c", "3"]`
 
 
 [python3]: https://www.python.org/downloads/
