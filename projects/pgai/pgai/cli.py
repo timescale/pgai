@@ -233,8 +233,8 @@ def vectorizer_worker(
             run_vectorizer(db_url, vectorizer, concurrency)
         if once:
             return
-        time.sleep(poll_interval)
         log.info(f"sleeping for {poll_interval_str} before polling for new work")
+        time.sleep(poll_interval)
 
 
 @click.group()
