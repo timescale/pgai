@@ -23,7 +23,8 @@ Here's how to get started with pgai:
 
 * **TL;DR**:
   * [Try out automatic embedding vectorization](/docs/vectorizer-quick-start.md): quickly create embeddings using 
-     a pre-built Docker developer environment with a self-hosted Postgres instance with pgai and our vectorizer worker installed. (<10 minutes if you have docker installed!)
+     a pre-built Docker developer environment with a self-hosted Postgres instance with pgai and our vectorizer worker 
+     installed. This takes less than 10 minutes!
 * **Everyone**: Use pgai in your PostgreSQL database.
   1. [Install pgai](#installation) in Timescale Cloud, a pre-built Docker image or from source. 
   1. Use pgai to integrate AI from your provider:
@@ -122,10 +123,10 @@ To install pgai from source on a PostgreSQL server:
    The `CASCADE` automatically installs `pgvector` and `plpython3u` extensions.
 
 ### Use pgai
-
-Now, use pgai to integrate AI from [Ollama](./docs/ollama.md) and [OpenAI](./docs/openai.md).
-Learn how to [moderate](./docs/moderate.md) and [embed](./docs/delayed_embed.md)
-content directly in the database using triggers and background jobs.
+ 
+Now, use pgai to integrate AI from [Ollama](./docs/ollama.md), [OpenAI](./docs/openai.md), 
+[Anthropic](./docs/anthropic.md), and [Cohere](./docs/cohere.md). Learn how to [moderate](./docs/moderate.md) and
+[embed](./docs/delayed_embed.md) content directly in the database using triggers and background jobs.
 
 ## Get involved
 
