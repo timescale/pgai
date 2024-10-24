@@ -5,7 +5,7 @@
 
 This is the first release of the Python pgai library, including the Vectorizer 
 worker. When you have [defined vectorizers](/docs/vectorizer.md#define-a-vectorizer) 
-on a self-hosted Postgres installation, you [run the Vectorizer worker](/docs/self-hosting-vectorizer.md) to 
+on a self-hosted Postgres installation, you [run the Vectorizer worker](/docs/vectorizer-worker.md) to 
 asynchronously processes them.
 
 ### New features and improvements

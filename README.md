@@ -4,39 +4,135 @@
 
 # pgai
 
-<h3>pgai brings AI workflows to your PostgreSQL database</h3>
+<h3>Semantic search and RAG application development directly in Postgres</h3>
 
 [![Discord](https://img.shields.io/badge/Join_us_on_Discord-black?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/KRdHVXAmkp)
 [![Try Timescale for free](https://img.shields.io/badge/Try_Timescale_for_free-black?style=for-the-badge&logo=timescale&logoColor=white)](https://tsdb.co/gh-pgai-signup)
 </div>
 
-pgai simplifies the process of building [search](https://en.wikipedia.org/wiki/Similarity_search), and
-[Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation) (RAG) AI applications with PostgreSQL.
+pgai is a Postgres extension that provides easy to use SQL functions that enable you to populate
+[pgvector](https://github.com/pgvector/pgvector) embeddings directly in your database. pgai enables you to:
 
-pgai brings embedding and generation AI models closer to the database. With pgai, you can now do the following directly from within PostgreSQL in a SQL query:
+* [Automatically create and sync LLM embeddings for your data](#automatically-create-and-sync-llm-embeddings-for-your-data)
+* [Search your data using vector and semantic search](#search-your-data-using-vector-and-semantic-search)
+* [Implement Retrieval Augmented Generation inside a single SQL statement](#implement-retrieval-augmented-generation-inside-a-single-sql-statement) 
 
-* Create vector [embeddings](#embed) for your data.
-* Retrieve LLM [chat completions](#chat-complete) from models like Claude Sonnet 3.5, OpenAI GPT4o, Cohere Command, and Llama 3 (via Ollama).
-* Reason over your data and facilitate use cases like [classification, summarization, and data enrichment](docs/advanced.md) on your existing relational data in PostgreSQL.
+When you install pgai on Timescale Cloud, you use scheduling to control the times when vectorizers 
+are run. On a self-hosted Postgres installation, you use pgai vectorizer worker to asynchronously processes 
+your vectorizers.
 
-Here's how to get started with pgai:
-
+* **TL;DR**:
+  * [Try out automatic embedding vectorization](/docs/vectorizer-quick-start.md): quickly create embeddings using
+    a pre-built Docker developer environment with a self-hosted Postgres instance with pgai and our vectorizer worker
+    installed. This takes less than 10 minutes!
 * **Everyone**: Use pgai in your PostgreSQL database.
-  1. [Install pgai](#installation).
+  1. [Install pgai](#installation) in Timescale Cloud, a pre-built Docker image or from source.
+  1. [Automate AI embedding with pgai Vectorizer](/docs/vectorizer.md)
   1. Use pgai to integrate AI from your provider:
-    * [Ollama](./docs/ollama.md) - configure pgai for Ollama, then use the model to embed, chat complete and generate.
-    * [OpenAI](./docs/openai.md) - configure pgai for OpenAI, then use the model to tokenize, embed, chat complete and moderate. This page also includes advanced examples.
-    * [Anthropic](./docs/anthropic.md) - configure pgai for Anthropic, then use the model to generate content.
-    * [Cohere](./docs/cohere.md) - configure pgai for Cohere, then use the model to tokenize, embed, chat complete, classify, and rerank.
+     * [Ollama](./docs/ollama.md) - configure pgai for Ollama, then use the model to embed, chat complete and generate.
+     * [OpenAI](./docs/openai.md) - configure pgai for OpenAI, then use the model to tokenize, embed, chat complete and moderate. This page also includes advanced examples.
+     * [Anthropic](./docs/anthropic.md) - configure pgai for Anthropic, then use the model to generate content.
+     * [Cohere](./docs/cohere.md) - configure pgai for Cohere, then use the model to tokenize, embed, chat complete, classify, and rerank.
+  1. Reason over your data and facilitate use cases like [classification, summarization, and data enrichment](/docs/openai.md) on your existing relational data in PostgreSQL.
 * **Extension contributor**: Contribute to pgai and improve the project.
   * [Develop and test changes to the pgai extension](./DEVELOPMENT.md).
   * See the [Issues tab](https://github.com/timescale/pgai/issues) for a list of feature ideas to contribute.
 
-**Learn more about pgai:** To learn more about the pgai extension and why we built it, read this blog post [pgai: Giving PostgreSQL Developers AI Engineering Superpowers](http://www.timescale.com/blog/pgai-giving-postgresql-developers-ai-engineering-superpowers).
+**Learn more about pgai:** To learn more about the pgai extension and why we built it, read 
+[pgai: Giving PostgreSQL Developers AI Engineering Superpowers](http://www.timescale.com/blog/pgai-giving-postgresql-developers-ai-engineering-superpowers).
+
+
+## Features
+
+The main features in pgai are:
+
+* [Automatically create and sync LLM embeddings for your data](#automatically-create-and-sync-llm-embeddings-for-your-data)
+* [Search your data using vector and semantic search](#search-your-data-using-vector-and-semantic-search)
+* [Implement Retrieval Augmented Generation inside a single SQL statement](#implement-retrieval-augmented-generation-inside-a-single-sql-statement)
+
+### Automatically create and sync LLM embeddings for your data
+
+pgai builds on the Timescale [pgvector](https://github.com/pgvector/pgvector) and 
+[pgvectorscale](https://github.com/timescale/pgvectorscale) extensions to automatically create and 
+synchronizes embeddings for your data, and make searching even faster.
+
+With one line of code, you can define a vectorizer that creates embeddings for data in a table:
+```sql
+SELECT ai.create_vectorizer( 
+    <table_name>::regclass,
+    destination => <embedding_table_name>,
+    embedding => ai.embedding_openai(<model_name>, <dimensions>),
+    chunking => ai.chunking_recursive_character_text_splitter(<column_name>)
+);
+```
+
+[Automate AI embedding with pgai Vectorizer](/docs/vectorizer.md) shows you how to implement embeddings 
+in your own data. When you install pgai on Timescale Cloud, you use scheduling to control vectorizer run times. 
+On a self-hosted Postgres installation, you use [Vectorizer Worker](/docs/vectorizer-worker.md) to asynchronously 
+processes your vectorizers.
+
+### Search your data using vector and semantic search
+
+pgai exposes a set of functions to directly interact with the llm models through SQL, enabling 
+you to do semantic search directly in your database:
+
+```sql
+SELECT 
+   chunk,
+   embedding <=> ai.openai_embed(<embedding_model>, 'some-query') as distance
+FROM <embedding_table>
+ORDER BY distance
+LIMIT 5;
+```
+
+This is a perfectly normal SQL query. You can combine it with `where` clauses and other SQL features to 
+further refine your search. pgai solves the *missing where clause in vector search* problem for real.
+
+### Implement Retrieval Augmented Generation inside a single SQL statement
+
+Similar to [semantic search](#search-your-data-using-vector-and-semantic-search), pgai LLM functions 
+enable you to implement RAG directly in your database. For example:
+
+1. Create a RAG function:
+    ```sql
+    CREATE OR REPLACE FUNCTION generate_rag_response(query_text TEXT)
+    RETURNS TEXT AS $$
+    DECLARE
+       context_chunks TEXT;
+       response TEXT;
+    BEGIN
+       -- Perform similarity search to find relevant blog posts
+       SELECT string_agg(title || ': ' || chunk, ' ') INTO context_chunks
+       FROM (
+           SELECT title, chunk
+           FROM blogs_embedding
+           ORDER BY embedding <=> ai.openai_embed('text-embedding-3-small', query_text)
+           LIMIT 3
+       ) AS relevant_posts;
+    
+       -- Generate a summary using gpt-4o-mini
+       SELECT ai.openai_chat_complete(
+           'gpt-4o-mini',
+           jsonb_build_array(
+               jsonb_build_object('role', 'system', 'content', 'You are a helpful assistant. Use only the context provided to answer the question. Also mention the titles of the blog posts you use to answer the question.'),
+               jsonb_build_object('role', 'user', 'content', format('Context: %s\n\nUser Question: %s\n\nAssistant:', context_chunks, query_text))
+           )
+       )->'choices'->0->'message'->>'content' INTO response;
+      
+       RETURN response;
+    END;
+    $$ LANGUAGE plpgsql;
+    ```
+
+1. Execute your function in a SQL query:
+
+    ```sql
+    SELECT generate_rag_response('Give me some startup advice');-*_
+    ```
 
 ## Installation
 
-The fastest ways to run PostgreSQL with the pgai extension are to:
+The fastest way to run PostgreSQL with the pgai extension are to:
 
 1. Create your database environment. Either:
    * [Use a pre-built Docker container](#use-a-pre-built-docker-container).
