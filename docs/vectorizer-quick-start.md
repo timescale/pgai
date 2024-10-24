@@ -9,7 +9,7 @@ is to do a semantic search query on the embedded data in one query!
 The local developer environment is a docker configuration you use to develop and test pgai, vectorizers and vectorizer
 worker locally. It includes a:
 - Postgres deployment image with the TimescaleDB and pgai extensions installed
-- PGAI vectorizer worker image
+- pgai vectorizer worker image
 
 On your local machine:
 
@@ -37,7 +37,7 @@ On your local machine:
 
 1. **Tune the developer image for your AI provider**
 
-   Replace the instances of `OPENAI_API_KEY` with a key from you AI provider.
+   Replace the instances of `OPENAI_API_KEY` with a key from your AI provider.
 
 1. **Start the database**
    ```shell

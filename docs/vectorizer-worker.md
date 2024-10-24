@@ -43,33 +43,34 @@ To be able to run vectorizers in your self-hosted database, either:
 The local developer environment is a docker configuration you use to develop and test pgai, vectorizers and vectorizer 
 worker locally. It includes a: 
 - Postgres deployment image with the TimescaleDB and pgai extensions installed
-- PGAI vectorizer worker image  
+- pgai vectorizer worker image  
 
 On your local machine:
 
 1. **Create the Docker configuration for a local developer environment**
 
    1. Add the following docker configuration to `<timescale-folder>/docker-compose.yml`:
-   ```
-   name: pgai
-   services:
-     db:
-       image: timescale/timescaledb-ha:cicd-024349a-arm64
-       environment:
-         POSTGRES_PASSWORD: postgres
-         OPENAI_API_KEY: <your-api-key>
-       ports:
-         - "5432:5432"
-       volumes:
-         - ./data:/var/lib/postgresql/data
-     vectorizer-worker:
-       image: timescale/pgai-vectorizer-worker:0.1.0rc4
-       environment:
-         PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
-         OPENAI_API_KEY: <your-api-key>
-   ```
+   
+       ```
+       name: pgai
+       services:
+         db:
+           image: timescale/timescaledb-ha:cicd-024349a-arm64
+           environment:
+             POSTGRES_PASSWORD: postgres
+             OPENAI_API_KEY: <your-api-key>
+           ports:
+             - "5432:5432"
+           volumes:
+             - ./data:/var/lib/postgresql/data
+         vectorizer-worker:
+           image: timescale/pgai-vectorizer-worker:0.1.0rc4
+           environment:
+             PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
+             OPENAI_API_KEY: <your-api-key>
+       ```
 
-   1. Replace the instances of `OPENAI_API_KEY` with a key from you AI provider.
+   1. Replace the instances of `OPENAI_API_KEY` with a key from your AI provider.
 
 1. **Start the database**
    ```shell
@@ -112,7 +113,7 @@ On your local machine:
 
   1. Replace the values of:
      - `PGAI_VECTORIZER_WORKER_DB_URL`: the postgres connection string to the database where you have defined vectorizers.
-     - `OPENAI_API_KEY`: with a key from you AI provider.
+     - `OPENAI_API_KEY`: with a key from your AI provider.
 
 1. **Run the vectorizer worker**
 
@@ -206,15 +207,15 @@ A vectorizer worker can:
 
   1. In a first shell, run:
 
-    - local: `pgai vectorizer worker -i 42`
-    - Docker: `command: ["-i", "42"]`
+     - local: `pgai vectorizer worker -i 42`
+     - Docker: `command: ["-i", "42"]`
 
   1. In another shell, run:
 
-    - local: `pgai vectorizer worker -i 42`
-    - Docker: `command: ["-i", "42"]`
+     - local: `pgai vectorizer worker -i 42`
+     - Docker: `command: ["-i", "42"]`
 
-You find the vectorizers id in the `ai.vectorizer` table.
+You find the vectorizer ids in the `ai.vectorizer` table.
 
 ## Set the time between vectorizer worker runs
 
