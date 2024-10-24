@@ -29,7 +29,7 @@ Here's how to get started with pgai:
     installed. This takes less than 10 minutes!
 * **Everyone**: Use pgai in your PostgreSQL database.
   1. [Install pgai](#installation) in Timescale Cloud, a pre-built Docker image or from source.
-  1. [Automate AI embedding with pgai Vectorizer](/docs/vectorizer.md)
+  1. [Automate AI embedding with pgai Vectorizer](/docs/vectorizer.md).
   1. Use pgai to integrate AI from your provider:
      * [Ollama](./docs/ollama.md) - configure pgai for Ollama, then use the model to embed, chat complete and generate.
      * [OpenAI](./docs/openai.md) - configure pgai for OpenAI, then use the model to tokenize, embed, chat complete and moderate. This page also includes advanced examples.
