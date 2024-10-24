@@ -22,7 +22,7 @@ pgai brings embedding and generation AI models closer to the database. With pgai
 Here's how to get started with pgai:
 
 * **TL;DR**:
-  * [Try out automatic embedding vectorization](/docs/vectorizer-quick-start.md): quicky create embeddings using 
+  * [Try out automatic embedding vectorization](/docs/vectorizer-quick-start.md): quickly create embeddings using 
      a pre-built Docker developer environment with a self-hosted Postgres instance with pgai and our vectorizer worker installed. (<10 minutes if you have docker installed!)
 * **Everyone**: Use pgai in your PostgreSQL database.
   1. [Install pgai](#installation) in Timescale Cloud, a pre-built Docker image or from source. 

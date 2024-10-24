@@ -32,22 +32,24 @@ To run vectorizer workers, you need to:
 
 To be able to run vectorizers in your self-hosted database, either:
 
-- [Install the timescaledb-ha Docker image](#install-the-timescaledb-ha-docker-image): a Docker image containing a complete local developer environment 
-- [Install the vectorizer worker Docker image](#install-and-configure-vectorizer-worker): a Docker image you use to run vectorizers on any self-hosted Postgres database with the pgai 
+- [Install a local developer environment Docker image](#install-a-local-developer-environment-docker-image): a Docker image containing a database instance and pgai vectorizer worker 
+- [Install the vectorizer worker Docker image](#install-the-vectorizer-worker-docker-image): a Docker image you use to run vectorizers on any self-hosted Postgres database with the pgai 
    extension activated 
-- [Install vectorizer worker in your local environment](#install-vectorizer-worker-in-your-local-environment-): install pgai locally so you can run vectorizers on any self-hosted
+- [Install vectorizer worker in your local environment](#install-vectorizer-worker-in-your-local-environment): install pgai locally so you can run vectorizers on any self-hosted
   Postgres database with the pgai extension activated
 
-### Install the timescaledb-ha Docker image
+### Install a local developer environment Docker image
 
-This docker image supplies a Postgres deployment with the TimescaleDB and pgai extensions installed. You can develop and 
-test pgai, vectorizers and vectorizer worker locally.
+The local developer environment is a docker configuration you use to develop and test pgai, vectorizers and vectorizer 
+worker locally. It includes a: 
+- Postgres deployment image with the TimescaleDB and pgai extensions installed
+- PGAI vectorizer worker image  
 
 On your local machine:
 
-1. **Create the Docker configuration for the timescaledb-ha image**
+1. **Create the Docker configuration for a local developer environment**
 
-   Add the following docker configuration to `<timescale-folder>/docker-compose.yml`:
+   1. Add the following docker configuration to `<timescale-folder>/docker-compose.yml`:
    ```
    name: pgai
    services:
@@ -63,12 +65,12 @@ On your local machine:
      vectorizer-worker:
        image: timescale/pgai-vectorizer-worker:0.1.0rc4
        environment:
-         VECTORIZER_DB_URL: postgres://postgres:postgres@db:5432/postgres
+         PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
          OPENAI_API_KEY: <your-api-key>
    ```
 
-   1. Replace the instances of `<your-api-key>` with a key from you AI provider.
-   
+   1. Replace the instances of `OPENAI_API_KEY` with a key from you AI provider.
+
 1. **Start the database**
    ```shell
     docker-compose up -d db
@@ -78,6 +80,15 @@ On your local machine:
    - Docker: `docker exec -it pgai-db-1 psql -U postgres`
    - psql:  `psql postgres://postgres:postgres@localhost:5432/postgres`
 
+1. **Run the vectorizer worker**
+
+   For self-hosted, you run a pgai vectorizer worker to automatically create embedding from the data in your
+   database using [vectorizers you defined previously](/docs/vectorizer.md#define-a-vectorizer).
+
+   In a new terminal, start the vectorizer worker:
+   ```shell
+   docker-compose up -d vectorizer-worker
+   ```
   
 ### Install the vectorizer worker Docker image
 
@@ -86,11 +97,37 @@ run vectorizers on any self-hosted Postgres database that has the pgai extension
 
 On your local machine:
 
-IAIN: Alejandro, I'm not too sure what to write here.
-1. **Create the Docker configuration for the timescaledb-ha image**
-1. **Setup the connection to your self-hosted database**
+1. **Create the Docker configuration for pgai vectorizer worker**
 
-### Install vectorizer worker in your local environment 
+   Add the following docker configuration to `<timescale-folder>/docker-compose.yml`:
+   ```
+   name: pgai
+   services:
+     vectorizer-worker:
+       image: timescale/pgai-vectorizer-worker:0.1.0rc4
+       environment:
+         PGAI_VECTORIZER_WORKER_DB_URL: postgres://<username>:<password>@<host>:<port>/<database-name>
+         OPENAI_API_KEY: <your-api-key>
+   ```
+
+  1. Replace the values of:
+     - `PGAI_VECTORIZER_WORKER_DB_URL`: the postgres connection string to the database where you have defined vectorizers.
+     - `OPENAI_API_KEY`: with a key from you AI provider.
+
+1. **Run the vectorizer worker**
+
+   For self-hosted, you run a pgai vectorizer worker to automatically create embedding from the data in your
+   database using [vectorizers you defined previously](/docs/vectorizer.md#define-a-vectorizer).
+
+   In a new terminal, start the vectorizer worker:
+   ```shell
+   docker-compose up -d vectorizer-worker
+   ```
+
+   You can also use the run command
+   `docker run timescale/pgai-vectorizer-worker:0.1.0rc4 --db-url <Same value as PGAI_VECTORIZER_WORKER_DB_URL>`
+
+### Install vectorizer worker in your local environment
 
 On your local machine:
 
@@ -111,7 +148,7 @@ On your local machine:
       provider as environment variables:
 
        ```bash
-       export VECTORIZER_DB_URL="postgres://<user>:<password>@<host>:<port>/<dbname>"
+       export PGAI_VECTORIZER_WORKER_DB_URL="postgres://<user>:<password>@<host>:<port>/<dbname>"
        export OPENAI_API_KEY="Your OpenAI API key"
        ```
 
@@ -130,39 +167,37 @@ On your local machine:
 
 By default, when you run a vectorizer worker, it loops over the vectorizers defined in 
 your database and processes each vectorizer in turn. Five minutes after completing each 
-vectorizer run, the vectorizer worker loops over the vectorizers again. You can also use the 
+vectorizer run, the vectorizer worker loops over the vectorizers again. 
+For a [local installation](#install-vectorizer-worker-in-your-local-environment-), you use the 
 `-i` / `--vectorizer-id` command line argument to manage which vectorizers that are run by that
-worker instance. A vectorizer worker can:
+worker instance. For `docker compose` you add arguments using either the `command` or `environment`
+flags in `docker-compose.yml`. 
+
+A vectorizer worker can:
 
 - Run a single vectorizer:
 
   To run the vectorizer with id 42:
-  ```bash
-  pgai vectorizer worker -i 42
-  ```
+  - local: `pgai vectorizer worker -i 42`
+  - Docker: `command: ["-i", "42"]`
 
 - Run multiple specific vectorizers: 
 
   To run the vectorizers with ids `42`, `64`, and `8`:
-
-  ```bash
-  pgai vectorizer worker -i 42 -i 64 -i 8
-  ```
+  - local: `pgai vectorizer worker -i 42 -i 64 -i 8`
+  - Docker: `command: ["-i", "42", "-i", "64", "-i", "8"]`
 
 - Run multiple vectorizers in concurrent vectorizer workers:
 
   To run the vectorizers with id `42` and `64` in different vectorizer workers:
   1. In a first shell, run:
-
-     ```bash
-     pgai vectorizer worker -id 42
-     ```
+     - local: `pgai vectorizer worker -i 42`
+     - Docker: `command: ["-i", "42"]`
 
   1. In another shell, run: 
 
-     ```bash
-     pgai vectorizer worker -id 64
-     ```
+     - local: `pgai vectorizer worker -i 64`
+     - Docker: `command: ["-i", "64"]`
 
 - Run concurrent vectorizer workers on a single vectorizer
 
@@ -170,16 +205,14 @@ worker instance. A vectorizer worker can:
   at the same time. To run the vectorizer with id `41` in different vectorizer workers:
 
   1. In a first shell, run:
-  
-     ```bash
-     pgai vectorizer worker -id 42
-     ```
+
+    - local: `pgai vectorizer worker -i 42`
+    - Docker: `command: ["-i", "42"]`
 
   1. In another shell, run:
 
-     ```bash
-     pgai vectorizer worker -id 42
-     ```
+    - local: `pgai vectorizer worker -i 42`
+    - Docker: `command: ["-i", "42"]`
 
 You find the vectorizers id in the `ai.vectorizer` table.
 
@@ -194,27 +227,24 @@ in the `--poll-interval` parameter:
 
 - Run every hour:
 
-  ```bash
-  pgai vectorizer worker --poll-interval=1h
-  ```
+  - local: `pgai vectorizer worker --poll-interval=1h`
+  - Docker: `command: ["--poll-interval", "1h"]`
 
 - Run every 45 minutes:
 
-  ```bash
-  pgai vectorizer worker --poll-interval=45m
-  ```
+  - local: `pgai vectorizer worker --poll-interval=45m`
+  - Docker: `command: ["--poll-interval", "45m"]`
 
 - Run every 900 seconds:
 
-  ```bash
-  pgai vectorizer worker --poll-interval=900
-  ```
+  - local: `pgai vectorizer worker --poll-interval=900`
+  - Docker: `command: ["--poll-interval", "900"]`
 
 - Run once and then exit: 
 
-  ```bash
-  pgai vectorizer worker --once
-  ```
+  - local: `pgai vectorizer worker --once`
+  - Docker: `command: ["--once"]`
+
   This is useful if you want to run the vectorizer worker on a cron job.
 
 ### Set the number of asynchronous tasks running in a vectorizer worker
@@ -222,9 +252,8 @@ in the `--poll-interval` parameter:
 Use the `-c` / `--concurrency` option to cause the vectorizer worker to use 
 multiple asynchronous tasks to process a queue:
 
-```bash
-pgai vectorizer worker -c 3
-```
+- local: `pgai vectorizer worker -c 3`
+- Docker: `command: ["-c", "3"]`
 
 
 [python3]: https://www.python.org/downloads/

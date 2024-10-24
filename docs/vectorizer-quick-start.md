@@ -1,14 +1,52 @@
 # Vectorizer quick start
 
 This page shows you how to create a vectorizer in a self-hosted Postgres instance, then use 
-the pgai vectorizer worker to create embeddings from data in your database. To finish off we show how simple it is to do a semantic search query on the embedded data in one query!
+the pgai vectorizer worker to create embeddings from data in your database. To finish off we show how simple it 
+is to do a semantic search query on the embedded data in one query!
 
-## Prerequisites
+## Setup a local developer environment
 
-To follow the steps in this page, you need to:
-- [Create a local developer environment](/docs/vectorizer-worker.md#install-the-timescaledb-ha-docker-image)
+The local developer environment is a docker configuration you use to develop and test pgai, vectorizers and vectorizer
+worker locally. It includes a:
+- Postgres deployment image with the TimescaleDB and pgai extensions installed
+- PGAI vectorizer worker image
 
-## Create, run and query a vectorizer
+On your local machine:
+
+1. **Create the Docker configuration for a local developer environment**
+
+   Add the following docker configuration to `<timescale-folder>/docker-compose.yml`:
+    ```
+    name: pgai
+    services:
+      db:
+        image: timescale/timescaledb-ha:cicd-024349a-arm64
+        environment:
+          POSTGRES_PASSWORD: postgres
+          OPENAI_API_KEY: <your-api-key>
+        ports:
+          - "5432:5432"
+        volumes:
+          - ./data:/var/lib/postgresql/data
+      vectorizer-worker:
+        image: timescale/pgai-vectorizer-worker:0.1.0rc4
+        environment:
+          PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
+          OPENAI_API_KEY: <your-api-key>
+    ```
+
+1. **Tune the developer image for your AI provider**
+
+   Replace the instances of `OPENAI_API_KEY` with a key from you AI provider.
+
+1. **Start the database**
+   ```shell
+    docker-compose up -d db
+    ```
+
+## Create and run a vectorizer
+
+To create and run a vectorizer, then query the auto-generated embeddings created by the vectorizer:
 
 1. **Connection to the database in your local developer environment**
 
