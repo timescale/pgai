@@ -1,5 +1,5 @@
 
-# Vectorizer API reference
+# pgai Vectorizer API reference
 
 This page is provides an API reference for Vectorizer functions. For an overview
 of Vectorizer and how it works, see the [Vectorizer Guide](./vectorizer.md).
