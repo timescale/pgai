@@ -1,4 +1,4 @@
-# Automate AI embedding with Vectorizer
+# Automate AI embedding with pgai Vectorizer
 
 Vector embeddings have emerged as a powerful tool for transforming text into
 compact, semantically rich representations. This approach unlocks the potential
@@ -26,7 +26,8 @@ Our system empowers you to:
 
 This page offers a comprehensive overview of Vectorizer features,
 demonstrating how it streamlines the process of working with vector embeddings
-in your database. For a more detailed technical specification, see the
+in your database. To quickly try out embeddings using a pre-built Docker developer environment, see the 
+[Vectorizer quick start](/docs/vectorizer-quick-start.md). For a more detailed technical specification, see the
 [Vectorizer API reference](./vectorizer-api-reference.md).
 
 Let's explore how the Vectorizer can transform your approach to unstructured,
@@ -62,11 +63,10 @@ Timescale Cloud or on a self-hosted Postgres server.
 
 - Self-hosted Postgres
 
-  Set an environment variable that is the [same as your API key name](./self-hosting-vectorizer.md#install-and-configure-vectorizer-cli). 
+  Set an environment variable that is the [same as your API key name](./vectorizer-worker.md#install-and-configure-vectorizer-worker). 
   For example:
   ```bash
   export OPENAI_API_KEY="Your OpenAI API key"
-  vectorizer
   ```
 
 ## Define a vectorizer
@@ -92,7 +92,7 @@ SELECT ai.create_vectorizer(
    'blog'::regclass,
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_openai('text-embedding-3-small', 768),
-    chunking => ai.chunking_recursive_character_text_splitter('contents'),
+    chunking => ai.chunking_recursive_character_text_splitter('contents')
 );
 ```
 
@@ -114,12 +114,16 @@ SELECT ai.create_vectorizer(
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_openai('text-embedding-3-small', 768),
     chunking => ai.chunking_recursive_character_text_splitter('contents'),
-    formatting => ai.formatting_python_template('$title: $chunk'),
+    formatting => ai.formatting_python_template('$title: $chunk')
 );
 ```
 
 This approach ensures that each chunk retains important contextual information,
 improving the quality and relevance of the embeddings.
+
+On Timescale Cloud, vectorizers are created automatically, and scheduled using TimescaleDB background jobs running
+every five minutes. If you are self-hosting you need to [run the vectorizer-worker](./vectorizer-worker.md)
+manually to create and run the vectorizer.
 
 ## Query an embedding
 
@@ -142,11 +146,14 @@ To find the closest embeddings to a query, use this canonical SQL query:
 ```sql
 SELECT 
    chunk,
-   embedding <=> <query embedding> as distance
+   embedding <=> ai.openai_embed(...) as distance
 FROM blog_contents_embeddings
-ORDER BY distance 
+ORDER BY distance
 LIMIT 10;
 ```
+The `openai_embed` function generates an embedding for the provided string. The
+`<=>` operator calculates the distance between the query embedding and each
+row's embedding vector. This is a simple way to do semantic search.
 
 You can combine this with metadata filters by adding a WHERE clause:
 
@@ -195,7 +202,7 @@ SELECT ai.create_vectorizer(
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_openai('text-embedding-3-small', 768),
     chunking => ai.chunking_recursive_character_text_splitter('contents', chunk_size => 700),
-    formatting => ai.formatting_python_template('$title - by $author - $chunk'),
+    formatting => ai.formatting_python_template('$title - by $author - $chunk')
 );
 ```
 
