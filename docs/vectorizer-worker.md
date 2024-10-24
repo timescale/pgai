@@ -51,7 +51,7 @@ On your local machine:
 
    1. Add the following docker configuration to `<timescale-folder>/docker-compose.yml`:
    
-       ```
+       ```yaml
        name: pgai
        services:
          db:
@@ -101,7 +101,7 @@ On your local machine:
 1. **Create the Docker configuration for pgai vectorizer worker**
 
    Add the following docker configuration to `<timescale-folder>/docker-compose.yml`:
-   ```
+   ```yaml
    name: pgai
    services:
      vectorizer-worker:
@@ -134,7 +134,7 @@ On your local machine:
 
 1. **Install [pgai](https://pypi.org/project/pgai/) from PyPI**
 
-   ```bash
+   ```shell
    pip install pgai
    ```
 
@@ -155,12 +155,12 @@ On your local machine:
 
     1. Run the vectorizer worker:
 
-       ```bash
+       ```shell
        pgai vectorizer worker
        ```
 
     You can also use the `-d` or `--db-url` arguments to set a Postgres connection string:
-    ```bash
+    ```shell
     vectorizer -d "postgres://user:password@host:port/dbname"
     ```
 
