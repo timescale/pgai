@@ -1,3 +1,4 @@
+import os
 from urllib.parse import urljoin
 
 import backoff
@@ -52,6 +53,10 @@ def reveal_secret(plpy, secret_name: str) -> str | None:
     secret = get_guc_value(plpy, f"ai.{secret_name_lower}", "")
     if secret != "":
         return secret
+
+    env_secret = os.environ.get(secret_name.upper())
+    if env_secret is not None:
+        return env_secret
 
     if secret_manager_enabled(plpy):
         secret_optional = fetch_secret(plpy, secret_name)

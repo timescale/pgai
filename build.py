@@ -632,6 +632,7 @@ def docker_run() -> None:
             "-v /var/run/docker.sock:/var/run/docker.sock",
             f"--mount type=bind,src={root_dir()},dst=/pgai",
             env_var,  # Include the environment variable if on macOS
+            "-e TEST_ENV_SECRET=super_secret",
             "pgai",
             "-c shared_preload_libraries='timescaledb, pgextwlist'",
             "-c extwlist.extensions='ai,vector'",
