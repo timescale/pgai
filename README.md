@@ -21,17 +21,26 @@ When you install pgai on Timescale Cloud, you use scheduling to control the time
 are run. On a self-hosted Postgres installation, you use pgai vectorizer worker to asynchronously processes 
 your vectorizers.
 
-This page shows you:
+* **TL;DR**:
+  * [Try out automatic embedding vectorization](/docs/vectorizer-quick-start.md): quickly create embeddings using
+    a pre-built Docker developer environment with a self-hosted Postgres instance with pgai and our vectorizer worker
+    installed. This takes less than 10 minutes!
+* **Everyone**: Use pgai in your PostgreSQL database.
+  1. [Install pgai](#installation) in Timescale Cloud, a pre-built Docker image or from source.
+  1. [Automate AI embedding with pgai Vectorizer](/docs/vectorizer.md)
+  1. Use pgai to integrate AI from your provider:
+     * [Ollama](./docs/ollama.md) - configure pgai for Ollama, then use the model to embed, chat complete and generate.
+     * [OpenAI](./docs/openai.md) - configure pgai for OpenAI, then use the model to tokenize, embed, chat complete and moderate. This page also includes advanced examples.
+     * [Anthropic](./docs/anthropic.md) - configure pgai for Anthropic, then use the model to generate content.
+     * [Cohere](./docs/cohere.md) - configure pgai for Cohere, then use the model to tokenize, embed, chat complete, classify, and rerank.
+  1. Reason over your data and facilitate use cases like [classification, summarization, and data enrichment](/docs/openai.md) on your existing relational data in PostgreSQL.
+* **Extension contributor**: Contribute to pgai and improve the project.
+  * [Develop and test changes to the pgai extension](./DEVELOPMENT.md).
+  * See the [Issues tab](https://github.com/timescale/pgai/issues) for a list of feature ideas to contribute.
 
-- Get started: create your first embeddings in 10 minutes
-- Features: 
-- Installation:
+**Learn more about pgai:** To learn more about the pgai extension and why we built it, read 
+[pgai: Giving PostgreSQL Developers AI Engineering Superpowers](http://www.timescale.com/blog/pgai-giving-postgresql-developers-ai-engineering-superpowers).
 
-## Get started
-
-* Take 10 minutes to [create your first embeddings](/docs/vectorizer-quick-start.md) in a pre-built Docker environment. 
-* Create a **free** [Timescale Cloud](https://tsdb.co/gh-pgai-signup) trial account, then
-  [Enable pgai in a Timescale Cloud service](#use-a-timescale-cloud-service)
 
 ## Features
 
@@ -64,7 +73,9 @@ processes your vectorizers.
 
 ### Search your data using vector and semantic search
 
-pgai exposes a set of functions to directly interact with the llm models through SQL, this allows you to do semantic search directly in your database:
+pgai exposes a set of functions to directly interact with the llm models through SQL, enabling 
+you to do semantic search directly in your database:
+
 ```sql
 SELECT 
    chunk,
@@ -73,45 +84,51 @@ FROM <embedding_table>
 ORDER BY distance
 LIMIT 5;
 ```
-Note that this is a perfectly normal SQL query so you can combine it with `where` clauses and other SQL features to further refine your search. This solves the "The missing where clause in vector search"-problem for real.
+
+This is a perfectly normal SQL query. You can combine it with `where` clauses and other SQL features to 
+further refine your search. pgai solves the *missing where clause in vector search* problem for real.
 
 ### Implement Retrieval Augmented Generation inside a single SQL statement
 
-In a similar fashion to the semantic search the LLM functions allow you to implement RAG directly in your database e.g. you can define a function like so:
-```sql
-CREATE OR REPLACE FUNCTION generate_rag_response(query_text TEXT)
-RETURNS TEXT AS $$
-DECLARE
-   context_chunks TEXT;
-   response TEXT;
-BEGIN
-   -- Perform similarity search to find relevant blog posts
-   SELECT string_agg(title || ': ' || chunk, ' ') INTO context_chunks
-   FROM (
-       SELECT title, chunk
-       FROM blogs_embedding
-       ORDER BY embedding <=> ai.openai_embed('text-embedding-3-small', query_text)
-       LIMIT 3
-   ) AS relevant_posts;
+Similar to [semantic search](#search-your-data-using-vector-and-semantic-search), pgai LLM functions 
+enable you to implement RAG directly in your database. For example:
 
-   -- Generate a summary using gpt-4o-mini
-   SELECT ai.openai_chat_complete(
-       'gpt-4o-mini',
-       jsonb_build_array(
-           jsonb_build_object('role', 'system', 'content', 'You are a helpful assistant. Use only the context provided to answer the question. Also mention the titles of the blog posts you use to answer the question.'),
-           jsonb_build_object('role', 'user', 'content', format('Context: %s\n\nUser Question: %s\n\nAssistant:', context_chunks, query_text))
-       )
-   )->'choices'->0->'message'->>'content' INTO response;
-  
-   RETURN response;
-END;
-$$ LANGUAGE plpgsql;
-```
+1. Create a RAG function:
+    ```sql
+    CREATE OR REPLACE FUNCTION generate_rag_response(query_text TEXT)
+    RETURNS TEXT AS $$
+    DECLARE
+       context_chunks TEXT;
+       response TEXT;
+    BEGIN
+       -- Perform similarity search to find relevant blog posts
+       SELECT string_agg(title || ': ' || chunk, ' ') INTO context_chunks
+       FROM (
+           SELECT title, chunk
+           FROM blogs_embedding
+           ORDER BY embedding <=> ai.openai_embed('text-embedding-3-small', query_text)
+           LIMIT 3
+       ) AS relevant_posts;
+    
+       -- Generate a summary using gpt-4o-mini
+       SELECT ai.openai_chat_complete(
+           'gpt-4o-mini',
+           jsonb_build_array(
+               jsonb_build_object('role', 'system', 'content', 'You are a helpful assistant. Use only the context provided to answer the question. Also mention the titles of the blog posts you use to answer the question.'),
+               jsonb_build_object('role', 'user', 'content', format('Context: %s\n\nUser Question: %s\n\nAssistant:', context_chunks, query_text))
+           )
+       )->'choices'->0->'message'->>'content' INTO response;
+      
+       RETURN response;
+    END;
+    $$ LANGUAGE plpgsql;
+    ```
 
-And then execute it like this:
-```sql
-SELECT generate_rag_response('Give me some startup advice');-*_
-```
+1. Execute your function in a SQL query:
+
+    ```sql
+    SELECT generate_rag_response('Give me some startup advice');-*_
+    ```
 
 ## Installation
 
