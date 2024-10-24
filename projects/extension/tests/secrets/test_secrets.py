@@ -58,6 +58,24 @@ def test_reveal_secrets():
             False,
         ),
         (
+            # env var overrides secret
+            "",
+            """
+            select ai.reveal_secret('TEST_ENV_SECRET')
+            """,
+            "super_secret",
+            False,
+        ),
+        (
+            # guc overrides env var
+            "SET ai.test_env_secret='test_guc'",
+            """
+            select ai.reveal_secret('TEST_ENV_SECRET')
+            """,
+            "test_guc",
+            False,
+        ),
+        (
             "SET ai.external_functions_executor_url='http://localhost:8000'",
             """
             select ai.reveal_secret('DOES_NOT_EXIST')
