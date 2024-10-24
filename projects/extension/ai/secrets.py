@@ -6,6 +6,7 @@ import httpx
 from backoff._typing import Details
 
 GUC_SECRETS_MANAGER_URL = "ai.external_functions_executor_url"
+GUC_SECRET_ENV_ENABLED = "ai.secret_env_enabled"
 
 DEFAULT_SECRETS_MANAGER_PATH = "/api/v1/projects/secrets"
 
@@ -54,9 +55,15 @@ def reveal_secret(plpy, secret_name: str) -> str | None:
     if secret != "":
         return secret
 
-    env_secret = os.environ.get(secret_name.upper())
-    if env_secret is not None:
-        return env_secret
+    if not check_secret_permissions(plpy, secret_name):
+        plpy.error(f"user does not have access to secret '{secret_name}'")
+        return None
+
+    # check the env var, unless disabled by guc
+    if get_guc_value(plpy, GUC_SECRET_ENV_ENABLED, "true") == "true":
+        env_secret = os.environ.get(secret_name.upper())
+        if env_secret is not None:
+            return env_secret
 
     if secret_manager_enabled(plpy):
         secret_optional = fetch_secret(plpy, secret_name)
@@ -73,10 +80,6 @@ def secret_manager_enabled(plpy) -> bool:
 def fetch_secret(plpy, secret_name: str) -> str | None:
     if not secret_manager_enabled(plpy):
         plpy.error("secrets manager is not enabled")
-        return None
-
-    if not check_secret_permissions(plpy, secret_name):
-        plpy.error(f"user does not have access to secret '{secret_name}'")
         return None
 
     the_url = urljoin(
