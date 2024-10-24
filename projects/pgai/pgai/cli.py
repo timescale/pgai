@@ -10,6 +10,7 @@ from collections.abc import Sequence
 import click
 import psycopg
 import structlog
+from ddtrace import tracer
 from dotenv import load_dotenv
 from psycopg.rows import dict_row, namedtuple_row
 from pytimeparse import parse  # type: ignore
@@ -21,6 +22,27 @@ load_dotenv()
 
 structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
 log = structlog.get_logger()
+
+
+def asbool(value: str | None):
+    """Convert the given String to a boolean object.
+
+    Accepted values are `True` and `1`.
+    """
+    if value is None:
+        return False
+
+    return value.lower() in ("true", "1")
+
+
+def get_bool_env(name: str | None) -> bool:
+    if name is None:
+        return False
+
+    return asbool(os.getenv(name))
+
+
+tracer.enabled = get_bool_env("DD_TRACE_ENABLED")
 
 
 def get_pgai_version(cur: psycopg.Cursor) -> str | None:
