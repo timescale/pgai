@@ -1,8 +1,9 @@
 
-<p></p>
-<div align=center>
+<p align="center">
+    <img height="200" src="docs/images/pgai_logo.png" alt="pgai"/>
+</p>
 
-# pgai
+<div align=center>
 
 <h3>pgai allows you to develop RAG, semantic search, and other AI applications directly in PostgreSQL</h3>
 
