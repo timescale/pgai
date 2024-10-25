@@ -59,7 +59,7 @@ To create and run a vectorizer, then query the auto-generated embeddings created
     CREATE EXTENSION IF NOT EXISTS ai CASCADE;
     ```
 
-1. **Create a `blog` table with the following schema**
+1. **Create the `blog` table with the following schema**
     ```sql
     CREATE TABLE blog (
         id SERIAL PRIMARY KEY,
@@ -123,7 +123,7 @@ To create and run a vectorizer, then query the auto-generated embeddings created
     ```sql
     SELECT
         chunk,
-        embedding <=>  ai.openai_embed('text-embedding-3-small', 'pgai', dimensions=>768) as distance
+        embedding <=>  ai.openai_embed('text-embedding-3-small', 'good food', dimensions=>768) as distance
     FROM blog_contents_embeddings
     ORDER BY distance;
     ```
@@ -142,4 +142,3 @@ The results look like:
 That's it, you're done. You now have a table in Postgres that pgai vectorizer automatically creates 
 and syncs embeddings for. You can use this vectorizer for semantic search, RAG or any other AI 
 app you can think of! If you have any questions, reach out to us on [Discord](https://discord.gg/KRdHVXAmkp).
-

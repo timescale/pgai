@@ -146,7 +146,7 @@ To find the closest embeddings to a query, use this canonical SQL query:
 ```sql
 SELECT 
    chunk,
-   embedding <=> ai.openai_embed(...) as distance
+   embedding <=> ai.openai_embed('text-embedding-3-small', <query>) as distance
 FROM blog_contents_embeddings
 ORDER BY distance
 LIMIT 10;
