@@ -13,39 +13,43 @@
 pgai simplifies the process of building [search](https://en.wikipedia.org/wiki/Similarity_search),
 [Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation) (RAG), and other AI applications with PostgreSQL.
 
+# Overview
 The goal of pgai is to make working with AI easier and more accessible to developers. Because data is
 the foundation of most AI applications, pgai makes it easier to leverage your data in AI workflows. In particular, pgai supports:
 
 **Working with embeddings generated from your data:**
-* [Automatically create and sync vector embeddings for your data](#automatically-create-and-sync-llm-embeddings-for-your-data)
-* [Search your data using vector and semantic search](#search-your-data-using-vector-and-semantic-search)
-* [Implement Retrieval Augmented Generation inside a single SQL statement](#implement-retrieval-augmented-generation-inside-a-single-sql-statement) 
+* Automatically create and sync vector embeddings for your data ([learn more](#automatically-create-and-sync-llm-embeddings-for-your-data))
+* Search your data using vector and semantic search ([learn more](#search-your-data-using-vector-and-semantic-search))
+* Implement Retrieval Augmented Generation inside a single SQL statement ([learn more](#implement-retrieval-augmented-generation-inside-a-single-sql-statement)) 
 
 **Leverage LLMs for data processing tasks:**
-* Retrieve LLM chat completions from models like [Claude Sonnet 3.5](/docs/anthropic.md), [OpenAI GPT4o](/docs/openai.md), [Cohere Command](/docs/cohere.md), and [Llama 3 (via Ollama)](/docs/ollama.md).
-* Reason over your data and facilitate use cases like [classification, summarization, and data enrichment](/docs/openai.md) on your existing relational data in PostgreSQL.
+* Retrieve LLM chat completions from models like Claude Sonnet 3.5, OpenAI GPT4o, Cohere Command, and Llama 3 (via Ollama). ([learn more](#usage-of-pgai))
+* Reason over your data and facilitate use cases like classification, summarization, and data enrichment on your existing relational data in PostgreSQL ([see an example](/docs/openai.md)).
+
+**Learn more about pgai:** To learn more about the pgai extension and why we built it, read 
+[pgai: Giving PostgreSQL Developers AI Engineering Superpowers](http://www.timescale.com/blog/pgai-giving-postgresql-developers-ai-engineering-superpowers).
+
+**Contributing**: We welcome contributions to pgai! See the [Contributing](/CONTRIBUTING.md) page for more information.
+
+# Getting Started
 
 Here's how to get started with pgai:
 
-* **TL;DR**:
-  * [Try out automatic embedding vectorization](/docs/vectorizer-quick-start.md): quickly create embeddings using 
-     a pre-built Docker developer environment with a self-hosted Postgres instance with pgai and our vectorizer worker 
-     installed. This takes less than 10 minutes!
-* **Everyone**: Use pgai in your PostgreSQL database.
-  1. [Install pgai](#installation) in Timescale Cloud, a pre-built Docker image or from source.
-  1. [Automate AI embedding with pgai Vectorizer](/docs/vectorizer.md). 
-  1. Use pgai to integrate AI from your provider:
+For a quick start, try out automatic data embedding using pgai Vectorizer:
+
+ - Try our cloud offering by creating a [free trial account](https://tsdb.co/gh-pgai-signup) and heading over to our pgai Vectorizer [documentation](/docs/vectorizer.md).
+ - or check out our [quick start guide](/docs/vectorizer-quick-start.md) to get up and running in less than 10 minutes with a self-hosted Postgres instance.
+
+For other use cases, first [Install pgai](#installation) in Timescale Cloud, a pre-built Docker image, or from source. Then, choose your own adventure:
+  - Automate AI embedding with [pgai Vectorizer](/docs/vectorizer.md). 
+  -  Use pgai to integrate AI from your provider. Some examples:
      * [Ollama](./docs/ollama.md) - configure pgai for Ollama, then use the model to embed, chat complete and generate.
      * [OpenAI](./docs/openai.md) - configure pgai for OpenAI, then use the model to tokenize, embed, chat complete and moderate. This page also includes advanced examples.
      * [Anthropic](./docs/anthropic.md) - configure pgai for Anthropic, then use the model to generate content.
      * [Cohere](./docs/cohere.md) - configure pgai for Cohere, then use the model to tokenize, embed, chat complete, classify, and rerank.
-  1. Leverage LLMs for data processing tasks such as [classification, summarization, and data enrichment](/docs/openai.md).
-* **Extension contributor**: Contribute to pgai and improve the project.
-  * [Develop and test changes to the pgai extension](./DEVELOPMENT.md).
-  * See the [Issues tab](https://github.com/timescale/pgai/issues) for a list of feature ideas to contribute.
+  - Leverage LLMs for data processing tasks such as classification, summarization, and data enrichment ([see the OpenAI example](/docs/openai.md)).
 
-**Learn more about pgai:** To learn more about the pgai extension and why we built it, read 
-[pgai: Giving PostgreSQL Developers AI Engineering Superpowers](http://www.timescale.com/blog/pgai-giving-postgresql-developers-ai-engineering-superpowers).
+
 
 ## Installation
 
@@ -131,19 +135,24 @@ To install pgai from source on a PostgreSQL server:
 
    The `CASCADE` automatically installs `pgvector` and `plpython3u` extensions.
 
-### Use pgai
+### Usage of pgai
 
 The main features in pgai are:
-
+ 
 **Working with embeddings generated from your data:**
 * [Automatically create and sync vector embeddings for your data](#automatically-create-and-sync-llm-embeddings-for-your-data)
 * [Search your data using vector and semantic search](#search-your-data-using-vector-and-semantic-search)
 * [Implement Retrieval Augmented Generation inside a single SQL statement](#implement-retrieval-augmented-generation-inside-a-single-sql-statement) 
 
 **Leverage LLMs for data processing tasks:**
-You can use pgai to integrate AI from [Ollama](./docs/ollama.md), [OpenAI](./docs/openai.md), 
-[Anthropic](./docs/anthropic.md), and [Cohere](./docs/cohere.md). Learn how to [moderate](./docs/moderate.md) and content directly in the database using triggers and background jobs.
+You can use pgai to integrate AI from the following providers:
+- [Ollama](./docs/ollama.md)
+- [OpenAI](./docs/openai.md)
+- [Anthropic](./docs/anthropic.md)
+- [Cohere](./docs/cohere.md)
+- [Llama 3 (via Ollama)](/docs/ollama.md)
 
+Learn how to [moderate](/docs/moderate.md) content directly in the database using triggers and background jobs.
 
 ### Automatically create and sync LLM embeddings for your data
 
@@ -151,7 +160,7 @@ The [pgvector](https://github.com/pgvector/pgvector) and
 [pgvectorscale](https://github.com/timescale/pgvectorscale) extensions allow you
 to store vector embeddings in your database and perform fast and efficient
 vector search.  The [pgai Vectorizer](/docs/vectorizer.md) builds on top of
-these extensions to automatically create and synchronizes embeddings for any
+these extensions to automatically create and synchronize embeddings for any
 text data in your database.
 
 With one line of code, you can define a vectorizer that creates embeddings for data in a table:
@@ -168,8 +177,8 @@ data in the source table and update the destination embedding table
 with the new embeddings asynchronously.
 
 [Automate AI embedding with pgai Vectorizer](/docs/vectorizer.md) shows you how
-to implement embeddings in your own data. When you install pgai on Timescale
-Cloud, embedding are automatically created and synchronized in the background.
+to implement embeddings in your own data. When you create Vectorizers in a Timescale
+Cloud database, embeddings are automatically created and synchronized in the background.
 On a self-hosted Postgres installation, you use a [Vectorizer
 Worker](/docs/vectorizer-worker.md) to asynchronously processes your
 vectorizers.
@@ -230,7 +239,7 @@ enable you to implement RAG directly in your database. For example:
 1. Execute your function in a SQL query:
 
     ```sql
-    SELECT generate_rag_response('Give me some startup advice');-*_
+    SELECT generate_rag_response('Give me some startup advice');
     ```
 
 ## Get involved

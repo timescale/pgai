@@ -92,7 +92,7 @@ To create and run a vectorizer, then query the auto-generated embeddings created
        'blog'::regclass,
        destination => 'blog_contents_embeddings',
        embedding => ai.embedding_openai('text-embedding-3-small', 768),
-       chunking => ai.chunking_recursive_character_text_splitter('contents'),
+       chunking => ai.chunking_recursive_character_text_splitter('contents')
     );
     ```
 
@@ -132,11 +132,11 @@ The results look like:
 
 | chunk | distance |
 |------|--------|
-| "PostgreSQL is a powerful, open source object-relational database system..." | 0.677 |
-| "As we look towards the future, artificial intelligence continues to evolve..." | 0.781 |
-| Blogging can be a great way to share your thoughts and expertise... | 0.862 |
-| Maintaining a healthy diet can be challenging for busy professionals... | 0.873 |
-| Cloud computing has revolutionized the way businesses operate... | 0.958 |
+| Maintaining a healthy diet can be challenging for busy professionals...       | 0.6720892190933228 |
+| Blogging can be a great way to share your thoughts and expertise...           | 0.7744888961315155 |
+| PostgreSQL is a powerful, open source object-relational database system...    |  0.815629243850708 |
+| Cloud computing has revolutionized the way businesses operate...              | 0.8913049921393394 |
+| As we look towards the future, artificial intelligence continues to evolve... | 0.9215681301612775 |
 
 
 That's it, you're done. You now have a table in Postgres that pgai vectorizer automatically creates 
