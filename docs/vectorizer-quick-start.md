@@ -20,7 +20,7 @@ On your local machine:
     name: pgai
     services:
       db:
-        image: timescale/timescaledb-ha:cicd-024349a-arm64
+        image: timescale/timescaledb-ha:pg16
         environment:
           POSTGRES_PASSWORD: postgres
           OPENAI_API_KEY: <your-api-key>
@@ -29,7 +29,7 @@ On your local machine:
         volumes:
           - ./data:/var/lib/postgresql/data
       vectorizer-worker:
-        image: timescale/pgai-vectorizer-worker:0.1.0rc4
+        image: timescale/pgai-vectorizer-worker:0.1.0
         environment:
           PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
           OPENAI_API_KEY: <your-api-key>
@@ -93,7 +93,6 @@ To create and run a vectorizer, then query the auto-generated embeddings created
        destination => 'blog_contents_embeddings',
        embedding => ai.embedding_openai('text-embedding-3-small', 768),
        chunking => ai.chunking_recursive_character_text_splitter('contents'),
-       scheduling => ai.scheduling_none()
     );
     ```
 
@@ -124,7 +123,7 @@ To create and run a vectorizer, then query the auto-generated embeddings created
     ```sql
     SELECT
         chunk,
-        embedding <=>  ai.openai_embed('text-embedding-3-small', 'pgai', _dimensions=>768) as distance
+        embedding <=>  ai.openai_embed('text-embedding-3-small', 'pgai', dimensions=>768) as distance
     FROM blog_contents_embeddings
     ORDER BY distance;
     ```
