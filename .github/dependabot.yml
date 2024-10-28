@@ -7,8 +7,7 @@ version: 2
 updates:
   - package-ecosystem: "pip"
     directories:
-      - "/"
-      - "projects/*"
+      - "projects/pgai"
     schedule:
       interval: "monthly"
     commit-message:
