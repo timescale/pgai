@@ -1,3 +1,7 @@
+<p align="center">
+    <img height="200" src="https://github.com/timescale/pgai/blob/main/docs/images/pgai_logo.png" alt="pgai"/>
+</p>
+
 <p></p>
 <div align=center>
 
