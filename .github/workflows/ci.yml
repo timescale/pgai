@@ -5,7 +5,7 @@ permissions:
   contents: read
 
 jobs:
-  build-and-test:
+  build-and-test-extension:
     runs-on: ubuntu-latest
 
     steps:
@@ -17,49 +17,75 @@ jobs:
           python-version: "3.10"
           cache: "pip" # caching pip dependencies
 
-      - run: pip install -r requirements-dev.txt
-
-      - name: Build the pgai distributable and check artifacts
-        run: make build-vec
-
       - name: Verify Docker installation
         run: |
           docker --version
           docker info
 
       - name: Build Docker image
+        working-directory: ./projects/extension
         run: make docker-build
 
       - name: Run Docker container
+        working-directory: ./projects/extension
         run: make docker-run
 
       - name: Build
-        run: docker exec pgai make build
+        run: docker exec pgai-ext make build
 
       - name: Lint SQL and Python
-        run: docker exec pgai make lint
+        run: docker exec pgai-ext make lint
 
       - name: Check Python Formatting
-        run: docker exec pgai make format-py
+        run: docker exec pgai-ext make format-py
 
-      - name: Install extension and vectorizer
-        run: |
-          docker exec pgai make install
-          docker exec pgai make install-vec
+      - name: Install extension
+        run: docker exec pgai-ext make install
 
       - name: Run test server
-        run: docker exec -d pgai make test-server
+        run: docker exec -d pgai-ext make test-server
 
       - name: Run tests
-        run: docker exec pgai make test
-
-      - name: Run vectorizer tests
-        run: make test-vectorizer
-
-      - name: Run type check
-        run: make type-check-py
+        run: docker exec pgai-ext make test
 
       - name: Stop and remove Docker container
+        working-directory: ./projects/extension
         run: |
           make docker-stop
           make docker-rm
+
+  build-and-test-pgai:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip" # caching pip dependencies
+
+      - name: Install dev/test dependencies
+        working-directory: ./projects/pgai
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        working-directory: ./projects/pgai
+        run: make lint
+
+      - name: Check Typing
+        working-directory: ./projects/pgai
+        run: make type-check
+
+      - name: Check Formatting
+        working-directory: ./projects/pgai
+        run: make format
+
+      - name: Run Tests
+        working-directory: ./projects/pgai
+        run: make test
+
+      - name: Build the pgai distributable and check artifacts
+        working-directory: ./projects/pgai
+        run: make build
