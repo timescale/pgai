@@ -22,7 +22,7 @@ def where_am_i() -> str:
 
 
 def docker_dir() -> str:
-    return "/pgai/projects/extension/tests/contents"
+    return "/pgai/tests/contents"
 
 
 def host_dir() -> Path:
@@ -41,7 +41,7 @@ def init() -> None:
         ]
     )
     if where_am_i() != "docker":
-        cmd = f"docker exec -w {docker_dir()} pgai {cmd}"
+        cmd = f"docker exec -w {docker_dir()} pgai-ext {cmd}"
     subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
 
 

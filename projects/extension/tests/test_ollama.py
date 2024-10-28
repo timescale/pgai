@@ -139,7 +139,7 @@ def test_ollama_image(cur_with_ollama_host):
         select ai.ollama_generate
         ( 'llava:7b'
         , 'Please describe this image.'
-        , images=> array[pg_read_binary_file('/pgai/projects/extension/tests/postgresql-vs-pinecone.jpg')]
+        , images=> array[pg_read_binary_file('/pgai/tests/postgresql-vs-pinecone.jpg')]
         , system_prompt=>'you are a helpful assistant'
         , embedding_options=> jsonb_build_object
           ( 'seed', 42
@@ -209,7 +209,7 @@ def test_ollama_chat_complete_image(cur_with_ollama_host):
           ( jsonb_build_object
             ( 'role', 'user'
             , 'content', 'describe this image'
-            , 'images', jsonb_build_array(encode(pg_read_binary_file('/pgai/projects/extension/tests/postgresql-vs-pinecone.jpg'), 'base64'))
+            , 'images', jsonb_build_array(encode(pg_read_binary_file('/pgai/tests/postgresql-vs-pinecone.jpg'), 'base64'))
             )
           )
         , chat_options=> jsonb_build_object

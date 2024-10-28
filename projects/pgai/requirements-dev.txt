@@ -1,0 +1,6 @@
+# this requirements file is optional
+# if you are editing python on your host machine (as opposed to inside the docker container)
+# you may use this on your host to aid your IDE's code completion etc. capabilities
+
+-r requirements-test.txt
+-r requirements.txt

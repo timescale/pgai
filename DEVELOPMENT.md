@@ -1,15 +1,21 @@
 # Develop and test changes to pgai
 
 pgai brings embedding and generation AI models closer to the database. Want to contribute to the pgai project?
-Start here. This page shows you:
+Start here. 
 
-- [The pgai development workflow](#the-pgai-development-workflow): build, run and test pgai in a Docker container.
-- [How to test pgai](#test-pgai): use the psql script to test your changes to pgai.
-- [The pgai build architecture](#the-pgai-build-architecture): work with multiple versions of pgai in the same environment.
+This project is organized as a monorepo with two distributable bodies of code:
+
+1. the pgai Postgres extension is located in [projects/extension](./projects/extension)
+2. the [pgai python library/cli](https://pypi.org/project/pgai/) is located in [projects/pgai](./projects/pgai)
+
+This page shows you:
+
+- [How to work on the pgai extension](#working-on-the-pgai-extension)
+- [How to work on the pgai library](#working-on-the-pgai-library)
 
 ## PRs and commits
 
-The project uses [conventional commits][conventional-commits]. It's enforce by
+The project uses [conventional commits][conventional-commits]. It's enforced by
 CI, you won't be able to merge PRs if your commits do not comply. This helps us
 automate the release process, changelog generation, etc.
 
@@ -17,10 +23,18 @@ If you don't want to wait for the CI to get feedback on you commit. You can
 install the git hook that checks your commits locally. To do so, run:
 
 ```bash
-make install-git-hooks
+cd projects/pgai
+make install-commit-hook
 ```
 
-## pgai Prerequisites
+## Working on the pgai extension
+
+- [pgai extension development prerequisites](#pgai-extension-development-prerequisites)
+- [The pgai extension development workflow](#the-pgai-extension-development-workflow)
+- [Controlling pgai extension tests](#controlling-pgai-extension-tests)
+- [The pgai extension architecture](#the-pgai-extension-architecture)
+
+### pgai extension development prerequisites
 
 To make changes to the pgai extension, do the following in your developer environment:
 
@@ -42,11 +56,11 @@ To make changes to the pgai extension, do the following in your developer enviro
      ollama pull llava:7b
      ```
 
-## The pgai development workflow
+### The pgai extension development workflow
 
 To make changes to pgai:
 
-1. Navigate to directory where you cloned the repo.
+1. Navigate to `projects/extension` in the directory where you cloned the repo.
 2. Build the docker image
    ```bash
    make docker-build
@@ -55,7 +69,7 @@ To make changes to pgai:
    ```bash
    make docker-run
    ```
-   The repo directory is mounted to `/pgai` in the running container.
+   The `projects/extension` directory is mounted to `/pgai` in the running container.
 
 4. Work inside the container:
    * **Docker shell**:
@@ -66,25 +80,31 @@ To make changes to pgai:
          ```
          You are logged in as root.
 
-      2. Install the extension
+      2. Build and Install the extension
 
          ```bash
+         make build
          make install
          ```
 
       3. Run the unit tests
-
+         
+         First run the test-server in a second shell
+         ```bash
+         make test-server
+         ```
+         Then, run the tests in the first shell
          ```bash
          make test
          ```
 
-      4. Clean build artifacts
+      5. Clean build artifacts
 
          ```bash
          make clean
          ```
 
-      5. Uninstall the extension
+      6. Uninstall the extension
 
          ```bash
          make uninstall
@@ -107,71 +127,60 @@ To make changes to pgai:
    ```
 
 
-## Test pgai
+### Controlling pgai extension tests
 
-The [tests](./tests) directory contains the unit tests.
+The [projects/extension/tests](./projects/extension/tests) directory contains the unit tests.
 
-To set up the pgai tests:
+To set up the tests:
 
-1. In a [.env](https://saurabh-kumar.com/python-dotenv/) file, add the variables associated with the component(s) you want to test:
+1. In a [.env](https://saurabh-kumar.com/python-dotenv/) file, use the following flags to enable/disable test suites
+    ```text
+    # enable/disable tests
+    ENABLE_OPENAI_TESTS=1
+    ENABLE_OLLAMA_TESTS=1
+    ENABLE_ANTHROPIC_TESTS=1
+    ENABLE_COHERE_TESTS=1
+    ENABLE_VECTORIZER_TESTS=1
+    ENABLE_DUMP_RESTORE_TESTS=1
+    ENABLE_PRIVILEGES_TESTS=1
+    ENABLE_CONTENTS_TESTS=1
+    ENABLE_SECRETS_TESTS=1
+    ```
+
+2. Some tests require extra environment variables to be added to the .env file
    - **OpenAI**:
-      - ENABLE_OPENAI_TESTS - set to `1` to enable OpenAI unit tests.
       - OPENAI_API_KEY - an [OpenAI API Key](https://platform.openai.com/api-keys) for OpenAI unit testing.
    - **Ollama**:
-      - ENABLE_OLLAMA_TESTS - set to `1` to enable Ollama unit tests.
       - OLLAMA_HOST - the URL to the Ollama instance to use for testing. For example, `http://host.docker.internal:11434`.
    - **Anthropic**:
-      - ENABLE_ANTHROPIC_TESTS - set to `1` to enable Anthropic unit tests.
       - ANTHROPIC_API_KEY - an [Anthropic API Key](https://docs.anthropic.com/en/docs/quickstart#set-your-api-key) for Anthropic unit testing.
    - **Cohere**:
-      - ENABLE_COHERE_TESTS - set to `1` to enable Cohere unit tests.
       - COHERE_API_KEY - a [Cohere API Key](https://docs.cohere.com/docs/rate-limits) for Cohere unit testing.
 
-2. If you have made changes to the source, from a Docker shell, install the extension:
-   ```bash
-   make docker-shell
-   make install
-   ```
-   You are in a Docker shell.
 
-3. Run the tests
+### The pgai extension architecture
 
-   ```bash
-   make test
-   ```
-
-   This runs pytest against the unit tests in the [./tests](./tests) directory:
-   1. Drops the `test` database.
-   2. Creates the `test` database.
-   3. Creates the `test` database user.
-   4. Runs the tests against the `test` database.
-   5. The `test` database and `test` user are left after the tests run for debugging
-
-Best practice is to add new tests when you commit new functionality.
-
-## The pgai architecture
-
-pgai consists of [SQL](./sql) scripts and a [Python](./src) package.
+pgai consists of [SQL](./projects/extension/sql) scripts and a [Python](./projects/extension/ai) package.
 
 * [Develop SQL in pgai](#develop-sql-in-pgai)
 * [Develop Python in pgai](#develop-python-in-pgai)
 * [Versions prior to 0.4.0](#versions-prior-to-040):
 
 
-### Develop SQL in pgai
+#### Develop SQL in the pgai extension
 
-SQL code used by pgai is maintained in [./sql](./sql).
+SQL code used by pgai is maintained in [./projects/extension/sql](./projects/extension/sql).
 
 The SQL is organized into:
 
-* **Idempotent scripts**: maintained in [./sql/idempotent](./sql/idempotent).
+* **Idempotent scripts**: maintained in [./projects/extension/sql/idempotent](./projects/extension/sql/idempotent).
 
   Idempotent scripts consist of `CREATE OR REPLACE` style statements, usually as
   functions. They are executed in alphanumeric order every time you install or
   upgrade pgai. In general, it is safe to rename these scripts from one version to
   the next.
 
-* **Incremental scripts**: maintained in [./sql/incremental](./sql/incremental).
+* **Incremental scripts**: maintained in [./projects/extension/sql/incremental](./projects/extension/sql/incremental).
 
   Incremental files create tables and other stateful-structures that should not be
   dropped when you upgrade from one version to another. Each incremental script
@@ -181,47 +190,46 @@ The SQL is organized into:
 
   Incremental scripts are executed in alphanumeric order on file name. Once an incremental script is published
   in a release, you must not rename it. To facilitate migration, each incremental file is
-  [wrapped](./sql/migration.sql). Each migration id is tracked in the `migration` table. For more information,
-  see [./sql/head.sql](./sql/head.sql).
+  [wrapped](./projects/extension/sql/migration.sql). Each migration id is tracked in the `migration` table. For more information,
+  see [./projects/extension/sql/head.sql](./projects/extension/sql/head.sql).
 
-* **Built scripts**: `./sql/ai--*.sql`
+* **Built scripts**: `./projects/extension/sql/ai--*.sql`
 
-  `make build-sql` "compiles" the idempotent and incremental scripts into the final
+  `make build` "compiles" the idempotent and incremental scripts into the final
   form that is installed into a postgres environment as an extension. A script
-  named `./sql/ai--<current-version>.sql` is built. For every prior version
+  named `./projects/extension/sql/ai--<current-version>.sql` is built. For every prior version
   (other than 0.1.0, 0.2.0, and 0.3.0), the file is copied to
-  `./sql/ai--<prior-version>--<current-version>.sql` to give postgres an upgrade
-  path from prior versions. The `./sql/ai.control` is also ensured to have the
+  `./projects/extension/sql/ai--<prior-version>--<current-version>.sql` to give postgres an upgrade
+  path from prior versions. The `./projects/extension/sql/ai.control` is also ensured to have the
   correct version listed in it.
 
-  When you release a new version, add the `./sql/ai--*<current-version>.sql` scripts to this repo with your
+  When you release a new version, add the `./projects/extension/sql/ai--*<current-version>.sql` scripts to this repo with your
   pull request. The scripts from prior versions are checked in and should not be modified after
   having been released.
 
 If you are exclusively working on SQL, you may want to forego the high-level make
 targets in favor of the SQL-specific make targets:
 
-1. **Clean your environment**: run `make clean-sql` to delete `./sql/ai--*<current-version>.sql`.
+1. **Clean your environment**: run `make clean-sql` to delete `./projects/extension/sql/ai--*<current-version>.sql`.
 
-   The `<current-version>` is defined in `versions()` in [./build.py](./build.py).
+   The `<current-version>` is defined in `versions()` in [./projects/extension/build.py](./projects/extension/build.py).
 
-1. **Build pgai**: run `make build-sql` to compile idempotent and incremental scripts
-   into `./sql/ai--*<current-version>.sql`.
-1. **Install pgai**: run `make install-sql` to install `./sql/ai--*.sql` and `./sql/ai*.control` into your local
-   environment.
+1. **Build pgai**: run `make build` to compile idempotent and incremental scripts
+   into `./projects/extension/sql/ai--*<current-version>.sql`.
+1. **Install pgai**: run `make install-sql` to install `./projects/extension/sql/ai--*.sql` and `./projects/extension/sql/ai*.control` into your local
+   Postgres environment.
 
+#### Develop Python in the pgai extension
 
-### Develop Python in pgai
-
-Python code used by the pgai is maintained in [./src](./src).
+Python code used by the pgai extension is maintained in [./projects/extension/ai](./projects/extension/ai).
 
 Database functions
 written in [plpython3u](https://www.postgresql.org/docs/current/plpython.html)
 can import the modules in this package and any dependencies specified in
-[./src/pyproject.toml](./src/pyproject.toml). Including the following line at the
-beginning of the database function body will allow you to import. The
-build process replaces this comment line with Python code that makes this
-possible. Note that the leading four spaces are required.
+[./projects/extension/pyproject.toml](./projects/extension/pyproject.toml). 
+Including the following line at the beginning of the database function body will 
+allow you to import. The build process replaces this comment line with Python 
+code that makes this possible. Note that the leading four spaces are required.
 
 ```python
     #ADD-PYTHON-LIB-DIR
@@ -242,9 +250,40 @@ targets in favor of the Python-specific make targets:
    `/usr/local/lib/pgai`.
 
 
-### Versions prior to 0.4.0
+#### Versions prior to 0.4.0
 
 Prior to pgai v0.4.0, Python dependencies were installed system-wide. Until pgai versions 0.1 - 0.3 are deprecated
 [old dependencies](./src/old_requirements.txt) are installed system-wide.
+
+
+## Working on the pgai library
+
+The experience of working on the pgai library is like developing most Python
+libraries and applications. Use the [requirements-dev.txt](./projects/pgai/requirements-dev.txt) 
+file to create a virtual env for development.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+```
+
+Use the `help` target of the [Makefile](./projects/pgai/Makefile) to see what
+commands are available.
+
+```bash
+make help
+```
+
+Be sure to add unit tests to the [tests](./projects/pgai/tests) directory when 
+you add or modify code. Use the following commands to check your work before
+submitting a PR.
+
+```bash
+make test
+make lint
+make format
+make type-check
+```
 
 [conventional-commits]: https://www.conventionalcommits.org/en/v1.0.0/

@@ -3,5 +3,4 @@
 # you may use this on your host to aid your IDE's code completion etc. capabilities
 
 -r requirements-test.txt
--r projects/extension/requirements.txt
--r projects/pgai/requirements.txt
+-r requirements.txt

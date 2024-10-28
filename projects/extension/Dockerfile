@@ -58,12 +58,10 @@ RUN set -eux; \
     pip install /build/pgspot; \
     rm -rf /build/pgspot
 
-# install our dev/test python dependencies
+# install our test python dependencies
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 COPY requirements-test.txt /build/requirements-test.txt
 RUN pip install -r /build/requirements-test.txt
-COPY projects/pgai/requirements.txt /build/requirements-pgai.txt
-RUN pip install -r /build/requirements-pgai.txt
 RUN rm -r /build
 
 WORKDIR /pgai
