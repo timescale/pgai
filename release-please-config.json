@@ -1,8 +1,8 @@
 {
+  "bootstrap-sha": "b2a936ab45c96d43dbb9e0cd81c257530a27b0d4",
   "packages": {
     "projects/pgai": {
-      "component": "pgai",
-      "bootstrap-sha": "b2a936ab45c96d43dbb9e0cd81c257530a27b0d4"
+      "component": "pgai"
     }
   },
   "separate-pull-requests": true,
