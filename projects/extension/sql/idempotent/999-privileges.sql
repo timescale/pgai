@@ -98,7 +98,11 @@ begin
     -- secret permissions
     if admin then
         -- grant access to all secrets to admin users
-        insert into ai.secret_permissions (name, "role") VALUES ('*', to_user);
+        insert into ai._secret_permissions ("name", "role")
+        values ('*', to_user)
+        on conflict on constraint _secret_permissions_pkey
+        do nothing
+        ;
     end if;
 end
 $func$ language plpgsql volatile
