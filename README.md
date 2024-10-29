@@ -21,7 +21,8 @@ the foundation of most AI applications, pgai makes it easier to leverage your da
 **Working with embeddings generated from your data:**
 * Automatically create and sync vector embeddings for your data ([learn more](#automatically-create-and-sync-llm-embeddings-for-your-data))
 * Search your data using vector and semantic search ([learn more](#search-your-data-using-vector-and-semantic-search))
-* Implement Retrieval Augmented Generation inside a single SQL statement ([learn more](#implement-retrieval-augmented-generation-inside-a-single-sql-statement)) 
+* Implement Retrieval Augmented Generation inside a single SQL statement ([learn more](#implement-retrieval-augmented-generation-inside-a-single-sql-statement))
+* Perform high-performance, cost-efficient ANN search on large vector workloads with [pgvectorscale](https://github.com/timescale/pgvectorscale), which complements pgvector. 
 
 **Leverage LLMs for data processing tasks:**
 * Retrieve LLM chat completions from models like Claude Sonnet 3.5, OpenAI GPT4o, Cohere Command, and Llama 3 (via Ollama). ([learn more](#usage-of-pgai))
