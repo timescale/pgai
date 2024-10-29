@@ -33,6 +33,10 @@ the foundation of most AI applications, pgai makes it easier to leverage your da
 
 **Contributing**: We welcome contributions to pgai! See the [Contributing](/CONTRIBUTING.md) page for more information.
 
+# Demo
+
+[![Auto Create and Sync Vector Embeddings in 1 Line of SQL (pgai Vectorizer)](https://github.com/user-attachments/assets/8a71c774-505a-4335-8b34-cdea9dedb558)](https://youtu.be/ZoC2XYol6Zk?si=atI4XPurEifG0pd5)
+
 # Getting Started
 
 Here's how to get started with pgai:
