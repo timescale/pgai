@@ -1,3 +1,15 @@
 .env
 .idea
 .venv
+build
+*.egg-info
+__pycache__
+projects/extension/sql/ai--*.sql
+projects/extension/tests/dump_restore/describe_objects.sql
+projects/extension/tests/dump_restore/describe_schemas.sql
+projects/extension/tests/dump_restore/dump.sql
+projects/extension/tests/dump_restore/src.snapshot
+projects/extension/tests/dump_restore/dst.snapshot
+projects/extension/tests/*/*.actual
+dist
+wiki.dump

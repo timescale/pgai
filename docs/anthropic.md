@@ -40,7 +40,7 @@ to run your AI queries:
    `ai.anthropic_api_key` is set for the duration of your psql session, you do not need to specify it for pgai functions.
 
     ```sql
-    select anthropic_generate
+    select ai.anthropic_generate
     ( 'claude-3-5-sonnet-20240620'
     , jsonb_build_array
       ( jsonb_build_object
@@ -73,7 +73,7 @@ to run your AI queries:
 
 4. Pass your API key to your parameterized query:
     ```sql
-    SELECT anthropic_generate
+    SELECT ai.anthropic_generate
     ( 'claude-3-5-sonnet-20240620'
     , jsonb_build_array
       ( jsonb_build_object
@@ -81,7 +81,7 @@ to run your AI queries:
         , 'content', 'Name five famous people from Birmingham, Alabama.'
         )
       )
-    , _api_key=>$1
+    , api_key=>$1
     ) AS actual
     \bind :anthropic_api_key
     \g
@@ -126,10 +126,10 @@ to run your AI queries:
         with conn.cursor() as cur:
             # pass the API key as a parameter to the query. don't use string manipulations
             cur.execute("""
-                SELECT anthropic_generate
+                SELECT ai.anthropic_generate
                 ( 'claude-3-5-sonnet-20240620'
                 , %s
-                , _api_key=>%s
+                , api_key=>%s
                 )
             """, (Json(messages), ANTHROPIC_API_KEY))
             records = cur.fetchall()
@@ -155,7 +155,7 @@ This section shows you how to use AI directly from your database using SQL.
 
 select jsonb_extract_path_text
 (
-   anthropic_generate
+   ai.anthropic_generate
    ( 'claude-3-5-sonnet-20240620'
    , jsonb_build_array
      ( jsonb_build_object
