@@ -12,7 +12,7 @@
 </div>
 
 pgai simplifies the process of building [search](https://en.wikipedia.org/wiki/Similarity_search),
-[Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation) (RAG), and other AI applications with PostgreSQL.
+[Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation) (RAG), and other AI applications with PostgreSQL. It complements popular extensions for vector serch in PostgreSQL like pgvector and pgvectorscale, building on top of their capabilities.
 
 # Overview
 The goal of pgai is to make working with AI easier and more accessible to developers. Because data is
@@ -33,7 +33,7 @@ the foundation of most AI applications, pgai makes it easier to leverage your da
 
 **Contributing**: We welcome contributions to pgai! See the [Contributing](/CONTRIBUTING.md) page for more information.
 
-# Demo
+# Demo: pgai Vectorizer
 
 [![Auto Create and Sync Vector Embeddings in 1 Line of SQL (pgai Vectorizer)](https://github.com/user-attachments/assets/8a71c774-505a-4335-8b34-cdea9dedb558)](https://youtu.be/ZoC2XYol6Zk?si=atI4XPurEifG0pd5)
 
