@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import platform
 import re
 import os
 import shutil
@@ -503,12 +502,8 @@ def format_py() -> None:
 
 
 def docker_build() -> None:
-    if platform.machine().lower() in {"i386", "i686", "x86_64"}:
-        rust_flags = "--build-arg RUSTFLAGS='-C target-feature=+avx2,+fma'"
-    else:
-        rust_flags = ""
     subprocess.run(
-        f"""docker build --build-arg PG_MAJOR={pg_major()} {rust_flags} -t pgai-ext .""",
+        f"""docker build --build-arg PG_MAJOR={pg_major()} -t pgai-ext .""",
         shell=True,
         check=True,
         env=os.environ,
