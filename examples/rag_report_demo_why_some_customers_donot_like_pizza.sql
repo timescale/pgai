@@ -1,7 +1,7 @@
 
 ----------------------------------------------------------------------------------
 -- This sql is the script of blog of Improving Customer Satisfaction in Pizza Shops With RAG: A Pgai Case Study
--- https://www.timescale.com/blog/improving-customer-satisfaction
+-- https://www.timescale.com/blog/improving-customer-satisfaction-in-pizza-shops-with-rag-and-pgai/
 
 ----------------------------------------------------------------------------------
 -- The demo of AI RAG by generate a why customer don't like pizza report.
