@@ -2,7 +2,7 @@
 name: 🐛 Bug report
 description: Is something not working? Let's fix it together!
 title: "[Bug]: <Title>"
-labels: ["bug", "triage", "community"]
+labels: ["bug", "triage", "community", "pgai"]
 body:
   - type: markdown
     attributes:
@@ -121,4 +121,4 @@ body:
       description: No pressure at all, but we’re ready to help you navigate the contribution process.
       options:
         - "🦸 Yes , I will submit a PR soon!"
-        - "🆘 No, could someone else please work on the bugfix?
+        - "🆘 No, could someone else please work on the bugfix?"

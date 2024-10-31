@@ -2,7 +2,7 @@
 name: 💡 Feature request
 description: Suggest a new feature
 title: "[Feature]: <Feature name>"
-labels: ["feature-request", "community"]
+labels: ["feature-request", "community", "pgai", "triage"]
 body:
   - type: markdown
     id: info
@@ -49,4 +49,4 @@ body:
       description: No pressure at all, but we’re ready to help you navigate the contribution process.
       options:
         - "🦸 Yes , I will submit a PR soon!"
-        - "🆘 No, could someone else please consider working on it?
+        - "🆘 No, could someone else please consider working on it?"
