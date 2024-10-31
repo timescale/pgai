@@ -1,0 +1,115 @@
+---
+name: Bug report
+description: Is something not working? Help us fix it!
+title: "[Bug]: <Title>"
+labels: ["bug", "triage", "community"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: |
+        Tell us what happened and also what you would have expected to
+        happen instead.
+      placeholder: "Describe the bug"
+    validations:
+      required: true
+
+  - type: input
+    id: pgai-extension-version
+    attributes:
+      label: pgai extension affected
+      description: |
+        Let us know what version of the pgai postgres extension you
+        are running.
+      placeholder: "0.4.0"
+    validations:
+      required: false
+
+  - type: input
+    id: pgai-library-version
+    attributes:
+      label: pgai library affected
+      description: Let us know what version of pgai python library you are
+        running.
+      placeholder: "0.1.0"
+    validations:
+      required: false
+
+  - type: input
+    id: postgresql-version
+    attributes:
+      label: PostgreSQL version used
+      description: Let us know what version of PostgreSQL you are running.
+      placeholder: "14.1"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: What operating system did you use?
+      description: |
+        Please provide OS, version, and architecture. For example:
+        Windows 10 x64, Ubuntu 21.04 x64, Mac OS X 10.5 ARM, Rasperry
+        Pi i386, etc.
+      placeholder: "Ubuntu 21.04 x64"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: installation
+    attributes:
+      label: What installation method did you use?
+      multiple: true
+      options:
+        - Docker
+        - Source
+        - Pypi
+        - Not applicable
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: What platform did you run on?
+      multiple: true
+      options:
+        - Amazon Web Services (AWS)
+        - Google Cloud Platform (GCP)
+        - Managed Service for TimescaleDB (MST/Aiven)
+        - Microsoft Azure Cloud
+        - On prem/Self-hosted
+        - Timescale Cloud
+        - Other
+        - Not applicable
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output and stack trace
+      description: |
+        Please copy and paste any relevant log output or a stack
+        trace. This will be automatically formatted into code, so no
+        need for backticks.
+      render: bash
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How can we reproduce the bug?
+      description: |
+        Please try to provide step-by-step instructions how to
+        reproduce the issue. If possible, provide scripts that we can
+        run to trigger the bug.
+      render: bash
+    validations:
+      required: true
