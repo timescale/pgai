@@ -352,7 +352,7 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
 
         Returns:
             Sequence[EmbeddingVector | ChunkEmbeddingError]: EmbeddingVector
-            for the chunks that were successfuly embedded, ChunkEmbeddingError
+            for the chunks that were successfully embedded, ChunkEmbeddingError
             for the chunks that exceeded the model's token limit.
         """
         valid_documents: list[list[int]] = []
