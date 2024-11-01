@@ -132,7 +132,7 @@ class VectorizerQueryBuilder:
         """Generates the SQL expression for a comma separated list of the
         attributes of a primary key. For example, if the primary key has 2
         fields (author, title), it will return a sql.Composed object that
-        represents the SQL expresion "author, title".
+        represents the SQL expression "author, title".
         """
         return sql.SQL(" ,").join(
             [sql.Identifier(a.attname) for a in self.vectorizer.source_pk]
