@@ -37,13 +37,14 @@ HELP = """Available targets:
 
 
 def versions() -> list[str]:
+    # ADD NEW VERSIONS TO THE FRONT OF THIS LIST! STAY SORTED PLEASE
     return [
-        "0.4.1",
-        "0.4.0",
-        "0.3.0",
-        "0.2.0",
-        "0.1.0",
-    ]  # ADD NEW VERSIONS TO THE FRONT OF THIS LIST! STAY SORTED PLEASE
+        "0.4.1-dev",
+        "0.4.0",  # released
+        "0.3.0",  # deprecated
+        "0.2.0",  # deprecated
+        "0.1.0",  # deprecated
+    ]
 
 
 def this_version() -> str:
@@ -54,6 +55,18 @@ def prior_versions() -> list[str]:
     return versions()[1:] if len(versions()) > 1 else []
 
 
+def check_versions():
+    # double-hyphens will cause issues. disallow
+    pattern = r"\d+\.\d+\.\d+(-[a-z0-9.]+)?"
+    for version in versions():
+        if re.fullmatch(pattern, version) is None:
+            print(
+                f"version {version} does not match the pattern {pattern}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+
 def parse_version(version: str) -> tuple[int, int, int, str | None]:
     parts = re.split(r"[.-]", version, 4)
     return (
@@ -62,6 +75,11 @@ def parse_version(version: str) -> tuple[int, int, int, str | None]:
         int(parts[2]),
         parts[3] if len(parts) > 3 else None,
     )
+
+
+def is_prerelease(version: str) -> bool:
+    parts = parse_version(version)
+    return parts[3] is not None
 
 
 def git_tag(version: str) -> str:
@@ -90,13 +108,65 @@ def idempotent_sql_files() -> list[Path]:
     return paths
 
 
+def parse_feature_flag(path: Path) -> str | None:
+    with path.open(mode="rt", encoding="utf-8") as f:
+        line = f.readline()
+        if not line.startswith("--FEATURE-FLAG: "):
+            return None
+        ff = line.removeprefix("--FEATURE-FLAG: ").strip()
+        pattern = r"^[a-z_]+$"
+        if re.fullmatch(pattern, ff) is None:
+            print(
+                f"feature flag {ff} in {path.name} does not match the pattern {pattern}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        return ff
+
+
+def check_sql_file_name(path: Path) -> None:
+    pattern = r"^\d\d\d-[a-z][a-z_-]*\.sql$"
+    if re.fullmatch(pattern, path.name) is None:
+        print(
+            f"{path} file name does not match the pattern {pattern}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
+def file_number(path: Path) -> int:
+    return int(path.name[0:3])
+
+
 def check_idempotent_sql_files(paths: list[Path]) -> None:
     prev = 0
     for path in paths:
-        this = int(path.name[0:3])
-        if this != 999 and this != prev + 1:
+        check_sql_file_name(path)
+        if path.name == "999-privileges.sql":
+            break
+        this = file_number(path)
+        if this < 900 and this != prev + 1:
             print(
                 f"idempotent sql files must be strictly ordered. this: {this} prev: {prev}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        if this >= 900 and this == prev:  # allow gaps in pre-production scripts
+            print(
+                f"idempotent sql files must not have duplicate numbers. this: {this} prev: {prev}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        ff = parse_feature_flag(path)
+        if this < 900 and ff:
+            print(
+                f"idempotent sql files under 900 must be NOT gated by a feature flag: {path.name}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        if this >= 900 and not ff:
+            print(
+                f"idempotent sql files over 899 must be gated by a feature flag: {path.name}",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -116,10 +186,30 @@ def incremental_sql_files() -> list[Path]:
 def check_incremental_sql_files(paths: list[Path]) -> None:
     prev = 0
     for path in paths:
-        this = int(path.name[0:3])
-        if this != prev + 1:
+        check_sql_file_name(path)
+        this = file_number(path)
+        if this < 900 and this != prev + 1:
             print(
                 f"incremental sql files must be strictly ordered. this: {this} prev: {prev}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        if this >= 900 and this == prev:  # allow gaps in pre-production scripts
+            print(
+                f"incremental sql files must not have duplicate numbers. this: {this} prev: {prev}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        ff = parse_feature_flag(path)
+        if this < 900 and ff:
+            print(
+                f"incremental sql files under 900 must be NOT gated by a feature flag: {path.name}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        if this >= 900 and not ff:
+            print(
+                f"incremental sql files over 899 must be gated by a feature flag: {path.name}",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -145,19 +235,31 @@ def build_control_file() -> None:
     control_file().write_text("".join(lines))
 
 
-def sql_migration_file() -> Path:
-    return sql_dir() / "migration.sql"
+def feature_flag_to_guc(feature_flag: str) -> str:
+    return f"ai.enable_feature_flag_{feature_flag}"
+
+
+def gate_sql(code: str, feature_flag: str) -> str:
+    template = sql_dir().joinpath("gated.sql").read_text()
+    guc = feature_flag_to_guc(feature_flag)
+    return template.format(code=code, guc=guc, feature_flag=feature_flag)
 
 
 def build_incremental_sql_file(input_file: Path) -> str:
-    template = sql_migration_file().read_text()
+    template = sql_dir().joinpath("migration.sql").read_text()
     migration_name = input_file.name
     migration_body = input_file.read_text()
     version = this_version()
     migration_body = migration_body.replace("@extversion@", version)
-    return template.format(
-        migration_name=migration_name, migration_body=migration_body, version=version
+    code = template.format(
+        migration_name=migration_name,
+        migration_body=migration_body,
+        version=version,
     )
+    feature_flag = parse_feature_flag(input_file)
+    if feature_flag:
+        code = gate_sql(code, feature_flag)
+    return code
 
 
 def build_idempotent_sql_file(input_file: Path) -> str:
@@ -181,36 +283,65 @@ def build_idempotent_sql_file(input_file: Path) -> str:
     inject = "".join(inject.splitlines(keepends=True)[1:-1])
     code = input_file.read_text()
     code = code.replace("@extversion@", this_version())
-    return code.replace(
+    code = code.replace(
         """    #ADD-PYTHON-LIB-DIR\n""", inject
     )  # leading 4 spaces is intentional
+    feature_flag = parse_feature_flag(input_file)
+    if feature_flag:
+        code = gate_sql(code, feature_flag)
+    return code
 
 
-def sql_head_file() -> Path:
-    return sql_dir() / "head.sql"
+def build_feature_flags() -> str:
+    feature_flags = set()
+    for path in incremental_sql_files():
+        ff = parse_feature_flag(path)
+        if ff:
+            feature_flags.add(ff)
+    for path in idempotent_sql_files():
+        ff = parse_feature_flag(path)
+        if ff:
+            feature_flags.add(ff)
+    template = sql_dir().joinpath("flag.sql").read_text()
+    output = ""
+    for feature_flag in feature_flags:
+        guc = feature_flag_to_guc(feature_flag)
+        output += template.format(
+            feature_flag=feature_flag, guc=guc, version=this_version()
+        )
+    return output
 
 
 def build_sql() -> None:
+    check_versions()
+    check_incremental_sql_files(incremental_sql_files())
+    check_idempotent_sql_files(idempotent_sql_files())
     build_control_file()
-    hr = "".rjust(80, "-")
+    hr = "".rjust(80, "-")  # "horizontal rule"
     osf = output_sql_file()
     osf.unlink(missing_ok=True)
     with osf.open("w") as wf:
-        wf.write(f"{hr}\n-- {this_version()}\n\n\n")
-        wf.write(sql_head_file().read_text())
-        wf.write("\n\n\n")
-        files = incremental_sql_files()
-        check_incremental_sql_files(files)
-        for inc_file in files:
+        wf.write(f"{hr}\n-- ai {this_version()}\n\n")
+        wf.write(sql_dir().joinpath("head.sql").read_text())
+        if is_prerelease(this_version()):
+            wf.write("\n\n")
+            wf.write(build_feature_flags())
+        wf.write("\n\n")
+        for inc_file in incremental_sql_files():
+            if file_number(inc_file) >= 900 and not is_prerelease(this_version()):
+                # don't include pre-release code in non-prerelease versions
+                continue
             code = build_incremental_sql_file(inc_file)
             wf.write(code)
-            wf.write("\n\n\n")
-        files = idempotent_sql_files()
-        check_idempotent_sql_files(files)
-        for idm_file in files:
+            wf.write("\n\n")
+        for idm_file in idempotent_sql_files():
+            nbr = file_number(idm_file)
+            if nbr != 999 and nbr >= 900 and not is_prerelease(this_version()):
+                # don't include pre-release code in non-prerelease versions
+                continue
             wf.write(f"{hr}\n-- {idm_file.name}\n")
             wf.write(build_idempotent_sql_file(idm_file))
-            wf.write("\n\n\n")
+            wf.write("\n\n")
         wf.flush()
         wf.close()
     for prior_version in prior_versions():
@@ -218,7 +349,11 @@ def build_sql() -> None:
             "0.3.0",
             "0.2.0",
             "0.1.0",
-        }:  # we don't allow upgrades from these versions
+        }:
+            # we don't allow upgrades from these versions. they are deprecated
+            continue
+        if is_prerelease(prior_version) and not is_prerelease(this_version()):
+            # we don't allow upgrades from prerelease versions to production versions
             continue
         dest = sql_dir().joinpath(f"ai--{prior_version}--{this_version()}.sql")
         dest.unlink(missing_ok=True)
@@ -513,7 +648,6 @@ def docker_build() -> None:
 
 
 def docker_run() -> None:
-    # Set TESTCONTAINERS_HOST_OVERRIDE when running on MacOS.
     cmd = " ".join(
         [
             "docker run -d --name pgai-ext -p 127.0.0.1:5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust",

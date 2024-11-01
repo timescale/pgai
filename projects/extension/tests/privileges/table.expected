@@ -32,6 +32,22 @@
  ai     | _vectorizer_q_1      | jill  | insert    | YES
  ai     | _vectorizer_q_1      | jill  | select    | YES
  ai     | _vectorizer_q_1      | jill  | update    | YES
+ ai     | feature_flag         | alice | delete    | YES
+ ai     | feature_flag         | alice | insert    | YES
+ ai     | feature_flag         | alice | select    | YES
+ ai     | feature_flag         | alice | update    | YES
+ ai     | feature_flag         | bob   | delete    | no
+ ai     | feature_flag         | bob   | insert    | no
+ ai     | feature_flag         | bob   | select    | no
+ ai     | feature_flag         | bob   | update    | no
+ ai     | feature_flag         | fred  | delete    | no
+ ai     | feature_flag         | fred  | insert    | no
+ ai     | feature_flag         | fred  | select    | no
+ ai     | feature_flag         | fred  | update    | no
+ ai     | feature_flag         | jill  | delete    | no
+ ai     | feature_flag         | jill  | insert    | no
+ ai     | feature_flag         | jill  | select    | no
+ ai     | feature_flag         | jill  | update    | no
  ai     | migration            | alice | delete    | YES
  ai     | migration            | alice | insert    | YES
  ai     | migration            | alice | select    | YES
@@ -112,5 +128,5 @@
  wiki   | post_embedding_store | jill  | insert    | YES
  wiki   | post_embedding_store | jill  | select    | YES
  wiki   | post_embedding_store | jill  | update    | YES
-(112 rows)
+(128 rows)
 

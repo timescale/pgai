@@ -50,9 +50,9 @@ begin
         and e.extname operator(pg_catalog.=) 'ai'
         and k.relkind in ('r', 'p', 'S', 'v') -- tables, sequences, and views
         and (admin, n.nspname, k.relname) not in
-        (
-            (false, 'ai', 'migration'), -- only admins get any access to this table
-            (false, 'ai', '_secret_permissions') -- only admins get any access to this table
+        ( (false, 'ai', 'migration') -- only admins get any access to this table
+        , (false, 'ai', '_secret_permissions') -- only admins get any access to this table
+        , (false, 'ai', 'feature_flag') -- only admins get any access to this table
         )
         order by n.nspname, k.relname
     )
