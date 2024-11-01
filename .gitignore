@@ -11,7 +11,6 @@ projects/extension/tests/dump_restore/dump.sql
 projects/extension/tests/dump_restore/src.snapshot
 projects/extension/tests/dump_restore/dst.snapshot
 projects/extension/tests/*/*.actual
-projects/extension/tests/upgrade/upgrade0.snapshot
-projects/extension/tests/upgrade/upgrade1.snapshot
+projects/extension/tests/upgrade/*.snapshot
 dist
 wiki.dump

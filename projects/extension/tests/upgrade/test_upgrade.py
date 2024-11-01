@@ -1,5 +1,6 @@
 import os
 import subprocess
+from collections import namedtuple
 from pathlib import Path
 
 import psycopg
@@ -12,6 +13,9 @@ if enable_upgrade_tests == "0":
 
 
 USER = "marianne"  # NOT a superuser
+
+
+UpgradePath = namedtuple("UpgradePath", ["source", "target", "path"])
 
 
 def db_url(user: str, dbname: str) -> str:
@@ -59,27 +63,6 @@ def create_database(dbname: str) -> None:
             cur.execute(f"create database {dbname} with owner {USER}")
 
 
-def fetch_versions(dbname: str) -> list[str]:
-    with psycopg.connect(db_url(user=USER, dbname=dbname), autocommit=True) as con:
-        with con.cursor() as cur:
-            cur.execute("""
-            select version
-            from
-            (
-                -- split version to major, minor, patch, and pre-release
-                select version, regexp_split_to_array(version, '[.-]') as parts
-                from pg_available_extension_versions
-                where name = 'ai'
-                and version not in ('0.1.0', '0.2.0', '0.3.0')
-            ) v
-            order by parts[1], parts[2], parts[3], parts[4] nulls last
-            """)
-            versions = []
-            for row in cur.fetchall():
-                versions.append(row[0])
-            return versions
-
-
 def create_extension(dbname: str, version: str) -> None:
     with psycopg.connect(db_url(user=USER, dbname=dbname), autocommit=True) as con:
         with con.cursor() as cur:
@@ -117,7 +100,79 @@ def snapshot(dbname: str, name: str) -> None:
     subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
 
 
-def test_upgrade():
+def fetch_upgrade_paths(dbname: str) -> list[UpgradePath]:
+    with psycopg.connect(db_url(user=USER, dbname=dbname), autocommit=True) as con:
+        with con.cursor() as cur:
+            cur.execute("""
+            select source, target, regexp_split_to_array(path, '--')
+            from pg_catalog.pg_extension_update_paths('ai')
+            where path is not null
+            and target not in ('0.1.0', '0.2.0', '0.3.0')
+            """)
+            paths: list[UpgradePath] = []
+            for row in cur.fetchall():
+                paths.append(UpgradePath(row[0], row[1], row[2]))
+            return paths
+
+
+def test_upgrades():
+    create_user()
+    paths = fetch_upgrade_paths("postgres")
+    for path in paths:
+        path_name = "--".join(path.path)
+        # create the extension directly at the target version
+        create_database("upgrade_target")
+        create_extension("upgrade_target", path.target)
+        assert check_version("upgrade_target") == path.target
+        snapshot("upgrade_target", f"{path_name}-expected")
+        # start at the first version in the path
+        create_database("upgrade_path")
+        create_extension("upgrade_path", path.path[0])
+        assert check_version("upgrade_path") == path.path[0]
+        # upgrade through each version to the end
+        for version in path.path[1:]:
+            update_extension("upgrade_path", version)
+            assert check_version("upgrade_path") == version
+        snapshot("upgrade_path", f"{path_name}-actual")
+        # compare the snapshots. they should match
+        expected = (
+            Path(__file__)
+            .parent.absolute()
+            .joinpath(f"{path_name}-expected.snapshot")
+            .read_text()
+        )
+        actual = (
+            Path(__file__)
+            .parent.absolute()
+            .joinpath(f"{path_name}-actual.snapshot")
+            .read_text()
+        )
+        assert actual == expected
+
+
+def fetch_versions(dbname: str) -> list[str]:
+    with psycopg.connect(db_url(user=USER, dbname=dbname), autocommit=True) as con:
+        with con.cursor() as cur:
+            cur.execute("""
+            select version
+            from
+            (
+                -- split version to major, minor, patch, and pre-release
+                select version, regexp_split_to_array(version, '[.-]') as parts
+                from pg_available_extension_versions
+                where name = 'ai'
+                and version not in ('0.1.0', '0.2.0', '0.3.0')
+            ) v
+            where parts[4] is null -- ignore versions with a prerelease tag
+            order by parts[1], parts[2], parts[3], parts[4] nulls last
+            """)
+            versions = []
+            for row in cur.fetchall():
+                versions.append(row[0])
+            return versions
+
+
+def test_production_version_upgrade_path():
     create_user()
     create_database("upgrade0")
     versions = fetch_versions("upgrade0")

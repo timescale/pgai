@@ -250,6 +250,78 @@ targets in favor of the Python-specific make targets:
    `/usr/local/lib/pgai`.
 
 
+#### Building prerelease versions of the extension
+
+We would like to avoid long-lived feature branches and the git headaches that entails. 
+Yet some features take a while to mature to a level that we are happy to ship and 
+support in production environments. Avoiding feature branches means we may be in 
+a position where we need to ship but have SQL code that is not fully ready. 
+Making changes to SQL objects once they ship is tricky and painful and should be 
+minimized.
+
+We want to:
+- avoid long-lived feature branches. 
+- merge progress to main
+- minimize database migrations that alter existing objects
+- avoid installing prerelease code in production databases
+- allow prerelease code to be installed/tested/trialed in an opt-in manner
+- warn when prerelease code is installed
+- avoid supporting extension upgrades after prerelease code has been installed
+
+To this end, we allow prerelease functionality to be gated behind feature flags.
+We only build and ship prerelease code if the version being built includes a 
+prerelease tag. If the version is a production version, we omit the prerelease 
+code altogether. Furthermore, if the feature flag is not enabled, the prerelease 
+code is NOT executed/installed. 
+
+Incremental or idempotent files numbered greater than 899 must have a comment at 
+the top of the file with a prefix of `--FEATURE-FLAG: ` followed by the name of 
+a feature flag. These files are not executed AT ALL unless a session-level GUC 
+like `ai.enable_feature_flag_<feature-flag>` is set to `true` when the 
+`create extension` or `alter extension ... update` statement is executed.
+
+Incremental/idempotent files numbered less than 900 must NOT have a feature flag 
+comment.
+
+Zero or more feature flag GUCs may be enabled at once. Flags that are enabled
+when creating/updating the extension are recorded in the `ai.feature_flag` table.
+
+Since feature-flag-gated code is only built and shipped for prerelease versions
+in the first place, it can only be installed in an environment not intended for
+production in the first place. If one or more feature flag GUCs is enabled, 
+all bets are off. The code is pre-production, may not work, is not supported, 
+**and upgrades from this state are not supported**. This is a dead-end state.
+
+We do not generate upgrade paths from prerelease versions to production versions.
+
+When working on pre-release features, tests can be written for these features. 
+The tests must create a database, enable the correct feature flag, create the 
+extension, and then proceed with testing.
+
+**Example:**
+
+```sql
+select set_config('ai.enable_feature_flag_my_new_feature', 'true', false);
+
+create extension ai cascade;
+NOTICE:  installing required extension "vector"
+NOTICE:  installing required extension "plpython3u"
+WARNING:  Feature flag "ai.enable_feature_flag_my_new_feature" has been enabled. Pre-release software will be installed. This code is not production-grade, is not guaranteed to work, and is not supported in any way. Extension upgrades are not supported once pre-release software has been installed.
+CREATE EXTENSION
+```
+
+Once a feature that was gated is finally blessed and "finished", we need a final 
+PR that moves the incremental and idempotent SQL files to their final 
+(less than 900) places and removes the feature flag comment. Changes to existing 
+code/structures that were previously in a gated file could be folded into the 
+original file. Tests must be updated to remove the feature flag references.
+
+Frequently, working on new features requires changes to existing SQL code/structures. 
+In the case of gated features, we are not able to make changes inline where the 
+original code is defined. These changes have to be included in the gated files. 
+While this may be somewhat awkward, it works, and it clearly delineates what 
+changes to existing stuff are required for a new feature.
+
 #### Versions prior to 0.4.0
 
 Prior to pgai v0.4.0, Python dependencies were installed system-wide. Until pgai versions 0.1 - 0.3 are deprecated

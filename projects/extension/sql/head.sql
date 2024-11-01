@@ -51,3 +51,10 @@ begin
 end;
 $bootstrap_extension$;
 
+-- records any feature flags that were enabled when installing
+-- a prerelease version of the extension
+create table if not exists ai.feature_flag
+( "name" text not null primary key
+, applied_at_version text not null
+, applied_at timestamptz not null default pg_catalog.clock_timestamp()
+);

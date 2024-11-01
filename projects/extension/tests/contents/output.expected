@@ -76,13 +76,14 @@ CREATE EXTENSION
  function ai._vectorizer_source_pk(regclass)
  function ai._vectorizer_vector_index_exists(name,name,jsonb)
  sequence ai.vectorizer_id_seq
+ table ai.feature_flag
  table ai.migration
  table ai._secret_permissions
  table ai.vectorizer
  table ai.vectorizer_errors
  view ai.secret_permissions
  view ai.vectorizer_status
-(78 rows)
+(79 rows)
 
                                     Table "ai._secret_permissions"
  Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
@@ -101,6 +102,22 @@ Access method: heap
  name   | text | yes  | name       | extended | 
  role   | text | yes  | role       | extended | 
 primary key, btree, for table "ai._secret_permissions"
+
+                                                            Table "ai.feature_flag"
+       Column       |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
+--------------------+--------------------------+-----------+----------+-------------------+----------+-------------+--------------+-------------
+ name               | text                     |           | not null |                   | extended |             |              | 
+ applied_at_version | text                     |           | not null |                   | extended |             |              | 
+ applied_at         | timestamp with time zone |           | not null | clock_timestamp() | plain    |             |              | 
+Indexes:
+    "feature_flag_pkey" PRIMARY KEY, btree (name)
+Access method: heap
+
+                Index "ai.feature_flag_pkey"
+ Column | Type | Key? | Definition | Storage  | Stats target 
+--------+------+------+------------+----------+--------------
+ name   | text | yes  | name       | extended | 
+primary key, btree, for table "ai.feature_flag"
 
                                                               Table "ai.migration"
        Column       |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
