@@ -73,7 +73,6 @@ reportImplicitOverride = true
 line-length = 88
 indent-width = 4
 output-format = "grouped"
-target-version = "py310"
 
 [tool.ruff.format]
 docstring-code-format = true
