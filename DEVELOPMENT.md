@@ -259,16 +259,29 @@ Prior to pgai v0.4.0, Python dependencies were installed system-wide. Until pgai
 ## Working on the pgai library
 
 The experience of working on the pgai library is like developing most Python
-libraries and applications. Use the [requirements-dev.txt](./projects/pgai/requirements-dev.txt) 
-file to create a virtual env for development.
+libraries and applications. We use [uv](https://docs.astral.sh/uv/getting-started/installation/) to manage dependencies and python versions. Once you have uv installed it's easy to get started:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements-dev.txt
+uv python install 3.10
+uv sync
 ```
 
-Use the `help` target of the [Makefile](./projects/pgai/Makefile) to see what
+Uv syncs the dependencies of all developers working on the project via the uv.lock file. If you want to add a new dependency make use of the uv add command:
+
+```bash
+uv add <package-name>
+```
+
+If it is a development dependency and not needed at runtime, you can add the --dev flag:
+
+```bash
+uv add --dev <package-name>
+```
+
+Uv installs all dependencies inside a virtual environment by default you can either activate this via the `uv shell` command or run commands directly via `uv run`.
+
+For the most common commands use our [Makefile](./projects/pgai/Makefile).
+Use the `help` target  to see what
 commands are available.
 
 ```bash
