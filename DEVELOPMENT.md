@@ -266,6 +266,9 @@ uv python install 3.10
 uv sync
 ```
 
+Note: We try to somewhat follow the python release schedule for supported versions to allow more users to use our library.
+Therefore we are about a year behind the latest python release.
+
 Uv syncs the dependencies of all developers working on the project via the uv.lock file. If you want to add a new dependency make use of the uv add command:
 
 ```bash
