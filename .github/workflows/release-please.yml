@@ -46,9 +46,10 @@ jobs:
         working-directory: ./projects/pgai
         run: uv build --no-sources
         
-      - name: Publish distribution to PyPI 
-        working-directory: ./projects/pgai
-        run: uv publish
+      - name: Publish distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: ./projects/pgai/dist
 
   release-docker:
     name: Publish to Docker Hub
