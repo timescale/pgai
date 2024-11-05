@@ -116,6 +116,7 @@ begin
     into strict _pk_cols
     from pg_catalog.jsonb_to_recordset(source_pk) x(pknum int, attname name)
     ;
+
     select pg_catalog.format
     ( $sql$
     create table %I.%I
@@ -123,7 +124,7 @@ begin
     , %s
     , chunk_seq int not null
     , chunk text not null
-    , embedding @extschema:vector@.vector(%L) not null
+    , embedding @extschema:vector@.vector(%L) storage main not null
     , unique (%s, chunk_seq)
     , foreign key (%s) references %I.%I (%s) on delete cascade
     )
