@@ -29,19 +29,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
         with:
-          python-version: "3.10"
-          cache: "pip"
+          version: "0.4.29"
+          enable-cache: true
+          cache-dependency-glob: "./projects/pgai/uv.lock"
 
-      - name: Install pypa/build
-        run: python -m pip install build --user
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "./projects/pgai/.python-version"
 
-      - name: Build a binary wheel and a source tarball
-        run: python -m build --sdist --wheel --outdir dist/ projects/pgai
-
+      - name: Build the project
+        working-directory: ./projects/pgai
+        run: uv build --no-sources
+        
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: ./projects/pgai/dist
 
   release-docker:
     name: Publish to Docker Hub

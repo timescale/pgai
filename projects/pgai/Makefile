@@ -1,4 +1,3 @@
-
 VERSION := $(shell awk "/^__version__ = .*/ {gsub(/__version__ = |\"/, \"\"); print}" ./pgai/__init__.py)
 
 .PHONY: default
@@ -40,35 +39,39 @@ clean:
 	@rm -rf ./build
 	@rm -rf ./pgai.egg-info
 	@rm -rf ./dist
+	@rm -rf ./.ruff_cache
+	@rm -rf ./.pytest_cache
+	@rm -rf ./.mypy_cache
+	@find . -type d -name "__pycache__" -exec rm -rf {} +
 
 .PHONY: build
 build:
-	@python3 -m build --sdist --wheel
-	@twine check ./dist/*
+	@uv build
+	@uv run twine check ./dist/*
 
 .PHONY: install
 install:
-	@pip3 install -v --compile "./dist/pgai-$(VERSION)-py3-none-any.whl"
+	@uv sync
 
 .PHONY: uninstall
 uninstall:
-	@pip3 uninstall -v -y pgai
+	@uv pip uninstall -y pgai
 
 .PHONY: test
 test:
-	@pytest
+	@uv run pytest
 
 .PHONY: lint
 lint:
-	@ruff check ./
+	@uv run ruff check ./
 
 .PHONY: type-check
 type-check:
-	@pyright ./
+	@uv run pyright ./
 
 .PHONY: format
 format:
-	@ruff format --diff ./
+	@uv run ruff format --diff ./
 
 .PHONY: docker-build
 docker-build:
