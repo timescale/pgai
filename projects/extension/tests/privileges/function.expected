@@ -72,6 +72,10 @@
  f       | bob   | execute   | no      | ai     | _vectorizer_grant_to_vectorizer(grant_to name[])
  f       | fred  | execute   | no      | ai     | _vectorizer_grant_to_vectorizer(grant_to name[])
  f       | jill  | execute   | YES     | ai     | _vectorizer_grant_to_vectorizer(grant_to name[])
+ f       | alice | execute   | YES     | ai     | _vectorizer_handle_drops()
+ f       | bob   | execute   | no      | ai     | _vectorizer_handle_drops()
+ f       | fred  | execute   | no      | ai     | _vectorizer_handle_drops()
+ f       | jill  | execute   | YES     | ai     | _vectorizer_handle_drops()
  p       | alice | execute   | YES     | ai     | _vectorizer_job(IN job_id integer, IN config jsonb)
  p       | bob   | execute   | no      | ai     | _vectorizer_job(IN job_id integer, IN config jsonb)
  p       | fred  | execute   | no      | ai     | _vectorizer_job(IN job_id integer, IN config jsonb)
@@ -288,5 +292,5 @@
  f       | bob   | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer)
  f       | fred  | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer)
  f       | jill  | execute   | YES     | ai     | vectorizer_queue_pending(vectorizer_id integer)
-(288 rows)
+(292 rows)
 

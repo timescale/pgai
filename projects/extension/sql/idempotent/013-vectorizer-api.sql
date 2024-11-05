@@ -388,6 +388,14 @@ declare
     _trigger pg_catalog.pg_trigger%rowtype;
     _sql text;
 begin
+    ---------------------------------------------------------------------------
+    -- NOTE: this function is security invoker BUT it is called from an
+    -- event trigger that is security definer.
+    -- This function needs to STAY security invoker, but we need to treat
+    -- it as if it were security definer as far as observing security
+    -- best practices
+    ---------------------------------------------------------------------------
+
     -- grab the vectorizer we need to drop
     select v.* into strict _vec
     from ai.vectorizer v
@@ -407,8 +415,8 @@ begin
                 , _job_id
                 ) into _sql
                 from pg_catalog.pg_extension x
-                inner join pg_catalog.pg_namespace n on (x.extnamespace = n.oid)
-                where x.extname = 'timescaledb'
+                inner join pg_catalog.pg_namespace n on (x.extnamespace operator(pg_catalog.=) n.oid)
+                where x.extname operator(pg_catalog.=) 'timescaledb'
                 ;
                 if _sql is not null then
                     execute _sql;
@@ -416,48 +424,77 @@ begin
         end case;
     end if;
 
-    -- look up the trigger so we can find the function/procedure backing the trigger
-    select * into strict _trigger
+    -- try to look up the trigger so we can find the function/procedure backing the trigger
+    select * into _trigger
     from pg_catalog.pg_trigger g
+    inner join pg_catalog.pg_class k
+    on (g.tgrelid operator(pg_catalog.=) k.oid
+    and k.relname operator(pg_catalog.=) _vec.source_table)
+    inner join pg_catalog.pg_namespace n
+    on (k.relnamespace operator(pg_catalog.=) n.oid
+    and n.nspname operator(pg_catalog.=) _vec.source_schema)
     where g.tgname operator(pg_catalog.=) _vec.trigger_name
-    and g.tgrelid operator(pg_catalog.=) pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::regclass::oid
     ;
 
     -- drop the trigger on the source table
-    select pg_catalog.format
-    ( $sql$drop trigger %I on %I.%I$sql$
-    , _trigger.tgname
-    , _vec.source_schema
-    , _vec.source_table
-    ) into strict _sql
-    ;
-    execute _sql;
+    if found then
+        select pg_catalog.format
+        ( $sql$drop trigger %I on %I.%I$sql$
+        , _trigger.tgname
+        , _vec.source_schema
+        , _vec.source_table
+        ) into strict _sql
+        ;
+        execute _sql;
 
-    -- drop the function/procedure backing the trigger
-    select pg_catalog.format
-    ( $sql$drop %s %I.%I()$sql$
-    , case p.prokind when 'f' then 'function' when 'p' then 'procedure' end
-    , n.nspname
-    , p.proname
-    ) into strict _sql
-    from pg_catalog.pg_proc p
-    inner join pg_catalog.pg_namespace n on (n.oid operator(pg_catalog.=) p.pronamespace)
-    where p.oid operator(pg_catalog.=) _trigger.tgfoid
-    ;
-    execute _sql;
+        -- drop the function/procedure backing the trigger
+        select pg_catalog.format
+        ( $sql$drop %s %I.%I()$sql$
+        , case p.prokind when 'f' then 'function' when 'p' then 'procedure' end
+        , n.nspname
+        , p.proname
+        ) into _sql
+        from pg_catalog.pg_proc p
+        inner join pg_catalog.pg_namespace n on (n.oid operator(pg_catalog.=) p.pronamespace)
+        where p.oid operator(pg_catalog.=) _trigger.tgfoid
+        ;
+        if found then
+            execute _sql;
+        end if;
+    else
+        -- the trigger is missing. try to find the backing function by name and return type
+        select pg_catalog.format
+        ( $sql$drop %s %I.%I() cascade$sql$ -- cascade in case the trigger still exists somehow
+        , case p.prokind when 'f' then 'function' when 'p' then 'procedure' end
+        , n.nspname
+        , p.proname
+        ) into _sql
+        from pg_catalog.pg_proc p
+        inner join pg_catalog.pg_namespace n on (n.oid operator(pg_catalog.=) p.pronamespace)
+        inner join pg_catalog.pg_type y on (p.prorettype operator(pg_catalog.=) y.oid)
+        where n.nspname operator(pg_catalog.=) _vec.queue_schema
+        and p.proname operator(pg_catalog.=) _vec.trigger_name
+        and y.typname operator(pg_catalog.=) 'trigger'
+        ;
+        if found then
+            execute _sql;
+        end if;
+    end if;
 
-    -- drop the queue table
+    -- drop the queue table if exists
     select pg_catalog.format
     ( $sql$drop table %I.%I$sql$
     , n.nspname
     , k.relname
-    ) into strict _sql
+    ) into _sql
     from pg_catalog.pg_class k
     inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
     where k.relname operator(pg_catalog.=) _vec.queue_table
     and n.nspname operator(pg_catalog.=) _vec.queue_schema
     ;
-    execute _sql;
+    if found then
+        execute _sql;
+    end if;
 
     -- delete the vectorizer row
     delete from ai.vectorizer v
