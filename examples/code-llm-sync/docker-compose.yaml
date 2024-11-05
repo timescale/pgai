@@ -1,0 +1,17 @@
+name: code-sync
+services:
+  db:
+    image: timescale/timescaledb-ha:pg16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data:/var/lib/postgresql/data
+  vectorizer-worker:
+    image: timescale/pgai-vectorizer-worker:0.1.0
+    environment:
+      PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    command: ["--poll-interval", "5s"]  # Check every 5 seconds

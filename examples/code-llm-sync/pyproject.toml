@@ -1,0 +1,32 @@
+[project]
+name = "code-llm-sync"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "alembic>=1.13.3",
+    "asyncpg>=0.30.0",
+    "fastapi[standard]>=0.115.4",
+    "numpy>=2.1.3",
+    "pgvector>=0.3.6",
+    "pydantic>=2.9.2",
+    "sqlalchemy[asyncio]>=2.0.36",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "docker>=7.1.0",
+    "pyright>=1.1.387",
+    "pytest-asyncio>=0.24.0",
+    "pytest>=8.3.3",
+    "python-dotenv>=1.0.1",
+    "ruff>=0.7.2",
+]
+
+[tool.pyright]
+typeCheckingMode = "strict"
+exclude = [
+    ".venv",
+]
+reportImplicitOverride = true
