@@ -116,7 +116,7 @@ begin
 
     -- make sure target table name is available
     if pg_catalog.to_regclass(pg_catalog.format('%I.%I', target_schema, target_table)) is not null then
-        raise exception 'an object named %.% already exists. specify an alternate destination or target_table explicitly', target_schema, target_schema;
+        raise exception 'an object named %.% already exists. specify an alternate destination or target_table explicitly', target_schema, target_table;
     end if;
 
     -- make sure queue table name is available
