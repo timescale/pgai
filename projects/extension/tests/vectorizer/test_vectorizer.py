@@ -117,7 +117,7 @@ TARGET_TABLE = """
  published      | timestamp with time zone |           | not null |                   | plain    |             |              | 
  chunk_seq      | integer                  |           | not null |                   | plain    |             |              | 
  chunk          | text                     |           | not null |                   | extended |             |              | 
- embedding      | vector(768)              |           | not null |                   | external |             |              | 
+ embedding      | vector(768)              |           | not null |                   | main     |             |              | 
 Indexes:
     "blog_embedding_store_pkey" PRIMARY KEY, btree (embedding_uuid)
     "blog_embedding_store_title_published_chunk_seq_key" UNIQUE CONSTRAINT, btree (title, published, chunk_seq)
