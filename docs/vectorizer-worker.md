@@ -74,7 +74,7 @@ On your local machine:
 
 1. **Start the database**
    ```shell
-    docker-compose up -d db
+    docker compose up -d db
     ```
 
 1. **Connect to your self-hosted database**
@@ -88,7 +88,7 @@ On your local machine:
 
    In a new terminal, start the vectorizer worker:
    ```shell
-   docker-compose up -d vectorizer-worker
+   docker compose up -d vectorizer-worker
    ```
   
 ### Install the vectorizer worker Docker image
@@ -122,7 +122,7 @@ On your local machine:
 
    In a new terminal, start the vectorizer worker:
    ```shell
-   docker-compose up -d vectorizer-worker
+   docker compose up -d vectorizer-worker
    ```
 
    You can also use the run command
