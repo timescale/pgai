@@ -11,6 +11,8 @@ from typing import Optional
 from sqlalchemy.orm import mapped_column
 
 
+# Defining the models for the database table
+
 
 class CodeFile(Base):
     __tablename__ = "code_files"
