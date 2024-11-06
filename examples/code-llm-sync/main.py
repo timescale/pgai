@@ -1,19 +1,22 @@
 import numpy as np
-from fastapi import FastAPI, Query, Depends
+from fastapi import FastAPI, Query, Depends, HTTPException
 from sqlalchemy import select, literal
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import AsyncGenerator
 
-
+from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql import expression
 
 from db.engine import engine
-from db.models import CodeFileEmbedding
+from db.models import CodeFileEmbedding, CodeFile
 
 from pydantic import BaseModel, Field, computed_field
 from typing import List
+
+from sqlalchemy.exc import SQLAlchemyError
+from datetime import datetime, timezone
 
 SEPARATOR = "-" * 80
 CODE_BLOCK = "```"
@@ -58,6 +61,22 @@ class CodeSearchResponse(BaseModel):
         return header + "\n".join(chunks)
 
 
+class CodeFileRequest(BaseModel):
+    """Request model for creating or updating code files"""
+    file_name: str = Field(description="Name of the source file")
+    contents: str = Field(description="Contents of the file")
+    
+
+class CodeFileResponse(BaseModel):
+    """Response model for code files"""
+    id: int = Field(description="Unique identifier for the code file")
+    file_name: str = Field(description="Name of the source file")
+    contents: str = Field(description="Contents of the file")
+    updated_at: datetime = Field(description="Last update timestamp")
+
+    # Configure Pydantic to work with SQLAlchemy models
+    class Config:
+        from_attributes = True
 app = FastAPI()
 
 
@@ -92,7 +111,7 @@ class PGAIFunction(expression.FunctionElement):
 
 
 @compiles(PGAIFunction)
-def _compile_pgai_embed(element, compiler, **kw):
+def _compile_pgai_embed(element: PGAIFunction, compiler: SQLCompiler, **_kw): # type: ignore
     return "ai.openai_embed('%s', %s, dimensions => %d)" % (
         element.model,
         compiler.process(element.text),
@@ -141,3 +160,81 @@ async def search_code(
     ]
 
     return CodeSearchResponse(query=query, matches=matches, total_matches=len(matches))
+
+
+@app.post("/files", response_model=CodeFileResponse, status_code=201)
+async def upsert_file(
+        file_data: CodeFileRequest,
+        session: AsyncSession = Depends(get_db)
+) -> CodeFileResponse:
+    """
+    Create or update a code file. If the file exists, it will be updated.
+    The file will automatically be processed for embeddings by the vectorizer.
+    """
+    try:
+        # Check if file already exists
+        result = await session.execute(
+            select(CodeFile).where(CodeFile.file_name == file_data.file_name)
+        )
+        existing_file = result.scalar_one_or_none()
+
+        if existing_file:
+            # Update existing file
+            existing_file.contents = file_data.contents
+            existing_file.updated_at = datetime.now(timezone.utc)
+            file = existing_file
+        else:
+            # Create new file
+            file = CodeFile(
+                file_name=file_data.file_name,
+                contents=file_data.contents,
+                updated_at=datetime.now(timezone.utc)
+            )
+            session.add(file)
+
+        await session.commit()
+        await session.refresh(file)
+
+        # Convert SQLAlchemy model to Pydantic model
+        return CodeFileResponse.model_validate(file)
+
+    except SQLAlchemyError as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database error occurred: {str(e)}"
+        )
+
+
+@app.delete("/files/{file_name}", status_code=204)
+async def delete_file(
+        file_name: str,
+        session: AsyncSession = Depends(get_db)
+) -> None:
+    """
+    Delete a code file by its file name.
+    Returns 204 if successful, 404 if file not found.
+    """
+    try:
+        # Check if file exists and get its record
+        result = await session.execute(
+            select(CodeFile).where(CodeFile.file_name == file_name)
+        )
+        file = result.scalar_one_or_none()
+
+        if file is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"File {file_name} not found"
+            )
+
+        # Delete the file
+        await session.delete(file)
+        await session.commit()
+
+    except SQLAlchemyError as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database error occurred: {str(e)}"
+        )

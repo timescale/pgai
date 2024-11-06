@@ -5,10 +5,10 @@ import docker
 import pytest_asyncio
 from docker import DockerClient
 from docker.models.containers import Container
-from fastapi.testclient import TestClient
 from typing import Generator, AsyncGenerator
 
 import pytest
+from httpx import AsyncClient
 
 from sqlalchemy import NullPool
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
@@ -77,12 +77,12 @@ def vectorizer_worker(
     container.remove()
 
 
-@pytest.fixture(scope="session")
-def test_client(
+@pytest_asyncio.fixture(scope="session")
+async def test_client(
     vectorizer_worker: docker.models.containers.Container,
-) -> Generator[TestClient, None, None]:
-    """Create a FastAPI TestClient"""
-    with TestClient(app) as client:
+) -> AsyncGenerator[AsyncClient, None]:
+    """Create a FastAPI AsyncClient"""
+    async with AsyncClient(app=app, base_url="http://test") as client:
         yield client
 
 
