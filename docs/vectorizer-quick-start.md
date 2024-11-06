@@ -41,7 +41,7 @@ On your local machine:
 
 1. **Start the database**
    ```shell
-    docker-compose up -d db
+    docker compose up -d db
     ```
 
 ## Create and run a vectorizer
@@ -103,12 +103,12 @@ To create and run a vectorizer, then query the auto-generated embeddings created
    
    In a new terminal, start the vectorizer worker:
    ```shell
-   docker-compose up -d vectorizer-worker
+   docker compose up -d vectorizer-worker
    ```
 
 1. **Check the vectorizer worker logs** 
    ```shell
-   docker-compose logs -f vectorizer-worker
+   docker compose logs -f vectorizer-worker
    ```
 
    You see the vectorizer worker pick up the table and process it.
