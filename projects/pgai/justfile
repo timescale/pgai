@@ -1,0 +1,66 @@
+VERSION := `awk '/^__version__ = .*/ {gsub(/__version__ = |"/, ""); print}' ./pgai/__init__.py`
+
+# Show list of recipes
+default:
+    @just --list
+
+# Display the current pgai version
+show-version:
+	@echo "pgai version is: {{VERSION}}"
+
+# Remove build artifacts and temporary files
+clean:
+	@rm -rf ./build
+	@rm -rf ./pgai.egg-info
+	@rm -rf ./dist
+	@rm -rf ./.ruff_cache
+	@rm -rf ./.pytest_cache
+	@rm -rf ./.mypy_cache
+	@find . -type d -name "__pycache__" -exec rm -rf {} +
+
+# Build source distribution and wheel package
+build:
+	@uv build
+	@uv run twine check ./dist/*
+
+# Install the wheel package locally
+install:
+	@uv sync
+
+# Remove the installed pgai package
+uninstall:
+	@uv pip uninstall -y pgai
+
+# Run pytest test suite
+test:
+	@uv run pytest
+
+# Run ruff linter checks
+lint:
+	@uv run ruff check ./
+
+# Run pyright type checking
+type-check:
+	@uv run pyright ./
+
+# Show code formatting differences
+format:
+	@uv run ruff format --diff ./
+
+ci: lint type-check format test build
+
+# Build Docker image with version tag
+docker-build:
+	@docker build -t pgai-cli:latest -t "pgai-cli:{{VERSION}}" .
+
+# Run the Docker container in detached mode
+docker-run:
+	@docker run -d --name pgai-cli "pgai-cli:{{VERSION}}"
+
+# Stop the running Docker container
+docker-stop:
+	@docker stop pgai-cli
+
+# Remove the Docker container and its volumes
+docker-rm:
+	@docker rm --force --volumes pgai-cli

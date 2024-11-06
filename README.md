@@ -22,13 +22,13 @@ the foundation of most AI applications, pgai makes it easier to leverage your da
 * Automatically create and sync vector embeddings for your data ([learn more](#automatically-create-and-sync-llm-embeddings-for-your-data))
 * Search your data using vector and semantic search ([learn more](#search-your-data-using-vector-and-semantic-search))
 * Implement Retrieval Augmented Generation inside a single SQL statement ([learn more](#implement-retrieval-augmented-generation-inside-a-single-sql-statement))
-* Perform high-performance, cost-efficient ANN search on large vector workloads with [pgvectorscale](https://github.com/timescale/pgvectorscale), which complements pgvector. 
+* Perform high-performance, cost-efficient ANN search on large vector workloads with [pgvectorscale](https://github.com/timescale/pgvectorscale), which complements pgvector.
 
 **Leverage LLMs for data processing tasks:**
 * Retrieve LLM chat completions from models like Claude Sonnet 3.5, OpenAI GPT4o, Cohere Command, and Llama 3 (via Ollama). ([learn more](#usage-of-pgai))
 * Reason over your data and facilitate use cases like classification, summarization, and data enrichment on your existing relational data in PostgreSQL ([see an example](/docs/openai.md)).
 
-**Learn more about pgai:** To learn more about the pgai extension and why we built it, read 
+**Learn more about pgai:** To learn more about the pgai extension and why we built it, read
 [pgai: Giving PostgreSQL Developers AI Engineering Superpowers](http://www.timescale.com/blog/pgai-giving-postgresql-developers-ai-engineering-superpowers).
 
 **Contributing**: We welcome contributions to pgai! See the [Contributing](/CONTRIBUTING.md) page for more information.
@@ -47,7 +47,7 @@ For a quick start, try out automatic data embedding using pgai Vectorizer:
  - or check out our [quick start guide](/docs/vectorizer-quick-start.md) to get up and running in less than 10 minutes with a self-hosted Postgres instance.
 
 For other use cases, first [Install pgai](#installation) in Timescale Cloud, a pre-built Docker image, or from source. Then, choose your own adventure:
-  - Automate AI embedding with [pgai Vectorizer](/docs/vectorizer.md). 
+  - Automate AI embedding with [pgai Vectorizer](/docs/vectorizer.md).
   -  Use pgai to integrate AI from your provider. Some examples:
      * [Ollama](./docs/ollama.md) - configure pgai for Ollama, then use the model to embed, chat complete and generate.
      * [OpenAI](./docs/openai.md) - configure pgai for OpenAI, then use the model to tokenize, embed, chat complete and moderate. This page also includes advanced examples.
@@ -118,10 +118,16 @@ To install pgai from source on a PostgreSQL server:
    These extensions are automatically added to your PostgreSQL database when you
    [Enable the pgai extension](#enable-the-pgai-extension-in-your-database).
 
-1. Make this `pgai` extension:
+1. Install the `pgai` PostgreSQL extension:
 
     ```bash
-    make install
+    just ext install
+    ```
+    We use [just][just] to run project commands. If you don't have just you can
+    install the extension with:
+
+    ```bash
+    projects/extension/build.py install
     ```
 1. [Enable the pgai extension](#enable-the-pgai-extension-in-your-database).
 
@@ -144,11 +150,11 @@ To install pgai from source on a PostgreSQL server:
 ### Usage of pgai
 
 The main features in pgai are:
- 
+
 **Working with embeddings generated from your data:**
 * [Automatically create and sync vector embeddings for your data](#automatically-create-and-sync-llm-embeddings-for-your-data)
 * [Search your data using vector and semantic search](#search-your-data-using-vector-and-semantic-search)
-* [Implement Retrieval Augmented Generation inside a single SQL statement](#implement-retrieval-augmented-generation-inside-a-single-sql-statement) 
+* [Implement Retrieval Augmented Generation inside a single SQL statement](#implement-retrieval-augmented-generation-inside-a-single-sql-statement)
 
 **Leverage LLMs for data processing tasks:**
 You can use pgai to integrate AI from the following providers:
@@ -162,7 +168,7 @@ Learn how to [moderate](/docs/moderate.md) content directly in the database usin
 
 ### Automatically create and sync LLM embeddings for your data
 
-The [pgvector](https://github.com/pgvector/pgvector) and 
+The [pgvector](https://github.com/pgvector/pgvector) and
 [pgvectorscale](https://github.com/timescale/pgvectorscale) extensions allow you
 to store vector embeddings in your database and perform fast and efficient
 vector search.  The [pgai Vectorizer](/docs/vectorizer.md) builds on top of
@@ -171,7 +177,7 @@ text data in your database.
 
 With one line of code, you can define a vectorizer that creates embeddings for data in a table:
 ```sql
-SELECT ai.create_vectorizer( 
+SELECT ai.create_vectorizer(
     <table_name>::regclass,
     destination => <embedding_table_name>,
     embedding => ai.embedding_openai(<model_name>, <dimensions>),
@@ -191,11 +197,11 @@ vectorizers.
 
 ### Search your data using vector and semantic search
 
-pgai exposes a set of functions to directly interact with the LLM models through SQL, enabling 
+pgai exposes a set of functions to directly interact with the LLM models through SQL, enabling
 you to do semantic search directly in your database:
 
 ```sql
-SELECT 
+SELECT
    chunk,
    embedding <=> ai.openai_embed(<embedding_model>, 'some-query') as distance
 FROM <embedding_table>
@@ -203,12 +209,12 @@ ORDER BY distance
 LIMIT 5;
 ```
 
-This is a perfectly normal SQL query. You can combine it with `where` clauses and other SQL features to 
+This is a perfectly normal SQL query. You can combine it with `where` clauses and other SQL features to
 further refine your search. pgai solves the *missing where clause in vector search* problem for real.
 
 ### Implement Retrieval Augmented Generation inside a single SQL statement
 
-Similar to [semantic search](#search-your-data-using-vector-and-semantic-search), pgai LLM functions 
+Similar to [semantic search](#search-your-data-using-vector-and-semantic-search), pgai LLM functions
 enable you to implement RAG directly in your database. For example:
 
 1. Create a RAG function:
@@ -274,3 +280,4 @@ for the most demanding AI, time-series, analytics, and event workloads. Timescal
 [pgvector-install]: https://github.com/pgvector/pgvector?tab=readme-ov-file#installation
 [python-virtual-environment]: https://packaging.python.org/en/latest/tutorials/installing-packages/#creating-and-using-virtual-environments
 [create-a-new-service]: https://console.cloud.timescale.com/dashboard/create_services
+[just]: https://github.com/casey/just

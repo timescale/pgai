@@ -19,10 +19,10 @@ RUN set -e; \
     postgresql-${PG_MAJOR}-pgextwlist \
     postgresql-server-dev-${PG_MAJOR} \
     python3-pip \
-    make \
     git \
     curl \
-    vim
+    vim \
+    && curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin/
 
 # install timescaledb and pgvectorscale
 COPY --from=timescaledb /usr/share/postgresql/${PG_MAJOR}/extension/timescaledb--*.sql /usr/share/postgresql/${PG_MAJOR}/extension/

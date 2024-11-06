@@ -1,7 +1,12 @@
 # Develop and test changes to pgai
 
 pgai brings embedding and generation AI models closer to the database. Want to contribute to the pgai project?
-Start here. 
+Start here.
+
+[Just](https://github.com/casey/just) is used to run project commands. We are
+not using any of the Make capabilities for compiling, and Just provides a nice
+interface to interact with monorepos. Just is available in most [package
+managers] (https://github.com/casey/just?tab=readme-ov-file#packages).
 
 This project is organized as a monorepo with two distributable bodies of code:
 
@@ -23,8 +28,7 @@ If you don't want to wait for the CI to get feedback on you commit. You can
 install the git hook that checks your commits locally. To do so, run:
 
 ```bash
-cd projects/pgai
-make install-commit-hook
+just install-commit-hook
 ```
 
 ## Working on the pgai extension
@@ -60,70 +64,69 @@ To make changes to the pgai extension, do the following in your developer enviro
 
 To make changes to pgai:
 
-1. Navigate to `projects/extension` in the directory where you cloned the repo.
-2. Build the docker image
+1. Build the docker image
    ```bash
-   make docker-build
+   just ext docker-build
    ```
-3. Run the container:
+1. Run the container:
    ```bash
-   make docker-run
+   just ext docker-run
    ```
    The `projects/extension` directory is mounted to `/pgai` in the running container.
 
-4. Work inside the container:
+1. Work inside the container:
    * **Docker shell**:
       1. Open get a shell session in the container:
 
          ```bash
-         make docker-shell
+         just ext docker-shell
          ```
          You are logged in as root.
 
-      2. Build and Install the extension
+      1. Build and Install the extension
 
          ```bash
-         make build
-         make install
+         just ext build
+         just ext install
          ```
 
-      3. Run the unit tests
-         
+      1. Run the unit tests
+
          First run the test-server in a second shell
          ```bash
-         make test-server
+         just ext test-server
          ```
          Then, run the tests in the first shell
          ```bash
-         make test
+         just ext test
          ```
 
-      5. Clean build artifacts
+      1. Clean build artifacts
 
          ```bash
-         make clean
+         just ext clean
          ```
 
-      6. Uninstall the extension
+      1. Uninstall the extension
 
          ```bash
-         make uninstall
+         just ext uninstall
          ```
 
    * **psql shell**:
       1. To get a psql shell to the database in the docker container:
 
-         ```shell
-         make psql-shell
+         ```bash
+         just ext psql-shell
          ```
 
-7. Stop and delete the container:
+1. Stop and delete the container:
 
-   ```shell
+   ```bash
    # Stop the container
-   make docker-stop
+   just ext docker-stop
    # Delete the container
-   make docker-rm
+   just ext docker-rm
    ```
 
 
@@ -195,7 +198,7 @@ The SQL is organized into:
 
 * **Built scripts**: `./projects/extension/sql/ai--*.sql`
 
-  `make build` "compiles" the idempotent and incremental scripts into the final
+  `just ext build` "compiles" the idempotent and incremental scripts into the final
   form that is installed into a postgres environment as an extension. A script
   named `./projects/extension/sql/ai--<current-version>.sql` is built. For every prior version
   (other than 0.1.0, 0.2.0, and 0.3.0), the file is copied to
@@ -207,16 +210,16 @@ The SQL is organized into:
   pull request. The scripts from prior versions are checked in and should not be modified after
   having been released.
 
-If you are exclusively working on SQL, you may want to forego the high-level make
-targets in favor of the SQL-specific make targets:
+If you are exclusively working on SQL, you may want to forego the high-level just
+recipes in favor of the SQL-specific just recipes:
 
-1. **Clean your environment**: run `make clean-sql` to delete `./projects/extension/sql/ai--*<current-version>.sql`.
+1. **Clean your environment**: run `just ext clean-sql` to delete `./projects/extension/sql/ai--*<current-version>.sql`.
 
    The `<current-version>` is defined in `versions()` in [./projects/extension/build.py](./projects/extension/build.py).
 
-1. **Build pgai**: run `make build` to compile idempotent and incremental scripts
+1. **Build pgai**: run `just ext build` to compile idempotent and incremental scripts
    into `./projects/extension/sql/ai--*<current-version>.sql`.
-1. **Install pgai**: run `make install-sql` to install `./projects/extension/sql/ai--*.sql` and `./projects/extension/sql/ai*.control` into your local
+1. **Install pgai**: run `just ext install-sql` to install `./projects/extension/sql/ai--*.sql` and `./projects/extension/sql/ai*.control` into your local
    Postgres environment.
 
 #### Develop Python in the pgai extension
@@ -226,9 +229,9 @@ Python code used by the pgai extension is maintained in [./projects/extension/ai
 Database functions
 written in [plpython3u](https://www.postgresql.org/docs/current/plpython.html)
 can import the modules in this package and any dependencies specified in
-[./projects/extension/pyproject.toml](./projects/extension/pyproject.toml). 
-Including the following line at the beginning of the database function body will 
-allow you to import. The build process replaces this comment line with Python 
+[./projects/extension/pyproject.toml](./projects/extension/pyproject.toml).
+Including the following line at the beginning of the database function body will
+allow you to import. The build process replaces this comment line with Python
 code that makes this possible. Note that the leading four spaces are required.
 
 ```python
@@ -238,15 +241,15 @@ code that makes this possible. Note that the leading four spaces are required.
 In order to support multiple versions of pgai in the same Postgres installation, each version of the Python code and
 its associated dependencies is installed in `/usr/local/lib/pgai/<version>`
 
-If you are exclusively working on Python, you may want to forego the high-level make
-targets in favor of the Python-specific make targets:
+If you are exclusively working on Python, you may want to forego the high-level just
+recipes in favor of the Python-specific ones:
 
-1. **Clean your environment**: run `make clean-py` to remove build artifacts from your developer environment.
+1. **Clean your environment**: run `just ext clean-py` to remove build artifacts from your developer environment.
 1. **Install pgai**:
    To compile and install the python package with its associated dependencies.
-   * Current version: run `make install-py`.
-   * Versions prior to 0.4.0: run `make install-prior-py`.
-1. **Uninstall pgai**: run `make uninstall-py` and delete all versions of the Python code from
+   * Current version: run `just ext install-py`.
+   * Versions prior to 0.4.0: run `just ext install-prior-py`.
+1. **Uninstall pgai**: run `just ext uninstall-py` and delete all versions of the Python code from
    `/usr/local/lib/pgai`.
 
 
@@ -331,12 +334,7 @@ Prior to pgai v0.4.0, Python dependencies were installed system-wide. Until pgai
 ## Working on the pgai library
 
 The experience of working on the pgai library is like developing most Python
-libraries and applications. We use [uv](https://docs.astral.sh/uv/getting-started/installation/) to manage dependencies and python versions. Once you have uv installed it's easy to get started:
-
-```bash
-uv python install 3.10
-uv sync
-```
+libraries and applications. We use [uv](https://docs.astral.sh/uv/getting-started/installation/) to manage dependencies and python versions. Once you have uv installed it's easy to get started.
 
 Note: We try to somewhat follow the python release schedule for supported versions to allow more users to use our library.
 Therefore we are about a year behind the latest python release.
@@ -344,34 +342,32 @@ Therefore we are about a year behind the latest python release.
 Uv syncs the dependencies of all developers working on the project via the uv.lock file. If you want to add a new dependency make use of the uv add command:
 
 ```bash
-uv add <package-name>
+uv add --directory projects/pgai <package-name>
 ```
 
 If it is a development dependency and not needed at runtime, you can add the --dev flag:
 
 ```bash
-uv add --dev <package-name>
+uv add --directory projects/pgai --dev <package-name>
 ```
 
 Uv installs all dependencies inside a virtual environment by default you can either activate this via the `uv shell` command or run commands directly via `uv run`.
 
-For the most common commands use our [Makefile](./projects/pgai/Makefile).
-Use the `help` target  to see what
-commands are available.
+For the most common commands use the just recipes.
 
 ```bash
-make help
+just -l pgai
 ```
 
-Be sure to add unit tests to the [tests](./projects/pgai/tests) directory when 
+Be sure to add unit tests to the [tests](./projects/pgai/tests) directory when
 you add or modify code. Use the following commands to check your work before
 submitting a PR.
 
 ```bash
-make test
-make lint
-make format
-make type-check
+just pgai test
+just pgai lint
+just pgai format
+just pgai type-check
 ```
 
 [conventional-commits]: https://www.conventionalcommits.org/en/v1.0.0/

@@ -1,0 +1,104 @@
+PG_MAJOR := env("PG_MAJOR", "16")
+PG_BIN := "/usr/lib/postgresql/" + PG_MAJOR + "/bin"
+
+# Show list of recipes
+default:
+    @just --list
+
+ci: docker-build docker-run
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pwd
+  trap "python3 build.py docker-stop; python3 build.py docker-rm" EXIT
+  docker exec pgai-ext just build
+  docker exec pgai-ext just lint
+  docker exec pgai-ext just format-py
+  docker exec pgai-ext just install
+  docker exec -d pgai-ext just test-server
+  docker exec pgai-ext just test
+  build.py docker-stop
+  build.py docker-rm
+
+clean:
+	@./build.py clean
+
+clean-sql:
+	@./build.py clean-sql
+
+clean-py:
+	@./build.py clean-py
+
+build:
+	@PG_BIN={{PG_BIN}} ./build.py build
+
+install:
+	@PG_BIN={{PG_BIN}} ./build.py install
+
+build-install:
+	@PG_BIN={{PG_BIN}} ./build.py build-install
+
+install-sql:
+	@PG_BIN={{PG_BIN}} ./build.py install-sql
+
+install-prior-py:
+	@./build.py install-prior-py
+
+install-py:
+	@./build.py install-py
+
+uninstall:
+	@PG_BIN={{PG_BIN}} ./build.py uninstall
+
+uninstall-sql:
+	@PG_BIN={{PG_BIN}} ./build.py uninstall-sql
+
+uninstall-py:
+	@./build.py uninstall-py
+
+freeze:
+	@./build.py freeze
+
+build-sql:
+	@./build.py build-sql
+
+test-server:
+	@./build.py test-server
+
+test:
+	@./build.py test
+
+lint-sql:
+	@./build.py lint-sql
+
+lint-py:
+	@./build.py lint-py
+
+lint:
+	@./build.py lint
+
+format-py:
+	@./build.py format-py
+
+docker-build:
+	@PG_MAJOR={{PG_MAJOR}} ./build.py docker-build
+
+docker-run:
+	@./build.py docker-run
+
+docker-stop:
+	@./build.py docker-stop
+
+docker-rm:
+	@./build.py docker-rm
+
+run:
+	@PG_MAJOR={{PG_MAJOR}} PG_BIN={{PG_BIN}} ./build.py run
+	@docker exec -it -u postgres pgai-ext /bin/bash -c "set -e; if [ -f .env ]; then set -a; source .env; set +a; fi; psql"
+
+# Launches a bash shell in the container
+docker-shell:
+	@docker exec -it -u root pgai-ext /bin/bash
+
+# Launches a psql shell in the container
+psql-shell:
+	@docker exec -it -u postgres pgai-ext /bin/bash -c "set -e; if [ -f .env ]; then set -a; source .env; set +a; fi; psql"

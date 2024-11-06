@@ -11,6 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: taiki-e/install-action@just
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -23,42 +25,41 @@ jobs:
           docker info
 
       - name: Build Docker image
-        working-directory: ./projects/extension
-        run: make docker-build
+        run: just ext docker-build
 
       - name: Run Docker container
-        working-directory: ./projects/extension
-        run: make docker-run
+        run: just ext docker-run
 
       - name: Build
-        run: docker exec pgai-ext make build
+        run: docker exec pgai-ext just build
 
       - name: Lint SQL and Python
-        run: docker exec pgai-ext make lint
+        run: docker exec pgai-ext just lint
 
       - name: Check Python Formatting
-        run: docker exec pgai-ext make format-py
+        run: docker exec pgai-ext just format-py
 
       - name: Install extension
-        run: docker exec pgai-ext make install
+        run: docker exec pgai-ext just install
 
       - name: Run test server
-        run: docker exec -d pgai-ext make test-server
+        run: docker exec -d pgai-ext just test-server
 
       - name: Run tests
-        run: docker exec pgai-ext make test
+        run: docker exec pgai-ext just test
 
       - name: Stop and remove Docker container
-        working-directory: ./projects/extension
         run: |
-          make docker-stop
-          make docker-rm
+          just ext docker-stop
+          just ext docker-rm
 
   build-and-test-pgai:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+
+      - uses: taiki-e/install-action@just
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
@@ -77,21 +78,16 @@ jobs:
         run: uv sync
 
       - name: Lint
-        working-directory: ./projects/pgai
-        run: make lint
+        run: just pgai lint
 
       - name: Check Typing
-        working-directory: ./projects/pgai
-        run: make type-check
+        run: just pgai type-check
 
       - name: Check Formatting
-        working-directory: ./projects/pgai
-        run: make format
+        run: just pgai format
 
       - name: Run Tests
-        working-directory: ./projects/pgai
-        run: make test
+        run: just pgai test
 
       - name: Build the pgai distributable and check artifacts
-        working-directory: ./projects/pgai
-        run: make build
+        run: just pgai build
