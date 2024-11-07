@@ -52,22 +52,26 @@ def get_pgai_version(cur: psycopg.Cursor) -> str | None:
 
 
 def get_vectorizer_ids(
-    cur: psycopg.Cursor, vectorizer_ids: Sequence[int] | None = None
+    db_url: str, vectorizer_ids: Sequence[int] | None = None
 ) -> list[int]:
-    valid_vectorizer_ids: list[int] = []
-    if vectorizer_ids is None or len(vectorizer_ids) == 0:
-        cur.execute("select id from ai.vectorizer")
-    else:
-        cur.execute(
-            "select id from ai.vectorizer where id = any(%s)",
-            [
-                list(vectorizer_ids),
-            ],
-        )
-    for row in cur.fetchall():
-        valid_vectorizer_ids.append(row[0])
-    random.shuffle(valid_vectorizer_ids)
-    return valid_vectorizer_ids
+    with (
+        psycopg.Connection.connect(db_url) as con,
+        con.cursor(row_factory=namedtuple_row) as cur,
+    ):
+        valid_vectorizer_ids: list[int] = []
+        if vectorizer_ids is None or len(vectorizer_ids) == 0:
+            cur.execute("select id from ai.vectorizer")
+        else:
+            cur.execute(
+                "select id from ai.vectorizer where id = any(%s)",
+                [
+                    list(vectorizer_ids),
+                ],
+            )
+        for row in cur.fetchall():
+            valid_vectorizer_ids.append(row[0])
+        random.shuffle(valid_vectorizer_ids)
+        return valid_vectorizer_ids
 
 
 def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer | None:
@@ -166,7 +170,7 @@ def get_log_level(level: str) -> int:
     type=click.INT,
     multiple=True,
     help="Only fetch work from the given vectorizer ids. If not provided, all vectorizers will be fetched.",  # noqa
-    default=None,
+    default=[],
 )
 @click.option(
     "-c",
@@ -199,7 +203,7 @@ def get_log_level(level: str) -> int:
 )
 def vectorizer_worker(
     db_url: str,
-    vectorizer_ids: Sequence[int] | None,
+    vectorizer_ids: Sequence[int],
     concurrency: int,
     log_level: str,
     poll_interval: int,
@@ -219,13 +223,23 @@ def vectorizer_worker(
         if pgai_version is None:
             log.critical("the pgai extension is not installed")
             sys.exit(1)
-        vectorizer_ids = get_vectorizer_ids(cur, vectorizer_ids)
-    if len(vectorizer_ids) == 0:
-        log.warning("no vectorizers found")
-        return
+    dynamic_mode = len(vectorizer_ids) == 0
+    valid_vectorizer_ids = []
+    if not dynamic_mode:
+        valid_vectorizer_ids = get_vectorizer_ids(db_url, vectorizer_ids)
+        if len(valid_vectorizer_ids) != len(vectorizer_ids):
+            log.critical(
+                f"invalid vectorizers, wanted: {list(vectorizer_ids)}, got: {valid_vectorizer_ids}"  # noqa: E501 (line too long)
+            )
+            sys.exit(1)
 
     while True:
-        for vectorizer_id in vectorizer_ids:
+        if dynamic_mode:
+            valid_vectorizer_ids = get_vectorizer_ids(db_url, vectorizer_ids)
+            if len(valid_vectorizer_ids) == 0:
+                log.warning("no vectorizers found")
+
+        for vectorizer_id in valid_vectorizer_ids:
             vectorizer = get_vectorizer(db_url, vectorizer_id)
             if vectorizer is None:
                 continue

@@ -1,4 +1,7 @@
 import logging
+import os
+import subprocess
+import time
 from collections.abc import Generator
 from typing import Any
 
@@ -180,7 +183,6 @@ class TestWithConfiguredVectorizer:
             cur.execute("SELECT count(*) as count FROM blog_embedding_store;")
             assert cur.fetchone()["count"] == num_items  # type: ignore
 
-
     @pytest.mark.parametrize(
         "test_params",
         [
@@ -256,7 +258,6 @@ class TestWithConfiguredVectorizer:
                 " model context length of 8192 tokens"
             )
 
-
     @pytest.mark.parametrize(
         "test_params",
         [
@@ -315,7 +316,6 @@ class TestWithConfiguredVectorizer:
                 " 'type': 'invalid_request_error', 'param': None,"
                 " 'code': 'invalid_api_key'}}",
             }
-
 
     @pytest.mark.parametrize(
         "test_params",
@@ -388,7 +388,85 @@ def test_worker_no_extension(
     postgres_container: PostgresContainer,
 ):
     """Test that the worker fails when pgai extension is not installed"""
-    result = CliRunner().invoke(vectorizer_worker, ["--db-url", postgres_container.get_connection_url(), "--once"])
+    result = CliRunner().invoke(
+        vectorizer_worker,
+        ["--db-url", postgres_container.get_connection_url(), "--once"],
+    )
 
     assert result.exit_code == 1
     assert "the pgai extension is not installed" in result.output.lower()
+
+
+def test_vectorizer_exits_when_vectorizers_specified_but_missing(cli_db_url: str):
+    result = CliRunner().invoke(
+        vectorizer_worker,
+        ["--db-url", cli_db_url, "--poll-interval", "0.1s", "--vectorizer-id", "0"],
+    )
+    assert result.exit_code != 0
+    assert "invalid vectorizers, wanted: [0], got: []" in result.output
+
+
+def test_vectorizer_picks_up_new_vectorizer(
+    cli_db: tuple[PostgresContainer, Connection],
+):
+    postgres_container, con = cli_db
+    db_url = postgres_container.get_connection_url()
+    test_env = os.environ.copy()
+    test_env["OPENAI_API_KEY"] = (
+        "empty"  # the key must be set, but doesn't need to be valid
+    )
+    process = subprocess.Popen(
+        [
+            "python",
+            "-m",
+            "pgai",
+            "vectorizer",
+            "worker",
+            "--db-url",
+            db_url,
+            "--poll-interval",
+            "0.1s",
+        ],
+        env=test_env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+    )
+
+    # the typings for subprocess.Popen are bad, see https://github.com/python/typeshed/issues/3831
+    assert process.stdout is not None
+
+    os.set_blocking(
+        process.stdout.fileno(), False
+    )  # allow capturing all output without blocking
+    count = 0
+    while True:
+        output = "\n".join(process.stdout.readlines())
+        if output != "":
+            assert "no vectorizers found" in output
+            assert "running vectorizer" not in output
+            break
+        else:
+            # assume that we'll see the output we want to see within 10s
+            assert count < 20
+            count += 1
+            time.sleep(0.5)
+
+    with con.cursor() as cur:
+        cur.execute("CREATE TABLE test(id bigint primary key, contents text)")
+        cur.execute("""SELECT ai.create_vectorizer('test'::regclass,
+            embedding => ai.embedding_openai('text-embedding-3-small', 768),
+            chunking => ai.chunking_recursive_character_text_splitter('contents')
+        );
+        """)
+    count = 0
+    while True:
+        output = "\n".join(process.stdout.readlines())
+        if "running vectorizer" not in output:
+            # assume that we see the output we want to within 10s
+            assert count < 20
+            count += 1
+            time.sleep(0.5)
+        else:
+            break
+    process.terminate()

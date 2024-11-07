@@ -46,8 +46,8 @@ def test_vectorizer_internal():
         cur.execute("create extension if not exists ai cascade")
         pgai_version = cli.get_pgai_version(cur)
         assert pgai_version is not None
-        assert len(cli.get_vectorizer_ids(cur)) == 0
-        assert len(cli.get_vectorizer_ids(cur, [42, 19])) == 0
+        assert len(cli.get_vectorizer_ids(_db_url)) == 0
+        assert len(cli.get_vectorizer_ids(_db_url, [42, 19])) == 0
         cur.execute("create extension if not exists timescaledb")
         cur.execute("drop table if exists note0")
         cur.execute("""
@@ -97,10 +97,10 @@ def test_vectorizer_internal():
         vectorizer_expected = cur.fetchone()
 
         # test cli.get_vectorizer_ids
-        assert len(cli.get_vectorizer_ids(cur)) == 1
-        assert len(cli.get_vectorizer_ids(cur, [42, 19])) == 0
-        assert len(cli.get_vectorizer_ids(cur, [vectorizer_id, 19])) == 1
-        assert len(cli.get_vectorizer_ids(cur, [vectorizer_id])) == 1
+        assert len(cli.get_vectorizer_ids(_db_url)) == 1
+        assert len(cli.get_vectorizer_ids(_db_url, [42, 19])) == 0
+        assert len(cli.get_vectorizer_ids(_db_url, [vectorizer_id, 19])) == 1
+        assert len(cli.get_vectorizer_ids(_db_url, [vectorizer_id])) == 1
 
         # test cli.get_vectorizer
         vectorizer_actual = cli.get_vectorizer(_db_url, vectorizer_id)
