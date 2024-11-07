@@ -274,7 +274,7 @@ prerelease tag. If the version is a production version, we omit the prerelease
 code altogether. Furthermore, if the feature flag is not enabled, the prerelease 
 code is NOT executed/installed. 
 
-Incremental or idempotent files numbered greater than 899 must have a comment at 
+Incremental or idempotent files numbered greater than 899 and lower than 999 must have a comment at 
 the top of the file with a prefix of `--FEATURE-FLAG: ` followed by the name of 
 a feature flag. These files are not executed AT ALL unless a session-level GUC 
 like `ai.enable_feature_flag_<feature-flag>` is set to `true` when the 
