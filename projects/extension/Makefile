@@ -58,6 +58,10 @@ uninstall-sql:
 uninstall-py:
 	@./build.py uninstall-py
 
+.PHONY: freeze
+freeze:
+	@./build.py freeze
+
 .PHONY: build-sql
 build-sql:
 	@./build.py build-sql

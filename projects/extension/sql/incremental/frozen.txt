@@ -1,0 +1,2 @@
+ce888ecfafec8c0cee61bbb454c0ae072f850966fc81ada7ca1389e89f9303e2 001-vectorizer.sql
+151670fbdf6461d082c5198fc66b800303ed21eacceae3a4897afbc4dd608174 002-secret_permissions.sql
