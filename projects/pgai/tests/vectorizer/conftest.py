@@ -10,21 +10,20 @@ import vcr  # type:ignore
 from psycopg import sql
 from testcontainers.postgres import PostgresContainer  # type:ignore
 
+from pgai.vectorizer.vectorizer import TIKTOKEN_CACHE_DIR
+
 DIMENSION_COUNT = 1536
 
 
 @pytest.fixture(autouse=True)
-def __env_setup(monkeypatch):  # type:ignore
+def __env_setup():  # type:ignore
     # Capture the current environment variables to restore after the test. The
     # lambda function sets an evironment variable for using the secrets. We
     # need to clear the environment after a test runs.
     original_env = os.environ.copy()
 
-    # OpenAI uses tiktoken to get the model encoding specification to use when
-    # tokenizing. The model spec is fetched with a GET request and stored in a
-    # cache directory. We need to create a temp dir as cache, to trigger a
-    # request on every test.
-    monkeypatch.setenv("TIKTOKEN_CACHE_DIR", "")  # type:ignore
+    # Use the existing tiktoken cache
+    os.environ["TIKTOKEN_CACHE_DIR"] = TIKTOKEN_CACHE_DIR
     yield
 
     tiktoken.registry.ENCODINGS = {}
