@@ -141,16 +141,18 @@ def file_number(path: Path) -> int:
 def check_idempotent_sql_files(paths: list[Path]) -> None:
     prev = 0
     for path in paths:
-        check_sql_file_name(path)
         if path.name == "999-privileges.sql":
             break
+        check_sql_file_name(path)
         this = file_number(path)
+        # ensuring file number correlation
         if this < 900 and this != prev + 1:
             print(
                 f"idempotent sql files must be strictly ordered. this: {this} prev: {prev}",
                 file=sys.stderr,
             )
             sys.exit(1)
+        # avoiding file number duplication
         if this >= 900 and this == prev:  # allow gaps in pre-production scripts
             print(
                 f"idempotent sql files must not have duplicate numbers. this: {this} prev: {prev}",
@@ -158,12 +160,14 @@ def check_idempotent_sql_files(paths: list[Path]) -> None:
             )
             sys.exit(1)
         ff = parse_feature_flag(path)
+        # feature flagged files should be between 900 and 999
         if this < 900 and ff:
             print(
                 f"idempotent sql files under 900 must be NOT gated by a feature flag: {path.name}",
                 file=sys.stderr,
             )
             sys.exit(1)
+        # only feature flagged files go over 899
         if this >= 900 and not ff:
             print(
                 f"idempotent sql files over 899 must be gated by a feature flag: {path.name}",
