@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import hashlib
 import re
 import os
 import shutil
@@ -18,6 +19,7 @@ HELP = """Available targets:
 - uninstall        uninstalls the project
 - uninstall-sql    removes the sql extension from the postgres installation
 - uninstall-py     removes the extension's python package from the system
+- freeze           updates frozen.txt with hashes of incremental sql files
 - build            alias for build-sql
 - build-sql        constructs the sql files for the extension
 - clean            removes python build artifacts from the src dir
@@ -127,6 +129,37 @@ def incremental_sql_files() -> list[Path]:
     return paths
 
 
+def hash_file(path: Path) -> str:
+    sha256 = hashlib.sha256()
+    sha256.update(path.read_bytes())
+    return sha256.hexdigest()
+
+
+def frozen_file() -> Path:
+    return incremental_sql_dir() / "frozen.txt"
+
+
+def freeze() -> None:
+    lines: list[str] = []
+    for file in incremental_sql_files():
+        if sql_file_number(file) >= 900:
+            break
+        lines.append(f"{hash_file(file)} {file.name}")
+    frozen_file().write_text("\n".join(lines))
+
+
+def read_frozen_file() -> dict[str, str]:
+    frozen: dict[str, str] = dict()
+    with frozen_file().open(mode="rt", encoding="utf-8") as r:
+        for line in r.readlines():
+            if line.strip() == "":
+                continue
+            parts = line.split(" ")
+            # map file name to hash
+            frozen[parts[1]] = parts[0]
+    return frozen
+
+
 def parse_feature_flag(path: Path) -> str | None:
     with path.open(mode="rt", encoding="utf-8") as f:
         line = f.readline()
@@ -183,9 +216,15 @@ def check_idempotent_sql_files(paths: list[Path]) -> None:
 
 def check_incremental_sql_files(paths: list[Path]) -> None:
     # paths are sorted
+    frozen = read_frozen_file()
     prev = 0
     for path in paths:
         prev = check_sql_file_order(path, prev)
+        if path.name in frozen:
+            if hash_file(path) != frozen[path.name]:
+                fatal(
+                    f"changing frozen incremental sql file {path.name} is not allowed"
+                )
 
 
 def output_sql_file() -> Path:
@@ -662,6 +701,8 @@ if __name__ == "__main__":
             install_py()
         elif action == "install-sql":
             install_sql()
+        elif action == "freeze":
+            freeze()
         elif action == "build-sql":
             build_sql()
         elif action == "clean-sql":
