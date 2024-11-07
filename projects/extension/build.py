@@ -55,16 +55,25 @@ def prior_versions() -> list[str]:
     return versions()[1:] if len(versions()) > 1 else []
 
 
+def deprecated_versions() -> set[str]:
+    return {
+        "0.3.0",  # deprecated
+        "0.2.0",  # deprecated
+        "0.1.0",  # deprecated
+    }
+
+
+def fatal(msg: str) -> None:
+    print(msg, file=sys.stderr)
+    sys.exit(1)
+
+
 def check_versions():
     # double-hyphens will cause issues. disallow
     pattern = r"\d+\.\d+\.\d+(-[a-z0-9.]+)?"
     for version in versions():
         if re.fullmatch(pattern, version) is None:
-            print(
-                f"version {version} does not match the pattern {pattern}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
+            fatal(f"version {version} does not match the pattern {pattern}")
 
 
 def parse_version(version: str) -> tuple[int, int, int, str | None]:
@@ -108,75 +117,6 @@ def idempotent_sql_files() -> list[Path]:
     return paths
 
 
-def parse_feature_flag(path: Path) -> str | None:
-    with path.open(mode="rt", encoding="utf-8") as f:
-        line = f.readline()
-        if not line.startswith("--FEATURE-FLAG: "):
-            return None
-        ff = line.removeprefix("--FEATURE-FLAG: ").strip()
-        pattern = r"^[a-z_]+$"
-        if re.fullmatch(pattern, ff) is None:
-            print(
-                f"feature flag {ff} in {path.name} does not match the pattern {pattern}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        return ff
-
-
-def check_sql_file_name(path: Path) -> None:
-    pattern = r"^\d\d\d-[a-z][a-z_-]*\.sql$"
-    if re.fullmatch(pattern, path.name) is None:
-        print(
-            f"{path} file name does not match the pattern {pattern}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-
-def file_number(path: Path) -> int:
-    return int(path.name[0:3])
-
-
-def check_idempotent_sql_files(paths: list[Path]) -> None:
-    prev = 0
-    for path in paths:
-        if path.name == "999-privileges.sql":
-            break
-        check_sql_file_name(path)
-        this = file_number(path)
-        # ensuring file number correlation
-        if this < 900 and this != prev + 1:
-            print(
-                f"idempotent sql files must be strictly ordered. this: {this} prev: {prev}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        # avoiding file number duplication
-        if this >= 900 and this == prev:  # allow gaps in pre-production scripts
-            print(
-                f"idempotent sql files must not have duplicate numbers. this: {this} prev: {prev}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        ff = parse_feature_flag(path)
-        # feature flagged files should be between 900 and 999
-        if this < 900 and ff:
-            print(
-                f"idempotent sql files under 900 must be NOT gated by a feature flag: {path.name}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        # only feature flagged files go over 899
-        if this >= 900 and not ff:
-            print(
-                f"idempotent sql files over 899 must be gated by a feature flag: {path.name}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        prev = this
-
-
 def incremental_sql_dir() -> Path:
     return sql_dir() / "incremental"
 
@@ -187,37 +127,65 @@ def incremental_sql_files() -> list[Path]:
     return paths
 
 
-def check_incremental_sql_files(paths: list[Path]) -> None:
+def parse_feature_flag(path: Path) -> str | None:
+    with path.open(mode="rt", encoding="utf-8") as f:
+        line = f.readline()
+        if not line.startswith("--FEATURE-FLAG: "):
+            return None
+        ff = line.removeprefix("--FEATURE-FLAG: ").strip()
+        pattern = r"^[a-z_]+$"
+        if re.fullmatch(pattern, ff) is None:
+            fatal(
+                f"feature flag {ff} in {path.name} does not match the pattern {pattern}"
+            )
+        return ff
+
+
+def sql_file_number(path: Path) -> int:
+    pattern = r"^(\d{3})-[a-z][a-z_-]*\.sql$"
+    match = re.match(pattern, path.name)
+    if not match:
+        fatal(f"{path} file name does not match the pattern {pattern}")
+    return int(match.group(1))
+
+
+def check_sql_file_order(path: Path, prev: int) -> int:
+    kind = path.parent.name
+    this = sql_file_number(path)
+    # ensuring file number correlation
+    if this < 900 and this != prev + 1:
+        fatal(f"{kind} sql files must be strictly ordered. this: {this} prev: {prev}")
+    # avoiding file number duplication
+    if this >= 900 and this == prev:  # allow gaps in pre-production scripts
+        fatal(
+            f"{kind} sql files must not have duplicate numbers. this: {this} prev: {prev}"
+        )
+    ff = parse_feature_flag(path)
+    # feature flagged files should be between 900 and 999
+    if this < 900 and ff:
+        fatal(
+            f"{kind} sql files under 900 must be NOT gated by a feature flag: {path.name}"
+        )
+    # only feature flagged files go over 899
+    if this >= 900 and not ff:
+        fatal(f"{kind} sql files over 899 must be gated by a feature flag: {path.name}")
+    return this
+
+
+def check_idempotent_sql_files(paths: list[Path]) -> None:
+    # paths are sorted
     prev = 0
     for path in paths:
-        check_sql_file_name(path)
-        this = file_number(path)
-        if this < 900 and this != prev + 1:
-            print(
-                f"incremental sql files must be strictly ordered. this: {this} prev: {prev}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        if this >= 900 and this == prev:  # allow gaps in pre-production scripts
-            print(
-                f"incremental sql files must not have duplicate numbers. this: {this} prev: {prev}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        ff = parse_feature_flag(path)
-        if this < 900 and ff:
-            print(
-                f"incremental sql files under 900 must be NOT gated by a feature flag: {path.name}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        if this >= 900 and not ff:
-            print(
-                f"incremental sql files over 899 must be gated by a feature flag: {path.name}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        prev = this
+        if path.name == "999-privileges.sql":
+            break
+        prev = check_sql_file_order(path, prev)
+
+
+def check_incremental_sql_files(paths: list[Path]) -> None:
+    # paths are sorted
+    prev = 0
+    for path in paths:
+        prev = check_sql_file_order(path, prev)
 
 
 def output_sql_file() -> Path:
@@ -332,14 +300,14 @@ def build_sql() -> None:
             wf.write(build_feature_flags())
         wf.write("\n\n")
         for inc_file in incremental_sql_files():
-            if file_number(inc_file) >= 900 and not is_prerelease(this_version()):
+            if sql_file_number(inc_file) >= 900 and not is_prerelease(this_version()):
                 # don't include pre-release code in non-prerelease versions
                 continue
             code = build_incremental_sql_file(inc_file)
             wf.write(code)
             wf.write("\n\n")
         for idm_file in idempotent_sql_files():
-            nbr = file_number(idm_file)
+            nbr = sql_file_number(idm_file)
             if nbr != 999 and nbr >= 900 and not is_prerelease(this_version()):
                 # don't include pre-release code in non-prerelease versions
                 continue
@@ -349,15 +317,11 @@ def build_sql() -> None:
         wf.flush()
         wf.close()
     for prior_version in prior_versions():
-        if prior_version in {
-            "0.3.0",
-            "0.2.0",
-            "0.1.0",
-        }:
+        if prior_version in deprecated_versions():
             # we don't allow upgrades from these versions. they are deprecated
             continue
-        if is_prerelease(prior_version) and not is_prerelease(this_version()):
-            # we don't allow upgrades from prerelease versions to production versions
+        if is_prerelease(prior_version):
+            # we don't allow upgrades from prerelease versions
             continue
         dest = sql_dir().joinpath(f"ai--{prior_version}--{this_version()}.sql")
         dest.unlink(missing_ok=True)
@@ -381,8 +345,7 @@ def postgres_bin_dir() -> Path:
         else:
             p = shutil.which("pg_config")
             if not p:
-                print("pg_config not found", file=sys.stderr)
-                sys.exit(1)
+                fatal("pg_config not found")
             return Path(p).parent.resolve()
 
 
@@ -405,15 +368,12 @@ def extension_install_dir() -> Path:
 def install_sql() -> None:
     ext_dir = extension_install_dir()
     if not ext_dir.is_dir():
-        print(f"extension directory does not exist: {ext_dir}", file=sys.stderr)
-        sys.exit(1)
+        fatal(f"extension directory does not exist: {ext_dir}")
     this_sql_file = output_sql_file()
     if not this_sql_file.is_file():
-        print(f"required sql file is missing: {this_sql_file}", file=sys.stderr)
-        sys.exit(1)
+        fatal(f"required sql file is missing: {this_sql_file}")
     if not control_file().is_file():
-        print(f"required control file is missing: {control_file()}", file=sys.stderr)
-        sys.exit(1)
+        fatal(f"required control file is missing: {control_file()}")
     for src in sql_dir().glob("ai*.control"):
         dest = ext_dir / src.name
         shutil.copyfile(src, dest)
@@ -461,18 +421,11 @@ def install_old_py_deps() -> None:
 def install_prior_py() -> None:
     install_old_py_deps()
     for version in prior_versions():
-        if version in {
-            "0.3.0",
-            "0.2.0",
-            "0.1.0",
-        }:  # these are handled by install_old_py_deps()
+        if version in deprecated_versions():
+            # these are handled by install_old_py_deps()
             continue
         if os.sep in version:
-            print(
-                f"'{os.sep}' in version {version}. this is not supported",
-                file=sys.stderr,
-            )
-            sys.exit(1)
+            fatal(f"'{os.sep}' in version {version}. this is not supported")
         version_target_dir = python_install_dir().joinpath(version)
         if version_target_dir.exists():
             continue
