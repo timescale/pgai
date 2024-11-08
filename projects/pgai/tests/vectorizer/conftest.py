@@ -47,7 +47,13 @@ def vcr_():
 
 @pytest.fixture(scope="session")
 def postgres_container():
-    with PostgresContainer("timescale/timescaledb-ha:pg16", driver=None) as postgres:
+    with PostgresContainer(
+        "timescale/timescaledb-ha:pg16",
+        username="tsdbquerier",
+        password="my-password",
+        dbname="tsdb",
+        driver=None,
+    ) as postgres:
         yield postgres
 
 
@@ -72,24 +78,11 @@ def embedding_table_config():
 def db(
     postgres_container: PostgresContainer, embedding_table_config: dict[str, Any]
 ) -> Any:
-    role = "tsdbquerier"
-    password = "my-password"
     db_host = postgres_container._docker.host()  # type: ignore
     with psycopg.connect(
         postgres_container.get_connection_url(host=db_host),
         autocommit=True,
     ) as conn:
-        conn.execute(
-            sql.SQL("DROP USER IF EXISTS {}").format(
-                sql.Identifier(role),
-            )
-        )
-        conn.execute(
-            sql.SQL("CREATE USER {} WITH SUPERUSER PASSWORD {}").format(
-                sql.Identifier(role),
-                password,
-            )
-        )
         schema = sql.Identifier(embedding_table_config["target_schema"])
         conn.execute(sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(schema))
         conn.execute(sql.SQL("CREATE SCHEMA {}").format(schema))
@@ -180,8 +173,8 @@ def db(
                 ),
                 "db_name": postgres_container.dbname,
                 "ssl_mode": "disable",
-                "role": role,
-                "password": password,
+                "role": postgres_container.username,
+                "password": postgres_container.password,
             },
         }
 

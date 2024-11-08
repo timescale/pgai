@@ -6,7 +6,7 @@ import openai
 import psycopg
 import pytest
 from click.testing import CliRunner
-from psycopg import sql
+from psycopg import Connection
 from psycopg.rows import dict_row
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
@@ -14,59 +14,29 @@ from pgai.cli import vectorizer_worker
 from tests.vectorizer import expected
 
 
-@pytest.fixture(scope="session")
-def cli_postgres_container():
-    """Provides a clean Postgres container for CLI testing"""
-    with PostgresContainer("timescale/timescaledb-ha:pg16", driver=None) as postgres:
-        yield postgres
-
-
 @pytest.fixture
 def cli_db(
-    cli_postgres_container: PostgresContainer,
-) -> Generator[dict[str, Any], None, None]:
+    postgres_container: PostgresContainer,
+) -> Generator[tuple[PostgresContainer, Connection], None, None]:
     """Creates a test database with pgai installed"""
-    role = "tsdbquerier"
-    password = "my-password"
-    db_host = cli_postgres_container._docker.host()  # type: ignore
+    db_host = postgres_container._docker.host()  # type: ignore
 
     # Connect and setup initial database
     with psycopg.connect(
-        cli_postgres_container.get_connection_url(host=db_host),
+        postgres_container.get_connection_url(host=db_host),
         autocommit=True,
     ) as conn:
-        # Setup test user
-        conn.execute(sql.SQL("DROP USER IF EXISTS {}").format(sql.Identifier(role)))
-        conn.execute(
-            sql.SQL("CREATE USER {} WITH SUPERUSER PASSWORD {}").format(
-                sql.Identifier(role), sql.Literal(password)
-            )
-        )
-
         # Install pgai
         conn.execute("CREATE EXTENSION IF NOT EXISTS ai CASCADE")
 
-        yield {
-            "container": cli_postgres_container,
-            "conn": conn,
-            "event_db_config": {
-                "host": db_host,
-                "port": int(
-                    cli_postgres_container.get_exposed_port(cli_postgres_container.port)
-                ),
-                "db_name": cli_postgres_container.dbname,
-                "ssl_mode": "disable",
-                "role": role,
-                "password": password,
-            },
-        }
+        yield postgres_container, conn
 
 
 @pytest.fixture
-def cli_db_url(cli_db: dict[str, Any]) -> str:
+def cli_db_url(cli_db: tuple[PostgresContainer, Connection]) -> str:
     """Constructs database URL from the cli_db fixture"""
-    config = cli_db["event_db_config"]
-    return f"postgres://{config['role']}:{config['password']}@{config['host']}:{config['port']}/{config['db_name']}?sslmode={config['ssl_mode']}"
+    container, _ = cli_db
+    return container.get_connection_url()
 
 
 def test_worker_no_tasks(cli_db_url: str):
@@ -80,13 +50,14 @@ def test_worker_no_tasks(cli_db_url: str):
 
 @pytest.fixture
 def configured_vectorizer_and_source_table(
-    cli_db: dict[str, Any],
+    cli_db: tuple[PostgresContainer, Connection],
     test_params: tuple[int, int, int, str, str],
 ) -> int:
     """Creates and configures a vectorizer for testing"""
     num_items, concurrency, batch_size, chunking, formatting = test_params
+    _, conn = cli_db
 
-    with cli_db["conn"].cursor(row_factory=dict_row) as cur:
+    with conn.cursor(row_factory=dict_row) as cur:
         # Cleanup from previous runs
         cur.execute("SELECT id FROM ai.vectorizer")
         for row in cur.fetchall():
@@ -120,8 +91,8 @@ def configured_vectorizer_and_source_table(
                 processing => ai.processing_default(batch_size => {batch_size},
                                                     concurrency => {concurrency})
             )
-        """)
-        vectorizer_id = cur.fetchone()["create_vectorizer"]
+        """)  # type: ignore
+        vectorizer_id: int = int(cur.fetchone()["create_vectorizer"])  # type: ignore
 
         # Insert test data
         values = [(i, i, f"post_{i}") for i in range(1, num_items + 1)]
@@ -159,7 +130,7 @@ def test_params(request: pytest.FixtureRequest) -> tuple[int, int, int, str, str
     ],
 )
 def test_process_vectorizer(
-    cli_db: dict[str, Any],
+    cli_db: tuple[PostgresContainer, Connection],
     cli_db_url: str,
     configured_vectorizer_and_source_table: int,
     monkeypatch: pytest.MonkeyPatch,
@@ -168,9 +139,9 @@ def test_process_vectorizer(
 ):
     """Test successful processing of vectorizer tasks"""
     num_items, concurrency, batch_size, _, _ = test_params
-
+    _, conn = cli_db
     # Insert pre-existing embedding for first item
-    with cli_db["conn"].cursor() as cur:
+    with conn.cursor() as cur:
         cur.execute("""
            INSERT INTO
            blog_embedding_store(embedding_uuid, id, chunk_seq, chunk, embedding)
@@ -203,9 +174,9 @@ def test_process_vectorizer(
     assert not result.exception
     assert result.exit_code == 0
 
-    with cli_db["conn"].cursor(row_factory=dict_row) as cur:
+    with conn.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT count(*) as count FROM blog_embedding_store;")
-        assert cur.fetchone()["count"] == num_items
+        assert cur.fetchone()["count"] == num_items  # type: ignore
 
 
 @pytest.mark.parametrize(
@@ -222,15 +193,16 @@ def test_process_vectorizer(
     ],
 )
 def test_document_exceeds_model_context_length(
-    cli_db: dict[str, Any],
+    cli_db: tuple[PostgresContainer, Connection],
     cli_db_url: str,
     configured_vectorizer_and_source_table: int,
     monkeypatch: pytest.MonkeyPatch,
     vcr_: Any,
 ):
     """Test handling of documents that exceed the model's token limit"""
+    _, conn = cli_db
     # Given a vectorizer configuration
-    with cli_db["conn"].cursor(row_factory=dict_row) as cur:
+    with conn.cursor(row_factory=dict_row) as cur:
         long_content = "AGI" * 5000
         cur.execute(
             f"UPDATE blog SET CONTENT = '{long_content}' where id = '2'",
@@ -254,7 +226,7 @@ def test_document_exceeds_model_context_length(
     assert result.exit_code == 0
 
     # Then only the normal document should be embedded
-    with cli_db["conn"].cursor(row_factory=dict_row) as cur:
+    with conn.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT * FROM blog_embedding_store ORDER BY id")
         records = cur.fetchall()
         assert len(records) == 1
@@ -295,7 +267,7 @@ def test_document_exceeds_model_context_length(
     ],
 )
 def test_invalid_api_key_error(
-    cli_db: dict[str, Any],
+    cli_db: tuple[PostgresContainer, Connection],
     cli_db_url: str,
     configured_vectorizer_and_source_table: int,
     monkeypatch: pytest.MonkeyPatch,
@@ -304,6 +276,7 @@ def test_invalid_api_key_error(
     """Test that worker handles invalid API key appropriately"""
     # Given an invalid API key
     monkeypatch.setenv("OPENAI_API_KEY", "invalid")
+    _, conn = cli_db
 
     # When running the worker
     with vcr_.use_cassette("test_invalid_api_key_error.yaml"):
@@ -322,7 +295,7 @@ def test_invalid_api_key_error(
             assert e.code == 401
 
     # Ensure there's an entry in the errors table
-    with cli_db["conn"].cursor(row_factory=dict_row) as cur:
+    with conn.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT * FROM ai.vectorizer_errors")
         records = cur.fetchall()
         assert len(records) == 1
@@ -353,16 +326,17 @@ def test_invalid_api_key_error(
     ],
 )
 def test_invalid_function_arguments(
-    cli_db: dict[str, Any],
+    cli_db: tuple[PostgresContainer, Connection],
     cli_db_url: str,
     configured_vectorizer_and_source_table: int,
     monkeypatch: pytest.MonkeyPatch,
 ):
     """Test that worker handles invalid embedding model arguments appropriately"""
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    _, conn = cli_db
 
     # And a vectorizer with invalid embedding dimensions
-    with cli_db["conn"].cursor() as cur:
+    with conn.cursor() as cur:
         cur.execute(
             """
             UPDATE ai.vectorizer
@@ -392,7 +366,7 @@ def test_invalid_function_arguments(
         assert str(e) == "dimensions must be 1536 for text-embedding-ada-002"
 
     # Then an error was logged
-    with cli_db["conn"].cursor(row_factory=dict_row) as cur:
+    with conn.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT * FROM ai.vectorizer_errors")
         records = cur.fetchall()
         assert len(records) == 1
@@ -406,13 +380,19 @@ def test_invalid_function_arguments(
 
 
 @pytest.fixture
-def cli_db_no_pgai(cli_db: dict[str, Any]) -> Generator[dict[str, Any], None, None]:
-    with cli_db["conn"].cursor() as cur:
+def cli_db_no_pgai(
+    cli_db: tuple[PostgresContainer, Connection],
+) -> Generator[tuple[PostgresContainer, Connection], None, None]:
+    _, conn = cli_db
+    with conn.cursor() as cur:
         cur.execute("DROP EXTENSION IF EXISTS ai CASCADE")
     yield cli_db
 
 
-def test_worker_no_extension(cli_db_no_pgai: dict[str, Any], cli_db_url: str):  # noqa
+def test_worker_no_extension(
+    cli_db_no_pgai: tuple[PostgresContainer, Connection],  # noqa
+    cli_db_url: str,
+):
     """Test that the worker fails when pgai extension is not installed"""
     result = CliRunner().invoke(vectorizer_worker, ["--db-url", cli_db_url, "--once"])
 
