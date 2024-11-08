@@ -8,6 +8,7 @@ import pytest
 import tiktoken
 import vcr  # type:ignore
 from psycopg import sql
+from testcontainers.core.image import DockerImage  # type:ignore
 from testcontainers.postgres import PostgresContainer  # type:ignore
 
 from pgai.vectorizer.vectorizer import TIKTOKEN_CACHE_DIR
@@ -47,8 +48,14 @@ def vcr_():
 
 @pytest.fixture(scope="session")
 def postgres_container():
+    extension_dir = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../extension/")
+    )
+    image = DockerImage(path=extension_dir, tag="pgai-test-db").build(  # type: ignore
+        target="pgai-test-db"
+    )
     with PostgresContainer(
-        "timescale/timescaledb-ha:pg16",
+        image=str(image),
         username="tsdbquerier",
         password="my-password",
         dbname="tsdb",
