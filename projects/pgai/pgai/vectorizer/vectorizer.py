@@ -1,4 +1,5 @@
 import asyncio
+import os
 import threading
 import time
 from collections.abc import Callable
@@ -747,3 +748,8 @@ class Worker:
                 }
             ),
         )
+
+
+TIKTOKEN_CACHE_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "tiktoken_cache"
+)

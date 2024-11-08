@@ -10,21 +10,20 @@ import vcr  # type:ignore
 from psycopg import sql
 from testcontainers.postgres import PostgresContainer  # type:ignore
 
+from pgai.vectorizer.vectorizer import TIKTOKEN_CACHE_DIR
+
 DIMENSION_COUNT = 1536
 
 
 @pytest.fixture(autouse=True)
-def __env_setup(monkeypatch):  # type:ignore
+def __env_setup():  # type:ignore
     # Capture the current environment variables to restore after the test. The
     # lambda function sets an evironment variable for using the secrets. We
     # need to clear the environment after a test runs.
     original_env = os.environ.copy()
 
-    # OpenAI uses tiktoken to get the model encoding specification to use when
-    # tokenizing. The model spec is fetched with a GET request and stored in a
-    # cache directory. We need to create a temp dir as cache, to trigger a
-    # request on every test.
-    monkeypatch.setenv("TIKTOKEN_CACHE_DIR", "")  # type:ignore
+    # Use the existing tiktoken cache
+    os.environ["TIKTOKEN_CACHE_DIR"] = TIKTOKEN_CACHE_DIR
     yield
 
     tiktoken.registry.ENCODINGS = {}
@@ -48,7 +47,13 @@ def vcr_():
 
 @pytest.fixture(scope="session")
 def postgres_container():
-    with PostgresContainer("timescale/timescaledb-ha:pg16", driver=None) as postgres:
+    with PostgresContainer(
+        "timescale/timescaledb-ha:pg16",
+        username="tsdbquerier",
+        password="my-password",
+        dbname="tsdb",
+        driver=None,
+    ) as postgres:
         yield postgres
 
 
@@ -73,24 +78,11 @@ def embedding_table_config():
 def db(
     postgres_container: PostgresContainer, embedding_table_config: dict[str, Any]
 ) -> Any:
-    role = "tsdbquerier"
-    password = "my-password"
     db_host = postgres_container._docker.host()  # type: ignore
     with psycopg.connect(
         postgres_container.get_connection_url(host=db_host),
         autocommit=True,
     ) as conn:
-        conn.execute(
-            sql.SQL("DROP USER IF EXISTS {}").format(
-                sql.Identifier(role),
-            )
-        )
-        conn.execute(
-            sql.SQL("CREATE USER {} WITH SUPERUSER PASSWORD {}").format(
-                sql.Identifier(role),
-                password,
-            )
-        )
         schema = sql.Identifier(embedding_table_config["target_schema"])
         conn.execute(sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(schema))
         conn.execute(sql.SQL("CREATE SCHEMA {}").format(schema))
@@ -181,8 +173,8 @@ def db(
                 ),
                 "db_name": postgres_container.dbname,
                 "ssl_mode": "disable",
-                "role": role,
-                "password": password,
+                "role": postgres_container.username,
+                "password": postgres_container.password,
             },
         }
 
