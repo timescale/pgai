@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import Any
 
 import pytest
 import tiktoken
@@ -29,6 +30,15 @@ def __env_setup():  # type:ignore
     os.environ.update(original_env)
 
 
+def remove_set_cookie_header(response: dict[str, Any]):
+    headers = response["headers"]
+    headers_to_remove = ["set-cookie", "Set-Cookie"]
+    for header in headers_to_remove:
+        if header in headers:
+            del headers[header]
+    return response
+
+
 @pytest.fixture(scope="session")
 def vcr_():
     cassette_library_dir = Path(__file__).parent.joinpath("cassettes")
@@ -39,6 +49,7 @@ def vcr_():
         record_mode=vcr.mode.ONCE,
         filter_headers=["authorization"],
         match_on=["method", "scheme", "host", "port", "path", "query", "body"],
+        before_record_response=remove_set_cookie_header,
     )
 
 
