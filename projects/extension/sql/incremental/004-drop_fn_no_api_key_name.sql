@@ -1,0 +1,17 @@
+drop function if exists ai.openai_list_models(text, text);
+drop function if exists ai.openai_embed(text, text,  text, text, int, text);
+drop function if exists ai.openai_embed(text,integer[],text,text,integer,text);
+drop function if exists ai.openai_embed(text,text[],text,text,integer,text);
+drop function if exists ai.openai_chat_complete_simple(text,text);
+drop function if exists ai.openai_chat_complete(text,jsonb,text,text,double precision,jsonb,boolean,integer,integer,integer,double precision,jsonb,integer,text,double precision,double precision,jsonb,jsonb,text);
+drop function if exists ai.openai_moderate(text,text,text,text);
+drop function if exists ai.anthropic_generate(text,jsonb,integer,text,text,double precision,integer,text,text,text[],double precision,jsonb,jsonb,integer,double precision);
+drop function if exists ai.cohere_chat_complete(text,text,text,text,jsonb,text,text,jsonb,boolean,jsonb,text,double precision,integer,integer,integer,double precision,integer,text[],double precision,double precision,jsonb,jsonb,boolean);
+drop function if exists ai.cohere_classify_simple(text,text[],text,jsonb,text);
+drop function if exists ai.cohere_classify(text,text[],text,jsonb,text);
+drop function if exists ai.cohere_detokenize(text,integer[],text);
+drop function if exists ai.cohere_embed(text,text,text,text,text);
+drop function if exists ai.cohere_list_models(text,text,boolean);
+drop function if exists ai.cohere_rerank_simple(text,text,jsonb,text,integer,integer);
+drop function if exists ai.cohere_rerank(text,text,jsonb,text,integer,text[],boolean,integer);
+drop function if exists ai.cohere_tokenize(text,text,text);

@@ -3,6 +3,7 @@
 -- https://docs.cohere.com/reference/list-models
 create or replace function ai.cohere_list_models
 ( api_key text default null
+, api_key_name text default null
 , endpoint text default null
 , default_only bool default null
 )
@@ -17,7 +18,7 @@ returns table
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
-    client = ai.cohere.make_client(plpy, api_key)
+    client = ai.cohere.make_client(plpy, api_key, api_key_name)
 
     args = {}
     if endpoint is not None:
@@ -40,11 +41,11 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- cohere_tokenize
 -- https://docs.cohere.com/reference/tokenize
-create or replace function ai.cohere_tokenize(model text, text_input text, api_key text default null) returns int[]
+create or replace function ai.cohere_tokenize(model text, text_input text, api_key text default null, api_key_name text default null) returns int[]
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
-    client = ai.cohere.make_client(plpy, api_key)
+    client = ai.cohere.make_client(plpy, api_key, api_key_name)
 
     response = client.tokenize(text=text_input, model=model)
     return response.tokens
@@ -56,11 +57,11 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- cohere_detokenize
 -- https://docs.cohere.com/reference/detokenize
-create or replace function ai.cohere_detokenize(model text, tokens int[], api_key text default null) returns text
+create or replace function ai.cohere_detokenize(model text, tokens int[], api_key text default null, api_key_name text default null) returns text
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
-    client = ai.cohere.make_client(plpy, api_key)
+    client = ai.cohere.make_client(plpy, api_key, api_key_name)
 
     response = client.detokenize(tokens=tokens, model=model)
     return response.text
@@ -76,13 +77,14 @@ create or replace function ai.cohere_embed
 ( model text
 , input_text text
 , api_key text default null
+, api_key_name text default null
 , input_type text default null
 , truncate_long_inputs text default null
 ) returns @extschema:vector@.vector
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
-    client = ai.cohere.make_client(plpy, api_key)
+    client = ai.cohere.make_client(plpy, api_key, api_key_name)
 
     args={}
     if input_type is not None:
@@ -103,13 +105,14 @@ create or replace function ai.cohere_classify
 ( model text
 , inputs text[]
 , api_key text default null
+, api_key_name text default null
 , examples jsonb default null
 , truncate_long_inputs text default null
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
-    client = ai.cohere.make_client(plpy, api_key)
+    client = ai.cohere.make_client(plpy, api_key, api_key_name)
 
     import json
     args = {}
@@ -132,6 +135,7 @@ create or replace function ai.cohere_classify_simple
 ( model text
 , inputs text[]
 , api_key text default null
+, api_key_name text default null
 , examples jsonb default null
 , truncate_long_inputs text default null
 ) returns table
@@ -142,7 +146,7 @@ create or replace function ai.cohere_classify_simple
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
-    client = ai.cohere.make_client(plpy, api_key)
+    client = ai.cohere.make_client(plpy, api_key, api_key_name)
     import json
     args = {}
     if examples is not None:
@@ -165,6 +169,7 @@ create or replace function ai.cohere_rerank
 , query text
 , documents jsonb
 , api_key text default null
+, api_key_name text default null
 , top_n integer default null
 , rank_fields text[] default null
 , return_documents bool default null
@@ -173,7 +178,7 @@ create or replace function ai.cohere_rerank
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
-    client = ai.cohere.make_client(plpy, api_key)
+    client = ai.cohere.make_client(plpy, api_key, api_key_name)
     import json
     args = {}
     if top_n is not None:
@@ -199,6 +204,7 @@ create or replace function ai.cohere_rerank_simple
 , query text
 , documents jsonb
 , api_key text default null
+, api_key_name text default null
 , top_n integer default null
 , max_chunks_per_doc int default null
 ) returns table
@@ -215,6 +221,7 @@ from pg_catalog.jsonb_to_recordset
     , query
     , documents
     , api_key=>api_key
+    , api_key_name=>api_key_name
     , top_n=>top_n
     , return_documents=>true
     , max_chunks_per_doc=>max_chunks_per_doc
@@ -231,6 +238,7 @@ create or replace function ai.cohere_chat_complete
 ( model text
 , message text
 , api_key text default null
+, api_key_name text default null
 , preamble text default null
 , chat_history jsonb default null
 , conversation_id text default null
@@ -255,7 +263,7 @@ create or replace function ai.cohere_chat_complete
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
-    client = ai.cohere.make_client(plpy, api_key)
+    client = ai.cohere.make_client(plpy, api_key, api_key_name)
 
     import json
     args = {}

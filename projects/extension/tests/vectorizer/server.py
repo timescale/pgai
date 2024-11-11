@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, Request, status, Header
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -6,6 +7,9 @@ from pydantic import BaseModel, Field
 import psycopg
 from typing import Union, Literal
 from datetime import datetime
+import dotenv
+
+dotenv.load_dotenv()
 
 app = FastAPI()
 
@@ -181,6 +185,12 @@ async def get_secrets(secret_name: str = Header(None, alias="Secret-Name")):
     # For now, we'll just return the test key if the secret_name matches
     if secret_name == "OPENAI_API_KEY" or secret_name == "OPENAI_API_KEY_2":
         return {secret_name: "test"}
+    elif secret_name == "OPENAI_API_KEY_REAL":
+        return {secret_name: os.environ["OPENAI_API_KEY"]}
+    elif secret_name == "COHERE_API_KEY_REAL":
+        return {secret_name: os.environ["COHERE_API_KEY"]}
+    elif secret_name == "ANTHROPIC_API_KEY_REAL":
+        return {secret_name: os.environ["ANTHROPIC_API_KEY"]}
     elif secret_name == "ERROR_SECRET":
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
