@@ -46,7 +46,7 @@ def vcr_():
     )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="class")
 def postgres_container():
     extension_dir = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "../../../extension/")
