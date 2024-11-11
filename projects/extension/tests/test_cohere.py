@@ -33,6 +33,15 @@ def cur_with_api_key(cohere_api_key, cur) -> psycopg.Cursor:
         yield cur
 
 
+@pytest.fixture()
+def cur_with_external_functions_executor_url(cur) -> psycopg.Cursor:
+    with cur:
+        cur.execute(
+            "select set_config('ai.external_functions_executor_url', 'http://localhost:8000', false) is not null",
+        )
+        yield cur
+
+
 def test_cohere_list_models(cur, cohere_api_key):
     cur.execute(
         """
@@ -82,6 +91,24 @@ def test_cohere_tokenize(cur, cohere_api_key):
     assert actual == 17
 
 
+def test_cohere_tokenize_api_key_name(cur_with_external_functions_executor_url):
+    cur_with_external_functions_executor_url.execute(
+        """
+        select array_length
+        (
+            ai.cohere_tokenize
+            ( 'command'
+            , 'What one programmer can do in one month, two programmers can do in two months.'
+            , api_key_name=> 'COHERE_API_KEY_REAL'
+            )
+        , 1
+        )
+    """
+    )
+    actual = cur_with_external_functions_executor_url.fetchone()[0]
+    assert actual == 17
+
+
 def test_cohere_tokenize_no_key(cur_with_api_key):
     cur_with_api_key.execute("""
         select ai.cohere_tokenize
@@ -96,7 +123,7 @@ def test_cohere_tokenize_no_key(cur_with_api_key):
     )
 
 
-def test_detokenize(cur, cohere_api_key):
+def test_cohere_detokenize(cur, cohere_api_key):
     cur.execute(
         """
         select ai.cohere_detokenize
@@ -108,6 +135,23 @@ def test_detokenize(cur, cohere_api_key):
         (cohere_api_key,),
     )
     actual = cur.fetchone()[0]
+    assert (
+        actual
+        == "What one programmer can do in one month, two programmers can do in two months."
+    )
+
+
+def test_cohere_detokenize_api_key_name(cur_with_external_functions_executor_url):
+    cur_with_external_functions_executor_url.execute(
+        """
+        select ai.cohere_detokenize
+        ( 'command'
+        , array[5171,2011,36613,1863,1978,1703,2011,2812,19,2253,38374,1863,1978,1703,2253,3784,21]
+        , api_key_name=> 'COHERE_API_KEY_REAL'
+        )
+    """
+    )
+    actual = cur_with_external_functions_executor_url.fetchone()[0]
     assert (
         actual
         == "What one programmer can do in one month, two programmers can do in two months."
@@ -153,6 +197,24 @@ def test_cohere_embed(cur, cohere_api_key):
         (cohere_api_key,),
     )
     actual = cur.fetchone()[0]
+    assert actual == 384
+
+
+def test_cohere_embed_api_key_name(cur_with_external_functions_executor_url):
+    cur_with_external_functions_executor_url.execute(
+        """
+        select vector_dims
+        (
+            ai.cohere_embed
+            ( 'embed-english-light-v3.0'
+            , 'how much wood would a woodchuck chuck if a woodchuck could chuck wood?'
+            , api_key_name=> 'COHERE_API_KEY_REAL'
+            , input_type=>'search_document'
+            )
+        )
+    """
+    )
+    actual = cur_with_external_functions_executor_url.fetchone()[0]
     assert actual == 384
 
 

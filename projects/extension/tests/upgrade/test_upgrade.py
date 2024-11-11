@@ -147,7 +147,11 @@ def test_upgrades():
             .joinpath(f"{path_name}-actual.snapshot")
             .read_text()
         )
-        assert actual == expected
+
+        debug_path = (
+            Path(__file__).parent.absolute().joinpath(f"{path_name}-actual.snapshot")
+        )
+        assert actual == expected, f"snapshots do not match for {debug_path}"
 
 
 def fetch_versions(dbname: str) -> list[str]:
