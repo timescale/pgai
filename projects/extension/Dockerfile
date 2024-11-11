@@ -7,9 +7,10 @@ FROM postgres:${PG_MAJOR} AS build-latest
 ENV PG_MAJOR=${PG_MAJOR}
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends make python3-pip git && \
+    apt-get install -y --no-install-recommends make python3-pip git curl && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin/
 WORKDIR /pgai
 COPY requirements.txt .
 COPY ai/__init__.py ai/
@@ -17,7 +18,7 @@ RUN version=$(grep -oP '(?<=__version__ = ")[^"]*' ai/__init__.py) && \
     mkdir -p /usr/local/lib/pgai/$version && \
     pip3 install -v --no-deps --compile -t /usr/local/lib/pgai/$version -r requirements.txt
 COPY . .
-RUN make install-py build-sql install-sql
+RUN just install-py build-sql install-sql
 
 FROM timescaledb as pgai-test-db
 ARG PG_MAJOR=16
