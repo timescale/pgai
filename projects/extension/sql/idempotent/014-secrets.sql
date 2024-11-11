@@ -6,7 +6,7 @@ as $python$
     import ai.secrets
     return ai.secrets.reveal_secret(plpy, secret_name)
 $python$
-language plpython3u volatile security invoker
+language plpython3u stable security invoker
 set search_path to pg_catalog, pg_temp;
 
 
