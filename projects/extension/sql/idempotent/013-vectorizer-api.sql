@@ -508,7 +508,10 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- vectorizer_queue_pending
-create or replace function ai.vectorizer_queue_pending(vectorizer_id int) returns bigint
+create or replace function ai.vectorizer_queue_pending
+( vectorizer_id int
+, exact_count boolean default false
+) returns bigint
 as $func$
 declare
     _queue_schema name;
@@ -523,12 +526,25 @@ begin
     if _queue_schema is null or _queue_table is null then
         raise exception 'vectorizer has no queue table';
     end if;
-    select format
-    ( $sql$select count(*) from %I.%I$sql$
-    , _queue_schema, _queue_table
-    ) into strict _sql
-    ;
-    execute _sql into strict _queue_depth;
+    if exact_count then
+        select format
+        ( $sql$select count(1) from %I.%I$sql$
+        , _queue_schema, _queue_table
+        ) into strict _sql
+        ;
+        execute _sql into strict _queue_depth;
+    else
+        select format
+        ( $sql$select count(*) from (select 1 from %I.%I limit 10001)$sql$
+        , _queue_schema, _queue_table
+        ) into strict _sql
+        ;
+        execute _sql into strict _queue_depth;
+        if _queue_depth = 10001 then
+            _queue_depth = 9223372036854775807; -- max bigint value
+        end if;
+    end if;
+
     return _queue_depth;
 end;
 $func$ language plpgsql stable security invoker

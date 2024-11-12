@@ -288,9 +288,9 @@
  f       | bob   | execute   | no      | ai     | scheduling_timescaledb(schedule_interval interval, initial_start timestamp with time zone, fixed_schedule boolean, timezone text)
  f       | fred  | execute   | no      | ai     | scheduling_timescaledb(schedule_interval interval, initial_start timestamp with time zone, fixed_schedule boolean, timezone text)
  f       | jill  | execute   | YES     | ai     | scheduling_timescaledb(schedule_interval interval, initial_start timestamp with time zone, fixed_schedule boolean, timezone text)
- f       | alice | execute   | YES     | ai     | vectorizer_queue_pending(vectorizer_id integer)
- f       | bob   | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer)
- f       | fred  | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer)
- f       | jill  | execute   | YES     | ai     | vectorizer_queue_pending(vectorizer_id integer)
+ f       | alice | execute   | YES     | ai     | vectorizer_queue_pending(vectorizer_id integer, exact_count boolean)
+ f       | bob   | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer, exact_count boolean)
+ f       | fred  | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer, exact_count boolean)
+ f       | jill  | execute   | YES     | ai     | vectorizer_queue_pending(vectorizer_id integer, exact_count boolean)
 (292 rows)
 
