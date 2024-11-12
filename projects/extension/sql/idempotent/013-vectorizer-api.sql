@@ -550,7 +550,7 @@ select
     , 'select'
     )
     then ai.vectorizer_queue_pending(v.id)
-  else 0
+  else null
   end as pending_items
 from ai.vectorizer v
 ;
