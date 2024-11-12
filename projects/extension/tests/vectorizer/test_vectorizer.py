@@ -1357,3 +1357,54 @@ def test_none_index_scheduling():
             );
             """)
             assert True
+
+
+def test_queue_pending():
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("create schema if not exists vec")
+            cur.execute("drop table if exists vec.note5")
+            cur.execute("""
+                create table vec.note5
+                ( id bigint not null primary key generated always as identity
+                , note text not null
+                )
+            """)
+
+            # create a vectorizer for the table
+            # language=PostgreSQL
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'vec.note5'::regclass
+            , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+            , chunking=>ai.chunking_character_text_splitter('note')
+            , scheduling=> ai.scheduling_none()
+            , indexing=>ai.indexing_none()
+            , grant_to=>null
+            , enqueue_existing=>false
+            );
+            """)
+            vectorizer_id = cur.fetchone()[0]
+
+            cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
+            vectorizer = cur.fetchone()
+
+            # insert 1001 rows into the queue
+            cur.execute(f"""
+            insert into {vectorizer.queue_schema}.{vectorizer.queue_table} (id)
+            select x from generate_series(1, 10001) x
+            """)
+
+            # an exact count should yield 10001
+            cur.execute(
+                "select ai.vectorizer_queue_pending(%s, true)", (vectorizer_id,)
+            )
+            assert cur.fetchone()[0] == 10001
+
+            # a non-exact count should yield 9223372036854775807
+            cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
+            assert cur.fetchone()[0] == 9223372036854775807

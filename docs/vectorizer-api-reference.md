@@ -1014,6 +1014,19 @@ Return the number of pending items for the vectorizer with ID 1:
   SELECT ai.vectorizer_queue_pending(1);
   ```
 
+A queue with a very large number of items may be slow to count. The optional 
+`exact_count` parameter is defaulted to false. When false, the count is limited.
+An exact count is returned if the queue has 10,000 or fewer items, and returns
+9223372036854775807 (the max bigint value) if there are greater than 10,000 
+items.
+
+To get an exact count, regardless of queue size, set the optional parameter to
+`true` like this:
+
+  ```sql
+  SELECT ai.vectorizer_queue_pending(1, exact_count=>true);
+  ```
+
 #### Parameters
 
 `ai.vectorizer_queue_pending function` takes the following parameters:
@@ -1021,6 +1034,7 @@ Return the number of pending items for the vectorizer with ID 1:
 |Name| Type | Default | Required | Description |
 |-|------|-|-|-|
 |vectorizer_id| int  | -|✔|The identifier of the vectorizer you want to check|
+|exact_count| bool | false |✖|If true, return exact count. If false, capped at 10,000|
 
 
 ### Returns
