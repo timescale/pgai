@@ -1,12 +1,12 @@
 from click.testing import CliRunner
-from sqlalchemy import select
 from testcontainers.postgres import PostgresContainer
 
 from pgai.cli import vectorizer_worker
-from pgai.extensions.sqlalchemy import Vectorized
+from pgai.extensions.sqlalchemy import VectorizerField
+
 
 def test_sqlalchemy(postgres_container: PostgresContainer):
-    from sqlalchemy import create_engine, Column, Integer, Text, func
+    from sqlalchemy import create_engine, Column, Integer, Text
     from sqlalchemy.orm import declarative_base, Session
     from sqlalchemy.sql import text
     db_url = postgres_container.get_connection_url()
@@ -19,11 +19,6 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
         conn.commit()
     Base = declarative_base()
 
-    @Vectorized(
-        model="text-embedding-3-small",
-        dimensions=768,
-        content_column="content",
-    )
     class BlogPost(Base):
         __tablename__ = "blog_posts"
 
@@ -31,9 +26,16 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
         title = Column(Text, nullable=False)
         content = Column(Text, nullable=False)
 
+        content_embeddings = VectorizerField(
+            source_column='content',
+            embedding_model='text-embedding-3-small',
+            chunking={'chunk_size': 50, 'chunk_overlap': 10},
+            formatting_template='$chunk'
+        )
+
     # Create tables
     Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    Base.metadata.create_all(engine, tables=[Base.metadata.sorted_tables[0]])
 
     # Create vectorizer
     with engine.connect() as conn:
@@ -41,7 +43,9 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
             SELECT ai.create_vectorizer( 
                 'blog_posts'::regclass,
                 embedding => ai.embedding_openai('text-embedding-3-small', 768),
-                chunking => ai.chunking_recursive_character_text_splitter('content')
+                chunking => ai.chunking_recursive_character_text_splitter('content', 
+                50,
+                10)
             );
         """))
         conn.commit()
@@ -83,35 +87,74 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
     import time
     time.sleep(5)  # You might need to adjust this based on your setup
 
-    # Find similar posts
-    def find_with_vector(session):
-        return (
-            session.query(
-                BlogPost.id,
-                BlogPost.title,
-                BlogPost.content,
-                #BlogPost.chunk_seq,
-                #BlogPost.chunk,
-                BlogPost.embedding,
-            )
-        )
-    
-    def get_all_blog_posts(session):
-        return(
-            session.query(BlogPost).all()
-        )
-
-    # Test the semantic search
     with Session(engine) as session:
-        # Search for posts similar to a query about AI
-        posts = get_all_blog_posts(session)
-        post_list = list(posts)
-        print(f"Found {len(post_list)} Posts with ids: {','.join([str(post.id) for post in post_list])}")
-        print(f"Type of post: {type(post_list[0])}")
+        # Test 1: Access embedding class directly
+        EmbeddingClass = BlogPost.content_embeddings
+        assert EmbeddingClass.__name__ == "BlogPostEmbedding"
 
-        for post in posts:
-            print(f"\nTitle: {post.title}")
-            print(f"Content: {post.content}")
-            print(f"Embedding: {post.embedding}")
+        # Get all embeddings directly
+        all_embeddings = session.query(EmbeddingClass).all()
+        assert len(all_embeddings) > 0
+        assert hasattr(all_embeddings[0], 'embedding')
+        assert hasattr(all_embeddings[0], 'chunk')
+
+        # Test 2: Access embeddings through relationship
+        blog_post = session.query(BlogPost).first()
+        assert blog_post is not None
+        # Get embeddings for this post
+        post_embeddings = blog_post.content_embeddings
+        assert len(post_embeddings) > 0
+        assert hasattr(post_embeddings[0], 'embedding')
+
+        # Test 3: Navigate from embedding back to parent
+        embedding = session.query(EmbeddingClass).first()
+        assert embedding.parent.id == blog_post.id
+        assert embedding.parent.title == blog_post.title
+
+        # Test 4: Semantic search functionality
+        from sqlalchemy import func
+
+        # Search for content similar to "artificial intelligence"
+        similar_embeddings = (
+            session.query(BlogPost.content_embeddings)
+            .order_by(
+                BlogPost.content_embeddings.embedding.cosine_distance(
+                    func.ai.openai_embed(
+                        'text-embedding-3-small',
+                        'artificial intelligence',
+                        text('dimensions => 768')
+                    )
+                )
+            )
+            .limit(2)
+            .all()
+        )
+
+        assert len(similar_embeddings) > 0
+        # The ML post should be most similar to "artificial intelligence"
+        assert "Machine learning" in similar_embeddings[0].parent.content
+
+        # Test 5: Join query example
+        # Find all blog posts with their embeddings where title contains "Python"
+        python_posts = (
+            session.query(BlogPost, EmbeddingClass)
+            .join(EmbeddingClass, BlogPost.id == EmbeddingClass.id)
+            .filter(BlogPost.title.ilike('%Python%'))
+            .all()
+        )
+
+        assert len(python_posts) > 0
+        post, embedding = python_posts[0]
+        assert "Python" in post.title
+        assert hasattr(embedding, 'embedding')
+
+        # Print some results for visualization
+        print("\nTest Results Summary:")
+        print(f"Total embeddings: {len(all_embeddings)}")
+        print(f"Embeddings for first post: {len(post_embeddings)}")
+        print("\nSemantic Search Results for 'artificial intelligence':")
+        for emb in similar_embeddings:
+            print(f"- Post: {emb.parent.title}")
+            print(f"  Chunk: {emb.chunk}")
 
 
