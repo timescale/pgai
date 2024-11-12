@@ -67,5 +67,5 @@ def postgres_container():
         password="my-password",
         dbname="tsdb",
         driver=None,
-    ) as postgres:
+    ).with_env("OPENAI_API_KEY", os.environ["OPENAI_API_KEY"]) as postgres:
         yield postgres
