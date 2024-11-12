@@ -201,6 +201,7 @@ def test_vectorizer_timescaledb():
                 , title text not null
                 , published timestamptz
                 , body text not null
+                , drop_me text
                 , primary key (title, published)
                 )
             """)
@@ -215,6 +216,9 @@ def test_vectorizer_timescaledb():
                 , ('how to make a sandwich', '2023-01-06'::timestamptz, 'put a slice of meat between two pieces of bread')
                 , ('how to make stir fry', '2022-01-06'::timestamptz, 'pick up the phone and order takeout')
             """)
+
+            # drop the drop_me column
+            cur.execute("alter table website.blog drop column drop_me")
 
             # create a vectorizer for the blog table
             # language=PostgreSQL
