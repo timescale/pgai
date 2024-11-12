@@ -217,7 +217,7 @@ View definition:
     format('%I.%I'::text, target_schema, target_table) AS target_table,
     format('%I.%I'::text, view_schema, view_name) AS view,
         CASE
-            WHEN queue_table IS NOT NULL THEN ai.vectorizer_queue_pending(id)
+            WHEN queue_table IS NOT NULL AND has_table_privilege(CURRENT_USER, format('%I.%I'::text, queue_schema, queue_table), 'select'::text) THEN ai.vectorizer_queue_pending(id)
             ELSE 0::bigint
         END AS pending_items
    FROM ai.vectorizer v;

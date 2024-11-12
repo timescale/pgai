@@ -543,8 +543,13 @@ select
 , pg_catalog.format('%I.%I', v.source_schema, v.source_table) as source_table
 , pg_catalog.format('%I.%I', v.target_schema, v.target_table) as target_table
 , pg_catalog.format('%I.%I', v.view_schema, v.view_name) as "view"
-, case when v.queue_table is not null then
-    ai.vectorizer_queue_pending(v.id)
+, case when v.queue_table is not null and
+    pg_catalog.has_table_privilege
+    ( current_user
+    , pg_catalog.format('%I.%I', v.queue_schema, v.queue_table)
+    , 'select'
+    )
+    then ai.vectorizer_queue_pending(v.id)
   else 0
   end as pending_items
 from ai.vectorizer v
