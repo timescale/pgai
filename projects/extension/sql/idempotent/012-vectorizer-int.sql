@@ -229,6 +229,7 @@ begin
         left outer join pg_catalog.jsonb_to_recordset(source_pk) x(attnum int) on (a.attnum operator(pg_catalog.=) x.attnum)
         where a.attrelid operator(pg_catalog.=) pg_catalog.format('%I.%I', source_schema, source_table)::regclass::oid
         and a.attnum operator(pg_catalog.>) 0
+        and not a.attisdropped
       )
     , target_schema, target_table
     , source_schema, source_table
