@@ -44,7 +44,9 @@ returns table
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
-    for tup in ai.openai.list_models(plpy, api_key, api_key_name, base_url):
+    import ai.secrets
+    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
+    for tup in ai.openai.list_models(plpy, api_key_resolved, base_url):
         yield tup
 $python$
 language plpython3u volatile parallel safe security invoker
@@ -67,7 +69,9 @@ create or replace function ai.openai_embed
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
-    for tup in ai.openai.embed(plpy, model, input_text, api_key=api_key, api_key_name=api_key_name, base_url=base_url, dimensions=dimensions, user=openai_user):
+    import ai.secrets
+    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
+    for tup in ai.openai.embed(plpy, model, input_text, api_key=api_key_resolved, base_url=base_url, dimensions=dimensions, user=openai_user):
         return tup[1]
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -93,7 +97,9 @@ create or replace function ai.openai_embed
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
-    for tup in ai.openai.embed(plpy, model, input_texts, api_key=api_key, api_key_name=api_key_name, base_url=base_url, dimensions=dimensions, user=openai_user):
+    import ai.secrets
+    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
+    for tup in ai.openai.embed(plpy, model, input_texts, api_key=api_key_resolved, base_url=base_url, dimensions=dimensions, user=openai_user):
         yield tup
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -116,7 +122,9 @@ create or replace function ai.openai_embed
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
-    for tup in ai.openai.embed(plpy, model, input_tokens, api_key=api_key, api_key_name=api_key_name, base_url=base_url, dimensions=dimensions, user=openai_user):
+    import ai.secrets
+    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
+    for tup in ai.openai.embed(plpy, model, input_tokens, api_key=api_key_resolved, base_url=base_url, dimensions=dimensions, user=openai_user):
         return tup[1]
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -152,7 +160,9 @@ create or replace function ai.openai_chat_complete
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
-    client = ai.openai.make_client(plpy, api_key, api_key_name, base_url)
+    import ai.secrets
+    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
+    client = ai.openai.make_client(plpy, api_key_resolved, base_url)
     import json
 
     messages_1 = json.loads(messages)
@@ -243,7 +253,9 @@ create or replace function ai.openai_moderate
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
-    client = ai.openai.make_client(plpy, api_key, api_key_name, base_url)
+    import ai.secrets
+    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
+    client = ai.openai.make_client(plpy, api_key_resolved, base_url)
     moderation = client.moderations.create(input=input_text, model=model)
     return moderation.model_dump_json()
 $python$

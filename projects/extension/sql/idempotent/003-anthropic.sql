@@ -22,7 +22,9 @@ create or replace function ai.anthropic_generate
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.anthropic
-    client = ai.anthropic.make_client(plpy, api_key=api_key, api_key_name=api_key_name, base_url=base_url, timeout=timeout, max_retries=max_retries)
+    import ai.secrets
+    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.anthropic.DEFAULT_KEY_NAME, SD)
+    client = ai.anthropic.make_client(plpy, api_key=api_key_resolved, base_url=base_url, timeout=timeout, max_retries=max_retries)
 
     import json
     messages_1 = json.loads(messages)

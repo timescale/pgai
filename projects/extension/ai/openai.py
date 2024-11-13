@@ -1,18 +1,8 @@
 import openai
 from datetime import datetime
 from typing import Optional, Generator, Union
-from .secrets import reveal_secret
 
-
-def get_openai_api_key(plpy, api_key_name: Optional[str] = None) -> str:
-    if api_key_name is None:
-        api_key_name = "OPENAI_API_KEY"
-    key = reveal_secret(plpy, api_key_name)
-    if key is None:
-        plpy.error(f"missing {api_key_name} secret")
-        # This line should never be reached, but it's here to make the type checker happy.
-        return ""
-    return key
+DEFAULT_KEY_NAME = "OPENAI_API_KEY"
 
 
 def get_openai_base_url(plpy) -> Optional[str]:
@@ -26,12 +16,9 @@ def get_openai_base_url(plpy) -> Optional[str]:
 
 def make_client(
     plpy,
-    api_key: Optional[str] = None,
-    api_key_name: Optional[str] = None,
+    api_key: str,
     base_url: Optional[str] = None,
 ) -> openai.Client:
-    if api_key is None:
-        api_key = get_openai_api_key(plpy, api_key_name)
     if base_url is None:
         base_url = get_openai_base_url(plpy)
     return openai.Client(api_key=api_key, base_url=base_url)
@@ -39,11 +26,10 @@ def make_client(
 
 def list_models(
     plpy,
-    api_key: Optional[str] = None,
-    api_key_name: Optional[str] = None,
+    api_key: str,
     base_url: Optional[str] = None,
 ) -> Generator[tuple[str, datetime, str], None, None]:
-    client = make_client(plpy, api_key, api_key_name, base_url)
+    client = make_client(plpy, api_key, base_url)
     from datetime import datetime, timezone
 
     for model in client.models.list():
@@ -55,13 +41,12 @@ def embed(
     plpy,
     model: str,
     input: Union[str, list[str], list[int]],
-    api_key: Optional[str] = None,
-    api_key_name: Optional[str] = None,
+    api_key: str,
     base_url: Optional[str] = None,
     dimensions: Optional[int] = None,
     user: Optional[str] = None,
 ) -> Generator[tuple[int, list[float]], None, None]:
-    client = make_client(plpy, api_key, api_key_name, base_url)
+    client = make_client(plpy, api_key, base_url)
     args = {}
     if dimensions is not None:
         args["dimensions"] = dimensions

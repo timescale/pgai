@@ -50,8 +50,9 @@ def execute_vectorizer(plpy, vectorizer_id: int) -> None:
     plpy.debug(f"posting execution request to {the_url}")
 
     def on_backoff(detail: Details):
+        wait = detail.get("wait", 0)
         plpy.warning(
-            f"{vectorizer_id} retry: {detail['tries']} elapsed: {detail['elapsed']} wait: {detail['wait']}..."
+            f"{vectorizer_id} retry: {detail['tries']} elapsed: {detail['elapsed']} wait: {wait}..."
         )
 
     @backoff.on_exception(

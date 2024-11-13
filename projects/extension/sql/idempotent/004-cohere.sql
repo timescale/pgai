@@ -18,7 +18,9 @@ returns table
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
-    client = ai.cohere.make_client(plpy, api_key, api_key_name)
+    import ai.secrets
+    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
+    client = ai.cohere.make_client(plpy, api_key_resolved)
 
     args = {}
     if endpoint is not None:
@@ -45,7 +47,9 @@ create or replace function ai.cohere_tokenize(model text, text_input text, api_k
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
-    client = ai.cohere.make_client(plpy, api_key, api_key_name)
+    import ai.secrets
+    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
+    client = ai.cohere.make_client(plpy, api_key_resolved)
 
     response = client.tokenize(text=text_input, model=model)
     return response.tokens
@@ -61,7 +65,9 @@ create or replace function ai.cohere_detokenize(model text, tokens int[], api_ke
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
-    client = ai.cohere.make_client(plpy, api_key, api_key_name)
+    import ai.secrets
+    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
+    client = ai.cohere.make_client(plpy, api_key_resolved)
 
     response = client.detokenize(tokens=tokens, model=model)
     return response.text
@@ -84,7 +90,9 @@ create or replace function ai.cohere_embed
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
-    client = ai.cohere.make_client(plpy, api_key, api_key_name)
+    import ai.secrets
+    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
+    client = ai.cohere.make_client(plpy, api_key_resolved)
 
     args={}
     if input_type is not None:
@@ -112,7 +120,9 @@ create or replace function ai.cohere_classify
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
-    client = ai.cohere.make_client(plpy, api_key, api_key_name)
+    import ai.secrets
+    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
+    client = ai.cohere.make_client(plpy, api_key_resolved)
 
     import json
     args = {}
@@ -146,7 +156,10 @@ create or replace function ai.cohere_classify_simple
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
-    client = ai.cohere.make_client(plpy, api_key, api_key_name)
+    import ai.secrets
+    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
+    client = ai.cohere.make_client(plpy, api_key_resolved)
+
     import json
     args = {}
     if examples is not None:
@@ -178,7 +191,10 @@ create or replace function ai.cohere_rerank
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
-    client = ai.cohere.make_client(plpy, api_key, api_key_name)
+    import ai.secrets
+    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
+    client = ai.cohere.make_client(plpy, api_key_resolved)
+
     import json
     args = {}
     if top_n is not None:
@@ -263,7 +279,9 @@ create or replace function ai.cohere_chat_complete
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
-    client = ai.cohere.make_client(plpy, api_key, api_key_name)
+    import ai.secrets
+    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
+    client = ai.cohere.make_client(plpy, api_key_resolved)
 
     import json
     args = {}
