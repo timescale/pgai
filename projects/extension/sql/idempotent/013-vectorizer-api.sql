@@ -367,7 +367,10 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- drop_vectorizer
-create or replace function ai.drop_vectorizer(vectorizer_id int) returns void
+create or replace function ai.drop_vectorizer
+( vectorizer_id int
+, drop_all boolean default false
+) returns void
 as $func$
 /* drop_vectorizer
 This function does the following:
@@ -377,7 +380,7 @@ This function does the following:
 4. drops the queue table
 5. deletes the vectorizer row
 
-It does NOT:
+UNLESS drop_all = true, it does NOT:
 1. drop the target table containing the embeddings
 2. drop the view joining the target and source
 */
@@ -418,7 +421,7 @@ begin
                 inner join pg_catalog.pg_namespace n on (x.extnamespace operator(pg_catalog.=) n.oid)
                 where x.extname operator(pg_catalog.=) 'timescaledb'
                 ;
-                if _sql is not null then
+                if found then
                     execute _sql;
                 end if;
         end case;
@@ -483,16 +486,27 @@ begin
 
     -- drop the queue table if exists
     select pg_catalog.format
-    ( $sql$drop table %I.%I$sql$
-    , n.nspname
-    , k.relname
-    ) into _sql
-    from pg_catalog.pg_class k
-    inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
-    where k.relname operator(pg_catalog.=) _vec.queue_table
-    and n.nspname operator(pg_catalog.=) _vec.queue_schema
-    ;
-    if found then
+    ( $sql$drop table if exists %I.%I$sql$
+    , _vec.queue_schema
+    , _vec.queue_table
+    ) into strict _sql;
+    execute _sql;
+
+    if drop_all then
+        -- drop the view if exists
+        select pg_catalog.format
+        ( $sql$drop view if exists %I.%I$sql$
+        , _vec.view_schema
+        , _vec.view_name
+        ) into strict _sql;
+        execute _sql;
+
+        -- drop the target table if exists
+        select pg_catalog.format
+        ( $sql$drop table if exists %I.%I$sql$
+        , _vec.target_schema
+        , _vec.target_table
+        ) into strict _sql;
         execute _sql;
     end if;
 
