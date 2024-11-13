@@ -26,6 +26,7 @@ dependencies = [
     "pytimeparse>=1.1,<2.0",
     "sqlalchemy>=2.0.36",
     "psycopg2>=2.9.10",
+    "alembic>=1.14.0",
 ]
 classifiers = [
     "License :: OSI Approved :: PostgreSQL License",
