@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 from urllib.parse import urljoin
 
 import backoff
@@ -9,6 +10,39 @@ GUC_SECRETS_MANAGER_URL = "ai.external_functions_executor_url"
 GUC_SECRET_ENV_ENABLED = "ai.secret_env_enabled"
 
 DEFAULT_SECRETS_MANAGER_PATH = "/api/v1/projects/secrets"
+
+
+def _cache_key(secret_name: str) -> str:
+    return f"secret.{secret_name}"
+
+
+def remove_secret_from_cache(sd_cache: dict[str, str], secret_name: str):
+    sd_cache.pop(_cache_key(secret_name), None)
+
+
+def get_api_key(
+    plpy,
+    api_key: Optional[str],
+    api_key_name: Optional[str],
+    api_key_name_default: str,
+    sd_cache: Optional[dict[str, str]],
+) -> str:
+    if api_key is not None:
+        return api_key
+
+    if api_key_name is None:
+        api_key_name = api_key_name_default
+
+    if api_key_name is None or api_key_name == "":
+        plpy.error("api_key_name is required")
+
+    key = reveal_secret(plpy, api_key_name, sd_cache)
+    if key is None:
+        plpy.error(f"missing {api_key_name} secret")
+        # This line should never be reached, but it's here to make the type checker happy.
+        return ""
+
+    return key
 
 
 def get_guc_value(plpy, setting: str, default: str) -> str:
@@ -48,7 +82,23 @@ def check_secret_permissions(plpy, secret_name: str) -> bool:
     return len(result) > 0
 
 
-def reveal_secret(plpy, secret_name: str) -> str | None:
+def reveal_secret(
+    plpy, secret_name: str, sd_cache: Optional[dict[str, str]]
+) -> str | None:
+    cache_key = _cache_key(secret_name)
+    if sd_cache is not None:
+        key = sd_cache.get(cache_key, None)
+        if key is not None:
+            return key
+
+    key = _reveal_secret_no_cache(plpy, secret_name)
+    if key is not None and sd_cache is not None:
+        sd_cache[cache_key] = key
+
+    return key
+
+
+def _reveal_secret_no_cache(plpy, secret_name: str) -> str | None:
     # first try the guc, then the secrets manager, then error
     secret_name_lower = secret_name.lower()
     secret = get_guc_value(plpy, f"ai.{secret_name_lower}", "")
@@ -89,8 +139,9 @@ def fetch_secret(plpy, secret_name: str) -> str | None:
     plpy.debug(f"executing secret reveal request to {the_url}")
 
     def on_backoff(detail: Details):
+        wait = detail.get("wait", 0)
         plpy.warning(
-            f"reveal secret '{secret_name}' retry: {detail['tries']} elapsed: {detail['elapsed']} wait: {detail['wait']}..."
+            f"reveal secret '{secret_name}' retry: {detail['tries']} elapsed: {detail['elapsed']} wait: {wait}..."
         )
 
     @backoff.on_exception(

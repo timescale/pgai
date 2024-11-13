@@ -103,3 +103,45 @@ def test_reveal_secrets():
                     cur.execute(query)
                     actual = cur.fetchone()[0]
                     assert actual == expected
+
+
+def test_reveal_secret_cache():
+    with psycopg.connect(db_url("test")) as con:
+        with con.cursor() as cur:
+            # enable cache, and populate it
+            cur.execute(
+                "SET ai.external_functions_executor_url='http://localhost:8000'"
+            )
+            cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
+            actual = cur.fetchone()[0]
+            assert actual == "test"
+
+            cur.execute("select ai.reveal_secret('OPENAI_API_KEY_2')")
+            actual = cur.fetchone()[0]
+            assert actual == "test"
+
+            # disable fetching the secret from the executor, so returned value can only come from cache
+            cur.execute("SET ai.external_functions_executor_url=''")
+            # cache works
+            cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
+            actual = cur.fetchone()[0]
+            assert actual == "test"
+
+            cur.execute("select ai.reveal_secret('OPENAI_API_KEY_2')")
+            actual = cur.fetchone()[0]
+            assert actual == "test"
+
+            # disable cache, this call will return None since we broke the executor url
+            cur.execute("select ai.reveal_secret('OPENAI_API_KEY', false)")
+            actual = cur.fetchone()[0]
+            assert actual is None
+
+            # make sure disabling the cache also removes the secret from the cache
+            cur.execute("select ai.reveal_secret('OPENAI_API_KEY', true)")
+            actual = cur.fetchone()[0]
+            assert actual is None
+
+            # but the other secret is still in the cache
+            cur.execute("select ai.reveal_secret('OPENAI_API_KEY_2', true)")
+            actual = cur.fetchone()[0]
+            assert actual == "test"

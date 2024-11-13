@@ -15,3 +15,4 @@ drop function if exists ai.cohere_list_models(text,text,boolean);
 drop function if exists ai.cohere_rerank_simple(text,text,jsonb,text,integer,integer);
 drop function if exists ai.cohere_rerank(text,text,jsonb,text,integer,text[],boolean,integer);
 drop function if exists ai.cohere_tokenize(text,text,text);
+drop function if exists ai.reveal_secret(text);

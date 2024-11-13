@@ -49,7 +49,7 @@ CREATE EXTENSION
  function ai.processing_default(integer,integer)
  function ai._resolve_indexing_default()
  function ai._resolve_scheduling_default()
- function ai.reveal_secret(text)
+ function ai.reveal_secret(text,boolean)
  function ai.revoke_secret(text,text)
  function ai.scheduling_default()
  function ai.scheduling_none()

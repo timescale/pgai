@@ -1,10 +1,14 @@
 -------------------------------------------------------------------------------
 -- reveal_secret
-create or replace function ai.reveal_secret(secret_name text) returns text
+create or replace function ai.reveal_secret(secret_name text, use_cache boolean default true) returns text
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.secrets
-    return ai.secrets.reveal_secret(plpy, secret_name)
+    if use_cache:
+        return ai.secrets.reveal_secret(plpy, secret_name, SD)
+    else:
+        ai.secrets.remove_secret_from_cache(SD, secret_name)
+        return ai.secrets.reveal_secret(plpy, secret_name, None)
 $python$
 language plpython3u stable security invoker
 set search_path to pg_catalog, pg_temp;
