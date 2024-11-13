@@ -607,6 +607,135 @@ def test_drop_vectorizer():
             assert actual == 0
 
 
+def test_drop_all_vectorizer():
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("drop table if exists drop_me")
+            cur.execute("""
+                create table drop_me
+                ( id serial not null primary key
+                , content text not null
+                )
+            """)
+            cur.execute("""
+                insert into drop_me(content)
+                values ('put it on a hot grill')
+            """)
+
+            # create a vectorizer for the blog table
+            # language=PostgreSQL
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'drop_me'::regclass
+            , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
+            , chunking=>ai.chunking_character_text_splitter('content', 128, 10)
+            , scheduling=>ai.scheduling_timescaledb()
+            , grant_to=>null
+            );
+            """)
+            vectorizer_id = cur.fetchone()[0]
+
+            cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
+            vectorizer = cur.fetchone()
+
+            # does the target table exist? (it should)
+            cur.execute(
+                f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null"
+            )
+            actual = cur.fetchone()[0]
+            assert actual is True
+
+            # does the queue table exist? (it should)
+            cur.execute(
+                f"select to_regclass('{vectorizer.queue_schema}.{vectorizer.queue_table}') is not null"
+            )
+            actual = cur.fetchone()[0]
+            assert actual is True
+
+            # does the view exist? (it should)
+            cur.execute(
+                f"select to_regclass('{vectorizer.view_schema}.{vectorizer.view_name}') is not null"
+            )
+            actual = cur.fetchone()[0]
+            assert actual is True
+
+            # do the trigger and backing function exist? (it should)
+            cur.execute(f"""
+                select g.tgfoid
+                from pg_trigger g
+                where g.tgname = '{vectorizer.trigger_name}'
+                and g.tgrelid = '{vectorizer.source_schema}.{vectorizer.source_table}'::regclass::oid
+                ;
+            """)
+            assert cur.rownumber is not None
+            pg_proc_oid = cur.fetchone()[0]
+
+            # drop the vectorizer with drop_all=>true
+            cur.execute(
+                "select ai.drop_vectorizer(%s, drop_all=>true)", (vectorizer_id,)
+            )
+
+            # does the target table exist? (it should NOT)
+            cur.execute(
+                f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null"
+            )
+            actual = cur.fetchone()[0]
+            assert actual is False
+
+            # does the queue table exist? (it should NOT)
+            cur.execute(
+                f"select to_regclass('{vectorizer.queue_schema}.{vectorizer.queue_table}') is not null"
+            )
+            actual = cur.fetchone()[0]
+            assert actual is False
+
+            # does the view exist? (it should NOT)
+            cur.execute(
+                f"select to_regclass('{vectorizer.view_schema}.{vectorizer.view_name}') is not null"
+            )
+            actual = cur.fetchone()[0]
+            assert actual is False
+
+            # does the trigger exist? (it should not)
+            cur.execute(f"""
+                select count(*)
+                from pg_trigger g
+                where g.tgname = '{vectorizer.trigger_name}'
+                and g.tgrelid = '{vectorizer.source_schema}.{vectorizer.source_table}'::regclass::oid
+                ;
+            """)
+            actual = cur.fetchone()[0]
+            assert actual == 0
+
+            # does the func that backed the trigger exist? (it should not)
+            cur.execute(
+                """
+                select count(*)
+                from pg_proc
+                where oid = %s
+            """,
+                (pg_proc_oid,),
+            )
+            actual = cur.fetchone()[0]
+            assert actual == 0
+
+            # does the timescaledb job exist? (it should not)
+            cur.execute(
+                """
+                select count(*)
+                from timescaledb_information.jobs
+                where job_id = %s
+            """,
+                (vectorizer.config["scheduling"]["job_id"],),
+            )
+            actual = cur.fetchone()[0]
+            assert actual == 0
+
+
 def test_drop_source():
     with psycopg.connect(
         db_url("test"), autocommit=True, row_factory=namedtuple_row

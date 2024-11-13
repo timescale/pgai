@@ -19,7 +19,7 @@ CREATE EXTENSION
  function ai.cohere_tokenize(text,text,text,text)
  function ai.create_vectorizer(regclass,name,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name,name,name,name,name[],boolean)
  function ai.disable_vectorizer_schedule(integer)
- function ai.drop_vectorizer(integer)
+ function ai.drop_vectorizer(integer,boolean)
  function ai.embedding_openai(text,integer,text,text)
  function ai.enable_vectorizer_schedule(integer)
  function ai.execute_vectorizer(integer)

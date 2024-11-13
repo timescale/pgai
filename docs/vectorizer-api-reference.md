@@ -858,10 +858,13 @@ You use `ai.drop_vectorizer` to:
 - Drops the queue table used to manage the updates to be processed.
 - Deletes the vectorizer row from the `ai.vectorizer` table.
 
-`ai.drop_vectorizer` does not:
+By default, `ai.drop_vectorizer` does not:
 
 - Drop the target table containing the embeddings.
 - Drop the view joining the target and source tables.
+
+There is an optional parameter named `drop_all` which is `false` by default. If you
+explicitly pass `true`, the function WILL drop the target table and view.
 
 This design allows you to keep the generated embeddings and the convenient view
 even after dropping the vectorizer. This is useful if you want to stop
@@ -878,35 +881,18 @@ Best practices are:
 
 
 Examples: 
-- Remove the vectorizer with ID 1 and clean up its associated resources:
+- Remove the vectorizer with ID 1:
 
   ```sql
   -- Assuming we have a vectorizer with ID 1
   SELECT ai.drop_vectorizer(1);
   ```
 
-- Vectorizer reconfiguration: when you want to significantly change the configuration of a vectorizer, it's often easier to drop the old one and create a new one.
+- Remove the vectorizer with ID 1 and drop the target table and view as well:
 
   ```sql
-  -- Drop the old vectorizer
-  SELECT ai.drop_vectorizer(old_vectorizer_id);
- 
-  -- Drop the data
-  DROP VIEW my_table_embedding;
-  DROP TABLE my_table_embedding_store;
-  
-  -- Create a new vectorizer with different configuration
-  SELECT ai.create_vectorizer(
-      'my_table'::regclass,
-      embedding => ai.embedding_openai('text-embedding-3-large', 1536),  -- Using a different model
-      chunking => ai.chunking_character_text_splitter('content', 256, 20),  -- Different chunking
-      -- other parameters...
-  );
+  SELECT ai.drop_vectorizer(1, drop_all=>true);
   ```
-
-- Cleanup: when a table or feature is no longer needed, you can remove its associated vectorizer.
-
-- Resource management: if you need to free up resources such as scheduled job slots, you might drop vectorizers that are no longer actively used.
 
 #### Parameters
 
@@ -915,6 +901,7 @@ Examples:
 |Name| Type | Default | Required | Description |
 |-|------|-|-|-|
 |vectorizer_id| int  | -|✔|The identifier of the vectorizer you want to drop|
+|drop_all| bool | false |✖|true to drop the target table and view as well|
 
 #### Returns
 
