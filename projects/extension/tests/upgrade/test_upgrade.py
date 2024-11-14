@@ -85,6 +85,20 @@ def check_version(
             return cur.fetchone()[0]
 
 
+def init(dbname: str) -> None:
+    cmd = " ".join(
+        [
+            "psql",
+            f'''-d "{db_url(USER, dbname)}"''',
+            "-v ON_ERROR_STOP=1",
+            f"-f {docker_dir()}/init.sql",
+        ]
+    )
+    if where_am_i() != "docker":
+        cmd = f"docker exec -w {docker_dir()} pgai-ext {cmd}"
+    subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
+
+
 def snapshot(dbname: str, name: str) -> None:
     cmd = " ".join(
         [
@@ -126,11 +140,13 @@ def test_upgrades():
         create_database("upgrade_target")
         create_extension("upgrade_target", path.target)
         assert check_version("upgrade_target") == path.target
+        init("upgrade_target")
         snapshot("upgrade_target", f"{path_name}-expected")
         # start at the first version in the path
         create_database("upgrade_path")
         create_extension("upgrade_path", path.path[0])
         assert check_version("upgrade_path") == path.path[0]
+        init("upgrade_path")
         # upgrade through each version to the end
         for version in path.path[1:]:
             update_extension("upgrade_path", version)
@@ -186,6 +202,7 @@ def test_production_version_upgrade_path():
     # start at the first version
     create_extension("upgrade0", versions[0])
     assert check_version("upgrade0") == versions[0]
+    init("upgrade0")
     # upgrade through each version to the end
     for version in versions[1:]:
         update_extension("upgrade0", version)
@@ -196,6 +213,7 @@ def test_production_version_upgrade_path():
     create_database("upgrade1")
     create_extension("upgrade1", versions[-1])
     assert check_version("upgrade1") == versions[-1]
+    init("upgrade1")
     # snapshot the ai extension and schema
     snapshot("upgrade1", "upgrade1")
     # compare the snapshots. they should match
