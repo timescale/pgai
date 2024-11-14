@@ -45,7 +45,7 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
-    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
     for tup in ai.openai.list_models(plpy, api_key_resolved, base_url):
         yield tup
 $python$
@@ -70,7 +70,7 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
-    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
     for tup in ai.openai.embed(plpy, model, input_text, api_key=api_key_resolved, base_url=base_url, dimensions=dimensions, user=openai_user):
         return tup[1]
 $python$
@@ -98,7 +98,7 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
-    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
     for tup in ai.openai.embed(plpy, model, input_texts, api_key=api_key_resolved, base_url=base_url, dimensions=dimensions, user=openai_user):
         yield tup
 $python$
@@ -123,7 +123,7 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
-    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
     for tup in ai.openai.embed(plpy, model, input_tokens, api_key=api_key_resolved, base_url=base_url, dimensions=dimensions, user=openai_user):
         return tup[1]
 $python$
@@ -161,7 +161,7 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
-    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
     client = ai.openai.make_client(plpy, api_key_resolved, base_url)
     import json
 
@@ -254,7 +254,7 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
-    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
     client = ai.openai.make_client(plpy, api_key_resolved, base_url)
     moderation = client.moderations.create(input=input_text, model=model)
     return moderation.model_dump_json()
