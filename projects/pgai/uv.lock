@@ -831,6 +831,18 @@ wheels = [
 ]
 
 [[package]]
+name = "ollama"
+version = "0.3.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a6/8e/60a9b065eb796ef3996451cbe2d8044f6b030696166693b9805ae33b8b4c/ollama-0.3.3.tar.gz", hash = "sha256:f90a6d61803117f40b0e8ff17465cab5e1eb24758a473cfe8101aff38bc13b51", size = 10390 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6a/ca/d22905ac3f768523f778189d38c9c6cd9edf4fa9dd09cb5a3fc57b184f90/ollama-0.3.3-py3-none-any.whl", hash = "sha256:ca6242ce78ab34758082b7392df3f9f6c2cb1d070a9dede1a4c545c929e16dba", size = 10267 },
+]
+
+[[package]]
 name = "openai"
 version = "1.53.0"
 source = { registry = "https://pypi.org/simple" }
@@ -925,6 +937,7 @@ dependencies = [
     { name = "datadog-lambda" },
     { name = "langchain-openai" },
     { name = "langchain-text-splitters" },
+    { name = "ollama" },
     { name = "openai" },
     { name = "pgvector" },
     { name = "psycopg", extra = ["binary"] },
@@ -955,6 +968,7 @@ requires-dist = [
     { name = "datadog-lambda", specifier = ">=6.9,<7.0" },
     { name = "langchain-openai", specifier = ">=0.1,<1.0" },
     { name = "langchain-text-splitters", specifier = ">=0.2,<1.0" },
+    { name = "ollama", specifier = ">=0.3.3,<0.4.0" },
     { name = "openai", specifier = ">=1.44,<2.0" },
     { name = "pgvector", specifier = ">=0.3,<1.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2,<4.0" },
