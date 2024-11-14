@@ -124,7 +124,7 @@ declare
     _migration_body text =
 $migration_body$
 create table ai._secret_permissions
-(
+( 
   name text not null check(name = '*' or name ~ '^[A-Za-z0-9_.]+$')
 , "role" text not null
 , primary key (name, "role")
@@ -2774,11 +2774,11 @@ begin
             raise warning 'one or more grant_to roles do not exist: %', _missing_roles;
         end if;
     end if;
-
+    
     if embedding is null then
         raise exception 'embedding configuration is required';
     end if;
-
+    
     if chunking is null then
         raise exception 'chunking configuration is required';
     end if;
@@ -3257,9 +3257,9 @@ set search_path to pg_catalog, pg_temp;
 
 
 create or replace view ai.secret_permissions as
-SELECT *
+SELECT * 
 FROM ai._secret_permissions
-WHERE pg_catalog.to_regrole("role") is not null
+WHERE pg_catalog.to_regrole("role") is not null 
       AND pg_catalog.pg_has_role(current_user, "role", 'member');
 
 create or replace function ai.grant_secret(secret_name text, grant_to_role text) returns void
@@ -3374,7 +3374,7 @@ begin
         raise debug '%', _sql;
         execute _sql;
     end loop;
-
+    
     -- secret permissions
     if admin then
         -- grant access to all secrets to admin users
