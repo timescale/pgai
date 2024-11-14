@@ -13,6 +13,7 @@ if enable_upgrade_tests == "0":
 
 
 USER = "marianne"  # NOT a superuser
+OTHER_USER = "vera"  # NOT a superuser
 
 
 UpgradePath = namedtuple("UpgradePath", ["source", "target", "path"])
@@ -36,7 +37,7 @@ def host_dir() -> Path:
     return Path(__file__).parent.absolute()
 
 
-def create_user() -> None:
+def create_user(user: str) -> None:
     with psycopg.connect(
         db_url(user="postgres", dbname="postgres"), autocommit=True
     ) as con:
@@ -47,11 +48,11 @@ def create_user() -> None:
                 from pg_catalog.pg_roles
                 where rolname = %s
             """,
-                (USER,),
+                (user,),
             )
             exists: bool = cur.fetchone()[0]
             if not exists:
-                cur.execute(f"create user {USER}")  # NOT a superuser
+                cur.execute(f"create user {user}")  # NOT a superuser
 
 
 def create_database(dbname: str) -> None:
@@ -116,7 +117,8 @@ def fetch_upgrade_paths(dbname: str) -> list[UpgradePath]:
 
 
 def test_upgrades():
-    create_user()
+    create_user(USER)
+    create_user(OTHER_USER)
     paths = fetch_upgrade_paths("postgres")
     for path in paths:
         path_name = "--".join(path.path)
@@ -177,7 +179,8 @@ def fetch_versions(dbname: str) -> list[str]:
 
 
 def test_production_version_upgrade_path():
-    create_user()
+    create_user(USER)
+    create_user(OTHER_USER)
     create_database("upgrade0")
     versions = fetch_versions("upgrade0")
     # start at the first version
