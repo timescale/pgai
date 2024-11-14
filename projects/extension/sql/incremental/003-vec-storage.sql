@@ -4,8 +4,6 @@ do language plpgsql $block$
 declare
     _sql pg_catalog.text;
 begin
-    set local search_path = pg_catalog, pg_temp;
-
     for _sql in
     (
         select pg_catalog.format
@@ -24,8 +22,6 @@ begin
     loop
         raise info '%', _sql;
         execute _sql;
-        commit;
-        set local search_path = pg_catalog, pg_temp;
     end loop;
 end;
 $block$;
