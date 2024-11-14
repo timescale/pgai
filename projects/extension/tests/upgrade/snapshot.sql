@@ -14,3 +14,21 @@ order by applied_at
 select *
 from ai._secret_permissions
 ;
+
+select
+  id
+, source_schema
+, source_table
+, source_pk
+, target_schema
+, target_table
+, view_schema
+, view_name
+, trigger_name
+, queue_schema
+, queue_table
+, config - 'version' as config
+from ai.vectorizer
+;
+
+\d+ wiki.*
