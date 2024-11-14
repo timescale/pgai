@@ -103,7 +103,7 @@ create and manage all the necessary database objects and processes. For example:
 ```sql
 SELECT ai.create_vectorizer(
     'website.blog'::regclass,
-    embedding => ai.embedding_openai('text-embedding-3-small', 768),
+    embedding => ai.embedding_ollama('nomic-embed-text', 768),
     chunking => ai.chunking_character_text_splitter('body', 128, 10),
     formatting => ai.formatting_python_template('title: $title published: $published $chunk'),
     grant_to => ai.grant_to('bob', 'alice')
@@ -112,7 +112,7 @@ SELECT ai.create_vectorizer(
 
 This function call:
 1. Sets up a vectorizer for the `website.blog` table.
-2. Uses OpenAI's `text-embedding-3-small` model to create 768 dimensional embeddings.
+2. Uses the Ollama `nomic-embed-text` model to create 768 dimensional embeddings.
 3. Chunks the `body` column into 128-character pieces with a 10-character overlap.
 4. Formats each chunk with a `title` and a `published` date.
 5. Grants necessary permissions to the roles `bob` and `alice`.
@@ -128,7 +128,7 @@ in other management functions.
 |------------------|--------------------------------------------------------|-----------------------------------|----------|----------------------------------------------------------------------------------------------------|
 | source           | regclass                                               | -                                 | ✔        | The source table that embeddings are generated for.                                                |
 | destination      | name                                                   | -                                 | ✖        | A name for the table the embeddings are stored in.                                                 |
-| embedding        | [Embedding configuration](#embedding-configuration)    | -                                 | ✔        | Set the embedding process using `ai.embedding_openai()` to specify the model and dimensions.       |
+| embedding        | [Embedding configuration](#embedding-configuration)    | -                                 | ✔        | Set how to embed the data.                                                                         |
 | chunking         | [Chunking configuration](#chunking-configuration)      | -                                 | ✔        | Set the way to split text data, using functions like `ai.chunking_character_text_splitter()`.      |
 | indexing         | [Indexing configuration](#indexing-configuration)      | `ai.indexing_default()`           | ✖        | Specify how to index the embeddings. For example, `ai.indexing_diskann()` or `ai.indexing_hnsw()`. |
 | formatting       | [Formatting configuration](#formatting-configuration)  | `ai.formatting_python_template()` | ✖        | Define the data format before embedding, using `ai.formatting_python_template()`.                  |
@@ -246,8 +246,17 @@ A JSON configuration object that you can use in [ai.create_vectorizer](#create-v
 
 ## Embedding configuration
 
-You use the `ai.embedding_openai` function to specify the OpenAI model and 
-embedding options used when generating embeddings.
+You use the embedding configuration functions to specify how embeddings are
+generated for your data.
+
+The embedding functions are:
+
+- [ai.embedding_openai](#aiembedding_openai)
+- [ai.embedding_ollama](#aiembedding_ollama)
+
+### ai.embedding_openai
+
+You use the `ai.embedding_openai` function to use an OpenAI model to generate embeddings.
 
 The purpose of `ai.embedding_openai` is to:
 - Define which OpenAI embedding model to use.
@@ -255,9 +264,9 @@ The purpose of `ai.embedding_openai` is to:
 - Configure optional parameters like the user identifier for API calls.
 - Set the name of the environment variable that contains the OpenAI API key.
 
-### Example usage
+#### Example usage
 
-This function is usually used to create an embedding configuration object that is passed as an argument to [ai.create_vectorizer](#create-vectorizers):
+This function is used to create an embedding configuration object that is passed as an argument to [ai.create_vectorizer](#create-vectorizers):
 
 ```sql
 SELECT ai.create_vectorizer(
@@ -272,7 +281,7 @@ SELECT ai.create_vectorizer(
 );
 ```
 
-### Parameters
+#### Parameters
 
 The function takes several parameters to customize the OpenAI embedding configuration:
 
@@ -282,6 +291,53 @@ The function takes several parameters to customize the OpenAI embedding configur
 |dimensions| int  | -|✔| Define the number of dimensions for the embedding vectors. This should match the output dimensions of the chosen model.                                        |
 |chat_user| text | -|✖| The identifier for the user making the API call. This can be useful for tracking API usage or for OpenAI's monitoring purposes.                                |
 |api_key_name|  text    | `OPENAI_API_KEY`|✖| Set the name of the environment variable that contains the OpenAI API key. This allows for flexible API key management without hardcoding keys in the database. On Timescale Cloud, you should set this to the name of the secret that contains the OpenAI API key. |
+
+#### Returns
+
+A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
+
+### ai.embedding_ollama
+
+You use the `ai.embedding_ollama` function to use an Ollama model to generate embeddings.
+
+The purpose of `ai.embedding_ollama` is to:
+- Define which Ollama model to use.
+- Specify the dimensionality of the embeddings.
+- Configure how the Ollama API is accessed.
+- Configure the model's truncation behaviour, and keep alive.
+- Configure optional, model-specific parameters, like the `temperature`.
+
+#### Example usage
+
+This function is used to create an embedding configuration object that is passed as an argument to [ai.create_vectorizer](#create-vectorizers):
+
+```sql
+SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    embedding => ai.embedding_ollama(
+      'nomic-embed-text',
+      768,
+      base_url => "http://my.ollama.server:443"
+      truncate => false,
+      options => '{ "num_ctx": 1024 }',
+      keep_alive => "10m"
+    ),
+    -- other parameters...
+);
+```
+
+#### Parameters
+
+The function takes several parameters to customize the Ollama embedding configuration:
+
+| Name       | Type    | Default | Required | Description                                                                                                                                                              |
+|------------|---------|---------|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| model      | text    | -       | ✔        | Specify the name of the Ollama model to use. For example, `nomic-embed-text`. Note: the model must already be available (pulled) in your Ollama server.                  |
+| dimensions | int     | -       | ✔        | Define the number of dimensions for the embedding vectors. This should match the output dimensions of the chosen model.                                                  |
+| base_url   | text    | -       | ✖        | Set the base_url of the Ollama API. Note: no default configured here to allow configuration of the vectorizer worker through `OLLAMA_HOST` env var.                      |
+| truncate   | boolean | true    | ✖        | Truncates the end of each input to fit within the chosen model's context length. Embedding fails (for a given chunk) if set to false and the context length is exceeded. |
+| options    | jsonb   | -       | ✖        | Configures additional model parameters listed in the documentation for the Modelfile, such as `temperature`, or `num_ctx`.                                               |
+| keep_alive | text    | -       | ✖        | Controls how long the model will stay loaded in memory following the request. Note: no default configured here to allow configuration at Ollama-level.                   |
 
 #### Returns
 

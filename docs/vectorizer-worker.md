@@ -16,6 +16,7 @@ This page shows you how to install, run, and manage the workers that run vectori
 - [Run vectorizers with vectorizer worker](#run-vectorizers-with-vectorizer-worker): run specific
   vectorizers in your database as either single, parallel or concurrent tasks
 - [Set the time between vectorizer worker runs](#set-the-time-between-vectorizer-worker-runs): manage run scheduling
+- [Additional configuration via environment variables](#additional-configuration-via-environment-variables) an overview of the environment variables and their purpose
 
 ## Prerequisites
 
@@ -105,15 +106,19 @@ On your local machine:
    name: pgai
    services:
      vectorizer-worker:
-       image: timescale/pgai-vectorizer-worker:0.1.0rc4
+       image: timescale/pgai-vectorizer-worker:0.1.0
        environment:
          PGAI_VECTORIZER_WORKER_DB_URL: postgres://<username>:<password>@<host>:<port>/<database-name>
          OPENAI_API_KEY: <your-api-key>
+         OLLAMA_HOST: <ollama-host-url>
+         PGAI_VECTORIZER_OLLAMA_MAX_CHUNKS_PER_BATCH: <ollama-max-chunks-per-batch>
    ```
 
   1. Replace the values of:
      - `PGAI_VECTORIZER_WORKER_DB_URL`: the postgres connection string to the database where you have defined vectorizers.
-     - `OPENAI_API_KEY`: with a key from your AI provider.
+     - `OPENAI_API_KEY`: with a key from your AI provider (if using OpenAI).
+     - `OLLAMA_HOST`: with the base url of your ollama installation (if using Ollama and the url is not http://localhost:11434).
+     - `PGAI_VECTORIZER_OLLAMA_MAX_CHUNKS_PER_BATCH`: with the max chunks per batch (if not 2048).
 
 1. **Run the vectorizer worker**
 
@@ -145,24 +150,18 @@ On your local machine:
     After you [define a vectorizer in your database](/docs/vectorizer.md#define-a-vectorizer), you run 
     a vectorizer worker to generate and update your embeddings:
 
-    1. Set the connection string to your self-hosted database and the API key for the external embeddings
-      provider as environment variables:
+    1. Configure environment variables if necessary (see [Additional configuration via environment variables](#additional-configuration-via-environment-variables))
+       for a list of the available environment variables:
 
        ```bash
-       export PGAI_VECTORIZER_WORKER_DB_URL="postgres://<user>:<password>@<host>:<port>/<dbname>"
-       export OPENAI_API_KEY="Your OpenAI API key"
+       export OPENAI_API_KEY="..."
        ```
 
     1. Run the vectorizer worker:
 
        ```shell
-       pgai vectorizer worker
+       pgai vectorizer worker -d <db-connection-string>
        ```
-
-    You can also use the `-d` or `--db-url` arguments to set a Postgres connection string:
-    ```shell
-    vectorizer -d "postgres://user:password@host:port/dbname"
-    ```
 
 ## Run vectorizers with vectorizer worker
 
@@ -175,6 +174,13 @@ worker instance. For `docker compose` you add arguments using either the `comman
 flags in `docker-compose.yml`. 
 
 A vectorizer worker can:
+
+- Run all vectorizers:
+
+  To run all current and future vectorizers:
+  - local: `pgai vectorizer worker`
+  - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version}`
+  - Docker Compose: `command: []`
 
 - Run a single vectorizer:
 
@@ -266,6 +272,18 @@ multiple asynchronous tasks to process a queue:
 - local: `pgai vectorizer worker -c 3`
 - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -c 3`
 - Docker Compose: `command: ["-c", "3"]`
+
+## Additional configuration via environment variables
+
+Some important internals of the vectorizer worker are configured through
+the following environment variables.
+
+| Environment Variable                        | Default                | Purpose                                                                                   |
+|---------------------------------------------|------------------------|-------------------------------------------------------------------------------------------|
+| PGAI_VECTORIZER_WORKER_DB_URL               | -                      | Configures the database url that the vectorizer worker uses to procesa vectorizers.       |
+| OPENAI_API_KEY                              | -                      | The API key that the vectorizer worker uses to authenticate against the OpenAI API.       |
+| OLLAMA_HOST                                 | http://localhost:11434 | The host to use when communicating with the Ollama API.                                   |
+| PGAI_VECTORIZER_OLLAMA_MAX_CHUNKS_PER_BATCH | 2048                   | Configures the number of chunks of data embedded in one Ollama API call, defaults to 2048 |
 
 
 [python3]: https://www.python.org/downloads/

@@ -22,7 +22,7 @@ from .chunking import (
     LangChainCharacterTextSplitter,
     LangChainRecursiveCharacterTextSplitter,
 )
-from .embeddings import ChunkEmbeddingError, OpenAI
+from .embeddings import ChunkEmbeddingError, Ollama, OpenAI
 from .formatting import ChunkValue, PythonTemplate
 from .processing import ProcessingDefault
 
@@ -74,7 +74,7 @@ class Config:
     """
 
     version: str
-    embedding: OpenAI
+    embedding: OpenAI | Ollama
     processing: ProcessingDefault
     chunking: (
         LangChainCharacterTextSplitter | LangChainRecursiveCharacterTextSplitter

@@ -20,6 +20,7 @@ CREATE EXTENSION
  function ai.create_vectorizer(regclass,name,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name,name,name,name,name[],boolean)
  function ai.disable_vectorizer_schedule(integer)
  function ai.drop_vectorizer(integer,boolean)
+ function ai.embedding_ollama(text,integer,text,boolean,jsonb,text)
  function ai.embedding_openai(text,integer,text,text)
  function ai.enable_vectorizer_schedule(integer)
  function ai.execute_vectorizer(integer)
@@ -100,7 +101,7 @@ CREATE EXTENSION
  type ai.vectorizer_status[]
  view ai.secret_permissions
  view ai.vectorizer_status
-(96 rows)
+(97 rows)
 
                                     Table "ai._secret_permissions"
  Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 

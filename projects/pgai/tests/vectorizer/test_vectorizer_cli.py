@@ -20,6 +20,7 @@ count = 10000
 
 
 class TestDatabase:
+    __test__ = False
     """"""
 
     container: PostgresContainer
@@ -133,6 +134,36 @@ def configured_openai_vectorizer_id(
                     'text-embedding-ada-002',
                     1536,
                     api_key_name => 'OPENAI_API_KEY'
+                ),
+                chunking => ai.{chunking},
+                formatting => ai.{formatting},
+                processing => ai.processing_default(batch_size => {batch_size},
+                                                    concurrency => {concurrency})
+            )
+        """)  # type: ignore
+        vectorizer_id: int = int(cur.fetchone()["create_vectorizer"])  # type: ignore
+
+        return vectorizer_id
+
+
+@pytest.fixture
+def configured_ollama_vectorizer_id(
+    source_table: str,
+    cli_db: tuple[TestDatabase, Connection],
+    test_params: tuple[int, int, int, str, str],
+) -> int:
+    """Creates and configures an ollama vectorizer for testing"""
+    _, concurrency, batch_size, chunking, formatting = test_params
+    _, conn = cli_db
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        # Create vectorizer
+        cur.execute(f"""
+            SELECT ai.create_vectorizer(
+                '{source_table}'::regclass,
+                embedding => ai.embedding_ollama(
+                    'nomic-embed-text',
+                    768
                 ),
                 chunking => ai.{chunking},
                 formatting => ai.{formatting},
@@ -421,6 +452,119 @@ class TestWithOpenAiVectorizer:
                 "provider": "openai",
                 "error_reason": "dimensions must be 1536 for text-embedding-ada-002",
             }
+
+
+@pytest.mark.parametrize(
+    "test_params",
+    [
+        (
+            1,
+            1,
+            1,
+            "chunking_character_text_splitter('content')",
+            "formatting_python_template('$chunk')",
+        ),
+        (
+            4,
+            2,
+            2,
+            "chunking_character_text_splitter('content')",
+            "formatting_python_template('$chunk')",
+        ),
+    ],
+)
+def test_ollama_vectorizer(
+    cli_db: tuple[TestDatabase, Connection],
+    cli_db_url: str,
+    configured_ollama_vectorizer_id: int,
+    vcr_: Any,
+    test_params: tuple[int, int, int, str, str],
+):
+    """Test successful processing of vectorizer tasks"""
+    num_items, concurrency, batch_size, _, _ = test_params
+    _, conn = cli_db
+    # Insert pre-existing embedding for first item
+    with conn.cursor() as cur:
+        cur.execute("""
+           INSERT INTO
+           blog_embedding_store(embedding_uuid, id, chunk_seq, chunk, embedding)
+           VALUES (gen_random_uuid(), 1, 1, 'post_1',
+            array_fill(0, ARRAY[768])::vector)
+        """)
+
+    # When running the worker with cassette matching original test params
+    cassette = (
+        f"ollama-character_text_splitter-chunk_value-"
+        f"items={num_items}-batch_size={batch_size}.yaml"
+    )
+    logging.getLogger("vcr").setLevel(logging.DEBUG)
+    with vcr_.use_cassette(cassette):
+        result = CliRunner().invoke(
+            vectorizer_worker,
+            [
+                "--db-url",
+                cli_db_url,
+                "--once",
+                "--vectorizer-id",
+                str(configured_ollama_vectorizer_id),
+                "--concurrency",
+                str(concurrency),
+            ],
+            catch_exceptions=False,
+        )
+
+    assert not result.exception
+    assert result.exit_code == 0
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT count(*) as count FROM blog_embedding_store;")
+        assert cur.fetchone()["count"] == num_items  # type: ignore
+
+
+def test_ollama_vectorizer_handles_chunk_failure_correctly(
+    cli_db: tuple[TestDatabase, Connection],
+    cli_db_url: str,
+    vcr_: Any,
+):
+    """Test successful processing of vectorizer tasks"""
+    _, conn = cli_db
+
+    # Set up vectorizer which will fail to embed chunk
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("CREATE TABLE blog(id bigint primary key, content text);")
+        cur.execute("""SELECT ai.create_vectorizer(
+                'blog',
+                embedding => ai.embedding_ollama(
+                    'nomic-embed-text',
+                    768,
+                    truncate => false
+                ),
+                chunking => ai.chunking_character_text_splitter('content')
+        )""")  # noqa
+        cur.execute("INSERT INTO blog (id, content) VALUES(1, repeat('1', 10000))")
+
+    # When running the worker with cassette matching original test params
+    cassette = "ollama-character_text_splitter-too-large-chunk_value.yaml"
+    logging.getLogger("vcr").setLevel(logging.DEBUG)
+    with vcr_.use_cassette(cassette):
+        result = CliRunner().invoke(
+            vectorizer_worker,
+            [
+                "--db-url",
+                cli_db_url,
+                "--once",
+            ],
+            catch_exceptions=False,
+        )
+
+    assert not result.exception
+    assert result.exit_code == 0
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT count(*) as count FROM blog_embedding_store;")
+        assert cur.fetchone()["count"] == 0  # type: ignore
+        cur.execute("SELECT count(*) as count FROM ai.vectorizer_errors;")
+        assert cur.fetchone()["count"] == 1  # type: ignore
 
 
 def test_worker_no_extension(
