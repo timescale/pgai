@@ -28,9 +28,11 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
 
         content_embeddings = VectorizerField(
             source_column='content',
-            embedding_model='text-embedding-3-small',
-            chunking={'chunk_size': 50, 'chunk_overlap': 10},
-            formatting_template='$chunk'
+            model='text-embedding-3-small',
+            dimensions=768,
+            chunk_size=500,
+            chunk_overlap=50,
+            formatting_template='Title: $title\nContent: $chunk'
         )
 
     # Create tables

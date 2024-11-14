@@ -1102,7 +1102,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "alembic" },
+    { name = "alembic", specifier = ">=1.14.0" },
     { name = "click", specifier = ">=8.0,<9.0" },
     { name = "datadog-lambda", specifier = ">=6.9,<7.0" },
     { name = "langchain-openai", specifier = ">=0.1,<1.0" },

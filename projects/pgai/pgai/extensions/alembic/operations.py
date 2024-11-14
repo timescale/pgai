@@ -1,7 +1,10 @@
 from dataclasses import dataclass
+from typing import Any
 
+from alembic.autogenerate import renderers, comparators
 from alembic.operations import MigrateOperation, Operations
 from sqlalchemy import text
+import alembic.context as AlembicContext
 
 
 @dataclass
@@ -199,3 +202,66 @@ def drop_vectorizer(operations, operation):
         text("SELECT ai.drop_vectorizer(:id)"),
         {"id": operation.vectorizer_id}
     )
+
+
+from alembic.autogenerate import renderers
+
+
+@renderers.dispatch_for(CreateVectorizerOp)
+def render_create_vectorizer(autogen_context, op):
+    """Render a CREATE VECTORIZER operation."""
+    template_context = {
+        "EmbeddingConfig": "from pgai.extensions.alembic.operations import EmbeddingConfig",
+        "ChunkingConfig": "from pgai.extensions.alembic.operations import ChunkingConfig",
+        "FormattingConfig": "from pgai.extensions.alembic.operations import FormattingConfig",
+    }
+    autogen_context.imports.add(template_context["EmbeddingConfig"])
+    autogen_context.imports.add(template_context["ChunkingConfig"])
+    autogen_context.imports.add(template_context["FormattingConfig"])
+
+    args = [repr(op.source_table)]
+
+    if op.destination:
+        args.append(f"destination={repr(op.destination)}")
+
+    if op.embedding:
+        embed_args = [
+            f"    model={repr(op.embedding.model)}",
+            f"    dimensions={op.embedding.dimensions}"
+        ]
+        args.append(
+            "embedding=EmbeddingConfig(\n" +
+            ",\n".join(embed_args) +
+            "\n)"
+        )
+
+    if op.chunking:
+        chunk_args = [f"    chunk_column={repr(op.chunking.chunk_column)}"]
+        if op.chunking.chunk_size is not None:
+            chunk_args.append(f"    chunk_size={op.chunking.chunk_size}")
+        if op.chunking.chunk_overlap is not None:
+            chunk_args.append(f"    chunk_overlap={op.chunking.chunk_overlap}")
+
+        args.append(
+            "chunking=ChunkingConfig(\n" +
+            ",\n".join(chunk_args) +
+            "\n)"
+        )
+
+    if op.formatting:
+        args.append(f"formatting=FormattingConfig(template={repr(op.formatting.template)})")
+
+    if op.grant_to:
+        args.append(f"grant_to=[{', '.join(repr(x) for x in op.grant_to)}]")
+
+    if not op.enqueue_existing:
+        args.append("enqueue_existing=False")
+
+    return "op.create_vectorizer(\n    " + ",\n    ".join(args) + "\n)"
+
+
+@renderers.dispatch_for(DropVectorizerOp)
+def render_drop_vectorizer(autogen_context, op):
+    """Render a DROP VECTORIZER operation."""
+    return f"op.drop_vectorizer({op.vectorizer_id}, drop_objects={op.drop_objects})"
+
