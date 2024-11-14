@@ -114,6 +114,43 @@ end;
 $outer_migration_block$;
 
 
+-------------------------------------------------------------------------------
+-- 002-secret_permissions.sql
+do $outer_migration_block$ /*002-secret_permissions.sql*/
+declare
+    _sql text;
+    _migration record;
+    _migration_name text = $migration_name$002-secret_permissions.sql$migration_name$;
+    _migration_body text =
+$migration_body$
+create table ai._secret_permissions
+(
+  name text not null check(name = '*' or name ~ '^[A-Za-z0-9_.]+$')
+, "role" text not null
+, primary key (name, "role")
+);
+perform pg_catalog.pg_extension_config_dump('ai._secret_permissions'::pg_catalog.regclass, '');
+--only admins will have access to this table
+revoke all on ai._secret_permissions from public;
+
+$migration_body$;
+begin
+    select * into _migration from ai.migration where "name" operator(pg_catalog.=) _migration_name;
+    if _migration is not null then
+        raise notice 'migration %s already applied. skipping.', _migration_name;
+        if _migration.body operator(pg_catalog.!=) _migration_body then
+            raise warning 'the contents of migration "%s" have changed', _migration_name;
+        end if;
+        return;
+    end if;
+    _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
+    execute _sql;
+    insert into ai.migration ("name", body, applied_at_version)
+    values (_migration_name, _migration_body, $version$0.4.0$version$);
+end;
+$outer_migration_block$;
+
+
 --------------------------------------------------------------------------------
 -- 001-openai.sql
 
@@ -121,7 +158,7 @@ $outer_migration_block$;
 -- openai_tokenize
 -- encode text as tokens for a given model
 -- https://github.com/openai/tiktoken/blob/main/README.md
-create or replace function ai.openai_tokenize(_model text, _text text) returns int[]
+create or replace function ai.openai_tokenize(model text, text_input text) returns int[]
 as $python$
     if "ai.version" not in GD:
         r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
@@ -137,8 +174,8 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import tiktoken
-    encoding = tiktoken.encoding_for_model(_model)
-    tokens = encoding.encode(_text)
+    encoding = tiktoken.encoding_for_model(model)
+    tokens = encoding.encode(text_input)
     return tokens
 $python$
 language plpython3u strict immutable parallel safe security invoker
@@ -149,7 +186,7 @@ set search_path to pg_catalog, pg_temp
 -- openai_detokenize
 -- decode tokens for a given model back into text
 -- https://github.com/openai/tiktoken/blob/main/README.md
-create or replace function ai.openai_detokenize(_model text, _tokens int[]) returns text
+create or replace function ai.openai_detokenize(model text, tokens int[]) returns text
 as $python$
     if "ai.version" not in GD:
         r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
@@ -165,8 +202,8 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import tiktoken
-    encoding = tiktoken.encoding_for_model(_model)
-    content = encoding.decode(_tokens)
+    encoding = tiktoken.encoding_for_model(model)
+    content = encoding.decode(tokens)
     return content
 $python$
 language plpython3u strict immutable parallel safe security invoker
@@ -174,91 +211,15 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- openai_client_create
--- create the client and store it in the global dictionary for the session
-CREATE OR REPLACE FUNCTION ai.openai_client_create(
-    _api_key text DEFAULT NULL,
-    _organization text DEFAULT NULL,
-    _base_url text DEFAULT NULL,
-    _timeout float8 DEFAULT NULL,
-    _max_retries int DEFAULT NULL,
-    _default_headers jsonb DEFAULT NULL,
-    _default_query jsonb DEFAULT NULL,
-    _http_client jsonb DEFAULT NULL,
-    _strict_response_validation boolean DEFAULT NULL
-) RETURNS void AS $python$
-    if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
-        python_lib_dir = r[0]["python_lib_dir"]
-        from pathlib import Path
-        python_lib_dir = Path(python_lib_dir).joinpath("0.4.0")
-        import site
-        site.addsitedir(str(python_lib_dir))
-        from ai import __version__ as ai_version
-        assert("0.4.0" == ai_version)
-        GD["ai.version"] = "0.4.0"
-    else:
-        if GD["ai.version"] != "0.4.0":
-            plpy.fatal("the pgai extension version has changed. start a new session")
-    import ai.openai
-
-    if 'openai_client' not in GD:
-        GD['openai_client'] = {}
-
-    new_config = ai.openai.prepare_kwargs({
-        'api_key': _api_key,
-        'organization': _organization,
-        'base_url': _base_url,
-        'timeout': _timeout,
-        'max_retries': _max_retries,
-        'default_headers': ai.openai.process_json_input(_default_headers),
-        'default_query': ai.openai.process_json_input(_default_query),
-        'http_client': ai.openai.process_json_input(_http_client),
-        '_strict_response_validation': _strict_response_validation
-    })
-
-    if 'config' not in GD['openai_client'] or ai.openai.client_config_changed(GD['openai_client']['config'], new_config):
-        client = ai.openai.make_async_client(plpy, **new_config)
-        GD['openai_client'] = {
-            'client': client,
-            'config': new_config
-        }
-
-$python$ LANGUAGE plpython3u VOLATILE SECURITY DEFINER PARALLEL UNSAFE;
-
--------------------------------------------------------------------------------
--- openai_client_destroy
--- remove the client object stored in the global dictionary for the session
-CREATE OR REPLACE FUNCTION ai.openai_client_destroy() RETURNS void AS $python$
-    if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
-        python_lib_dir = r[0]["python_lib_dir"]
-        from pathlib import Path
-        python_lib_dir = Path(python_lib_dir).joinpath("0.4.0")
-        import site
-        site.addsitedir(str(python_lib_dir))
-        from ai import __version__ as ai_version
-        assert("0.4.0" == ai_version)
-        GD["ai.version"] = "0.4.0"
-    else:
-        if GD["ai.version"] != "0.4.0":
-            plpy.fatal("the pgai extension version has changed. start a new session")
-    if 'openai_client' in GD:
-        del GD['openai_client']
-$python$ LANGUAGE plpython3u VOLATILE SECURITY DEFINER PARALLEL UNSAFE;
-
--------------------------------------------------------------------------------
 -- openai_list_models
 -- list models supported on the openai platform
 -- https://platform.openai.com/docs/api-reference/models/list
-create or replace function ai.openai_list_models(
-    _api_key text default null,
-    _base_url text default null,
-    _extra_headers jsonb default null,
-    _extra_query jsonb default null,
-    _extra_body jsonb default null,
-    _timeout float8 default null
-) returns jsonb
+create or replace function ai.openai_list_models(api_key text default null, base_url text default null)
+returns table
+( id text
+, created timestamptz
+, owned_by text
+)
 as $python$
     if "ai.version" not in GD:
         r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
@@ -274,32 +235,11 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.openai
-    import json
-
-    # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, _api_key, _base_url)
-
-    # Prepare kwargs for the API call
-    kwargs = {}
-    # Add extra parameters if provided
-    if _extra_headers is not None:
-        kwargs['extra_headers'] = json.loads(_extra_headers)
-    if _extra_query is not None:
-        kwargs['extra_query'] = json.loads(_extra_query)
-    if _extra_body is not None:
-        kwargs['extra_body'] = json.loads(_extra_body)
-
-    async def async_openai_call(client, kwargs):
-        response = await client.models.with_raw_response.list(**kwargs)
-        return response.text
-
-    # Execute the API call with cancellation support
-    result = ai.openai.execute_with_cancellation(plpy, client, async_openai_call, **kwargs)
-
-    return result
+    for tup in ai.openai.list_models(plpy, api_key, base_url):
+        yield tup
 $python$
-    language plpython3u volatile parallel unsafe security invoker
-                        set search_path to pg_catalog, pg_temp
+language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
@@ -307,18 +247,13 @@ $python$
 -- generate an embedding from a text value
 -- https://platform.openai.com/docs/api-reference/embeddings/create
 create or replace function ai.openai_embed
-( _input text
-, _model text
-, _api_key text default null
-, _base_url text default null
-, _encoding_format text default null
-, _dimensions int default null
-, _user text default null
-, _extra_headers jsonb default null
-, _extra_query jsonb default null
-, _extra_body jsonb default null
-, _timeout float8 default null
-) returns jsonb
+( model text
+, input_text text
+, api_key text default null
+, base_url text default null
+, dimensions int default null
+, openai_user text default null
+) returns @extschema:vector@.vector
 as $python$
     if "ai.version" not in GD:
         r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
@@ -334,39 +269,11 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.openai
-    import json
-
-    # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, _api_key, _base_url)
-
-    # Prepare kwargs for the API call
-    kwargs = ai.openai.prepare_kwargs({
-        "input": [_input],
-        "model": _model,
-        "encoding_format": _encoding_format,
-        "dimensions": _dimensions,
-        "user": _user,
-    })
-
-    # Add extra parameters if provided
-    if _extra_headers is not None:
-        kwargs['extra_headers'] = json.loads(_extra_headers)
-    if _extra_query is not None:
-        kwargs['extra_query'] = json.loads(_extra_query)
-    if _extra_body is not None:
-        kwargs['extra_body'] = json.loads(_extra_body)
-
-    async def async_openai_call(client, kwargs):
-        response = await client.embeddings.with_raw_response.create(**kwargs)
-        return response.text
-
-    # Execute the API call with cancellation support
-    result = ai.openai.execute_with_cancellation(plpy, client, async_openai_call, **kwargs)
-
-    return result
+    for tup in ai.openai.embed(plpy, model, input_text, api_key=api_key, base_url=base_url, dimensions=dimensions, user=openai_user):
+        return tup[1]
 $python$
-    language plpython3u volatile parallel unsafe security invoker
-                        set search_path to pg_catalog, pg_temp
+language plpython3u immutable parallel safe security invoker
+set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
@@ -374,18 +281,16 @@ $python$
 -- generate embeddings from an array of text values
 -- https://platform.openai.com/docs/api-reference/embeddings/create
 create or replace function ai.openai_embed
-( _input text[]
-, _model text
-, _api_key text default null
-, _base_url text default null
-, _encoding_format text default null
-, _dimensions int default null
-, _user text default null
-, _extra_headers jsonb default null
-, _extra_query jsonb default null
-, _extra_body jsonb default null
-, _timeout float8 default null
-) returns jsonb
+( model text
+, input_texts text[]
+, api_key text default null
+, base_url text default null
+, dimensions int default null
+, openai_user text default null
+) returns table
+( "index" int
+, embedding @extschema:vector@.vector
+)
 as $python$
     if "ai.version" not in GD:
         r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
@@ -401,39 +306,11 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.openai
-    import json
-
-    # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, _api_key, _base_url)
-
-    # Prepare kwargs for the API call
-    kwargs = ai.openai.prepare_kwargs({
-        "input": _input,
-        "model": _model,
-        "encoding_format": _encoding_format,
-        "dimensions": _dimensions,
-        "user": _user,
-    })
-
-    # Add extra parameters if provided
-    if _extra_headers is not None:
-        kwargs['extra_headers'] = json.loads(_extra_headers)
-    if _extra_query is not None:
-        kwargs['extra_query'] = json.loads(_extra_query)
-    if _extra_body is not None:
-        kwargs['extra_body'] = json.loads(_extra_body)
-
-    async def async_openai_call(client, kwargs):
-        response = await client.embeddings.with_raw_response.create(**kwargs)
-        return response.text
-
-    # Execute the API call with cancellation support
-    result = ai.openai.execute_with_cancellation(plpy, client, async_openai_call, **kwargs)
-
-    return result
+    for tup in ai.openai.embed(plpy, model, input_texts, api_key=api_key, base_url=base_url, dimensions=dimensions, user=openai_user):
+        yield tup
 $python$
-    language plpython3u volatile parallel unsafe security invoker
-                        set search_path to pg_catalog, pg_temp
+language plpython3u immutable parallel safe security invoker
+set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
@@ -441,18 +318,13 @@ $python$
 -- generate embeddings from an array of tokens
 -- https://platform.openai.com/docs/api-reference/embeddings/create
 create or replace function ai.openai_embed
-( _model text
-, _input int[]
-, _api_key text default null
-, _base_url text default null
-, _encoding_format text default null
-, _dimensions int default null
-, _user text default null
-, _extra_headers jsonb default null
-, _extra_query jsonb default null
-, _extra_body jsonb default null
-, _timeout float8 default null
-) returns jsonb
+( model text
+, input_tokens int[]
+, api_key text default null
+, base_url text default null
+, dimensions int default null
+, openai_user text default null
+) returns @extschema:vector@.vector
 as $python$
     if "ai.version" not in GD:
         r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
@@ -468,75 +340,37 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.openai
-    import json
-
-    # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, _api_key, _base_url)
-
-    # Prepare kwargs for the API call
-    kwargs = ai.openai.prepare_kwargs({
-        "input": [_input],
-        "model": _model,
-        "encoding_format": _encoding_format,
-        "dimensions": _dimensions,
-        "user": _user,
-    })
-
-    # Add extra parameters if provided
-    if _extra_headers is not None:
-        kwargs['extra_headers'] = json.loads(_extra_headers)
-    if _extra_query is not None:
-        kwargs['extra_query'] = json.loads(_extra_query)
-    if _extra_body is not None:
-        kwargs['extra_body'] = json.loads(_extra_body)
-
-    async def async_openai_call(client, kwargs):
-        response = await client.embeddings.with_raw_response.create(**kwargs)
-        return response.text
-
-    # Execute the API call with cancellation support
-    result = ai.openai.execute_with_cancellation(plpy, client, async_openai_call, **kwargs)
-
-    return result
+    for tup in ai.openai.embed(plpy, model, input_tokens, api_key=api_key, base_url=base_url, dimensions=dimensions, user=openai_user):
+        return tup[1]
 $python$
-    language plpython3u volatile parallel unsafe security invoker
-                        set search_path to pg_catalog, pg_temp
+language plpython3u immutable parallel safe security invoker
+set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
 -- openai_chat_complete
 -- text generation / chat completion
 -- https://platform.openai.com/docs/api-reference/chat/create
-CREATE OR REPLACE FUNCTION ai.openai_chat_complete
-( _messages jsonb
-, _model text
-, _api_key text default null
-, _base_url text default null
-, _frequency_penalty float8 default null
-, _logit_bias jsonb default null
-, _logprobs boolean default null
-, _top_logprobs int default null
-, _max_tokens int default null
-, _max_completion_tokens int default null
-, _n int default null
-, _presence_penalty float8 default null
-, _response_format jsonb default null
-, _seed int default null
-, _stop text default null
-, _stream boolean default null
-, _temperature float8 default null
-, _top_p float8 default null
-, _tools jsonb default null
-, _tool_choice jsonb default null
-, _user text default null
-, _metadata jsonb default null
-, _service_tier text default null
-, _store boolean default null
-, _parallel_tool_calls boolean default null
-, _extra_headers jsonb default null
-, _extra_query jsonb default null
-, _extra_body jsonb default null
-, _timeout float8 default null
+create or replace function ai.openai_chat_complete
+( model text
+, messages jsonb
+, api_key text default null
+, base_url text default null
+, frequency_penalty float8 default null
+, logit_bias jsonb default null
+, logprobs boolean default null
+, top_logprobs int default null
+, max_tokens int default null
+, n int default null
+, presence_penalty float8 default null
+, response_format jsonb default null
+, seed int default null
+, stop text default null
+, temperature float8 default null
+, top_p float8 default null
+, tools jsonb default null
+, tool_choice jsonb default null
+, openai_user text default null
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
@@ -553,75 +387,62 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.openai
+    client = ai.openai.make_client(plpy, api_key, base_url)
     import json
 
-    # Process JSON inputs
-    messages = json.loads(_messages)
-    if not isinstance(messages, list):
-        plpy.error("_messages is not an array")
+    messages_1 = json.loads(messages)
+    if not isinstance(messages_1, list):
+        plpy.error("messages is not an array")
 
-    # Handle _stream parameter since we cannot support it
-    stream = False if _stream is None else _stream
-    if stream:
-        plpy.error("Streaming is not supported in this implementation")
+    logit_bias_1 = None
+    if logit_bias is not None:
+      logit_bias_1 = json.loads(logit_bias)
 
-    # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, _api_key, _base_url)
+    response_format_1 = None
+    if response_format is not None:
+      response_format_1 = json.loads(response_format)
 
-    # Prepare kwargs for the API call
-    kwargs = ai.openai.prepare_kwargs({
-        "model": _model,
-        "messages": messages,
-        "frequency_penalty": _frequency_penalty,
-        "logit_bias": ai.openai.process_json_input(_logit_bias),
-        "logprobs": _logprobs,
-        "top_logprobs": _top_logprobs,
-        "max_tokens": _max_tokens,
-        "max_completion_tokens": _max_completion_tokens,
-        "n": _n,
-        "presence_penalty": _presence_penalty,
-        "response_format": ai.openai.process_json_input(_response_format),
-        "seed": _seed,
-        "stop": _stop,
-        "temperature": _temperature,
-        "top_p": _top_p,
-        "tools": ai.openai.process_json_input(_tools),
-        "tool_choice": ai.openai.process_json_input(_tool_choice),
-        "user": _user,
-        "metadata": ai.openai.process_json_input(_metadata),
-        "service_tier": _service_tier,
-        "store": _store,
-        "parallel_tool_calls": _parallel_tool_calls,
-        "timeout": _timeout,
-    })
+    tools_1 = None
+    if tools is not None:
+      tools_1 = json.loads(tools)
 
-    # Add extra parameters if provided
-    if _extra_headers is not None:
-        kwargs['extra_headers'] = json.loads(_extra_headers)
-    if _extra_query is not None:
-        kwargs['extra_query'] = json.loads(_extra_query)
-    if _extra_body is not None:
-        kwargs['extra_body'] = json.loads(_extra_body)
+    tool_choice_1 = None
+    if tool_choice is not None:
+      tool_choice_1 = json.loads(tool_choice)
 
-    async def async_openai_call(client, kwargs):
-        response = await client.chat.completions.with_raw_response.create(**kwargs)
-        return response.text
+    response = client.chat.completions.create(
+      model=model
+    , messages=messages_1
+    , frequency_penalty=frequency_penalty
+    , logit_bias=logit_bias_1
+    , logprobs=logprobs
+    , top_logprobs=top_logprobs
+    , max_tokens=max_tokens
+    , n=n
+    , presence_penalty=presence_penalty
+    , response_format=response_format_1
+    , seed=seed
+    , stop=stop
+    , stream=False
+    , temperature=temperature
+    , top_p=top_p
+    , tools=tools_1
+    , tool_choice=tool_choice_1
+    , user=openai_user
+    )
 
-    # Execute the API call with cancellation support
-    result = ai.openai.execute_with_cancellation(plpy, client, async_openai_call, **kwargs)
-
-    return result
+    return response.model_dump_json()
 $python$
-    LANGUAGE plpython3u volatile parallel unsafe security invoker
-                        SET search_path TO pg_catalog, pg_temp
+language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
 ;
 
 ------------------------------------------------------------------------------------
 -- openai_chat_complete_simple
 -- simple chat completion that only requires a message and only returns the response
 create or replace function ai.openai_chat_complete_simple
-( _message text
-, _api_key text default null
+( message text
+, api_key text default null
 ) returns text
 as $$
 declare
@@ -630,15 +451,15 @@ declare
 begin
     messages := pg_catalog.jsonb_build_array(
         pg_catalog.jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant'),
-        pg_catalog.jsonb_build_object('role', 'user', 'content', _message)
+        pg_catalog.jsonb_build_object('role', 'user', 'content', message)
     );
-    return ai.openai_chat_complete(model, messages, _api_key)
+    return ai.openai_chat_complete(model, messages, api_key)
         operator(pg_catalog.->)'choices'
         operator(pg_catalog.->)0
         operator(pg_catalog.->)'message'
         operator(pg_catalog.->>)'content';
 end;
-$$ language plpgsql volatile parallel unsafe security invoker
+$$ language plpgsql volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -647,14 +468,10 @@ set search_path to pg_catalog, pg_temp
 -- classify text as potentially harmful or not
 -- https://platform.openai.com/docs/api-reference/moderations/create
 create or replace function ai.openai_moderate
-(   _input text,
-    _api_key text default null,
-    _base_url text default null,
-    _model text default null,
-    _extra_headers jsonb default null,
-    _extra_query jsonb default null,
-    _extra_body jsonb default null,
-    _timeout float8 default null
+( model text
+, input_text text
+, api_key text default null
+, base_url text default null
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
@@ -671,93 +488,12 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.openai
-    import json
-
-    # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, _api_key, _base_url)
-
-    # Prepare kwargs for the API call
-    kwargs = ai.openai.prepare_kwargs({
-        "model": _model,
-        "input": _input,
-    })
-
-    # Add extra parameters if provided
-    if _extra_headers is not None:
-        kwargs['extra_headers'] = json.loads(_extra_headers)
-    if _extra_query is not None:
-        kwargs['extra_query'] = json.loads(_extra_query)
-    if _extra_body is not None:
-        kwargs['extra_body'] = json.loads(_extra_body)
-
-    async def async_openai_call(client, kwargs):
-        response = await client.moderations.with_raw_response.create(**kwargs)
-        return response.text
-
-    # Execute the API call with cancellation support
-    result = ai.openai.execute_with_cancellation(plpy, client, async_openai_call, **kwargs)
-
-    return result
+    client = ai.openai.make_client(plpy, api_key, base_url)
+    moderation = client.moderations.create(input=input_text, model=model)
+    return moderation.model_dump_json()
 $python$
-    language plpython3u volatile parallel unsafe security invoker
-                        set search_path to pg_catalog, pg_temp
-;
-
-create or replace function ai.openai_moderate
-(   _input text[],
-    _api_key text default null,
-    _base_url text default null,
-    _model text default null,
-    _extra_headers jsonb default null,
-    _extra_query jsonb default null,
-    _extra_body jsonb default null,
-    _timeout float8 default null
-) returns jsonb
-as $python$
-    if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
-        python_lib_dir = r[0]["python_lib_dir"]
-        from pathlib import Path
-        python_lib_dir = Path(python_lib_dir).joinpath("0.4.0")
-        import site
-        site.addsitedir(str(python_lib_dir))
-        from ai import __version__ as ai_version
-        assert("0.4.0" == ai_version)
-        GD["ai.version"] = "0.4.0"
-    else:
-        if GD["ai.version"] != "0.4.0":
-            plpy.fatal("the pgai extension version has changed. start a new session")
-    import ai.openai
-    import json
-
-    # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, _api_key, _base_url)
-
-    # Prepare kwargs for the API call
-    kwargs = ai.openai.prepare_kwargs({
-        "model": _model,
-        "input": _input,
-    })
-
-    # Add extra parameters if provided
-    if _extra_headers is not None:
-        kwargs['extra_headers'] = json.loads(_extra_headers)
-    if _extra_query is not None:
-        kwargs['extra_query'] = json.loads(_extra_query)
-    if _extra_body is not None:
-        kwargs['extra_body'] = json.loads(_extra_body)
-
-    async def async_openai_call(client, kwargs):
-        response = await client.moderations.with_raw_response.create(**kwargs)
-        return response.text
-
-    # Execute the API call with cancellation support
-    result = ai.openai.execute_with_cancellation(plpy, client, async_openai_call, **kwargs)
-
-    return result
-$python$
-    language plpython3u volatile parallel unsafe security invoker
-                        set search_path to pg_catalog, pg_temp
+language plpython3u immutable parallel safe security invoker
+set search_path to pg_catalog, pg_temp
 ;
 
 
@@ -769,7 +505,7 @@ $python$
 -- ollama_list_models
 -- https://github.com/ollama/ollama/blob/main/docs/api.md#list-local-models
 --
-create or replace function ai.ollama_list_models(_host text default null)
+create or replace function ai.ollama_list_models(host text default null)
 returns table
 ( "name" text
 , model text
@@ -798,7 +534,7 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.ollama
-    client = ai.ollama.make_client(plpy, _host)
+    client = ai.ollama.make_client(plpy, host)
     import json
     resp = client.list()
     models = resp.get("models")
@@ -826,7 +562,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- ollama_ps
 -- https://github.com/ollama/ollama/blob/main/docs/api.md#list-running-models
-create or replace function ai.ollama_ps(_host text default null)
+create or replace function ai.ollama_ps(host text default null)
 returns table
 ( "name" text
 , model text
@@ -856,7 +592,7 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.ollama
-    client = ai.ollama.make_client(plpy, _host)
+    client = ai.ollama.make_client(plpy, host)
     import json
     resp = client.ps()
     models = resp.get("models")
@@ -886,11 +622,11 @@ set search_path to pg_catalog, pg_temp
 -- ollama_embed
 -- https://github.com/ollama/ollama/blob/main/docs/api.md#generate-embeddings
 create or replace function ai.ollama_embed
-( _model text
-, _input text
-, _host text default null
-, _keep_alive float8 default null
-, _options jsonb default null
+( model text
+, input_text text
+, host text default null
+, keep_alive float8 default null
+, embedding_options jsonb default null
 ) returns @extschema:vector@.vector
 as $python$
     if "ai.version" not in GD:
@@ -907,12 +643,12 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.ollama
-    client = ai.ollama.make_client(plpy, _host)
-    _options_1 = None
-    if _options is not None:
+    client = ai.ollama.make_client(plpy, host)
+    embedding_options_1 = None
+    if embedding_options is not None:
         import json
-        _options_1 = {k: v for k, v in json.loads(_options).items()}
-    resp = client.embeddings(_model, _input, options=_options, keep_alive=_keep_alive)
+        embedding_options_1 = {k: v for k, v in json.loads(embedding_options).items()}
+    resp = client.embeddings(model, input_text, options=embedding_options_1, keep_alive=keep_alive)
     return resp.get("embedding")
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -923,15 +659,15 @@ set search_path to pg_catalog, pg_temp
 -- ollama_generate
 -- https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-completion
 create or replace function ai.ollama_generate
-( _model text
-, _prompt text
-, _host text default null
-, _images bytea[] default null
-, _keep_alive float8 default null
-, _options jsonb default null
-, _system text default null
-, _template text default null
-, _context int[] default null
+( model text
+, prompt text
+, host text default null
+, images bytea[] default null
+, keep_alive float8 default null
+, embedding_options jsonb default null
+, system_prompt text default null
+, template text default null
+, context int[] default null
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
@@ -948,35 +684,34 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.ollama
-    client = ai.ollama.make_client(plpy, _host)
+    client = ai.ollama.make_client(plpy, host)
 
     import json
     args = {}
 
-    if _keep_alive is not None:
-        args["keep_alive"] = _keep_alive
+    if keep_alive is not None:
+        args["keep_alive"] = keep_alive
 
-    if _options is not None:
-        args["options"] = {k: v for k, v in json.loads(_options).items()}
+    if embedding_options is not None:
+        args["options"] = {k: v for k, v in json.loads(embedding_options).items()}
 
-    if _system is not None:
-        args["system"] = _system
+    if system_prompt is not None:
+        args["system"] = system_prompt
 
-    if _template is not None:
-        args["template"] = _template
+    if template is not None:
+        args["template"] = template
 
-    if _context is not None:
-        args["context"] = _context
+    if context is not None:
+        args["context"] = context
 
-    _images_1 = None
-    if _images is not None:
+    if images is not None:
         import base64
-        _images_1 = []
-        for image in _images:
-            _images_1.append(base64.b64encode(image).decode('utf-8'))
-        args["images"] = _images_1
+        images_1 = []
+        for image in images:
+            images_1.append(base64.b64encode(image).decode('utf-8'))
+        args["images"] = images_1
 
-    resp = client.generate(_model, _prompt, stream=False, **args)
+    resp = client.generate(model, prompt, stream=False, **args)
     return json.dumps(resp)
 $python$
 language plpython3u volatile parallel safe security invoker
@@ -987,11 +722,11 @@ set search_path to pg_catalog, pg_temp
 -- ollama_chat_complete
 -- https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-chat-completion
 create or replace function ai.ollama_chat_complete
-( _model text
-, _messages jsonb
-, _host text default null
-, _keep_alive float8 default null
-, _options jsonb default null
+( model text
+, messages jsonb
+, host text default null
+, keep_alive float8 default null
+, chat_options jsonb default null
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
@@ -1008,30 +743,30 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.ollama
-    client = ai.ollama.make_client(plpy, _host)
+    client = ai.ollama.make_client(plpy, host)
 
     import json
     import base64
     args = {}
 
-    if _keep_alive is not None:
-        args["keep_alive"] = _keep_alive
+    if keep_alive is not None:
+        args["keep_alive"] = keep_alive
 
-    if _options is not None:
-        args["options"] = {k: v for k, v in json.loads(_options).items()}
+    if chat_options is not None:
+        args["options"] = {k: v for k, v in json.loads(chat_options).items()}
 
-    _messages_1 = json.loads(_messages)
-    if not isinstance(_messages_1, list):
-        plpy.error("_messages is not an array")
+    messages_1 = json.loads(messages)
+    if not isinstance(messages_1, list):
+        plpy.error("messages is not an array")
 
     # the python api expects bytes objects for images
     # decode the base64 encoded images into raw binary
-    for message in _messages_1:
+    for message in messages_1:
         if 'images' in message:
             decoded = [base64.b64decode(image) for image in message["images"]]
             message["images"] = decoded
 
-    resp = client.chat(_model, _messages_1, stream=False, **args)
+    resp = client.chat(model, messages_1, stream=False, **args)
 
     return json.dumps(resp)
 $python$
@@ -1043,26 +778,25 @@ set search_path to pg_catalog, pg_temp
 
 --------------------------------------------------------------------------------
 -- 003-anthropic.sql
-
 -------------------------------------------------------------------------------
 -- anthropic_generate
 -- https://docs.anthropic.com/en/api/messages
 create or replace function ai.anthropic_generate
-( _model text
-, _messages jsonb
-, _max_tokens int default 1024
-, _api_key text default null
-, _base_url text default null
-, _timeout float8 default null
-, _max_retries int default null
-, _system text default null
-, _user_id text default null
-, _stop_sequences text[] default null
-, _temperature float8 default null
-, _tool_choice jsonb default null
-, _tools jsonb default null
-, _top_k int default null
-, _top_p float8 default null
+( model text
+, messages jsonb
+, max_tokens int default 1024
+, api_key text default null
+, base_url text default null
+, timeout float8 default null
+, max_retries int default null
+, system_prompt text default null
+, user_id text default null
+, stop_sequences text[] default null
+, temperature float8 default null
+, tool_choice jsonb default null
+, tools jsonb default null
+, top_k int default null
+, top_p float8 default null
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
@@ -1079,30 +813,30 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.anthropic
-    client = ai.anthropic.make_client(plpy, api_key=_api_key, base_url=_base_url, timeout=_timeout, max_retries=_max_retries)
+    client = ai.anthropic.make_client(plpy, api_key=api_key, base_url=base_url, timeout=timeout, max_retries=max_retries)
 
     import json
-    _messages_1 = json.loads(_messages)
+    messages_1 = json.loads(messages)
 
     args = {}
-    if _system is not None:
-        args["system"] = _system
-    if _user_id is not None:
-        args["metadata"] = {"user_id", _user_id}
-    if _stop_sequences is not None:
-        args["stop_sequences"] = _stop_sequences
-    if _temperature is not None:
-        args["temperature"] = _temperature
-    if _tool_choice is not None:
-        args["tool_choice"] = json.dumps(_tool_choice)
-    if _tools is not None:
-        args["tools"] = json.dumps(_tools)
-    if _top_k is not None:
-        args["top_k"] = _top_k
-    if _top_p is not None:
-        args["top_p"] = _top_p
+    if system_prompt is not None:
+        args["system"] = system_prompt
+    if user_id is not None:
+        args["metadata"] = {"user_id", user_id}
+    if stop_sequences is not None:
+        args["stop_sequences"] = stop_sequences
+    if temperature is not None:
+        args["temperature"] = temperature
+    if tool_choice is not None:
+        args["tool_choice"] = json.dumps(tool_choice)
+    if tools is not None:
+        args["tools"] = json.dumps(tools)
+    if top_k is not None:
+        args["top_k"] = top_k
+    if top_p is not None:
+        args["top_p"] = top_p
 
-    message = client.messages.create(model=_model, messages=_messages_1, max_tokens=_max_tokens, **args)
+    message = client.messages.create(model=model, messages=messages_1, max_tokens=max_tokens, **args)
     return message.to_json()
 $python$
 language plpython3u volatile parallel safe security invoker
@@ -1110,17 +844,15 @@ set search_path to pg_catalog, pg_temp
 ;
 
 
-
 --------------------------------------------------------------------------------
 -- 004-cohere.sql
-
 -------------------------------------------------------------------------------
 -- cohere_list_models
 -- https://docs.cohere.com/reference/list-models
 create or replace function ai.cohere_list_models
-( _api_key text default null
-, _endpoint text default null
-, _default_only bool default null
+( api_key text default null
+, endpoint text default null
+, default_only bool default null
 )
 returns table
 ( "name" text
@@ -1145,13 +877,13 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.cohere
-    client = ai.cohere.make_client(plpy, _api_key)
+    client = ai.cohere.make_client(plpy, api_key)
 
     args = {}
-    if _endpoint is not None:
-        args["endpoint"] = _endpoint
-    if _default_only is not None:
-        args["default_only"] = _default_only
+    if endpoint is not None:
+        args["endpoint"] = endpoint
+    if default_only is not None:
+        args["default_only"] = default_only
     page_token = None
     while True:
         resp = client.models.list(page_size=1000, page_token=page_token, **args)
@@ -1168,7 +900,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- cohere_tokenize
 -- https://docs.cohere.com/reference/tokenize
-create or replace function ai.cohere_tokenize(_model text, _text text, _api_key text default null) returns int[]
+create or replace function ai.cohere_tokenize(model text, text_input text, api_key text default null) returns int[]
 as $python$
     if "ai.version" not in GD:
         r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
@@ -1184,9 +916,9 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.cohere
-    client = ai.cohere.make_client(plpy, _api_key)
+    client = ai.cohere.make_client(plpy, api_key)
 
-    response = client.tokenize(text=_text, model=_model)
+    response = client.tokenize(text=text_input, model=model)
     return response.tokens
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -1196,7 +928,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- cohere_detokenize
 -- https://docs.cohere.com/reference/detokenize
-create or replace function ai.cohere_detokenize(_model text, _tokens int[], _api_key text default null) returns text
+create or replace function ai.cohere_detokenize(model text, tokens int[], api_key text default null) returns text
 as $python$
     if "ai.version" not in GD:
         r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
@@ -1212,9 +944,9 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.cohere
-    client = ai.cohere.make_client(plpy, _api_key)
+    client = ai.cohere.make_client(plpy, api_key)
 
-    response = client.detokenize(tokens=_tokens, model=_model)
+    response = client.detokenize(tokens=tokens, model=model)
     return response.text
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -1225,11 +957,11 @@ set search_path to pg_catalog, pg_temp
 -- cohere_embed
 -- https://docs.cohere.com/reference/embed-1
 create or replace function ai.cohere_embed
-( _model text
-, _input text
-, _api_key text default null
-, _input_type text default null
-, _truncate text default null
+( model text
+, input_text text
+, api_key text default null
+, input_type text default null
+, truncate_long_inputs text default null
 ) returns @extschema:vector@.vector
 as $python$
     if "ai.version" not in GD:
@@ -1246,14 +978,14 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.cohere
-    client = ai.cohere.make_client(plpy, _api_key)
+    client = ai.cohere.make_client(plpy, api_key)
 
     args={}
-    if _input_type is not None:
-        args["input_type"] = _input_type
-    if _truncate is not None:
-        args["truncate"] = _truncate
-    response = client.embed(texts=[_input], model=_model, **args)
+    if input_type is not None:
+        args["input_type"] = input_type
+    if truncate_long_inputs is not None:
+        args["truncate"] = truncate_long_inputs
+    response = client.embed(texts=[input_text], model=model, **args)
     return response.embeddings[0]
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -1264,11 +996,11 @@ set search_path to pg_catalog, pg_temp
 -- cohere_classify
 -- https://docs.cohere.com/reference/classify
 create or replace function ai.cohere_classify
-( _model text
-, _inputs text[]
-, _api_key text default null
-, _examples jsonb default null
-, _truncate text default null
+( model text
+, inputs text[]
+, api_key text default null
+, examples jsonb default null
+, truncate_long_inputs text default null
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
@@ -1285,16 +1017,16 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.cohere
-    client = ai.cohere.make_client(plpy, _api_key)
+    client = ai.cohere.make_client(plpy, api_key)
 
     import json
     args = {}
-    if _examples is not None:
-        args["examples"] = json.loads(_examples)
-    if _truncate is not None:
-        args["truncate"] = _truncate
+    if examples is not None:
+        args["examples"] = json.loads(examples)
+    if truncate_long_inputs is not None:
+        args["truncate"] = truncate_long_inputs
 
-    response = client.classify(inputs=_inputs, model=_model, **args)
+    response = client.classify(inputs=inputs, model=model, **args)
     return response.json()
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -1305,11 +1037,11 @@ set search_path to pg_catalog, pg_temp
 -- cohere_classify_simple
 -- https://docs.cohere.com/reference/classify
 create or replace function ai.cohere_classify_simple
-( _model text
-, _inputs text[]
-, _api_key text default null
-, _examples jsonb default null
-, _truncate text default null
+( model text
+, inputs text[]
+, api_key text default null
+, examples jsonb default null
+, truncate_long_inputs text default null
 ) returns table
 ( input text
 , prediction text
@@ -1330,14 +1062,14 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.cohere
-    client = ai.cohere.make_client(plpy, _api_key)
+    client = ai.cohere.make_client(plpy, api_key)
     import json
     args = {}
-    if _examples is not None:
-        args["examples"] = json.loads(_examples)
-    if _truncate is not None:
-        args["truncate"] = _truncate
-    response = client.classify(inputs=_inputs, model=_model, **args)
+    if examples is not None:
+        args["examples"] = json.loads(examples)
+    if truncate_long_inputs is not None:
+        args["truncate"] = truncate_long_inputs
+    response = client.classify(inputs=inputs, model=model, **args)
     for x in response.classifications:
         yield x.input, x.prediction, x.confidence
 $python$
@@ -1349,14 +1081,14 @@ set search_path to pg_catalog, pg_temp
 -- cohere_rerank
 -- https://docs.cohere.com/reference/rerank
 create or replace function ai.cohere_rerank
-( _model text
-, _query text
-, _documents jsonb
-, _api_key text default null
-, _top_n integer default null
-, _rank_fields text[] default null
-, _return_documents bool default null
-, _max_chunks_per_doc int default null
+( model text
+, query text
+, documents jsonb
+, api_key text default null
+, top_n integer default null
+, rank_fields text[] default null
+, return_documents bool default null
+, max_chunks_per_doc int default null
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
@@ -1373,19 +1105,19 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.cohere
-    client = ai.cohere.make_client(plpy, _api_key)
+    client = ai.cohere.make_client(plpy, api_key)
     import json
     args = {}
-    if _top_n is not None:
-        args["top_n"] = _top_n
-    if _rank_fields is not None:
-        args["rank_fields"] = _rank_fields
-    if _return_documents is not None:
-        args["return_documents"] = _return_documents
-    if _max_chunks_per_doc is not None:
-        args["max_chunks_per_doc"] = _max_chunks_per_doc
-    _documents_1 = json.loads(_documents)
-    response = client.rerank(model=_model, query=_query, documents=_documents_1, **args)
+    if top_n is not None:
+        args["top_n"] = top_n
+    if rank_fields is not None:
+        args["rank_fields"] = rank_fields
+    if return_documents is not None:
+        args["return_documents"] = return_documents
+    if max_chunks_per_doc is not None:
+        args["max_chunks_per_doc"] = max_chunks_per_doc
+    documents_1 = json.loads(documents)
+    response = client.rerank(model=model, query=query, documents=documents_1, **args)
     return response.json()
 $python$ language plpython3u immutable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
@@ -1395,12 +1127,12 @@ set search_path to pg_catalog, pg_temp
 -- cohere_rerank_simple
 -- https://docs.cohere.com/reference/rerank
 create or replace function ai.cohere_rerank_simple
-( _model text
-, _query text
-, _documents jsonb
-, _api_key text default null
-, _top_n integer default null
-, _max_chunks_per_doc int default null
+( model text
+, query text
+, documents jsonb
+, api_key text default null
+, top_n integer default null
+, max_chunks_per_doc int default null
 ) returns table
 ( "index" int
 , "document" jsonb
@@ -1411,13 +1143,13 @@ select *
 from pg_catalog.jsonb_to_recordset
 (
     ai.cohere_rerank
-    ( _model
-    , _query
-    , _documents
-    , _api_key=>_api_key
-    , _top_n=>_top_n
-    , _return_documents=>true
-    , _max_chunks_per_doc=>_max_chunks_per_doc
+    ( model
+    , query
+    , documents
+    , api_key=>api_key
+    , top_n=>top_n
+    , return_documents=>true
+    , max_chunks_per_doc=>max_chunks_per_doc
     ) operator(pg_catalog.->) 'results'
 ) x("index" int, "document" jsonb, relevance_score float8)
 $func$ language sql immutable parallel safe security invoker
@@ -1428,29 +1160,29 @@ set search_path to pg_catalog, pg_temp
 -- cohere_chat_complete
 -- https://docs.cohere.com/reference/chat
 create or replace function ai.cohere_chat_complete
-( _model text
-, _message text
-, _api_key text default null
-, _preamble text default null
-, _chat_history jsonb default null
-, _conversation_id text default null
-, _prompt_truncation text default null
-, _connectors jsonb default null
-, _search_queries_only bool default null
-, _documents jsonb default null
-, _citation_quality text default null
-, _temperature float8 default null
-, _max_tokens int default null
-, _max_input_tokens int default null
-, _k int default null
-, _p float8 default null
-, _seed int default null
-, _stop_sequences text[] default null
-, _frequency_penalty float8 default null
-, _presence_penalty float8 default null
-, _tools jsonb default null
-, _tool_results jsonb default null
-, _force_single_step bool default null
+( model text
+, message text
+, api_key text default null
+, preamble text default null
+, chat_history jsonb default null
+, conversation_id text default null
+, prompt_truncation text default null
+, connectors jsonb default null
+, search_queries_only bool default null
+, documents jsonb default null
+, citation_quality text default null
+, temperature float8 default null
+, max_tokens int default null
+, max_input_tokens int default null
+, k int default null
+, p float8 default null
+, seed int default null
+, stop_sequences text[] default null
+, frequency_penalty float8 default null
+, presence_penalty float8 default null
+, tools jsonb default null
+, tool_results jsonb default null
+, force_single_step bool default null
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
@@ -1467,57 +1199,56 @@ as $python$
         if GD["ai.version"] != "0.4.0":
             plpy.fatal("the pgai extension version has changed. start a new session")
     import ai.cohere
-    client = ai.cohere.make_client(plpy, _api_key)
+    client = ai.cohere.make_client(plpy, api_key)
 
     import json
     args = {}
-    if _preamble is not None:
-        args["preamble"] = _preamble
-    if _chat_history is not None:
-        args["chat_history"] = json.loads(_chat_history)
-    if _conversation_id is not None:
-        args["conversation_id"] = _conversation_id
-    if _prompt_truncation is not None:
-        args["prompt_truncation"] = _prompt_truncation
-    if _connectors is not None:
-        args["connectors"] = json.loads(_connectors)
-    if _search_queries_only is not None:
-        args["search_queries_only"] = _search_queries_only
-    if _documents is not None:
-        args["documents"] = json.loads(_documents)
-    if _citation_quality is not None:
-        args["citation_quality"] = _citation_quality
-    if _temperature is not None:
-        args["temperature"] = _temperature
-    if _max_tokens is not None:
-        args["max_tokens"] = _max_tokens
-    if _max_input_tokens is not None:
-        args["max_input_tokens"] = _max_input_tokens
-    if _k is not None:
-        args["k"] = _k
-    if _p is not None:
-        args["p"] = _p
-    if _seed is not None:
-        args["seed"] = _seed
-    if _stop_sequences is not None:
-        args["stop_sequences"] = _stop_sequences
-    if _frequency_penalty is not None:
-        args["frequency_penalty"] = _frequency_penalty
-    if _presence_penalty is not None:
-        args["presence_penalty"] = _presence_penalty
-    if _tools is not None:
-        args["tools"] = json.loads(_tools)
-    if _tool_results is not None:
-        args["tool_results"] = json.loads(_tool_results)
-    if _force_single_step is not None:
-        args["force_single_step"] = _force_single_step
+    if preamble is not None:
+        args["preamble"] = preamble
+    if chat_history is not None:
+        args["chat_history"] = json.loads(chat_history)
+    if conversation_id is not None:
+        args["conversation_id"] = conversation_id
+    if prompt_truncation is not None:
+        args["prompt_truncation"] = prompt_truncation
+    if connectors is not None:
+        args["connectors"] = json.loads(connectors)
+    if search_queries_only is not None:
+        args["search_queries_only"] = search_queries_only
+    if documents is not None:
+        args["documents"] = json.loads(documents)
+    if citation_quality is not None:
+        args["citation_quality"] = citation_quality
+    if temperature is not None:
+        args["temperature"] = temperature
+    if max_tokens is not None:
+        args["max_tokens"] = max_tokens
+    if max_input_tokens is not None:
+        args["max_input_tokens"] = max_input_tokens
+    if k is not None:
+        args["k"] = k
+    if p is not None:
+        args["p"] = p
+    if seed is not None:
+        args["seed"] = seed
+    if stop_sequences is not None:
+        args["stop_sequences"] = stop_sequences
+    if frequency_penalty is not None:
+        args["frequency_penalty"] = frequency_penalty
+    if presence_penalty is not None:
+        args["presence_penalty"] = presence_penalty
+    if tools is not None:
+        args["tools"] = json.loads(tools)
+    if tool_results is not None:
+        args["tool_results"] = json.loads(tool_results)
+    if force_single_step is not None:
+        args["force_single_step"] = force_single_step
 
-    response = client.chat(model=_model, message=_message, **args)
+    response = client.chat(model=model, message=message, **args)
     return response.json()
 $python$ language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
-
 
 
 --------------------------------------------------------------------------------
@@ -1728,6 +1459,18 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- scheduling_default
+create or replace function ai.scheduling_default() returns jsonb
+as $func$
+    select pg_catalog.jsonb_build_object
+    ( 'implementation', 'default'
+    , 'config_type', 'scheduling'
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- scheduling_timescaledb
 create or replace function ai.scheduling_timescaledb
 ( schedule_interval interval default interval '5m'
@@ -1749,6 +1492,24 @@ $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-------------------------------------------------------------------------------
+-- _resolve_scheduling_default
+create or replace function ai._resolve_scheduling_default() returns jsonb
+as $func$
+declare
+    _setting text;
+begin
+    select pg_catalog.current_setting('ai.scheduling_default', true) into _setting;
+    case _setting
+        when 'scheduling_timescaledb' then
+            return ai.scheduling_timescaledb();
+        else
+            return ai.scheduling_none();
+    end case;
+end;
+$func$ language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
 
 -------------------------------------------------------------------------------
 -- _validate_scheduling
@@ -1861,6 +1622,18 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- indexing_default
+create or replace function ai.indexing_default() returns jsonb
+as $func$
+    select jsonb_build_object
+    ( 'implementation', 'default'
+    , 'config_type', 'indexing'
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- indexing_diskann
 create or replace function ai.indexing_diskann
 ( min_rows int default 100000
@@ -1887,6 +1660,27 @@ as $func$
     absent on null
     )
 $func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _resolve_indexing_default
+create or replace function ai._resolve_indexing_default() returns jsonb
+as $func$
+declare
+    _setting text;
+begin
+    select pg_catalog.current_setting('ai.indexing_default', true) into _setting;
+    case _setting
+        when 'indexing_diskann' then
+            return ai.indexing_diskann();
+        when 'indexing_hnsw' then
+            return ai.indexing_hnsw();
+        else
+            return ai.indexing_none();
+    end case;
+end;
+$func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
@@ -2067,7 +1861,34 @@ set search_path to pg_catalog, pg_temp
 
 
 --------------------------------------------------------------------------------
--- 011-vectorizer-int.sql
+-- 011-grant-to.sql
+-------------------------------------------------------------------------------
+-- grant_to
+create or replace function ai.grant_to(variadic grantees name[]) returns name[]
+as $func$
+    select coalesce(pg_catalog.array_agg(cast(x as name)), array[]::name[])
+    from (
+        select pg_catalog.unnest(grantees) x
+        union
+        select trim(pg_catalog.string_to_table(pg_catalog.current_setting('ai.grant_to_default', true), ',')) x
+    ) _;
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- grant_to
+create or replace function ai.grant_to() returns name[]
+as $func$
+    select ai.grant_to(variadic array[]::name[])
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+
+
+--------------------------------------------------------------------------------
+-- 012-vectorizer-int.sql
 
 -------------------------------------------------------------------------------
 -- _vectorizer_source_pk
@@ -2879,7 +2700,7 @@ set search_path to pg_catalog, pg_temp
 
 
 --------------------------------------------------------------------------------
--- 012-vectorizer-api.sql
+-- 013-vectorizer-api.sql
 
 
 -------------------------------------------------------------------------------
@@ -2910,11 +2731,12 @@ set search_path to pg_catalog, pg_temp
 -- create_vectorizer
 create or replace function ai.create_vectorizer
 ( source regclass
-, embedding jsonb
-, chunking jsonb
-, indexing jsonb default ai.indexing_diskann()
+, destination name default null
+, embedding jsonb default null
+, chunking jsonb default null
+, indexing jsonb default ai.indexing_default()
 , formatting jsonb default ai.formatting_python_template()
-, scheduling jsonb default ai.scheduling_timescaledb()
+, scheduling jsonb default ai.scheduling_default()
 , processing jsonb default ai.processing_default()
 , target_schema name default null
 , target_table name default null
@@ -2922,7 +2744,7 @@ create or replace function ai.create_vectorizer
 , view_name name default null
 , queue_schema name default null
 , queue_table name default null
-, grant_to name[] default array['tsdbadmin']
+, grant_to name[] default ai.grant_to()
 , enqueue_existing bool default true
 ) returns int
 as $func$
@@ -2938,7 +2760,7 @@ declare
     _sql text;
     _job_id bigint;
 begin
-    -- make sure all the roles listed in _grant_to exist
+    -- make sure all the roles listed in grant_to exist
     if grant_to is not null then
         select
           pg_catalog.array_agg(r) filter (where pg_catalog.to_regrole(r) is null) -- missing
@@ -2953,6 +2775,14 @@ begin
         end if;
     end if;
 
+    if embedding is null then
+        raise exception 'embedding configuration is required';
+    end if;
+
+    if chunking is null then
+        raise exception 'chunking configuration is required';
+    end if;
+
     -- get source table name and schema name
     select k.relname, n.nspname, k.relowner operator(pg_catalog.=) current_user::regrole
     into strict _source_table, _source_schema, _is_owner
@@ -2960,6 +2790,7 @@ begin
     inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
     where k.oid operator(pg_catalog.=) source
     ;
+
     -- TODO: consider allowing (in)direct members of the role that owns the source table
     if not _is_owner then
         raise exception 'only the owner of the source table may create a vectorizer on it';
@@ -2978,26 +2809,34 @@ begin
 
     _vectorizer_id = pg_catalog.nextval('ai.vectorizer_id_seq'::pg_catalog.regclass);
     target_schema = coalesce(target_schema, _source_schema);
-    target_table = coalesce(target_table, pg_catalog.concat(_source_table, '_embedding_store'));
+    target_table = case
+        when target_table is not null then target_table
+        when destination is not null then pg_catalog.concat(destination, '_store')
+        else pg_catalog.concat(_source_table, '_embedding_store')
+    end;
     view_schema = coalesce(view_schema, _source_schema);
-    view_name = coalesce(view_name, pg_catalog.concat(_source_table, '_embedding'));
+    view_name = case
+        when view_name is not null then view_name
+        when destination is not null then destination
+        else pg_catalog.concat(_source_table, '_embedding')
+    end;
     _trigger_name = pg_catalog.concat('_vectorizer_src_trg_', _vectorizer_id);
     queue_schema = coalesce(queue_schema, 'ai');
     queue_table = coalesce(queue_table, pg_catalog.concat('_vectorizer_q_', _vectorizer_id));
 
+    -- make sure view name is available
+    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
+        raise exception 'an object named %.% already exists. specify an alternate destination explicitly', view_schema, view_name;
+    end if;
+
     -- make sure target table name is available
     if pg_catalog.to_regclass(pg_catalog.format('%I.%I', target_schema, target_table)) is not null then
-        raise exception 'an object named %.% already exists. specify an alternate target_table explicitly', target_schema, target_schema;
+        raise exception 'an object named %.% already exists. specify an alternate destination or target_table explicitly', target_schema, target_schema;
     end if;
 
     -- make sure queue table name is available
     if pg_catalog.to_regclass(pg_catalog.format('%I.%I', queue_schema, queue_table)) is not null then
         raise exception 'an object named %.% already exists. specify an alternate queue_table explicitly', queue_schema, queue_table;
-    end if;
-
-    -- make sure view name is available
-    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
-        raise exception 'an object named %.% already exists. specify an alternate view_name explicitly', view_schema, view_name;
     end if;
 
     -- validate the embedding config
@@ -3006,11 +2845,21 @@ begin
     -- validate the chunking config
     perform ai._validate_chunking(chunking, _source_schema, _source_table);
 
+    -- if ai.indexing_default, resolve the default
+    if indexing operator(pg_catalog.->>) 'implementation' = 'default' then
+        indexing = ai._resolve_indexing_default();
+    end if;
+
     -- validate the indexing config
     perform ai._validate_indexing(indexing);
 
     -- validate the formatting config
     perform ai._validate_formatting(formatting, _source_schema, _source_table);
+
+    -- if ai.scheduling_default, resolve the default
+    if scheduling operator(pg_catalog.->>) 'implementation' = 'default' then
+        scheduling = ai._resolve_scheduling_default();
+    end if;
 
     -- validate the scheduling config
     perform ai._validate_scheduling(scheduling);
@@ -3382,6 +3231,52 @@ from ai.vectorizer v
 
 
 --------------------------------------------------------------------------------
+-- 014-secrets.sql
+-------------------------------------------------------------------------------
+-- reveal_secret
+create or replace function ai.reveal_secret(secret_name text) returns text
+as $python$
+    if "ai.version" not in GD:
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        python_lib_dir = r[0]["python_lib_dir"]
+        from pathlib import Path
+        python_lib_dir = Path(python_lib_dir).joinpath("0.4.0")
+        import site
+        site.addsitedir(str(python_lib_dir))
+        from ai import __version__ as ai_version
+        assert("0.4.0" == ai_version)
+        GD["ai.version"] = "0.4.0"
+    else:
+        if GD["ai.version"] != "0.4.0":
+            plpy.fatal("the pgai extension version has changed. start a new session")
+    import ai.secrets
+    return ai.secrets.reveal_secret(plpy, secret_name)
+$python$
+language plpython3u volatile security invoker
+set search_path to pg_catalog, pg_temp;
+
+
+create or replace view ai.secret_permissions as
+SELECT *
+FROM ai._secret_permissions
+WHERE pg_catalog.to_regrole("role") is not null
+      AND pg_catalog.pg_has_role(current_user, "role", 'member');
+
+create or replace function ai.grant_secret(secret_name text, grant_to_role text) returns void
+as $func$
+    insert into ai._secret_permissions (name, "role") VALUES (secret_name, grant_to_role);
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp;
+
+create or replace function ai.revoke_secret(secret_name text, revoke_from_role text) returns void
+as $func$
+    delete from ai._secret_permissions where name = secret_name and "role" = revoke_from_role;
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp;
+
+
+
+--------------------------------------------------------------------------------
 -- 999-privileges.sql
 
 -------------------------------------------------------------------------------
@@ -3436,7 +3331,8 @@ begin
         and k.relkind in ('r', 'p', 'S', 'v') -- tables, sequences, and views
         and (admin, n.nspname, k.relname) not in
         (
-            (false, 'ai', 'migration') -- only admins get any access to this table
+            (false, 'ai', 'migration'), -- only admins get any access to this table
+            (false, 'ai', '_secret_permissions') -- only admins get any access to this table
         )
         order by n.nspname, k.relname
     )
@@ -3470,7 +3366,7 @@ begin
         and e.extname operator(pg_catalog.=) 'ai'
         and k.prokind in ('f', 'p')
         and case
-              when k.proname operator(pg_catalog.=) 'grant_ai_usage' then admin -- only admins get this function
+              when k.proname in ('grant_ai_usage', 'grant_secret', 'revoke_secret') then admin -- only admins get these function
               else true
             end
     )
@@ -3478,6 +3374,12 @@ begin
         raise debug '%', _sql;
         execute _sql;
     end loop;
+
+    -- secret permissions
+    if admin then
+        -- grant access to all secrets to admin users
+        insert into ai.secret_permissions (name, "role") VALUES ('*', to_user);
+    end if;
 end
 $func$ language plpgsql volatile
 security invoker -- gotta have privs to give privs
@@ -3554,7 +3456,6 @@ begin
     end loop;
 end
 $func$;
-
 
 
 
