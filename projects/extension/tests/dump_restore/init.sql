@@ -26,3 +26,4 @@ select ai.create_vectorizer
 , grant_to=>ai.grant_to('ethel')
 );
 
+select ai.grant_secret('top_secret_password', 'ethel')
