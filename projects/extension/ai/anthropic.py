@@ -5,7 +5,6 @@ DEFAULT_KEY_NAME = "ANTHROPIC_API_KEY"
 
 
 def make_client(
-    plpy,
     api_key: str,
     base_url: Optional[str] = None,
     timeout: Optional[float] = None,

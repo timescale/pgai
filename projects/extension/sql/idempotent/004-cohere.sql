@@ -19,8 +19,8 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
     import ai.secrets
-    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
-    client = ai.cohere.make_client(plpy, api_key_resolved)
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
+    client = ai.cohere.make_client(api_key_resolved)
 
     args = {}
     if endpoint is not None:
@@ -48,8 +48,8 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
     import ai.secrets
-    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
-    client = ai.cohere.make_client(plpy, api_key_resolved)
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
+    client = ai.cohere.make_client(api_key_resolved)
 
     response = client.tokenize(text=text_input, model=model)
     return response.tokens
@@ -66,8 +66,8 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
     import ai.secrets
-    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
-    client = ai.cohere.make_client(plpy, api_key_resolved)
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
+    client = ai.cohere.make_client(api_key_resolved)
 
     response = client.detokenize(tokens=tokens, model=model)
     return response.text
@@ -91,8 +91,8 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
     import ai.secrets
-    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
-    client = ai.cohere.make_client(plpy, api_key_resolved)
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
+    client = ai.cohere.make_client(api_key_resolved)
 
     args={}
     if input_type is not None:
@@ -121,8 +121,8 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
     import ai.secrets
-    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
-    client = ai.cohere.make_client(plpy, api_key_resolved)
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
+    client = ai.cohere.make_client(api_key_resolved)
 
     import json
     args = {}
@@ -157,8 +157,8 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
     import ai.secrets
-    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
-    client = ai.cohere.make_client(plpy, api_key_resolved)
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
+    client = ai.cohere.make_client(api_key_resolved)
 
     import json
     args = {}
@@ -192,8 +192,8 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
     import ai.secrets
-    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
-    client = ai.cohere.make_client(plpy, api_key_resolved)
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
+    client = ai.cohere.make_client(api_key_resolved)
 
     import json
     args = {}
@@ -280,8 +280,8 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
     import ai.secrets
-    api_key_resolved = ai.secrets.get_api_key(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
-    client = ai.cohere.make_client(plpy, api_key_resolved)
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
+    client = ai.cohere.make_client(api_key_resolved)
 
     import json
     args = {}

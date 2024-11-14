@@ -20,29 +20,29 @@ def remove_secret_from_cache(sd_cache: dict[str, str], secret_name: str):
     sd_cache.pop(_cache_key(secret_name), None)
 
 
-def get_api_key(
+def get_secret(
     plpy,
-    api_key: Optional[str],
-    api_key_name: Optional[str],
-    api_key_name_default: str,
+    secret: Optional[str],
+    secret_name: Optional[str],
+    secret_name_default: str,
     sd_cache: Optional[dict[str, str]],
 ) -> str:
-    if api_key is not None:
-        return api_key
+    if secret is not None:
+        return secret
 
-    if api_key_name is None:
-        api_key_name = api_key_name_default
+    if secret_name is None:
+        secret_name = secret_name_default
 
-    if api_key_name is None or api_key_name == "":
-        plpy.error("api_key_name is required")
+    if secret_name is None or secret_name == "":
+        plpy.error("secret_name is required")
 
-    key = reveal_secret(plpy, api_key_name, sd_cache)
-    if key is None:
-        plpy.error(f"missing {api_key_name} secret")
+    secret = reveal_secret(plpy, secret_name, sd_cache)
+    if secret is None:
+        plpy.error(f"missing {secret_name} secret")
         # This line should never be reached, but it's here to make the type checker happy.
         return ""
 
-    return key
+    return secret
 
 
 def get_guc_value(plpy, setting: str, default: str) -> str:
