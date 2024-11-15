@@ -67,6 +67,9 @@ test-server:
 test:
 	@./build.py test
 
+test-update:
+	@./build.py test-update
+
 lint-sql:
 	@./build.py lint-sql
 

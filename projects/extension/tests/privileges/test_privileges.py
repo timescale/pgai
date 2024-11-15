@@ -39,7 +39,7 @@ def psql_file(user, dbname, file: str) -> None:
     cmd = " ".join(
         [
             "psql",
-            f'''-d "{db_url(user, dbname)}"''',
+            f'-d "{db_url(user, dbname)}"',
             "-v ON_ERROR_STOP=1",
             "-X",
             f"-f {docker_dir()}/{file}",
@@ -47,7 +47,16 @@ def psql_file(user, dbname, file: str) -> None:
     )
     if where_am_i() != "docker":
         cmd = f"docker exec -w {docker_dir()} pgai-ext {cmd}"
-    subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
+    result = subprocess.run(
+        cmd,
+        check=True,
+        shell=True,
+        env=os.environ,
+        cwd=str(host_dir()),
+        text=True,
+        capture_output=True,
+    )
+    return result.stdout
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -56,31 +65,9 @@ def init():
     psql_file("alice", "privs", "init1.sql")
 
 
-def run_test(kind: str) -> None:
-    psql_file("postgres", "privs", f"{kind}.sql")
-    expected = read_file(f"{kind}.expected")
-    actual = read_file(f"{kind}.actual")
-    assert actual == expected
-
-
-def test_schema_privileges():
-    run_test("schema")
-
-
-def test_table_privileges():
-    run_test("table")
-
-
-def test_sequence_privileges():
-    run_test("sequence")
-
-
-def test_view_privileges():
-    run_test("view")
-
-
-def test_function_privileges():
-    run_test("function")
+@pytest.mark.parametrize("type", ["schema", "table", "sequence", "view", "function"])
+def test_privileges(snapshot, type):
+    assert psql_file("postgres", "privs", f"{type}.sql") == snapshot
 
 
 def test_jill_privileges():

@@ -1,7 +1,6 @@
 \set users {bob,fred,alice,jill}
 
 -- check function privileges
-\! rm -f function.actual
 select
   f.prokind
 , u as "user"
@@ -14,4 +13,3 @@ inner join pg_namespace n on (n.nspname = any(array['ai']))
 inner join pg_proc f on (n.oid = f.pronamespace)
 cross join unnest(array['execute']) p
 order by n.nspname, 6, p, u
-\g (format=aligned) function.actual

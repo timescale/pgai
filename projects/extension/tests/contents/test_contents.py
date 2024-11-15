@@ -36,17 +36,23 @@ def init() -> None:
             f'''-d "{db_url("postgres", "postgres")}"''',
             "-v ON_ERROR_STOP=1",
             "-X",
-            f"-o {docker_dir()}/output.actual",
             f"-f {docker_dir()}/init.sql",
         ]
     )
     if where_am_i() != "docker":
         cmd = f"docker exec -w {docker_dir()} pgai-ext {cmd}"
-    subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
+    result = subprocess.run(
+        cmd,
+        check=True,
+        shell=True,
+        env=os.environ,
+        cwd=str(host_dir()),
+        text=True,
+        capture_output=True,
+    )
+    return result.stdout
 
 
-def test_contents() -> None:
-    init()
-    actual = host_dir().joinpath("output.actual").read_text()
-    expected = host_dir().joinpath("output.expected").read_text()
-    assert actual == expected
+def test_contents(snapshot) -> None:
+    output = init()
+    assert output == snapshot

@@ -1,7 +1,6 @@
 \set users {bob,fred,alice,jill}
 
 -- check schema privileges
-\! rm -f schema.actual
 select
   n as "schema"
 , u as "user"
@@ -11,4 +10,3 @@ from unnest(:'users'::text[]) u
 cross join unnest(array['ai', 'wiki']) n
 cross join unnest(array['create', 'usage']) p
 order by n, p, u
-\g (format=aligned) schema.actual

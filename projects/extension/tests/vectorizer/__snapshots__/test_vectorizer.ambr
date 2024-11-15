@@ -1,0 +1,161 @@
+# serializer version: 1
+# name: test_vectorizer_timescaledb
+  '''
+  {
+    "config": {
+      "chunking": {
+        "chunk_column": "body",
+        "chunk_overlap": 10,
+        "chunk_size": 128,
+        "config_type": "chunking",
+        "implementation": "character_text_splitter",
+        "is_separator_regex": false,
+        "separator": "\n\n"
+      },
+      "embedding": {
+        "api_key_name": "OPENAI_API_KEY",
+        "config_type": "embedding",
+        "dimensions": 768,
+        "implementation": "openai",
+        "model": "text-embedding-3-small"
+      },
+      "formatting": {
+        "config_type": "formatting",
+        "implementation": "python_template",
+        "template": "title: $title published: $published $chunk"
+      },
+      "indexing": {
+        "config_type": "indexing",
+        "implementation": "none"
+      },
+      "processing": {
+        "config_type": "processing",
+        "implementation": "default"
+      },
+      "scheduling": {
+        "config_type": "scheduling",
+        "implementation": "timescaledb",
+        "initial_start": "2050-01-06T00:00:00+00:00",
+        "job_id": 1000,
+        "schedule_interval": "00:05:00",
+        "timezone": "America/Chicago"
+      }
+    },
+    "id": 1,
+    "queue_schema": "ai",
+    "queue_table": "_vectorizer_q_1",
+    "source_pk": [
+      {
+        "attname": "title",
+        "attnum": 2,
+        "pknum": 1,
+        "typname": "text"
+      },
+      {
+        "attname": "published",
+        "attnum": 3,
+        "pknum": 2,
+        "typname": "timestamptz"
+      }
+    ],
+    "source_schema": "website",
+    "source_table": "blog",
+    "target_schema": "website",
+    "target_table": "blog_embedding_store",
+    "trigger_name": "_vectorizer_src_trg_1",
+    "view_name": "blog_embedding",
+    "view_schema": "website"
+  }
+  '''
+# ---
+# name: test_vectorizer_timescaledb.1
+  '''
+  Table "website.blog"
+    Column   |           Type           | Collation | Nullable |           Default            | Storage  | Compression | Stats target | Description 
+  -----------+--------------------------+-----------+----------+------------------------------+----------+-------------+--------------+-------------
+   id        | integer                  |           | not null | generated always as identity | plain    |             |              | 
+   title     | text                     |           | not null |                              | extended |             |              | 
+   published | timestamp with time zone |           | not null |                              | plain    |             |              | 
+   body      | text                     |           | not null |                              | extended |             |              | 
+  Indexes:
+      "blog_pkey" PRIMARY KEY, btree (title, published)
+  Referenced by:
+      TABLE "website.blog_embedding_store" CONSTRAINT "blog_embedding_store_title_published_fkey" FOREIGN KEY (title, published) REFERENCES website.blog(title, published) ON DELETE CASCADE
+  Triggers:
+      _vectorizer_src_trg_1 AFTER INSERT OR UPDATE ON website.blog FOR EACH ROW EXECUTE FUNCTION ai._vectorizer_src_trg_1()
+  Access method: heap
+  '''
+# ---
+# name: test_vectorizer_timescaledb.2
+  '''
+  List of functions
+   Schema |         Name          | Result data type | Argument data types | Type | Volatility | Parallel | Owner | Security | Access privileges | Language |                        Source code                        | Description 
+  --------+-----------------------+------------------+---------------------+------+------------+----------+-------+----------+-------------------+----------+-----------------------------------------------------------+-------------
+   ai     | _vectorizer_src_trg_1 | trigger          |                     | func | volatile   | safe     | test  | definer  | test=X/test       | plpgsql  |                                                          +| 
+          |                       |                  |                     |      |            |          |       |          |                   |          |     begin                                                +| 
+          |                       |                  |                     |      |            |          |       |          |                   |          |         insert into ai._vectorizer_q_1 (title, published)+| 
+          |                       |                  |                     |      |            |          |       |          |                   |          |         values (new.title, new.published);               +| 
+          |                       |                  |                     |      |            |          |       |          |                   |          |         return null;                                     +| 
+          |                       |                  |                     |      |            |          |       |          |                   |          |     end;                                                 +| 
+          |                       |                  |                     |      |            |          |       |          |                   |          |                                                           | 
+  (1 row)
+  '''
+# ---
+# name: test_vectorizer_timescaledb.3
+  '''
+  Table "website.blog_embedding_store"
+       Column     |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
+  ----------------+--------------------------+-----------+----------+-------------------+----------+-------------+--------------+-------------
+   embedding_uuid | uuid                     |           | not null | gen_random_uuid() | plain    |             |              | 
+   title          | text                     |           | not null |                   | extended |             |              | 
+   published      | timestamp with time zone |           | not null |                   | plain    |             |              | 
+   chunk_seq      | integer                  |           | not null |                   | plain    |             |              | 
+   chunk          | text                     |           | not null |                   | extended |             |              | 
+   embedding      | vector(768)              |           | not null |                   | main     |             |              | 
+  Indexes:
+      "blog_embedding_store_pkey" PRIMARY KEY, btree (embedding_uuid)
+      "blog_embedding_store_title_published_chunk_seq_key" UNIQUE CONSTRAINT, btree (title, published, chunk_seq)
+  Foreign-key constraints:
+      "blog_embedding_store_title_published_fkey" FOREIGN KEY (title, published) REFERENCES website.blog(title, published) ON DELETE CASCADE
+  Access method: heap
+  '''
+# ---
+# name: test_vectorizer_timescaledb.4
+  '''
+  Table "ai._vectorizer_q_1"
+    Column   |           Type           | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
+  -----------+--------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
+   title     | text                     |           | not null |         | extended |             |              | 
+   published | timestamp with time zone |           | not null |         | plain    |             |              | 
+   queued_at | timestamp with time zone |           | not null | now()   | plain    |             |              | 
+  Indexes:
+      "_vectorizer_q_1_title_published_idx" btree (title, published)
+  Access method: heap
+  '''
+# ---
+# name: test_vectorizer_timescaledb.5
+  '''
+  View "website.blog_embedding"
+       Column     |           Type           | Collation | Nullable | Default | Storage  | Description 
+  ----------------+--------------------------+-----------+----------+---------+----------+-------------
+   embedding_uuid | uuid                     |           |          |         | plain    | 
+   chunk_seq      | integer                  |           |          |         | plain    | 
+   chunk          | text                     |           |          |         | extended | 
+   embedding      | vector(768)              |           |          |         | external | 
+   id             | integer                  |           |          |         | plain    | 
+   title          | text                     |           |          |         | extended | 
+   published      | timestamp with time zone |           |          |         | plain    | 
+   body           | text                     |           |          |         | extended | 
+  View definition:
+   SELECT t.embedding_uuid,
+      t.chunk_seq,
+      t.chunk,
+      t.embedding,
+      s.id,
+      t.title,
+      t.published,
+      s.body
+     FROM website.blog_embedding_store t
+       LEFT JOIN website.blog s ON t.title = s.title AND t.published = s.published;
+  '''
+# ---

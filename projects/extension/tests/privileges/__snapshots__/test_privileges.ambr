@@ -1,0 +1,510 @@
+# serializer version: 1
+# name: test_privileges[function]
+  '''
+   prokind | user  | privilege | granted | schema |                                                                                                                                                                                                                                                                    func                                                                                                                                                                                                                                                                    
+  ---------+-------+-----------+---------+--------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+   f       | alice | execute   | YES     | ai     | _resolve_indexing_default()
+   f       | bob   | execute   | no      | ai     | _resolve_indexing_default()
+   f       | fred  | execute   | no      | ai     | _resolve_indexing_default()
+   f       | jill  | execute   | YES     | ai     | _resolve_indexing_default()
+   f       | alice | execute   | YES     | ai     | _resolve_scheduling_default()
+   f       | bob   | execute   | no      | ai     | _resolve_scheduling_default()
+   f       | fred  | execute   | no      | ai     | _resolve_scheduling_default()
+   f       | jill  | execute   | YES     | ai     | _resolve_scheduling_default()
+   f       | alice | execute   | YES     | ai     | _validate_chunking(config jsonb, source_schema name, source_table name)
+   f       | bob   | execute   | no      | ai     | _validate_chunking(config jsonb, source_schema name, source_table name)
+   f       | fred  | execute   | no      | ai     | _validate_chunking(config jsonb, source_schema name, source_table name)
+   f       | jill  | execute   | YES     | ai     | _validate_chunking(config jsonb, source_schema name, source_table name)
+   f       | alice | execute   | YES     | ai     | _validate_embedding(config jsonb)
+   f       | bob   | execute   | no      | ai     | _validate_embedding(config jsonb)
+   f       | fred  | execute   | no      | ai     | _validate_embedding(config jsonb)
+   f       | jill  | execute   | YES     | ai     | _validate_embedding(config jsonb)
+   f       | alice | execute   | YES     | ai     | _validate_formatting(config jsonb, source_schema name, source_table name)
+   f       | bob   | execute   | no      | ai     | _validate_formatting(config jsonb, source_schema name, source_table name)
+   f       | fred  | execute   | no      | ai     | _validate_formatting(config jsonb, source_schema name, source_table name)
+   f       | jill  | execute   | YES     | ai     | _validate_formatting(config jsonb, source_schema name, source_table name)
+   f       | alice | execute   | YES     | ai     | _validate_formatting_python_template(config jsonb, source_schema name, source_table name)
+   f       | bob   | execute   | no      | ai     | _validate_formatting_python_template(config jsonb, source_schema name, source_table name)
+   f       | fred  | execute   | no      | ai     | _validate_formatting_python_template(config jsonb, source_schema name, source_table name)
+   f       | jill  | execute   | YES     | ai     | _validate_formatting_python_template(config jsonb, source_schema name, source_table name)
+   f       | alice | execute   | YES     | ai     | _validate_indexing(config jsonb)
+   f       | bob   | execute   | no      | ai     | _validate_indexing(config jsonb)
+   f       | fred  | execute   | no      | ai     | _validate_indexing(config jsonb)
+   f       | jill  | execute   | YES     | ai     | _validate_indexing(config jsonb)
+   f       | alice | execute   | YES     | ai     | _validate_indexing_diskann(config jsonb)
+   f       | bob   | execute   | no      | ai     | _validate_indexing_diskann(config jsonb)
+   f       | fred  | execute   | no      | ai     | _validate_indexing_diskann(config jsonb)
+   f       | jill  | execute   | YES     | ai     | _validate_indexing_diskann(config jsonb)
+   f       | alice | execute   | YES     | ai     | _validate_indexing_hnsw(config jsonb)
+   f       | bob   | execute   | no      | ai     | _validate_indexing_hnsw(config jsonb)
+   f       | fred  | execute   | no      | ai     | _validate_indexing_hnsw(config jsonb)
+   f       | jill  | execute   | YES     | ai     | _validate_indexing_hnsw(config jsonb)
+   f       | alice | execute   | YES     | ai     | _validate_processing(config jsonb)
+   f       | bob   | execute   | no      | ai     | _validate_processing(config jsonb)
+   f       | fred  | execute   | no      | ai     | _validate_processing(config jsonb)
+   f       | jill  | execute   | YES     | ai     | _validate_processing(config jsonb)
+   f       | alice | execute   | YES     | ai     | _validate_scheduling(config jsonb)
+   f       | bob   | execute   | no      | ai     | _validate_scheduling(config jsonb)
+   f       | fred  | execute   | no      | ai     | _validate_scheduling(config jsonb)
+   f       | jill  | execute   | YES     | ai     | _validate_scheduling(config jsonb)
+   f       | alice | execute   | YES     | ai     | _vectorizer_create_queue_table(queue_schema name, queue_table name, source_pk jsonb, grant_to name[])
+   f       | bob   | execute   | no      | ai     | _vectorizer_create_queue_table(queue_schema name, queue_table name, source_pk jsonb, grant_to name[])
+   f       | fred  | execute   | no      | ai     | _vectorizer_create_queue_table(queue_schema name, queue_table name, source_pk jsonb, grant_to name[])
+   f       | jill  | execute   | YES     | ai     | _vectorizer_create_queue_table(queue_schema name, queue_table name, source_pk jsonb, grant_to name[])
+   f       | alice | execute   | YES     | ai     | _vectorizer_create_source_trigger(trigger_name name, queue_schema name, queue_table name, source_schema name, source_table name, source_pk jsonb)
+   f       | bob   | execute   | no      | ai     | _vectorizer_create_source_trigger(trigger_name name, queue_schema name, queue_table name, source_schema name, source_table name, source_pk jsonb)
+   f       | fred  | execute   | no      | ai     | _vectorizer_create_source_trigger(trigger_name name, queue_schema name, queue_table name, source_schema name, source_table name, source_pk jsonb)
+   f       | jill  | execute   | YES     | ai     | _vectorizer_create_source_trigger(trigger_name name, queue_schema name, queue_table name, source_schema name, source_table name, source_pk jsonb)
+   f       | alice | execute   | YES     | ai     | _vectorizer_create_target_table(source_schema name, source_table name, source_pk jsonb, target_schema name, target_table name, dimensions integer, grant_to name[])
+   f       | bob   | execute   | no      | ai     | _vectorizer_create_target_table(source_schema name, source_table name, source_pk jsonb, target_schema name, target_table name, dimensions integer, grant_to name[])
+   f       | fred  | execute   | no      | ai     | _vectorizer_create_target_table(source_schema name, source_table name, source_pk jsonb, target_schema name, target_table name, dimensions integer, grant_to name[])
+   f       | jill  | execute   | YES     | ai     | _vectorizer_create_target_table(source_schema name, source_table name, source_pk jsonb, target_schema name, target_table name, dimensions integer, grant_to name[])
+   f       | alice | execute   | YES     | ai     | _vectorizer_create_vector_index(target_schema name, target_table name, indexing jsonb)
+   f       | bob   | execute   | no      | ai     | _vectorizer_create_vector_index(target_schema name, target_table name, indexing jsonb)
+   f       | fred  | execute   | no      | ai     | _vectorizer_create_vector_index(target_schema name, target_table name, indexing jsonb)
+   f       | jill  | execute   | YES     | ai     | _vectorizer_create_vector_index(target_schema name, target_table name, indexing jsonb)
+   f       | alice | execute   | YES     | ai     | _vectorizer_create_view(view_schema name, view_name name, source_schema name, source_table name, source_pk jsonb, target_schema name, target_table name, grant_to name[])
+   f       | bob   | execute   | no      | ai     | _vectorizer_create_view(view_schema name, view_name name, source_schema name, source_table name, source_pk jsonb, target_schema name, target_table name, grant_to name[])
+   f       | fred  | execute   | no      | ai     | _vectorizer_create_view(view_schema name, view_name name, source_schema name, source_table name, source_pk jsonb, target_schema name, target_table name, grant_to name[])
+   f       | jill  | execute   | YES     | ai     | _vectorizer_create_view(view_schema name, view_name name, source_schema name, source_table name, source_pk jsonb, target_schema name, target_table name, grant_to name[])
+   f       | alice | execute   | YES     | ai     | _vectorizer_grant_to_source(source_schema name, source_table name, grant_to name[])
+   f       | bob   | execute   | no      | ai     | _vectorizer_grant_to_source(source_schema name, source_table name, grant_to name[])
+   f       | fred  | execute   | no      | ai     | _vectorizer_grant_to_source(source_schema name, source_table name, grant_to name[])
+   f       | jill  | execute   | YES     | ai     | _vectorizer_grant_to_source(source_schema name, source_table name, grant_to name[])
+   f       | alice | execute   | YES     | ai     | _vectorizer_grant_to_vectorizer(grant_to name[])
+   f       | bob   | execute   | no      | ai     | _vectorizer_grant_to_vectorizer(grant_to name[])
+   f       | fred  | execute   | no      | ai     | _vectorizer_grant_to_vectorizer(grant_to name[])
+   f       | jill  | execute   | YES     | ai     | _vectorizer_grant_to_vectorizer(grant_to name[])
+   f       | alice | execute   | YES     | ai     | _vectorizer_handle_drops()
+   f       | bob   | execute   | no      | ai     | _vectorizer_handle_drops()
+   f       | fred  | execute   | no      | ai     | _vectorizer_handle_drops()
+   f       | jill  | execute   | YES     | ai     | _vectorizer_handle_drops()
+   p       | alice | execute   | YES     | ai     | _vectorizer_job(IN job_id integer, IN config jsonb)
+   p       | bob   | execute   | no      | ai     | _vectorizer_job(IN job_id integer, IN config jsonb)
+   p       | fred  | execute   | no      | ai     | _vectorizer_job(IN job_id integer, IN config jsonb)
+   p       | jill  | execute   | YES     | ai     | _vectorizer_job(IN job_id integer, IN config jsonb)
+   f       | alice | execute   | YES     | ai     | _vectorizer_schedule_job(vectorizer_id integer, scheduling jsonb)
+   f       | bob   | execute   | no      | ai     | _vectorizer_schedule_job(vectorizer_id integer, scheduling jsonb)
+   f       | fred  | execute   | no      | ai     | _vectorizer_schedule_job(vectorizer_id integer, scheduling jsonb)
+   f       | jill  | execute   | YES     | ai     | _vectorizer_schedule_job(vectorizer_id integer, scheduling jsonb)
+   f       | alice | execute   | YES     | ai     | _vectorizer_should_create_vector_index(vectorizer ai.vectorizer)
+   f       | bob   | execute   | no      | ai     | _vectorizer_should_create_vector_index(vectorizer ai.vectorizer)
+   f       | fred  | execute   | no      | ai     | _vectorizer_should_create_vector_index(vectorizer ai.vectorizer)
+   f       | jill  | execute   | YES     | ai     | _vectorizer_should_create_vector_index(vectorizer ai.vectorizer)
+   f       | alice | execute   | YES     | ai     | _vectorizer_source_pk(source_table regclass)
+   f       | bob   | execute   | no      | ai     | _vectorizer_source_pk(source_table regclass)
+   f       | fred  | execute   | no      | ai     | _vectorizer_source_pk(source_table regclass)
+   f       | jill  | execute   | YES     | ai     | _vectorizer_source_pk(source_table regclass)
+   f       | alice | execute   | YES     | ai     | _vectorizer_src_trg_1()
+   f       | bob   | execute   | no      | ai     | _vectorizer_src_trg_1()
+   f       | fred  | execute   | no      | ai     | _vectorizer_src_trg_1()
+   f       | jill  | execute   | no      | ai     | _vectorizer_src_trg_1()
+   f       | alice | execute   | YES     | ai     | _vectorizer_vector_index_exists(target_schema name, target_table name, indexing jsonb)
+   f       | bob   | execute   | no      | ai     | _vectorizer_vector_index_exists(target_schema name, target_table name, indexing jsonb)
+   f       | fred  | execute   | no      | ai     | _vectorizer_vector_index_exists(target_schema name, target_table name, indexing jsonb)
+   f       | jill  | execute   | YES     | ai     | _vectorizer_vector_index_exists(target_schema name, target_table name, indexing jsonb)
+   f       | alice | execute   | YES     | ai     | anthropic_generate(model text, messages jsonb, max_tokens integer, api_key text, api_key_name text, base_url text, timeout double precision, max_retries integer, system_prompt text, user_id text, stop_sequences text[], temperature double precision, tool_choice jsonb, tools jsonb, top_k integer, top_p double precision)
+   f       | bob   | execute   | no      | ai     | anthropic_generate(model text, messages jsonb, max_tokens integer, api_key text, api_key_name text, base_url text, timeout double precision, max_retries integer, system_prompt text, user_id text, stop_sequences text[], temperature double precision, tool_choice jsonb, tools jsonb, top_k integer, top_p double precision)
+   f       | fred  | execute   | no      | ai     | anthropic_generate(model text, messages jsonb, max_tokens integer, api_key text, api_key_name text, base_url text, timeout double precision, max_retries integer, system_prompt text, user_id text, stop_sequences text[], temperature double precision, tool_choice jsonb, tools jsonb, top_k integer, top_p double precision)
+   f       | jill  | execute   | YES     | ai     | anthropic_generate(model text, messages jsonb, max_tokens integer, api_key text, api_key_name text, base_url text, timeout double precision, max_retries integer, system_prompt text, user_id text, stop_sequences text[], temperature double precision, tool_choice jsonb, tools jsonb, top_k integer, top_p double precision)
+   f       | alice | execute   | YES     | ai     | chunking_character_text_splitter(chunk_column name, chunk_size integer, chunk_overlap integer, separator text, is_separator_regex boolean)
+   f       | bob   | execute   | no      | ai     | chunking_character_text_splitter(chunk_column name, chunk_size integer, chunk_overlap integer, separator text, is_separator_regex boolean)
+   f       | fred  | execute   | no      | ai     | chunking_character_text_splitter(chunk_column name, chunk_size integer, chunk_overlap integer, separator text, is_separator_regex boolean)
+   f       | jill  | execute   | YES     | ai     | chunking_character_text_splitter(chunk_column name, chunk_size integer, chunk_overlap integer, separator text, is_separator_regex boolean)
+   f       | alice | execute   | YES     | ai     | chunking_recursive_character_text_splitter(chunk_column name, chunk_size integer, chunk_overlap integer, separators text[], is_separator_regex boolean)
+   f       | bob   | execute   | no      | ai     | chunking_recursive_character_text_splitter(chunk_column name, chunk_size integer, chunk_overlap integer, separators text[], is_separator_regex boolean)
+   f       | fred  | execute   | no      | ai     | chunking_recursive_character_text_splitter(chunk_column name, chunk_size integer, chunk_overlap integer, separators text[], is_separator_regex boolean)
+   f       | jill  | execute   | YES     | ai     | chunking_recursive_character_text_splitter(chunk_column name, chunk_size integer, chunk_overlap integer, separators text[], is_separator_regex boolean)
+   f       | alice | execute   | YES     | ai     | cohere_chat_complete(model text, message text, api_key text, api_key_name text, preamble text, chat_history jsonb, conversation_id text, prompt_truncation text, connectors jsonb, search_queries_only boolean, documents jsonb, citation_quality text, temperature double precision, max_tokens integer, max_input_tokens integer, k integer, p double precision, seed integer, stop_sequences text[], frequency_penalty double precision, presence_penalty double precision, tools jsonb, tool_results jsonb, force_single_step boolean)
+   f       | bob   | execute   | no      | ai     | cohere_chat_complete(model text, message text, api_key text, api_key_name text, preamble text, chat_history jsonb, conversation_id text, prompt_truncation text, connectors jsonb, search_queries_only boolean, documents jsonb, citation_quality text, temperature double precision, max_tokens integer, max_input_tokens integer, k integer, p double precision, seed integer, stop_sequences text[], frequency_penalty double precision, presence_penalty double precision, tools jsonb, tool_results jsonb, force_single_step boolean)
+   f       | fred  | execute   | no      | ai     | cohere_chat_complete(model text, message text, api_key text, api_key_name text, preamble text, chat_history jsonb, conversation_id text, prompt_truncation text, connectors jsonb, search_queries_only boolean, documents jsonb, citation_quality text, temperature double precision, max_tokens integer, max_input_tokens integer, k integer, p double precision, seed integer, stop_sequences text[], frequency_penalty double precision, presence_penalty double precision, tools jsonb, tool_results jsonb, force_single_step boolean)
+   f       | jill  | execute   | YES     | ai     | cohere_chat_complete(model text, message text, api_key text, api_key_name text, preamble text, chat_history jsonb, conversation_id text, prompt_truncation text, connectors jsonb, search_queries_only boolean, documents jsonb, citation_quality text, temperature double precision, max_tokens integer, max_input_tokens integer, k integer, p double precision, seed integer, stop_sequences text[], frequency_penalty double precision, presence_penalty double precision, tools jsonb, tool_results jsonb, force_single_step boolean)
+   f       | alice | execute   | YES     | ai     | cohere_classify(model text, inputs text[], api_key text, api_key_name text, examples jsonb, truncate_long_inputs text)
+   f       | bob   | execute   | no      | ai     | cohere_classify(model text, inputs text[], api_key text, api_key_name text, examples jsonb, truncate_long_inputs text)
+   f       | fred  | execute   | no      | ai     | cohere_classify(model text, inputs text[], api_key text, api_key_name text, examples jsonb, truncate_long_inputs text)
+   f       | jill  | execute   | YES     | ai     | cohere_classify(model text, inputs text[], api_key text, api_key_name text, examples jsonb, truncate_long_inputs text)
+   f       | alice | execute   | YES     | ai     | cohere_classify_simple(model text, inputs text[], api_key text, api_key_name text, examples jsonb, truncate_long_inputs text)
+   f       | bob   | execute   | no      | ai     | cohere_classify_simple(model text, inputs text[], api_key text, api_key_name text, examples jsonb, truncate_long_inputs text)
+   f       | fred  | execute   | no      | ai     | cohere_classify_simple(model text, inputs text[], api_key text, api_key_name text, examples jsonb, truncate_long_inputs text)
+   f       | jill  | execute   | YES     | ai     | cohere_classify_simple(model text, inputs text[], api_key text, api_key_name text, examples jsonb, truncate_long_inputs text)
+   f       | alice | execute   | YES     | ai     | cohere_detokenize(model text, tokens integer[], api_key text, api_key_name text)
+   f       | bob   | execute   | no      | ai     | cohere_detokenize(model text, tokens integer[], api_key text, api_key_name text)
+   f       | fred  | execute   | no      | ai     | cohere_detokenize(model text, tokens integer[], api_key text, api_key_name text)
+   f       | jill  | execute   | YES     | ai     | cohere_detokenize(model text, tokens integer[], api_key text, api_key_name text)
+   f       | alice | execute   | YES     | ai     | cohere_embed(model text, input_text text, api_key text, api_key_name text, input_type text, truncate_long_inputs text)
+   f       | bob   | execute   | no      | ai     | cohere_embed(model text, input_text text, api_key text, api_key_name text, input_type text, truncate_long_inputs text)
+   f       | fred  | execute   | no      | ai     | cohere_embed(model text, input_text text, api_key text, api_key_name text, input_type text, truncate_long_inputs text)
+   f       | jill  | execute   | YES     | ai     | cohere_embed(model text, input_text text, api_key text, api_key_name text, input_type text, truncate_long_inputs text)
+   f       | alice | execute   | YES     | ai     | cohere_list_models(api_key text, api_key_name text, endpoint text, default_only boolean)
+   f       | bob   | execute   | no      | ai     | cohere_list_models(api_key text, api_key_name text, endpoint text, default_only boolean)
+   f       | fred  | execute   | no      | ai     | cohere_list_models(api_key text, api_key_name text, endpoint text, default_only boolean)
+   f       | jill  | execute   | YES     | ai     | cohere_list_models(api_key text, api_key_name text, endpoint text, default_only boolean)
+   f       | alice | execute   | YES     | ai     | cohere_rerank(model text, query text, documents jsonb, api_key text, api_key_name text, top_n integer, rank_fields text[], return_documents boolean, max_chunks_per_doc integer)
+   f       | bob   | execute   | no      | ai     | cohere_rerank(model text, query text, documents jsonb, api_key text, api_key_name text, top_n integer, rank_fields text[], return_documents boolean, max_chunks_per_doc integer)
+   f       | fred  | execute   | no      | ai     | cohere_rerank(model text, query text, documents jsonb, api_key text, api_key_name text, top_n integer, rank_fields text[], return_documents boolean, max_chunks_per_doc integer)
+   f       | jill  | execute   | YES     | ai     | cohere_rerank(model text, query text, documents jsonb, api_key text, api_key_name text, top_n integer, rank_fields text[], return_documents boolean, max_chunks_per_doc integer)
+   f       | alice | execute   | YES     | ai     | cohere_rerank_simple(model text, query text, documents jsonb, api_key text, api_key_name text, top_n integer, max_chunks_per_doc integer)
+   f       | bob   | execute   | no      | ai     | cohere_rerank_simple(model text, query text, documents jsonb, api_key text, api_key_name text, top_n integer, max_chunks_per_doc integer)
+   f       | fred  | execute   | no      | ai     | cohere_rerank_simple(model text, query text, documents jsonb, api_key text, api_key_name text, top_n integer, max_chunks_per_doc integer)
+   f       | jill  | execute   | YES     | ai     | cohere_rerank_simple(model text, query text, documents jsonb, api_key text, api_key_name text, top_n integer, max_chunks_per_doc integer)
+   f       | alice | execute   | YES     | ai     | cohere_tokenize(model text, text_input text, api_key text, api_key_name text)
+   f       | bob   | execute   | no      | ai     | cohere_tokenize(model text, text_input text, api_key text, api_key_name text)
+   f       | fred  | execute   | no      | ai     | cohere_tokenize(model text, text_input text, api_key text, api_key_name text)
+   f       | jill  | execute   | YES     | ai     | cohere_tokenize(model text, text_input text, api_key text, api_key_name text)
+   f       | alice | execute   | YES     | ai     | create_vectorizer(source regclass, destination name, embedding jsonb, chunking jsonb, indexing jsonb, formatting jsonb, scheduling jsonb, processing jsonb, target_schema name, target_table name, view_schema name, view_name name, queue_schema name, queue_table name, grant_to name[], enqueue_existing boolean)
+   f       | bob   | execute   | no      | ai     | create_vectorizer(source regclass, destination name, embedding jsonb, chunking jsonb, indexing jsonb, formatting jsonb, scheduling jsonb, processing jsonb, target_schema name, target_table name, view_schema name, view_name name, queue_schema name, queue_table name, grant_to name[], enqueue_existing boolean)
+   f       | fred  | execute   | no      | ai     | create_vectorizer(source regclass, destination name, embedding jsonb, chunking jsonb, indexing jsonb, formatting jsonb, scheduling jsonb, processing jsonb, target_schema name, target_table name, view_schema name, view_name name, queue_schema name, queue_table name, grant_to name[], enqueue_existing boolean)
+   f       | jill  | execute   | YES     | ai     | create_vectorizer(source regclass, destination name, embedding jsonb, chunking jsonb, indexing jsonb, formatting jsonb, scheduling jsonb, processing jsonb, target_schema name, target_table name, view_schema name, view_name name, queue_schema name, queue_table name, grant_to name[], enqueue_existing boolean)
+   f       | alice | execute   | YES     | ai     | disable_vectorizer_schedule(vectorizer_id integer)
+   f       | bob   | execute   | no      | ai     | disable_vectorizer_schedule(vectorizer_id integer)
+   f       | fred  | execute   | no      | ai     | disable_vectorizer_schedule(vectorizer_id integer)
+   f       | jill  | execute   | YES     | ai     | disable_vectorizer_schedule(vectorizer_id integer)
+   f       | alice | execute   | YES     | ai     | drop_vectorizer(vectorizer_id integer, drop_all boolean)
+   f       | bob   | execute   | no      | ai     | drop_vectorizer(vectorizer_id integer, drop_all boolean)
+   f       | fred  | execute   | no      | ai     | drop_vectorizer(vectorizer_id integer, drop_all boolean)
+   f       | jill  | execute   | YES     | ai     | drop_vectorizer(vectorizer_id integer, drop_all boolean)
+   f       | alice | execute   | YES     | ai     | embedding_openai(model text, dimensions integer, chat_user text, api_key_name text)
+   f       | bob   | execute   | no      | ai     | embedding_openai(model text, dimensions integer, chat_user text, api_key_name text)
+   f       | fred  | execute   | no      | ai     | embedding_openai(model text, dimensions integer, chat_user text, api_key_name text)
+   f       | jill  | execute   | YES     | ai     | embedding_openai(model text, dimensions integer, chat_user text, api_key_name text)
+   f       | alice | execute   | YES     | ai     | enable_vectorizer_schedule(vectorizer_id integer)
+   f       | bob   | execute   | no      | ai     | enable_vectorizer_schedule(vectorizer_id integer)
+   f       | fred  | execute   | no      | ai     | enable_vectorizer_schedule(vectorizer_id integer)
+   f       | jill  | execute   | YES     | ai     | enable_vectorizer_schedule(vectorizer_id integer)
+   f       | alice | execute   | YES     | ai     | execute_vectorizer(vectorizer_id integer)
+   f       | bob   | execute   | no      | ai     | execute_vectorizer(vectorizer_id integer)
+   f       | fred  | execute   | no      | ai     | execute_vectorizer(vectorizer_id integer)
+   f       | jill  | execute   | YES     | ai     | execute_vectorizer(vectorizer_id integer)
+   f       | alice | execute   | YES     | ai     | formatting_python_template(template text)
+   f       | bob   | execute   | no      | ai     | formatting_python_template(template text)
+   f       | fred  | execute   | no      | ai     | formatting_python_template(template text)
+   f       | jill  | execute   | YES     | ai     | formatting_python_template(template text)
+   f       | alice | execute   | YES     | ai     | grant_ai_usage(to_user name, admin boolean)
+   f       | bob   | execute   | no      | ai     | grant_ai_usage(to_user name, admin boolean)
+   f       | fred  | execute   | no      | ai     | grant_ai_usage(to_user name, admin boolean)
+   f       | jill  | execute   | no      | ai     | grant_ai_usage(to_user name, admin boolean)
+   f       | alice | execute   | YES     | ai     | grant_secret(secret_name text, grant_to_role text)
+   f       | bob   | execute   | no      | ai     | grant_secret(secret_name text, grant_to_role text)
+   f       | fred  | execute   | no      | ai     | grant_secret(secret_name text, grant_to_role text)
+   f       | jill  | execute   | no      | ai     | grant_secret(secret_name text, grant_to_role text)
+   f       | alice | execute   | YES     | ai     | grant_to()
+   f       | bob   | execute   | no      | ai     | grant_to()
+   f       | fred  | execute   | no      | ai     | grant_to()
+   f       | jill  | execute   | YES     | ai     | grant_to()
+   f       | alice | execute   | YES     | ai     | grant_to(VARIADIC grantees name[])
+   f       | bob   | execute   | no      | ai     | grant_to(VARIADIC grantees name[])
+   f       | fred  | execute   | no      | ai     | grant_to(VARIADIC grantees name[])
+   f       | jill  | execute   | YES     | ai     | grant_to(VARIADIC grantees name[])
+   f       | alice | execute   | YES     | ai     | indexing_default()
+   f       | bob   | execute   | no      | ai     | indexing_default()
+   f       | fred  | execute   | no      | ai     | indexing_default()
+   f       | jill  | execute   | YES     | ai     | indexing_default()
+   f       | alice | execute   | YES     | ai     | indexing_diskann(min_rows integer, storage_layout text, num_neighbors integer, search_list_size integer, max_alpha double precision, num_dimensions integer, num_bits_per_dimension integer, create_when_queue_empty boolean)
+   f       | bob   | execute   | no      | ai     | indexing_diskann(min_rows integer, storage_layout text, num_neighbors integer, search_list_size integer, max_alpha double precision, num_dimensions integer, num_bits_per_dimension integer, create_when_queue_empty boolean)
+   f       | fred  | execute   | no      | ai     | indexing_diskann(min_rows integer, storage_layout text, num_neighbors integer, search_list_size integer, max_alpha double precision, num_dimensions integer, num_bits_per_dimension integer, create_when_queue_empty boolean)
+   f       | jill  | execute   | YES     | ai     | indexing_diskann(min_rows integer, storage_layout text, num_neighbors integer, search_list_size integer, max_alpha double precision, num_dimensions integer, num_bits_per_dimension integer, create_when_queue_empty boolean)
+   f       | alice | execute   | YES     | ai     | indexing_hnsw(min_rows integer, opclass text, m integer, ef_construction integer, create_when_queue_empty boolean)
+   f       | bob   | execute   | no      | ai     | indexing_hnsw(min_rows integer, opclass text, m integer, ef_construction integer, create_when_queue_empty boolean)
+   f       | fred  | execute   | no      | ai     | indexing_hnsw(min_rows integer, opclass text, m integer, ef_construction integer, create_when_queue_empty boolean)
+   f       | jill  | execute   | YES     | ai     | indexing_hnsw(min_rows integer, opclass text, m integer, ef_construction integer, create_when_queue_empty boolean)
+   f       | alice | execute   | YES     | ai     | indexing_none()
+   f       | bob   | execute   | no      | ai     | indexing_none()
+   f       | fred  | execute   | no      | ai     | indexing_none()
+   f       | jill  | execute   | YES     | ai     | indexing_none()
+   f       | alice | execute   | YES     | ai     | ollama_chat_complete(model text, messages jsonb, host text, keep_alive double precision, chat_options jsonb)
+   f       | bob   | execute   | no      | ai     | ollama_chat_complete(model text, messages jsonb, host text, keep_alive double precision, chat_options jsonb)
+   f       | fred  | execute   | no      | ai     | ollama_chat_complete(model text, messages jsonb, host text, keep_alive double precision, chat_options jsonb)
+   f       | jill  | execute   | YES     | ai     | ollama_chat_complete(model text, messages jsonb, host text, keep_alive double precision, chat_options jsonb)
+   f       | alice | execute   | YES     | ai     | ollama_embed(model text, input_text text, host text, keep_alive double precision, embedding_options jsonb)
+   f       | bob   | execute   | no      | ai     | ollama_embed(model text, input_text text, host text, keep_alive double precision, embedding_options jsonb)
+   f       | fred  | execute   | no      | ai     | ollama_embed(model text, input_text text, host text, keep_alive double precision, embedding_options jsonb)
+   f       | jill  | execute   | YES     | ai     | ollama_embed(model text, input_text text, host text, keep_alive double precision, embedding_options jsonb)
+   f       | alice | execute   | YES     | ai     | ollama_generate(model text, prompt text, host text, images bytea[], keep_alive double precision, embedding_options jsonb, system_prompt text, template text, context integer[])
+   f       | bob   | execute   | no      | ai     | ollama_generate(model text, prompt text, host text, images bytea[], keep_alive double precision, embedding_options jsonb, system_prompt text, template text, context integer[])
+   f       | fred  | execute   | no      | ai     | ollama_generate(model text, prompt text, host text, images bytea[], keep_alive double precision, embedding_options jsonb, system_prompt text, template text, context integer[])
+   f       | jill  | execute   | YES     | ai     | ollama_generate(model text, prompt text, host text, images bytea[], keep_alive double precision, embedding_options jsonb, system_prompt text, template text, context integer[])
+   f       | alice | execute   | YES     | ai     | ollama_list_models(host text)
+   f       | bob   | execute   | no      | ai     | ollama_list_models(host text)
+   f       | fred  | execute   | no      | ai     | ollama_list_models(host text)
+   f       | jill  | execute   | YES     | ai     | ollama_list_models(host text)
+   f       | alice | execute   | YES     | ai     | ollama_ps(host text)
+   f       | bob   | execute   | no      | ai     | ollama_ps(host text)
+   f       | fred  | execute   | no      | ai     | ollama_ps(host text)
+   f       | jill  | execute   | YES     | ai     | ollama_ps(host text)
+   f       | alice | execute   | YES     | ai     | openai_chat_complete(model text, messages jsonb, api_key text, api_key_name text, base_url text, frequency_penalty double precision, logit_bias jsonb, logprobs boolean, top_logprobs integer, max_tokens integer, n integer, presence_penalty double precision, response_format jsonb, seed integer, stop text, temperature double precision, top_p double precision, tools jsonb, tool_choice jsonb, openai_user text)
+   f       | bob   | execute   | no      | ai     | openai_chat_complete(model text, messages jsonb, api_key text, api_key_name text, base_url text, frequency_penalty double precision, logit_bias jsonb, logprobs boolean, top_logprobs integer, max_tokens integer, n integer, presence_penalty double precision, response_format jsonb, seed integer, stop text, temperature double precision, top_p double precision, tools jsonb, tool_choice jsonb, openai_user text)
+   f       | fred  | execute   | no      | ai     | openai_chat_complete(model text, messages jsonb, api_key text, api_key_name text, base_url text, frequency_penalty double precision, logit_bias jsonb, logprobs boolean, top_logprobs integer, max_tokens integer, n integer, presence_penalty double precision, response_format jsonb, seed integer, stop text, temperature double precision, top_p double precision, tools jsonb, tool_choice jsonb, openai_user text)
+   f       | jill  | execute   | YES     | ai     | openai_chat_complete(model text, messages jsonb, api_key text, api_key_name text, base_url text, frequency_penalty double precision, logit_bias jsonb, logprobs boolean, top_logprobs integer, max_tokens integer, n integer, presence_penalty double precision, response_format jsonb, seed integer, stop text, temperature double precision, top_p double precision, tools jsonb, tool_choice jsonb, openai_user text)
+   f       | alice | execute   | YES     | ai     | openai_chat_complete_simple(message text, api_key text, api_key_name text)
+   f       | bob   | execute   | no      | ai     | openai_chat_complete_simple(message text, api_key text, api_key_name text)
+   f       | fred  | execute   | no      | ai     | openai_chat_complete_simple(message text, api_key text, api_key_name text)
+   f       | jill  | execute   | YES     | ai     | openai_chat_complete_simple(message text, api_key text, api_key_name text)
+   f       | alice | execute   | YES     | ai     | openai_detokenize(model text, tokens integer[])
+   f       | bob   | execute   | no      | ai     | openai_detokenize(model text, tokens integer[])
+   f       | fred  | execute   | no      | ai     | openai_detokenize(model text, tokens integer[])
+   f       | jill  | execute   | YES     | ai     | openai_detokenize(model text, tokens integer[])
+   f       | alice | execute   | YES     | ai     | openai_embed(model text, input_text text, api_key text, api_key_name text, base_url text, dimensions integer, openai_user text)
+   f       | bob   | execute   | no      | ai     | openai_embed(model text, input_text text, api_key text, api_key_name text, base_url text, dimensions integer, openai_user text)
+   f       | fred  | execute   | no      | ai     | openai_embed(model text, input_text text, api_key text, api_key_name text, base_url text, dimensions integer, openai_user text)
+   f       | jill  | execute   | YES     | ai     | openai_embed(model text, input_text text, api_key text, api_key_name text, base_url text, dimensions integer, openai_user text)
+   f       | alice | execute   | YES     | ai     | openai_embed(model text, input_texts text[], api_key text, api_key_name text, base_url text, dimensions integer, openai_user text)
+   f       | bob   | execute   | no      | ai     | openai_embed(model text, input_texts text[], api_key text, api_key_name text, base_url text, dimensions integer, openai_user text)
+   f       | fred  | execute   | no      | ai     | openai_embed(model text, input_texts text[], api_key text, api_key_name text, base_url text, dimensions integer, openai_user text)
+   f       | jill  | execute   | YES     | ai     | openai_embed(model text, input_texts text[], api_key text, api_key_name text, base_url text, dimensions integer, openai_user text)
+   f       | alice | execute   | YES     | ai     | openai_embed(model text, input_tokens integer[], api_key text, api_key_name text, base_url text, dimensions integer, openai_user text)
+   f       | bob   | execute   | no      | ai     | openai_embed(model text, input_tokens integer[], api_key text, api_key_name text, base_url text, dimensions integer, openai_user text)
+   f       | fred  | execute   | no      | ai     | openai_embed(model text, input_tokens integer[], api_key text, api_key_name text, base_url text, dimensions integer, openai_user text)
+   f       | jill  | execute   | YES     | ai     | openai_embed(model text, input_tokens integer[], api_key text, api_key_name text, base_url text, dimensions integer, openai_user text)
+   f       | alice | execute   | YES     | ai     | openai_list_models(api_key text, api_key_name text, base_url text)
+   f       | bob   | execute   | no      | ai     | openai_list_models(api_key text, api_key_name text, base_url text)
+   f       | fred  | execute   | no      | ai     | openai_list_models(api_key text, api_key_name text, base_url text)
+   f       | jill  | execute   | YES     | ai     | openai_list_models(api_key text, api_key_name text, base_url text)
+   f       | alice | execute   | YES     | ai     | openai_moderate(model text, input_text text, api_key text, api_key_name text, base_url text)
+   f       | bob   | execute   | no      | ai     | openai_moderate(model text, input_text text, api_key text, api_key_name text, base_url text)
+   f       | fred  | execute   | no      | ai     | openai_moderate(model text, input_text text, api_key text, api_key_name text, base_url text)
+   f       | jill  | execute   | YES     | ai     | openai_moderate(model text, input_text text, api_key text, api_key_name text, base_url text)
+   f       | alice | execute   | YES     | ai     | openai_tokenize(model text, text_input text)
+   f       | bob   | execute   | no      | ai     | openai_tokenize(model text, text_input text)
+   f       | fred  | execute   | no      | ai     | openai_tokenize(model text, text_input text)
+   f       | jill  | execute   | YES     | ai     | openai_tokenize(model text, text_input text)
+   f       | alice | execute   | YES     | ai     | processing_default(batch_size integer, concurrency integer)
+   f       | bob   | execute   | no      | ai     | processing_default(batch_size integer, concurrency integer)
+   f       | fred  | execute   | no      | ai     | processing_default(batch_size integer, concurrency integer)
+   f       | jill  | execute   | YES     | ai     | processing_default(batch_size integer, concurrency integer)
+   f       | alice | execute   | YES     | ai     | reveal_secret(secret_name text, use_cache boolean)
+   f       | bob   | execute   | no      | ai     | reveal_secret(secret_name text, use_cache boolean)
+   f       | fred  | execute   | no      | ai     | reveal_secret(secret_name text, use_cache boolean)
+   f       | jill  | execute   | YES     | ai     | reveal_secret(secret_name text, use_cache boolean)
+   f       | alice | execute   | YES     | ai     | revoke_secret(secret_name text, revoke_from_role text)
+   f       | bob   | execute   | no      | ai     | revoke_secret(secret_name text, revoke_from_role text)
+   f       | fred  | execute   | no      | ai     | revoke_secret(secret_name text, revoke_from_role text)
+   f       | jill  | execute   | no      | ai     | revoke_secret(secret_name text, revoke_from_role text)
+   f       | alice | execute   | YES     | ai     | scheduling_default()
+   f       | bob   | execute   | no      | ai     | scheduling_default()
+   f       | fred  | execute   | no      | ai     | scheduling_default()
+   f       | jill  | execute   | YES     | ai     | scheduling_default()
+   f       | alice | execute   | YES     | ai     | scheduling_none()
+   f       | bob   | execute   | no      | ai     | scheduling_none()
+   f       | fred  | execute   | no      | ai     | scheduling_none()
+   f       | jill  | execute   | YES     | ai     | scheduling_none()
+   f       | alice | execute   | YES     | ai     | scheduling_timescaledb(schedule_interval interval, initial_start timestamp with time zone, fixed_schedule boolean, timezone text)
+   f       | bob   | execute   | no      | ai     | scheduling_timescaledb(schedule_interval interval, initial_start timestamp with time zone, fixed_schedule boolean, timezone text)
+   f       | fred  | execute   | no      | ai     | scheduling_timescaledb(schedule_interval interval, initial_start timestamp with time zone, fixed_schedule boolean, timezone text)
+   f       | jill  | execute   | YES     | ai     | scheduling_timescaledb(schedule_interval interval, initial_start timestamp with time zone, fixed_schedule boolean, timezone text)
+   f       | alice | execute   | YES     | ai     | vectorizer_queue_pending(vectorizer_id integer, exact_count boolean)
+   f       | bob   | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer, exact_count boolean)
+   f       | fred  | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer, exact_count boolean)
+   f       | jill  | execute   | YES     | ai     | vectorizer_queue_pending(vectorizer_id integer, exact_count boolean)
+  (292 rows)
+  
+  
+  '''
+# ---
+# name: test_privileges[schema]
+  '''
+   schema | user  | privilege | granted 
+  --------+-------+-----------+---------
+   ai     | alice | create    | YES
+   ai     | bob   | create    | no
+   ai     | fred  | create    | no
+   ai     | jill  | create    | YES
+   ai     | alice | usage     | YES
+   ai     | bob   | usage     | no
+   ai     | fred  | usage     | YES
+   ai     | jill  | usage     | YES
+   wiki   | alice | create    | YES
+   wiki   | bob   | create    | no
+   wiki   | fred  | create    | no
+   wiki   | jill  | create    | no
+   wiki   | alice | usage     | YES
+   wiki   | bob   | usage     | no
+   wiki   | fred  | usage     | YES
+   wiki   | jill  | usage     | YES
+  (16 rows)
+  
+  
+  '''
+# ---
+# name: test_privileges[sequence]
+  '''
+   schema |       table       | user  | privilege | granted 
+  --------+-------------------+-------+-----------+---------
+   ai     | vectorizer_id_seq | alice | select    | YES
+   ai     | vectorizer_id_seq | alice | update    | YES
+   ai     | vectorizer_id_seq | bob   | select    | no
+   ai     | vectorizer_id_seq | bob   | update    | no
+   ai     | vectorizer_id_seq | fred  | select    | no
+   ai     | vectorizer_id_seq | fred  | update    | no
+   ai     | vectorizer_id_seq | jill  | select    | YES
+   ai     | vectorizer_id_seq | jill  | update    | YES
+   wiki   | post_id_seq       | alice | select    | YES
+   wiki   | post_id_seq       | alice | update    | YES
+   wiki   | post_id_seq       | bob   | select    | no
+   wiki   | post_id_seq       | bob   | update    | no
+   wiki   | post_id_seq       | fred  | select    | no
+   wiki   | post_id_seq       | fred  | update    | no
+   wiki   | post_id_seq       | jill  | select    | no
+   wiki   | post_id_seq       | jill  | update    | no
+  (16 rows)
+  
+  
+  '''
+# ---
+# name: test_privileges[table]
+  '''
+   schema |        table         | user  | privilege | granted 
+  --------+----------------------+-------+-----------+---------
+   ai     | _secret_permissions  | alice | delete    | YES
+   ai     | _secret_permissions  | alice | insert    | YES
+   ai     | _secret_permissions  | alice | select    | YES
+   ai     | _secret_permissions  | alice | update    | YES
+   ai     | _secret_permissions  | bob   | delete    | no
+   ai     | _secret_permissions  | bob   | insert    | no
+   ai     | _secret_permissions  | bob   | select    | no
+   ai     | _secret_permissions  | bob   | update    | no
+   ai     | _secret_permissions  | fred  | delete    | no
+   ai     | _secret_permissions  | fred  | insert    | no
+   ai     | _secret_permissions  | fred  | select    | no
+   ai     | _secret_permissions  | fred  | update    | no
+   ai     | _secret_permissions  | jill  | delete    | no
+   ai     | _secret_permissions  | jill  | insert    | no
+   ai     | _secret_permissions  | jill  | select    | no
+   ai     | _secret_permissions  | jill  | update    | no
+   ai     | _vectorizer_q_1      | alice | delete    | YES
+   ai     | _vectorizer_q_1      | alice | insert    | YES
+   ai     | _vectorizer_q_1      | alice | select    | YES
+   ai     | _vectorizer_q_1      | alice | update    | YES
+   ai     | _vectorizer_q_1      | bob   | delete    | no
+   ai     | _vectorizer_q_1      | bob   | insert    | no
+   ai     | _vectorizer_q_1      | bob   | select    | no
+   ai     | _vectorizer_q_1      | bob   | update    | no
+   ai     | _vectorizer_q_1      | fred  | delete    | YES
+   ai     | _vectorizer_q_1      | fred  | insert    | YES
+   ai     | _vectorizer_q_1      | fred  | select    | YES
+   ai     | _vectorizer_q_1      | fred  | update    | YES
+   ai     | _vectorizer_q_1      | jill  | delete    | YES
+   ai     | _vectorizer_q_1      | jill  | insert    | YES
+   ai     | _vectorizer_q_1      | jill  | select    | YES
+   ai     | _vectorizer_q_1      | jill  | update    | YES
+   ai     | feature_flag         | alice | delete    | YES
+   ai     | feature_flag         | alice | insert    | YES
+   ai     | feature_flag         | alice | select    | YES
+   ai     | feature_flag         | alice | update    | YES
+   ai     | feature_flag         | bob   | delete    | no
+   ai     | feature_flag         | bob   | insert    | no
+   ai     | feature_flag         | bob   | select    | no
+   ai     | feature_flag         | bob   | update    | no
+   ai     | feature_flag         | fred  | delete    | no
+   ai     | feature_flag         | fred  | insert    | no
+   ai     | feature_flag         | fred  | select    | no
+   ai     | feature_flag         | fred  | update    | no
+   ai     | feature_flag         | jill  | delete    | no
+   ai     | feature_flag         | jill  | insert    | no
+   ai     | feature_flag         | jill  | select    | no
+   ai     | feature_flag         | jill  | update    | no
+   ai     | migration            | alice | delete    | YES
+   ai     | migration            | alice | insert    | YES
+   ai     | migration            | alice | select    | YES
+   ai     | migration            | alice | update    | YES
+   ai     | migration            | bob   | delete    | no
+   ai     | migration            | bob   | insert    | no
+   ai     | migration            | bob   | select    | no
+   ai     | migration            | bob   | update    | no
+   ai     | migration            | fred  | delete    | no
+   ai     | migration            | fred  | insert    | no
+   ai     | migration            | fred  | select    | no
+   ai     | migration            | fred  | update    | no
+   ai     | migration            | jill  | delete    | no
+   ai     | migration            | jill  | insert    | no
+   ai     | migration            | jill  | select    | no
+   ai     | migration            | jill  | update    | no
+   ai     | vectorizer           | alice | delete    | YES
+   ai     | vectorizer           | alice | insert    | YES
+   ai     | vectorizer           | alice | select    | YES
+   ai     | vectorizer           | alice | update    | YES
+   ai     | vectorizer           | bob   | delete    | no
+   ai     | vectorizer           | bob   | insert    | no
+   ai     | vectorizer           | bob   | select    | no
+   ai     | vectorizer           | bob   | update    | no
+   ai     | vectorizer           | fred  | delete    | no
+   ai     | vectorizer           | fred  | insert    | no
+   ai     | vectorizer           | fred  | select    | YES
+   ai     | vectorizer           | fred  | update    | no
+   ai     | vectorizer           | jill  | delete    | YES
+   ai     | vectorizer           | jill  | insert    | YES
+   ai     | vectorizer           | jill  | select    | YES
+   ai     | vectorizer           | jill  | update    | YES
+   ai     | vectorizer_errors    | alice | delete    | YES
+   ai     | vectorizer_errors    | alice | insert    | YES
+   ai     | vectorizer_errors    | alice | select    | YES
+   ai     | vectorizer_errors    | alice | update    | YES
+   ai     | vectorizer_errors    | bob   | delete    | no
+   ai     | vectorizer_errors    | bob   | insert    | no
+   ai     | vectorizer_errors    | bob   | select    | no
+   ai     | vectorizer_errors    | bob   | update    | no
+   ai     | vectorizer_errors    | fred  | delete    | no
+   ai     | vectorizer_errors    | fred  | insert    | no
+   ai     | vectorizer_errors    | fred  | select    | no
+   ai     | vectorizer_errors    | fred  | update    | no
+   ai     | vectorizer_errors    | jill  | delete    | YES
+   ai     | vectorizer_errors    | jill  | insert    | YES
+   ai     | vectorizer_errors    | jill  | select    | YES
+   ai     | vectorizer_errors    | jill  | update    | YES
+   wiki   | post                 | alice | delete    | YES
+   wiki   | post                 | alice | insert    | YES
+   wiki   | post                 | alice | select    | YES
+   wiki   | post                 | alice | update    | YES
+   wiki   | post                 | bob   | delete    | no
+   wiki   | post                 | bob   | insert    | no
+   wiki   | post                 | bob   | select    | no
+   wiki   | post                 | bob   | update    | no
+   wiki   | post                 | fred  | delete    | no
+   wiki   | post                 | fred  | insert    | no
+   wiki   | post                 | fred  | select    | YES
+   wiki   | post                 | fred  | update    | no
+   wiki   | post                 | jill  | delete    | no
+   wiki   | post                 | jill  | insert    | no
+   wiki   | post                 | jill  | select    | YES
+   wiki   | post                 | jill  | update    | no
+   wiki   | post_embedding_store | alice | delete    | YES
+   wiki   | post_embedding_store | alice | insert    | YES
+   wiki   | post_embedding_store | alice | select    | YES
+   wiki   | post_embedding_store | alice | update    | YES
+   wiki   | post_embedding_store | bob   | delete    | no
+   wiki   | post_embedding_store | bob   | insert    | no
+   wiki   | post_embedding_store | bob   | select    | no
+   wiki   | post_embedding_store | bob   | update    | no
+   wiki   | post_embedding_store | fred  | delete    | no
+   wiki   | post_embedding_store | fred  | insert    | YES
+   wiki   | post_embedding_store | fred  | select    | YES
+   wiki   | post_embedding_store | fred  | update    | YES
+   wiki   | post_embedding_store | jill  | delete    | no
+   wiki   | post_embedding_store | jill  | insert    | YES
+   wiki   | post_embedding_store | jill  | select    | YES
+   wiki   | post_embedding_store | jill  | update    | YES
+  (128 rows)
+  
+  
+  '''
+# ---
+# name: test_privileges[view]
+  '''
+   schema |        view        | user  | privilege | granted 
+  --------+--------------------+-------+-----------+---------
+   ai     | secret_permissions | alice | select    | YES
+   ai     | secret_permissions | bob   | select    | no
+   ai     | secret_permissions | fred  | select    | no
+   ai     | secret_permissions | jill  | select    | YES
+   ai     | vectorizer_status  | alice | select    | YES
+   ai     | vectorizer_status  | bob   | select    | no
+   ai     | vectorizer_status  | fred  | select    | no
+   ai     | vectorizer_status  | jill  | select    | YES
+   wiki   | post_embedding     | alice | select    | YES
+   wiki   | post_embedding     | bob   | select    | no
+   wiki   | post_embedding     | fred  | select    | YES
+   wiki   | post_embedding     | jill  | select    | YES
+  (12 rows)
+  
+  
+  '''
+# ---
