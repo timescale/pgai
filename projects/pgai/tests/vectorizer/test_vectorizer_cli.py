@@ -91,28 +91,44 @@ def test_worker_no_tasks(cli_db_url: str):
 
 
 @pytest.fixture
-def configured_vectorizer_and_source_table(
-    cli_db: tuple[TestDatabase, Connection],
-    test_params: tuple[int, int, int, str, str],
-) -> int:
-    """Creates and configures a vectorizer for testing"""
-    num_items, concurrency, batch_size, chunking, formatting = test_params
+def source_table(
+    cli_db: tuple[TestDatabase, Connection], test_params: tuple[int, int, int, str, str]
+) -> str:
     _, conn = cli_db
-
+    num_items = test_params[0]
+    table_name = "blog"
     with conn.cursor(row_factory=dict_row) as cur:
         # Create source table
-        cur.execute("""
-            CREATE TABLE blog (
+        cur.execute(f"""
+            CREATE TABLE {table_name} (
                 id INT NOT NULL PRIMARY KEY,
                 id2 INT NOT NULL,
                 content TEXT NOT NULL
             )
         """)
+        # Insert test data
+        values = [(i, i, f"post_{i}") for i in range(1, num_items + 1)]
+        cur.executemany(
+            "INSERT INTO blog (id, id2, content) VALUES (%s, %s, %s)", values
+        )
+    return table_name
 
+
+@pytest.fixture
+def configured_openai_vectorizer_id(
+    source_table: str,
+    cli_db: tuple[TestDatabase, Connection],
+    test_params: tuple[int, int, int, str, str],
+) -> int:
+    """Creates and configures a vectorizer for testing"""
+    _, concurrency, batch_size, chunking, formatting = test_params
+    _, conn = cli_db
+
+    with conn.cursor(row_factory=dict_row) as cur:
         # Create vectorizer
         cur.execute(f"""
             SELECT ai.create_vectorizer(
-                'blog'::regclass,
+                '{source_table}'::regclass,
                 embedding => ai.embedding_openai(
                     'text-embedding-ada-002',
                     1536,
@@ -126,12 +142,6 @@ def configured_vectorizer_and_source_table(
         """)  # type: ignore
         vectorizer_id: int = int(cur.fetchone()["create_vectorizer"])  # type: ignore
 
-        # Insert test data
-        values = [(i, i, f"post_{i}") for i in range(1, num_items + 1)]
-        cur.executemany(
-            "INSERT INTO blog (id, id2, content) VALUES (%s, %s, %s)", values
-        )
-
         return vectorizer_id
 
 
@@ -142,7 +152,7 @@ def test_params(request: pytest.FixtureRequest) -> tuple[int, int, int, str, str
     return request.param
 
 
-class TestWithConfiguredVectorizer:
+class TestWithOpenAiVectorizer:
     @pytest.mark.parametrize(
         "test_params",
         [
@@ -166,7 +176,7 @@ class TestWithConfiguredVectorizer:
         self,
         cli_db: tuple[TestDatabase, Connection],
         cli_db_url: str,
-        configured_vectorizer_and_source_table: int,
+        configured_openai_vectorizer_id: int,
         monkeypatch: pytest.MonkeyPatch,
         vcr_: Any,
         test_params: tuple[int, int, int, str, str],
@@ -198,7 +208,7 @@ class TestWithConfiguredVectorizer:
                     cli_db_url,
                     "--once",
                     "--vectorizer-id",
-                    str(configured_vectorizer_and_source_table),
+                    str(configured_openai_vectorizer_id),
                     "--concurrency",
                     str(concurrency),
                 ],
@@ -229,7 +239,7 @@ class TestWithConfiguredVectorizer:
         self,
         cli_db: tuple[TestDatabase, Connection],
         cli_db_url: str,
-        configured_vectorizer_and_source_table: int,
+        configured_openai_vectorizer_id: int,
         monkeypatch: pytest.MonkeyPatch,
         vcr_: Any,
     ):
@@ -252,7 +262,7 @@ class TestWithConfiguredVectorizer:
                     cli_db_url,
                     "--once",
                     "--vectorizer-id",
-                    str(configured_vectorizer_and_source_table),
+                    str(configured_openai_vectorizer_id),
                 ],
                 catch_exceptions=False,
             )
@@ -303,7 +313,7 @@ class TestWithConfiguredVectorizer:
         self,
         cli_db: tuple[TestDatabase, Connection],
         cli_db_url: str,
-        configured_vectorizer_and_source_table: int,
+        configured_openai_vectorizer_id: int,
         monkeypatch: pytest.MonkeyPatch,
         vcr_: Any,
     ):
@@ -322,7 +332,7 @@ class TestWithConfiguredVectorizer:
                         cli_db_url,
                         "--once",
                         "--vectorizer-id",
-                        str(configured_vectorizer_and_source_table),
+                        str(configured_openai_vectorizer_id),
                     ],
                 )
             except openai.AuthenticationError as e:
@@ -334,7 +344,7 @@ class TestWithConfiguredVectorizer:
             records = cur.fetchall()
             assert len(records) == 1
             error = records[0]
-            assert error["id"] == configured_vectorizer_and_source_table
+            assert error["id"] == configured_openai_vectorizer_id
             assert error["message"] == "embedding provider failed"
             assert error["details"] == {
                 "provider": "openai",
@@ -362,7 +372,7 @@ class TestWithConfiguredVectorizer:
         self,
         cli_db: tuple[TestDatabase, Connection],
         cli_db_url: str,
-        configured_vectorizer_and_source_table: int,
+        configured_openai_vectorizer_id: int,
         monkeypatch: pytest.MonkeyPatch,
     ):
         """Test that worker handles invalid embedding model arguments appropriately"""
@@ -381,7 +391,7 @@ class TestWithConfiguredVectorizer:
                 )
                 WHERE id = %s
             """,
-                (configured_vectorizer_and_source_table,),
+                (configured_openai_vectorizer_id,),
             )
 
         # When running the worker
@@ -393,7 +403,7 @@ class TestWithConfiguredVectorizer:
                     cli_db_url,
                     "--once",
                     "--vectorizer-id",
-                    str(configured_vectorizer_and_source_table),
+                    str(configured_openai_vectorizer_id),
                 ],
             )
         except ValueError as e:
@@ -405,7 +415,7 @@ class TestWithConfiguredVectorizer:
             records = cur.fetchall()
             assert len(records) == 1
             error = records[0]
-            assert error["id"] == configured_vectorizer_and_source_table
+            assert error["id"] == configured_openai_vectorizer_id
             assert error["message"] == "embedding provider failed"
             assert error["details"] == {
                 "provider": "openai",
@@ -517,7 +527,7 @@ def test_vectorizer_picks_up_new_vectorizer(
 def test_recursive_character_splitting(
     cli_db: tuple[PostgresContainer, Connection],
     cli_db_url: str,
-    configured_vectorizer_and_source_table: int,
+    configured_openai_vectorizer_id: int,
     monkeypatch: pytest.MonkeyPatch,
     vcr_: Any,
 ):
@@ -557,7 +567,7 @@ Each type has its own unique applications and methodologies."""
                 cli_db_url,
                 "--once",
                 "--vectorizer-id",
-                str(configured_vectorizer_and_source_table),
+                str(configured_openai_vectorizer_id),
             ],
             catch_exceptions=False,
         )
