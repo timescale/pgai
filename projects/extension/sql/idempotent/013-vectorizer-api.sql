@@ -253,6 +253,9 @@ begin
       )
     );
 
+    -- record dependencies in pg_depend
+    perform ai._vectorizer_create_dependencies(_vectorizer_id);
+
     -- grant select on the vectorizer table
     perform ai._vectorizer_grant_to_vectorizer(grant_to);
 
