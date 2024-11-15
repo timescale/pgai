@@ -44,6 +44,10 @@
  f       | bob   | execute   | no      | ai     | _validate_scheduling(config jsonb)
  f       | fred  | execute   | no      | ai     | _validate_scheduling(config jsonb)
  f       | jill  | execute   | YES     | ai     | _validate_scheduling(config jsonb)
+ f       | alice | execute   | YES     | ai     | _vectorizer_create_dependencies(vectorizer_id integer)
+ f       | bob   | execute   | no      | ai     | _vectorizer_create_dependencies(vectorizer_id integer)
+ f       | fred  | execute   | no      | ai     | _vectorizer_create_dependencies(vectorizer_id integer)
+ f       | jill  | execute   | YES     | ai     | _vectorizer_create_dependencies(vectorizer_id integer)
  f       | alice | execute   | YES     | ai     | _vectorizer_create_queue_table(queue_schema name, queue_table name, source_pk jsonb, grant_to name[])
  f       | bob   | execute   | no      | ai     | _vectorizer_create_queue_table(queue_schema name, queue_table name, source_pk jsonb, grant_to name[])
  f       | fred  | execute   | no      | ai     | _vectorizer_create_queue_table(queue_schema name, queue_table name, source_pk jsonb, grant_to name[])
@@ -292,5 +296,5 @@
  f       | bob   | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer, exact_count boolean)
  f       | fred  | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer, exact_count boolean)
  f       | jill  | execute   | YES     | ai     | vectorizer_queue_pending(vectorizer_id integer, exact_count boolean)
-(292 rows)
+(296 rows)
 
