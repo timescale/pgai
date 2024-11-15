@@ -57,8 +57,8 @@ def make_async_client(
 
     return openai.AsyncOpenAI(**client_kwargs)
 
-def get_or_create_client(plpy, GD: Dict[str, Any], api_key: str = None, api_key_name: str = None, base_url: str = None) -> Any:
-    new_config = prepare_kwargs({'api_key': api_key, 'api_key_name': api_key_name, 'base_url': base_url})
+def get_or_create_client(plpy, GD: Dict[str, Any], api_key: str = None, api_key_name: str = None, base_url: str = None, **client_kwargs) -> Any:
+    new_config = prepare_kwargs({'api_key': api_key, 'api_key_name': api_key_name, 'base_url': base_url, **client_kwargs})
     old_config = GD.get('openai_client', {}).get('config', {})
     merged_config = {**old_config, **new_config}
 

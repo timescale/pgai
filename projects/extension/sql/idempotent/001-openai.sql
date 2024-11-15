@@ -32,61 +32,6 @@ $python$
 ;
 
 -------------------------------------------------------------------------------
--- openai_client_create
--- create the client and store it in the global dictionary for the session
-CREATE OR REPLACE FUNCTION ai.openai_client_create(
-    api_key text DEFAULT NULL,
-    api_key_name text DEFAULT NULL,
-    organization text DEFAULT NULL,
-    base_url text DEFAULT NULL,
-    timeout float8 DEFAULT NULL,
-    max_retries int DEFAULT NULL,
-    default_headers jsonb DEFAULT NULL,
-    default_query jsonb DEFAULT NULL,
-    http_client jsonb DEFAULT NULL,
-    strict_response_validation boolean DEFAULT NULL
-) RETURNS void AS $python$
-    #ADD-PYTHON-LIB-DIR
-    import ai.openai
-
-    if 'openai_client' not in GD:
-        GD['openai_client'] = {}
-
-    new_config = ai.openai.prepare_kwargs({
-        'api_key': api_key,
-        'api_key_name': api_key_name,
-        'organization': organization,
-        'base_url': base_url,
-        'timeout': timeout,
-        'max_retries': max_retries,
-        'default_headers': ai.openai.process_json_input(default_headers),
-        'default_query': ai.openai.process_json_input(default_query),
-        'http_client': ai.openai.process_json_input(http_client),
-        '_strict_response_validation': strict_response_validation
-    })
-
-    if 'config' not in GD['openai_client'] or ai.openai.client_config_changed(GD['openai_client']['config'], new_config):
-        client = ai.openai.make_async_client(plpy, **new_config)
-        GD['openai_client'] = {
-            'client': client,
-            'config': new_config
-        }
-
-$python$
-    language plpython3u stable parallel safe security invoker
-                        set search_path to pg_catalog, pg_temp;
--------------------------------------------------------------------------------
--- openai_client_destroy
--- remove the client object stored in the global dictionary for the session
-CREATE OR REPLACE FUNCTION ai.openai_client_destroy() RETURNS void AS $python$
-    #ADD-PYTHON-LIB-DIR
-    if 'openai_client' in GD:
-        del GD['openai_client']
-$python$
-    language plpython3u stable parallel safe security invoker
-                        set search_path to pg_catalog, pg_temp;
-
--------------------------------------------------------------------------------
 -- openai_list_models
 -- list models supported on the openai platform
 -- https://platform.openai.com/docs/api-reference/models/list
@@ -97,15 +42,18 @@ create or replace function ai.openai_list_models(
     extra_headers jsonb DEFAULT NULL,
     extra_query jsonb DEFAULT NULL,
     extra_body jsonb DEFAULT NULL,
-    timeout float8 DEFAULT NULL
+    timeout float8 DEFAULT NULL,
+    client_extra_args jsonb DEFAULT NULL
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import json
 
+    # Prepare client args
+    client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
     # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url)
+    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url, **client_kwargs)
 
     # Prepare kwargs for the API call
     kwargs = {}
@@ -147,14 +95,17 @@ create or replace function ai.openai_embed
 , extra_query jsonb DEFAULT NULL
 , extra_body jsonb DEFAULT NULL
 , timeout float8 DEFAULT NULL
+, client_extra_args jsonb DEFAULT NULL
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import json
 
+    # Prepare client args
+    client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
     # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url)
+    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url, **client_kwargs)
 
     # Prepare kwargs for the API call
     kwargs = ai.openai.prepare_kwargs({
@@ -203,14 +154,17 @@ create or replace function ai.openai_embed
 , extra_query jsonb DEFAULT NULL
 , extra_body jsonb DEFAULT NULL
 , timeout float8 DEFAULT NULL
+, client_extra_args jsonb DEFAULT NULL
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import json
 
+    # Prepare client args
+    client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
     # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url)
+    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url, **client_kwargs)
 
     # Prepare kwargs for the API call
     kwargs = ai.openai.prepare_kwargs({
@@ -259,14 +213,17 @@ create or replace function ai.openai_embed
 , extra_query jsonb DEFAULT NULL
 , extra_body jsonb DEFAULT NULL
 , timeout float8 DEFAULT NULL
+, client_extra_args jsonb DEFAULT NULL
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import json
 
+    # Prepare client args
+    client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
     # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url)
+    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url, **client_kwargs)
 
     # Prepare kwargs for the API call
     kwargs = ai.openai.prepare_kwargs({
@@ -333,6 +290,7 @@ CREATE OR REPLACE FUNCTION ai.openai_chat_complete
 , extra_query jsonb DEFAULT NULL
 , extra_body jsonb DEFAULT NULL
 , timeout float8 DEFAULT NULL
+, client_extra_args jsonb DEFAULT NULL
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
@@ -349,8 +307,10 @@ as $python$
     if stream_val:
         plpy.error("Streaming is not supported in this implementation")
 
+    # Prepare client args
+    client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
     # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url)
+    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url, **client_kwargs)
 
     # Prepare kwargs for the API call
     kwargs = ai.openai.prepare_kwargs({
@@ -440,15 +400,18 @@ create or replace function ai.openai_moderate
     extra_headers jsonb DEFAULT NULL,
     extra_query jsonb DEFAULT NULL,
     extra_body jsonb DEFAULT NULL,
-    timeout float8 DEFAULT NULL
+    timeout float8 DEFAULT NULL,
+    client_extra_args jsonb DEFAULT NULL
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import json
 
+    # Prepare client args
+    client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
     # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url)
+    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url, **client_kwargs)
 
     # Prepare kwargs for the API call
     kwargs = ai.openai.prepare_kwargs({
@@ -486,15 +449,18 @@ create or replace function ai.openai_moderate
     extra_headers jsonb DEFAULT NULL,
     extra_query jsonb DEFAULT NULL,
     extra_body jsonb DEFAULT NULL,
-    timeout float8 DEFAULT NULL
+    timeout float8 DEFAULT NULL,
+    client_extra_args jsonb DEFAULT NULL
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import json
 
+    # Prepare client args
+    client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
     # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url)
+    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url, **client_kwargs)
 
     # Prepare kwargs for the API call
     kwargs = ai.openai.prepare_kwargs({
