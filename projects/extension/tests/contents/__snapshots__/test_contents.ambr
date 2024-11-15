@@ -1,0 +1,238 @@
+# serializer version: 1
+# name: test_contents
+  '''
+  DROP DATABASE
+  CREATE DATABASE
+  You are now connected to database "toc" as user "postgres".
+  CREATE EXTENSION
+                                                                                                       Objects in extension "ai"
+                                                                                                           Object description                                                                                                         
+  ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+   event trigger _vectorizer_handle_drops
+   function ai.anthropic_generate(text,jsonb,integer,text,text,text,double precision,integer,text,text,text[],double precision,jsonb,jsonb,integer,double precision)
+   function ai.chunking_character_text_splitter(name,integer,integer,text,boolean)
+   function ai.chunking_recursive_character_text_splitter(name,integer,integer,text[],boolean)
+   function ai.cohere_chat_complete(text,text,text,text,text,jsonb,text,text,jsonb,boolean,jsonb,text,double precision,integer,integer,integer,double precision,integer,text[],double precision,double precision,jsonb,jsonb,boolean)
+   function ai.cohere_classify_simple(text,text[],text,text,jsonb,text)
+   function ai.cohere_classify(text,text[],text,text,jsonb,text)
+   function ai.cohere_detokenize(text,integer[],text,text)
+   function ai.cohere_embed(text,text,text,text,text,text)
+   function ai.cohere_list_models(text,text,text,boolean)
+   function ai.cohere_rerank_simple(text,text,jsonb,text,text,integer,integer)
+   function ai.cohere_rerank(text,text,jsonb,text,text,integer,text[],boolean,integer)
+   function ai.cohere_tokenize(text,text,text,text)
+   function ai.create_vectorizer(regclass,name,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name,name,name,name,name[],boolean)
+   function ai.disable_vectorizer_schedule(integer)
+   function ai.drop_vectorizer(integer,boolean)
+   function ai.embedding_openai(text,integer,text,text)
+   function ai.enable_vectorizer_schedule(integer)
+   function ai.execute_vectorizer(integer)
+   function ai.formatting_python_template(text)
+   function ai.grant_ai_usage(name,boolean)
+   function ai.grant_secret(text,text)
+   function ai.grant_to()
+   function ai.grant_to(name[])
+   function ai.indexing_default()
+   function ai.indexing_diskann(integer,text,integer,integer,double precision,integer,integer,boolean)
+   function ai.indexing_hnsw(integer,text,integer,integer,boolean)
+   function ai.indexing_none()
+   function ai.ollama_chat_complete(text,jsonb,text,double precision,jsonb)
+   function ai.ollama_embed(text,text,text,double precision,jsonb)
+   function ai.ollama_generate(text,text,text,bytea[],double precision,jsonb,text,text,integer[])
+   function ai.ollama_list_models(text)
+   function ai.ollama_ps(text)
+   function ai.openai_chat_complete_simple(text,text,text)
+   function ai.openai_chat_complete(text,jsonb,text,text,text,double precision,jsonb,boolean,integer,integer,integer,double precision,jsonb,integer,text,double precision,double precision,jsonb,jsonb,text)
+   function ai.openai_detokenize(text,integer[])
+   function ai.openai_embed(text,integer[],text,text,text,integer,text)
+   function ai.openai_embed(text,text,text,text,text,integer,text)
+   function ai.openai_embed(text,text[],text,text,text,integer,text)
+   function ai.openai_list_models(text,text,text)
+   function ai.openai_moderate(text,text,text,text,text)
+   function ai.openai_tokenize(text,text)
+   function ai.processing_default(integer,integer)
+   function ai._resolve_indexing_default()
+   function ai._resolve_scheduling_default()
+   function ai.reveal_secret(text,boolean)
+   function ai.revoke_secret(text,text)
+   function ai.scheduling_default()
+   function ai.scheduling_none()
+   function ai.scheduling_timescaledb(interval,timestamp with time zone,boolean,text)
+   function ai._validate_chunking(jsonb,name,name)
+   function ai._validate_embedding(jsonb)
+   function ai._validate_formatting(jsonb,name,name)
+   function ai._validate_formatting_python_template(jsonb,name,name)
+   function ai._validate_indexing_diskann(jsonb)
+   function ai._validate_indexing_hnsw(jsonb)
+   function ai._validate_indexing(jsonb)
+   function ai._validate_processing(jsonb)
+   function ai._validate_scheduling(jsonb)
+   function ai._vectorizer_create_queue_table(name,name,jsonb,name[])
+   function ai._vectorizer_create_source_trigger(name,name,name,name,name,jsonb)
+   function ai._vectorizer_create_target_table(name,name,jsonb,name,name,integer,name[])
+   function ai._vectorizer_create_vector_index(name,name,jsonb)
+   function ai._vectorizer_create_view(name,name,name,name,jsonb,name,name,name[])
+   function ai._vectorizer_grant_to_source(name,name,name[])
+   function ai._vectorizer_grant_to_vectorizer(name[])
+   function ai._vectorizer_handle_drops()
+   function ai._vectorizer_job(integer,jsonb)
+   function ai.vectorizer_queue_pending(integer,boolean)
+   function ai._vectorizer_schedule_job(integer,jsonb)
+   function ai._vectorizer_should_create_vector_index(ai.vectorizer)
+   function ai._vectorizer_source_pk(regclass)
+   function ai._vectorizer_vector_index_exists(name,name,jsonb)
+   sequence ai.vectorizer_id_seq
+   table ai.feature_flag
+   table ai.migration
+   table ai._secret_permissions
+   table ai.vectorizer
+   table ai.vectorizer_errors
+   view ai.secret_permissions
+   view ai.vectorizer_status
+  (81 rows)
+  
+                                      Table "ai._secret_permissions"
+   Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
+  --------+------+-----------+----------+---------+----------+-------------+--------------+-------------
+   name   | text |           | not null |         | extended |             |              | 
+   role   | text |           | not null |         | extended |             |              | 
+  Indexes:
+      "_secret_permissions_pkey" PRIMARY KEY, btree (name, role)
+  Check constraints:
+      "_secret_permissions_name_check" CHECK (name = '*'::text OR name ~ '^[A-Za-z0-9_.]+$'::text)
+  Access method: heap
+  
+               Index "ai._secret_permissions_pkey"
+   Column | Type | Key? | Definition | Storage  | Stats target 
+  --------+------+------+------------+----------+--------------
+   name   | text | yes  | name       | extended | 
+   role   | text | yes  | role       | extended | 
+  primary key, btree, for table "ai._secret_permissions"
+  
+                                                              Table "ai.feature_flag"
+         Column       |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
+  --------------------+--------------------------+-----------+----------+-------------------+----------+-------------+--------------+-------------
+   name               | text                     |           | not null |                   | extended |             |              | 
+   applied_at_version | text                     |           | not null |                   | extended |             |              | 
+   applied_at         | timestamp with time zone |           | not null | clock_timestamp() | plain    |             |              | 
+  Indexes:
+      "feature_flag_pkey" PRIMARY KEY, btree (name)
+  Access method: heap
+  
+                  Index "ai.feature_flag_pkey"
+   Column | Type | Key? | Definition | Storage  | Stats target 
+  --------+------+------+------------+----------+--------------
+   name   | text | yes  | name       | extended | 
+  primary key, btree, for table "ai.feature_flag"
+  
+                                                                Table "ai.migration"
+         Column       |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
+  --------------------+--------------------------+-----------+----------+-------------------+----------+-------------+--------------+-------------
+   name               | text                     |           | not null |                   | extended |             |              | 
+   applied_at_version | text                     |           | not null |                   | extended |             |              | 
+   applied_at         | timestamp with time zone |           | not null | clock_timestamp() | plain    |             |              | 
+   body               | text                     |           | not null |                   | extended |             |              | 
+  Indexes:
+      "migration_pkey" PRIMARY KEY, btree (name)
+  Access method: heap
+  
+                    Index "ai.migration_pkey"
+   Column | Type | Key? | Definition | Storage  | Stats target 
+  --------+------+------+------------+----------+--------------
+   name   | text | yes  | name       | extended | 
+  primary key, btree, for table "ai.migration"
+  
+                        View "ai.secret_permissions"
+   Column | Type | Collation | Nullable | Default | Storage  | Description 
+  --------+------+-----------+----------+---------+----------+-------------
+   name   | text |           |          |         | extended | 
+   role   | text |           |          |         | extended | 
+  View definition:
+   SELECT name,
+      role
+     FROM ai._secret_permissions
+    WHERE to_regrole(role) IS NOT NULL AND pg_has_role(CURRENT_USER, role::name, 'member'::text);
+  
+                                                            Table "ai.vectorizer"
+      Column     |  Type   | Collation | Nullable |             Default              | Storage  | Compression | Stats target | Description 
+  ---------------+---------+-----------+----------+----------------------------------+----------+-------------+--------------+-------------
+   id            | integer |           | not null | generated by default as identity | plain    |             |              | 
+   source_schema | name    |           | not null |                                  | plain    |             |              | 
+   source_table  | name    |           | not null |                                  | plain    |             |              | 
+   source_pk     | jsonb   |           | not null |                                  | extended |             |              | 
+   target_schema | name    |           | not null |                                  | plain    |             |              | 
+   target_table  | name    |           | not null |                                  | plain    |             |              | 
+   view_schema   | name    |           | not null |                                  | plain    |             |              | 
+   view_name     | name    |           | not null |                                  | plain    |             |              | 
+   trigger_name  | name    |           | not null |                                  | plain    |             |              | 
+   queue_schema  | name    |           |          |                                  | plain    |             |              | 
+   queue_table   | name    |           |          |                                  | plain    |             |              | 
+   config        | jsonb   |           | not null |                                  | extended |             |              | 
+  Indexes:
+      "vectorizer_pkey" PRIMARY KEY, btree (id)
+      "vectorizer_target_schema_target_table_key" UNIQUE CONSTRAINT, btree (target_schema, target_table)
+  Referenced by:
+      TABLE "ai.vectorizer_errors" CONSTRAINT "vectorizer_errors_id_fkey" FOREIGN KEY (id) REFERENCES ai.vectorizer(id) ON DELETE CASCADE
+  Access method: heap
+  
+                                                  Table "ai.vectorizer_errors"
+    Column  |           Type           | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
+  ----------+--------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
+   id       | integer                  |           | not null |         | plain    |             |              | 
+   message  | text                     |           |          |         | extended |             |              | 
+   details  | jsonb                    |           |          |         | extended |             |              | 
+   recorded | timestamp with time zone |           | not null | now()   | plain    |             |              | 
+  Indexes:
+      "vectorizer_errors_id_recorded_idx" btree (id, recorded)
+  Foreign-key constraints:
+      "vectorizer_errors_id_fkey" FOREIGN KEY (id) REFERENCES ai.vectorizer(id) ON DELETE CASCADE
+  Access method: heap
+  
+                     Index "ai.vectorizer_errors_id_recorded_idx"
+    Column  |           Type           | Key? | Definition | Storage | Stats target 
+  ----------+--------------------------+------+------------+---------+--------------
+   id       | integer                  | yes  | id         | plain   | 
+   recorded | timestamp with time zone | yes  | recorded   | plain   | 
+  btree, for table "ai.vectorizer_errors"
+  
+                     Sequence "ai.vectorizer_id_seq"
+    Type   | Start | Minimum |  Maximum   | Increment | Cycles? | Cache 
+  ---------+-------+---------+------------+-----------+---------+-------
+   integer |     1 |       1 | 2147483647 |         1 | no      |     1
+  Sequence for identity column: ai.vectorizer.id
+  
+                    Index "ai.vectorizer_pkey"
+   Column |  Type   | Key? | Definition | Storage | Stats target 
+  --------+---------+------+------------+---------+--------------
+   id     | integer | yes  | id         | plain   | 
+  primary key, btree, for table "ai.vectorizer"
+  
+                              View "ai.vectorizer_status"
+      Column     |  Type   | Collation | Nullable | Default | Storage  | Description 
+  ---------------+---------+-----------+----------+---------+----------+-------------
+   id            | integer |           |          |         | plain    | 
+   source_table  | text    | C         |          |         | extended | 
+   target_table  | text    | C         |          |         | extended | 
+   view          | text    | C         |          |         | extended | 
+   pending_items | bigint  |           |          |         | plain    | 
+  View definition:
+   SELECT id,
+      format('%I.%I'::text, source_schema, source_table) AS source_table,
+      format('%I.%I'::text, target_schema, target_table) AS target_table,
+      format('%I.%I'::text, view_schema, view_name) AS view,
+          CASE
+              WHEN queue_table IS NOT NULL AND has_table_privilege(CURRENT_USER, format('%I.%I'::text, queue_schema, queue_table), 'select'::text) THEN ai.vectorizer_queue_pending(id)
+              ELSE NULL::bigint
+          END AS pending_items
+     FROM ai.vectorizer v;
+  
+            Index "ai.vectorizer_target_schema_target_table_key"
+      Column     |  Type   | Key? |  Definition   | Storage | Stats target 
+  ---------------+---------+------+---------------+---------+--------------
+   target_schema | cstring | yes  | target_schema | plain   | 
+   target_table  | cstring | yes  | target_table  | plain   | 
+  unique, btree, for table "ai.vectorizer"
+  
+  
+  '''
+# ---

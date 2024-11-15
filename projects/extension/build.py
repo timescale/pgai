@@ -26,6 +26,7 @@ HELP = """Available targets:
 - clean-sql        removes sql file artifacts from the sql dir
 - clean-py         removes python build artifacts from the extension src dir
 - test             runs the tests in the docker container
+- test-update      runs the tests in the docker container and updates snapshots
 - test-server      runs the test http server in the docker container
 - lint-sql         runs pgspot against the `ai--<this_version>.sql` file
 - lint-py          runs ruff linter against the python source files
@@ -605,6 +606,16 @@ def test() -> None:
     subprocess.run("pytest", shell=True, check=True, env=os.environ, cwd=tests_dir())
 
 
+def test_update() -> None:
+    subprocess.run(
+        "pytest --snapshot-update",
+        shell=True,
+        check=True,
+        env=os.environ,
+        cwd=tests_dir(),
+    )
+
+
 def lint_sql() -> None:
     sql = sql_dir().joinpath(f"ai--{this_version()}.sql")
     cmd = " ".join(
@@ -721,6 +732,8 @@ if __name__ == "__main__":
             test_server()
         elif action == "test":
             test()
+        elif action == "test-update":
+            test_update()
         elif action == "lint-sql":
             lint_sql()
         elif action == "lint-py":
