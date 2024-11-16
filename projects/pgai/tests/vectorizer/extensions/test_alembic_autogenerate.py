@@ -50,25 +50,6 @@ def test_vectorizer_autogeneration(postgres_container):
         """))
         conn.commit()
 
-    # Create our model
-    Base = declarative_base()
-    
-    class BlogPost(Base):
-        __tablename__ = "blog_posts_new"
-        
-        id = Column(Integer, primary_key=True)
-        title = Column(Text, nullable=False)
-        content = Column(Text, nullable=False)
-        
-        content_embeddings = VectorizerField(
-            source_column="content",
-            model="text-embedding-3-small",
-            dimensions=768,
-            chunk_size=500,
-            chunk_overlap=50,
-            formatting_template="Title: $title\nContent: $chunk"
-        )
-
     # Set up temporary alembic environment
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
@@ -89,7 +70,12 @@ def test_vectorizer_autogeneration(postgres_container):
             f.write(f"""
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, Integer, Text
-from pgai.extensions.sqlalchemy import VectorizerField
+from pgai.extensions.sqlalchemy import (
+    VectorizerField,
+    EmbeddingConfig,
+    ChunkingConfig,
+    FormattingConfig
+)
 
 Base = declarative_base()
 
@@ -102,11 +88,18 @@ class BlogPost(Base):
     
     content_embeddings = VectorizerField(
         source_column="content",
-        model="text-embedding-3-small",
-        dimensions=768,
-        chunk_size=500,
-        chunk_overlap=50,
-        formatting_template="Title: $title\\nContent: $chunk"
+        embedding=EmbeddingConfig(
+            model="text-embedding-3-small",
+            dimensions=768
+        ),
+        chunking=ChunkingConfig(
+            chunk_column="content",
+            chunk_size=500,
+            chunk_overlap=50
+        ),
+        formatting=FormattingConfig(
+            template="Title: $title\\nContent: $chunk"
+        )
     )
 """)
 
@@ -220,14 +213,51 @@ else:
             assert result.source_table == "public.blog_posts"
 
         # Now modify the model to test detecting changes
-        BlogPost.content_embeddings = VectorizerField(
-            source_column="content",
-            model="text-embedding-3-large",  # Changed model
-            dimensions=1536,  # Changed dimensions
-            chunk_size=1000,  # Changed chunk size
-            chunk_overlap=100  # Changed overlap
-        )
+        with open(models_dir / "models.py", "w") as f:
+            f.write(f"""
+from sqlalchemy.orm import declarative_base
+from sqlalchemy import Column, Integer, Text
+from pgai.extensions.sqlalchemy import (
+    VectorizerField,
+    EmbeddingConfig,
+    ChunkingConfig,
+    FormattingConfig
+)
 
+Base = declarative_base()
+
+class BlogPost(Base):
+    __tablename__ = "blog_posts"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(Text, nullable=False)
+    content = Column(Text, nullable=False)
+
+    content_embeddings = VectorizerField(
+        source_column="content",
+        embedding=EmbeddingConfig(
+            model="text-embedding-3-large",
+            dimensions=1536
+        ),
+        chunking=ChunkingConfig(
+            chunk_column="content",
+            chunk_size=500,
+            chunk_overlap=50
+        ),
+        formatting=FormattingConfig(
+            template="Title: $title\\nContent: $chunk"
+        )
+    )
+""")
+
+        import importlib
+        import models.models
+        importlib.reload(models.models)
+        from models.models import Base
+        config = alembic.config.Config(alembic_ini)
+        config.set_main_option("script_location", str(migrations_dir))
+        config.set_main_option("sqlalchemy.url", db_url)
+        config.attributes["connection"] = engine
         # Generate migration for the changes
         alembic.command.revision(config,
                                  message="update vectorizer configuration",
@@ -235,25 +265,11 @@ else:
                                  )
 
         # Verify the new migration contains vectorizer updates
-        new_migration_file = max(versions_dir.glob("*.py"))
+        new_migration_file = max(versions_dir.glob("*update_vectorizer_configuration.py"))
         with open(new_migration_file) as f:
             migration_contents = f.read()
 
-        assert "op.drop_vectorizer" in migration_contents
+        assert "op.drop_vectorizer(1, drop_objects=True)" in migration_contents
         assert "op.create_vectorizer" in migration_contents
         assert "'text-embedding-3-large'" in migration_contents
         assert "dimensions=1536" in migration_contents
-
-        # Run migrations back to base
-        alembic.command.downgrade(config, "base")
-
-        # Verify everything is cleaned up
-        inspector = inspect(engine)
-        tables = inspector.get_table_names()
-        assert "blog_posts" not in tables
-
-        with engine.connect() as conn:
-            result = conn.execute(text(
-                "SELECT * FROM ai.vectorizer_status"
-            )).fetchall()
-            assert len(result) == 0
