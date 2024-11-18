@@ -41,7 +41,7 @@ HELP = """Available targets:
 def versions() -> list[str]:
     # ADD NEW VERSIONS TO THE FRONT OF THIS LIST! STAY SORTED PLEASE
     return [
-        "0.4.1-dev",
+        "0.4.1",  # released
         "0.4.0",  # released
         "0.3.0",  # deprecated
         "0.2.0",  # deprecated
