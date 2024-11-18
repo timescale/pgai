@@ -2,12 +2,17 @@ from click.testing import CliRunner
 from testcontainers.postgres import PostgresContainer
 
 from pgai.cli import vectorizer_worker
+from pgai.extensions.alembic.operations import (
+    ChunkingConfig,
+    EmbeddingConfig,
+    FormattingConfig,
+)
 from pgai.extensions.sqlalchemy import VectorizerField
 
 
 def test_sqlalchemy(postgres_container: PostgresContainer):
-    from sqlalchemy import create_engine, Column, Integer, Text
-    from sqlalchemy.orm import declarative_base, Session
+    from sqlalchemy import Column, Integer, Text, create_engine
+    from sqlalchemy.orm import Session, declarative_base
     from sqlalchemy.sql import text
     db_url = postgres_container.get_connection_url()
     # Create engine and base
@@ -27,12 +32,17 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
         content = Column(Text, nullable=False)
 
         content_embeddings = VectorizerField(
-            source_column='content',
-            model='text-embedding-3-small',
-            dimensions=768,
+            source_column="content",
+            embedding=EmbeddingConfig(
+                model="text-embedding-3-small",
+                dimensions=768
+            ),
+            chunking=ChunkingConfig(
+            chunk_column="chunk",
             chunk_size=500,
-            chunk_overlap=50,
-            formatting_template='Title: $title\nContent: $chunk'
+            chunk_overlap=50),
+            formatting=FormattingConfig(
+            template="Title: $title\nContent: $chunk")
         )
 
     # Create tables
@@ -97,8 +107,8 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
         # Get all embeddings directly
         all_embeddings = session.query(EmbeddingClass).all()
         assert len(all_embeddings) > 0
-        assert hasattr(all_embeddings[0], 'embedding')
-        assert hasattr(all_embeddings[0], 'chunk')
+        assert hasattr(all_embeddings[0], "embedding")
+        assert hasattr(all_embeddings[0], "chunk")
 
         # Test 2: Access embeddings through relationship
         blog_post = session.query(BlogPost).first()
@@ -106,7 +116,7 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
         # Get embeddings for this post
         post_embeddings = blog_post.content_embeddings
         assert len(post_embeddings) > 0
-        assert hasattr(post_embeddings[0], 'embedding')
+        assert hasattr(post_embeddings[0], "embedding")
 
         # Test 3: Navigate from embedding back to parent
         embedding = session.query(EmbeddingClass).first()
@@ -122,9 +132,9 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
             .order_by(
                 BlogPost.content_embeddings.embedding.cosine_distance(
                     func.ai.openai_embed(
-                        'text-embedding-3-small',
-                        'artificial intelligence',
-                        text('dimensions => 768')
+                        "text-embedding-3-small",
+                        "artificial intelligence",
+                        text("dimensions => 768")
                     )
                 )
             )
@@ -141,14 +151,14 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
         python_posts = (
             session.query(BlogPost, EmbeddingClass)
             .join(EmbeddingClass, BlogPost.id == EmbeddingClass.id)
-            .filter(BlogPost.title.ilike('%Python%'))
+            .filter(BlogPost.title.ilike("%Python%"))
             .all()
         )
 
         assert len(python_posts) > 0
         post, embedding = python_posts[0]
         assert "Python" in post.title
-        assert hasattr(embedding, 'embedding')
+        assert hasattr(embedding, "embedding")
 
         # Print some results for visualization
         print("\nTest Results Summary:")
