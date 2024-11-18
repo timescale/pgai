@@ -283,12 +283,12 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- _vectorizer_create_dependencies
-create or replace function ai._vectorizer_create_dependencies(vectorizer_id int)
+create or replace function ai._vectorizer_create_dependencies(vectorizer_id pg_catalog.int4)
 returns void as
 $func$
 declare
     _vec ai.vectorizer%rowtype;
-    _is_owner bool;
+    _is_owner pg_catalog.bool;
 begin
     -- this function is security definer since we need to insert into a catalog table
     -- fully-qualify everything and be careful of security holes
@@ -298,41 +298,52 @@ begin
     -- preventing this function from being abused
     select v.* into strict _vec
     from ai.vectorizer v
-    where v.id = vectorizer_id
+    where v.id operator(pg_catalog.=) vectorizer_id
     ;
 
     -- don't let anyone but the owner of the source table call this
-    select k.relowner operator(pg_catalog.=) pg_catalog.session_user()::regrole
+    select k.relowner operator(pg_catalog.=) pg_catalog.session_user()::pg_catalog.regrole
     into strict _is_owner
     from pg_catalog.pg_class k
     inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
-    where k.oid operator(pg_catalog.=) pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::regclass::oid
+    where k.oid operator(pg_catalog.=) pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::pg_catalog.regclass::pg_catalog.oid
     ;
     if not _is_owner then
         raise exception 'only the owner of the source table may call ai._vectorizer_create_dependencies';
     end if;
 
     -- if we drop the source or the target with `cascade` it should drop the queue
+    -- if we drop the source with `cascade` it should drop the target
     -- there's no unique constraint on pg_depend so we manually prevent duplicate entries
     with x as
     (
         -- the queue table depends on the source table
         select
-         (select oid from pg_catalog.pg_class where relname = 'pg_class') as classid
-        , pg_catalog.format('%I.%I', _vec.queue_schema, _vec.queue_table)::regclass::oid as objid
+         (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as classid
+        , pg_catalog.format('%I.%I', _vec.queue_schema, _vec.queue_table)::pg_catalog.regclass::pg_catalog.oid as objid
         , 0 as objsubid
-        , (select oid from pg_catalog.pg_class where relname = 'pg_class') as refclassid
-        , pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::regclass::oid as refobjid
+        , (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as refclassid
+        , pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::pg_catalog.regclass::pg_catalog.oid as refobjid
         , 0 as refobjsubid
         , 'n' as deptype
         union all
         -- the queue table depends on the target table
         select
-         (select oid from pg_catalog.pg_class where relname = 'pg_class') as classid
-        , pg_catalog.format('%I.%I', _vec.queue_schema, _vec.queue_table)::regclass::oid as objid
+         (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as classid
+        , pg_catalog.format('%I.%I', _vec.queue_schema, _vec.queue_table)::pg_catalog.regclass::pg_catalog.oid as objid
         , 0 as objsubid
-        , (select oid from pg_catalog.pg_class where relname = 'pg_class') as refclassid
-        , pg_catalog.format('%I.%I', _vec.target_schema, _vec.target_table)::regclass::oid as refobjid
+        , (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as refclassid
+        , pg_catalog.format('%I.%I', _vec.target_schema, _vec.target_table)::pg_catalog.regclass::pg_catalog.oid as refobjid
+        , 0 as refobjsubid
+        , 'n' as deptype
+        union all
+        -- the target table depends on the source table
+        select
+         (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as classid
+        , pg_catalog.format('%I.%I', _vec.target_schema, _vec.target_table)::pg_catalog.regclass::pg_catalog.oid as objid
+        , 0 as objsubid
+        , (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as refclassid
+        , pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::pg_catalog.regclass::pg_catalog.oid as refobjid
         , 0 as refobjsubid
         , 'n' as deptype
     )
@@ -358,13 +369,13 @@ begin
     (
         select 1
         from pg_catalog.pg_depend d
-        where d.classid = x.classid
-        and d.objid = x.objid
-        and d.objsubid = x.objsubid
-        and d.refclassid = x.refclassid
-        and d.refobjid = x.refobjid
-        and d.refobjsubid = x.refobjsubid
-        and d.deptype = x.deptype
+        where d.classid operator(pg_catalog.=) x.classid
+        and d.objid operator(pg_catalog.=) x.objid
+        and d.objsubid operator(pg_catalog.=) x.objsubid
+        and d.refclassid operator(pg_catalog.=) x.refclassid
+        and d.refobjid operator(pg_catalog.=) x.refobjid
+        and d.refobjsubid operator(pg_catalog.=) x.refobjsubid
+        and d.deptype operator(pg_catalog.=) x.deptype
     )
     ;
 end

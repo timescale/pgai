@@ -817,12 +817,12 @@ def test_drop_source():
             actual = cur.fetchone()[0]
             assert actual == 0
 
-            # does the target table exist? (it SHOULD)
+            # does the target table exist? (it should NOT)
             cur.execute(
                 f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null"
             )
             actual = cur.fetchone()[0]
-            assert actual is True
+            assert actual is False
 
             # does the queue table exist? (it should not b/c of cascade)
             cur.execute(
@@ -941,17 +941,17 @@ def test_drop_source_no_row():
             cur.execute("delete from ai.vectorizer where id = %s", (vectorizer_id,))
             assert cur.rowcount == 1
 
-            # drop the source table
+            # drop the source table with cascade
             cur.execute(
                 f"drop table {vectorizer.source_schema}.{vectorizer.source_table} cascade"
             )
 
-            # does the target table exist? (it SHOULD)
+            # does the target table exist? (it should NOT)
             cur.execute(
                 f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null"
             )
             actual = cur.fetchone()[0]
-            assert actual is True
+            assert actual is False
 
             # does the queue table exist? (it should not b/c of cascade)
             cur.execute(
