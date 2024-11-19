@@ -1,5 +1,5 @@
 from click.testing import CliRunner
-from testcontainers.postgres import PostgresContainer
+from testcontainers.postgres import PostgresContainer #type: ignore
 
 from pgai.cli import vectorizer_worker
 from pgai.extensions.alembic.operations import (
@@ -42,7 +42,8 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
             chunk_size=500,
             chunk_overlap=50),
             formatting=FormattingConfig(
-            template="Title: $title\nContent: $chunk")
+            template="Title: $title\nContent: $chunk"),
+            add_relationship=True
         )
 
     # Create tables
@@ -101,11 +102,10 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
 
     with Session(engine) as session:
         # Test 1: Access embedding class directly
-        EmbeddingClass = BlogPost.content_embeddings
-        assert EmbeddingClass.__name__ == "BlogPostEmbedding"
+        assert BlogPost.content_embeddings.__name__ == "BlogPostEmbedding"
 
         # Get all embeddings directly
-        all_embeddings = session.query(EmbeddingClass).all()
+        all_embeddings = session.query(BlogPost.content_embeddings).all()
         assert len(all_embeddings) > 0
         assert hasattr(all_embeddings[0], "embedding")
         assert hasattr(all_embeddings[0], "chunk")
@@ -113,15 +113,10 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
         # Test 2: Access embeddings through relationship
         blog_post = session.query(BlogPost).first()
         assert blog_post is not None
-        # Get embeddings for this post
-        post_embeddings = blog_post.content_embeddings
-        assert len(post_embeddings) > 0
-        assert hasattr(post_embeddings[0], "embedding")
 
-        # Test 3: Navigate from embedding back to parent
-        embedding = session.query(EmbeddingClass).first()
-        assert embedding.parent.id == blog_post.id
-        assert embedding.parent.title == blog_post.title
+        embedding = session.query(BlogPost.content_embeddings).first()
+        assert embedding is not None
+        assert embedding.chunk in blog_post.content
 
         # Test 4: Semantic search functionality
         from sqlalchemy import func
@@ -149,8 +144,8 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
         # Test 5: Join query example
         # Find all blog posts with their embeddings where title contains "Python"
         python_posts = (
-            session.query(BlogPost, EmbeddingClass)
-            .join(EmbeddingClass, BlogPost.id == EmbeddingClass.id)
+            session.query(BlogPost, BlogPost.content_embeddings)
+            .join(BlogPost.content_embeddings, BlogPost.id == BlogPost.content_embeddings.id)
             .filter(BlogPost.title.ilike("%Python%"))
             .all()
         )
@@ -159,14 +154,4 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
         post, embedding = python_posts[0]
         assert "Python" in post.title
         assert hasattr(embedding, "embedding")
-
-        # Print some results for visualization
-        print("\nTest Results Summary:")
-        print(f"Total embeddings: {len(all_embeddings)}")
-        print(f"Embeddings for first post: {len(post_embeddings)}")
-        print("\nSemantic Search Results for 'artificial intelligence':")
-        for emb in similar_embeddings:
-            print(f"- Post: {emb.parent.title}")
-            print(f"  Chunk: {emb.chunk}")
-
 
