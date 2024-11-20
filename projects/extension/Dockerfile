@@ -1,33 +1,11 @@
 # syntax=docker/dockerfile:1.3-labs
 ARG PG_MAJOR=16
-ARG TIMESCALEDB_IMAGE=timescale/timescaledb-ha:pg${PG_MAJOR}
-FROM ${TIMESCALEDB_IMAGE} as timescaledb
+ARG PGVECTORSCALE_VERSION=0.5.0
 
-FROM postgres:${PG_MAJOR} AS build-latest
-ENV PG_MAJOR=${PG_MAJOR}
-ENV PIP_BREAK_SYSTEM_PACKAGES=1
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends make python3-pip git curl && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin/
-WORKDIR /pgai
-COPY requirements.txt .
-COPY ai/__init__.py ai/
-RUN version=$(grep -oP '(?<=__version__ = ")[^"]*' ai/__init__.py) && \
-    mkdir -p /usr/local/lib/pgai/$version && \
-    pip3 install -v --no-deps --compile -t /usr/local/lib/pgai/$version -r requirements.txt
-COPY . .
-RUN just install-py build-sql install-sql
-
-FROM timescaledb as pgai-test-db
-ARG PG_MAJOR=16
-COPY --from=build-latest /usr/share/postgresql/${PG_MAJOR}/extension/ai--*.sql /usr/share/postgresql/${PG_MAJOR}/extension/
-COPY --from=build-latest /usr/share/postgresql/${PG_MAJOR}/extension/ai.control /usr/share/postgresql/${PG_MAJOR}/extension/ai.control
-COPY --from=build-latest /usr/local/lib/pgai/ /usr/local/lib/pgai/
-
-FROM postgres:${PG_MAJOR}
-ENV WHERE_AM_I=docker
+###############################################################################
+# base image
+FROM postgres:${PG_MAJOR} as base
+ARG PGVECTORSCALE_VERSION
 ENV DEBIAN_FRONTEND=noninteractive
 USER root
 
@@ -45,14 +23,45 @@ RUN set -e; \
     vim \
     && curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin/
 
-# install timescaledb and pgvectorscale
-COPY --from=timescaledb /usr/share/postgresql/${PG_MAJOR}/extension/timescaledb--*.sql /usr/share/postgresql/${PG_MAJOR}/extension/
-COPY --from=timescaledb /usr/share/postgresql/${PG_MAJOR}/extension/vectorscale--*.sql /usr/share/postgresql/${PG_MAJOR}/extension/
-COPY --from=timescaledb /usr/share/postgresql/${PG_MAJOR}/extension/timescaledb.control /usr/share/postgresql/${PG_MAJOR}/extension/
-COPY --from=timescaledb /usr/share/postgresql/${PG_MAJOR}/extension/vectorscale.control /usr/share/postgresql/${PG_MAJOR}/extension/
-COPY --from=timescaledb /usr/lib/postgresql/${PG_MAJOR}/lib/timescaledb.so /usr/lib/postgresql/${PG_MAJOR}/lib/
-COPY --from=timescaledb /usr/lib/postgresql/${PG_MAJOR}/lib/timescaledb-*.so /usr/lib/postgresql/${PG_MAJOR}/lib/
-COPY --from=timescaledb /usr/lib/postgresql/${PG_MAJOR}/lib/vectorscale-*.so /usr/lib/postgresql/${PG_MAJOR}/lib/
+# install timescaledb
+RUN set -e; \
+    apt-get install -y gnupg postgresql-common apt-transport-https lsb-release wget; \
+    /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y; \
+    echo "deb https://packagecloud.io/timescale/timescaledb/debian/ $(lsb_release -c -s) main" | tee /etc/apt/sources.list.d/timescaledb.list; \
+    wget --quiet -O - https://packagecloud.io/timescale/timescaledb/gpgkey | gpg --dearmor -o /etc/apt/trusted.gpg.d/timescaledb.gpg; \
+    apt-get update -y; \
+    apt-get install -y timescaledb-2-postgresql-${PG_MAJOR}
+
+# install pgvectorscale
+RUN set -e; \
+    apt-get install -y unzip; \
+    TARGET_ARCH=$(if [ "$(uname -m)" = "x86_64" ]; then echo "amd64"; elif [ "$(uname -m)" = "aarch64" ]; then echo "arm64"; fi); \
+    wget https://github.com/timescale/pgvectorscale/releases/download/${PGVECTORSCALE_VERSION}/pgvectorscale-${PGVECTORSCALE_VERSION}-pg${PG_MAJOR}-"$TARGET_ARCH".zip; \
+    unzip pgvectorscale-${PGVECTORSCALE_VERSION}-pg${PG_MAJOR}-"$TARGET_ARCH".zip; \
+    dpkg -i pgvectorscale-postgresql-${PG_MAJOR}_${PGVECTORSCALE_VERSION}-Linux_"$TARGET_ARCH".deb; \
+    rm pgvectorscale-${PGVECTORSCALE_VERSION}-pg${PG_MAJOR}-"$TARGET_ARCH".zip pgvectorscale-postgresql-${PG_MAJOR}_${PGVECTORSCALE_VERSION}-Linux_"$TARGET_ARCH".deb
+
+
+###############################################################################
+# image for use in testing the pgai library
+FROM base AS pgai-test-db
+ENV PG_MAJOR=${PG_MAJOR}
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+WORKDIR /pgai
+COPY requirements.txt .
+COPY ai/__init__.py ai/
+RUN version=$(grep -oP '(?<=__version__ = ")[^"]*' ai/__init__.py) && \
+    mkdir -p /usr/local/lib/pgai/$version && \
+    pip3 install -v --no-deps --compile -t /usr/local/lib/pgai/$version -r requirements.txt
+COPY . .
+RUN just install-py build-sql install-sql
+
+
+###############################################################################
+# image for use in extension development
+FROM base
+ENV WHERE_AM_I=docker
+USER root
 
 # install pgspot
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
