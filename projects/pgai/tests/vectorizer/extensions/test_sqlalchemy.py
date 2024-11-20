@@ -1,27 +1,20 @@
 from click.testing import CliRunner
-from testcontainers.postgres import PostgresContainer #type: ignore
+from sqlalchemy import Column, Engine, Integer, Text
+from sqlalchemy.orm import Session, declarative_base
+from sqlalchemy.sql import text
+from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.cli import vectorizer_worker
 from pgai.extensions.alembic.operations import (
     ChunkingConfig,
     EmbeddingConfig,
-    FormattingConfig,
 )
 from pgai.extensions.sqlalchemy import VectorizerField
 
 
-def test_sqlalchemy(postgres_container: PostgresContainer):
-    from sqlalchemy import Column, Integer, Text, create_engine
-    from sqlalchemy.orm import Session, declarative_base
-    from sqlalchemy.sql import text
+def test_sqlalchemy(postgres_container: PostgresContainer, initialized_engine: Engine):
     db_url = postgres_container.get_connection_url()
     # Create engine and base
-    engine = create_engine(db_url)
-    with engine.connect() as conn:
-        conn.execute(text("""
-            CREATE EXTENSION IF NOT EXISTS ai CASCADE;
-        """))
-        conn.commit()
     Base = declarative_base()
 
     class BlogPost(Base):
@@ -33,50 +26,49 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
 
         content_embeddings = VectorizerField(
             source_column="content",
-            embedding=EmbeddingConfig(
-                model="text-embedding-3-small",
-                dimensions=768
-            ),
+            embedding=EmbeddingConfig(model="text-embedding-3-small", dimensions=768),
             chunking=ChunkingConfig(
-            chunk_column="chunk",
-            chunk_size=500,
-            chunk_overlap=50),
-            formatting=FormattingConfig(
-            template="Title: $title\nContent: $chunk"),
-            add_relationship=True
+                chunk_column="chunk", chunk_size=500, chunk_overlap=50
+            ),
+            formatting_template="Title: $title\nContent: $chunk",
+            add_relationship=True,
         )
 
     # Create tables
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine, tables=[Base.metadata.sorted_tables[0]])
+    Base.metadata.drop_all(initialized_engine)
+    Base.metadata.create_all(
+        initialized_engine, tables=[Base.metadata.sorted_tables[0]]
+    )
 
     # Create vectorizer
-    with engine.connect() as conn:
-        conn.execute(text("""
-            SELECT ai.create_vectorizer( 
+    with initialized_engine.connect() as conn:
+        conn.execute(
+            text("""
+            SELECT ai.create_vectorizer(
                 'blog_posts'::regclass,
                 embedding => ai.embedding_openai('text-embedding-3-small', 768),
-                chunking => ai.chunking_recursive_character_text_splitter('content', 
+                chunking => ai.chunking_recursive_character_text_splitter('content',
                 50,
                 10)
             );
-        """))
+        """)
+        )
         conn.commit()
 
     # Insert test data
-    with Session(engine) as session:
+    with Session(initialized_engine) as session:
         posts = [
             BlogPost(
                 title="Introduction to Machine Learning",
-                content="Machine learning is a subset of artificial intelligence that enables systems to learn and improve from experience.",
+                content="Machine learning is a subset of artificial intelligence that enables systems to learn and improve from experience.",  # noqa
             ),
             BlogPost(
                 title="Python Programming",
-                content="Python is a high-level programming language known for its simplicity and readability.",
+                content="Python is a high-level programming language known for its simplicity and readability.",  # noqa
             ),
             BlogPost(
                 title="Data Science Basics",
-                content="Data science combines statistics, programming, and domain expertise to extract insights from data.",
+                content="Data science combines statistics, programming, and domain expertise to extract insights from data.",  # noqa
             ),
         ]
         session.add_all(posts)
@@ -96,11 +88,7 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
         catch_exceptions=False,
     )
 
-    # Wait a moment for the vectorizer to process
-    import time
-    time.sleep(5)  # You might need to adjust this based on your setup
-
-    with Session(engine) as session:
+    with Session(initialized_engine) as session:
         # Test 1: Access embedding class directly
         assert BlogPost.content_embeddings.__name__ == "BlogPostEmbedding"
 
@@ -129,7 +117,7 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
                     func.ai.openai_embed(
                         "text-embedding-3-small",
                         "artificial intelligence",
-                        text("dimensions => 768")
+                        text("dimensions => 768"),
                     )
                 )
             )
@@ -145,7 +133,10 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
         # Find all blog posts with their embeddings where title contains "Python"
         python_posts = (
             session.query(BlogPost, BlogPost.content_embeddings)
-            .join(BlogPost.content_embeddings, BlogPost.id == BlogPost.content_embeddings.id)
+            .join(
+                BlogPost.content_embeddings,
+                BlogPost.id == BlogPost.content_embeddings.id,
+            )
             .filter(BlogPost.title.ilike("%Python%"))
             .all()
         )
@@ -154,4 +145,3 @@ def test_sqlalchemy(postgres_container: PostgresContainer):
         post, embedding = python_posts[0]
         assert "Python" in post.title
         assert hasattr(embedding, "embedding")
-

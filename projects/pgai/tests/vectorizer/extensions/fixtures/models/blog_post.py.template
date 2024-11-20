@@ -3,8 +3,7 @@ from sqlalchemy import Column, Integer, Text
 from pgai.extensions.sqlalchemy import (
     VectorizerField,
     EmbeddingConfig,
-    ChunkingConfig,
-    FormattingConfig
+    ChunkingConfig
 )
 
 Base = declarative_base()
@@ -27,7 +26,5 @@ class BlogPost(Base):
             chunk_size={chunk_size},
             chunk_overlap={chunk_overlap}
         ),
-        formatting=FormattingConfig(
-            template="{template}"
-        )
+        formatting_template="{template}"
     )

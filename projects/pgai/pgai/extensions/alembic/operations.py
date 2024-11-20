@@ -1,15 +1,19 @@
-import json
-from dataclasses import dataclass, asdict
 from typing import Any
 
-from alembic.autogenerate import renderers, comparators
+from alembic.autogenerate import renderers
 from alembic.autogenerate.api import AutogenContext
 from alembic.operations import MigrateOperation, Operations
 from sqlalchemy import text
-import alembic.context as AlembicContext
+from typing_extensions import override
 
-from pgai.extensions import EmbeddingConfig, ChunkingConfig, IndexingConfig, FormattingConfig, SchedulingConfig, \
-    ProcessingConfig
+from pgai.extensions import (
+    ChunkingConfig,
+    DiskANNIndexingConfig,
+    EmbeddingConfig,
+    HNSWIndexingConfig,
+    ProcessingConfig,
+    SchedulingConfig,
+)
 
 
 @Operations.register_operation("create_vectorizer")
@@ -17,30 +21,30 @@ class CreateVectorizerOp(MigrateOperation):
     """Create a vectorizer for automatic embedding generation."""
 
     def __init__(
-            self,
-            source_table: str | None = None,
-            destination: str | None = None,
-            embedding: EmbeddingConfig | None = None,
-            chunking: ChunkingConfig | None = None,
-            indexing: IndexingConfig | None = None,
-            formatting: FormattingConfig | None = None,
-            scheduling: SchedulingConfig | None = None,
-            processing: ProcessingConfig | None = None,
-            target_schema: str | None = None,
-            target_table: str | None = None,
-            view_schema: str | None = None,
-            view_name: str | None = None,
-            queue_schema: str | None = None,
-            queue_table: str | None = None,
-            grant_to: list[str] | None = None,
-            enqueue_existing: bool = True
+        self,
+        source_table: str | None = None,
+        destination: str | None = None,
+        embedding: EmbeddingConfig | None = None,
+        chunking: ChunkingConfig | None = None,
+        indexing: DiskANNIndexingConfig | HNSWIndexingConfig | None = None,
+        formatting_template: str | None = None,
+        scheduling: SchedulingConfig | None = None,
+        processing: ProcessingConfig | None = None,
+        target_schema: str | None = None,
+        target_table: str | None = None,
+        view_schema: str | None = None,
+        view_name: str | None = None,
+        queue_schema: str | None = None,
+        queue_table: str | None = None,
+        grant_to: list[str] | None = None,
+        enqueue_existing: bool = True,
     ):
         self.source_table = source_table
         self.destination = destination
         self.embedding = embedding
         self.chunking = chunking
         self.indexing = indexing
-        self.formatting = formatting
+        self.formatting_template = formatting_template
         self.scheduling = scheduling
         self.processing = processing
         self.target_schema = target_schema
@@ -53,12 +57,13 @@ class CreateVectorizerOp(MigrateOperation):
         self.enqueue_existing = enqueue_existing
 
     @classmethod
-    def create_vectorizer(cls, operations: Operations, source_table: str, **kw: dict[Any, Any]):
+    def create_vectorizer(cls, operations: Operations, source_table: str, **kw: Any):
         """Issue a CREATE VECTORIZER command."""
         op = CreateVectorizerOp(source_table, **kw)
         return operations.invoke(op)
 
-    def reverse(self):
+    @override
+    def reverse(self) -> MigrateOperation:
         """Creates the downgrade operation"""
         return DropVectorizerOp(None, True)
 
@@ -72,23 +77,33 @@ class DropVectorizerOp(MigrateOperation):
         self.drop_objects = drop_objects
 
     @classmethod
-    def drop_vectorizer(cls, operations: Operations, vectorizer_id: int|None = None, drop_objects: bool = True):
+    def drop_vectorizer(
+        cls,
+        operations: Operations,
+        vectorizer_id: int | None = None,
+        drop_objects: bool = True,
+    ):
         """Issue a DROP VECTORIZER command."""
         op = DropVectorizerOp(vectorizer_id, drop_objects)
         return operations.invoke(op)
 
-    def reverse(self):
+    @override
+    def reverse(self) -> MigrateOperation:
         """Creates the upgrade operation"""
         return CreateVectorizerOp(None)
 
+
 def _build_embedding_params(config: EmbeddingConfig) -> str:
-    return f"ai.embedding_openai('{config.model}', {config.dimensions}"  + \
-        (f", chat_user=>'{config.chat_user}'" if config.chat_user else "") + \
-        (f", api_key_name=>'{config.api_key_name}'" if config.api_key_name else "") + \
-        ")"
+    return (
+        f"ai.embedding_openai('{config.model}', {config.dimensions}"
+        + (f", chat_user=>'{config.chat_user}'" if config.chat_user else "")
+        + (f", api_key_name=>'{config.api_key_name}'" if config.api_key_name else "")
+        + ")"
+    )
+
 
 def _build_chunking_params(config: ChunkingConfig) -> str:
-    base = f"ai.chunking_recursive_character_text_splitter('{config.chunk_column}'"
+    base = f"ai.chunking_character_text_splitter('{config.chunk_column}'"
     if config.chunk_size is not None:
         base += f", chunk_size=>{config.chunk_size}"
     if config.chunk_overlap is not None:
@@ -104,8 +119,9 @@ def _build_chunking_params(config: ChunkingConfig) -> str:
     base += ")"
     return base
 
+
 @Operations.implementation_for(CreateVectorizerOp)
-def create_vectorizer(operations, operation):
+def create_vectorizer(operations: Operations, operation: CreateVectorizerOp):
     """Implement CREATE VECTORIZER."""
 
     parts = ["SELECT ai.create_vectorizer("]
@@ -120,8 +136,9 @@ def create_vectorizer(operations, operation):
     if operation.chunking:
         parts.append(f", chunking => {_build_chunking_params(operation.chunking)}")
 
-    if operation.formatting:
-        parts.append(f", formatting => ai.formatting_python_template('{operation.formatting.template}')")
+    parts.append(
+        f", formatting => ai.formatting_python_template('{operation.formatting_template}')"  # noqa: E501
+    )
 
     if operation.grant_to:
         grant_list = ", ".join(f"'{user}'" for user in operation.grant_to)
@@ -146,18 +163,16 @@ def drop_vectorizer(operations: Operations, operation: DropVectorizerOp):
         result = connection.execute(
             text("""
                 SELECT source_table, target_table AS embedding_store, v.view_name
-                FROM ai.vectorizer v 
+                FROM ai.vectorizer v
                 WHERE id = :id
             """),
-            {"id": vectorizer_id}
+            {"id": vectorizer_id},
         ).fetchone()
 
         if result:
             # Drop the view first
             if result.view_name:
-                connection.execute(
-                    text(f"DROP VIEW IF EXISTS {result.view_name}")
-                )
+                connection.execute(text(f"DROP VIEW IF EXISTS {result.view_name}"))
 
             # Drop the embedding store table
             if result.embedding_store:
@@ -166,25 +181,19 @@ def drop_vectorizer(operations: Operations, operation: DropVectorizerOp):
                 )
 
     # Finally drop the vectorizer itself
-    connection.execute(
-        text("SELECT ai.drop_vectorizer(:id)"),
-        {"id": vectorizer_id}
-    )
-
-
-from alembic.autogenerate import renderers
+    connection.execute(text("SELECT ai.drop_vectorizer(:id)"), {"id": vectorizer_id})
 
 
 @renderers.dispatch_for(CreateVectorizerOp)
 def render_create_vectorizer(autogen_context: AutogenContext, op: CreateVectorizerOp):
     """Render a CREATE VECTORIZER operation."""
     template_context = {
-        "EmbeddingConfig": "from pgai.extensions.alembic.operations import EmbeddingConfig",
-        "ChunkingConfig": "from pgai.extensions.alembic.operations import ChunkingConfig",
-        "FormattingConfig": "from pgai.extensions.alembic.operations import FormattingConfig",
-        "IndexingConfig": "from pgai.extensions.alembic.operations import IndexingConfig",
-        "SchedulingConfig": "from pgai.extensions.alembic.operations import SchedulingConfig",
-        "ProcessingConfig": "from pgai.extensions.alembic.operations import ProcessingConfig"
+        "EmbeddingConfig": "from pgai.extensions import EmbeddingConfig",
+        "ChunkingConfig": "from pgai.extensions import ChunkingConfig",
+        "DiskANNIndexingConfig": "from pgai.extensions import DiskANNIndexingConfig",
+        "HNSWIndexingConfig": "from pgai.extensions import HNSWIndexingConfig",
+        "SchedulingConfig": "from pgai.extensions import SchedulingConfig",
+        "ProcessingConfig": "from pgai.extensions import ProcessingConfig",
     }
 
     for import_str in template_context.values():
@@ -198,18 +207,14 @@ def render_create_vectorizer(autogen_context: AutogenContext, op: CreateVectoriz
     if op.embedding:
         embed_args = [
             f"    model={repr(op.embedding.model)}",
-            f"    dimensions={op.embedding.dimensions}"
+            f"    dimensions={op.embedding.dimensions}",
         ]
         if op.embedding.chat_user:
             embed_args.append(f"    chat_user={repr(op.embedding.chat_user)}")
         if op.embedding.api_key_name:
             embed_args.append(f"    api_key_name={repr(op.embedding.api_key_name)}")
 
-        args.append(
-            "embedding=EmbeddingConfig(\n" +
-            ",\n".join(embed_args) +
-            "\n)"
-        )
+        args.append("embedding=EmbeddingConfig(\n" + ",\n".join(embed_args) + "\n)")
 
     if op.chunking:
         chunk_args = [f"    chunk_column={repr(op.chunking.chunk_column)}"]
@@ -220,47 +225,72 @@ def render_create_vectorizer(autogen_context: AutogenContext, op: CreateVectoriz
         if op.chunking.separator is not None:
             chunk_args.append(f"    separator={repr(op.chunking.separator)}")
         if op.chunking.is_separator_regex:
-            chunk_args.append(f"    is_separator_regex=True")
+            chunk_args.append("    is_separator_regex=True")
 
-        args.append(
-            "chunking=ChunkingConfig(\n" +
-            ",\n".join(chunk_args) +
-            "\n)"
-        )
+        args.append("chunking=ChunkingConfig(\n" + ",\n".join(chunk_args) + "\n)")
 
     if op.indexing:
-        index_args = []
-        if op.indexing.min_rows is not None:
-            index_args.append(f"    min_rows={op.indexing.min_rows}")
-        if op.indexing.storage_layout is not None:
-            index_args.append(f"    storage_layout={repr(op.indexing.storage_layout)}")
-        if op.indexing.num_neighbors is not None:
-            index_args.append(f"    num_neighbors={op.indexing.num_neighbors}")
-        if op.indexing.search_list_size is not None:
-            index_args.append(f"    search_list_size={op.indexing.search_list_size}")
-        if op.indexing.max_alpha is not None:
-            index_args.append(f"    max_alpha={op.indexing.max_alpha}")
-        if op.indexing.num_dimensions is not None:
-            index_args.append(f"    num_dimensions={op.indexing.num_dimensions}")
-        if op.indexing.num_bits_per_dimension is not None:
-            index_args.append(f"    num_bits_per_dimension={op.indexing.num_bits_per_dimension}")
-        if op.indexing.create_when_queue_empty is not None:
-            index_args.append(f"    create_when_queue_empty={op.indexing.create_when_queue_empty}")
+        if isinstance(op.indexing, DiskANNIndexingConfig):
+            index_args: list[str] = []
+            if op.indexing.min_rows is not None:
+                index_args.append(f"    min_rows={op.indexing.min_rows}")
+            if op.indexing.storage_layout is not None:
+                index_args.append(
+                    f"    storage_layout={repr(op.indexing.storage_layout)}"
+                )
+            if op.indexing.num_neighbors is not None:
+                index_args.append(f"    num_neighbors={op.indexing.num_neighbors}")
+            if op.indexing.search_list_size is not None:
+                index_args.append(
+                    f"    search_list_size={op.indexing.search_list_size}"
+                )
+            if op.indexing.max_alpha is not None:
+                index_args.append(f"    max_alpha={op.indexing.max_alpha}")
+            if op.indexing.num_dimensions is not None:
+                index_args.append(f"    num_dimensions={op.indexing.num_dimensions}")
+            if op.indexing.num_bits_per_dimension is not None:
+                index_args.append(
+                    f"    num_bits_per_dimension={op.indexing.num_bits_per_dimension}"
+                )
+            if op.indexing.create_when_queue_empty is not None:
+                index_args.append(
+                    f"    create_when_queue_empty={op.indexing.create_when_queue_empty}"
+                )
+
+        else:
+            index_args: list[str] = []
+            if op.indexing.min_rows is not None:
+                index_args.append(f"    min_rows={op.indexing.min_rows}")
+            if op.indexing.opclass is not None:
+                index_args.append(f"    opclass={repr(op.indexing.opclass)}")
+            if op.indexing.m is not None:
+                index_args.append(f"    m={op.indexing.m}")
+            if op.indexing.ef_construction is not None:
+                index_args.append(f"    ef_construction={op.indexing.ef_construction}")
+            if op.indexing.create_when_queue_empty is not None:
+                index_args.append(
+                    f"    create_when_queue_empty={op.indexing.create_when_queue_empty}"
+                )
 
         if index_args:
-            args.append(
-                "indexing=IndexingConfig(\n" +
-                ",\n".join(index_args) +
-                "\n)"
-            )
+            if isinstance(op.indexing, DiskANNIndexingConfig):
+                args.append(
+                    "indexing=DiskANNIndexingConfig(\n" + ",\n".join(index_args) + "\n)"
+                )
+            else:
+                args.append(
+                    "indexing=HNSWIndexingConfig(\n" + ",\n".join(index_args) + "\n)"
+                )
 
-    if op.formatting:
-        args.append(f"formatting=FormattingConfig(template={repr(op.formatting.template)})")
+    if op.formatting_template:
+        args.append(f"formatting_template={repr(op.formatting_template)}")
 
     if op.scheduling:
-        sched_args = []
+        sched_args: list[str] = []
         if op.scheduling.schedule_interval is not None:
-            sched_args.append(f"    schedule_interval={repr(op.scheduling.schedule_interval)}")
+            sched_args.append(
+                f"    schedule_interval={repr(op.scheduling.schedule_interval)}"
+            )
         if op.scheduling.initial_start is not None:
             sched_args.append(f"    initial_start={repr(op.scheduling.initial_start)}")
         if op.scheduling.fixed_schedule is not None:
@@ -270,13 +300,11 @@ def render_create_vectorizer(autogen_context: AutogenContext, op: CreateVectoriz
 
         if sched_args:
             args.append(
-                "scheduling=SchedulingConfig(\n" +
-                ",\n".join(sched_args) +
-                "\n)"
+                "scheduling=SchedulingConfig(\n" + ",\n".join(sched_args) + "\n)"
             )
 
     if op.processing:
-        proc_args = []
+        proc_args: list[str] = []
         if op.processing.batch_size is not None:
             proc_args.append(f"    batch_size={op.processing.batch_size}")
         if op.processing.concurrency is not None:
@@ -284,9 +312,7 @@ def render_create_vectorizer(autogen_context: AutogenContext, op: CreateVectoriz
 
         if proc_args:
             args.append(
-                "processing=ProcessingConfig(\n" +
-                ",\n".join(proc_args) +
-                "\n)"
+                "processing=ProcessingConfig(\n" + ",\n".join(proc_args) + "\n)"
             )
 
     if op.target_schema:
@@ -312,9 +338,9 @@ def render_create_vectorizer(autogen_context: AutogenContext, op: CreateVectoriz
 
 
 @renderers.dispatch_for(DropVectorizerOp)
-def render_drop_vectorizer(autogen_context: AutogenContext, op: DropVectorizerOp):
+def render_drop_vectorizer(autogen_context: AutogenContext, op: DropVectorizerOp):  # noqa: ARG001
     """Render a DROP VECTORIZER operation."""
-    args = []
+    args: list[str] = []
 
     if op.vectorizer_id is not None:
         args.append(str(op.vectorizer_id))
@@ -323,4 +349,3 @@ def render_drop_vectorizer(autogen_context: AutogenContext, op: DropVectorizerOp
         args.append(f"drop_objects={op.drop_objects}")
 
     return f"op.drop_vectorizer({', '.join(args)})"
-

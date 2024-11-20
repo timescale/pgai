@@ -1,82 +1,78 @@
 from dataclasses import asdict
-from typing import Any, TypeVar
+from typing import Any, Generic, TypeVar
 
 from pgvector.sqlalchemy import Vector  # type: ignore
-from sqlalchemy import ForeignKey, Integer, Text, MetaData
-from sqlalchemy.orm import DeclarativeBase, mapped_column, relationship, backref, Mapped
+from sqlalchemy import ForeignKey, Integer, MetaData, Text
+from sqlalchemy.orm import DeclarativeBase, Mapped, backref, mapped_column, relationship
 
-from pgai.extensions import EmbeddingConfig, ChunkingConfig, FormattingConfig, IndexingConfig, SchedulingConfig, \
-    ProcessingConfig
+from pgai.extensions import (
+    ChunkingConfig,
+    DiskANNIndexingConfig,
+    EmbeddingConfig,
+    HNSWIndexingConfig,
+    NoScheduling,
+    ProcessingConfig,
+    SchedulingConfig,
+)
 
 # Type variable for the parent model
-T = TypeVar('T', bound=DeclarativeBase)
+T = TypeVar("T", bound=DeclarativeBase)
 
-class EmbeddingModel(DeclarativeBase):
+
+class EmbeddingModel(DeclarativeBase, Generic[T]):
     """Base type for embedding models with required attributes"""
+
     embedding_uuid: Mapped[str]
     id: Mapped[int]
     chunk: Mapped[str]
     embedding: Mapped[list[float]]
     chunk_seq: Mapped[int]
-    parent: Any  # Type of the parent model
+    parent: T  # Type of the parent model
+
 
 class VectorizerField:
     def __init__(
         self,
         source_column: str,
-        embedding: EmbeddingConfig | dict[str, str],
-        chunking: ChunkingConfig | dict[str, str] | None = None,
-        formatting: FormattingConfig | dict[str, str] | None = None,
-        indexing: IndexingConfig | dict[str, str] | None = None,
-        scheduling: SchedulingConfig | dict[str, str] | None = None,
-        processing: ProcessingConfig | dict[str, str] | None = None,
+        embedding: EmbeddingConfig | dict[str, Any],
+        formatting_template: str | None = None,
+        chunking: ChunkingConfig | None = None,
+        indexing: DiskANNIndexingConfig | HNSWIndexingConfig | None = None,
+        scheduling: SchedulingConfig | NoScheduling | None = None,
+        processing: ProcessingConfig | None = None,
         target_schema: str | None = None,
         target_table: str | None = None,
         view_schema: str | None = None,
         view_name: str | None = None,
         queue_schema: str | None = None,
         queue_table: str | None = None,
+        grant_to: list[str] | None = None,
+        enqueue_existing: bool = True,
         add_relationship: bool = False,
     ):
         self.add_relationship = add_relationship
-        # Handle embedding config
+
         if isinstance(embedding, dict):
             self.embedding_config = EmbeddingConfig(**embedding)
         else:
             self.embedding_config = embedding
 
-        # Handle chunking config
         if chunking is None:
             self.chunking_config = ChunkingConfig(chunk_column=source_column)
-        elif isinstance(chunking, dict):
-            chunking.setdefault('chunk_column', source_column)
-            self.chunking_config = ChunkingConfig(**chunking)
         else:
             self.chunking_config = chunking
 
-        # Handle formatting config
-        if formatting is None:
-            self.formatting_config = FormattingConfig(template="$chunk")
-        elif isinstance(formatting, dict):
-            self.formatting_config = FormattingConfig(**formatting)
+        if formatting_template is None:
+            self.formatting_template = "$chunk"
         else:
-            self.formatting_config = formatting
+            self.formatting_template = formatting_template
 
         # Handle optional configs
-        if isinstance(indexing, dict):
-            self.indexing_config = IndexingConfig(**indexing)
-        else:
-            self.indexing_config = indexing
+        self.indexing_config = indexing
 
-        if isinstance(scheduling, dict):
-            self.scheduling_config = SchedulingConfig(**scheduling)
-        else:
-            self.scheduling_config = scheduling
+        self.scheduling_config = scheduling
 
-        if isinstance(processing, dict):
-            self.processing_config = ProcessingConfig(**processing)
-        else:
-            self.processing_config = processing
+        self.processing_config = processing
 
         # Store table/view configuration
         self.target_schema = target_schema
@@ -85,10 +81,12 @@ class VectorizerField:
         self.view_name = view_name
         self.queue_schema = queue_schema
         self.queue_table = queue_table
+        self.grant_to = grant_to
+        self.enqueue_existing = enqueue_existing
         self.owner: type[DeclarativeBase] | None = None
-        self.name: str| None = None
+        self.name: str | None = None
 
-    def create_embedding_class(self, owner: type[DeclarativeBase]) -> type[EmbeddingModel]:
+    def create_embedding_class(self, owner: type[T]) -> type[EmbeddingModel[T]]:
         table_name = self.target_table or f"{owner.__tablename__}_embedding_store"
         schema = self.target_schema
         class_name = f"{owner.__name__}Embedding"
@@ -97,28 +95,29 @@ class VectorizerField:
 
         class Embedding(base):
             __tablename__ = table_name
-            __table_args__ = {
-                'info': {'pgai_managed': True},
-                'schema': schema
-            } if schema else {'info': {'pgai_managed': True}}
+            __table_args__ = (
+                {"info": {"pgai_managed": True}, "schema": schema}
+                if schema
+                else {"info": {"pgai_managed": True}}
+            )
             registry = registry_instance
 
             embedding_uuid = mapped_column(Text, primary_key=True)
-            id = mapped_column(Integer, ForeignKey(
-                f"{owner.__tablename__}.id",
-                ondelete="CASCADE"
-            ))
+            id = mapped_column(
+                Integer, ForeignKey(f"{owner.__tablename__}.id", ondelete="CASCADE")
+            )
             chunk = mapped_column(Text, nullable=False)
             embedding = mapped_column(
-                Vector(self.embedding_config.dimensions),
-                nullable=False
+                Vector(self.embedding_config.dimensions), nullable=False
             )
             chunk_seq = mapped_column(Integer, nullable=False)
 
         Embedding.__name__ = class_name
         return Embedding  # type: ignore
 
-    def __get__(self, obj: DeclarativeBase | None, objtype: type[DeclarativeBase]|None=None) -> type[EmbeddingModel]:
+    def __get__(
+        self, obj: DeclarativeBase | None, objtype: type[DeclarativeBase] | None = None
+    ) -> type[EmbeddingModel[Any]]:
         return self._embedding_class
 
     def __set_name__(self, owner: type[DeclarativeBase], name: str):
@@ -136,7 +135,7 @@ class VectorizerField:
             setattr(owner, f"{name}_relation", relationship_instance)
 
         # Register vectorizer configuration
-    
+
         metadata = owner.registry.metadata
         self._register_with_metadata(metadata)
 
@@ -151,7 +150,8 @@ class VectorizerField:
             "source_table": self.owner.__tablename__,
             "embedding": asdict(self.embedding_config),
             "chunking": asdict(self.chunking_config),
-            "formatting": asdict(self.formatting_config),
+            "formatting_template": self.formatting_template,
+            "enqueue_existing": self.enqueue_existing,
         }
 
         # Add optional configurations if they exist
@@ -173,6 +173,7 @@ class VectorizerField:
             config["queue_schema"] = self.queue_schema
         if self.queue_table:
             config["queue_table"] = self.queue_table
+        if self.grant_to:
+            config["grant_to"] = self.grant_to
 
         vectorizers[f"{self.owner.__tablename__}.{self.name}"] = config
-

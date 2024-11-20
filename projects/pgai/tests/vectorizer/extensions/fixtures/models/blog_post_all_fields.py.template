@@ -1,0 +1,64 @@
+from sqlalchemy.orm import declarative_base
+from sqlalchemy import Column, Integer, Text
+
+from pgai.extensions import DiskANNIndexingConfig, SchedulingConfig, ProcessingConfig
+from pgai.extensions.sqlalchemy import (
+    VectorizerField,
+    EmbeddingConfig,
+    ChunkingConfig
+)
+
+Base = declarative_base()
+
+class BlogPost(Base):
+    __tablename__ = "blog_posts"
+    
+    id = Column(Integer, primary_key=True)
+    title = Column(Text, nullable=False)
+    content = Column(Text, nullable=False)
+    
+    content_embeddings = VectorizerField(
+        source_column="content",
+        embedding=EmbeddingConfig(
+            model="text-embedding-3-small",
+            dimensions=768,
+            chat_user="test_user",
+            api_key_name="test_key"
+        ),
+        formatting_template="Title: $title\nContent: $chunk",
+        chunking=ChunkingConfig(
+            chunk_column="content",
+            chunk_size=500,
+            chunk_overlap=10,
+            separator=" ",
+            is_separator_regex=True
+        ),
+        indexing=DiskANNIndexingConfig(
+            min_rows = 10,
+            storage_layout = "plain",
+            num_neighbors = 5,
+            search_list_size = 10,
+            max_alpha = 0.5,
+            num_dimensions = 10,
+            num_bits_per_dimension = 10,
+            create_when_queue_empty = False
+        ),
+        scheduling=SchedulingConfig(
+            schedule_interval= "1h",
+            initial_start= "2022-01-01T00:00:00Z",
+            fixed_schedule= True,
+            timezone= "UTC"
+        ),
+        processing=ProcessingConfig(
+            batch_size=10,
+            concurrency=5
+        ),
+        target_schema="timescale",
+        target_table="blog_posts_embedding",
+        view_schema="timescale",
+        view_name="blog_posts_embedding_view",
+        queue_schema="timescale",
+        queue_table="blog_posts_embedding_queue",
+        grant_to=["test_user", "test_user2"],
+        enqueue_existing=True,
+    )

@@ -5,11 +5,10 @@ Revises: {revises}
 Create Date: {create_date}
 """
 from alembic import op
-from pgai.extensions.alembic.operations import (
-    CreateVectorizerOp, 
+from pgai.extensions.alembic import CreateVectorizerOp
+from pgai.extensions import (
     EmbeddingConfig,
-    ChunkingConfig,
-    FormattingConfig
+    ChunkingConfig
 )
 from sqlalchemy import text
 
@@ -31,9 +30,7 @@ def upgrade():
             chunk_column='content',
             chunk_size=700
         ),
-        formatting=FormattingConfig(
-            template='$title - $chunk'
-        )
+        formatting_template='$title - $chunk'
     )
 
 def downgrade():
@@ -43,7 +40,7 @@ def downgrade():
         text("SELECT id FROM ai.vectorizer WHERE source_table = 'blog'")
     ).scalar()
     if result is not None:
-        print(f"Found vectorizer with ID: {{result}}")  # Use double braces to escape
+        print(f"Found vectorizer with ID: {{result}}")
         op.drop_vectorizer(result)
     else:
         print("No vectorizer found!")

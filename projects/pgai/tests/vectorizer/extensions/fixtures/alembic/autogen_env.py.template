@@ -5,7 +5,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from pgai.extensions.sqlalchemy import compare_vectorizers
+from pgai.extensions.alembic.autogenerate import compare_vectorizers
 from pgai.extensions.alembic.operations import CreateVectorizerOp, DropVectorizerOp
 from pgai.extensions.alembic.operations import render_create_vectorizer, render_drop_vectorizer
 

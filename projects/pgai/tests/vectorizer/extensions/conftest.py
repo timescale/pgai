@@ -1,16 +1,18 @@
+import sys
 import tempfile
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
 from pathlib import Path
 
 import pytest
 from alembic.config import Config
-from sqlalchemy import create_engine, Engine, text
-from testcontainers.postgres import PostgresContainer
+from sqlalchemy import Engine, create_engine, text
+from testcontainers.postgres import PostgresContainer  # type: ignore
 
 # Get the path to the fixtures directory relative to this file
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
-def load_template(template_path: str, **kwargs: dict[str,str]) -> str:
+
+def load_template(template_path: str, **kwargs: str | int) -> str:
     """Load a template file and substitute any provided values.
 
     Args:
@@ -74,7 +76,9 @@ def alembic_config(alembic_dir: Path, postgres_container: PostgresContainer) -> 
 
 
 @pytest.fixture
-def initialized_engine(postgres_container: PostgresContainer) -> Engine:
+def initialized_engine(
+    postgres_container: PostgresContainer,
+) -> Generator[Engine, None, None]:
     """Create a SQLAlchemy engine with the AI extension enabled.
 
     Args:
@@ -87,4 +91,32 @@ def initialized_engine(postgres_container: PostgresContainer) -> Engine:
     with engine.connect() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS ai CASCADE;"))
         conn.commit()
-    return engine
+
+    yield engine
+
+    with engine.connect() as conn:
+        vectorizer_exists = conn.execute(
+            text("SELECT EXISTS (SELECT 1 FROM ai.vectorizer WHERE id = 1)")
+        ).scalar()
+
+        if vectorizer_exists:
+            conn.execute(text("SELECT ai.drop_vectorizer(1);"))
+        conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
+        conn.commit()
+
+
+def cleanup_model_modules():
+    """Clean up any previously imported model modules"""
+    # Remove all modules that start with 'models.'
+    for module_name in list(sys.modules.keys()):
+        if module_name.startswith("models."):
+            del sys.modules[module_name]
+    # Also remove the parent 'models' module if it exists
+    if "models" in sys.modules:
+        del sys.modules["models"]
+
+
+@pytest.fixture
+def cleanup_modules():
+    yield
+    cleanup_model_modules()
