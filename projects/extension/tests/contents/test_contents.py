@@ -2,6 +2,7 @@ import os
 import subprocess
 from pathlib import Path
 
+import psycopg
 import pytest
 
 
@@ -29,14 +30,14 @@ def host_dir() -> Path:
     return Path(__file__).parent.absolute()
 
 
-def init() -> None:
+def init(version: int) -> None:
     cmd = " ".join(
         [
             "psql",
             f'''-d "{db_url("postgres", "postgres")}"''',
             "-v ON_ERROR_STOP=1",
             "-X",
-            f"-o {docker_dir()}/output.actual",
+            f"-o {docker_dir()}/output{version}.actual",
             f"-f {docker_dir()}/init.sql",
         ]
     )
@@ -45,8 +46,19 @@ def init() -> None:
     subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
 
 
+def major_version() -> int:
+    with psycopg.connect(
+        db_url(user="postgres", dbname="postgres"), autocommit=True
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute("show server_version_num")
+            version = cur.fetchone()[0]
+            return int(version[0:2])
+
+
 def test_contents() -> None:
-    init()
-    actual = host_dir().joinpath("output.actual").read_text()
-    expected = host_dir().joinpath("output.expected").read_text()
+    version = major_version()
+    init(version)
+    actual = host_dir().joinpath(f"output{version}.actual").read_text()
+    expected = host_dir().joinpath(f"output{version}.expected").read_text()
     assert actual == expected
