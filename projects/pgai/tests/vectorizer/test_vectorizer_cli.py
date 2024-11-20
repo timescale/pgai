@@ -1,10 +1,11 @@
+import ast
 import logging
 import os
 import subprocess
 import time
 from collections.abc import Generator
-from typing import Any
 
+import numpy as np
 import openai
 import psycopg
 import pytest
@@ -167,12 +168,10 @@ class TestWithConfiguredVectorizer:
         cli_db: tuple[TestDatabase, Connection],
         cli_db_url: str,
         configured_vectorizer_and_source_table: int,
-        monkeypatch: pytest.MonkeyPatch,
-        vcr_: Any,
         test_params: tuple[int, int, int, str, str],
     ):
         """Test successful processing of vectorizer tasks"""
-        num_items, concurrency, batch_size, _, _ = test_params
+        num_items, concurrency, _, _, _ = test_params
         _, conn = cli_db
         # Insert pre-existing embedding for first item
         with conn.cursor() as cur:
@@ -182,28 +181,21 @@ class TestWithConfiguredVectorizer:
                VALUES (gen_random_uuid(), 1, 1, 'post_1',
                 array_fill(0, ARRAY[1536])::vector)
             """)
-        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
-        # When running the worker with cassette matching original test params
-        cassette = (
-            f"openai-character_text_splitter-chunk_value-"
-            f"items={num_items}-batch_size={batch_size}.yaml"
-        )
         logging.getLogger("vcr").setLevel(logging.DEBUG)
-        with vcr_.use_cassette(cassette):
-            result = CliRunner().invoke(
-                vectorizer_worker,
-                [
-                    "--db-url",
-                    cli_db_url,
-                    "--once",
-                    "--vectorizer-id",
-                    str(configured_vectorizer_and_source_table),
-                    "--concurrency",
-                    str(concurrency),
-                ],
-                catch_exceptions=False,
-            )
+        result = CliRunner().invoke(
+            vectorizer_worker,
+            [
+                "--db-url",
+                cli_db_url,
+                "--once",
+                "--vectorizer-id",
+                str(configured_vectorizer_and_source_table),
+                "--concurrency",
+                str(concurrency),
+            ],
+            catch_exceptions=False,
+        )
 
         assert not result.exception
         assert result.exit_code == 0
@@ -230,8 +222,7 @@ class TestWithConfiguredVectorizer:
         cli_db: tuple[TestDatabase, Connection],
         cli_db_url: str,
         configured_vectorizer_and_source_table: int,
-        monkeypatch: pytest.MonkeyPatch,
-        vcr_: Any,
+        test_params: tuple[int, int, int, str, str],  # noqa: ARG002
     ):
         """Test handling of documents that exceed the model's token limit"""
         _, conn = cli_db
@@ -241,21 +232,19 @@ class TestWithConfiguredVectorizer:
             cur.execute(
                 f"UPDATE blog SET CONTENT = '{long_content}' where id = '2'",
             )
-        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
         # When running the worker
-        with vcr_.use_cassette("test_document_in_batch_too_long.yaml"):
-            result = CliRunner().invoke(
-                vectorizer_worker,
-                [
-                    "--db-url",
-                    cli_db_url,
-                    "--once",
-                    "--vectorizer-id",
-                    str(configured_vectorizer_and_source_table),
-                ],
-                catch_exceptions=False,
-            )
+        result = CliRunner().invoke(
+            vectorizer_worker,
+            [
+                "--db-url",
+                cli_db_url,
+                "--once",
+                "--vectorizer-id",
+                str(configured_vectorizer_and_source_table),
+            ],
+            catch_exceptions=False,
+        )
 
         assert result.exit_code == 0
 
@@ -269,10 +258,15 @@ class TestWithConfiguredVectorizer:
             # Verify the embedded document
             assert record["id"] == 1
             assert record["chunk"] == "post_1"
-            assert (
-                record["embedding"]
-                == expected.embeddings["openai-character_text_splitter-chunk_value-1-1"]
-            )
+            assert np.isclose(  # type: ignore
+                ast.literal_eval(record["embedding"]),
+                ast.literal_eval(
+                    expected.embeddings[
+                        "openai-character_text_splitter-chunk_value-1-1"
+                    ]
+                ),
+                atol=1e-3,
+            ).all()
 
             # Check error was logged
             cur.execute("SELECT * FROM ai.vectorizer_errors")
@@ -305,7 +299,6 @@ class TestWithConfiguredVectorizer:
         cli_db_url: str,
         configured_vectorizer_and_source_table: int,
         monkeypatch: pytest.MonkeyPatch,
-        vcr_: Any,
     ):
         """Test that worker handles invalid API key appropriately"""
         # Given an invalid API key
@@ -313,20 +306,19 @@ class TestWithConfiguredVectorizer:
         _, conn = cli_db
 
         # When running the worker
-        with vcr_.use_cassette("test_invalid_api_key_error.yaml"):
-            try:
-                CliRunner().invoke(
-                    vectorizer_worker,
-                    [
-                        "--db-url",
-                        cli_db_url,
-                        "--once",
-                        "--vectorizer-id",
-                        str(configured_vectorizer_and_source_table),
-                    ],
-                )
-            except openai.AuthenticationError as e:
-                assert e.code == 401
+        try:
+            CliRunner().invoke(
+                vectorizer_worker,
+                [
+                    "--db-url",
+                    cli_db_url,
+                    "--once",
+                    "--vectorizer-id",
+                    str(configured_vectorizer_and_source_table),
+                ],
+            )
+        except openai.AuthenticationError as e:
+            assert e.code == 401
 
         # Ensure there's an entry in the errors table
         with conn.cursor(row_factory=dict_row) as cur:
@@ -363,10 +355,8 @@ class TestWithConfiguredVectorizer:
         cli_db: tuple[TestDatabase, Connection],
         cli_db_url: str,
         configured_vectorizer_and_source_table: int,
-        monkeypatch: pytest.MonkeyPatch,
     ):
         """Test that worker handles invalid embedding model arguments appropriately"""
-        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
         _, conn = cli_db
 
         # And a vectorizer with invalid embedding dimensions
@@ -518,8 +508,6 @@ def test_recursive_character_splitting(
     cli_db: tuple[PostgresContainer, Connection],
     cli_db_url: str,
     configured_vectorizer_and_source_table: int,
-    monkeypatch: pytest.MonkeyPatch,
-    vcr_: Any,
 ):
     """Test that recursive character splitting correctly chunks
     content based on natural boundaries"""
@@ -546,21 +534,18 @@ Each type has its own unique applications and methodologies."""
         cur.execute("UPDATE blog SET content = %s WHERE id = 1", (sample_content,))
         cur.execute("UPDATE blog SET content = %s WHERE id = 2", (shorter_content,))
 
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-
     # When running the worker
-    with vcr_.use_cassette("test_recursive_character_splitting.yaml"):
-        result = CliRunner().invoke(
-            vectorizer_worker,
-            [
-                "--db-url",
-                cli_db_url,
-                "--once",
-                "--vectorizer-id",
-                str(configured_vectorizer_and_source_table),
-            ],
-            catch_exceptions=False,
-        )
+    result = CliRunner().invoke(
+        vectorizer_worker,
+        [
+            "--db-url",
+            cli_db_url,
+            "--once",
+            "--vectorizer-id",
+            str(configured_vectorizer_and_source_table),
+        ],
+        catch_exceptions=False,
+    )
 
     assert result.exit_code == 0
 

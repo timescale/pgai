@@ -100,7 +100,6 @@ dev-dependencies = [
     "ruff==0.6.9",
     "pytest==8.3.2",
     "python-dotenv==1.0.1",
-    "vcrpy==6.0.1",
     "pyright==1.1.385",
     "psycopg[binary]==3.2.1",
     "testcontainers==4.8.1",

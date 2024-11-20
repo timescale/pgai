@@ -87,6 +87,8 @@ jobs:
         run: just pgai format
 
       - name: Run Tests
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: just pgai test
 
       - name: Build the pgai distributable and check artifacts
