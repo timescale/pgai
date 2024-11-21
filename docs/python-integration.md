@@ -240,8 +240,9 @@ Configure your env.py to support vectorizer autogeneration:
 
 ```python
 from alembic import context
-from pgai.extensions.alembic.autogenerate import compare_vectorizers
-from pgai.extensions.alembic.operations import CreateVectorizerOp, DropVectorizerOp
+from pgai.alembic import compare_vectorizers
+from pgai.alembic import CreateVectorizerOp, DropVectorizerOp
+
 
 # Make sure your env.py includes:
 def run_migrations_online():
@@ -249,8 +250,8 @@ def run_migrations_online():
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            include_object=lambda obj, name, type_, reflected, compare_to: 
-                not obj.info.get("pgai_managed", False)
+            include_object=lambda obj, name, type_, reflected, compare_to:
+            not obj.info.get("pgai_managed", False)
         )
 ```
 

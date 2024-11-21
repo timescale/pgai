@@ -1068,7 +1068,6 @@ name = "pgai"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "alembic" },
     { name = "click" },
     { name = "datadog-lambda" },
     { name = "langchain-openai" },
@@ -1077,14 +1076,19 @@ dependencies = [
     { name = "openai" },
     { name = "pgvector" },
     { name = "psycopg", extra = ["binary"] },
-    { name = "psycopg2" },
     { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "pytimeparse" },
-    { name = "sqlalchemy" },
     { name = "structlog" },
     { name = "tiktoken" },
     { name = "typing-extensions" },
+]
+
+[package.optional-dependencies]
+sqlalchemy = [
+    { name = "alembic" },
+    { name = "psycopg2" },
+    { name = "sqlalchemy" },
 ]
 
 [package.dev-dependencies]
@@ -1102,7 +1106,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "alembic", specifier = ">=1.14.0" },
+    { name = "alembic", marker = "extra == 'sqlalchemy'", specifier = ">=1.14.0" },
     { name = "click", specifier = ">=8.0,<9.0" },
     { name = "datadog-lambda", specifier = ">=6.9,<7.0" },
     { name = "langchain-openai", specifier = ">=0.1,<1.0" },
@@ -1111,11 +1115,11 @@ requires-dist = [
     { name = "openai", specifier = ">=1.44,<2.0" },
     { name = "pgvector", specifier = ">=0.3,<1.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2,<4.0" },
-    { name = "psycopg2", specifier = ">=2.9.10" },
+    { name = "psycopg2", marker = "extra == 'sqlalchemy'", specifier = ">=2.9.10" },
     { name = "pydantic", specifier = ">=2.0,<3.0" },
     { name = "python-dotenv", specifier = ">=1.0,<2.0" },
     { name = "pytimeparse", specifier = ">=1.1,<2.0" },
-    { name = "sqlalchemy", specifier = ">=2.0.36" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=2.0.36" },
     { name = "structlog", specifier = ">=24.0,<25.0" },
     { name = "tiktoken", specifier = ">=0.7,<1.0" },
     { name = "typing-extensions", specifier = ">=4.0,<5.0" },

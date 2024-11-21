@@ -5,7 +5,7 @@ from alembic.autogenerate.api import AutogenContext
 from alembic.operations.ops import UpgradeOps
 from sqlalchemy import text
 
-from pgai.extensions.alembic.operations import (
+from pgai.alembic import (
     ChunkingConfig,
     CreateVectorizerOp,
     DiskANNIndexingConfig,
