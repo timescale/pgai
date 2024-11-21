@@ -86,6 +86,9 @@ pgai is available for [new][create-a-new-service] or existing Timescale Cloud se
 To install pgai from source on a PostgreSQL server:
 
 1. **Install the prerequisite software system-wide**
+
+   - **PostgreSQL**: Version 16 or newer is required.
+
    - **Python3**: if running `python3 --version` in Terminal returns `command
      not found`, download and install the latest version of [Python3][python3].
 
