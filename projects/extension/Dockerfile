@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.3-labs
 ARG PG_MAJOR=17
-ARG PGVECTORSCALE_VERSION=0.5.0
+ARG PGVECTORSCALE_VERSION=0.5.1
 
 ###############################################################################
 # base image
