@@ -48,13 +48,8 @@ FROM base AS pgai-test-db
 ENV PG_MAJOR=${PG_MAJOR}
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 WORKDIR /pgai
-COPY requirements.txt .
-COPY ai/__init__.py ai/
-RUN version=$(grep -oP '(?<=__version__ = ")[^"]*' ai/__init__.py) && \
-    mkdir -p /usr/local/lib/pgai/$version && \
-    pip3 install -v --no-deps --compile -t /usr/local/lib/pgai/$version -r requirements.txt
 COPY . .
-RUN just install-py build-sql install-sql
+RUN just build install
 
 
 ###############################################################################
