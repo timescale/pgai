@@ -5,7 +5,7 @@ from pgvector.sqlalchemy import Vector  # type: ignore
 from sqlalchemy import ForeignKey, Integer, MetaData, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, backref, mapped_column, relationship
 
-from pgai.extensions import (
+from pgai.configuration import (
     ChunkingConfig,
     DiskANNIndexingConfig,
     EmbeddingConfig,

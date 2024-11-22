@@ -5,8 +5,8 @@ Revises: {revises}
 Create Date: {create_date}
 """
 from alembic import op
-from pgai.extensions.alembic import CreateVectorizerOp
-from pgai.extensions import (
+from pgai.alembic import CreateVectorizerOp
+from pgai.configuration import (
     EmbeddingConfig,
     ChunkingConfig
 )

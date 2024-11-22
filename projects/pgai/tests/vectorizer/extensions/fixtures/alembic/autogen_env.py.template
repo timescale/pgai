@@ -5,9 +5,9 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from pgai.extensions.alembic.autogenerate import compare_vectorizers
-from pgai.extensions.alembic.operations import CreateVectorizerOp, DropVectorizerOp
-from pgai.extensions.alembic.operations import render_create_vectorizer, render_drop_vectorizer
+from pgai.alembic.autogenerate import compare_vectorizers
+from pgai.alembic.operations import CreateVectorizerOp, DropVectorizerOp
+from pgai.alembic.operations import render_create_vectorizer, render_drop_vectorizer
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

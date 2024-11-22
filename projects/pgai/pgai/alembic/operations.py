@@ -6,7 +6,7 @@ from alembic.operations import MigrateOperation, Operations
 from sqlalchemy import text
 from typing_extensions import override
 
-from pgai.extensions import (
+from pgai.configuration import (
     ChunkingConfig,
     DiskANNIndexingConfig,
     EmbeddingConfig,
@@ -188,12 +188,12 @@ def drop_vectorizer(operations: Operations, operation: DropVectorizerOp):
 def render_create_vectorizer(autogen_context: AutogenContext, op: CreateVectorizerOp):
     """Render a CREATE VECTORIZER operation."""
     template_context = {
-        "EmbeddingConfig": "from pgai.extensions import EmbeddingConfig",
-        "ChunkingConfig": "from pgai.extensions import ChunkingConfig",
-        "DiskANNIndexingConfig": "from pgai.extensions import DiskANNIndexingConfig",
-        "HNSWIndexingConfig": "from pgai.extensions import HNSWIndexingConfig",
-        "SchedulingConfig": "from pgai.extensions import SchedulingConfig",
-        "ProcessingConfig": "from pgai.extensions import ProcessingConfig",
+        "EmbeddingConfig": "from pgai.configuration import EmbeddingConfig",
+        "ChunkingConfig": "from pgai.configuration import ChunkingConfig",
+        "DiskANNIndexingConfig": "from pgai.configuration import DiskANNIndexingConfig",
+        "HNSWIndexingConfig": "from pgai.configuration import HNSWIndexingConfig",
+        "SchedulingConfig": "from pgai.configuration import SchedulingConfig",
+        "ProcessingConfig": "from pgai.configuration import ProcessingConfig",
     }
 
     for import_str in template_context.values():

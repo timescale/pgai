@@ -1,6 +1,6 @@
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, Integer, Text
-from pgai.extensions.sqlalchemy import (
+from pgai.sqlalchemy import (
     VectorizerField,
     EmbeddingConfig,
     ChunkingConfig

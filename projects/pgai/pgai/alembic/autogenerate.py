@@ -5,15 +5,15 @@ from alembic.autogenerate.api import AutogenContext
 from alembic.operations.ops import UpgradeOps
 from sqlalchemy import text
 
-from pgai.alembic import (
+from pgai.configuration import (
     ChunkingConfig,
-    CreateVectorizerOp,
     DiskANNIndexingConfig,
-    DropVectorizerOp,
     EmbeddingConfig,
     ProcessingConfig,
     SchedulingConfig,
 )
+
+from pgai.alembic.operations import CreateVectorizerOp, DropVectorizerOp
 
 
 @comparators.dispatch_for("schema")

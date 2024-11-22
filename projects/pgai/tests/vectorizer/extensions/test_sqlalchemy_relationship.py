@@ -6,11 +6,11 @@ from sqlalchemy.sql import text
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.cli import vectorizer_worker
-from pgai.alembic import (
+from pgai.configuration import (
     ChunkingConfig,
     EmbeddingConfig,
 )
-from pgai.extensions.sqlalchemy import EmbeddingModel, VectorizerField
+from pgai.sqlalchemy import EmbeddingModel, VectorizerField
 
 
 class Base(DeclarativeBase):

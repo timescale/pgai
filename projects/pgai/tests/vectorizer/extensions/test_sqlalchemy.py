@@ -5,11 +5,11 @@ from sqlalchemy.sql import text
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.cli import vectorizer_worker
-from pgai.alembic import (
+from pgai.configuration import (
     ChunkingConfig,
     EmbeddingConfig,
 )
-from pgai.extensions.sqlalchemy import VectorizerField
+from pgai.sqlalchemy import VectorizerField
 
 
 def test_sqlalchemy(postgres_container: PostgresContainer, initialized_engine: Engine):
