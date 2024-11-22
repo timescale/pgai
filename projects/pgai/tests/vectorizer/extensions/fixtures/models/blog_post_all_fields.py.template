@@ -18,7 +18,6 @@ class BlogPost(Base):
     content = Column(Text, nullable=False)
     
     content_embeddings = VectorizerField(
-        source_column="content",
         embedding=EmbeddingConfig(
             model="text-embedding-3-small",
             dimensions=768,

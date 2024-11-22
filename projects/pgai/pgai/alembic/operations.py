@@ -12,7 +12,7 @@ from pgai.configuration import (
     EmbeddingConfig,
     HNSWIndexingConfig,
     ProcessingConfig,
-    SchedulingConfig,
+    SchedulingConfig, NoScheduling,
 )
 
 
@@ -28,7 +28,7 @@ class CreateVectorizerOp(MigrateOperation):
         chunking: ChunkingConfig | None = None,
         indexing: DiskANNIndexingConfig | HNSWIndexingConfig | None = None,
         formatting_template: str | None = None,
-        scheduling: SchedulingConfig | None = None,
+        scheduling: SchedulingConfig | NoScheduling | None = None,
         processing: ProcessingConfig | None = None,
         target_schema: str | None = None,
         target_table: str | None = None,
@@ -93,62 +93,144 @@ class DropVectorizerOp(MigrateOperation):
         return CreateVectorizerOp(None)
 
 
+
 def _build_embedding_params(config: EmbeddingConfig) -> str:
-    return (
-        f"ai.embedding_openai('{config.model}', {config.dimensions}"
-        + (f", chat_user=>'{config.chat_user}'" if config.chat_user else "")
-        + (f", api_key_name=>'{config.api_key_name}'" if config.api_key_name else "")
-        + ")"
-    )
+    """Build embedding configuration parameters."""
+    params = [
+        f"'{config.model}'",
+        str(config.dimensions),
+    ]
+    if config.chat_user:
+        params.append(f"chat_user=>'{config.chat_user}'")
+    if config.api_key_name:
+        params.append(f"api_key_name=>'{config.api_key_name}'")
+    return f"ai.embedding_openai({', '.join(params)})"
 
 
 def _build_chunking_params(config: ChunkingConfig) -> str:
-    base = f"ai.chunking_character_text_splitter('{config.chunk_column}'"
+    """Build chunking configuration parameters."""
+    params = [f"'{config.chunk_column}'"]
     if config.chunk_size is not None:
-        base += f", chunk_size=>{config.chunk_size}"
+        params.append(f"chunk_size=>{config.chunk_size}")
     if config.chunk_overlap is not None:
-        base += f", chunk_overlap=>{config.chunk_overlap}"
+        params.append(f"chunk_overlap=>{config.chunk_overlap}")
     if config.separator is not None:
         if isinstance(config.separator, list):
             sep_str = "array[" + ",".join(f"'{s}'" for s in config.separator) + "]"
         else:
-            sep_str = f"'{config.separator}'"
-        base += f", separator=>{sep_str}"
+            sep_str = f"array['{config.separator}']"
+        params.append(f"separators=>{sep_str}")
     if config.is_separator_regex:
-        base += ", is_separator_regex=>true"
-    base += ")"
-    return base
+        params.append("is_separator_regex=>true")
+    return f"ai.chunking_recursive_character_text_splitter({', '.join(params)})"
+
+def _build_diskann_indexing_params(config: DiskANNIndexingConfig) -> str:
+    """Build DiskANN indexing configuration parameters."""
+    params = []
+    if config.min_rows is not None:
+        params.append(f"min_rows=>{config.min_rows}")
+    if config.storage_layout is not None:
+        params.append(f"storage_layout=>'{config.storage_layout}'")
+    if config.num_neighbors is not None:
+        params.append(f"num_neighbors=>{config.num_neighbors}")
+    if config.search_list_size is not None:
+        params.append(f"search_list_size=>{config.search_list_size}")
+    if config.max_alpha is not None:
+        params.append(f"max_alpha=>{config.max_alpha}")
+    if config.num_dimensions is not None:
+        params.append(f"num_dimensions=>{config.num_dimensions}")
+    if config.num_bits_per_dimension is not None:
+        params.append(f"num_bits_per_dimension=>{config.num_bits_per_dimension}")
+    if config.create_when_queue_empty is not None:
+        params.append(f"create_when_queue_empty=>{str(config.create_when_queue_empty).lower()}")
+    return f"ai.indexing_diskann({', '.join(params)})"
+
+
+def _build_hnsw_indexing_params(config: HNSWIndexingConfig) -> str:
+    """Build HNSW indexing configuration parameters."""
+    params = []
+    if config.min_rows is not None:
+        params.append(f"min_rows=>{config.min_rows}")
+    if config.opclass is not None:
+        params.append(f"opclass=>'{config.opclass}'")
+    if config.m is not None:
+        params.append(f"m=>{config.m}")
+    if config.ef_construction is not None:
+        params.append(f"ef_construction=>{config.ef_construction}")
+    if config.create_when_queue_empty is not None:
+        params.append(f"create_when_queue_empty=>{str(config.create_when_queue_empty).lower()}")
+    return f"ai.indexing_hnsw({', '.join(params)})"
+
+
+def _build_scheduling_params(config: SchedulingConfig | NoScheduling) -> str:
+    """Build scheduling configuration parameters."""
+    if isinstance(config, NoScheduling):
+        return "ai.scheduling_none()"
+
+    params = []
+    if config.schedule_interval is not None:
+        params.append(f"schedule_interval=>'{config.schedule_interval}'")
+    if config.initial_start is not None:
+        params.append(f"initial_start=>'{config.initial_start}'")
+    if config.fixed_schedule is not None:
+        params.append(f"fixed_schedule=>{str(config.fixed_schedule).lower()}")
+    if config.timezone is not None:
+        params.append(f"timezone=>'{config.timezone}'")
+    return f"ai.scheduling_timescaledb({', '.join(params)})"
+
+
+def _build_processing_params(config: ProcessingConfig) -> str:
+    """Build processing configuration parameters."""
+    params = []
+    if config.batch_size is not None:
+        params.append(f"batch_size=>{config.batch_size}")
+    if config.concurrency is not None:
+        params.append(f"concurrency=>{config.concurrency}")
+    return f"ai.processing_default({', '.join(params)})"
 
 
 @Operations.implementation_for(CreateVectorizerOp)
 def create_vectorizer(operations: Operations, operation: CreateVectorizerOp):
     """Implement CREATE VECTORIZER."""
-
     parts = ["SELECT ai.create_vectorizer("]
     parts.append(f"'{operation.source_table}'::regclass")
 
     if operation.destination:
         parts.append(f", destination => '{operation.destination}'")
-
     if operation.embedding:
         parts.append(f", embedding => {_build_embedding_params(operation.embedding)}")
-
     if operation.chunking:
         parts.append(f", chunking => {_build_chunking_params(operation.chunking)}")
-
-    parts.append(
-        f", formatting => ai.formatting_python_template('{operation.formatting_template}')"  # noqa: E501
-    )
-
+    if operation.indexing:
+        if isinstance(operation.indexing, DiskANNIndexingConfig):
+            parts.append(f", indexing => {_build_diskann_indexing_params(operation.indexing)}")
+        else:
+            parts.append(f", indexing => {_build_hnsw_indexing_params(operation.indexing)}")
+    if operation.formatting_template:
+        parts.append(f", formatting => ai.formatting_python_template('{operation.formatting_template}')")
+    if operation.scheduling:
+        parts.append(f", scheduling => {_build_scheduling_params(operation.scheduling)}")
+    if operation.processing:
+        parts.append(f", processing => {_build_processing_params(operation.processing)}")
+    if operation.target_schema:
+        parts.append(f", target_schema => '{operation.target_schema}'")
+    if operation.target_table:
+        parts.append(f", target_table => '{operation.target_table}'")
+    if operation.view_schema:
+        parts.append(f", view_schema => '{operation.view_schema}'")
+    if operation.view_name:
+        parts.append(f", view_name => '{operation.view_name}'")
+    if operation.queue_schema:
+        parts.append(f", queue_schema => '{operation.queue_schema}'")
+    if operation.queue_table:
+        parts.append(f", queue_table => '{operation.queue_table}'")
     if operation.grant_to:
         grant_list = ", ".join(f"'{user}'" for user in operation.grant_to)
         parts.append(f", grant_to => ai.grant_to({grant_list})")
-
     if not operation.enqueue_existing:
         parts.append(", enqueue_existing => false")
 
     parts.append(")")
-
     sql = "\n".join(parts)
     operations.execute(sql)
 

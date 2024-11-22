@@ -25,10 +25,9 @@ def test_sqlalchemy(postgres_container: PostgresContainer, initialized_engine: E
         content = Column(Text, nullable=False)
 
         content_embeddings = VectorizerField(
-            source_column="content",
             embedding=EmbeddingConfig(model="text-embedding-3-small", dimensions=768),
             chunking=ChunkingConfig(
-                chunk_column="chunk", chunk_size=500, chunk_overlap=50
+                chunk_column="content", chunk_size=500, chunk_overlap=50
             ),
             formatting_template="Title: $title\nContent: $chunk",
             add_relationship=True,

@@ -33,10 +33,9 @@ class EmbeddingModel(DeclarativeBase, Generic[T]):
 class VectorizerField:
     def __init__(
         self,
-        source_column: str,
-        embedding: EmbeddingConfig | dict[str, Any],
+        embedding: EmbeddingConfig,
+        chunking: ChunkingConfig,
         formatting_template: str | None = None,
-        chunking: ChunkingConfig | None = None,
         indexing: DiskANNIndexingConfig | HNSWIndexingConfig | None = None,
         scheduling: SchedulingConfig | NoScheduling | None = None,
         processing: ProcessingConfig | None = None,
@@ -52,15 +51,9 @@ class VectorizerField:
     ):
         self.add_relationship = add_relationship
 
-        if isinstance(embedding, dict):
-            self.embedding_config = EmbeddingConfig(**embedding)
-        else:
-            self.embedding_config = embedding
+        self.embedding_config = embedding
 
-        if chunking is None:
-            self.chunking_config = ChunkingConfig(chunk_column=source_column)
-        else:
-            self.chunking_config = chunking
+        self.chunking_config = chunking
 
         if formatting_template is None:
             self.formatting_template = "$chunk"
@@ -86,8 +79,8 @@ class VectorizerField:
         self.owner: type[DeclarativeBase] | None = None
         self.name: str | None = None
 
-    def create_embedding_class(self, owner: type[T]) -> type[EmbeddingModel[T]]:
-        table_name = self.target_table or f"{owner.__tablename__}_embedding_store"
+    def create_embedding_class(self, owner: type[T], name: str) -> type[EmbeddingModel[T]]:
+        table_name = self.target_table or f"{owner.__tablename__}_{name}_store"
         schema = self.target_schema
         class_name = f"{owner.__name__}Embedding"
         registry_instance = owner.registry
@@ -123,7 +116,9 @@ class VectorizerField:
     def __set_name__(self, owner: type[DeclarativeBase], name: str):
         self.owner = owner
         self.name = name
-        self._embedding_class = self.create_embedding_class(owner)
+        self._embedding_class = self.create_embedding_class(owner, name)
+        if self.view_name is None:
+            self.view_name = self.view_name or f"{owner.__tablename__}_{name}"
 
         # Set up relationship
         if self.add_relationship:
@@ -148,6 +143,7 @@ class VectorizerField:
         vectorizers = metadata.info.setdefault("vectorizers", {})
         config = {
             "source_table": self.owner.__tablename__,
+            "target_table": self._embedding_class.__tablename__,
             "embedding": asdict(self.embedding_config),
             "chunking": asdict(self.chunking_config),
             "formatting_template": self.formatting_template,

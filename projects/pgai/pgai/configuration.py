@@ -9,14 +9,13 @@ class EmbeddingConfig:
     chat_user: str | None = None
     api_key_name: str | None = None
 
-
+    
 @dataclass
 class ChunkingConfig:
     chunk_column: str
     chunk_size: int | None = None
     chunk_overlap: int | None = None
-    separator: str | None = None
-    separators: list[str] | None = None
+    separator: list[str] | str | None = None
     is_separator_regex: bool = False
 
 
