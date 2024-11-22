@@ -41,6 +41,6 @@ def downgrade():
     ).scalar()
     if result is not None:
         print(f"Found vectorizer with ID: {{result}}")
-        op.drop_vectorizer(result)
+        op.drop_vectorizer(result, drop_all=True)
     else:
         print("No vectorizer found!")

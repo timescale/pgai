@@ -72,19 +72,19 @@ class CreateVectorizerOp(MigrateOperation):
 class DropVectorizerOp(MigrateOperation):
     """Drop a vectorizer and its associated objects."""
 
-    def __init__(self, vectorizer_id: int | None, drop_objects: bool):
+    def __init__(self, vectorizer_id: int | None, drop_all: bool):
         self.vectorizer_id = vectorizer_id
-        self.drop_objects = drop_objects
+        self.drop_all = drop_all
 
     @classmethod
     def drop_vectorizer(
         cls,
         operations: Operations,
         vectorizer_id: int | None = None,
-        drop_objects: bool = True,
+        drop_all: bool = True,
     ):
         """Issue a DROP VECTORIZER command."""
-        op = DropVectorizerOp(vectorizer_id, drop_objects)
+        op = DropVectorizerOp(vectorizer_id, drop_all)
         return operations.invoke(op)
 
     @override
@@ -158,194 +158,9 @@ def drop_vectorizer(operations: Operations, operation: DropVectorizerOp):
     """Implement DROP VECTORIZER with cleanup of dependent objects."""
     connection = operations.get_bind()
     vectorizer_id = operation.vectorizer_id
-    if operation.drop_objects:
-        # First get vectorizer info
-        result = connection.execute(
-            text("""
-                SELECT source_table, target_table AS embedding_store, v.view_name
-                FROM ai.vectorizer v
-                WHERE id = :id
-            """),
-            {"id": vectorizer_id},
-        ).fetchone()
-
-        if result:
-            # Drop the view first
-            if result.view_name:
-                connection.execute(text(f"DROP VIEW IF EXISTS {result.view_name}"))
-
-            # Drop the embedding store table
-            if result.embedding_store:
-                connection.execute(
-                    text(f"DROP TABLE IF EXISTS {result.embedding_store}")
-                )
 
     # Finally drop the vectorizer itself
-    connection.execute(text("SELECT ai.drop_vectorizer(:id)"), {"id": vectorizer_id})
-
-
-@renderers.dispatch_for(CreateVectorizerOp)
-def render_create_vectorizer(autogen_context: AutogenContext, op: CreateVectorizerOp):
-    """Render a CREATE VECTORIZER operation."""
-    template_context = {
-        "EmbeddingConfig": "from pgai.configuration import EmbeddingConfig",
-        "ChunkingConfig": "from pgai.configuration import ChunkingConfig",
-        "DiskANNIndexingConfig": "from pgai.configuration import DiskANNIndexingConfig",
-        "HNSWIndexingConfig": "from pgai.configuration import HNSWIndexingConfig",
-        "SchedulingConfig": "from pgai.configuration import SchedulingConfig",
-        "ProcessingConfig": "from pgai.configuration import ProcessingConfig",
-    }
-
-    for import_str in template_context.values():
-        autogen_context.imports.add(import_str)
-
-    args = [repr(op.source_table)]
-
-    if op.destination:
-        args.append(f"destination={repr(op.destination)}")
-
-    if op.embedding:
-        embed_args = [
-            f"    model={repr(op.embedding.model)}",
-            f"    dimensions={op.embedding.dimensions}",
-        ]
-        if op.embedding.chat_user:
-            embed_args.append(f"    chat_user={repr(op.embedding.chat_user)}")
-        if op.embedding.api_key_name:
-            embed_args.append(f"    api_key_name={repr(op.embedding.api_key_name)}")
-
-        args.append("embedding=EmbeddingConfig(\n" + ",\n".join(embed_args) + "\n)")
-
-    if op.chunking:
-        chunk_args = [f"    chunk_column={repr(op.chunking.chunk_column)}"]
-        if op.chunking.chunk_size is not None:
-            chunk_args.append(f"    chunk_size={op.chunking.chunk_size}")
-        if op.chunking.chunk_overlap is not None:
-            chunk_args.append(f"    chunk_overlap={op.chunking.chunk_overlap}")
-        if op.chunking.separator is not None:
-            chunk_args.append(f"    separator={repr(op.chunking.separator)}")
-        if op.chunking.is_separator_regex:
-            chunk_args.append("    is_separator_regex=True")
-
-        args.append("chunking=ChunkingConfig(\n" + ",\n".join(chunk_args) + "\n)")
-
-    if op.indexing:
-        if isinstance(op.indexing, DiskANNIndexingConfig):
-            index_args: list[str] = []
-            if op.indexing.min_rows is not None:
-                index_args.append(f"    min_rows={op.indexing.min_rows}")
-            if op.indexing.storage_layout is not None:
-                index_args.append(
-                    f"    storage_layout={repr(op.indexing.storage_layout)}"
-                )
-            if op.indexing.num_neighbors is not None:
-                index_args.append(f"    num_neighbors={op.indexing.num_neighbors}")
-            if op.indexing.search_list_size is not None:
-                index_args.append(
-                    f"    search_list_size={op.indexing.search_list_size}"
-                )
-            if op.indexing.max_alpha is not None:
-                index_args.append(f"    max_alpha={op.indexing.max_alpha}")
-            if op.indexing.num_dimensions is not None:
-                index_args.append(f"    num_dimensions={op.indexing.num_dimensions}")
-            if op.indexing.num_bits_per_dimension is not None:
-                index_args.append(
-                    f"    num_bits_per_dimension={op.indexing.num_bits_per_dimension}"
-                )
-            if op.indexing.create_when_queue_empty is not None:
-                index_args.append(
-                    f"    create_when_queue_empty={op.indexing.create_when_queue_empty}"
-                )
-
-        else:
-            index_args: list[str] = []
-            if op.indexing.min_rows is not None:
-                index_args.append(f"    min_rows={op.indexing.min_rows}")
-            if op.indexing.opclass is not None:
-                index_args.append(f"    opclass={repr(op.indexing.opclass)}")
-            if op.indexing.m is not None:
-                index_args.append(f"    m={op.indexing.m}")
-            if op.indexing.ef_construction is not None:
-                index_args.append(f"    ef_construction={op.indexing.ef_construction}")
-            if op.indexing.create_when_queue_empty is not None:
-                index_args.append(
-                    f"    create_when_queue_empty={op.indexing.create_when_queue_empty}"
-                )
-
-        if index_args:
-            if isinstance(op.indexing, DiskANNIndexingConfig):
-                args.append(
-                    "indexing=DiskANNIndexingConfig(\n" + ",\n".join(index_args) + "\n)"
-                )
-            else:
-                args.append(
-                    "indexing=HNSWIndexingConfig(\n" + ",\n".join(index_args) + "\n)"
-                )
-
-    if op.formatting_template:
-        args.append(f"formatting_template={repr(op.formatting_template)}")
-
-    if op.scheduling:
-        sched_args: list[str] = []
-        if op.scheduling.schedule_interval is not None:
-            sched_args.append(
-                f"    schedule_interval={repr(op.scheduling.schedule_interval)}"
-            )
-        if op.scheduling.initial_start is not None:
-            sched_args.append(f"    initial_start={repr(op.scheduling.initial_start)}")
-        if op.scheduling.fixed_schedule is not None:
-            sched_args.append(f"    fixed_schedule={op.scheduling.fixed_schedule}")
-        if op.scheduling.timezone is not None:
-            sched_args.append(f"    timezone={repr(op.scheduling.timezone)}")
-
-        if sched_args:
-            args.append(
-                "scheduling=SchedulingConfig(\n" + ",\n".join(sched_args) + "\n)"
-            )
-
-    if op.processing:
-        proc_args: list[str] = []
-        if op.processing.batch_size is not None:
-            proc_args.append(f"    batch_size={op.processing.batch_size}")
-        if op.processing.concurrency is not None:
-            proc_args.append(f"    concurrency={op.processing.concurrency}")
-
-        if proc_args:
-            args.append(
-                "processing=ProcessingConfig(\n" + ",\n".join(proc_args) + "\n)"
-            )
-
-    if op.target_schema:
-        args.append(f"target_schema={repr(op.target_schema)}")
-    if op.target_table:
-        args.append(f"target_table={repr(op.target_table)}")
-    if op.view_schema:
-        args.append(f"view_schema={repr(op.view_schema)}")
-    if op.view_name:
-        args.append(f"view_name={repr(op.view_name)}")
-    if op.queue_schema:
-        args.append(f"queue_schema={repr(op.queue_schema)}")
-    if op.queue_table:
-        args.append(f"queue_table={repr(op.queue_table)}")
-
-    if op.grant_to:
-        args.append(f"grant_to=[{', '.join(repr(x) for x in op.grant_to)}]")
-
-    if not op.enqueue_existing:
-        args.append("enqueue_existing=False")
-
-    return "op.create_vectorizer(\n    " + ",\n    ".join(args) + "\n)"
-
-
-@renderers.dispatch_for(DropVectorizerOp)
-def render_drop_vectorizer(autogen_context: AutogenContext, op: DropVectorizerOp):  # noqa: ARG001
-    """Render a DROP VECTORIZER operation."""
-    args: list[str] = []
-
-    if op.vectorizer_id is not None:
-        args.append(str(op.vectorizer_id))
-
-    if op.drop_objects:
-        args.append(f"drop_objects={op.drop_objects}")
-
-    return f"op.drop_vectorizer({', '.join(args)})"
+    connection.execute(
+        text("SELECT ai.drop_vectorizer(:id, drop_all=>:drop_all)"),
+        {"id": vectorizer_id, "drop_all": operation.drop_all},
+    )

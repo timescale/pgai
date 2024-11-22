@@ -127,7 +127,7 @@ def test_vectorizer_autogeneration(
     with open(new_migration_file) as f:
         migration_contents = f.read()
 
-    assert "op.drop_vectorizer(1, drop_objects=True)" in migration_contents
+    assert "op.drop_vectorizer(1, drop_all=True)" in migration_contents
     assert "op.create_vectorizer" in migration_contents
     assert "'text-embedding-3-large'" in migration_contents
     assert "dimensions=1536" in migration_contents
