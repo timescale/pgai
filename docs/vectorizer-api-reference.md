@@ -232,13 +232,13 @@ You use it to recursively split text into chunks using multiple separators.
 
 `ai.chunking_recursive_character_text_splitter` takes the following parameters:
 
-|Name| Type | Default | Required | Description                                              |
-|-|------|---------|-|----------------------------------------------------------|
-|chunk_column| name | -       |✔| The name of the column containing the text to be chunked |
-|chunk_size| int  | 800     |✖| The maximum number of characters per chunk               |
-|chunk_overlap| int  | 400     |✖| The number of characters to overlap between chunks       |
-|separator| text[] | array[E'\n\n', E'\n', '.', '?', '!', ' ', ''] |✖| The string or character used to split the text |
-|is_separator_regex| bool | false   |✖| Set to `true` if `separator` is a regular expression. |
+| Name               | Type | Default | Required | Description                                              |
+|--------------------|------|---------|-|----------------------------------------------------------|
+| chunk_column       | name | -       |✔| The name of the column containing the text to be chunked |
+| chunk_size         | int  | 800     |✖| The maximum number of characters per chunk               |
+| chunk_overlap      | int  | 400     |✖| The number of characters to overlap between chunks       |
+| separators         | text[] | array[E'\n\n', E'\n', '.', '?', '!', ' ', ''] |✖| The string or character used to split the text |
+| is_separator_regex | bool | false   |✖| Set to `true` if `separator` is a regular expression. |
 
 #### Returns
 
