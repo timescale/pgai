@@ -9,8 +9,8 @@ pgai provides SQLAlchemy integration for managing and querying vector embeddings
 ```python
 from sqlalchemy import Column, Integer, Text
 from sqlalchemy.orm import DeclarativeBase
-from pgai.extensions.sqlalchemy import VectorizerField
-from pgai.extensions import EmbeddingConfig
+from pgai.sqlalchemy import VectorizerField
+from pgai.configuration import EmbeddingConfig
 
 class BlogPost(DeclarativeBase):
     __tablename__ = "blog_posts"
@@ -20,11 +20,14 @@ class BlogPost(DeclarativeBase):
     content = Column(Text, nullable=False)
     
     content_embeddings = VectorizerField(
-        source_column="content",
         embedding=EmbeddingConfig(
             model="text-embedding-3-small",
             dimensions=768
-        )
+        ),
+        chunking=ChunkingConfig(
+            chunk_column="content",
+            chunk_size=500
+        ),
     )
 ```
 
@@ -35,9 +38,6 @@ Once your model is set up, you can query the embeddings in several ways:
 #### Basic ORM Queries
 
 ```python
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
 # Get all embeddings
 with Session(engine) as session:
     # Get embedding entries
@@ -55,10 +55,7 @@ with Session(engine) as session:
 Using pgvector's distance operators in queries:
 
 ```python
-from sqlalchemy import func
-
 def search_similar_content(session: Session, query_text: str, limit: int = 5):
-    # Generate embedding for search query
     return (
         session.query(
             BlogPost.content_embeddings,
@@ -127,17 +124,17 @@ combined_query = (
 You can optionally create SQLAlchemy relationships between your model and its embeddings:
 
 ```python
-from sqlalchemy.orm import Mapped
-from pgai.extensions.sqlalchemy import EmbeddingModel
-
 class BlogPost(DeclarativeBase):
     # ... other columns as above ...
     
     content_embeddings = VectorizerField(
-        source_column="content",
         embedding=EmbeddingConfig(
             model="text-embedding-3-small", 
             dimensions=768
+        ),
+        chunking=ChunkingConfig(
+            chunk_column="content",
+            chunk_size=500
         ),
         add_relationship=True
     )
@@ -148,10 +145,10 @@ class BlogPost(DeclarativeBase):
 
 ### Advanced Configuration
 
-The VectorizerField supports comprehensive configuration options:
+The VectorizerField supports all configuration from [sql interface](./vectorizer-api-reference.md):
 
 ```python
-from pgai.extensions import (
+from pgai.configuration import (
     EmbeddingConfig,
     ChunkingConfig,
     DiskANNIndexingConfig,
@@ -161,7 +158,6 @@ from pgai.extensions import (
 
 class BlogPost(DeclarativeBase):
     content_embeddings = VectorizerField(
-        source_column="content",
         embedding=EmbeddingConfig(
             model="text-embedding-3-small",
             dimensions=768,
@@ -193,17 +189,15 @@ class BlogPost(DeclarativeBase):
 
 # Alembic Integration 
 
-pgai provides Alembic operations for managing vectorizers in your database migrations.
+To actually create the vectorizer, pgai provides two alembic helpers:
 
-## Manual Migration Operations
-
-### Creating a Vectorizer
+## Creating a Vectorizer
 
 Basic creation:
 
 ```python
 from alembic import op
-from pgai.extensions import EmbeddingConfig, ChunkingConfig
+from pgai.configuration import EmbeddingConfig, ChunkingConfig
 
 def upgrade():
     op.create_vectorizer(
@@ -220,23 +214,23 @@ def upgrade():
     )
 ```
 
-### Dropping a Vectorizer
+## Dropping a Vectorizer
 
 ```python
 def downgrade():
     # Drop by ID
-    op.drop_vectorizer(1, drop_objects=True)
+    op.drop_vectorizer(1, drop_all=True)
 ```
 
-The `drop_objects=True` parameter will also clean up associated database objects like tables and views.
+The `drop_all=True` parameter will also clean up the associated embedding table and view.
 
 ## Autogeneration Support
 
-pgai extends Alembic's migration autogeneration to detect changes in vectorizer configurations.
+If you don't want to write the configuration twice, you can make use of alembics autogenerate feature to automatically detect changes between your SQL models and the underlying database schema.
 
 ### Setup
 
-Configure your env.py to support vectorizer autogeneration:
+To configure autogeneration, you need to import a custom comparison function as well as exclude pgai managed models from alembics usual comparators via the `include_object` parameter:
 
 ```python
 from alembic import context
@@ -262,6 +256,8 @@ The autogeneration system will:
 1. Detect new vectorizers defined in models and generate creation operations
 2. Detect removed vectorizers and generate drop operations
 3. Detect changes in vectorizer configuration and generate update operations (as drop + create)
+
+Note: All operations done are **not reversible** via `alembic downgrade`.
 
 Example generated migration for a new vectorizer:
 
