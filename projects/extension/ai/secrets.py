@@ -6,6 +6,8 @@ import backoff
 import httpx
 from backoff._typing import Details
 
+from .utils import get_guc_value
+
 GUC_SECRETS_MANAGER_URL = "ai.external_functions_executor_url"
 GUC_SECRET_ENV_ENABLED = "ai.secret_env_enabled"
 
@@ -43,17 +45,6 @@ def get_secret(
         return ""
 
     return secret
-
-
-def get_guc_value(plpy, setting: str, default: str) -> str:
-    plan = plpy.prepare("select pg_catalog.current_setting($1, true) as val", ["text"])
-    result = plan.execute([setting], 1)
-    val: str | None = None
-    if len(result) != 0:
-        val = result[0]["val"]
-    if val is None:
-        val = default
-    return val
 
 
 def check_secret_permissions(plpy, secret_name: str) -> bool:

@@ -1,5 +1,5 @@
 PG_MAJOR := env("PG_MAJOR", "17")
-PG_BIN := "/usr/lib/postgresql/" + PG_MAJOR + "/bin"
+PG_BIN := env("PG_BIN", "/usr/lib/postgresql/" + PG_MAJOR + "/bin")
 
 # Show list of recipes
 default:

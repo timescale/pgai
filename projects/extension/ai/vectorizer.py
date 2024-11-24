@@ -5,22 +5,13 @@ import backoff
 import httpx
 from backoff._typing import Details
 
+from .utils import get_guc_value
+
 GUC_VECTORIZER_URL = "ai.external_functions_executor_url"
 DEFAULT_VECTORIZER_URL = "http://localhost:8000"
 
 GUC_VECTORIZER_PATH = "ai.external_functions_executor_events_path"
 DEFAULT_VECTORIZER_PATH = "/api/v1/events"
-
-
-def get_guc_value(plpy, setting: str, default: str) -> str:
-    plan = plpy.prepare("select pg_catalog.current_setting($1, true) as val", ["text"])
-    result = plan.execute([setting], 1)
-    val: str | None = None
-    if len(result) != 0:
-        val = result[0]["val"]
-    if val is None:
-        val = default
-    return val
 
 
 def execute_vectorizer(plpy, vectorizer_id: int) -> None:
