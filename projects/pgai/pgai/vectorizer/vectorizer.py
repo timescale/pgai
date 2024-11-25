@@ -26,6 +26,13 @@ from .embeddings import ChunkEmbeddingError, Ollama, OpenAI
 from .formatting import ChunkValue, PythonTemplate
 from .processing import ProcessingDefault
 
+from opentelemetry import metrics
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import (
+    ConsoleMetricExporter,
+    PeriodicExportingMetricReader,
+)
+
 logger = structlog.get_logger()
 
 VectorizerErrorRecord: TypeAlias = tuple[int, str, Jsonb]
@@ -35,6 +42,19 @@ SourceRow: TypeAlias = dict[str, Any]
 DEFAULT_CONCURRENCY = 1
 
 VECTORIZER_FAILED = "vectorizer failed with unexpected error"
+
+
+metric_reader = PeriodicExportingMetricReader(ConsoleMetricExporter())
+provider = MeterProvider(metric_readers=[metric_reader])
+# Sets the global default meter provider
+metrics.set_meter_provider(provider)
+
+# Creates a meter from the global meter provider
+meter = metrics.get_meter("pgai.metrics")
+work_counter = meter.create_counter(
+    "work.counter", unit="1", description="Counts the amount of work done"
+)
+
 
 
 class EmbeddingProviderError(Exception):
@@ -402,6 +422,8 @@ class ProcessingStats:
 
         The statistics are logged only to the DEBUG log level.
         """
+        work_counter.add(1, {"work.type": "test"})
+
         chunks_per_second_per_thread = (
             self.total_chunks / self.total_processing_time
             if self.total_processing_time > 0
