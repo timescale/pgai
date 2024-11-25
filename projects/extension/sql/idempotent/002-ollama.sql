@@ -99,7 +99,7 @@ create or replace function ai.ollama_embed
 ( model text
 , input_text text
 , host text default null
-, keep_alive float8 default null
+, keep_alive text default null
 , embedding_options jsonb default null
 ) returns @extschema:vector@.vector
 as $python$
@@ -125,7 +125,7 @@ create or replace function ai.ollama_generate
 , prompt text
 , host text default null
 , images bytea[] default null
-, keep_alive float8 default null
+, keep_alive text default null
 , embedding_options jsonb default null
 , system_prompt text default null
 , template text default null
@@ -175,7 +175,7 @@ create or replace function ai.ollama_chat_complete
 ( model text
 , messages jsonb
 , host text default null
-, keep_alive float8 default null
+, keep_alive text default null
 , chat_options jsonb default null
 ) returns jsonb
 as $python$
