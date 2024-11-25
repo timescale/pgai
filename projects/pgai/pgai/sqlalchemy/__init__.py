@@ -159,8 +159,6 @@ class VectorizerField:
             config["processing"] = asdict(self.processing_config)
         if self.target_schema:
             config["target_schema"] = self.target_schema
-        if self.target_table:
-            config["target_table"] = self.target_table
         if self.view_schema:
             config["view_schema"] = self.view_schema
         if self.view_name:

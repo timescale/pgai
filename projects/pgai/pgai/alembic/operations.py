@@ -12,7 +12,7 @@ from pgai.configuration import (
     EmbeddingConfig,
     HNSWIndexingConfig,
     ProcessingConfig,
-    SchedulingConfig, NoScheduling,
+    SchedulingConfig, NoScheduling, CreateVectorizerParams,
 )
 
 
@@ -39,22 +39,24 @@ class CreateVectorizerOp(MigrateOperation):
         grant_to: list[str] | None = None,
         enqueue_existing: bool = True,
     ):
-        self.source_table = source_table
-        self.destination = destination
-        self.embedding = embedding
-        self.chunking = chunking
-        self.indexing = indexing
-        self.formatting_template = formatting_template
-        self.scheduling = scheduling
-        self.processing = processing
-        self.target_schema = target_schema
-        self.target_table = target_table
-        self.view_schema = view_schema
-        self.view_name = view_name
-        self.queue_schema = queue_schema
-        self.queue_table = queue_table
-        self.grant_to = grant_to
-        self.enqueue_existing = enqueue_existing
+        self.params = CreateVectorizerParams(
+            source_table=source_table,
+            destination=destination,
+            embedding=embedding,
+            chunking=chunking,
+            indexing=indexing,
+            formatting_template=formatting_template,
+            scheduling=scheduling,
+            processing=processing,
+            target_schema=target_schema,
+            target_table=target_table,
+            view_schema=view_schema,
+            view_name=view_name,
+            queue_schema=queue_schema,
+            queue_table=queue_table,
+            grant_to=grant_to,
+            enqueue_existing=enqueue_existing,
+        )
 
     @classmethod
     def create_vectorizer(cls, operations: Operations, source_table: str, **kw: Any):
@@ -106,23 +108,6 @@ def _build_embedding_params(config: EmbeddingConfig) -> str:
         params.append(f"api_key_name=>'{config.api_key_name}'")
     return f"ai.embedding_openai({', '.join(params)})"
 
-
-def _build_chunking_params(config: ChunkingConfig) -> str:
-    """Build chunking configuration parameters."""
-    params = [f"'{config.chunk_column}'"]
-    if config.chunk_size is not None:
-        params.append(f"chunk_size=>{config.chunk_size}")
-    if config.chunk_overlap is not None:
-        params.append(f"chunk_overlap=>{config.chunk_overlap}")
-    if config.separator is not None:
-        if isinstance(config.separator, list):
-            sep_str = "array[" + ",".join(f"'{s}'" for s in config.separator) + "]"
-        else:
-            sep_str = f"array['{config.separator}']"
-        params.append(f"separators=>{sep_str}")
-    if config.is_separator_regex:
-        params.append("is_separator_regex=>true")
-    return f"ai.chunking_recursive_character_text_splitter({', '.join(params)})"
 
 def _build_diskann_indexing_params(config: DiskANNIndexingConfig) -> str:
     """Build DiskANN indexing configuration parameters."""
@@ -192,47 +177,8 @@ def _build_processing_params(config: ProcessingConfig) -> str:
 @Operations.implementation_for(CreateVectorizerOp)
 def create_vectorizer(operations: Operations, operation: CreateVectorizerOp):
     """Implement CREATE VECTORIZER."""
-    parts = ["SELECT ai.create_vectorizer("]
-    parts.append(f"'{operation.source_table}'::regclass")
-
-    if operation.destination:
-        parts.append(f", destination => '{operation.destination}'")
-    if operation.embedding:
-        parts.append(f", embedding => {_build_embedding_params(operation.embedding)}")
-    if operation.chunking:
-        parts.append(f", chunking => {_build_chunking_params(operation.chunking)}")
-    if operation.indexing:
-        if isinstance(operation.indexing, DiskANNIndexingConfig):
-            parts.append(f", indexing => {_build_diskann_indexing_params(operation.indexing)}")
-        else:
-            parts.append(f", indexing => {_build_hnsw_indexing_params(operation.indexing)}")
-    if operation.formatting_template:
-        parts.append(f", formatting => ai.formatting_python_template('{operation.formatting_template}')")
-    if operation.scheduling:
-        parts.append(f", scheduling => {_build_scheduling_params(operation.scheduling)}")
-    if operation.processing:
-        parts.append(f", processing => {_build_processing_params(operation.processing)}")
-    if operation.target_schema:
-        parts.append(f", target_schema => '{operation.target_schema}'")
-    if operation.target_table:
-        parts.append(f", target_table => '{operation.target_table}'")
-    if operation.view_schema:
-        parts.append(f", view_schema => '{operation.view_schema}'")
-    if operation.view_name:
-        parts.append(f", view_name => '{operation.view_name}'")
-    if operation.queue_schema:
-        parts.append(f", queue_schema => '{operation.queue_schema}'")
-    if operation.queue_table:
-        parts.append(f", queue_table => '{operation.queue_table}'")
-    if operation.grant_to:
-        grant_list = ", ".join(f"'{user}'" for user in operation.grant_to)
-        parts.append(f", grant_to => ai.grant_to({grant_list})")
-    if not operation.enqueue_existing:
-        parts.append(", enqueue_existing => false")
-
-    parts.append(")")
-    sql = "\n".join(parts)
-    operations.execute(sql)
+    params = operation.params
+    operations.execute(params.to_sql())
 
 
 @Operations.implementation_for(DropVectorizerOp)
