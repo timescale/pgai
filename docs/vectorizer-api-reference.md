@@ -253,6 +253,7 @@ The embedding functions are:
 
 - [ai.embedding_openai](#aiembedding_openai)
 - [ai.embedding_ollama](#aiembedding_ollama)
+- [ai.embedding_voyageai](#aiembedding_voyageai)
 
 ### ai.embedding_openai
 
@@ -338,6 +339,49 @@ The function takes several parameters to customize the Ollama embedding configur
 | truncate   | boolean | true    | ✖        | Truncates the end of each input to fit within the chosen model's context length. Embedding fails (for a given chunk) if set to false and the context length is exceeded. |
 | options    | jsonb   | -       | ✖        | Configures additional model parameters listed in the documentation for the Modelfile, such as `temperature`, or `num_ctx`.                                               |
 | keep_alive | text    | -       | ✖        | Controls how long the model will stay loaded in memory following the request. Note: no default configured here to allow configuration at Ollama-level.                   |
+
+#### Returns
+
+A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
+
+### ai.embedding_voyageai
+
+You use the `ai.embedding_voyageai` function to use a Voyage AI model to generate embeddings.
+
+The purpose of `ai.embedding_voyageai` is to:
+- Define which Voyage AI model to use.
+- Specify the dimensionality of the embeddings.
+- Configure the model's truncation behaviour, and api key name.
+- Configure the input type.
+
+#### Example usage
+
+This function is used to create an embedding configuration object that is passed as an argument to [ai.create_vectorizer](#create-vectorizers):
+
+```sql
+SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    embedding => ai.embedding_voyageai(
+      'voyage-3-lite',
+      512,
+      truncate => false,
+      api_key_name => "TEST_API_KEY"
+    ),
+    -- other parameters...
+);
+```
+
+#### Parameters
+
+The function takes several parameters to customize the Ollama embedding configuration:
+
+| Name         | Type    | Default          | Required | Description                                                                                                                                                                                                                                                               |
+|--------------|---------|------------------|----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| model        | text    | -                | ✔        | Specify the name of the Voyage AI [model](https://docs.voyageai.com/docs/embeddings#model-choices) to use.                                                                                                                                                                |
+| dimensions   | int     | -                | ✔        | Define the number of dimensions for the embedding vectors. This should match the output dimensions of the chosen model.                                                                                                                                                   |
+| truncate     | boolean | true             | ✖        | Truncates the end of each input to fit within the chosen model's context length. Embedding fails (for a given chunk) if set to false and the context length is exceeded.                                                                                                  |
+| input_type   | text    | 'document'       | ✖        | Type of the input text, null, 'query', or 'document'.                                                                                                                                                                                                                     |
+| api_key_name | text    | `VOYAGE_API_KEY` | ✖        | Set the name of the environment variable that contains the Voyage AI API key. This allows for flexible API key management without hardcoding keys in the database. On Timescale Cloud, you should set this to the name of the secret that contains the Voyage AI API key. |
 
 #### Returns
 

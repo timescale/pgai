@@ -50,6 +50,7 @@ def vcr_():
         filter_headers=["authorization"],
         match_on=["method", "scheme", "host", "port", "path", "query", "body"],
         before_record_response=remove_set_cookie_header,
+        ignore_hosts=["huggingface.co"],
     )
 
 

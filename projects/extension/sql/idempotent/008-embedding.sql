@@ -48,6 +48,37 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- embedding_voyageai
+create or replace function ai.embedding_voyageai
+( model text
+, dimensions int
+, truncate boolean default true
+, input_type text default 'document'
+, api_key_name text default 'VOYAGE_API_KEY'
+) returns jsonb
+as $func$
+begin
+    if input_type is not null and input_type not in ('query', 'document') then
+        -- Note: purposefully not using an enum here because types make life complicated
+        raise exception 'invalid input_type for voyage ai "%"', input_type;
+    end if;
+
+    return json_object
+    ( 'implementation': 'voyageai'
+    , 'config_type': 'embedding'
+    , 'model': model
+    , 'dimensions': dimensions
+    , 'truncate': truncate
+    , 'input_type': input_type
+    , 'api_key_name': api_key_name
+    absent on null
+    );
+end
+$func$ language plpgsql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- _validate_embedding
 create or replace function ai._validate_embedding(config jsonb) returns void
 as $func$
@@ -68,6 +99,8 @@ begin
         when 'openai' then
             -- ok
         when 'ollama' then
+            -- ok
+        when 'voyageai' then
             -- ok
         else
             if _implementation is null then

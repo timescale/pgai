@@ -22,6 +22,7 @@ CREATE EXTENSION
  function ai.drop_vectorizer(integer,boolean)
  function ai.embedding_ollama(text,integer,text,boolean,jsonb,text)
  function ai.embedding_openai(text,integer,text,text)
+ function ai.embedding_voyageai(text,integer,boolean,text,text)
  function ai.enable_vectorizer_schedule(integer)
  function ai.execute_vectorizer(integer)
  function ai.formatting_python_template(text)
@@ -79,6 +80,8 @@ CREATE EXTENSION
  function ai._vectorizer_should_create_vector_index(ai.vectorizer)
  function ai._vectorizer_source_pk(regclass)
  function ai._vectorizer_vector_index_exists(name,name,jsonb)
+ function ai.voyageai_embed(text,text,text,text,text)
+ function ai.voyageai_embed(text,text[],text,text,text)
  sequence ai.vectorizer_id_seq
  table ai.feature_flag
  table ai.migration
@@ -101,7 +104,7 @@ CREATE EXTENSION
  type ai.vectorizer_status[]
  view ai.secret_permissions
  view ai.vectorizer_status
-(97 rows)
+(100 rows)
 
                                     Table "ai._secret_permissions"
  Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 

@@ -177,6 +177,36 @@ def configured_ollama_vectorizer_id(
 
 
 @pytest.fixture
+def configured_voyageai_vectorizer_id(
+    source_table: str,
+    cli_db: tuple[TestDatabase, Connection],
+    test_params: tuple[int, int, int, str, str],
+) -> int:
+    """Creates and configures a VoyageAI vectorizer for testing"""
+    _, concurrency, batch_size, chunking, formatting = test_params
+    _, conn = cli_db
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        # Create vectorizer
+        cur.execute(f"""
+            SELECT ai.create_vectorizer(
+                '{source_table}'::regclass,
+                embedding => ai.embedding_voyageai(
+                    'voyage-3-lite',
+                    512
+                ),
+                chunking => ai.{chunking},
+                formatting => ai.{formatting},
+                processing => ai.processing_default(batch_size => {batch_size},
+                                                    concurrency => {concurrency})
+            )
+        """)  # type: ignore
+        vectorizer_id: int = int(cur.fetchone()["create_vectorizer"])  # type: ignore
+
+        return vectorizer_id
+
+
+@pytest.fixture
 def test_params(request: pytest.FixtureRequest) -> tuple[int, int, int, str, str]:
     """Parameters for test variations:
     (num_items, concurrency, batch_size, chunking, formatting)"""
@@ -545,6 +575,123 @@ def test_ollama_vectorizer_handles_chunk_failure_correctly(
 
     # When running the worker with cassette matching original test params
     cassette = "ollama-character_text_splitter-too-large-chunk_value.yaml"
+    logging.getLogger("vcr").setLevel(logging.DEBUG)
+    with vcr_.use_cassette(cassette):
+        result = CliRunner().invoke(
+            vectorizer_worker,
+            [
+                "--db-url",
+                cli_db_url,
+                "--once",
+            ],
+            catch_exceptions=False,
+        )
+
+    assert not result.exception
+    assert result.exit_code == 0
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT count(*) as count FROM blog_embedding_store;")
+        assert cur.fetchone()["count"] == 0  # type: ignore
+        cur.execute("SELECT count(*) as count FROM ai.vectorizer_errors;")
+        assert cur.fetchone()["count"] == 1  # type: ignore
+
+
+@pytest.mark.parametrize(
+    "test_params",
+    [
+        (
+            1,
+            1,
+            1,
+            "chunking_character_text_splitter('content')",
+            "formatting_python_template('$chunk')",
+        ),
+        (
+            4,
+            2,
+            2,
+            "chunking_character_text_splitter('content')",
+            "formatting_python_template('$chunk')",
+        ),
+    ],
+)
+def test_voyageai_vectorizer(
+    cli_db: tuple[TestDatabase, Connection],
+    cli_db_url: str,
+    configured_voyageai_vectorizer_id: int,
+    vcr_: Any,
+    test_params: tuple[int, int, int, str, str],
+):
+    """Test successful processing of vectorizer tasks"""
+    if "VOYAGE_API_KEY" not in os.environ:
+        os.environ["VOYAGE_API_KEY"] = "A FAKE KEY"
+    num_items, concurrency, batch_size, _, _ = test_params
+    _, conn = cli_db
+    # Insert pre-existing embedding for first item
+    with conn.cursor() as cur:
+        cur.execute("""
+           INSERT INTO
+           blog_embedding_store(embedding_uuid, id, chunk_seq, chunk, embedding)
+           VALUES (gen_random_uuid(), 1, 1, 'post_1',
+            array_fill(0, ARRAY[512])::vector)
+        """)
+
+    # When running the worker with cassette matching original test params
+    cassette = (
+        f"voyageai-character_text_splitter-chunk_value-"
+        f"items={num_items}-batch_size={batch_size}.yaml"
+    )
+    logging.getLogger("vcr").setLevel(logging.DEBUG)
+    with vcr_.use_cassette(cassette):
+        result = CliRunner().invoke(
+            vectorizer_worker,
+            [
+                "--db-url",
+                cli_db_url,
+                "--once",
+                "--vectorizer-id",
+                str(configured_voyageai_vectorizer_id),
+                "--concurrency",
+                str(concurrency),
+            ],
+            catch_exceptions=False,
+        )
+
+    assert not result.exception
+    assert result.exit_code == 0
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT count(*) as count FROM blog_embedding_store;")
+        assert cur.fetchone()["count"] == num_items  # type: ignore
+
+
+def test_voyageai_vectorizer_handles_chunk_failure_correctly(
+    cli_db: tuple[TestDatabase, Connection],
+    cli_db_url: str,
+    vcr_: Any,
+):
+    """Test successful processing of failed vectorizer tasks"""
+    if "VOYAGE_API_KEY" not in os.environ:
+        os.environ["VOYAGE_API_KEY"] = "A FAKE KEY"
+    _, conn = cli_db
+
+    # Set up vectorizer which will fail to embed chunk
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("CREATE TABLE blog(id bigint primary key, content text);")
+        cur.execute("""SELECT ai.create_vectorizer(
+                'blog',
+                embedding => ai.embedding_voyageai(
+                    'voyage-3-lite',
+                    512,
+                    truncate => false
+                ),
+                chunking => ai.chunking_character_text_splitter('content')
+        )""")  # noqa
+        cur.execute("INSERT INTO blog (id, content) VALUES(1, repeat('1', 100000))")
+
+    # When running the worker with cassette matching original test params
+    cassette = "voyageai-character_text_splitter-too-large-chunk_value.yaml"
     logging.getLogger("vcr").setLevel(logging.DEBUG)
     with vcr_.use_cassette(cassette):
         result = CliRunner().invoke(
