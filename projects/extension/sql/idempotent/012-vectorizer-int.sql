@@ -301,8 +301,8 @@ begin
     where v.id operator(pg_catalog.=) vectorizer_id
     ;
 
-    -- don't let anyone but the owner of the source table call this
-    select k.relowner operator(pg_catalog.=) pg_catalog.session_user()::pg_catalog.regrole
+    -- don't let anyone but the owner (or members of the owner's role) of the source table call this
+    select pg_catalog.pg_has_role(pg_catalog.session_user(), k.relowner, 'MEMBER')
     into strict _is_owner
     from pg_catalog.pg_class k
     inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)

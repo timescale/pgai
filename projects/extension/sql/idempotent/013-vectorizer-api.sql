@@ -69,14 +69,13 @@ begin
     end if;
 
     -- get source table name and schema name
-    select k.relname, n.nspname, k.relowner operator(pg_catalog.=) current_user::regrole
+    select k.relname, n.nspname, pg_catalog.pg_has_role(pg_catalog.current_user(), k.relowner, 'MEMBER')
     into strict _source_table, _source_schema, _is_owner
     from pg_catalog.pg_class k
     inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
     where k.oid operator(pg_catalog.=) source
     ;
 
-    -- TODO: consider allowing (in)direct members of the role that owns the source table
     if not _is_owner then
         raise exception 'only the owner of the source table may create a vectorizer on it';
     end if;
