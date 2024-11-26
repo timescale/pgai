@@ -268,7 +268,7 @@ The purpose of `ai.embedding_openai` is to:
 
 Use `ai.embedding_openai` to create an embedding configuration object that is passed as an argument to [ai.create_vectorizer](#create-vectorizers):
 
-1. Set the value of your OpenAI API key [in an environmental variable][openai-set-key]. For example:
+1. Set the value of your OpenAI API key [in an environment variable][openai-set-key]. For example:
 
    ```shell
    echo "export OPENAI_API_KEY='yourkey'" >> ~/.zshrc
