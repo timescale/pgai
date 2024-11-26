@@ -71,7 +71,7 @@ Before we accept any code contributions, pgai contributors need to sign the [Con
 ### Creating a Pull Request:
 
 Once your RFC is accepted (and in the case you didn't open a PR yet), or for smaller changes that do not require the RFC process, you are ready to open a PR.
-Please estrictly follow the guidelines above:
+Please strictly follow the guidelines below:
 
 1. Fork the repository and create a new branch for your work.
 2. Write clean, well-documented, and tested code.
