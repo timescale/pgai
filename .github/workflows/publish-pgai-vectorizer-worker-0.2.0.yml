@@ -29,6 +29,6 @@ jobs:
         with:
           context: "{{defaultContext}}:projects/pgai"
           push: true
-          tags: timescale/pgai-vectorizer-worker:v0.2.0
+          tags: timescale/pgai-vectorizer-worker:0.2.0
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
