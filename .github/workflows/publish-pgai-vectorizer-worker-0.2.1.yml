@@ -33,7 +33,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: "{{defaultContext}}:projects/pgai"
-          push: false
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
