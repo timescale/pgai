@@ -10,6 +10,7 @@ from pgai.alembic.operations import CreateVectorizerOp, DropVectorizerOp
 from pgai.configuration import (
     CreateVectorizerParams,
 )
+from pgai.vectorizer import Vectorizer
 
 
 def extract_top_level_fields(dc: Any) -> dict[str, Any]:
@@ -38,48 +39,19 @@ def compare_vectorizers(
 
     # Get existing vectorizers with their full configuration from database
     existing_vectorizers: dict[str, ExistingVectorizer] = {}
-    for schema in schemas:
-        result = conn.execute(
-            text("""
-            SELECT
-                v.id,
-                v.source_schema,
-                v.source_table,
-                v.target_schema,
-                v.target_table,
-                v.view_schema,
-                v.view_name,
-                v.queue_schema,
-                v.queue_table,
-                v.config
-            FROM ai.vectorizer v
-            WHERE v.source_schema = :schema
-            """),
-            {"schema": schema or "public"},
-        ).fetchall()
+    result = conn.execute(
+        text("""
+            select pg_catalog.to_jsonb(v) as vectorizer from ai.vectorizer v
+        """)
+    ).fetchall()
 
-        for row in result:
-            source_schema = row.source_schema or "public"
-            target_table = f"{row.target_schema or source_schema}.{row.target_table}"
-
-            # Convert row to dict for from_db_config
-            row_dict = {
-                "id": row.id,
-                "source_schema": row.source_schema,
-                "source_table": row.source_table,
-                "target_schema": row.target_schema,
-                "target_table": row.target_table,
-                "view_schema": row.view_schema,
-                "view_name": row.view_name,
-                "queue_schema": row.queue_schema,
-                "queue_table": row.queue_table,
-                "config": row.config,
-            }
-
-            existing_vectorizer = ExistingVectorizer(
-                row_dict["id"], CreateVectorizerParams.from_db_config(row_dict)
-            )
-            existing_vectorizers[target_table] = existing_vectorizer
+    for row in result:
+        parsed_vectorizer = Vectorizer.model_validate(row.vectorizer) # type: ignore
+        existing_vectorizer = ExistingVectorizer(
+            parsed_vectorizer.id, CreateVectorizerParams.from_db_config(parsed_vectorizer)
+        )
+        target_table = f"{parsed_vectorizer.target_schema}.{parsed_vectorizer.target_table}"
+        existing_vectorizers[target_table] = existing_vectorizer
     # Get vectorizers from models
     model_vectorizers: dict[str, CreateVectorizerParams] = {}
     if hasattr(metadata, "info"):

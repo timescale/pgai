@@ -4,6 +4,7 @@ from alembic.command import downgrade, upgrade
 from alembic.config import Config
 from sqlalchemy import Engine, inspect, text
 
+from pgai.vectorizer import Vectorizer
 from tests.vectorizer.extensions.conftest import load_template
 
 
@@ -125,3 +126,60 @@ def test_vectorizer_migration(
     inspector = inspect(initialized_engine)
     tables = inspector.get_table_names()
     assert "blog" not in tables
+    
+
+
+def test_vectorizer_migration_all_fields(
+    timescale_alembic_config: Config,
+    initialized_engine_with_timescale: Engine,
+    cleanup_modules: None,  # noqa: ARG001
+):
+    """Test vectorizer creation with a bunch of fields"""
+    migrations_dir = Path(timescale_alembic_config.get_main_option("script_location"))  # type: ignore
+    versions_dir = migrations_dir / "versions"
+
+    with initialized_engine_with_timescale.connect() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE schema timescale;
+                """
+            )
+        )
+
+    # First migration - create blog table
+    blog_content = load_template(
+        "migrations/001_create_blog_table.py.template",
+        revision_id="001",
+        revises="",
+        create_date="2024-03-19 10:00:00.000000",
+        down_revision="None",
+    )
+    with open(versions_dir / "001_create_blog_table.py", "w") as f:
+        f.write(blog_content)
+
+    # Second migration - create vectorizer
+    vectorizer_content = load_template(
+        "migrations/002_create_vectorizer_all_fields.py.template",
+        revision_id="002",
+        revises="001",
+        create_date="2024-03-19 10:01:00.000000",
+        down_revision="001",
+    )
+    with open(versions_dir / "002_create_vectorizer.py", "w") as f:
+        f.write(vectorizer_content)
+
+    # Run upgrade
+    upgrade(timescale_alembic_config, "head")
+    
+    # Verify vectorizer exists
+    with initialized_engine_with_timescale.connect() as conn:
+        result = conn.execute(
+            text("""
+                    select pg_catalog.to_jsonb(v) as vectorizer from ai.vectorizer v
+                """)
+        ).fetchall()
+        assert len(result) == 1
+        parsed_vectorizer = Vectorizer.model_validate(row.vectorizer) # type: ignore
+        assert parsed_vectorizer.target_table == "blog"
+            

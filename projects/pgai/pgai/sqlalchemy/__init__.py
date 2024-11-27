@@ -10,7 +10,7 @@ from pgai.configuration import (
     DiskANNIndexingConfig,
     EmbeddingConfig,
     HNSWIndexingConfig,
-    NoScheduling,
+    NoSchedulingConfig,
     ProcessingConfig,
     SchedulingConfig,
 )
@@ -45,7 +45,7 @@ class VectorizerField:
         chunking: ChunkingConfig,
         formatting_template: str | None = None,
         indexing: DiskANNIndexingConfig | HNSWIndexingConfig | None = None,
-        scheduling: SchedulingConfig | NoScheduling | None = None,
+        scheduling: SchedulingConfig | NoSchedulingConfig | None = None,
         processing: ProcessingConfig | None = None,
         target_schema: str | None = None,
         target_table: str | None = None,
