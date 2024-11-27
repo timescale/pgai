@@ -39,16 +39,16 @@ the foundation of most AI applications, pgai makes it easier to leverage your da
 
 # Supported features per model
 
-| **Model**      | **Tokenize** | **Embed** | **Chat Complete** | **Generate** | **Moderate** | **Classify** | **Rerank** |
+| **Model**       | **Tokenize** | **Embed** | **Chat Complete** | **Generate** | **Moderate** | **Classify** | **Rerank** |
 |-----------------|:------------:|:---------:|:-----------------:|:------------:|:------------:|:------------:|:----------:|
-| **Ollama**      |      ❌       |     ✔️     |         ✔️         |      ✔️       |      ❌       |      ❌       |     ❌      |
-| **OpenAI**      |      ✔️       |     ✔️     |         ✔️         |      ❌       |      ✔️       |      ❌       |     ❌      |
-| **Anthropic**   |      ❌       |     ❌     |         ❌         |      ✔️       |      ❌       |      ❌       |     ❌      |
-| **Cohere**      |      ✔️       |     ✔️     |         ✔️         |      ❌       |      ❌       |      ✔️       |     ✔️      |
+| **Ollama**      |      ❌      |     ✅    |        ✅         |      ✅      |      ❌      |      ❌     |     ❌      |
+| **OpenAI**      |      ✅      |     ✅    |        ✅         |      ❌      |      ✅      |      ❌     |     ❌      |
+| **Anthropic**   |      ❌      |     ❌    |        ❌         |      ✅      |      ❌      |      ❌     |     ❌      |
+| **Cohere**      |      ✅      |     ✅    |        ✅         |      ❌      |      ❌      |      ✅     |     ✅      |
 
 ### Legend:
-- ✔️ : Feature is supported
-- ❌ : Feature is not supported
+- ✅ : Feature supported
+- ❌ : Feature not supported
 
 # Getting Started
 
