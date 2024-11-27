@@ -1,4 +1,3 @@
-from dataclasses import asdict
 from typing import Any, Generic, TypeVar
 
 from pgvector.sqlalchemy import Vector  # type: ignore
@@ -7,6 +6,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, backref, mapped_column, rela
 
 from pgai.configuration import (
     ChunkingConfig,
+    CreateVectorizerParams,
     DiskANNIndexingConfig,
     EmbeddingConfig,
     HNSWIndexingConfig,
@@ -17,6 +17,14 @@ from pgai.configuration import (
 
 # Type variable for the parent model
 T = TypeVar("T", bound=DeclarativeBase)
+
+
+def to_pascal_case(text: str):
+    # Split on any non-alphanumeric character
+    words = "".join(char if char.isalnum() else " " for char in text).split()
+
+    # Capitalize first letter of all words
+    return "".join(word.capitalize() for word in words)
 
 
 class EmbeddingModel(DeclarativeBase, Generic[T]):
@@ -72,25 +80,38 @@ class VectorizerField:
         self.target_table = target_table
         self.view_schema = view_schema
         self.view_name = view_name
-        self.queue_schema = queue_schema
+        self.queue_schema = queue_schema or "ai"
         self.queue_table = queue_table
         self.grant_to = grant_to
         self.enqueue_existing = enqueue_existing
         self.owner: type[DeclarativeBase] | None = None
         self.name: str | None = None
 
-    def create_embedding_class(self, owner: type[T], name: str) -> type[EmbeddingModel[T]]:
+    def set_schemas_correctly(self, owner: type[T]) -> None:
+        table_args_schema_name = getattr(owner, "__table_args__", {}).get("schema")
+        self.target_schema = (
+            self.target_schema
+            or table_args_schema_name
+            or owner.registry.metadata.schema
+            or "public"
+        )
+        self.view_schema = self.view_schema or self.target_schema
+
+    def create_embedding_class(
+        self, owner: type[T], name: str
+    ) -> type[EmbeddingModel[T]]:
         table_name = self.target_table or f"{owner.__tablename__}_{name}_store"
-        schema = self.target_schema
-        class_name = f"{owner.__name__}Embedding"
+        self.set_schemas_correctly(owner)
+        class_name = f"{to_pascal_case(name)}Embedding"
         registry_instance = owner.registry
         base: type[DeclarativeBase] = owner.__base__  # type: ignore
 
         class Embedding(base):
             __tablename__ = table_name
             __table_args__ = (
-                {"info": {"pgai_managed": True}, "schema": schema}
-                if schema
+                {"info": {"pgai_managed": True}, "schema": self.target_schema}
+                if self.target_schema
+                and self.target_schema != owner.registry.metadata.schema
                 else {"info": {"pgai_managed": True}}
             )
             registry = registry_instance
@@ -141,33 +162,22 @@ class VectorizerField:
         assert self.owner is not None
 
         vectorizers = metadata.info.setdefault("vectorizers", {})
-        config = {
-            "source_table": self.owner.__tablename__,
-            "target_table": self._embedding_class.__tablename__,
-            "embedding": asdict(self.embedding_config),
-            "chunking": asdict(self.chunking_config),
-            "formatting_template": self.formatting_template,
-            "enqueue_existing": self.enqueue_existing,
-        }
+        vectorizer_params = CreateVectorizerParams(
+            source_table=self.owner.__tablename__,
+            embedding=self.embedding_config,
+            chunking=self.chunking_config,
+            indexing=self.indexing_config,
+            formatting_template=self.formatting_template,
+            scheduling=self.scheduling_config,
+            processing=self.processing_config,
+            target_schema=self.target_schema,
+            target_table=self._embedding_class.__tablename__,
+            view_schema=self.view_schema,
+            view_name=self.view_name,
+            queue_schema=self.queue_schema,
+            queue_table=self.queue_table,
+            grant_to=self.grant_to,
+            enqueue_existing=self.enqueue_existing,
+        )
 
-        # Add optional configurations if they exist
-        if self.indexing_config:
-            config["indexing"] = asdict(self.indexing_config)
-        if self.scheduling_config:
-            config["scheduling"] = asdict(self.scheduling_config)
-        if self.processing_config:
-            config["processing"] = asdict(self.processing_config)
-        if self.target_schema:
-            config["target_schema"] = self.target_schema
-        if self.view_schema:
-            config["view_schema"] = self.view_schema
-        if self.view_name:
-            config["view_name"] = self.view_name
-        if self.queue_schema:
-            config["queue_schema"] = self.queue_schema
-        if self.queue_table:
-            config["queue_table"] = self.queue_table
-        if self.grant_to:
-            config["grant_to"] = self.grant_to
-
-        vectorizers[f"{self.owner.__tablename__}.{self.name}"] = config
+        vectorizers[f"{self.owner.__tablename__}.{self.name}"] = vectorizer_params

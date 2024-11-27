@@ -1,3 +1,4 @@
+from dataclasses import dataclass, fields
 from typing import Any
 
 from alembic.autogenerate import comparators, renderers
@@ -5,15 +6,22 @@ from alembic.autogenerate.api import AutogenContext
 from alembic.operations.ops import UpgradeOps
 from sqlalchemy import text
 
+from pgai.alembic.operations import CreateVectorizerOp, DropVectorizerOp
 from pgai.configuration import (
-    ChunkingConfig,
-    DiskANNIndexingConfig,
-    EmbeddingConfig,
-    ProcessingConfig,
-    SchedulingConfig, NoScheduling,
+    CreateVectorizerParams,
 )
 
-from pgai.alembic.operations import CreateVectorizerOp, DropVectorizerOp
+
+def extract_top_level_fields(dc: Any) -> dict[str, Any]:
+    """Extract only top-level fields from a dataclass,
+    preserving nested dataclass instances."""
+    return {field.name: getattr(dc, field.name) for field in fields(dc)}
+
+
+@dataclass
+class ExistingVectorizer:
+    id: int
+    create_params: CreateVectorizerParams
 
 
 @comparators.dispatch_for("schema")
@@ -21,11 +29,7 @@ def compare_vectorizers(
     autogen_context: AutogenContext, upgrade_ops: UpgradeOps, schemas: list[str]
 ):
     """Compare vectorizers between model and database,
-    generating appropriate migration operations.
-
-    Handles creation, updates and deletion of vectorizers by comparing the
-    current database state with the model definitions.
-    """
+    generating appropriate migration operations."""
 
     conn = autogen_context.connection
     metadata = autogen_context.metadata
@@ -33,7 +37,7 @@ def compare_vectorizers(
     assert conn is not None
 
     # Get existing vectorizers with their full configuration from database
-    existing_vectorizers: dict[str, dict[str, Any]] = {}
+    existing_vectorizers: dict[str, ExistingVectorizer] = {}
     for schema in schemas:
         result = conn.execute(
             text("""
@@ -50,14 +54,16 @@ def compare_vectorizers(
                 v.config
             FROM ai.vectorizer v
             WHERE v.source_schema = :schema
-        """),
+            """),
             {"schema": schema or "public"},
         ).fetchall()
 
         for row in result:
             source_schema = row.source_schema or "public"
             target_table = f"{row.target_schema or source_schema}.{row.target_table}"
-            existing_vectorizers[target_table] = {
+
+            # Convert row to dict for from_db_config
+            row_dict = {
                 "id": row.id,
                 "source_schema": row.source_schema,
                 "source_table": row.source_table,
@@ -70,36 +76,41 @@ def compare_vectorizers(
                 "config": row.config,
             }
 
+            existing_vectorizer = ExistingVectorizer(
+                row_dict["id"], CreateVectorizerParams.from_db_config(row_dict)
+            )
+            existing_vectorizers[target_table] = existing_vectorizer
     # Get vectorizers from models
-    model_vectorizers: dict[str, dict[str, Any]] = {}
+    model_vectorizers: dict[str, CreateVectorizerParams] = {}
     if hasattr(metadata, "info"):
         vectorizers = metadata.info.get("vectorizers", {})
-        for _key, config in vectorizers.items():
-            source_schema = config.get("source_schema") or "public"
-            target_table = config["target_table"]
+        for _key, params in vectorizers.items():
+            assert isinstance(params, CreateVectorizerParams)
+            source_schema = "public"
+            target_table = params.target_table or ""
             if "." not in target_table:
                 target_table = f"{source_schema}.{target_table}"
-            model_vectorizers[target_table] = config
+            model_vectorizers[target_table] = params
 
     # Compare and generate operations
     for table_name, model_config in model_vectorizers.items():
         if table_name not in existing_vectorizers:
             # Create new vectorizer
             upgrade_ops.ops.append(
-                _create_vectorizer_op(model_config)
+                CreateVectorizerOp(**extract_top_level_fields(model_config))
             )
         else:
             # Check for configuration changes
             existing_config = existing_vectorizers[table_name]
-            if _config_has_changed(model_config, existing_config):
+            if _config_has_changed(model_config, existing_config.create_params):
                 # Drop and recreate vectorizer if config changed
                 upgrade_ops.ops.extend(
                     [
                         DropVectorizerOp(
-                            existing_config["id"],
+                            existing_config.id,
                             drop_all=True,
                         ),
-                        _create_vectorizer_op(model_config),
+                        CreateVectorizerOp(**extract_top_level_fields(model_config)),
                     ]
                 )
 
@@ -107,94 +118,20 @@ def compare_vectorizers(
         if table_name not in model_vectorizers:
             upgrade_ops.ops.append(
                 DropVectorizerOp(
-                    existing_config["id"],
+                    existing_config.id,
                     drop_all=True,
                 )
             )
 
 
-def _create_vectorizer_op(
-        model_config: dict[str, Any]
-) -> CreateVectorizerOp:
-    return CreateVectorizerOp(
-        source_table=model_config["source_table"],
-        destination=model_config.get("destination"),
-        embedding=EmbeddingConfig(**model_config["embedding"]),
-        chunking=ChunkingConfig(**model_config["chunking"]),
-        formatting_template=model_config.get(
-            "formatting_template", "$chunk"
-        ),
-        indexing=DiskANNIndexingConfig(**model_config.get("indexing", {}))
-        if "indexing" in model_config
-        else None,
-        scheduling=SchedulingConfig(**model_config.get("scheduling", {}))
-        if "scheduling" in model_config
-        else None,
-        processing=ProcessingConfig(**model_config.get("processing", {}))
-        if "processing" in model_config
-        else None,
-        target_schema=model_config.get("target_schema"),
-        target_table=model_config.get("target_table"),
-        view_schema=model_config.get("view_schema"),
-        view_name=model_config.get("view_name"),
-        queue_schema=model_config.get("queue_schema"),
-        queue_table=model_config.get("queue_table"),
-        grant_to=model_config.get("grant_to"),
-        enqueue_existing=model_config.get("enqueue_existing", True),
-    )
-    
-
 def _config_has_changed(
-    model_config: dict[str, Any], existing_config: dict[str, Any]
+    model_config: CreateVectorizerParams, existing_config: CreateVectorizerParams
 ) -> bool:
     """Compare vectorizer configurations to detect changes.
 
     Returns True if any configuration parameters have changed.
     """
-    # Compare core components
-    config_keys = {
-        "embedding",
-        "chunking",
-        "formatting",
-        "indexing",
-        "scheduling",
-        "processing",
-    }
-    for key in config_keys:
-        model_value = model_config.get(key)
-        existing_value = (
-            existing_config["config"].get(key)
-            if existing_config.get("config")
-            else None
-        )
-
-        if model_value is None and existing_value is None:
-            continue
-
-        if model_value != existing_value:
-            return True
-
-    # Compare schema/table settings
-    schema_keys = {
-        "target_schema",
-        "target_table",
-        "view_schema",
-        "view_name",
-        "queue_schema",
-        "queue_table",
-    }
-
-    for key in schema_keys:
-        model_value = model_config.get(key)
-        existing_value = existing_config.get(key)
-
-        if model_value is None and existing_value is None:
-            continue
-
-        if model_value != existing_value:
-            return True
-
-    return False
+    return model_config != existing_config
 
 
 @renderers.dispatch_for(CreateVectorizerOp)

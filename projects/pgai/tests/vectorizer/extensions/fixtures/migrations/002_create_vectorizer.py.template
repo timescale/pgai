@@ -21,7 +21,7 @@ depends_on = None
 def upgrade():
     op.create_vectorizer(
         'blog',
-        destination='blog_embeddings',
+        target_table='blog_embeddings',
         embedding=EmbeddingConfig(
             model='text-embedding-3-small',
             dimensions=768

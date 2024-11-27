@@ -54,7 +54,10 @@ def alembic_config(alembic_dir: Path, postgres_container: PostgresContainer) -> 
     """Create a configured Alembic environment."""
     # Create alembic.ini from template
     ini_path = alembic_dir / "alembic.ini"
-    ini_content = load_template("alembic/alembic.ini.template")
+    ini_content = load_template(
+        "alembic/alembic.ini.template",
+        sqlalchemy_url=postgres_container.get_connection_url(),
+    )
     with open(ini_path, "w") as f:
         f.write(ini_content)
 
@@ -67,7 +70,6 @@ def alembic_config(alembic_dir: Path, postgres_container: PostgresContainer) -> 
     # Configure and return
     config = Config(ini_path)
     config.set_main_option("script_location", str(alembic_dir / "migrations"))
-    config.set_main_option("sqlalchemy.url", postgres_container.get_connection_url())
 
     engine = create_engine(postgres_container.get_connection_url())
     config.attributes["connection"] = engine

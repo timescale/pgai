@@ -1,6 +1,6 @@
 [alembic]
 script_location = migrations
-sqlalchemy.url = driver://user:pass@localhost/dbname
+sqlalchemy.url = {sqlalchemy_url}
 
 [loggers]
 keys = root,sqlalchemy,alembic

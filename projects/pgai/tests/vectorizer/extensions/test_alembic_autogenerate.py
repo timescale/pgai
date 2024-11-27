@@ -1,10 +1,11 @@
 import importlib
+import os
+import subprocess
 from pathlib import Path
 
 from alembic.command import revision, upgrade
 from alembic.config import Config
 from sqlalchemy import Engine, inspect, text
-from sqlalchemy.orm import Session
 
 from tests.vectorizer.extensions.conftest import load_template
 
@@ -136,7 +137,7 @@ def test_vectorizer_autogeneration(
 
 def test_vectorizer_all_fields_autogeneration(
     alembic_config: Config,
-    initialized_engine: Engine,
+    initialized_engine: Engine,  # noqa: ARG001
     cleanup_modules: None,  # noqa: ARG001
 ):
     """Test automatic generation of vectorizer migrations for all fields"""
@@ -163,8 +164,10 @@ def test_vectorizer_all_fields_autogeneration(
     # Verify base table creation
     assert "op.create_table('blog_posts'" in migration_contents
 
-    assert ("from pgai.configuration import ChunkingConfig, DiskANNIndexingConfig,"
-            " EmbeddingConfig, ProcessingConfig, SchedulingConfig") in migration_contents
+    assert (
+        "from pgai.configuration import ChunkingConfig, DiskANNIndexingConfig,"
+        " EmbeddingConfig, ProcessingConfig, SchedulingConfig"
+    ) in migration_contents
 
     # Verify vectorizer creation and basic config
     assert "op.create_vectorizer" in migration_contents
@@ -223,10 +226,128 @@ def test_vectorizer_all_fields_autogeneration(
     assert "grant_to=['test_user', 'test_user2']" in migration_contents
 
 
+def run_alembic_command(alembic_config_path: str, command: str, *args: str) -> str:
+    """Run an alembic command in a fresh Python interpreter"""
+    subprocess_env = os.environ.copy()
+    working_dir = str(Path(alembic_config_path).parent)
+
+    # Construct the alembic command
+    alembic_command = ["alembic", "-c", alembic_config_path, command, *args]
+
+    # Run the command in a new process
+    result = subprocess.run(
+        alembic_command,
+        env=subprocess_env,
+        capture_output=True,
+        text=True,
+        cwd=working_dir,
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(f"Alembic command failed:\n{result.stderr}")
+
+    return result.stdout
+
+
 def test_multiple_vectorizer_fields_autogeneration(
-        alembic_config: Config,
-        initialized_engine: Engine,
-        cleanup_modules: None,  # noqa: ARG001
+    alembic_config: Config,
+    initialized_engine: Engine,
+    cleanup_modules: None,  # noqa: ARG001
+):
+    """Test automatic generation of migrations with multiple vectorizer fields"""
+    migrations_dir = Path(alembic_config.get_main_option("script_location"))  # type: ignore
+    models_dir = migrations_dir.parent / "models"
+    models_dir.mkdir(exist_ok=True)
+
+    # Create __init__.py
+    with open(models_dir / "__init__.py", "w"):
+        pass
+
+    # Create initial model with two vectorizer fields
+    model_content = """
+from sqlalchemy.orm import declarative_base
+from sqlalchemy import Column, Integer, Text
+from pgai.sqlalchemy import VectorizerField, EmbeddingConfig, ChunkingConfig
+
+Base = declarative_base()
+
+class BlogPost(Base):
+    __tablename__ = "blog_posts"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(Text, nullable=False)
+    content = Column(Text, nullable=False)
+    summary = Column(Text, nullable=False)
+
+    content_embeddings = VectorizerField(
+        embedding=EmbeddingConfig(
+            model="text-embedding-3-small",
+            dimensions=768
+        ),
+        chunking=ChunkingConfig(
+            chunk_column="content",
+            chunk_size=500,
+            chunk_overlap=50
+        ),
+        formatting_template="Title: $title\\nContent: $chunk"
+    )
+
+    summary_embeddings = VectorizerField(
+        embedding=EmbeddingConfig(
+            model="text-embedding-3-large",
+            dimensions=1536
+        ),
+        chunking=ChunkingConfig(
+            chunk_column="summary",
+            chunk_size=200,
+            chunk_overlap=20
+        ),
+        formatting_template="$chunk",
+    )
+"""
+    with open(models_dir / "models.py", "w") as f:
+        f.write(model_content)
+
+    create_autogen_env(migrations_dir)
+
+    # Generate initial migration
+    revision(
+        alembic_config,
+        message="create blog posts table with two vectorizers",
+        autogenerate=True,
+    )
+
+    # Read the generated migration file to verify its contents
+    versions_dir = migrations_dir / "versions"
+    migration_file = next(versions_dir.glob("*.py"))
+    with open(migration_file) as f:
+        migration_contents = f.read()
+
+    # Verify migration contains expected operations
+    assert "op.create_table('blog_posts'" in migration_contents
+    assert "op.create_vectorizer" in migration_contents
+    assert "'text-embedding-3-small'" in migration_contents
+    assert "dimensions=768" in migration_contents
+    assert "'text-embedding-3-large'" in migration_contents
+    assert "dimensions=1536" in migration_contents
+
+    # Run the migration
+    upgrade(alembic_config, "head")
+
+    # Verify both vectorizers were created
+    with initialized_engine.connect() as conn:
+        results = conn.execute(
+            text("SELECT * FROM ai.vectorizer_status ORDER BY id")
+        ).fetchall()
+        assert len(results) == 2
+        assert results[0].source_table == "public.blog_posts"  # content vectorizer
+        assert results[1].source_table == "public.blog_posts"  # summary vectorizer
+
+
+def test_multiple_vectorizer_fields_change_autogeneration(
+    alembic_config: Config,
+    initialized_engine: Engine,
+    cleanup_modules: None,  # noqa: ARG001
 ):
     """Test automatic generation of migrations with multiple vectorizer fields"""
     migrations_dir = Path(alembic_config.get_main_option("script_location"))  # type: ignore
@@ -284,19 +405,23 @@ class BlogPost(Base):
 
     create_autogen_env(migrations_dir)
 
-    # Generate initial migration
-    revision(
-        alembic_config,
-        message="create blog posts table with two vectorizers",
-        autogenerate=True,
+    # Run initial migration
+    run_alembic_command(
+        str(alembic_config.config_file_name),
+        "revision",
+        "--autogenerate",
+        "--message=create blog posts table with two vectorizers",
     )
 
     # Run the migration
-    upgrade(alembic_config, "head")
+    # Run upgrade
+    run_alembic_command(str(alembic_config.config_file_name), "upgrade", "head")
 
     # Verify both vectorizers were created
     with initialized_engine.connect() as conn:
-        results = conn.execute(text("SELECT * FROM ai.vectorizer_status ORDER BY id")).fetchall()
+        results = conn.execute(
+            text("SELECT * FROM ai.vectorizer_status ORDER BY id")
+        ).fetchall()
         assert len(results) == 2
         assert results[0].source_table == "public.blog_posts"  # content vectorizer
         assert results[1].source_table == "public.blog_posts"  # summary vectorizer
@@ -343,23 +468,22 @@ class BlogPost(Base):
         formatting_template="$chunk"
     )
 """
+
     with open(models_dir / "models.py", "w") as f:
         f.write(modified_model_content)
-
-    # Reload models module to pick up changes
-    import models.models  # type: ignore
-    importlib.reload(models.models)  # type: ignore
-
-    # Generate migration for the changes
-    revision(
-        alembic_config,
-        message="update content vectorizer configuration",
-        autogenerate=True,
+    # Generate migration for changes
+    run_alembic_command(
+        str(alembic_config.config_file_name),
+        "revision",
+        "--autogenerate",
+        "--message=update content vectorizer configuration",
     )
 
     # Verify the new migration updates only the content vectorizer
     versions_dir = migrations_dir / "versions"
-    new_migration_file = max(versions_dir.glob("*update_content_vectorizer_configuration.py"))
+    new_migration_file = max(
+        versions_dir.glob("*update_content_vectorizer_configuration.py")
+    )
     with open(new_migration_file) as f:
         migration_contents = f.read()
 
@@ -374,22 +498,33 @@ class BlogPost(Base):
     assert "dimensions=768" not in migration_contents
     assert "chunk_size=200" not in migration_contents
 
-    # Run the migration
-    upgrade(alembic_config, "head")
+    # Run upgrade
+    run_alembic_command(str(alembic_config.config_file_name), "upgrade", "head")
 
     # Verify final state - both vectorizers should still exist, with updated config
     with initialized_engine.connect() as conn:
-        results = conn.execute(text("""
-            SELECT source_table, config->>'embedding' as embedding
-            FROM ai.vectorizer 
+        results = conn.execute(
+            text("""
+            SELECT target_table, config->>'embedding' as embedding
+            FROM ai.vectorizer
             ORDER BY id
-        """)).fetchall()
+        """)
+        ).fetchall()
         assert len(results) == 2
 
+        # add to dict for easy access
+        results = {result.target_table: result.embedding for result in results}
+
         # Verify content vectorizer was updated
-        assert '"model": "text-embedding-3-large"' in results[0].embedding
-        assert '"dimensions": 1536' in results[0].embedding
+        assert (
+            '"model": "text-embedding-3-large"'
+            in results["blog_posts_content_embeddings_store"]
+        )
+        assert '"dimensions": 1536' in results["blog_posts_content_embeddings_store"]
 
         # Verify summary vectorizer was unchanged
-        assert '"model": "text-embedding-3-small"' in results[1].embedding
-        assert '"dimensions": 768' in results[1].embedding
+        assert (
+            '"model": "text-embedding-3-small"'
+            in results["blog_posts_summary_embeddings_store"]
+        )
+        assert '"dimensions": 768' in results["blog_posts_summary_embeddings_store"]
