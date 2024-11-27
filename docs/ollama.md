@@ -44,8 +44,7 @@ running pgai, the ollama host address is `http://host.docker.internal:11434`.
 This section shows you how to use AI directly from your database using SQL.
 
 - [List_models](#list-models): list the models supported by Ollama functions in pgai.
-- [Embed](#embed): generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using a
-  specified model.
+- [Embed](#embed): generate embeddings using a specified model.
 - [Chat_complete](#chat-complete): generate text or complete a chat.
 - [Generate](#generate): generate a response to a prompt
 - [List running models](#list-running-models): list the models currently running

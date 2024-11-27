@@ -26,7 +26,7 @@ To run vectorizer workers, you need to:
   * Container environment: [Docker][docker]
   * Local environment: [Python3][python3] and [pip][pip]
   * All environments: A Postgres client like [psql][psql]
-* Create a key for you AI provider:
+* Create a key for your AI provider:
   * [OpenAI][openai-key]
 
 ## Install and configure vectorizer worker
@@ -50,7 +50,7 @@ On your local machine:
 
 1. **Create the Docker configuration for a local developer environment**
 
-   1. Add the following docker configuration to `<timescale-folder>/docker-compose.yml`:
+   1. Copy the following configuration into a file named `docker-compose.yml`:
    
        ```yaml
        name: pgai
@@ -73,25 +73,15 @@ On your local machine:
 
    1. Replace the instances of `OPENAI_API_KEY` with a key from your AI provider.
 
-1. **Start the database**
+1. **Start the database and vectorizer worker**
    ```shell
-    docker compose up -d db
+    docker compose up -d
     ```
 
 1. **Connect to your self-hosted database**
-   - Docker: `docker exec -it pgai-db-1 psql -U postgres`
+   - Docker: `docker compose exec -it db psql`
    - psql:  `psql postgres://postgres:postgres@localhost:5432/postgres`
 
-1. **Run the vectorizer worker**
-
-   For self-hosted, you run a pgai vectorizer worker to automatically create embedding from the data in your
-   database using [vectorizers you defined previously](/docs/vectorizer.md#define-a-vectorizer).
-
-   In a new terminal, start the vectorizer worker:
-   ```shell
-   docker compose up -d vectorizer-worker
-   ```
-  
 ### Install the vectorizer worker Docker image
 
 This docker image supplies a pgai image with vectorizer worker. You use this image to 
@@ -101,7 +91,7 @@ On your local machine:
 
 1. **Create the Docker configuration for pgai vectorizer worker**
 
-   Add the following docker configuration to `<timescale-folder>/docker-compose.yml`:
+   Copy the following configuration into a file named `docker-compose.yml`:
    ```yaml
    name: pgai
    services:
@@ -127,10 +117,10 @@ On your local machine:
 
    In a new terminal, start the vectorizer worker:
    ```shell
-   docker compose up -d vectorizer-worker
+   docker compose up -d
    ```
 
-   You can also use the run command
+   You can also use the run command:
    `docker run timescale/pgai-vectorizer-worker:{tag version}  --db-url <Same value as PGAI_VECTORIZER_WORKER_DB_URL>`
 
 ### Install vectorizer worker in your local environment
