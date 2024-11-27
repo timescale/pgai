@@ -226,29 +226,6 @@ def test_vectorizer_all_fields_autogeneration(
     assert "grant_to=['test_user', 'test_user2']" in migration_contents
 
 
-def run_alembic_command(alembic_config_path: str, command: str, *args: str) -> str:
-    """Run an alembic command in a fresh Python interpreter"""
-    subprocess_env = os.environ.copy()
-    working_dir = str(Path(alembic_config_path).parent)
-
-    # Construct the alembic command
-    alembic_command = ["alembic", "-c", alembic_config_path, command, *args]
-
-    # Run the command in a new process
-    result = subprocess.run(
-        alembic_command,
-        env=subprocess_env,
-        capture_output=True,
-        text=True,
-        cwd=working_dir,
-    )
-
-    if result.returncode != 0:
-        raise RuntimeError(f"Alembic command failed:\n{result.stderr}")
-
-    return result.stdout
-
-
 def test_multiple_vectorizer_fields_autogeneration(
     alembic_config: Config,
     initialized_engine: Engine,
@@ -344,6 +321,29 @@ class BlogPost(Base):
         assert results[1].source_table == "public.blog_posts"  # summary vectorizer
 
 
+def run_alembic_command(alembic_config_path: str, command: str, *args: str) -> str:
+    """Run an alembic command in a fresh Python interpreter"""
+    subprocess_env = os.environ.copy()
+    working_dir = str(Path(alembic_config_path).parent)
+
+    # Construct the alembic command
+    alembic_command = ["alembic", "-c", alembic_config_path, command, *args]
+
+    # Run the command in a new process
+    result = subprocess.run(
+        alembic_command,
+        env=subprocess_env,
+        capture_output=True,
+        text=True,
+        cwd=working_dir,
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(f"Alembic command failed:\n{result.stderr}")
+
+    return result.stdout
+
+
 def test_multiple_vectorizer_fields_change_autogeneration(
     alembic_config: Config,
     initialized_engine: Engine,
@@ -405,7 +405,6 @@ class BlogPost(Base):
 
     create_autogen_env(migrations_dir)
 
-    # Run initial migration
     run_alembic_command(
         str(alembic_config.config_file_name),
         "revision",

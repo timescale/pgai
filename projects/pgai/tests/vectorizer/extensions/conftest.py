@@ -77,6 +77,17 @@ def alembic_config(alembic_dir: Path, postgres_container: PostgresContainer) -> 
     return config
 
 
+def drop_vectorizer_if_exists(id: int, engine: Engine):
+    with engine.connect() as conn:
+        vectorizer_exists = conn.execute(
+            text(f"SELECT EXISTS (SELECT 1 FROM ai.vectorizer WHERE id = {id})")
+        ).scalar()
+
+        if vectorizer_exists:
+            conn.execute(text(f"SELECT ai.drop_vectorizer({id}, drop_all=>true);"))
+        conn.commit()
+
+
 @pytest.fixture
 def initialized_engine(
     postgres_container: PostgresContainer,
@@ -96,13 +107,9 @@ def initialized_engine(
 
     yield engine
 
+    drop_vectorizer_if_exists(1, engine)
+    drop_vectorizer_if_exists(2, engine)
     with engine.connect() as conn:
-        vectorizer_exists = conn.execute(
-            text("SELECT EXISTS (SELECT 1 FROM ai.vectorizer WHERE id = 1)")
-        ).scalar()
-
-        if vectorizer_exists:
-            conn.execute(text("SELECT ai.drop_vectorizer(1);"))
         conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
         conn.commit()
 
