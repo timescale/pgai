@@ -6,10 +6,10 @@ We appreciate any help the community can provide to make pgai better!
 
 ## How to Contribute
 
-### Reporting Issues
+### Report Issues
 If you encounter any bugs or have suggestions for improvements, please submit an issue through the [GitHub issue tracker](https://github.com/timescale/pgai/issues). Include as much detail as possible to help us understand and resolve the problem.
 
-### Proposing Features
+### Propose Features
 We welcome proposals for new features! Before starting work on a significant feature (regardless if you are willing to code), please follow the RFC process detailed below. This helps ensure community alignment and avoids duplication of effort.
 
 ## Request for Comments (RFC) Process
@@ -62,13 +62,13 @@ graph LR
 Each RFC stage builds on community engagement and ensures that proposed features or changes align with project goals.
 Maintainers will assign the right stage of Issues and PR's through GitHub labels.
 
-## Contributing code
+## Contribute code
 
 ### Contributor License Agreement (CLA)
 
 Before we accept any code contributions, pgai contributors need to sign the [Contributor License Agreement (CLA)](https://cla-assistant.io/timescale/pgai). By signing a CLA, we ensure that the community is free and confident in its ability to use your contributions.
 
-### Creating a Pull Request:
+### Create a Pull Request:
 
 Once your RFC is accepted (and in the case you didn't open a PR yet), or for smaller changes that do not require the RFC process, you are ready to open a PR.
 Please strictly follow the guidelines below:
@@ -98,7 +98,7 @@ open a pull request**.
 See our [testing](./DEVELOPMENT.md#test-your-pgai-changes)
 instructions for help with how to test.
 
-## Licensing
+## License
 
 By contributing to this repository, you agree that your contributions will be licensed under the same license as the project.
 
