@@ -52,8 +52,9 @@ testing we would like.
 
 ## Documentation
 
-Ensure that the new integration is documented. Document the new database
-function in [vectorizer-api-reference.md], and changes to the vectorizer
-worker in [vectorizer-worker.md].
+Ensure that the new integration is documented.
+- Document the new database function in [vectorizer-api-reference.md].
+- Document any changes to the vectorizer worker in [vectorizer-worker.md].
+- Add a new row into the [Features per model table in the README file](/README.md#supported-features-per-model) indicating all the supported features.
 
 
