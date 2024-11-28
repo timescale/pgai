@@ -567,26 +567,74 @@ def test_ollama_vectorizer_handles_chunk_failure_correctly(
         assert cur.fetchone()["count"] == 1  # type: ignore
 
 
-def test_worker_no_extension(
-    postgres_container: PostgresContainer,
-):
-    """Test that the worker fails when pgai extension is not installed"""
-    result = CliRunner().invoke(
-        vectorizer_worker,
-        ["--db-url", postgres_container.get_connection_url(), "--once"],
-    )
+class TestExitOnError:
+    def test_vectorizer_exits_with_error_when_no_ai_extension(
+        self,
+        postgres_container: PostgresContainer,
+    ):
+        result = CliRunner().invoke(
+            vectorizer_worker,
+            ["--db-url", postgres_container.get_connection_url(), "--once"],
+        )
 
-    assert result.exit_code == 1
-    assert "the pgai extension is not installed" in result.output.lower()
+        assert result.exit_code == 1
+        assert "the pgai extension is not installed" in result.output.lower()
+
+    def test_vectorizer_exits_with_error_when_vectorizers_specified_but_missing(
+        self, cli_db_url: str
+    ):
+        result = CliRunner().invoke(
+            vectorizer_worker,
+            [
+                "--db-url",
+                cli_db_url,
+                "--poll-interval",
+                "0.1s",
+                "--vectorizer-id",
+                "0",
+                "--once",
+            ],
+        )
+        assert result.exit_code != 0
+        assert "invalid vectorizers, wanted: [0], got: []" in result.output
 
 
-def test_vectorizer_exits_when_vectorizers_specified_but_missing(cli_db_url: str):
-    result = CliRunner().invoke(
-        vectorizer_worker,
-        ["--db-url", cli_db_url, "--poll-interval", "0.1s", "--vectorizer-id", "0"],
-    )
-    assert result.exit_code != 0
-    assert "invalid vectorizers, wanted: [0], got: []" in result.output
+class TestNoExitOnError:
+    def test_vectorizer_does_not_exit_with_error_when_no_ai_extension(
+        self,
+        postgres_container: PostgresContainer,
+    ):
+        result = CliRunner().invoke(
+            vectorizer_worker,
+            [
+                "--db-url",
+                postgres_container.get_connection_url(),
+                "--once",
+                "--exit-on-error=false",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "the pgai extension is not installed" in result.output.lower()
+
+    def test_vectorizer_does_not_exit_with_error_when_vectorizers_specified_but_missing(
+        self, cli_db_url: str
+    ):
+        result = CliRunner().invoke(
+            vectorizer_worker,
+            [
+                "--db-url",
+                cli_db_url,
+                "--poll-interval",
+                "0.1s",
+                "--vectorizer-id",
+                "0",
+                "--once",
+                "--exit-on-error=false",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "invalid vectorizers, wanted: [0], got: []" in result.output
 
 
 def test_vectorizer_picks_up_new_vectorizer(
