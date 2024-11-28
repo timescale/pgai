@@ -8,7 +8,7 @@ This page shows you how to:
 
 ## Configure pgai for Voyage AI
 
-Most pgai functions require an [Voyage AI API key](https://docs.voyageai.com/docs/api-key-and-installation#authentication-with-api-keys).
+Most pgai functions require a [Voyage AI API key](https://docs.voyageai.com/docs/api-key-and-installation#authentication-with-api-keys).
 
 - [Handle API keys using pgai from psql](#handle-api-keys-using-pgai-from-psql)
 - [Handle API keys using pgai from python](#handle-api-keys-using-pgai-from-python)
@@ -131,12 +131,12 @@ to run your AI queries:
 
 This section shows you how to use AI directly from your database using SQL.
 
-- [Embed](#embed): generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using a
+- [Embed](#embed): generate [embeddings](https://docs.voyageai.com/docs/embeddings) using a
   specified model.
 
 ### Embed
 
-Generate [embeddings](https://platform.openai.com/docs/guides/embeddings) using a specified model.
+Generate [embeddings](https://docs.voyageai.com/docs/embeddings) using a specified model.
 
 - Request an embedding using a specific model:
 
