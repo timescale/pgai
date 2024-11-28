@@ -8,7 +8,7 @@ from pgai.configuration import (
     ChunkingConfig,
     CreateVectorizerParams,
     DiskANNIndexingConfig,
-    EmbeddingConfig,
+    OpenAIEmbeddingConfig,
     HNSWIndexingConfig,
     NoSchedulingConfig,
     ProcessingConfig,
@@ -41,7 +41,7 @@ class EmbeddingModel(DeclarativeBase, Generic[T]):
 class VectorizerField:
     def __init__(
         self,
-        embedding: EmbeddingConfig,
+        embedding: OpenAIEmbeddingConfig,
         chunking: ChunkingConfig,
         formatting_template: str | None = None,
         indexing: DiskANNIndexingConfig | HNSWIndexingConfig | None = None,

@@ -166,7 +166,7 @@ def test_vectorizer_all_fields_autogeneration(
 
     assert (
         "from pgai.configuration import ChunkingConfig, DiskANNIndexingConfig,"
-        " EmbeddingConfig, ProcessingConfig, SchedulingConfig"
+        " OpenAIEmbeddingConfig, ProcessingConfig, SchedulingConfig"
     ) in migration_contents
 
     # Verify vectorizer creation and basic config
@@ -174,7 +174,7 @@ def test_vectorizer_all_fields_autogeneration(
     assert "'blog_posts'" in migration_contents
 
     # Verify embedding config
-    assert "embedding=EmbeddingConfig" in migration_contents
+    assert "embedding=OpenAIEmbeddingConfig" in migration_contents
     assert "model='text-embedding-3-small'" in migration_contents
     assert "dimensions=768" in migration_contents
     assert "chat_user='test_user'" in migration_contents
@@ -244,7 +244,7 @@ def test_multiple_vectorizer_fields_autogeneration(
     model_content = """
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, Integer, Text
-from pgai.sqlalchemy import VectorizerField, EmbeddingConfig, ChunkingConfig
+from pgai.sqlalchemy import VectorizerField, OpenAIEmbeddingConfig, ChunkingConfig
 
 Base = declarative_base()
 
@@ -257,7 +257,7 @@ class BlogPost(Base):
     summary = Column(Text, nullable=False)
 
     content_embeddings = VectorizerField(
-        embedding=EmbeddingConfig(
+        embedding=OpenAIEmbeddingConfig(
             model="text-embedding-3-small",
             dimensions=768
         ),
@@ -270,7 +270,7 @@ class BlogPost(Base):
     )
 
     summary_embeddings = VectorizerField(
-        embedding=EmbeddingConfig(
+        embedding=OpenAIEmbeddingConfig(
             model="text-embedding-3-large",
             dimensions=1536
         ),
@@ -362,7 +362,7 @@ def test_multiple_vectorizer_fields_change_autogeneration(
     model_content = """
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, Integer, Text
-from pgai.sqlalchemy import VectorizerField, EmbeddingConfig, ChunkingConfig
+from pgai.sqlalchemy import VectorizerField, OpenAIEmbeddingConfig, ChunkingConfig
 
 Base = declarative_base()
 
@@ -375,7 +375,7 @@ class BlogPost(Base):
     summary = Column(Text, nullable=False)
 
     content_embeddings = VectorizerField(
-        embedding=EmbeddingConfig(
+        embedding=OpenAIEmbeddingConfig(
             model="text-embedding-3-small",
             dimensions=768
         ),
@@ -388,7 +388,7 @@ class BlogPost(Base):
     )
 
     summary_embeddings = VectorizerField(
-        embedding=EmbeddingConfig(
+        embedding=OpenAIEmbeddingConfig(
             model="text-embedding-3-small",
             dimensions=768
         ),
@@ -429,7 +429,7 @@ class BlogPost(Base):
     modified_model_content = """
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, Integer, Text
-from pgai.sqlalchemy import VectorizerField, EmbeddingConfig, ChunkingConfig
+from pgai.sqlalchemy import VectorizerField, OpenAIEmbeddingConfig, ChunkingConfig
 
 Base = declarative_base()
 
@@ -442,7 +442,7 @@ class BlogPost(Base):
     summary = Column(Text, nullable=False)
 
     content_embeddings = VectorizerField(
-        embedding=EmbeddingConfig(
+        embedding=OpenAIEmbeddingConfig(
             model="text-embedding-3-large",
             dimensions=1536
         ),
@@ -455,7 +455,7 @@ class BlogPost(Base):
     )
 
     summary_embeddings = VectorizerField(
-        embedding=EmbeddingConfig(
+        embedding=OpenAIEmbeddingConfig(
             model="text-embedding-3-small",
             dimensions=768
         ),

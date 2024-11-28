@@ -2,7 +2,7 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, Integer, Text
 from pgai.sqlalchemy import (
     VectorizerField,
-    EmbeddingConfig,
+   OpenAIEmbeddingConfig,
     ChunkingConfig
 )
 
@@ -16,7 +16,7 @@ class BlogPost(Base):
     content = Column(Text, nullable=False)
     
     content_embeddings = VectorizerField(
-        embedding=EmbeddingConfig(
+        embedding=OpenAIEmbeddingConfig(
             model="{model}",
             dimensions={dimensions}
         ),

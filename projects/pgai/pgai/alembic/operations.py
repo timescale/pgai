@@ -8,7 +8,7 @@ from pgai.configuration import (
     ChunkingConfig,
     CreateVectorizerParams,
     DiskANNIndexingConfig,
-    EmbeddingConfig,
+    OpenAIEmbeddingConfig,
     HNSWIndexingConfig,
     NoSchedulingConfig,
     ProcessingConfig,
@@ -23,7 +23,7 @@ class CreateVectorizerOp(MigrateOperation):
     def __init__(
         self,
         source_table: str | None = None,
-        embedding: EmbeddingConfig | None = None,
+        embedding: OpenAIEmbeddingConfig | None = None,
         chunking: ChunkingConfig | None = None,
         indexing: DiskANNIndexingConfig | HNSWIndexingConfig | None = None,
         formatting_template: str | None = None,

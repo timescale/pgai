@@ -4,7 +4,7 @@ from sqlalchemy import Column, Integer, Text
 from pgai.configuration import DiskANNIndexingConfig, SchedulingConfig, ProcessingConfig
 from pgai.sqlalchemy import (
     VectorizerField,
-    EmbeddingConfig,
+   OpenAIEmbeddingConfig,
     ChunkingConfig
 )
 
@@ -18,7 +18,7 @@ class BlogPost(Base):
     content = Column(Text, nullable=False)
     
     content_embeddings = VectorizerField(
-        embedding=EmbeddingConfig(
+        embedding=OpenAIEmbeddingConfig(
             model="text-embedding-3-small",
             dimensions=768,
             chat_user="test_user",

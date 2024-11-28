@@ -41,7 +41,6 @@ RUN set -e; \
     dpkg -i pgvectorscale-postgresql-${PG_MAJOR}_${PGVECTORSCALE_VERSION}-Linux_"$TARGET_ARCH".deb; \
     rm pgvectorscale-${PGVECTORSCALE_VERSION}-pg${PG_MAJOR}-"$TARGET_ARCH".zip pgvectorscale-postgresql-${PG_MAJOR}_${PGVECTORSCALE_VERSION}-Linux_"$TARGET_ARCH".deb
 
-
 ###############################################################################
 # image for use in testing the pgai library
 FROM base AS pgai-test-db
@@ -50,6 +49,13 @@ ENV PIP_BREAK_SYSTEM_PACKAGES=1
 WORKDIR /pgai
 COPY . .
 RUN just build install
+
+# Create a custom config file in docker-entrypoint-initdb.d
+RUN mkdir -p /docker-entrypoint-initdb.d && \
+    echo "#!/bin/bash" > /docker-entrypoint-initdb.d/configure-timescaledb.sh && \
+    echo "echo \"shared_preload_libraries = 'timescaledb'\" >> \${PGDATA}/postgresql.conf" >> /docker-entrypoint-initdb.d/configure-timescaledb.sh && \
+    chmod +x /docker-entrypoint-initdb.d/configure-timescaledb.sh
+
 
 
 ###############################################################################

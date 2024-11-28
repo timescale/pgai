@@ -10,7 +10,7 @@ from pgai.vectorizer.chunking import (
     LangChainCharacterTextSplitter,
     LangChainRecursiveCharacterTextSplitter,
 )
-from pgai.vectorizer.embeddings import OpenAI
+from pgai.vectorizer.embeddings import OpenAI, Ollama
 from pgai.vectorizer.formatting import ChunkValue, PythonTemplate
 from pgai.vectorizer.indexing import DiskANNIndexing, HNSWIndexing
 from pgai.vectorizer.processing import ProcessingDefault
@@ -82,7 +82,7 @@ def format_python_arg(config_type: str, instance: Any) -> str:
 
 
 @dataclass
-class EmbeddingConfig:
+class OpenAIEmbeddingConfig:
     model: str
     dimensions: int
     chat_user: str | None = None
@@ -109,12 +109,53 @@ class EmbeddingConfig:
         return format_python_arg("embedding", self)
 
     @classmethod
-    def from_db_config(cls, openai_config: OpenAI) -> "EmbeddingConfig":
+    def from_db_config(cls, openai_config: OpenAI) -> "OpenAIEmbeddingConfig":
         return cls(
             model=openai_config.model,
             dimensions=openai_config.dimensions or 1536,
             chat_user=openai_config.user,
             api_key_name=openai_config.api_key_name,
+        )
+
+
+@dataclass
+class OllamaEmbeddingConfig:
+    model: str
+    dimensions: int
+    base_url: str | None = None
+    truncate: bool | None = None
+    keep_alive: str | None = None
+
+    _defaults = {"dimensions": 1536, "api_key_name": "OPENAI_API_KEY"}
+
+    @override
+    def __eq__(self, other: object) -> bool:
+        return equivalent_dataclass_with_defaults(self, other, self._defaults)
+
+    def to_sql_argument(self) -> str:
+        params = [
+            f"'{self.model}'",
+            str(self.dimensions),
+        ]
+        if self.base_url:
+            params.append(f"base_url=>'{self.base_url}'")
+        if self.truncate is False:
+            params.append("truncate=>false")
+        if self.keep_alive:
+            params.append(f"keep_alive=>'{self.keep_alive}'")
+        return f", embedding => ai.embedding_ollama({', '.join(params)})"
+
+    def to_python_arg(self) -> str:
+        return format_python_arg("embedding", self)
+
+    @classmethod
+    def from_db_config(cls, config: Ollama) -> "OllamaEmbeddingConfig":
+        return cls(
+            model=config.model,
+            dimensions=config.dimensions,
+            base_url = config.base_url,
+            truncate = config.truncate,
+            keep_alive = config.keep_alive
         )
 
 
@@ -339,7 +380,7 @@ class SchedulingConfig:
     @classmethod
     def from_db_config(cls, config: TimescaleScheduling) -> "SchedulingConfig":
         return cls(
-            schedule_interval=config.schedule_interval,
+            schedule_interval=str(config.schedule_interval),
             initial_start=config.initial_start,
             fixed_schedule=config.fixed_schedule,
             timezone=config.timezone,
@@ -387,7 +428,7 @@ def format_bool_param(name: str, value: bool) -> str:
 @dataclass
 class CreateVectorizerParams:
     source_table: str | None
-    embedding: EmbeddingConfig | None = None
+    embedding: OpenAIEmbeddingConfig | OllamaEmbeddingConfig | None = None
     chunking: ChunkingConfig | None = None
     indexing: DiskANNIndexingConfig | HNSWIndexingConfig | None = None
     formatting_template: str | None = None
@@ -411,7 +452,7 @@ class CreateVectorizerParams:
     }
 
     # These fields are hard to compare
-    ignored_fields = ("queue_table", "grant_to")
+    ignored_fields = ("queue_table", "grant_to", "scheduling")
 
     @override
     def __eq__(self, other: object) -> bool:
@@ -512,8 +553,11 @@ class CreateVectorizerParams:
         Returns:
             CreateVectorizerParams: A new instance configured from database settings
         """
-       
-        embedding_config = EmbeddingConfig.from_db_config(vectorizer.config.embedding)
+        embedding_config: None | OpenAIEmbeddingConfig | OllamaEmbeddingConfig = None
+        if isinstance(vectorizer.config.embedding, OpenAI):
+            embedding_config = OpenAIEmbeddingConfig.from_db_config(vectorizer.config.embedding)
+        if isinstance(vectorizer.config.embedding, Ollama):
+            embedding_config = OllamaEmbeddingConfig.from_db_config(vectorizer.config.embedding)
         chunking_config = ChunkingConfig.from_db_config(vectorizer.config.chunking)
         processing_config = ProcessingConfig.from_db_config(vectorizer.config.processing)
         indexing_config: None | DiskANNIndexingConfig | HNSWIndexingConfig = None

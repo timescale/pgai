@@ -7,7 +7,7 @@ Create Date: {create_date}
 from alembic import op
 from pgai.alembic import CreateVectorizerOp, DropVectorizerOp
 import sqlalchemy as sa
-from pgai.configuration import ChunkingConfig, DiskANNIndexingConfig, EmbeddingConfig, ProcessingConfig, SchedulingConfig
+from pgai.configuration import ChunkingConfig, DiskANNIndexingConfig, OpenAIEmbeddingConfig, ProcessingConfig, SchedulingConfig
 
 # revision identifiers
 revision = '{revision_id}'
@@ -25,7 +25,7 @@ def upgrade():
     )
     op.create_vectorizer(
         'blog_posts',
-        embedding=EmbeddingConfig(
+        embedding=OpenAIEmbeddingConfig(
         model='text-embedding-3-small',
         dimensions=768,
         chat_user='test_user',
@@ -38,16 +38,13 @@ def upgrade():
         separator=' ',
         is_separator_regex=True
     ),
-        indexing=DiskANNIndexingConfig(
-        min_rows=10,
-        storage_layout='plain',
-        num_neighbors=5,
-        search_list_size=10,
-        max_alpha=0.5,
-        num_dimensions=10,
-        num_bits_per_dimension=10,
-        create_when_queue_empty=False
+        scheduling=SchedulingConfig(
+        schedule_interval= "1h",
+        initial_start= "2022-01-01T00:00:00Z",
+        fixed_schedule= True,
+        timezone= "UTC"
     ),
+        {indexing},
         processing=ProcessingConfig(
         batch_size=10,
         concurrency=5

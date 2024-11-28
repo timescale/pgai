@@ -1,3 +1,4 @@
+import datetime
 from typing import Literal
 
 from pydantic import BaseModel
@@ -12,9 +13,10 @@ class TimescaleScheduling(BaseModel):
         retention_policy: The retention policy to use.
     """
     
-    implementation: Literal["timescale"]
-    schedule_interval: str
+    implementation: Literal["timescaledb"]
+    schedule_interval: datetime.timedelta
     initial_start: str
+    job_id: int
     fixed_schedule: bool
     timezone: str
 
