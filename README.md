@@ -41,14 +41,14 @@ the foundation of most AI applications, pgai makes it easier to leverage your da
 
 | **Model**       | **Tokenize** | **Embed** | **Chat Complete** | **Generate** | **Moderate** | **Classify** | **Rerank** |
 |-----------------|:------------:|:---------:|:-----------------:|:------------:|:------------:|:------------:|:----------:|
-| **Ollama**      |      ❌      |     ✅    |        ✅         |      ✅      |      ❌      |      ❌     |     ❌      |
-| **OpenAI**      |      ✅      |     ✅    |        ✅         |      ❌      |      ✅      |      ❌     |     ❌      |
-| **Anthropic**   |      ❌      |     ❌    |        ❌         |      ✅      |      ❌      |      ❌     |     ❌      |
-| **Cohere**      |      ✅      |     ✅    |        ✅         |      ❌      |      ❌      |      ✅     |     ✅      |
+| **Ollama**      |       ✖️     |     ✔️    |         ✔️        |      ✔️      |      ✖️      |      ✖️      |     ✖️     |
+| **OpenAI**      |       ✔️️     |     ✔️    |         ✔️        |      ✖️      |      ✔️      |      ✖️      |     ✖️     |
+| **Anthropic**   |      ✖️      |     ✖️    |         ✖️        |      ✔️      |      ✖️      |      ✖️      |     ✖️     |
+| **Cohere**      |       ✔️     |     ✔️    |         ✔️        |      ✖️      |      ✖️      |      ✔️      |     ✔️     |
 
 ### Legend:
-- ✅ : Feature supported
-- ❌ : Feature not supported
+- ✔️️ : Feature supported
+- ✖️ : Feature not supported
 
 # Getting Started
 
