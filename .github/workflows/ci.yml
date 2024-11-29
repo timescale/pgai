@@ -81,7 +81,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./projects/pgai
-        run: uv sync
+        run: uv sync --all-extras
 
       - name: Lint
         run: just pgai lint
