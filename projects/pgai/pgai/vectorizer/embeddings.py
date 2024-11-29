@@ -667,7 +667,7 @@ class Ollama(BaseModel, Embedder):
         return embeddings
 
 
-class VoyageAI(BaseModel, Embedder):
+class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
     """
     Embedder that uses Ollama to embed documents into vector representations.
 
