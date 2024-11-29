@@ -27,7 +27,9 @@ class ExistingVectorizer:
 
 @comparators.dispatch_for("schema")
 def compare_vectorizers(
-    autogen_context: AutogenContext, upgrade_ops: UpgradeOps, schemas: list[str]
+    autogen_context: AutogenContext,
+    upgrade_ops: UpgradeOps,
+    schemas: list[str],  # noqa: ARG001
 ):
     """Compare vectorizers between model and database,
     generating appropriate migration operations."""
@@ -46,11 +48,14 @@ def compare_vectorizers(
     ).fetchall()
 
     for row in result:
-        parsed_vectorizer = Vectorizer.model_validate(row.vectorizer) # type: ignore
+        parsed_vectorizer = Vectorizer.model_validate(row.vectorizer)  # type: ignore
         existing_vectorizer = ExistingVectorizer(
-            parsed_vectorizer.id, CreateVectorizerParams.from_db_config(parsed_vectorizer)
+            parsed_vectorizer.id,
+            CreateVectorizerParams.from_db_config(parsed_vectorizer),
         )
-        target_table = f"{parsed_vectorizer.target_schema}.{parsed_vectorizer.target_table}"
+        target_table = (
+            f"{parsed_vectorizer.target_schema}.{parsed_vectorizer.target_table}"
+        )
         existing_vectorizers[target_table] = existing_vectorizer
     # Get vectorizers from models
     model_vectorizers: dict[str, CreateVectorizerParams] = {}

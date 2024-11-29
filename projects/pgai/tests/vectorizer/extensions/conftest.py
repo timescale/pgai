@@ -78,7 +78,9 @@ def alembic_config(alembic_dir: Path, postgres_container: PostgresContainer) -> 
 
 
 @pytest.fixture
-def timescale_alembic_config(alembic_dir: Path, timescale_ha_container: PostgresContainer) -> Config:
+def timescale_alembic_config(
+    alembic_dir: Path, timescale_ha_container: PostgresContainer
+) -> Config:
     """Create a configured Alembic environment."""
     # Create alembic.ini from template
     ini_path = alembic_dir / "alembic.ini"
@@ -140,7 +142,7 @@ def initialized_engine(
     with engine.connect() as conn:
         conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
         conn.commit()
-        
+
 
 @pytest.fixture
 def initialized_engine_with_timescale(

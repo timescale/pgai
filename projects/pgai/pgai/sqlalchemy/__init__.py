@@ -8,9 +8,9 @@ from pgai.configuration import (
     ChunkingConfig,
     CreateVectorizerParams,
     DiskANNIndexingConfig,
-    OpenAIEmbeddingConfig,
     HNSWIndexingConfig,
     NoSchedulingConfig,
+    OpenAIEmbeddingConfig,
     ProcessingConfig,
     SchedulingConfig,
 )

@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from typing import Any
+
 import pytest
 import tiktoken
 import vcr  # type:ignore
@@ -78,11 +79,11 @@ def postgres_container():
 def timescale_ha_container():
     load_dotenv()
     with PostgresContainer(
-            image="timescale/timescaledb-ha:pg16",
-            username="tsdbquerier",
-            password="my-password",
-            dbname="tsdb",
-            driver=None,
-            command="postgres -c shared_preload_libraries=timescaledb"
+        image="timescale/timescaledb-ha:pg16",
+        username="tsdbquerier",
+        password="my-password",
+        dbname="tsdb",
+        driver=None,
+        command="postgres -c shared_preload_libraries=timescaledb",
     ).with_env("OPENAI_API_KEY", os.environ["OPENAI_API_KEY"]) as postgres:
         yield postgres

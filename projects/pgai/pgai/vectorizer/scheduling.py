@@ -12,17 +12,18 @@ class TimescaleScheduling(BaseModel):
         interval: The interval at which to run the scheduling.
         retention_policy: The retention policy to use.
     """
-    
+
     implementation: Literal["timescaledb"]
-    schedule_interval: datetime.timedelta
-    initial_start: str
-    job_id: int
+    schedule_interval: datetime.timedelta | None = None
+    initial_start: str | None = None
+    job_id: int | None = None
     fixed_schedule: bool
-    timezone: str
+    timezone: str | None = None
+
 
 class NoScheduling(BaseModel):
     """
     No scheduling configuration.
     """
-    
+
     implementation: Literal["none"]

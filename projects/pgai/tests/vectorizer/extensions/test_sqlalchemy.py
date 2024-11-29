@@ -25,7 +25,9 @@ def test_sqlalchemy(postgres_container: PostgresContainer, initialized_engine: E
         content = Column(Text, nullable=False)
 
         content_embeddings = VectorizerField(
-            embedding=OpenAIEmbeddingConfig(model="text-embedding-3-small", dimensions=768),
+            embedding=OpenAIEmbeddingConfig(
+                model="text-embedding-3-small", dimensions=768
+            ),
             chunking=ChunkingConfig(
                 chunk_column="content", chunk_size=500, chunk_overlap=50
             ),

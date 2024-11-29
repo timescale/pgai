@@ -20,17 +20,17 @@ class DiskANNIndexing(BaseModel):
         num_bytes_per_index: The number of bytes to use per index.
         num_bytes_per_cluster: The number of bytes to use per cluster.
     """
-    
+
     implementation: Literal["diskann"]
     min_rows: int
-    storage_layout: Literal["memory_optimized", "plain"]
-    num_neighbors: int
-    search_list_size: int
-    max_alpha: float
-    num_dimensions: int
-    num_bits_per_dimension: int
+    storage_layout: Literal["memory_optimized", "plain"] | None = None
+    num_neighbors: int | None = None
+    search_list_size: int | None = None
+    max_alpha: float | None = None
+    num_dimensions: int | None = None
+    num_bits_per_dimension: int | None = None
     create_when_queue_empty: bool
-    
+
 
 class HNSWIndexing(BaseModel):
     """
@@ -44,19 +44,18 @@ class HNSWIndexing(BaseModel):
         num_bytes_per_vector: The number of bytes to use per vector.
         num_bytes_per_index: The number of bytes to use per index.
     """
-    
+
     implementation: Literal["hnsw"]
     min_rows: int
-    opclass: Literal["vector_cosine_ops", "vector_l2_ops", "vector_ip_ops"]
+    opclass: Literal["vector_cosine_ops", "vector_l1_ops", "vector_ip_ops"]
     m: int
     ef_construction: int
     create_when_queue_empty: bool
-    
+
 
 class NoIndexing(BaseModel):
     """
     No indexing configuration.
     """
-    
+
     implementation: Literal["none"]
-    

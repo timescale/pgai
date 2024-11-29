@@ -1,5 +1,5 @@
 import textwrap
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, replace
 from typing import Any, Literal, Protocol, runtime_checkable
 
 from alembic.autogenerate.api import AutogenContext
@@ -10,11 +10,11 @@ from pgai.vectorizer.chunking import (
     LangChainCharacterTextSplitter,
     LangChainRecursiveCharacterTextSplitter,
 )
-from pgai.vectorizer.embeddings import OpenAI, Ollama
+from pgai.vectorizer.embeddings import Ollama, OpenAI
 from pgai.vectorizer.formatting import ChunkValue, PythonTemplate
-from pgai.vectorizer.indexing import DiskANNIndexing, HNSWIndexing
+from pgai.vectorizer.indexing import DiskANNIndexing, HNSWIndexing, NoIndexing
 from pgai.vectorizer.processing import ProcessingDefault
-from pgai.vectorizer.scheduling import TimescaleScheduling
+from pgai.vectorizer.scheduling import NoScheduling, TimescaleScheduling
 
 
 def equivalent_value(a: Any, b: Any, default: Any) -> bool:
@@ -153,9 +153,9 @@ class OllamaEmbeddingConfig:
         return cls(
             model=config.model,
             dimensions=config.dimensions,
-            base_url = config.base_url,
-            truncate = config.truncate,
-            keep_alive = config.keep_alive
+            base_url=config.base_url,
+            truncate=config.truncate,
+            keep_alive=config.keep_alive,
         )
 
 
@@ -176,6 +176,19 @@ class ChunkingConfig:
 
     @override
     def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ChunkingConfig):
+            return False
+        # Handle the separator special case
+        if self.separator is not None and other.separator is not None:
+            if isinstance(self.separator, str) and isinstance(other.separator, list):
+                other = replace(
+                    other,
+                    separator=[other.separator[0]]
+                    if len(other.separator) == 1
+                    else other.separator,
+                )
+            elif isinstance(self.separator, list) and isinstance(other.separator, str):
+                other = replace(other, separator=[other.separator])
         return equivalent_dataclass_with_defaults(self, other, self._defaults)
 
     def to_sql_argument(self) -> str:
@@ -231,6 +244,23 @@ class ChunkingConfig:
 
 
 @dataclass
+class NoIndexingConfig:
+    @override
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, NoIndexingConfig)
+
+    def to_sql_argument(self) -> str:
+        return ", indexing => ai.indexing_none()"
+
+    def to_python_arg(self) -> str:
+        return format_python_arg("indexing", self)
+
+    @classmethod
+    def from_db_config(cls, config: NoIndexing) -> "NoIndexingConfig":  # noqa: ARG003
+        return cls()
+
+
+@dataclass
 class DiskANNIndexingConfig:
     min_rows: int | None = None
     storage_layout: Literal["memory_optimized", "plain"] | None = None
@@ -271,7 +301,7 @@ class DiskANNIndexingConfig:
 
     def to_python_arg(self) -> str:
         return format_python_arg("indexing", self)
-    
+
     @classmethod
     def from_db_config(cls, config: DiskANNIndexing) -> "DiskANNIndexingConfig":
         return cls(
@@ -289,7 +319,7 @@ class DiskANNIndexingConfig:
 @dataclass
 class HNSWIndexingConfig:
     min_rows: int | None = None
-    opclass: Literal["vector_cosine_ops", "vector_l2_ops", "vector_ip_ops"] | None = (
+    opclass: Literal["vector_cosine_ops", "vector_l1_ops", "vector_ip_ops"] | None = (
         None
     )
     m: int | None = None
@@ -324,7 +354,7 @@ class HNSWIndexingConfig:
 
     def to_python_arg(self) -> str:
         return format_python_arg("indexing", self)
-    
+
     @classmethod
     def from_db_config(cls, config: HNSWIndexing) -> "HNSWIndexingConfig":
         return cls(
@@ -347,6 +377,10 @@ class NoSchedulingConfig:
 
     def to_python_arg(self) -> str:
         return format_python_arg("scheduling", self)
+
+    @classmethod
+    def from_db_config(cls, config: NoScheduling) -> "NoSchedulingConfig":  # noqa: ARG003
+        return cls()
 
 
 @dataclass
@@ -376,7 +410,7 @@ class SchedulingConfig:
 
     def to_python_arg(self) -> str:
         return format_python_arg("scheduling", self)
-    
+
     @classmethod
     def from_db_config(cls, config: TimescaleScheduling) -> "SchedulingConfig":
         return cls(
@@ -430,7 +464,9 @@ class CreateVectorizerParams:
     source_table: str | None
     embedding: OpenAIEmbeddingConfig | OllamaEmbeddingConfig | None = None
     chunking: ChunkingConfig | None = None
-    indexing: DiskANNIndexingConfig | HNSWIndexingConfig | None = None
+    indexing: DiskANNIndexingConfig | HNSWIndexingConfig | NoIndexingConfig | None = (
+        None
+    )
     formatting_template: str | None = None
     scheduling: SchedulingConfig | NoSchedulingConfig | None = None
     processing: ProcessingConfig | None = None
@@ -448,6 +484,7 @@ class CreateVectorizerParams:
         "enqueue_existing": True,
         "processing": ProcessingConfig(),
         "scheduling": NoSchedulingConfig(),
+        "indexing": NoIndexingConfig(),
         "queue_schema": "ai",
     }
 
@@ -555,20 +592,42 @@ class CreateVectorizerParams:
         """
         embedding_config: None | OpenAIEmbeddingConfig | OllamaEmbeddingConfig = None
         if isinstance(vectorizer.config.embedding, OpenAI):
-            embedding_config = OpenAIEmbeddingConfig.from_db_config(vectorizer.config.embedding)
+            embedding_config = OpenAIEmbeddingConfig.from_db_config(
+                vectorizer.config.embedding
+            )
         if isinstance(vectorizer.config.embedding, Ollama):
-            embedding_config = OllamaEmbeddingConfig.from_db_config(vectorizer.config.embedding)
+            embedding_config = OllamaEmbeddingConfig.from_db_config(
+                vectorizer.config.embedding
+            )
         chunking_config = ChunkingConfig.from_db_config(vectorizer.config.chunking)
-        processing_config = ProcessingConfig.from_db_config(vectorizer.config.processing)
-        indexing_config: None | DiskANNIndexingConfig | HNSWIndexingConfig = None
+        processing_config = ProcessingConfig.from_db_config(
+            vectorizer.config.processing
+        )
+        indexing_config: (
+            None | DiskANNIndexingConfig | HNSWIndexingConfig | NoIndexingConfig
+        ) = None
         if isinstance(vectorizer.config.indexing, DiskANNIndexing):
-            indexing_config = DiskANNIndexingConfig.from_db_config(vectorizer.config.indexing)
+            indexing_config = DiskANNIndexingConfig.from_db_config(
+                vectorizer.config.indexing
+            )
         if isinstance(vectorizer.config.indexing, HNSWIndexing):
-            indexing_config = HNSWIndexingConfig.from_db_config(vectorizer.config.indexing)
-        
+            indexing_config = HNSWIndexingConfig.from_db_config(
+                vectorizer.config.indexing
+            )
+        if isinstance(vectorizer.config.indexing, NoIndexing):
+            indexing_config = NoIndexingConfig.from_db_config(
+                vectorizer.config.indexing
+            )
+
         scheduling_config: None | NoSchedulingConfig | SchedulingConfig = None
         if isinstance(vectorizer.config.scheduling, TimescaleScheduling):
-            scheduling_config = SchedulingConfig.from_db_config(vectorizer.config.scheduling)
+            scheduling_config = SchedulingConfig.from_db_config(
+                vectorizer.config.scheduling
+            )
+        if isinstance(vectorizer.config.scheduling, NoScheduling):
+            scheduling_config = NoSchedulingConfig.from_db_config(
+                vectorizer.config.scheduling
+            )
 
         # Get formatting template
         formatting_template = None

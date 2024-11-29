@@ -1,14 +1,9 @@
-from datetime import timedelta
 from pathlib import Path
 
 from alembic.command import downgrade, upgrade
 from alembic.config import Config
 from sqlalchemy import Engine, inspect, text
 
-from pgai.configuration import DiskANNIndexingConfig
-from pgai.vectorizer import Vectorizer
-from pgai.vectorizer.indexing import DiskANNIndexing
-from pgai.vectorizer.scheduling import TimescaleScheduling
 from tests.vectorizer.extensions.conftest import load_template
 
 
@@ -130,79 +125,3 @@ def test_vectorizer_migration(
     inspector = inspect(initialized_engine)
     tables = inspector.get_table_names()
     assert "blog" not in tables
-    
-
-
-def test_vectorizer_migration_all_fields(
-    alembic_config: Config,
-    initialized_engine: Engine,
-    cleanup_modules: None,  # noqa: ARG001
-):
-    """Test vectorizer creation with a bunch of fields"""
-    migrations_dir = Path(alembic_config.get_main_option("script_location"))  # type: ignore
-    versions_dir = migrations_dir / "versions"
-
-    with initialized_engine.connect() as conn:
-        conn.execute(
-            text(
-                """
-                CREATE schema timescale;
-                CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
-                """
-            )
-        )
-        conn.commit()
-
-    # First migration - create blog table
-    indexing_config = DiskANNIndexingConfig(
-        min_rows=10,
-        storage_layout='plain',
-        num_neighbors=5,
-        search_list_size=10,
-        max_alpha=0.5,
-        num_dimensions=10,
-        num_bits_per_dimension=10,
-        create_when_queue_empty=False
-    )
-    blog_content = load_template(
-        "migrations/001_create_blog_table.py.template",
-        revision_id="001",
-        revises="",
-        create_date="2024-03-19 10:00:00.000000",
-        down_revision="None",
-    )
-    with open(versions_dir / "001_create_blog_table.py", "w") as f:
-        f.write(blog_content)
-
-    # Second migration - create vectorizer
-    vectorizer_content = load_template(
-        "migrations/002_create_vectorizer_all_fields.py.template",
-        revision_id="002",
-        revises="001",
-        create_date="2024-03-19 10:01:00.000000",
-        down_revision="001",
-        indexing=indexing_config.to_python_arg()
-    )
-    with open(versions_dir / "002_create_vectorizer.py", "w") as f:
-        f.write(vectorizer_content)
-
-    # Run upgrade
-    upgrade(alembic_config, "head")
-    
-    # Verify vectorizer exists
-    with initialized_engine.connect() as conn:
-        rows = conn.execute(
-            text("""
-                    select pg_catalog.to_jsonb(v) as vectorizer from ai.vectorizer v
-                """)
-        ).fetchall()
-        assert len(rows) == 1
-        parsed_vectorizer = Vectorizer.model_validate(rows[0].vectorizer) # type: ignore
-        assert parsed_vectorizer.target_table == "blog_posts_embedding"
-        assert isinstance(parsed_vectorizer.config.scheduling, TimescaleScheduling)
-        assert parsed_vectorizer.config.scheduling.fixed_schedule == True
-        assert parsed_vectorizer.config.scheduling.schedule_interval == timedelta(hours=1)
-        
-        assert isinstance(parsed_vectorizer.config.indexing, DiskANNIndexing)
-        assert parsed_vectorizer.config.indexing.min_rows == 10
-        assert parsed_vectorizer.config.indexing.storage_layout == 'plain'

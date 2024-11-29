@@ -26,7 +26,7 @@ from .embeddings import ChunkEmbeddingError, Ollama, OpenAI
 from .formatting import ChunkValue, PythonTemplate
 from .indexing import DiskANNIndexing, HNSWIndexing, NoIndexing
 from .processing import ProcessingDefault
-from .scheduling import TimescaleScheduling, NoScheduling
+from .scheduling import NoScheduling, TimescaleScheduling
 
 logger = structlog.get_logger()
 
