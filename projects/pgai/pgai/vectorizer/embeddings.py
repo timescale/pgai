@@ -728,7 +728,7 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
         return 128
 
     async def call_embed_api(self, documents: list[str]) -> EmbeddingResponse:
-        response = await voyageai.AsyncClient().embed(
+        response = await voyageai.AsyncClient(api_key=self._api_key).embed(
             documents,
             model=self.model,
             input_type=self.input_type,
@@ -759,7 +759,7 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
         """
         valid_document_idxs: list[int] = []
         invalid_documents_idxs: list[int] = []
-        tokenizer = voyageai.Client().tokenizer(self.model)
+        tokenizer = voyageai.Client(api_key=self._api_key).tokenizer(self.model)
         tokenized_docs = tokenizer.encode_batch(documents)
         for i, doc in enumerate(tokenized_docs):
             if len(doc.tokens) > model_token_length:
