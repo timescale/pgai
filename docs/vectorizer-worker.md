@@ -65,7 +65,7 @@ On your local machine:
            volumes:
              - ./data:/var/lib/postgresql/data
          vectorizer-worker:
-           image: timescale/pgai-vectorizer-worker:0.1.0rc4
+           image: timescale/pgai-vectorizer-worker:v0.2.1
            environment:
              PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
              OPENAI_API_KEY: <your-api-key>
@@ -106,7 +106,7 @@ On your local machine:
    name: pgai
    services:
      vectorizer-worker:
-       image: timescale/pgai-vectorizer-worker:0.1.0
+       image: timescale/pgai-vectorizer-worker:v0.2.1
        environment:
          PGAI_VECTORIZER_WORKER_DB_URL: postgres://<username>:<password>@<host>:<port>/<database-name>
          OPENAI_API_KEY: <your-api-key>
