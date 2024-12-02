@@ -1,0 +1,24 @@
+"""create test table
+
+Revision ID: {revision_id}
+Revises: {revises}
+Create Date: {create_date}
+"""
+from alembic import op
+import sqlalchemy as sa
+
+# revision identifiers
+revision = '{revision_id}'
+down_revision = {down_revision}
+branch_labels = None
+depends_on = None
+
+def upgrade():
+    op.create_table(
+        'test_table',
+        sa.Column('id', sa.Integer, primary_key=True),
+        sa.Column('name', sa.String(50), nullable=False)
+    )
+
+def downgrade():
+    op.drop_table('test_table')

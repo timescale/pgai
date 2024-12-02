@@ -45,6 +45,7 @@ classifiers = [
 [project.optional-dependencies]
 sqlalchemy=[
     "sqlalchemy>=2.0.36",
+    "alembic>=1.14.0",
 ]
 
 [project.urls]

@@ -1,0 +1,46 @@
+"""create vectorizer
+
+Revision ID: {revision_id}
+Revises: {revises}
+Create Date: {create_date}
+"""
+from alembic import op
+from pgai.alembic import CreateVectorizerOp
+from pgai.configuration import (
+   OpenAIEmbeddingConfig,
+    ChunkingConfig
+)
+from sqlalchemy import text
+
+# revision identifiers
+revision = '{revision_id}'
+down_revision = '{down_revision}'
+branch_labels = None
+depends_on = None
+
+def upgrade():
+    op.create_vectorizer(
+        'blog',
+        target_table='blog_embeddings',
+        embedding=OpenAIEmbeddingConfig(
+            model='text-embedding-3-small',
+            dimensions=768
+        ),
+        chunking=ChunkingConfig(
+            chunk_column='content',
+            chunk_size=700
+        ),
+        formatting_template='$title - $chunk'
+    )
+
+def downgrade():
+    connection = op.get_bind()
+    # Look up the vectorizer ID
+    result = connection.execute(
+        text("SELECT id FROM ai.vectorizer WHERE source_table = 'blog'")
+    ).scalar()
+    if result is not None:
+        print(f"Found vectorizer with ID: {{result}}")
+        op.drop_vectorizer(result, drop_all=True)
+    else:
+        print("No vectorizer found!")
