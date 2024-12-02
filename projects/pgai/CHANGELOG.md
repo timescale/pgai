@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/timescale/pgai/compare/pgai-v0.2.0...pgai-v0.2.1) (2024-12-02)
+
+
+### Bug Fixes
+
+* make vectorizer worker robust ([#263](https://github.com/timescale/pgai/issues/263)) ([77c0baf](https://github.com/timescale/pgai/commit/77c0baf57438a837f47c179769bc684edeafbfc8))
+
 ## [0.2.0](https://github.com/timescale/pgai/compare/pgai-v0.1.0...pgai-v0.2.0) (2024-11-26)
 
 
