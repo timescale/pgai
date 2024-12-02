@@ -19,10 +19,7 @@ On your local machine:
    name: pgai 
    services:
      db:
-       build:
-         dockerfile: Dockerfile
-         context: ../pgai/projects/extension
-         target: pgai-test-db
+       image: timescale/timescaledb-ha:pg17
        environment:
          POSTGRES_PASSWORD: postgres
        ports:
@@ -30,9 +27,7 @@ On your local machine:
        volumes:
          - ./data:/var/lib/postgresql/data
      vectorizer-worker:
-       build:
-         dockerfile: Dockerfile
-         context: ../pgai/projects/pgai
+       image: timescale/pgai-vectorizer-worker:v0.2.1
        environment:
          PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
          OLLAMA_HOST: http://ollama:11434
@@ -49,7 +44,7 @@ On your local machine:
 Before we start we need to tell ollama to download an embedding model so we can use it with pgai. For this example we will use the "nomic-embed-text" model.
 To download it into the container simply run:
 ```
-docker-compose exec ollama ollama pull nomic-embed-text
+docker compose exec ollama ollama pull nomic-embed-text
 ```
 
 ## Create and run a vectorizer
@@ -121,7 +116,7 @@ Now we can create and run a vectorizer. A vectorizer is a pgai concept, it proce
     ```sql
     SELECT
         chunk,
-        embedding <=>  ai.ollama('nomic-embed-text', 'good food', host => 'http://ollama:11434') as distance,
+        embedding <=>  ai.ollama_embed('nomic-embed-text', 'good food', host => 'http://ollama:11434') as distance
     FROM blog_contents_embeddings
     ORDER BY distance;
     ```
