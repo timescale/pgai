@@ -3,7 +3,6 @@ from dataclasses import dataclass, fields
 from typing import Any, Literal, Protocol, runtime_checkable
 
 from alembic.autogenerate.api import AutogenContext
-
 from pgai.vectorizer.processing import ProcessingDefault
 
 
