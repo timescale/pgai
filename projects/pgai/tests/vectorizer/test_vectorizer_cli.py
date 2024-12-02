@@ -20,6 +20,7 @@ count = 10000
 
 
 class TestDatabase:
+    __test__ = False
     """"""
 
     container: PostgresContainer
@@ -91,28 +92,44 @@ def test_worker_no_tasks(cli_db_url: str):
 
 
 @pytest.fixture
-def configured_vectorizer_and_source_table(
-    cli_db: tuple[TestDatabase, Connection],
-    test_params: tuple[int, int, int, str, str],
-) -> int:
-    """Creates and configures a vectorizer for testing"""
-    num_items, concurrency, batch_size, chunking, formatting = test_params
+def source_table(
+    cli_db: tuple[TestDatabase, Connection], test_params: tuple[int, int, int, str, str]
+) -> str:
     _, conn = cli_db
-
+    num_items = test_params[0]
+    table_name = "blog"
     with conn.cursor(row_factory=dict_row) as cur:
         # Create source table
-        cur.execute("""
-            CREATE TABLE blog (
+        cur.execute(f"""
+            CREATE TABLE {table_name} (
                 id INT NOT NULL PRIMARY KEY,
                 id2 INT NOT NULL,
                 content TEXT NOT NULL
             )
         """)
+        # Insert test data
+        values = [(i, i, f"post_{i}") for i in range(1, num_items + 1)]
+        cur.executemany(
+            "INSERT INTO blog (id, id2, content) VALUES (%s, %s, %s)", values
+        )
+    return table_name
 
+
+@pytest.fixture
+def configured_openai_vectorizer_id(
+    source_table: str,
+    cli_db: tuple[TestDatabase, Connection],
+    test_params: tuple[int, int, int, str, str],
+) -> int:
+    """Creates and configures a vectorizer for testing"""
+    _, concurrency, batch_size, chunking, formatting = test_params
+    _, conn = cli_db
+
+    with conn.cursor(row_factory=dict_row) as cur:
         # Create vectorizer
         cur.execute(f"""
             SELECT ai.create_vectorizer(
-                'blog'::regclass,
+                '{source_table}'::regclass,
                 embedding => ai.embedding_openai(
                     'text-embedding-ada-002',
                     1536,
@@ -126,11 +143,35 @@ def configured_vectorizer_and_source_table(
         """)  # type: ignore
         vectorizer_id: int = int(cur.fetchone()["create_vectorizer"])  # type: ignore
 
-        # Insert test data
-        values = [(i, i, f"post_{i}") for i in range(1, num_items + 1)]
-        cur.executemany(
-            "INSERT INTO blog (id, id2, content) VALUES (%s, %s, %s)", values
-        )
+        return vectorizer_id
+
+
+@pytest.fixture
+def configured_ollama_vectorizer_id(
+    source_table: str,
+    cli_db: tuple[TestDatabase, Connection],
+    test_params: tuple[int, int, int, str, str],
+) -> int:
+    """Creates and configures an ollama vectorizer for testing"""
+    _, concurrency, batch_size, chunking, formatting = test_params
+    _, conn = cli_db
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        # Create vectorizer
+        cur.execute(f"""
+            SELECT ai.create_vectorizer(
+                '{source_table}'::regclass,
+                embedding => ai.embedding_ollama(
+                    'nomic-embed-text',
+                    768
+                ),
+                chunking => ai.{chunking},
+                formatting => ai.{formatting},
+                processing => ai.processing_default(batch_size => {batch_size},
+                                                    concurrency => {concurrency})
+            )
+        """)  # type: ignore
+        vectorizer_id: int = int(cur.fetchone()["create_vectorizer"])  # type: ignore
 
         return vectorizer_id
 
@@ -142,7 +183,7 @@ def test_params(request: pytest.FixtureRequest) -> tuple[int, int, int, str, str
     return request.param
 
 
-class TestWithConfiguredVectorizer:
+class TestWithOpenAiVectorizer:
     @pytest.mark.parametrize(
         "test_params",
         [
@@ -166,7 +207,7 @@ class TestWithConfiguredVectorizer:
         self,
         cli_db: tuple[TestDatabase, Connection],
         cli_db_url: str,
-        configured_vectorizer_and_source_table: int,
+        configured_openai_vectorizer_id: int,
         monkeypatch: pytest.MonkeyPatch,
         vcr_: Any,
         test_params: tuple[int, int, int, str, str],
@@ -198,7 +239,7 @@ class TestWithConfiguredVectorizer:
                     cli_db_url,
                     "--once",
                     "--vectorizer-id",
-                    str(configured_vectorizer_and_source_table),
+                    str(configured_openai_vectorizer_id),
                     "--concurrency",
                     str(concurrency),
                 ],
@@ -229,7 +270,7 @@ class TestWithConfiguredVectorizer:
         self,
         cli_db: tuple[TestDatabase, Connection],
         cli_db_url: str,
-        configured_vectorizer_and_source_table: int,
+        configured_openai_vectorizer_id: int,
         monkeypatch: pytest.MonkeyPatch,
         vcr_: Any,
     ):
@@ -252,7 +293,7 @@ class TestWithConfiguredVectorizer:
                     cli_db_url,
                     "--once",
                     "--vectorizer-id",
-                    str(configured_vectorizer_and_source_table),
+                    str(configured_openai_vectorizer_id),
                 ],
                 catch_exceptions=False,
             )
@@ -303,7 +344,7 @@ class TestWithConfiguredVectorizer:
         self,
         cli_db: tuple[TestDatabase, Connection],
         cli_db_url: str,
-        configured_vectorizer_and_source_table: int,
+        configured_openai_vectorizer_id: int,
         monkeypatch: pytest.MonkeyPatch,
         vcr_: Any,
     ):
@@ -322,7 +363,7 @@ class TestWithConfiguredVectorizer:
                         cli_db_url,
                         "--once",
                         "--vectorizer-id",
-                        str(configured_vectorizer_and_source_table),
+                        str(configured_openai_vectorizer_id),
                     ],
                 )
             except openai.AuthenticationError as e:
@@ -334,7 +375,7 @@ class TestWithConfiguredVectorizer:
             records = cur.fetchall()
             assert len(records) == 1
             error = records[0]
-            assert error["id"] == configured_vectorizer_and_source_table
+            assert error["id"] == configured_openai_vectorizer_id
             assert error["message"] == "embedding provider failed"
             assert error["details"] == {
                 "provider": "openai",
@@ -362,7 +403,7 @@ class TestWithConfiguredVectorizer:
         self,
         cli_db: tuple[TestDatabase, Connection],
         cli_db_url: str,
-        configured_vectorizer_and_source_table: int,
+        configured_openai_vectorizer_id: int,
         monkeypatch: pytest.MonkeyPatch,
     ):
         """Test that worker handles invalid embedding model arguments appropriately"""
@@ -381,7 +422,7 @@ class TestWithConfiguredVectorizer:
                 )
                 WHERE id = %s
             """,
-                (configured_vectorizer_and_source_table,),
+                (configured_openai_vectorizer_id,),
             )
 
         # When running the worker
@@ -393,7 +434,7 @@ class TestWithConfiguredVectorizer:
                     cli_db_url,
                     "--once",
                     "--vectorizer-id",
-                    str(configured_vectorizer_and_source_table),
+                    str(configured_openai_vectorizer_id),
                 ],
             )
         except ValueError as e:
@@ -405,7 +446,7 @@ class TestWithConfiguredVectorizer:
             records = cur.fetchall()
             assert len(records) == 1
             error = records[0]
-            assert error["id"] == configured_vectorizer_and_source_table
+            assert error["id"] == configured_openai_vectorizer_id
             assert error["message"] == "embedding provider failed"
             assert error["details"] == {
                 "provider": "openai",
@@ -413,26 +454,187 @@ class TestWithConfiguredVectorizer:
             }
 
 
-def test_worker_no_extension(
-    postgres_container: PostgresContainer,
+@pytest.mark.parametrize(
+    "test_params",
+    [
+        (
+            1,
+            1,
+            1,
+            "chunking_character_text_splitter('content')",
+            "formatting_python_template('$chunk')",
+        ),
+        (
+            4,
+            2,
+            2,
+            "chunking_character_text_splitter('content')",
+            "formatting_python_template('$chunk')",
+        ),
+    ],
+)
+def test_ollama_vectorizer(
+    cli_db: tuple[TestDatabase, Connection],
+    cli_db_url: str,
+    configured_ollama_vectorizer_id: int,
+    vcr_: Any,
+    test_params: tuple[int, int, int, str, str],
 ):
-    """Test that the worker fails when pgai extension is not installed"""
-    result = CliRunner().invoke(
-        vectorizer_worker,
-        ["--db-url", postgres_container.get_connection_url(), "--once"],
+    """Test successful processing of vectorizer tasks"""
+    num_items, concurrency, batch_size, _, _ = test_params
+    _, conn = cli_db
+    # Insert pre-existing embedding for first item
+    with conn.cursor() as cur:
+        cur.execute("""
+           INSERT INTO
+           blog_embedding_store(embedding_uuid, id, chunk_seq, chunk, embedding)
+           VALUES (gen_random_uuid(), 1, 1, 'post_1',
+            array_fill(0, ARRAY[768])::vector)
+        """)
+
+    # When running the worker with cassette matching original test params
+    cassette = (
+        f"ollama-character_text_splitter-chunk_value-"
+        f"items={num_items}-batch_size={batch_size}.yaml"
     )
+    logging.getLogger("vcr").setLevel(logging.DEBUG)
+    with vcr_.use_cassette(cassette):
+        result = CliRunner().invoke(
+            vectorizer_worker,
+            [
+                "--db-url",
+                cli_db_url,
+                "--once",
+                "--vectorizer-id",
+                str(configured_ollama_vectorizer_id),
+                "--concurrency",
+                str(concurrency),
+            ],
+            catch_exceptions=False,
+        )
 
-    assert result.exit_code == 1
-    assert "the pgai extension is not installed" in result.output.lower()
+    assert not result.exception
+    assert result.exit_code == 0
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT count(*) as count FROM blog_embedding_store;")
+        assert cur.fetchone()["count"] == num_items  # type: ignore
 
 
-def test_vectorizer_exits_when_vectorizers_specified_but_missing(cli_db_url: str):
-    result = CliRunner().invoke(
-        vectorizer_worker,
-        ["--db-url", cli_db_url, "--poll-interval", "0.1s", "--vectorizer-id", "0"],
-    )
-    assert result.exit_code != 0
-    assert "invalid vectorizers, wanted: [0], got: []" in result.output
+def test_ollama_vectorizer_handles_chunk_failure_correctly(
+    cli_db: tuple[TestDatabase, Connection],
+    cli_db_url: str,
+    vcr_: Any,
+):
+    """Test successful processing of vectorizer tasks"""
+    _, conn = cli_db
+
+    # Set up vectorizer which will fail to embed chunk
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("CREATE TABLE blog(id bigint primary key, content text);")
+        cur.execute("""SELECT ai.create_vectorizer(
+                'blog',
+                embedding => ai.embedding_ollama(
+                    'nomic-embed-text',
+                    768,
+                    truncate => false
+                ),
+                chunking => ai.chunking_character_text_splitter('content')
+        )""")  # noqa
+        cur.execute("INSERT INTO blog (id, content) VALUES(1, repeat('1', 10000))")
+
+    # When running the worker with cassette matching original test params
+    cassette = "ollama-character_text_splitter-too-large-chunk_value.yaml"
+    logging.getLogger("vcr").setLevel(logging.DEBUG)
+    with vcr_.use_cassette(cassette):
+        result = CliRunner().invoke(
+            vectorizer_worker,
+            [
+                "--db-url",
+                cli_db_url,
+                "--once",
+            ],
+            catch_exceptions=False,
+        )
+
+    assert not result.exception
+    assert result.exit_code == 0
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT count(*) as count FROM blog_embedding_store;")
+        assert cur.fetchone()["count"] == 0  # type: ignore
+        cur.execute("SELECT count(*) as count FROM ai.vectorizer_errors;")
+        assert cur.fetchone()["count"] == 1  # type: ignore
+
+
+class TestExitOnError:
+    def test_vectorizer_exits_with_error_when_no_ai_extension(
+        self,
+        postgres_container: PostgresContainer,
+    ):
+        result = CliRunner().invoke(
+            vectorizer_worker,
+            ["--db-url", postgres_container.get_connection_url(), "--once"],
+        )
+
+        assert result.exit_code == 1
+        assert "the pgai extension is not installed" in result.output.lower()
+
+    def test_vectorizer_exits_with_error_when_vectorizers_specified_but_missing(
+        self, cli_db_url: str
+    ):
+        result = CliRunner().invoke(
+            vectorizer_worker,
+            [
+                "--db-url",
+                cli_db_url,
+                "--poll-interval",
+                "0.1s",
+                "--vectorizer-id",
+                "0",
+                "--once",
+            ],
+        )
+        assert result.exit_code != 0
+        assert "invalid vectorizers, wanted: [0], got: []" in result.output
+
+
+class TestNoExitOnError:
+    def test_vectorizer_does_not_exit_with_error_when_no_ai_extension(
+        self,
+        postgres_container: PostgresContainer,
+    ):
+        result = CliRunner().invoke(
+            vectorizer_worker,
+            [
+                "--db-url",
+                postgres_container.get_connection_url(),
+                "--once",
+                "--exit-on-error=false",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "the pgai extension is not installed" in result.output.lower()
+
+    def test_vectorizer_does_not_exit_with_error_when_vectorizers_specified_but_missing(
+        self, cli_db_url: str
+    ):
+        result = CliRunner().invoke(
+            vectorizer_worker,
+            [
+                "--db-url",
+                cli_db_url,
+                "--poll-interval",
+                "0.1s",
+                "--vectorizer-id",
+                "0",
+                "--once",
+                "--exit-on-error=false",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "invalid vectorizers, wanted: [0], got: []" in result.output
 
 
 def test_vectorizer_picks_up_new_vectorizer(
@@ -517,7 +719,7 @@ def test_vectorizer_picks_up_new_vectorizer(
 def test_recursive_character_splitting(
     cli_db: tuple[PostgresContainer, Connection],
     cli_db_url: str,
-    configured_vectorizer_and_source_table: int,
+    configured_openai_vectorizer_id: int,
     monkeypatch: pytest.MonkeyPatch,
     vcr_: Any,
 ):
@@ -557,7 +759,7 @@ Each type has its own unique applications and methodologies."""
                 cli_db_url,
                 "--once",
                 "--vectorizer-id",
-                str(configured_vectorizer_and_source_table),
+                str(configured_openai_vectorizer_id),
             ],
             catch_exceptions=False,
         )

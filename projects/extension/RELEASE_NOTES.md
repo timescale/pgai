@@ -1,6 +1,19 @@
 
 # Pgai extension release notes
 
+## 0.5.0 (2024-11-26)
+
+This release adds support for using Ollama in a vectorizer, and fixes a bug
+introduced in 0.4.1.
+
+### New features and improvements
+
+- Use the `ai.embedding_ollama` function to configure a vectorizer to use an Ollama API 6a4a449e99e2e5e62b5f551206a0b28e5ad40802.
+
+### Fixes
+
+- Allow members of source table to create vectorizer 39537792048b64049b252ee11f1236b906e0b726.
+
 ## 0.4.1 (2024-11-19)
 
 This release focuses on improving reliability, performance, and maintainability 

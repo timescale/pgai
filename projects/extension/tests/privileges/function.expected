@@ -164,6 +164,10 @@
  f       | bob   | execute   | no      | ai     | drop_vectorizer(vectorizer_id integer, drop_all boolean)
  f       | fred  | execute   | no      | ai     | drop_vectorizer(vectorizer_id integer, drop_all boolean)
  f       | jill  | execute   | YES     | ai     | drop_vectorizer(vectorizer_id integer, drop_all boolean)
+ f       | alice | execute   | YES     | ai     | embedding_ollama(model text, dimensions integer, base_url text, truncate boolean, options jsonb, keep_alive text)
+ f       | bob   | execute   | no      | ai     | embedding_ollama(model text, dimensions integer, base_url text, truncate boolean, options jsonb, keep_alive text)
+ f       | fred  | execute   | no      | ai     | embedding_ollama(model text, dimensions integer, base_url text, truncate boolean, options jsonb, keep_alive text)
+ f       | jill  | execute   | YES     | ai     | embedding_ollama(model text, dimensions integer, base_url text, truncate boolean, options jsonb, keep_alive text)
  f       | alice | execute   | YES     | ai     | embedding_openai(model text, dimensions integer, chat_user text, api_key_name text)
  f       | bob   | execute   | no      | ai     | embedding_openai(model text, dimensions integer, chat_user text, api_key_name text)
  f       | fred  | execute   | no      | ai     | embedding_openai(model text, dimensions integer, chat_user text, api_key_name text)
@@ -296,5 +300,5 @@
  f       | bob   | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer, exact_count boolean)
  f       | fred  | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer, exact_count boolean)
  f       | jill  | execute   | YES     | ai     | vectorizer_queue_pending(vectorizer_id integer, exact_count boolean)
-(296 rows)
+(300 rows)
 
