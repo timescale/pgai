@@ -26,6 +26,7 @@ begin
             when admin then 'all privileges'
             else
                 case
+                    when k.relname operator(pg_catalog.=) 'semantic_catalog' then 'select'
                     when k.relkind in ('r', 'p') then 'select, insert, update, delete'
                     when k.relkind in ('S') then 'usage, select, update'
                     when k.relkind in ('v') then 'select'
@@ -86,7 +87,14 @@ begin
         and e.extname operator(pg_catalog.=) 'ai'
         and k.prokind in ('f', 'p')
         and case
-              when k.proname in ('grant_ai_usage', 'grant_secret', 'revoke_secret') then admin -- only admins get these function
+              when k.proname in
+                ( 'grant_ai_usage'
+                , 'grant_secret'
+                , 'revoke_secret'
+                , 'post_restore'
+                , 'initialize_semantic_catalog'
+                )
+              then admin -- only admins get these function
               else true
             end
     )
