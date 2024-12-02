@@ -1,8 +1,19 @@
 from typing import Any, Generic, TypeVar
 
 from pgvector.sqlalchemy import Vector  # type: ignore
-from sqlalchemy import ForeignKeyConstraint, Integer, Text, inspect
+from sqlalchemy import ForeignKeyConstraint, Integer, MetaData, Text, inspect
 from sqlalchemy.orm import DeclarativeBase, Mapped, backref, mapped_column, relationship
+
+from pgai.configuration import (
+    ChunkingConfig,
+    CreateVectorizerParams,
+    DiskANNIndexingConfig,
+    HNSWIndexingConfig,
+    NoSchedulingConfig,
+    OpenAIEmbeddingConfig,
+    ProcessingConfig,
+    SchedulingConfig,
+)
 
 # Type variable for the parent model
 T = TypeVar("T", bound=DeclarativeBase)
@@ -28,15 +39,49 @@ class EmbeddingModel(DeclarativeBase, Generic[T]):
 class Vectorizer:
     def __init__(
         self,
-        dimensions: int,
+        embedding: OpenAIEmbeddingConfig,
+        chunking: ChunkingConfig,
+        formatting_template: str | None = None,
+        indexing: DiskANNIndexingConfig | HNSWIndexingConfig | None = None,
+        scheduling: SchedulingConfig | NoSchedulingConfig | None = None,
+        processing: ProcessingConfig | None = None,
         target_schema: str | None = None,
         target_table: str | None = None,
+        view_schema: str | None = None,
+        view_name: str | None = None,
+        queue_schema: str | None = None,
+        queue_table: str | None = None,
+        grant_to: list[str] | None = None,
+        enqueue_existing: bool = True,
         add_relationship: bool = False,
     ):
         self.add_relationship = add_relationship
-        self.dimensions = dimensions
+
+        self.embedding_config = embedding
+
+        self.chunking_config = chunking
+
+        if formatting_template is None:
+            self.formatting_template = "$chunk"
+        else:
+            self.formatting_template = formatting_template
+
+        # Handle optional configs
+        self.indexing_config = indexing
+
+        self.scheduling_config = scheduling
+
+        self.processing_config = processing
+
+        # Store table/view configuration
         self.target_schema = target_schema
         self.target_table = target_table
+        self.view_schema = view_schema
+        self.view_name = view_name
+        self.queue_schema = queue_schema or "ai"
+        self.queue_table = queue_table
+        self.grant_to = grant_to
+        self.enqueue_existing = enqueue_existing
         self.owner: type[DeclarativeBase] | None = None
         self.name: str | None = None
         self._embedding_class: type[EmbeddingModel[Any]] | None = None
@@ -59,13 +104,12 @@ class Vectorizer:
             or owner.registry.metadata.schema
             or "public"
         )
+        self.view_schema = self.view_schema or self.target_schema
 
     def create_embedding_class(
         self, owner: type[DeclarativeBase]
     ) -> type[EmbeddingModel[Any]]:
         assert self.name is not None
-        table_name = self.target_table or f"{owner.__tablename__}_{self.name}_store"
-        self.set_schemas_correctly(owner)
         class_name = f"{to_pascal_case(self.name)}Embedding"
         registry_instance = owner.registry
         base: type[DeclarativeBase] = owner.__base__  # type: ignore
@@ -76,12 +120,12 @@ class Vectorizer:
 
         # Create the complete class dictionary
         class_dict: dict[str, Any] = {
-            "__tablename__": table_name,
+            "__tablename__": self.target_table,
             "registry": registry_instance,
             # Add all standard columns
             "embedding_uuid": mapped_column(Text, primary_key=True),
             "chunk": mapped_column(Text, nullable=False),
-            "embedding": mapped_column(Vector(self.dimensions), nullable=False),
+            "embedding": mapped_column(Vector(self.embedding_config.dimensions), nullable=False),
             "chunk_seq": mapped_column(Integer, nullable=False),
         }
 
@@ -142,11 +186,49 @@ class Vectorizer:
     def __set_name__(self, owner: type[DeclarativeBase], name: str):
         self.owner = owner
         self.name = name
+        if self.view_name is None:
+            self.view_name = self.view_name or f"{owner.__tablename__}_{name}"
+
+        # Set up relationship
         if self.add_relationship:
             # Add the property that ensures initialization
             setattr(owner, f"{name}_relation", property(self._relationship_property))
+            
+
+        self.target_table = self.target_table or f"{owner.__tablename__}_{self.name}_store"
+        self.set_schemas_correctly(owner)
+
+        # Register vectorizer configuration
 
         metadata = owner.registry.metadata
+        self._register_with_metadata(metadata)
+        
+        
+
+    def _register_with_metadata(self, metadata: MetaData) -> None:
+        """Register vectorizer configuration for migration generation"""
         if not hasattr(metadata, "info"):
             metadata.info = {}
         metadata.info.setdefault("pgai_managed_tables", set()).add(self.target_table)
+        assert self.owner is not None
+
+        vectorizers = metadata.info.setdefault("vectorizers", {})
+        vectorizer_params = CreateVectorizerParams(
+            source_table=self.owner.__tablename__,
+            embedding=self.embedding_config,
+            chunking=self.chunking_config,
+            indexing=self.indexing_config,
+            formatting_template=self.formatting_template,
+            scheduling=self.scheduling_config,
+            processing=self.processing_config,
+            target_schema=self.target_schema,
+            target_table=self.target_table,
+            view_schema=self.view_schema,
+            view_name=self.view_name,
+            queue_schema=self.queue_schema,
+            queue_table=self.queue_table,
+            grant_to=self.grant_to,
+            enqueue_existing=self.enqueue_existing,
+        )
+
+        vectorizers[f"{self.owner.__tablename__}.{self.name}"] = vectorizer_params

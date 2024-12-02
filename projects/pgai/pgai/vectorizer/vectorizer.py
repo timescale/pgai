@@ -15,7 +15,7 @@ from pgvector.psycopg import register_vector_async  # type: ignore
 from psycopg import AsyncConnection, sql
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
-from pydantic.dataclasses import dataclass
+from pydantic import BaseModel
 from pydantic.fields import Field
 
 from .chunking import (
@@ -24,7 +24,9 @@ from .chunking import (
 )
 from .embeddings import ChunkEmbeddingError, Ollama, OpenAI
 from .formatting import ChunkValue, PythonTemplate
+from .indexing import DiskANNIndexing, HNSWIndexing, NoIndexing
 from .processing import ProcessingDefault
+from .scheduling import NoScheduling, TimescaleScheduling
 
 logger = structlog.get_logger()
 
@@ -45,8 +47,7 @@ class EmbeddingProviderError(Exception):
     msg = "embedding provider failed"
 
 
-@dataclass
-class PkAtt:
+class PkAtt(BaseModel):
     """
     Represents an attribute of a primary key.
 
@@ -59,8 +60,7 @@ class PkAtt:
     typname: str
 
 
-@dataclass
-class Config:
+class Config(BaseModel):
     """
     Holds the configuration for the vectorizer including embedding, processing,
     chunking, and formatting.
@@ -80,10 +80,11 @@ class Config:
         LangChainCharacterTextSplitter | LangChainRecursiveCharacterTextSplitter
     ) = Field(..., discriminator="implementation")
     formatting: PythonTemplate | ChunkValue = Field(..., discriminator="implementation")
+    indexing: DiskANNIndexing | HNSWIndexing | NoIndexing
+    scheduling: TimescaleScheduling | NoScheduling
 
 
-@dataclass
-class Vectorizer:
+class Vectorizer(BaseModel):
     """
     Represents a vectorizer configuration that processes data from a source
     table to generate embeddings.
@@ -111,6 +112,8 @@ class Vectorizer:
     source_table: str
     target_schema: str
     target_table: str
+    view_name: str
+    view_schema: str
     source_pk: list[PkAtt]
     errors_schema: str = "ai"
     errors_table: str = "vectorizer_errors"

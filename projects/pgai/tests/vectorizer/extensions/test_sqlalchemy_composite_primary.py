@@ -6,6 +6,7 @@ from sqlalchemy.sql import text
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.cli import vectorizer_worker
+from pgai.configuration import OpenAIEmbeddingConfig, ChunkingConfig
 from pgai.sqlalchemy import EmbeddingModel, Vectorizer
 
 
@@ -19,7 +20,8 @@ class Author(Base):
     last_name = Column(Text, primary_key=True)
     bio = Column(Text, nullable=False)
     bio_embeddings = Vectorizer(
-        dimensions=768,
+        embedding=OpenAIEmbeddingConfig(model="text-embedding-3-small", dimensions=768),
+        chunking=ChunkingConfig(chunk_column="bio", chunk_size=50, chunk_overlap=10),
         add_relationship=True,
     )
 

@@ -47,8 +47,7 @@ The `VectorizerField` accepts the following parameters:
 - `target_table` (str, optional): Override the table name for embeddings. Default is `{table_name}_{field_name}_store`
 - `add_relationship` (bool): Whether to automatically create a relationship to the embeddings table (default: False)
 
-**Note:** The `VectorizerField` generates a new SQLAlchemy model, that is available under the attribute that you specify. If you are using alembics autogenerate functionality to generate migrations, you may need to exclude these models from the autogenerate process.
-They are tagged with `pgai_managed=True`so you can simply exclude them by adding the following to your `env.py`:
+**Note:** The `VectorizerField` generates a new SQLAlchemy model, that is available under the attribute that you specify. If you are using alembics autogenerate functionality to generate migrations, you may need to exclude these models from the autogenerate process:
 
 ```python
 def include_object(object, name, type_, reflected, compare_to):
@@ -62,9 +61,6 @@ context.configure(
       include_object=include_object
   )
 ```
-
-The model is only created at runtime, so depending on how your alembic migrations are set up this step could be skipped. Simply see what happens if you run `alembic revision --autogenerate` and if the model is included, add the above code.
-
 
 ## Setting up the Vectorizer
 

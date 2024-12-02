@@ -526,6 +526,7 @@ class Ollama(BaseModel, Embedder):
 
     implementation: Literal["ollama"]
     model: str
+    dimensions: int
     base_url: str | None = None
     truncate: bool = True
     options: OllamaOptions | None = None

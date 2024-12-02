@@ -77,6 +77,36 @@ def alembic_config(alembic_dir: Path, postgres_container: PostgresContainer) -> 
     return config
 
 
+@pytest.fixture
+def timescale_alembic_config(
+    alembic_dir: Path, timescale_ha_container: PostgresContainer
+) -> Config:
+    """Create a configured Alembic environment."""
+    # Create alembic.ini from template
+    ini_path = alembic_dir / "alembic.ini"
+    ini_content = load_template(
+        "alembic/alembic.ini.template",
+        sqlalchemy_url=timescale_ha_container.get_connection_url(),
+    )
+    with open(ini_path, "w") as f:
+        f.write(ini_content)
+
+    # Create env.py from template
+    env_path = alembic_dir / "migrations" / "env.py"
+    env_content = load_template("alembic/env.py.template")
+    with open(env_path, "w") as f:
+        f.write(env_content)
+
+    # Configure and return
+    config = Config(ini_path)
+    config.set_main_option("script_location", str(alembic_dir / "migrations"))
+
+    engine = create_engine(timescale_ha_container.get_connection_url())
+    config.attributes["connection"] = engine
+
+    return config
+
+
 def drop_vectorizer_if_exists(id: int, engine: Engine):
     with engine.connect() as conn:
         vectorizer_exists = conn.execute(
@@ -103,6 +133,33 @@ def initialized_engine(
     engine = create_engine(postgres_container.get_connection_url())
     with engine.connect() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS ai CASCADE;"))
+        conn.commit()
+
+    yield engine
+
+    drop_vectorizer_if_exists(1, engine)
+    drop_vectorizer_if_exists(2, engine)
+    with engine.connect() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
+        conn.commit()
+
+
+@pytest.fixture
+def initialized_engine_with_timescale(
+    timescale_ha_container: PostgresContainer,
+) -> Generator[Engine, None, None]:
+    """Create a SQLAlchemy engine with the AI extension enabled.
+
+    Args:
+        postgres_container: Postgres test container fixture
+
+    Returns:
+        Engine: Configured SQLAlchemy engine
+    """
+    engine = create_engine(timescale_ha_container.get_connection_url())
+    with engine.connect() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS ai CASCADE;"))
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;"))
         conn.commit()
 
     yield engine

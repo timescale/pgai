@@ -73,3 +73,17 @@ def postgres_container():
         driver=None,
     ).with_env("OPENAI_API_KEY", os.environ["OPENAI_API_KEY"]) as postgres:
         yield postgres
+
+
+@pytest.fixture(scope="session")
+def timescale_ha_container():
+    load_dotenv()
+    with PostgresContainer(
+        image="timescale/timescaledb-ha:pg16",
+        username="tsdbquerier",
+        password="my-password",
+        dbname="tsdb",
+        driver=None,
+        command="postgres -c shared_preload_libraries=timescaledb",
+    ).with_env("OPENAI_API_KEY", os.environ["OPENAI_API_KEY"]) as postgres:
+        yield postgres

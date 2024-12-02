@@ -1,9 +1,56 @@
 import textwrap
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, replace
 from typing import Any, Literal, Protocol, runtime_checkable
 
 from alembic.autogenerate.api import AutogenContext
+from typing_extensions import override
+
+from pgai.vectorizer import Vectorizer
+from pgai.vectorizer.chunking import (
+    LangChainCharacterTextSplitter,
+    LangChainRecursiveCharacterTextSplitter,
+)
+from pgai.vectorizer.embeddings import Ollama, OpenAI
+from pgai.vectorizer.formatting import ChunkValue, PythonTemplate
+from pgai.vectorizer.indexing import DiskANNIndexing, HNSWIndexing, NoIndexing
 from pgai.vectorizer.processing import ProcessingDefault
+from pgai.vectorizer.scheduling import NoScheduling, TimescaleScheduling
+
+
+def equivalent_value(a: Any, b: Any, default: Any) -> bool:
+    """Compare two values considering a default value as equivalent to None."""
+    return (a == b) or (a is None and b == default) or (b is None and a == default)
+
+
+def equivalent_dataclass_with_defaults(
+    a: Any, b: Any, defaults: dict[str, Any], ignored_fields: tuple[str, ...] = ()
+) -> bool:
+    """
+    Compare two dataclass instances considering default values as equivalent to None.
+
+    Args:
+        a: First dataclass instance
+        b: Second dataclass instance
+        defaults: Dictionary mapping field names to their default values
+    """
+    if type(a) is not type(b):
+        return False
+
+    for field in fields(a):
+        if field.name in ignored_fields:
+            continue
+        a_val = getattr(a, field.name)
+        b_val = getattr(b, field.name)
+        default = defaults.get(field.name)
+
+        if default is not None:
+            if not equivalent_value(a_val, b_val, default):
+                return False
+        else:
+            if a_val != b_val:
+                return False
+
+    return True
 
 
 @runtime_checkable
@@ -41,6 +88,12 @@ class OpenAIEmbeddingConfig:
     chat_user: str | None = None
     api_key_name: str | None = None
 
+    _defaults = {"dimensions": 1536, "api_key_name": "OPENAI_API_KEY"}
+
+    @override
+    def __eq__(self, other: object) -> bool:
+        return equivalent_dataclass_with_defaults(self, other, self._defaults)
+
     def to_sql_argument(self) -> str:
         params = [
             f"'{self.model}'",
@@ -55,6 +108,15 @@ class OpenAIEmbeddingConfig:
     def to_python_arg(self) -> str:
         return format_python_arg("embedding", self)
 
+    @classmethod
+    def from_db_config(cls, openai_config: OpenAI) -> "OpenAIEmbeddingConfig":
+        return cls(
+            model=openai_config.model,
+            dimensions=openai_config.dimensions or 1536,
+            chat_user=openai_config.user,
+            api_key_name=openai_config.api_key_name,
+        )
+
 
 @dataclass
 class OllamaEmbeddingConfig:
@@ -63,6 +125,12 @@ class OllamaEmbeddingConfig:
     base_url: str | None = None
     truncate: bool | None = None
     keep_alive: str | None = None
+
+    _defaults = {"dimensions": 1536, "api_key_name": "OPENAI_API_KEY"}
+
+    @override
+    def __eq__(self, other: object) -> bool:
+        return equivalent_dataclass_with_defaults(self, other, self._defaults)
 
     def to_sql_argument(self) -> str:
         params = [
@@ -80,6 +148,16 @@ class OllamaEmbeddingConfig:
     def to_python_arg(self) -> str:
         return format_python_arg("embedding", self)
 
+    @classmethod
+    def from_db_config(cls, config: Ollama) -> "OllamaEmbeddingConfig":
+        return cls(
+            model=config.model,
+            dimensions=config.dimensions,
+            base_url=config.base_url,
+            truncate=config.truncate,
+            keep_alive=config.keep_alive,
+        )
+
 
 @dataclass
 class ChunkingConfig:
@@ -88,6 +166,30 @@ class ChunkingConfig:
     chunk_overlap: int | None = None
     separator: list[str] | str | None = None
     is_separator_regex: bool = False
+
+    _defaults = {
+        "chunk_size": 800,
+        "chunk_overlap": 400,
+        "is_separator_regex": False,
+        "separator": ["\n\n", "\n", ".", "?", "!", " ", ""],
+    }
+
+    @override
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ChunkingConfig):
+            return False
+        # Handle the separator special case
+        if self.separator is not None and other.separator is not None:
+            if isinstance(self.separator, str) and isinstance(other.separator, list):
+                other = replace(
+                    other,
+                    separator=[other.separator[0]]
+                    if len(other.separator) == 1
+                    else other.separator,
+                )
+            elif isinstance(self.separator, list) and isinstance(other.separator, str):
+                other = replace(other, separator=[other.separator])
+        return equivalent_dataclass_with_defaults(self, other, self._defaults)
 
     def to_sql_argument(self) -> str:
         """Convert the chunking configuration to a SQL function call argument."""
@@ -117,14 +219,45 @@ class ChunkingConfig:
     def to_python_arg(self) -> str:
         return format_python_arg("chunking", self)
 
+    @classmethod
+    def from_db_config(
+        cls,
+        config: LangChainCharacterTextSplitter
+        | LangChainRecursiveCharacterTextSplitter,
+    ) -> "ChunkingConfig":
+        if isinstance(config, LangChainCharacterTextSplitter):
+            return cls(
+                chunk_column=config.chunk_column,
+                chunk_size=config.chunk_size,
+                chunk_overlap=config.chunk_overlap,
+                separator=config.separator,
+                is_separator_regex=config.is_separator_regex,
+            )
+        else:
+            return cls(
+                chunk_column=config.chunk_column,
+                chunk_size=config.chunk_size,
+                chunk_overlap=config.chunk_overlap,
+                separator=config.separators,
+                is_separator_regex=config.is_separator_regex,
+            )
+
 
 @dataclass
 class NoIndexingConfig:
+    @override
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, NoIndexingConfig)
+
     def to_sql_argument(self) -> str:
         return ", indexing => ai.indexing_none()"
 
     def to_python_arg(self) -> str:
         return format_python_arg("indexing", self)
+
+    @classmethod
+    def from_db_config(cls, config: NoIndexing) -> "NoIndexingConfig":  # noqa: ARG003
+        return cls()
 
 
 @dataclass
@@ -137,6 +270,12 @@ class DiskANNIndexingConfig:
     num_dimensions: int | None = None
     num_bits_per_dimension: int | None = None
     create_when_queue_empty: bool | None = None
+
+    _defaults = {"min_rows": 100000, "create_when_queue_empty": True}
+
+    @override
+    def __eq__(self, other: object) -> bool:
+        return equivalent_dataclass_with_defaults(self, other, self._defaults)
 
     def to_sql_argument(self) -> str:
         params: list[str] = []
@@ -163,6 +302,19 @@ class DiskANNIndexingConfig:
     def to_python_arg(self) -> str:
         return format_python_arg("indexing", self)
 
+    @classmethod
+    def from_db_config(cls, config: DiskANNIndexing) -> "DiskANNIndexingConfig":
+        return cls(
+            min_rows=config.min_rows,
+            storage_layout=config.storage_layout,
+            num_neighbors=config.num_neighbors,
+            search_list_size=config.search_list_size,
+            max_alpha=config.max_alpha,
+            num_dimensions=config.num_dimensions,
+            num_bits_per_dimension=config.num_bits_per_dimension,
+            create_when_queue_empty=config.create_when_queue_empty,
+        )
+
 
 @dataclass
 class HNSWIndexingConfig:
@@ -173,6 +325,16 @@ class HNSWIndexingConfig:
     m: int | None = None
     ef_construction: int | None = None
     create_when_queue_empty: bool | None = None
+
+    _defaults = {
+        "min_rows": 100000,
+        "opclass": "vector_cosine_ops",
+        "create_when_queue_empty": True,
+    }
+
+    @override
+    def __eq__(self, other: object) -> bool:
+        return equivalent_dataclass_with_defaults(self, other, self._defaults)
 
     def to_sql_argument(self) -> str:
         params: list[str] = []
@@ -193,14 +355,32 @@ class HNSWIndexingConfig:
     def to_python_arg(self) -> str:
         return format_python_arg("indexing", self)
 
+    @classmethod
+    def from_db_config(cls, config: HNSWIndexing) -> "HNSWIndexingConfig":
+        return cls(
+            min_rows=config.min_rows,
+            opclass=config.opclass,
+            m=config.m,
+            ef_construction=config.ef_construction,
+            create_when_queue_empty=config.create_when_queue_empty,
+        )
+
 
 @dataclass
 class NoSchedulingConfig:
+    @override
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, NoSchedulingConfig)
+
     def to_sql_argument(self) -> str:
         return ", scheduling => ai.scheduling_none()"
 
     def to_python_arg(self) -> str:
         return format_python_arg("scheduling", self)
+
+    @classmethod
+    def from_db_config(cls, config: NoScheduling) -> "NoSchedulingConfig":  # noqa: ARG003
+        return cls()
 
 
 @dataclass
@@ -209,6 +389,12 @@ class SchedulingConfig:
     initial_start: str | None = None
     fixed_schedule: bool | None = None
     timezone: str | None = None
+
+    _defaults = {"schedule_interval": "10m", "fixed_schedule": False}
+
+    @override
+    def __eq__(self, other: object) -> bool:
+        return equivalent_dataclass_with_defaults(self, other, self._defaults)
 
     def to_sql_argument(self) -> str:
         params: list[str] = []
@@ -225,11 +411,22 @@ class SchedulingConfig:
     def to_python_arg(self) -> str:
         return format_python_arg("scheduling", self)
 
+    @classmethod
+    def from_db_config(cls, config: TimescaleScheduling) -> "SchedulingConfig":
+        return cls(
+            schedule_interval=str(config.schedule_interval),
+            initial_start=config.initial_start,
+            fixed_schedule=config.fixed_schedule,
+            timezone=config.timezone,
+        )
+
 
 @dataclass
 class ProcessingConfig:
     batch_size: int | None = None
     concurrency: int | None = None
+
+    _defaults = {"batch_size": 50, "concurrency": 1}
 
     def to_sql_argument(self) -> str:
         params: list[str] = []
@@ -241,6 +438,10 @@ class ProcessingConfig:
 
     def to_python_arg(self) -> str:
         return format_python_arg("processing", self)
+
+    @override
+    def __eq__(self, other: object) -> bool:
+        return equivalent_dataclass_with_defaults(self, other, self._defaults)
 
     @classmethod
     def from_db_config(cls, config: ProcessingDefault) -> "ProcessingConfig":
@@ -277,6 +478,24 @@ class CreateVectorizerParams:
     queue_table: str | None = None
     grant_to: list[str] | None = None
     enqueue_existing: bool = True
+
+    _defaults = {
+        "formatting_template": "$chunk",
+        "enqueue_existing": True,
+        "processing": ProcessingConfig(),
+        "scheduling": NoSchedulingConfig(),
+        "indexing": NoIndexingConfig(),
+        "queue_schema": "ai",
+    }
+
+    # These fields are hard to compare
+    ignored_fields = ("queue_table", "grant_to", "scheduling")
+
+    @override
+    def __eq__(self, other: object) -> bool:
+        return equivalent_dataclass_with_defaults(
+            self, other, self._defaults, self.ignored_fields
+        )
 
     def to_sql(self) -> str:
         parts = ["SELECT ai.create_vectorizer(", f"'{self.source_table}'::regclass"]
@@ -358,3 +577,77 @@ class CreateVectorizerParams:
             )
 
         return "op.create_vectorizer(\n    " + ",\n    ".join(args) + "\n)"
+
+    @classmethod
+    def from_db_config(cls, vectorizer: Vectorizer) -> "CreateVectorizerParams":
+        """
+        Creates CreateVectorizerParams from database configuration.
+
+        Args:
+            row: A dictionary containing the vectorizer configuration from database,
+                including 'config' field with complete JSON configuration
+
+        Returns:
+            CreateVectorizerParams: A new instance configured from database settings
+        """
+        embedding_config: None | OpenAIEmbeddingConfig | OllamaEmbeddingConfig = None
+        if isinstance(vectorizer.config.embedding, OpenAI):
+            embedding_config = OpenAIEmbeddingConfig.from_db_config(
+                vectorizer.config.embedding
+            )
+        if isinstance(vectorizer.config.embedding, Ollama):
+            embedding_config = OllamaEmbeddingConfig.from_db_config(
+                vectorizer.config.embedding
+            )
+        chunking_config = ChunkingConfig.from_db_config(vectorizer.config.chunking)
+        processing_config = ProcessingConfig.from_db_config(
+            vectorizer.config.processing
+        )
+        indexing_config: (
+            None | DiskANNIndexingConfig | HNSWIndexingConfig | NoIndexingConfig
+        ) = None
+        if isinstance(vectorizer.config.indexing, DiskANNIndexing):
+            indexing_config = DiskANNIndexingConfig.from_db_config(
+                vectorizer.config.indexing
+            )
+        if isinstance(vectorizer.config.indexing, HNSWIndexing):
+            indexing_config = HNSWIndexingConfig.from_db_config(
+                vectorizer.config.indexing
+            )
+        if isinstance(vectorizer.config.indexing, NoIndexing):
+            indexing_config = NoIndexingConfig.from_db_config(
+                vectorizer.config.indexing
+            )
+
+        scheduling_config: None | NoSchedulingConfig | SchedulingConfig = None
+        if isinstance(vectorizer.config.scheduling, TimescaleScheduling):
+            scheduling_config = SchedulingConfig.from_db_config(
+                vectorizer.config.scheduling
+            )
+        if isinstance(vectorizer.config.scheduling, NoScheduling):
+            scheduling_config = NoSchedulingConfig.from_db_config(
+                vectorizer.config.scheduling
+            )
+
+        # Get formatting template
+        formatting_template = None
+        if isinstance(vectorizer.config.formatting, ChunkValue):
+            formatting_template = "$chunk"
+        if isinstance(vectorizer.config.formatting, PythonTemplate):
+            formatting_template = vectorizer.config.formatting.template
+
+        return cls(
+            source_table=vectorizer.source_table,
+            target_schema=vectorizer.target_schema,
+            target_table=vectorizer.target_table,
+            view_schema=vectorizer.view_schema,
+            view_name=vectorizer.view_name,
+            queue_schema=vectorizer.queue_schema,
+            queue_table=vectorizer.queue_table,
+            embedding=embedding_config,
+            chunking=chunking_config,
+            indexing=indexing_config,
+            formatting_template=formatting_template,  # type: ignore
+            scheduling=scheduling_config,
+            processing=processing_config,
+        )

@@ -6,6 +6,10 @@ from sqlalchemy.sql import text
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.cli import vectorizer_worker
+from pgai.configuration import (
+    ChunkingConfig,
+    OpenAIEmbeddingConfig,
+)
 from pgai.sqlalchemy import Vectorizer
 
 
@@ -19,7 +23,11 @@ class BlogPost(Base):
     title = Column(Text, nullable=False)
     content = Column(Text, nullable=False)
     content_embeddings = Vectorizer(
-        dimensions=768,
+        embedding=OpenAIEmbeddingConfig(model="text-embedding-3-small", dimensions=768),
+        chunking=ChunkingConfig(
+            chunk_column="content", chunk_size=500, chunk_overlap=50
+        ),
+        formatting_template="Title: $title\nContent: $chunk",
         add_relationship=False,
     )
 
