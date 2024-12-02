@@ -78,7 +78,7 @@ Please strictly follow the guidelines below:
 3. Ensure that your code adheres to the project's style and guidelines. 
 4. Include relevant tests and documentation updates.
 5. Don't mix bug fixes with unrelated feature enhancements or stylistical changes.
-6. The project uses [conventional commits][conventional-commits]. It's enforced by CI, you won't be able to merge PRs if your commits do not comply. This helps us automate the release process, changelog generation, etc. For example:
+6. The project uses [conventional commits][https://www.conventionalcommits.org]. It's enforced by CI, you won't be able to merge PRs if your commits do not comply. This helps us automate the release process, changelog generation, etc. For example:
   - If the commit fixes bug 123, add a line at the end of the commit message with  `Fixes #123`.
   - If the commit implements feature request 321, add a line at the end of the commit message `Closes #321`.
 7. Clearly explain the purpose of the PR and link to related issues or RFCs.
