@@ -1,0 +1,9 @@
+   objtype    |     objnames      |      objargs      |                   description                    
+--------------+-------------------+-------------------+--------------------------------------------------
+ function     | {lucinda,death}   | {integer}         | this is a BETTER comment about the life function
+ function     | {lucinda,death}   | {integer,integer} | overloaded
+ table        | {lucinda,bob}     | {}                | this is a BETTER comment about the bob table
+ table column | {lucinda,bob,bar} | {}                | this is a comment about the bar column
+ table column | {lucinda,bob,id}  | {}                | this is a comment about the id column
+(5 rows)
+

@@ -1,0 +1,5 @@
+ objtype  |    objnames     |      objargs      | description 
+----------+-----------------+-------------------+-------------
+ function | {lucinda,death} | {integer,integer} | overloaded
+(1 row)
+
