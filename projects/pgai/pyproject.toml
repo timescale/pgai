@@ -42,6 +42,11 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
 ]
 
+[project.optional-dependencies]
+sqlalchemy=[
+    "sqlalchemy>=2.0.36",
+]
+
 [project.urls]
 Homepage = "https://github.com/timescale/pgai"
 Repository = "https://github.com/timescale/pgai"

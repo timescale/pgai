@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 import tiktoken
 import vcr  # type:ignore
+from dotenv import load_dotenv
 from testcontainers.core.image import DockerImage  # type:ignore
 from testcontainers.postgres import PostgresContainer  # type:ignore
 
@@ -18,6 +19,8 @@ def __env_setup():  # type:ignore
     # Capture the current environment variables to restore after the test. The
     # lambda function sets an evironment variable for using the secrets. We
     # need to clear the environment after a test runs.
+
+    load_dotenv()
     original_env = os.environ.copy()
 
     # Use the existing tiktoken cache
@@ -55,6 +58,7 @@ def vcr_():
 
 @pytest.fixture(scope="session")
 def postgres_container():
+    load_dotenv()
     extension_dir = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "../../../extension/")
     )
@@ -67,5 +71,5 @@ def postgres_container():
         password="my-password",
         dbname="tsdb",
         driver=None,
-    ) as postgres:
+    ).with_env("OPENAI_API_KEY", os.environ["OPENAI_API_KEY"]) as postgres:
         yield postgres
