@@ -263,11 +263,9 @@ def vectorizer_worker(
                     pgai_version = get_pgai_version(cur)
                     can_connect = True
                     if pgai_version is None:
+                        log.error("the pgai extension is not installed")
                         if exit_on_error:
-                            log.error("the pgai extension is not installed")
                             sys.exit(1)
-                        else:
-                            log.warn("the pgai extension is not installed")
 
             if can_connect and pgai_version is not None:
                 if not dynamic_mode and len(valid_vectorizer_ids) != len(
@@ -275,15 +273,11 @@ def vectorizer_worker(
                 ):
                     valid_vectorizer_ids = get_vectorizer_ids(db_url, vectorizer_ids)
                     if len(valid_vectorizer_ids) != len(vectorizer_ids):
+                        log.error(
+                            f"invalid vectorizers, wanted: {list(vectorizer_ids)}, got: {valid_vectorizer_ids}"  # noqa: E501 (line too long)
+                        )
                         if exit_on_error:
-                            log.error(
-                                f"invalid vectorizers, wanted: {list(vectorizer_ids)}, got: {valid_vectorizer_ids}"  # noqa: E501 (line too long)
-                            )
                             sys.exit(1)
-                        else:
-                            log.warn(
-                                f"invalid vectorizers, wanted: {list(vectorizer_ids)}, got: {valid_vectorizer_ids}"  # noqa: E501 (line too long)
-                            )
                 else:
                     valid_vectorizer_ids = get_vectorizer_ids(db_url, vectorizer_ids)
                     if len(valid_vectorizer_ids) == 0:
