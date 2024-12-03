@@ -224,3 +224,50 @@ def test_secret_privileges():
             )
             with pytest.raises(Exception, match="user does not have access"):
                 cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
+
+
+def test_create_vectorizer_privileges():
+    # set up role "base" and role "member", which is member of base
+    with psycopg.connect(db_url("postgres", "postgres"), autocommit=True) as con:
+        with con.cursor() as cur:
+            cur.execute("drop database if exists vec_priv;")
+            cur.execute(
+                """
+                drop role if exists member;
+                drop role if exists base;
+                create role base with login;
+                create role member with login;
+                grant base to member;
+                """
+            )
+            cur.execute("create database vec_priv owner base;")
+    # connect as "base", create vectorizer
+    with psycopg.connect(db_url("base", "vec_priv")) as con:
+        with con.cursor() as cur:
+            cur.execute(
+                """
+                create extension ai cascade;
+                create table blog(id bigint primary key, content text);
+                select ai.create_vectorizer(
+                    'blog'
+                  , destination=>'base_vectorizer'
+                  , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
+                  , chunking=>ai.chunking_character_text_splitter('content', 128, 10)
+                  , scheduling=>ai.scheduling_none()
+                  , indexing=>ai.indexing_none()
+                );
+                """
+            )
+    # connect as "member", create vectorizer
+    with psycopg.connect(db_url("member", "vec_priv")) as con:
+        with con.cursor() as cur:
+            cur.execute("""
+                  select ai.create_vectorizer(
+                    'blog'
+                  , destination=>'member_vectorizer'
+                  , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
+                  , chunking=>ai.chunking_character_text_splitter('content', 128, 10)
+                  , scheduling=>ai.scheduling_none()
+                  , indexing=>ai.indexing_none()
+                );
+            """)

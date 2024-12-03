@@ -37,6 +37,15 @@ the foundation of most AI applications, pgai makes it easier to leverage your da
 
 [![Auto Create and Sync Vector Embeddings in 1 Line of SQL (pgai Vectorizer)](https://github.com/user-attachments/assets/8a71c774-505a-4335-8b34-cdea9dedb558)](https://youtu.be/ZoC2XYol6Zk?si=atI4XPurEifG0pd5)
 
+# Supported features in each model
+
+| **Model**       | **Tokenize** | **Embed** | **Chat Complete** | **Generate** | **Moderate** | **Classify** | **Rerank** |
+|------------------|:------------:|:---------:|:-----------------:|:------------:|:------------:|:------------:|:----------:|
+| **Ollama**       |              |     ✔️    |         ✔️         |      ✔️      |              |              |           |
+| **OpenAI**       |      ✔️️      |     ✔️    |         ✔️         |              |      ✔️      |              |           |
+| **Anthropic**    |              |           |                    |      ✔️      |              |              |           |
+| **Cohere**       |      ✔️      |     ✔️    |         ✔️         |              |              |      ✔️      |     ✔️     |
+
 # Getting Started
 
 Here's how to get started with pgai:
