@@ -18,9 +18,7 @@ class BlogPost(Base):
     id = Column(Integer, primary_key=True)
     title = Column(Text, nullable=False)
     content = Column(Text, nullable=False)
-    content_embeddings = VectorizerField(
-        dimensions=1536
-    )
+    content_embeddings = VectorizerField(dimensions=1536)
 
 
 def run_vectorizer_worker(db_url: str, vectorizer_id: int) -> None:
