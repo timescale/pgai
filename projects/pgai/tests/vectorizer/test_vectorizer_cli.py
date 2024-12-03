@@ -224,6 +224,7 @@ class TestWithOpenAiVectorizer:
                 array_fill(0, ARRAY[1536])::vector)
             """)
         monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+        monkeypatch.setenv("AWS_EMF_DISABLE_METRIC_EXTRACTION", "true")
 
         # When running the worker with cassette matching original test params
         cassette = (
