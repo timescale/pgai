@@ -17,6 +17,7 @@ Here's a basic example of how to use the `VectorizerField`:
 ```python
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from pgai.sqlalchemy import VectorizerField, EmbeddingModel
+from pgai.configuration import OpenAIEmbeddingConfig, ChunkingConfig
 
 class Base(DeclarativeBase):
     pass
@@ -30,7 +31,15 @@ class BlogPost(Base):
 
     # Add vector embeddings for the content field
     content_embeddings = VectorizerField(
-        dimensions=768,
+        embedding=OpenAIEmbeddingConfig(
+            model="text-embedding-3-small",
+            dimensions=768
+        ),
+        chunking=ChunkingConfig.recursive_character_text_splitter(
+            source_column="content",
+            chunk_size=50,
+            chunk_overlap=10
+        ),
         add_relationship=True,
     )
     
@@ -40,12 +49,7 @@ class BlogPost(Base):
 
 ## Configuration
 
-The `VectorizerField` accepts the following parameters:
-
-- `dimensions` (int): The size of the embedding vector (required)
-- `target_schema` (str, optional): Override the schema for the embeddings table. If not provided, inherits from the parent model's schema
-- `target_table` (str, optional): Override the table name for embeddings. Default is `{table_name}_{field_name}_store`
-- `add_relationship` (bool): Whether to automatically create a relationship to the embeddings table (default: False)
+The `VectorizerField` accepts the same parameters as the [SQL API](vectorizer-api-reference.md). One difference to the SQL API is, that it uses the name of the variable to determine the target table name. In the example above, the target table will be named `blog_posts_content_embeddings_store`. This allows you to add as many vectorizers to your table as you like, without worrying about the table naming.
 
 **Note:** The `VectorizerField` generates a new SQLAlchemy model, that is available under the attribute that you specify. If you are using alembics autogenerate functionality to generate migrations, you may need to exclude these models from the autogenerate process:
 
@@ -62,7 +66,7 @@ context.configure(
   )
 ```
 
-## Setting up the Vectorizer
+## Setting up the Vectorizer via migrations
 
 pgai provides native Alembic operations for managing vectorizers. For them to work you need to run `setup_alembic` in your env.py file. Which registers the pgai operations under the global op context:
 
@@ -108,6 +112,19 @@ def downgrade() -> None:
 ```
 
 The `create_vectorizer` operation supports all configuration options available in the [SQL API](vectorizer-api-reference.md).
+
+## Alembic autogenerate
+
+Instead of manually repeating all the configuration from the `VectorizerField` in the `create_vectorizer` operation, you can also make use of alembics autogenerate functionality.
+Simply import `enable_vectorizer_autogenerate` and run it in your env.py file:
+```python
+from pgai.alembic import register_operations, enable_vectorizer_autogenerate
+
+register_operations()
+enable_vectorizer_autogenerate()
+```    
+
+Now when you run `alembic revision --autogenerate ...` alembic will automatically detect the `VectorizerField` and generate the corresponding `create_vectorizer` operations in your migration files.
 
 ## Querying Embeddings
 

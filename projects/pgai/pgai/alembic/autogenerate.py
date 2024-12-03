@@ -131,6 +131,7 @@ def render_drop_vectorizer(autogen_context: AutogenContext, op: DropVectorizerOp
 
 _autogen_registered = False
 
+
 def enable_vectorizer_autogenerate():
     """Enable vectorizer autogenerate support."""
     global _autogen_registered

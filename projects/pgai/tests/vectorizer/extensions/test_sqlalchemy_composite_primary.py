@@ -6,7 +6,7 @@ from sqlalchemy.sql import text
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.cli import vectorizer_worker
-from pgai.configuration import OpenAIEmbeddingConfig, ChunkingConfig
+from pgai.configuration import ChunkingConfig, OpenAIEmbeddingConfig
 from pgai.sqlalchemy import EmbeddingModel, Vectorizer
 
 

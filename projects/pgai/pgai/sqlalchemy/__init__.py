@@ -125,7 +125,9 @@ class Vectorizer:
             # Add all standard columns
             "embedding_uuid": mapped_column(Text, primary_key=True),
             "chunk": mapped_column(Text, nullable=False),
-            "embedding": mapped_column(Vector(self.embedding_config.dimensions), nullable=False),
+            "embedding": mapped_column(
+                Vector(self.embedding_config.dimensions), nullable=False
+            ),
             "chunk_seq": mapped_column(Integer, nullable=False),
         }
 
@@ -193,17 +195,16 @@ class Vectorizer:
         if self.add_relationship:
             # Add the property that ensures initialization
             setattr(owner, f"{name}_relation", property(self._relationship_property))
-            
 
-        self.target_table = self.target_table or f"{owner.__tablename__}_{self.name}_store"
+        self.target_table = (
+            self.target_table or f"{owner.__tablename__}_{self.name}_store"
+        )
         self.set_schemas_correctly(owner)
 
         # Register vectorizer configuration
 
         metadata = owner.registry.metadata
         self._register_with_metadata(metadata)
-        
-        
 
     def _register_with_metadata(self, metadata: MetaData) -> None:
         """Register vectorizer configuration for migration generation"""
