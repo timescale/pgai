@@ -286,6 +286,11 @@ def vectorizer_worker(
                 for vectorizer_id in valid_vectorizer_ids:
                     vectorizer = get_vectorizer(db_url, vectorizer_id)
                     if vectorizer is None:
+                        log.error(
+                            "error fetching vectorizer", vectorizer_id=vectorizer_id
+                        )
+                        if exit_on_error:
+                            sys.exit(1)
                         continue
                     log.info("running vectorizer", vectorizer_id=vectorizer_id)
                     run_vectorizer(db_url, vectorizer, concurrency)

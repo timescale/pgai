@@ -666,6 +666,42 @@ def test_voyageai_vectorizer(
         assert cur.fetchone()["count"] == num_items  # type: ignore
 
 
+def test_voyageai_vectorizer_fails_when_api_key_is_not_set(
+    cli_db: tuple[TestDatabase, Connection],
+    cli_db_url: str,
+):
+    """Test missing API Key"""
+    _, conn = cli_db
+
+    # Ensure API key env var is not set.
+    if "VOYAGE_API_KEY" in os.environ:
+        del os.environ["VOYAGE_API_KEY"]
+
+    # Set up vectorizer which will fail to embed chunk
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("CREATE TABLE blog(id bigint primary key, content text);")
+        cur.execute("""SELECT ai.create_vectorizer(
+                'blog',
+                embedding => ai.embedding_voyageai(
+                    'voyage-3-lite',
+                    512
+                ),
+                chunking => ai.chunking_character_text_splitter('content')
+        )""")  # noqa
+        cur.execute("INSERT INTO blog (id, content) VALUES(1, repeat('1', 100000))")
+    result = CliRunner().invoke(
+        vectorizer_worker,
+        [
+            "--db-url",
+            cli_db_url,
+            "--once",
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 1
+
+
 def test_voyageai_vectorizer_handles_chunk_failure_correctly(
     cli_db: tuple[TestDatabase, Connection],
     cli_db_url: str,
