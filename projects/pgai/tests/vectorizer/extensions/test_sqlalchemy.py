@@ -127,7 +127,7 @@ def test_sqlalchemy(postgres_container: PostgresContainer, initialized_engine: E
             session.query(BlogPost, BlogPost.content_embeddings)
             .join(
                 BlogPost.content_embeddings,
-                BlogPost.id == BlogPost.content_embeddings.id,
+                BlogPost.id == BlogPost.content_embeddings.id,  # type: ignore
             )
             .filter(BlogPost.title.ilike("%Python%"))
             .all()
