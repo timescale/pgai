@@ -16,7 +16,6 @@ from pgai.configuration import (
 )
 
 
-@Operations.register_operation("create_vectorizer")
 class CreateVectorizerOp(MigrateOperation):
     """Create a vectorizer for automatic embedding generation."""
 
@@ -68,7 +67,6 @@ class CreateVectorizerOp(MigrateOperation):
         return DropVectorizerOp(None, True)
 
 
-@Operations.register_operation("drop_vectorizer")
 class DropVectorizerOp(MigrateOperation):
     """Drop a vectorizer and its associated objects."""
 
@@ -93,14 +91,12 @@ class DropVectorizerOp(MigrateOperation):
         return CreateVectorizerOp(None)
 
 
-@Operations.implementation_for(CreateVectorizerOp)
 def create_vectorizer(operations: Operations, operation: CreateVectorizerOp):
     """Implement CREATE VECTORIZER."""
     params = operation.params
     operations.execute(params.to_sql())
 
 
-@Operations.implementation_for(DropVectorizerOp)
 def drop_vectorizer(operations: Operations, operation: DropVectorizerOp):
     """Implement DROP VECTORIZER with cleanup of dependent objects."""
     connection = operations.get_bind()
@@ -111,3 +107,17 @@ def drop_vectorizer(operations: Operations, operation: DropVectorizerOp):
         text("SELECT ai.drop_vectorizer(:id, drop_all=>:drop_all)"),
         {"id": vectorizer_id, "drop_all": operation.drop_all},
     )
+
+
+_operations_registered = False
+
+
+def register_operations():
+    global _operations_registered
+
+    if not _operations_registered:
+        Operations.register_operation("create_vectorizer")(CreateVectorizerOp)
+        Operations.register_operation("drop_vectorizer")(DropVectorizerOp)
+        Operations.implementation_for(CreateVectorizerOp)(create_vectorizer)
+        Operations.implementation_for(DropVectorizerOp)(drop_vectorizer)
+        _operations_registered = True

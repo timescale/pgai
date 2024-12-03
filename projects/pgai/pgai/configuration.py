@@ -3,6 +3,7 @@ from dataclasses import dataclass, fields
 from typing import Any, Literal, Protocol, runtime_checkable
 
 from alembic.autogenerate.api import AutogenContext
+
 from pgai.vectorizer.processing import ProcessingDefault
 
 
@@ -120,13 +121,11 @@ class ChunkingConfig:
 
 @dataclass
 class NoIndexingConfig:
-
     def to_sql_argument(self) -> str:
         return ", indexing => ai.indexing_none()"
 
     def to_python_arg(self) -> str:
         return format_python_arg("indexing", self)
-
 
 
 @dataclass
@@ -139,7 +138,6 @@ class DiskANNIndexingConfig:
     num_dimensions: int | None = None
     num_bits_per_dimension: int | None = None
     create_when_queue_empty: bool | None = None
-
 
     def to_sql_argument(self) -> str:
         params: list[str] = []
@@ -177,8 +175,6 @@ class HNSWIndexingConfig:
     ef_construction: int | None = None
     create_when_queue_empty: bool | None = None
 
-
-
     def to_sql_argument(self) -> str:
         params: list[str] = []
         if self.min_rows is not None:
@@ -201,13 +197,11 @@ class HNSWIndexingConfig:
 
 @dataclass
 class NoSchedulingConfig:
-
     def to_sql_argument(self) -> str:
         return ", scheduling => ai.scheduling_none()"
 
     def to_python_arg(self) -> str:
         return format_python_arg("scheduling", self)
-
 
 
 @dataclass
@@ -216,7 +210,6 @@ class SchedulingConfig:
     initial_start: str | None = None
     fixed_schedule: bool | None = None
     timezone: str | None = None
-
 
     def to_sql_argument(self) -> str:
         params: list[str] = []
@@ -239,7 +232,6 @@ class ProcessingConfig:
     batch_size: int | None = None
     concurrency: int | None = None
 
-
     def to_sql_argument(self) -> str:
         params: list[str] = []
         if self.batch_size is not None:
@@ -250,7 +242,6 @@ class ProcessingConfig:
 
     def to_python_arg(self) -> str:
         return format_python_arg("processing", self)
-
 
     @classmethod
     def from_db_config(cls, config: ProcessingDefault) -> "ProcessingConfig":
@@ -287,7 +278,6 @@ class CreateVectorizerParams:
     queue_table: str | None = None
     grant_to: list[str] | None = None
     enqueue_existing: bool = True
-
 
     def to_sql(self) -> str:
         parts = ["SELECT ai.create_vectorizer(", f"'{self.source_table}'::regclass"]

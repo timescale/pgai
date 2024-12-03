@@ -5,7 +5,6 @@ Revises: {revises}
 Create Date: {create_date}
 """
 from alembic import op
-from pgai.alembic import CreateVectorizerOp
 from pgai.configuration import (
    OpenAIEmbeddingConfig,
     ChunkingConfig

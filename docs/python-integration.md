@@ -183,3 +183,50 @@ context.configure(
 ```
 
 This should now prevent alembic from generating tables for these models when you run `alembic revision --autogenerate`.
+
+
+
+pgai provides native Alembic operations for managing vectorizers. For them to work you need to run `setup_alembic` in your env.py file. Which registers the pgai operations under the global op context:
+
+```python
+from pgai.alembic import register_operations
+
+register_operations()
+```
+
+Then you can use the `create_vectorizer` operation to create a vectorizer for your model. As well as the `drop_vectorizer` operation to remove it.
+
+```python
+from alembic import op
+from pgai.configuration import (
+    OpenAIEmbeddingConfig,
+    ChunkingConfig,
+    DiskANNIndexingConfig
+)
+
+
+def upgrade() -> None:
+    op.create_vectorizer(
+        source_table="blog_posts",
+        target_table="blog_posts_content_embeddings_store",
+        embedding=OpenAIEmbeddingConfig(
+            model="text-embedding-3-small",
+            dimensions=768
+        ),
+        chunking=ChunkingConfig.recursive_character_text_splitter(
+            source_column="content",
+            chunk_size=50,
+            chunk_overlap=10
+        ),
+        indexing=DiskANNIndexingConfig(
+            min_rows=10,
+            num_dimensions=768
+        )
+    )
+
+
+def downgrade() -> None:
+    op.drop_vectorizer(vectorizer_id=1, drop_all=True)
+```
+
+The `create_vectorizer` operation supports all configuration options available in the [SQL API](vectorizer-api-reference.md).
