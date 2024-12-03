@@ -4,10 +4,6 @@ from pgvector.sqlalchemy import Vector  # type: ignore
 from sqlalchemy import ForeignKey, Integer, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, backref, mapped_column, relationship
 
-from pgai.configuration import (
-    OpenAIEmbeddingConfig,
-)
-
 # Type variable for the parent model
 T = TypeVar("T", bound=DeclarativeBase)
 
@@ -26,7 +22,7 @@ class EmbeddingModel(DeclarativeBase, Generic[T]):
     embedding_uuid: Mapped[str]
     id: Mapped[int]
     chunk: Mapped[str]
-    embedding: Mapped[list[float]]
+    embedding: Mapped[Vector]
     chunk_seq: Mapped[int]
     parent: T  # Type of the parent model
 
@@ -34,15 +30,15 @@ class EmbeddingModel(DeclarativeBase, Generic[T]):
 class VectorizerField:
     def __init__(
         self,
-        embedding: OpenAIEmbeddingConfig,
+        dimensions: int,
         target_schema: str | None = None,
         target_table: str | None = None,
         add_relationship: bool = False,
     ):
         self.add_relationship = add_relationship
-        self.embedding_config = embedding
 
         # Store table/view configuration
+        self.dimensions = dimensions
         self.target_schema = target_schema
         self.target_table = target_table
         self.owner: type[DeclarativeBase] | None = None
@@ -82,7 +78,7 @@ class VectorizerField:
             )
             chunk = mapped_column(Text, nullable=False)
             embedding = mapped_column(
-                Vector(self.embedding_config.dimensions), nullable=False
+                Vector(self.dimensions), nullable=False
             )
             chunk_seq = mapped_column(Integer, nullable=False)
 

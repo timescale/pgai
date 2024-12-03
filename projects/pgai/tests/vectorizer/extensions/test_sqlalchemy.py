@@ -5,9 +5,6 @@ from sqlalchemy.sql import text
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.cli import vectorizer_worker
-from pgai.configuration import (
-    OpenAIEmbeddingConfig,
-)
 from pgai.sqlalchemy import VectorizerField
 
 
@@ -24,9 +21,7 @@ def test_sqlalchemy(postgres_container: PostgresContainer, initialized_engine: E
         content = Column(Text, nullable=False)
 
         content_embeddings = VectorizerField(
-            embedding=OpenAIEmbeddingConfig(
-                model="text-embedding-3-small", dimensions=768
-            ),
+            dimensions=768,
             add_relationship=True,
         )
 
