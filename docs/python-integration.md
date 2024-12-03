@@ -68,22 +68,50 @@ The model is only created at runtime, so depending on how your alembic migration
 
 ## Setting up the Vectorizer
 
-After defining your model, you need to create the vectorizer using pgAI's SQL functions:
+pgai provides native Alembic operations for managing vectorizers. For them to work you need to run `setup_alembic` in your env.py file. Which registers the pgai operations under the global op context:
 
-```sql
-SELECT ai.create_vectorizer(
-    'blog_posts'::regclass,
-    target_table => 'blog_posts_content_embeddings_store',
-    embedding => ai.embedding_openai('text-embedding-3-small', 768),
-    chunking => ai.chunking_recursive_character_text_splitter(
-        'content',
-        50,  -- chunk_size
-        10   -- chunk_overlap
-    )
-);
+```python
+from pgai.alembic import register_operations
+
+register_operations()
 ```
 
-We recommend adding this to a migration script and run it via alembic.
+Then you can use the `create_vectorizer` operation to create a vectorizer for your model. As well as the `drop_vectorizer` operation to remove it.
+
+```python
+from alembic import op
+from pgai.configuration import (
+    OpenAIEmbeddingConfig,
+    ChunkingConfig,
+    DiskANNIndexingConfig
+)
+
+
+def upgrade() -> None:
+    op.create_vectorizer(
+        source_table="blog_posts",
+        target_table="blog_posts_content_embeddings_store",
+        embedding=OpenAIEmbeddingConfig(
+            model="text-embedding-3-small",
+            dimensions=768
+        ),
+        chunking=ChunkingConfig.recursive_character_text_splitter(
+            source_column="content",
+            chunk_size=50,
+            chunk_overlap=10
+        ),
+        indexing=DiskANNIndexingConfig(
+            min_rows=10,
+            num_dimensions=768
+        )
+    )
+
+
+def downgrade() -> None:
+    op.drop_vectorizer(vectorizer_id=1, drop_all=True)
+```
+
+The `create_vectorizer` operation supports all configuration options available in the [SQL API](vectorizer-api-reference.md).
 
 ## Querying Embeddings
 
