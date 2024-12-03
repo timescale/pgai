@@ -44,4 +44,3 @@ def initialized_engine(
     with engine.connect() as conn:
         conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
         conn.commit()
-
