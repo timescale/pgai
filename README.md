@@ -63,6 +63,7 @@ For other use cases, first [Install pgai](#installation) in Timescale Cloud, a p
      * [Anthropic](./docs/anthropic.md) - configure pgai for Anthropic, then use the model to generate content.
      * [Cohere](./docs/cohere.md) - configure pgai for Cohere, then use the model to tokenize, embed, chat complete, classify, and rerank.
   - Leverage LLMs for data processing tasks such as classification, summarization, and data enrichment ([see the OpenAI example](/docs/openai.md)).
+  - Load datasets from Hugging Face into your database with [ai.load_dataset](/docs/load_dataset_from_huggingface.md).
 
 
 
@@ -176,7 +177,7 @@ You can use pgai to integrate AI from the following providers:
 - [Cohere](./docs/cohere.md)
 - [Llama 3 (via Ollama)](/docs/ollama.md)
 
-Learn how to [moderate](/docs/moderate.md) content directly in the database using triggers and background jobs.
+Learn how to [moderate](/docs/moderate.md) content directly in the database using triggers and background jobs. To get started, [load datasets directly from Hugging Face](/docs/load_dataset_from_huggingface.md) into your database.
 
 ### Automatically create and sync LLM embeddings for your data
 

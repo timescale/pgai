@@ -4,3 +4,4 @@ ollama==0.2.1
 anthropic==0.29.0
 cohere==5.5.8
 backoff==2.2.1
+datasets==3.1.0
