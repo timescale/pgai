@@ -319,7 +319,6 @@ SELECT ai.create_vectorizer(
       'nomic-embed-text',
       768,
       base_url => "http://my.ollama.server:443"
-      truncate => false,
       options => '{ "num_ctx": 1024 }',
       keep_alive => "10m"
     ),
@@ -364,7 +363,6 @@ SELECT ai.create_vectorizer(
     embedding => ai.embedding_voyageai(
       'voyage-3-lite',
       512,
-      truncate => false,
       api_key_name => "TEST_API_KEY"
     ),
     -- other parameters...

@@ -669,19 +669,22 @@ class Ollama(BaseModel, Embedder):
 
 class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
     """
-    Embedder that uses Ollama to embed documents into vector representations.
+    Embedder that uses Voyage AI to embed documents into vector representations.
 
     Attributes:
-        implementation (Literal["ollama"]): The literal identifier for this
+        implementation (Literal["voyageai"]): The literal identifier for this
             implementation.
-        model (str): The name of the Ollama model used for embeddings.
+        model (str): The name of the Voyage AU model used for embeddings.
         truncate (bool): Truncate input longer than the model's context length
+        input_type ("document" | "query" | None): Set the input type of the
+            items to be embedded. If set, improves retrieval quality.
+
     """
 
     implementation: Literal["voyageai"]
     model: str
     truncate: bool = True
-    input_type: str | None = None
+    input_type: Literal["document"] | Literal["query"] | None = None
 
     @override
     async def embed(
@@ -691,9 +694,10 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
         Embeds a list of documents into vectors using the VoyageAI embeddings API.
 
         If a request to generate embeddings fails because one or more chunks
-        exceed the model's token limit (and truncate is set to False), every
-        chunk will be retried individually. The returned result will contain a
-        ChunkEmbeddingError in place of an EmbeddingVector for the chunks that
+        exceed the model's token limit (and truncate is set to False), the
+        tokenizer for the chosen model is used to reject chunks that exceed the
+        model's token limit. The returned result will contain a
+        ChunkEmbeddingError in place of an EmbeddingVector for chunks that
         exceeded the model's token limit.
 
         Args:
@@ -759,6 +763,7 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
         """
         valid_document_idxs: list[int] = []
         invalid_documents_idxs: list[int] = []
+        # Note: dynamically downloads the model's tokenizer from huggingface
         tokenizer = voyageai.Client(api_key=self._api_key).tokenizer(self.model)
         tokenized_docs = tokenizer.encode_batch(documents)
         for i, doc in enumerate(tokenized_docs):
