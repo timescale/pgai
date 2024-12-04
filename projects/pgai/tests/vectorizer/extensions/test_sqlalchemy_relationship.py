@@ -6,7 +6,7 @@ from sqlalchemy.sql import text
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.cli import vectorizer_worker
-from pgai.sqlalchemy import EmbeddingModel, VectorizerField
+from pgai.sqlalchemy import EmbeddingModel, Vectorizer
 
 
 class Base(DeclarativeBase):
@@ -18,7 +18,7 @@ class BlogPost(Base):
     id = Column(Integer, primary_key=True)
     title = Column(Text, nullable=False)
     content = Column(Text, nullable=False)
-    content_embeddings = VectorizerField(
+    content_embeddings = Vectorizer(
         dimensions=768,
         add_relationship=True,
     )
