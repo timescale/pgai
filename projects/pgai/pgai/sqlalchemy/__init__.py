@@ -25,7 +25,7 @@ class EmbeddingModel(DeclarativeBase, Generic[T]):
     parent: T  # Type of the parent model
 
 
-class VectorizerField:
+class Vectorizer:
     def __init__(
         self,
         dimensions: int,
