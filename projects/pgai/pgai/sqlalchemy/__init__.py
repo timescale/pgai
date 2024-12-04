@@ -90,7 +90,7 @@ class Vectorizer:
             class_dict[col.name] = mapped_column(col.type, nullable=False)
 
         # Create the table args with foreign key constraint
-        table_args_dict: dict[str, Any] = {"info": {"pgai_managed": True}}
+        table_args_dict: dict[str, Any] = dict()
         if self.target_schema and self.target_schema != owner.registry.metadata.schema:
             table_args_dict["schema"] = self.target_schema
 
@@ -145,3 +145,8 @@ class Vectorizer:
         if self.add_relationship:
             # Add the property that ensures initialization
             setattr(owner, f"{name}_relation", property(self._relationship_property))
+
+        metadata = owner.registry.metadata
+        if not hasattr(metadata, "info"):
+            metadata.info = {}
+        metadata.info.setdefault("pgai_managed_tables", set()).add(self.target_table)

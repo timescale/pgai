@@ -52,9 +52,9 @@ They are tagged with `pgai_managed=True`so you can simply exclude them by adding
 
 ```python
 def include_object(object, name, type_, reflected, compare_to):
-  if object.info.get("pgai_managed", False):
-      return False
-  return True
+    if type_ == "table" and name in target_metadata.info.get("pgai_managed_tables", set()):
+        return False
+    return True
 
 context.configure(
       connection=connection,
