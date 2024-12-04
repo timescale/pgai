@@ -1,0 +1,29 @@
+from sqlalchemy.orm import declarative_base
+from sqlalchemy import Column, Integer, Text
+from pgai.sqlalchemy import (
+    Vectorizer,
+   OpenAIEmbeddingConfig,
+    ChunkingConfig
+)
+
+Base = declarative_base()
+
+class BlogPost(Base):
+    __tablename__ = "blog_posts"
+    
+    id = Column(Integer, primary_key=True)
+    title = Column(Text, nullable=False)
+    content = Column(Text, nullable=False)
+    
+    content_embeddings = Vectorizer(
+        embedding=OpenAIEmbeddingConfig(
+            model="{model}",
+            dimensions={dimensions}
+        ),
+        chunking=ChunkingConfig(
+            chunk_column="content",
+            chunk_size={chunk_size},
+            chunk_overlap={chunk_overlap}
+        ),
+        formatting_template="{template}"
+    )
