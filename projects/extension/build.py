@@ -648,7 +648,7 @@ def docker_build() -> None:
 def docker_run() -> None:
     cmd = " ".join(
         [
-            "docker run -d --name pgai-ext -p 127.0.0.1:5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust",
+            "docker run -d --name pgai-ext --network host -p 127.0.0.1:5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust",
             f"--mount type=bind,src={ext_dir()},dst=/pgai",
             "-e TEST_ENV_SECRET=super_secret",
             "pgai-ext",

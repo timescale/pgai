@@ -1,16 +1,58 @@
 import os
-
+import time
+import requests
 import psycopg
 import pytest
 
 
 # skip tests in this module if disabled
-enable_ollama_tests = os.getenv("ENABLE_OLLAMA_TESTS")
+enable_ollama_tests = os.getenv("OLLAMA_HOST")
 if not enable_ollama_tests or enable_ollama_tests == "0":
     pytest.skip(allow_module_level=True)
 
 
-@pytest.fixture()
+def wait_for_model_download(host: str, model: str, timeout: int = 300) -> None:
+    """
+    Wait for a model to be downloaded, with timeout.
+    Args:
+        host: Ollama host URL
+        model: Name of the model to wait for
+        timeout: Maximum time to wait in seconds
+    """
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        try:
+            # Check if model exists in list of models
+            response = requests.get(f"{host}/api/tags")
+            if response.status_code == 200:
+                models = response.json().get("models", [])
+                if any(m["name"] == model for m in models):
+                    return
+            # If not found, trigger download
+            response = requests.post(
+                f"{host}/api/pull",
+                json={"name": model},
+            )
+            if response.status_code == 200:
+                return
+        except requests.RequestException:
+            pass
+        time.sleep(5)
+    raise TimeoutError(f"Timeout waiting for model {model} to be ready")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def ensure_models(ollama_host):
+    """
+    Ensure required models are downloaded before running tests.
+    This fixture runs automatically at the start of the test session.
+    """
+    required_models = ["llama3", "llava:7b"]
+    for model in required_models:
+        wait_for_model_download(ollama_host, model)
+
+
+@pytest.fixture(scope="session")
 def ollama_host() -> str:
     ollama_host = os.environ["OLLAMA_HOST"]
     return ollama_host

@@ -5,7 +5,7 @@ import pytest
 
 
 # skip tests in this module if disabled
-enable_openai_tests = os.getenv("ENABLE_OPENAI_TESTS")
+enable_openai_tests = os.getenv("OPENAI_API_KEY")
 if not enable_openai_tests or enable_openai_tests == "0":
     pytest.skip(allow_module_level=True)
 

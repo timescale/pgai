@@ -6,6 +6,12 @@ permissions:
 
 jobs:
   build-and-test-extension:
+    services:
+      ollama:
+        image: ollama/ollama:latest
+        ports:
+          - 11434:11434
+
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -49,10 +55,32 @@ jobs:
         run: docker exec pgai-ext just install
 
       - name: Run test server
-        run: docker exec -d pgai-ext just test-server
+        run: docker exec -d
+          -e OPENAI_API_KEY
+          -e ANTHROPIC_API_KEY
+          -e COHERE_API_KEY
+          -e VOYAGE_API_KEY
+          pgai-ext just test-server
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
 
       - name: Run tests
-        run: docker exec pgai-ext just test
+        run: docker exec
+          -e OPENAI_API_KEY
+          -e ANTHROPIC_API_KEY
+          -e COHERE_API_KEY
+          -e VOYAGE_API_KEY
+          -e OLLAMA_HOST
+          pgai-ext just test
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          OLLAMA_HOST: http://localhost:11434
 
       - name: Stop and remove Docker container
         run: |
