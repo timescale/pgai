@@ -50,7 +50,7 @@ locally. It includes a:
 
 On your local machine:
 
-1. **Copy the following configuration into a file named `docker-compose.yml`**
+1. **Copy the following configuration into a file named `compose.yaml`**
 
     ```yaml
     name: pgai
@@ -138,7 +138,7 @@ vectorizer run, the vectorizer worker loops over the vectorizers again.
 For a [local installation](#install-vectorizer-worker-in-your-local-environment-), you use the 
 `-i` / `--vectorizer-id` command line argument to manage which vectorizers that are run by that
 worker instance. For `docker compose` you add arguments using either the `command` or `environment`
-flags in `docker-compose.yml`. 
+flags in `compose.yaml`.
 
 A vectorizer worker can:
 
