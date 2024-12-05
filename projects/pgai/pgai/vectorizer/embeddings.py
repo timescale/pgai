@@ -430,7 +430,7 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
                 'method': 'POST',
                 'url': '/v1/embeddings',
                 'body': {
-                    'model': 'text-embedding-3-large', # TODO how can I use the configured embeddings model?
+                    'model': 'text-embedding-3-small', # TODO how can I use the configured embeddings model?
                     'input': document['chunk'],
                 },
             }
@@ -447,11 +447,8 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
 
         return client.batches.create(
             input_file_id=batch_input_file.id,
-            endpoint="/v1/chat/completions",
-            completion_window="24h",
-            metadata={
-                "description": "nightly eval job"
-            }
+            endpoint='/v1/embeddings',
+            completion_window='24h',
         )
 
     async def _filter_by_length_and_embed(
