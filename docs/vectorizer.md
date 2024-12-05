@@ -91,7 +91,7 @@ query like this:
 SELECT ai.create_vectorizer( 
    'blog'::regclass,
     destination => 'blog_contents_embeddings',
-    embedding => ai.embedding_openai('text-embedding-3-small', 768),
+    embedding => ai.embedding_ollama('nomic-embed-text', 768),
     chunking => ai.chunking_recursive_character_text_splitter('contents')
 );
 ```
@@ -112,7 +112,7 @@ into each chunk:
 SELECT ai.create_vectorizer(   
     'blog'::regclass,
     destination => 'blog_contents_embeddings',
-    embedding => ai.embedding_openai('text-embedding-3-small', 768),
+    embedding => ai.embedding_ollama('nomic-embed-text', 768),
     chunking => ai.chunking_recursive_character_text_splitter('contents'),
     formatting => ai.formatting_python_template('$title: $chunk')
 );
@@ -134,24 +134,24 @@ as multiple embeddings are usually generated for each source document.
 
 The view includes all columns from the blog table, plus the following additional columns:
 
-| Column | Type | Description |
-|--------|------|-------------|
-| embedding_uuid | UUID | Unique identifier for the embedding |
-| chunk | TEXT | The text segment that was embedded |
-| embedding | VECTOR | The vector representation of the chunk |
-| chunk_seq | INT | Sequence number of the chunk within the document, starting at 0 |
+| Column         | Type   | Description                                                     |
+|----------------|--------|-----------------------------------------------------------------|
+| embedding_uuid | UUID   | Unique identifier for the embedding                             |
+| chunk          | TEXT   | The text segment that was embedded                              |
+| embedding      | VECTOR | The vector representation of the chunk                          |
+| chunk_seq      | INT    | Sequence number of the chunk within the document, starting at 0 |
 
 To find the closest embeddings to a query, use this canonical SQL query:
 
 ```sql
 SELECT 
    chunk,
-   embedding <=> ai.openai_embed('text-embedding-3-small', <query>) as distance
+   embedding <=> ai.ollama_embed('nomic-embed-text', <query>) as distance
 FROM blog_contents_embeddings
 ORDER BY distance
 LIMIT 10;
 ```
-The `openai_embed` function generates an embedding for the provided string. The
+The `ollama_embed` function generates an embedding for the provided string. The
 `<=>` operator calculates the distance between the query embedding and each
 row's embedding vector. This is a simple way to do semantic search.
 
@@ -200,7 +200,7 @@ accordingly:
 SELECT ai.create_vectorizer(
     'blog'::regclass,
     destination => 'blog_contents_embeddings',
-    embedding => ai.embedding_openai('text-embedding-3-small', 768),
+    embedding => ai.embedding_ollama('nomic-embed-text', 768),
     chunking => ai.chunking_recursive_character_text_splitter('contents', chunk_size => 700),
     formatting => ai.formatting_python_template('$title - by $author - $chunk')
 );
@@ -220,7 +220,7 @@ example uses a HNSW index:
 SELECT ai.create_vectorizer(
     'blog'::regclass,
     destination => 'blog_contents_embeddings',
-    embedding => ai.embedding_openai('text-embedding-3-small', 768),
+    embedding => ai.embedding_ollama('nomic-embed-text', 768),
     chunking => ai.chunking_recursive_character_text_splitter('contents', chunk_size => 700),
     formatting => ai.formatting_python_template('$title - by $author - $chunk'),
     indexing => ai.indexing_hnsw(min_rows => 100000, opclass => 'vector_l2_ops')
@@ -272,8 +272,8 @@ SELECT * FROM ai.vectorizer_status;
 
 Sample output:
 
-| id | source_table | target_table | view | pending_items |
-|----|--------------|--------------|------|---------------|
-| 1 | public.blog | public.blog_contents_embedding_store | public.blog_contents_embeddings | 1 |
+| id | source_table | target_table                         | view                            | pending_items |
+|----|--------------|--------------------------------------|---------------------------------|---------------|
+| 1  | public.blog  | public.blog_contents_embedding_store | public.blog_contents_embeddings | 1             |
 
 The `pending_items` column indicates the number of items still awaiting embedding creation.

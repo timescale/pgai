@@ -25,7 +25,7 @@ operations such as INSERT, UPDATE, and DELETE.
 
 - **Configurable embedding process**: a vectorizer is highly configurable, 
    allowing you to specify:
-    - The embedding model and dimensions. For example, OpenAI's `text-embedding-3-small`.
+    - The embedding model and dimensions. For example, the `nomic-embed-text` model in Ollama.
     - Chunking strategies for text data.
     - Formatting templates for combining multiple fields.
     - Indexing options for efficient similarity searches.
@@ -292,13 +292,12 @@ Use `ai.embedding_openai` to create an embedding configuration object that is pa
 
 The function takes several parameters to customize the OpenAI embedding configuration:
 
-|Name| Type | Default | Required | Description                                                                                                                                                                                                                                                           |
-|-|------|-|-|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|model| text | -|✔| Specify the name of the OpenAI embedding model to use. For example, `text-embedding-3-small`.                                                                                                                                                                         |
-|dimensions| int  | -|✔| Define the number of dimensions for the embedding vectors. This should match the output dimensions of the chosen model.                                                                                                                                               |
-|chat_user| text | -|✖| The identifier for the user making the API call. This can be useful for tracking API usage or for OpenAI's monitoring purposes.                                                                                                                                       |
-|api_key_name|  text    | `OPENAI_API_KEY`|✖| Set [the name of the environment variable that contains the OpenAI API key][openai-use-env-var]. This allows for flexible API key management without hardcoding keys in the database. On Timescale Cloud, you should set this to the name of the secret that contains the OpenAI API key. |
-
+| Name         | Type | Default          | Required | Description                                                                                                                                                                                                                                                                               |
+|--------------|------|------------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| model        | text | -                | ✔        | Specify the name of the OpenAI embedding model to use. For example, `text-embedding-3-small`.                                                                                                                                                                                             |
+| dimensions   | int  | -                | ✔        | Define the number of dimensions for the embedding vectors. This should match the output dimensions of the chosen model.                                                                                                                                                                   |
+| chat_user    | text | -                | ✖        | The identifier for the user making the API call. This can be useful for tracking API usage or for OpenAI's monitoring purposes.                                                                                                                                                           |
+| api_key_name | text | `OPENAI_API_KEY` | ✖        | Set [the name of the environment variable that contains the OpenAI API key][openai-use-env-var]. This allows for flexible API key management without hardcoding keys in the database. On Timescale Cloud, you should set this to the name of the secret that contains the OpenAI API key. |
 #### Returns
 
 A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
@@ -1122,10 +1121,10 @@ To get an exact count, regardless of queue size, set the optional parameter to
 
 `ai.vectorizer_queue_pending function` takes the following parameters:
 
-|Name| Type | Default | Required | Description |
-|-|------|-|-|-|
-|vectorizer_id| int  | -|✔|The identifier of the vectorizer you want to check|
-|exact_count| bool | false |✖|If true, return exact count. If false, capped at 10,000|
+| Name          | Type | Default | Required | Description                                             |
+|---------------|------|---------|----------|---------------------------------------------------------|
+| vectorizer_id | int  | -       | ✔        | The identifier of the vectorizer you want to check      |
+| exact_count   | bool | false   | ✖        | If true, return exact count. If false, capped at 10,000 |
 
 
 ### Returns

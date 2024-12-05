@@ -1,7 +1,7 @@
 # Vectorizer quick start
 
-This page shows you how to create an ollama-based vectorizer in a self-hosted Postgres instance. We also show how simple it is to do semantic search on the automatically embedded data!  
-If you prefer working with the openai-api instead of self hosting models, you can jump over to the [openai quick start](vectorizer-quick-start-openai.md).
+This page shows you how to create an Ollama-based vectorizer in a self-hosted Postgres instance. We also show how simple it is to do semantic search on the automatically embedded data!
+If you prefer working with the OpenAI API instead of self-hosting models, you can jump over to the [openai quick start](vectorizer-quick-start-openai.md).
 
 ## Setup a local development environment
 
@@ -51,9 +51,9 @@ docker compose exec ollama ollama pull nomic-embed-text
 
 Now we can create and run a vectorizer. A vectorizer is a pgai concept, it processes data in a table and automatically creates embeddings for it.
 
-1. **Connection to the database in your local developer environment**
+1. **Connect to the database in your local developer environment**
 
-   - Docker: `docker exec -it pgai-db-1 psql -U postgres`
+   - Docker: `docker compose exec -it pgai psql`
    - psql:  `psql postgres://postgres:postgres@localhost:5432/postgres`
 
 1. **Enable pgai on your database**
@@ -123,8 +123,8 @@ Now we can create and run a vectorizer. A vectorizer is a pgai concept, it proce
 
 The results look like:
 
-| chunk                                                                         | distance |
-|-------------------------------------------------------------------------------|--------|
+| chunk                                                                         | distance           |
+|-------------------------------------------------------------------------------|--------------------|
 | Maintaining a healthy diet can be challenging for busy professionals...       | 0.5030059372474176 |
 | PostgreSQL is a powerful, open source object-relational database system...    | 0.5868937074856113 |
 | PostgreSQLBlogging can be a great way to share your thoughts and expertise... | 0.5928412342761966 |

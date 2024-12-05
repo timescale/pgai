@@ -194,7 +194,7 @@ With one line of code, you can define a vectorizer that creates embeddings for d
 SELECT ai.create_vectorizer(
     <table_name>::regclass,
     destination => <embedding_table_name>,
-    embedding => ai.embedding_openai(<model_name>, <dimensions>),
+    embedding => ai.embedding_ollama(<model_name>, <dimensions>),
     chunking => ai.chunking_recursive_character_text_splitter(<column_name>)
 );
 ```
@@ -203,11 +203,11 @@ data in the source table and update the destination embedding table
 with the new embeddings asynchronously.
 
 [Automate AI embedding with pgai Vectorizer](/docs/vectorizer.md) shows you how
-to implement embeddings in your own data. When you create Vectorizers in a Timescale
-Cloud database, embeddings are automatically created and synchronized in the background.
-On a self-hosted Postgres installation, you use a [Vectorizer
-Worker](/docs/vectorizer-worker.md) to asynchronously processes your
-vectorizers.
+to implement embeddings in your own data. On a self-hosted Postgres
+installation, you use a [Vectorizer Worker](/docs/vectorizer-worker.md) to
+asynchronously processes your vectorizers. When you create Vectorizers in a
+Timescale Cloud database, embeddings are automatically created and synchronized
+in the background. Note: Timescale Cloud only supports embedding with OpenAI.
 
 ### Search your data using vector and semantic search
 
@@ -217,7 +217,7 @@ you to do semantic search directly in your database:
 ```sql
 SELECT
    chunk,
-   embedding <=> ai.openai_embed(<embedding_model>, 'some-query') as distance
+   embedding <=> ai.ollama_embed(<embedding_model>, 'some-query') as distance
 FROM <embedding_table>
 ORDER BY distance
 LIMIT 5;
@@ -244,18 +244,22 @@ enable you to implement RAG directly in your database. For example:
        FROM (
            SELECT title, chunk
            FROM blogs_embedding
-           ORDER BY embedding <=> ai.openai_embed('text-embedding-3-small', query_text)
+           ORDER BY embedding <=> ai.ollama_embed('nomic-embed-text', query_text)
            LIMIT 3
        ) AS relevant_posts;
 
-       -- Generate a summary using gpt-4o-mini
-       SELECT ai.openai_chat_complete(
-           'gpt-4o-mini',
-           jsonb_build_array(
-               jsonb_build_object('role', 'system', 'content', 'You are a helpful assistant. Use only the context provided to answer the question. Also mention the titles of the blog posts you use to answer the question.'),
-               jsonb_build_object('role', 'user', 'content', format('Context: %s\n\nUser Question: %s\n\nAssistant:', context_chunks, query_text))
-           )
-       )->'choices'->0->'message'->>'content' INTO response;
+       -- Generate a summary using llama3
+       SELECT ai.ollama_chat_complete(
+           'llama3',
+            , jsonb_build_array
+              ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
+              , jsonb_build_object('role', 'user', 'content', 'Give a short description of what a large language model is')
+              )
+            , chat_options=> jsonb_build_object
+            ( 'seed', 42
+            , 'temperature', 0.6
+            )
+       )->'message'->>'content' INTO response;
 
        RETURN response;
     END;
