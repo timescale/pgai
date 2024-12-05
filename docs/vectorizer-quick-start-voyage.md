@@ -1,13 +1,13 @@
-# Vectorizer quick start
+# Vectorizer quick start with VoyageAI
 
-This page shows you how to create a vectorizer in a self-hosted Postgres instance. We also show how simple it is to do semantic search on the automatically embedded data!  
-We recommend to use voyage ai as an embedding provider, to follow this tutorial you need to have a voyage ai account and an api key. You can get one [here](https://voyageai.com/).
+This page shows you how to create a vectorizer and run a semantic search on the automatically embedded data on a self-hosted Postgres instance.
+To follow this tutorial you need to have a Voyage AI account API key. You can get one [here](https://voyageai.com/).
 
 ## Setup a local development environment
 
-We use a docker-compose file to set up a development environment, it includes a:
-- Postgres deployment image with the TimescaleDB and pgai extensions installed
-- pgai vectorizer worker image
+We use a docker-compose file to set up a development environment, it includes:
+- The official TimescaleDB docker image with pgai, pgvectorscale and timescaledb included
+- The pgai vectorizer worker image
 
 On your local machine:
 
@@ -43,7 +43,7 @@ On your local machine:
 
 Now we can create and run a vectorizer. A vectorizer is a pgai concept, it processes data in a table and automatically creates embeddings for it.
 
-1. **Connection to the database in your local developer environment**
+1. **Connect to the database in your local developer environment**
 
    - Docker: `docker exec -it pgai-db-1 psql -U postgres`
    - psql:  `psql postgres://postgres:postgres@localhost:5432/postgres`
