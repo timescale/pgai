@@ -4,6 +4,7 @@ import os
 import threading
 import time
 from collections.abc import Callable
+from datetime import datetime, timezone
 from functools import cached_property
 from itertools import repeat
 from typing import Any, TypeAlias, Dict
@@ -539,14 +540,13 @@ CREATE TABLE IF NOT EXISTS ai.embedding_batch_chunks
                 created_batch, documents = await self._generate_embedding_batch(items)
 
                 await conn.execute("""
-                INSERT INTO embedding_batches (
+                INSERT INTO ai.embedding_batches (
                     openai_batch_id,
                     input_file_id,
                     output_file_id,
                     status,
                     errors,
-                    expires_at,
-                    completed_at
+                    expires_at
                 ) VALUES (
                     %(openai_batch_id)s,
                     %(input_file_id)s,
@@ -561,7 +561,7 @@ CREATE TABLE IF NOT EXISTS ai.embedding_batch_chunks
                     'output_file_id': created_batch.output_file_id,
                     'status': created_batch.status,
                     'errors': created_batch.errors,
-                    'expires_at': created_batch.expires_at,
+                    'expires_at': datetime.fromtimestamp(created_batch.expires_at, timezone.utc),
                 })
 
                 return len(items)
