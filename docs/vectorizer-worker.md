@@ -31,49 +31,49 @@ To run vectorizer workers, you need to:
 
 ## Install and configure vectorizer worker
 
-To be able to run vectorizers in your self-hosted database, either:
+To be able to run vectorizers in your self-hosted database, use one of the following setups:
 
-- [Install a local developer environment Docker image](#install-a-local-developer-environment-docker-image): a Docker image containing a database instance and pgai vectorizer worker 
-- [Install the vectorizer worker Docker image](#install-the-vectorizer-worker-docker-image): a Docker image you use to run vectorizers on any self-hosted Postgres database with the pgai 
-   extension activated 
-- [Install vectorizer worker in your local environment](#install-vectorizer-worker-in-your-local-environment): install pgai locally so you can run vectorizers on any self-hosted
+- [End-to-end vectorizer worker with Docker Compose](#end-to-end-vectorizer-worker-with-docker-compose): a Docker Compose configuration with a database instance and pgai vectorizer worker
+- [Standalone vectorizer worker with Docker](#standalone-vectorizer-worker-with-docker): a Docker image you use to run vectorizers on any self-hosted Postgres database with the pgai
+   extension activated
+- [Install vectorizer worker as a python package](#install-vectorizer-worker-as-a-python-package): install pgai as a python package so you can run vectorizers on any self-hosted
   Postgres database with the pgai extension activated
 
-### Install a local developer environment Docker image
+### End-to-end vectorizer worker with Docker Compose
 
-The local developer environment is a docker configuration you use to develop and test pgai, vectorizers and vectorizer 
-worker locally. It includes a: 
-- Postgres deployment image with the TimescaleDB and pgai extensions installed
-- pgai vectorizer worker image  
+The end-to-end vectorizer worker is a batteries-included Docker Compose
+configuration which you use to test pgai, vectorizers and vectorizer worker
+locally. It includes a:
+- local Postgres instance with pgai installed,
+- embedding API service (Ollama)
+- pgai vectorizer worker
 
 On your local machine:
 
-1. **Create the Docker configuration for a local developer environment**
+1. **Copy the following configuration into a file named `docker-compose.yml`**
 
-   1. Copy the following configuration into a file named `docker-compose.yml`:
-   
-       ```yaml
-       name: pgai
-       services:
-         db:
-           image: timescale/timescaledb-ha:cicd-024349a-arm64
-           environment:
-             POSTGRES_PASSWORD: postgres
-             OPENAI_API_KEY: <your-api-key>
-           ports:
-             - "5432:5432"
-           volumes:
-             - ./data:/var/lib/postgresql/data
-         vectorizer-worker:
-           image: timescale/pgai-vectorizer-worker:v0.2.1
-           environment:
-             PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
-             OPENAI_API_KEY: <your-api-key>
-       ```
+    ```yaml
+    name: pgai
+    services:
+      db:
+        image: timescale/timescaledb-ha:pg17
+        environment:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - "5432:5432"
+        volumes:
+          - ./data:/var/lib/postgresql/data
+      vectorizer-worker:
+        image: timescale/pgai-vectorizer-worker:v0.2.1
+        environment:
+          PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
+          OLLAMA_HOST: http://ollama:11434
+        command: [ "--poll-interval", "5s" ]
+      ollama:
+        image: ollama/ollama
+    ```
 
-   1. Replace the instances of `OPENAI_API_KEY` with a key from your AI provider.
-
-1. **Start the database and vectorizer worker**
+1. **Start the services locally**
    ```shell
     docker compose up -d
     ```
@@ -82,48 +82,25 @@ On your local machine:
    - Docker: `docker compose exec -it db psql`
    - psql:  `psql postgres://postgres:postgres@localhost:5432/postgres`
 
-### Install the vectorizer worker Docker image
+### Standalone vectorizer worker with Docker
 
-This docker image supplies a pgai image with vectorizer worker. You use this image to 
-run vectorizers on any self-hosted Postgres database that has the pgai extension activated.
+The `timescale/pgai-vectorizer-worker` docker image supplies the pgai vectorizer worker.
+You use this image to run vectorizers on any self-hosted Postgres database that has the
+pgai extension activated.
 
 On your local machine:
-
-1. **Create the Docker configuration for pgai vectorizer worker**
-
-   Copy the following configuration into a file named `docker-compose.yml`:
-   ```yaml
-   name: pgai
-   services:
-     vectorizer-worker:
-       image: timescale/pgai-vectorizer-worker:v0.2.1
-       environment:
-         PGAI_VECTORIZER_WORKER_DB_URL: postgres://<username>:<password>@<host>:<port>/<database-name>
-         OPENAI_API_KEY: <your-api-key>
-         OLLAMA_HOST: <ollama-host-url>
-         PGAI_VECTORIZER_OLLAMA_MAX_CHUNKS_PER_BATCH: <ollama-max-chunks-per-batch>
-   ```
-
-  1. Replace the values of:
-     - `PGAI_VECTORIZER_WORKER_DB_URL`: the postgres connection string to the database where you have defined vectorizers.
-     - `OPENAI_API_KEY`: with a key from your AI provider (if using OpenAI).
-     - `OLLAMA_HOST`: with the base url of your ollama installation (if using Ollama and the url is not http://localhost:11434).
-     - `PGAI_VECTORIZER_OLLAMA_MAX_CHUNKS_PER_BATCH`: with the max chunks per batch (if not 2048).
 
 1. **Run the vectorizer worker**
 
    For self-hosted, you run a pgai vectorizer worker to automatically create embedding from the data in your
    database using [vectorizers you defined previously](/docs/vectorizer.md#define-a-vectorizer).
 
-   In a new terminal, start the vectorizer worker:
-   ```shell
-   docker compose up -d
+   Start the vectorizer worker:
+   ```
+   docker run timescale/pgai-vectorizer-worker:{tag version} --db-url <DB URL>
    ```
 
-   You can also use the run command:
-   `docker run timescale/pgai-vectorizer-worker:{tag version}  --db-url <Same value as PGAI_VECTORIZER_WORKER_DB_URL>`
-
-### Install vectorizer worker in your local environment
+### Install vectorizer worker as a python package
 
 On your local machine:
 
