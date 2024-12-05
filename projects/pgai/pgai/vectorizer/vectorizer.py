@@ -22,7 +22,7 @@ from .chunking import (
     LangChainCharacterTextSplitter,
     LangChainRecursiveCharacterTextSplitter,
 )
-from .embeddings import ChunkEmbeddingError, Ollama, OpenAI, VoyageAI
+from .embeddings import ChunkEmbeddingError, Ollama, OpenAI, VoyageAI, OpenAIBatch
 from .formatting import ChunkValue, PythonTemplate
 from .processing import ProcessingDefault
 
@@ -465,12 +465,104 @@ class Worker:
             await self.vectorizer.config.embedding.setup()
             while True:
                 if not self._continue_processing(loops, res):
+                    # TODO how can we run this only after hitting the rate limit of the normal openai batch embedding api?
+                    self._do_openai_batch(conn)
                     return res
                 items_processed = await self._do_batch(conn)
                 if items_processed == 0:
                     return res
                 res += items_processed
                 loops += 1
+
+    @tracer.wrap()
+    async def _do_openai_batch(self, conn: AsyncConnection) -> int:
+        """
+        Creates embeddings using openai's batch processing api. This allows to process
+        very large amounts of data faster than with the embeddings api, because the
+        batch api has vastly higher rate limits.
+
+        Args:
+            conn (AsyncConnection): The asynchronous database connection.
+        """
+
+        # TODO do nothing when openai is not configured
+
+        try:
+            async with conn.transaction():
+                items = await self._fetch_work(conn)
+
+                await logger.adebug(f"Items pulled from queue for openai batch embedding: {len(items)}")
+
+                # Filter out items that were deleted from the source table.
+                # We use the first primary key column, since they can only
+                # be null if the LEFT JOIN didn't find a match.
+                items = [
+                    i
+                    for i in items
+                    if i[self.vectorizer.source_pk[0].attname] is not None
+                ]
+
+                if len(items) == 0:
+                    return 0
+
+                created_batch = await self._generate_embedding_batch(items)
+
+                # TODO this does not feel like the way to go, is there a way to do these kind of migrations properly?
+                await conn.execute("""
+                CREATE TABLE IF NOT EXISTS embedding_batches (
+                    id              BIGSERIAL PRIMARY KEY,
+                    openai_batch_id VARCHAR(255),
+                    input_file_id   VARCHAR(255) NOT NULL,
+                    output_file_id  VARCHAR(255),
+                    status          VARCHAR(255) NOT NULL,
+                    errors          JSONB,
+                    created_at      TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+                    expires_at      TIMESTAMP(0),
+                    completed_at    TIMESTAMP(0),
+                    failed_at       TIMESTAMP(0)
+                );
+                CREATE INDEX IF NOT EXISTS embedding_batches_status_index
+                    ON embedding_batches (status);
+                """)
+
+                await conn.execute("""
+                INSERT INTO embedding_batches (
+                    openai_batch_id,
+                    input_file_id,
+                    output_file_id,
+                    status,
+                    errors,
+                    expires_at,
+                    completed_at
+                ) VALUES (
+                    %(openai_batch_id)s,
+                    %(input_file_id)s,
+                    %(output_file_id)s,
+                    %(status)s,
+                    %(errors)s,
+                    %(expires_at)s
+                )
+                """, {
+                    'openai_batch_id': created_batch.id,
+                    'input_file_id': created_batch.input_file_id,
+                    'output_file_id': created_batch.output_file_id,
+                    'status': created_batch.status,
+                    'errors': created_batch.errors,
+                    'expires_at': created_batch.expires_at,
+                })
+
+                return len(items)
+        except Exception as e:
+            async with conn.transaction():
+                await self._insert_vectorizer_error(
+                    conn,
+                    (
+                        self.vectorizer.id,
+                        VECTORIZER_FAILED,
+                        Jsonb({"error_reason": str(e)}),
+                    ),
+                )
+            raise e
 
     @tracer.wrap()
     async def _do_batch(self, conn: AsyncConnection) -> int:
@@ -730,6 +822,25 @@ class Worker:
             else:
                 records.append(record + [np.array(embedding)])
         return records, errors
+
+    async def _generate_embedding_batch(
+        self, items: list[SourceRow]
+    ) -> OpenAIBatch:
+        documents: list[dict[str, Any]] = []
+        for item in items:
+            chunks = self.vectorizer.config.chunking.into_chunks(item)
+            for chunk_id, chunk in enumerate(chunks, 0):
+                formatted = self.vectorizer.config.formatting.format(chunk, item)
+                documents.append({
+                    'id': item['id'],
+                    'chunk_id': chunk_id,
+                    'chunk': formatted,
+                })
+
+        try:
+            return await self.vectorizer.config.embedding.create_and_submit_embedding_batch(documents)
+        except Exception as e:
+            raise EmbeddingProviderError() from e
 
     def _vectorizer_error_record(
         self, record: EmbeddingRecord, chunk_error: ChunkEmbeddingError
