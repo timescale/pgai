@@ -1,4 +1,6 @@
+import json
 import re
+import tempfile
 from collections.abc import Iterable, Sequence
 from functools import cached_property
 from typing import Any, Literal, cast
@@ -6,6 +8,7 @@ from typing import Any, Literal, cast
 import openai
 import tiktoken
 from openai import resources
+from psycopg import AsyncConnection
 from pydantic import BaseModel
 from typing_extensions import override
 
@@ -40,12 +43,20 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
         model (str): The name of the OpenAI model used for embeddings.
         dimensions (int | None): Optional dimensions for the embeddings.
         user (str | None): Optional user identifier for OpenAI API usage.
+        use_batch (bool): Whether to use OpenAI Batch API.
+        embedding_batch_schema (str | None): The schema where the embedding batches are stored.
+        embedding_batch_table (str | None): The table where the embedding batches are stored.
+        embedding_batch_chunks_table (str | None): The table where the embedding batch chunks are stored.
     """
 
     implementation: Literal["openai"]
     model: str
     dimensions: int | None = None
     user: str | None = None
+    use_batch: bool = False
+    embedding_batch_schema: str | None = None
+    embedding_batch_table: str | None = None
+    embedding_batch_chunks_table: str | None = None
 
     @cached_property
     def _openai_dimensions(self) -> int | openai.NotGiven:
@@ -148,6 +159,57 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
                 model_token_length, encoded_documents
             )
 
+    async def create_and_submit_embedding_batch(
+        self,
+        documents: list[dict[str, Any]],
+    ) -> AsyncBatch:
+        """
+        Creates a batch of embeddings using OpenAI's embeddings API as outlined in
+        https://platform.openai.com/docs/guides/batch/batch-api?lang=python
+
+        Args:
+            documents (list[str]): A list of document chunks to be embedded.
+
+        Returns:
+
+        """
+
+        with tempfile.NamedTemporaryFile(
+            delete=False, suffix=".jsonl", mode="w"
+        ) as temp_file:
+            for document in documents:
+                entry = {
+                    "custom_id": document["unique_full_chunk_id"],
+                    "method": "POST",
+                    "url": "/v1/embeddings",
+                    "body": {
+                        "model": self.model,
+                        "input": document["chunk"],
+                    },
+                }
+                temp_file.write(json.dumps(entry) + "\n")
+
+            temp_file.close()
+
+        with open(temp_file.name, "rb") as file:
+            batch_input_file = self._client.files.create(
+                file=file,
+                purpose="batch",
+            )
+
+        openai_batch = self._client.batches.create(
+            input_file_id=batch_input_file.id,
+            endpoint="/v1/embeddings",
+            completion_window="24h",
+        )
+
+        batch = AsyncBatch()
+        batch.external_batch_id = openai_batch.id
+        batch.input_file_id = openai_batch.input_file_id
+        batch.status = openai_batch.status
+
+        return batch
+
     async def _filter_by_length_and_embed(
         self, model_token_length: int, encoded_documents: list[Document]
     ) -> Sequence[EmbeddingVector | ChunkEmbeddingError]:
@@ -234,3 +296,91 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
             )
             return None
         return encoder
+
+    def is_api_async(self) -> bool:
+        return self.use_batch
+
+    async def fetch_async_embedding_status(self, batch: AsyncBatch) -> AsyncBatch:
+        openai_batch = self._client.batches.retrieve(batch.external_batch_id)
+
+        batch.status = openai_batch.status
+        batch.completed_at = openai_batch.completed_at
+        batch.failed_at = openai_batch.failed_at
+        batch.errors = openai_batch.errors
+
+        return batch
+
+    async def process_async_embedding(
+        self,
+        conn: AsyncConnection,
+        batch: AsyncBatch,
+    ):
+        """
+        Writes embeddings from an OpenAI batch embedding to the database.
+
+        - Deletes existing embeddings for the items.
+        - Loads created embeddings from the batch.
+        - Writes created embeddings to the database.
+        - Logs any non-fatal errors encountered during embedding.
+
+        Args:
+            conn (AsyncConnection): The database connection.
+            batch: The batch as stored in the queue table.
+        """
+        openai_batch = self._client.batches.retrieve(batch.external_batch_id)
+        batch_file = self._client.files.content(openai_batch.output_file_id)
+
+        batch_data = batch_file.text.strip().split("\n")
+        num_records = 0
+        all_items = []
+        all_records: list[EmbeddingRecord] = []
+
+        async with conn.cursor() as cursor:
+            await cursor.execute(
+                self.queries.fetch_chunks_for_batch_id_query(
+                    batch.id,
+                )
+            )
+            embedding_batch_chunks = {row[0]: row[1] for row in await cursor.fetchall()}
+
+            for line in batch_data:
+                json_line = json.loads(line)
+                if "custom_id" in json_line and "response" in json_line:
+                    custom_id = json_line["custom_id"]
+                    pk_names, document_id, chunk_seq = custom_id.split(":::")
+                    embedding_data = json_line["response"]["body"]["data"][0][
+                        "embedding"
+                    ]
+
+                    resolved_id = document_id.split(",")
+                    resolved_pk = pk_names.split(",")
+                    item = {
+                        pk: id_value
+                        for pk, id_value in zip(resolved_pk, resolved_id, strict=False)
+                    }
+                    item[self.vectorizer.config.chunking.chunk_column] = (
+                        embedding_batch_chunks[custom_id]
+                    )
+
+                    all_items.append(item)
+                    all_records.append(
+                        [
+                            resolved_id
+                            + [chunk_seq, embedding_batch_chunks[custom_id]]
+                            + [np.array(embedding_data)]
+                        ]
+                    )
+
+        await self._delete_embeddings(conn, all_items)
+        for records in all_records:
+            await self._copy_embeddings(conn, records)
+
+        return num_records
+
+    async def finalize_async_embedding(
+        self,
+        batch: AsyncBatch,
+    ):
+        openai_batch = self._client.batches.retrieve(batch.external_batch_id)
+        await self._client.files.delete(openai_batch.input_file_id)
+        await self._client.files.delete(openai_batch.output_file_id)

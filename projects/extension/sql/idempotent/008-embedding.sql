@@ -7,8 +7,20 @@ create or replace function ai.embedding_openai
 , chat_user pg_catalog.text default null
 , api_key_name pg_catalog.text default 'OPENAI_API_KEY'
 , base_url text default null
+, use_batch_api pg_catalog.bool default false
+, embedding_batch_schema pg_catalog.name default null
+, embedding_batch_table pg_catalog.name default null
+, embedding_batch_chunks_table pg_catalog.name default null
 ) returns pg_catalog.jsonb
 as $func$
+declare
+    _vectorizer_id pg_catalog.int4;
+begin
+    _vectorizer_id = pg_catalog.nextval('ai.vectorizer_id_seq'::pg_catalog.regclass);
+    embedding_batch_schema = coalesce(embedding_batch_schema, 'ai');
+    embedding_batch_table = coalesce(embedding_batch_table, pg_catalog.concat('_vectorizer_embedding_batches_', _vectorizer_id));
+    embedding_batch_chunks_table = coalesce(embedding_batch_chunks_table, pg_catalog.concat('_vectorizer_embedding_batch_chunks_', _vectorizer_id));
+
     select json_object
     ( 'implementation': 'openai'
     , 'config_type': 'embedding'
@@ -17,6 +29,10 @@ as $func$
     , 'user': chat_user
     , 'api_key_name': api_key_name
     , 'base_url': base_url
+    , 'use_batch_api': use_batch_api
+    , 'embedding_batch_schema': embedding_batch_schema
+    , 'embedding_batch_table': embedding_batch_table
+    , 'embedding_batch_chunks_table': embedding_batch_chunks_table
     absent on null
     )
 $func$ language sql immutable security invoker
@@ -107,6 +123,9 @@ as $func$
 declare
     _config_type pg_catalog.text;
     _implementation pg_catalog.text;
+    _embedding_batch_schema pg_catalog.text;
+    _embedding_batch_table pg_catalog.text;
+    _embedding_batch_chunks_table pg_catalog.text;
 begin
     if pg_catalog.jsonb_typeof(config) operator(pg_catalog.!=) 'object' then
         raise exception 'embedding config is not a jsonb object';
@@ -119,6 +138,19 @@ begin
     _implementation = config operator(pg_catalog.->>) 'implementation';
     case _implementation
         when 'openai' then
+            -- make sure embedding batch table name is available
+            select (config operator (pg_catalog.->> 'embedding_batch_schema'))::text into _embedding_batch_schema;
+            select (config operator (pg_catalog.->> 'embedding_batch_table'))::text into _embedding_batch_table;
+            select (config operator (pg_catalog.->> 'embedding_batch_chunks_table'))::text into _embedding_batch_chunks_table;
+            if pg_catalog.to_regclass(pg_catalog.format('%I.%I', _embedding_batch_schema, _embedding_batch_table)) is not null then
+                raise exception 'an object named %.% already exists. specify an alternate embedding_batch_table explicitly', queue_schema, queue_table;
+            end if;
+
+            -- make sure embedding batch chunks table name is available
+            if pg_catalog.to_regclass(pg_catalog.format('%I.%I', _embedding_batch_schema, _embedding_batch_chunks_table)) is not null then
+                raise exception 'an object named %.% already exists. specify an alternate embedding_batch_chunks_table explicitly', queue_schema, queue_table;
+            end if;
+
             -- ok
         when 'ollama' then
             -- ok

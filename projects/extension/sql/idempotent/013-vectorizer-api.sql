@@ -1,5 +1,3 @@
-
-
 -------------------------------------------------------------------------------
 -- execute_vectorizer
 create or replace function ai.execute_vectorizer(vectorizer_id pg_catalog.int4) returns void
@@ -44,6 +42,7 @@ declare
     _vectorizer_id pg_catalog.int4;
     _sql pg_catalog.text;
     _job_id pg_catalog.int8;
+    _implementation pg_catalog.text;
 begin
     -- make sure all the roles listed in grant_to exist
     if grant_to is not null then
@@ -223,6 +222,17 @@ begin
     ;
     if _job_id is not null then
         scheduling = pg_catalog.jsonb_insert(scheduling, array['job_id'], pg_catalog.to_jsonb(_job_id));
+    end if;
+
+    -- create batch embedding tables
+    select (embedding operator (pg_catalog.->> 'implementation'))::text into _implementation;
+    if _implementation = 'openai' then
+        perform ai._vectorizer_create_embedding_batches_table
+            (embedding_batch_schema
+            , embedding_batch_table
+            , embedding_batch_chunks_table
+            , grant_to
+            );
     end if;
 
     insert into ai.vectorizer

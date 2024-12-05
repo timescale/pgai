@@ -1,11 +1,29 @@
+import math
+import re
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from typing import Generic, TypeAlias, TypeVar
+from typing import (
+    Any,
+    Generic,
+    TypeAlias,
+    TypeVar,
+)
 
 import structlog
 from ddtrace import tracer
+from psycopg import AsyncConnection
+
+MAX_RETRIES = 3
+
+TOKEN_CONTEXT_LENGTH_ERROR = "chunk exceeds model context length"
+
+openai_token_length_regex = re.compile(
+    r"This model's maximum context length is (\d+) tokens"
+)
+
+from .vectorizer import AsyncBatch
 
 logger = structlog.get_logger()
 
@@ -215,6 +233,56 @@ class Embedder(ABC):
     async def setup(self) -> None:  # noqa: B027 empty on purpose
         """
         Setup the embedder
+        """
+
+    @abstractmethod
+    def is_api_async(self) -> bool:
+        return False
+
+    @abstractmethod
+    async def fetch_async_embedding_status(self, batch: AsyncBatch) -> AsyncBatch:
+        """
+        Will receive a row from the batch embeddings queue table and should
+        check if the embedding has been processed and is ready to be stored.
+
+        If it is ready, the status of the async batch should be set to "completed".
+        """
+
+    @abstractmethod
+    async def process_async_embedding(
+        self,
+        conn: AsyncConnection,
+        batch: AsyncBatch,
+    ):
+        """
+        Writes embeddings from a batch embedding to the database.
+
+        - Deletes existing embeddings for the items.
+        - Loads created embeddings from the batch.
+        - Writes created embeddings to the database.
+        - Logs any non-fatal errors encountered during embedding.
+
+        Args:
+            conn (AsyncConnection): The database connection.
+            batch: The batch as retrieved from the database.
+        """
+
+    async def finalize_async_embedding(
+        self,
+        batch: AsyncBatch,
+    ):
+        """
+        When the batch was processed, this method allows to clean up any
+        files from the external service.
+        """
+
+    @abstractmethod
+    async def create_and_submit_embedding_batch(
+        self,
+        documents: list[dict[str, Any]],
+    ) -> AsyncBatch:
+        """
+        Receives a bunch of documents and creates a batch of documents for it with an external service.
         """
 
 
