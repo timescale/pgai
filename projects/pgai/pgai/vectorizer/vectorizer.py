@@ -961,7 +961,7 @@ CREATE TABLE IF NOT EXISTS ai.embedding_batch_chunks
 
     async def _generate_embedding_batch(
         self, items: list[SourceRow]
-    ) -> openai.types.Batch:
+    ) -> tuple[openai.types.Batch, list[dict[str, Any]]]:
         documents: list[dict[str, Any]] = []
         for item in items:
             pk = self._get_item_pk_values(item)
@@ -979,7 +979,8 @@ CREATE TABLE IF NOT EXISTS ai.embedding_batch_chunks
                 })
 
         try:
-            return await self.vectorizer.config.embedding.create_and_submit_embedding_batch(documents)
+            batch = await self.vectorizer.config.embedding.create_and_submit_embedding_batch(documents)
+            return batch, documents
         except Exception as e:
             raise EmbeddingProviderError() from e
 
