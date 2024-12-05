@@ -467,7 +467,7 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
 
         """
 
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jsonl', mode='rw')
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jsonl', mode='w')
 
         for document in documents:
             entry = {
