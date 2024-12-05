@@ -1,100 +1,90 @@
 # Contributing to pgai
 
+Thank you for your interest in contributing to the Timescale [pgai](https://github.com/timescale/pgai) project! This guide outlines the process for reporting issues, proposing features, and submitting pull requests.
+
 We appreciate any help the community can provide to make pgai better!
 
-You can help in different ways:
+## How to Contribute
 
-* Open an [issue](https://github.com/timescale/pgai/issues) with a
-  bug report, build issue, feature request, suggestion, etc.
+### Report Issues
+If you encounter any bugs or have suggestions for improvements, please submit an issue through the [GitHub issue tracker](https://github.com/timescale/pgai/issues). Include as much detail as possible to help us understand and resolve the problem.
 
-* Fork this repository and submit a pull request
+### Propose Features
+We welcome proposals for new features! Before starting work on a significant feature (regardless if you are willing to code), please follow the RFC process detailed below. This helps ensure community alignment and avoids duplication of effort.
 
-For any particular improvement you want to make, it can be beneficial to
-begin discussion on the GitHub issues page. This is the best place to
-discuss your proposed improvement (and its implementation) with the core
-development team.
+## Request for Comments (RFC) Process
 
-Before we accept any code contributions, pgai contributors need to
-sign the [Contributor License Agreement](https://cla-assistant.io/timescale/pgai) (CLA). By signing a CLA, we can
-ensure that the community is free and confident in its ability to use your
-contributions.
+For significant changes or new features, we use an RFC process to gather feedback and build consensus. Below are the stages of the RFC process:
 
-## Development
+### RFC Stages
 
-Please follow our DEVELOPMENT doc for [instructions how to develop and test](https://github.com/timescale/pgai/blob/main/DEVELOPMENT.md).
+```mermaid
+graph LR
+    A[Strawman] --> B[Draft]
+    B --> C[Accepted]
+    B --> D[Rejected]
+    C --> E[Implemented]
+```
 
-## Code review workflow
+1. **Strawman**:
+   - A preliminary idea presented for discussion.
+   - The goal is to identify high-level feasibility, scope, and alignment with project goals.
+   - Strawman proposals can be submitted as an issue or draft pull request with a summary of the idea.
+   - **Entrance criteria**:
+     - Clear explanation of problem and solution.
+     - Illustrative examples.
+     - Incomplete code changes.
+     - Identification of potential concerns, challenges, and drawbacks.
 
-* Sign the [Contributor License Agreement](https://cla-assistant.io/timescale/pgai) (CLA) if you're a new contributor.
+2. **Draft**:
+   - A more detailed proposal based on feedback from the strawman phase.
+   - Includes technical details, diagrams, and expected outcomes.
+   - Drafts are reviewed by maintainers and the community.
+   - Updates to the draft occur as new feedback is incorporated.
+   - **Entrance criteria**:
+     - Consensus the solution is preferred.
+     - Resolution of identified concerns and challenges.
+     - Precisely described with accurate code changes or examples.
 
-* Develop on your local branch:
+3. **Accepted**:
+   - The RFC is formally approved and ready for implementation.
+   - Specific tasks and milestones are outlined for execution.
+   - **Entrance criteria**:
+     - Consensus the solution is complete.
+     - Complete changes, including tests, documentation, and examples.
 
-    * Fork the repository and create a local feature branch to do work on,
-      ideally on one thing at a time.  Don't mix bug fixes with unrelated
-      feature enhancements or stylistical changes.
+4. **Rejected**:
+   - If the RFC is deemed unsuitable, it is rejected with clear reasoning provided.
 
-    * Hack away. Add tests for non-trivial changes.
+5. **Implemented**:
+   - Once the proposal is successfully implemented and merged into the project.
 
-    * Run the [test suite](#testing) and make sure everything passes.
+Each RFC stage builds on community engagement and ensures that proposed features or changes align with project goals.
+Maintainers will assign the right stage of Issues and PR's through GitHub labels.
 
-    * When committing, be sure to write good commit messages according to [these
-      seven rules](https://chris.beams.io/posts/git-commit/#seven-rules). Doing 
-      `git commit` prints a message if any of the rules is violated. 
-      Stylistically,
-      we use commit message titles in the imperative tense, e.g., `Add
-      merge-append query optimization for time aggregate`.  In the case of
-      non-trivial changes, include a longer description in the commit message
-      body explaining and detailing the changes.  That is, a commit message
-      should have a short title, followed by a empty line, and then
-      followed by the longer description.
+## Contribute code
 
-    * When committing, link which GitHub issue of [this 
-      repository](https://github.com/timescale/pgai/issues) is fixed or 
-      closed by the commit with a [linking keyword recognised by 
-      GitHub](https://docs.github.com/en/github/managing-your-work-on-github/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword). 
-      For example, if the commit fixes bug 123, add a line at the end of the 
-      commit message with  `Fixes #123`, if the commit implements feature 
-      request 321, add a line at the end of the commit message `Closes #321`.
-      This will be recognized by GitHub. It will close the corresponding issue 
-      and place a hyperlink under the number.
+### Contributor License Agreement (CLA)
 
-* Push your changes to an upstream branch:
+Before we accept any code contributions, pgai contributors need to sign the [Contributor License Agreement (CLA)](https://cla-assistant.io/timescale/pgai). By signing a CLA, we ensure that the community is free and confident in its ability to use your contributions.
 
-    * Make sure that each commit in the pull request will represent a
-      logical change to the code, will compile, and will pass tests.
+### Create a Pull Request:
 
-    * Make sure that the pull request message contains all important 
-      information from the commit messages including which issues are
-      fixed and closed. If a pull request contains one commit only, then
-      repeating the commit message is preferred, which is done automatically
-      by GitHub when it creates the pull request.
+Once your RFC is accepted (and in the case you didn't open a PR yet), or for smaller changes that do not require the RFC process, you are ready to open a PR.
+Please strictly follow the guidelines below:
 
-    * Rebase your local feature branch against main (`git fetch origin`,
-      then `git rebase origin/main`) to make sure you're
-      submitting your changes on top of the newest version of our code.
+1. Fork the repository and create a new branch for your work.
+2. Write clean, well-documented, and tested code.
+3. Ensure that your code adheres to the project's style and guidelines. 
+4. Include relevant tests and documentation updates.
+5. Don't mix bug fixes with unrelated feature enhancements or stylistical changes.
+6. The project uses [conventional commits][https://www.conventionalcommits.org]. It's enforced by CI, you won't be able to merge PRs if your commits do not comply. This helps us automate the release process, changelog generation, etc. For example:
+  - If the commit fixes bug 123, add a line at the end of the commit message with  `Fixes #123`.
+  - If the commit implements feature request 321, add a line at the end of the commit message `Closes #321`.
+7. Clearly explain the purpose of the PR and link to related issues or RFCs.
+8. Ensure that your changes pass all CI checks.
 
-    * When finalizing your PR (i.e., it has been approved for merging),
-      aim for the fewest number of commits that
-      make sense. That is, squash any "fix up" commits into the commit they
-      fix rather than keep them separate. Each commit should represent a
-      clean, logical change and include a descriptive commit message.
-
-    * Push your commit to your upstream feature branch: `git push -u <yourfork> my-feature-branch`
-
-* Create and manage pull request:
-
-    * [Create a pull request using GitHub](https://help.github.com/articles/creating-a-pull-request).
-      If you know a core developer well suited to reviewing your pull
-      request, either mention them (preferably by GitHub name) in the PR's
-      body or [assign them as a reviewer](https://help.github.com/articles/assigning-issues-and-pull-requests-to-other-github-users/).
-
-    * Address feedback by amending your commit(s). If your change contains
-      multiple commits, address each piece of feedback by amending that
-      commit to which the particular feedback is aimed.
-
-    * The PR is marked as accepted when the reviewer thinks it's ready to be
-      merged.  Most new contributors aren't allowed to merge themselves; in
-      that case, we'll do it for you.
+Please refer to our DEVELOPMENT doc for [instructions how to develop and test](https://github.com/timescale/pgai/blob/main/DEVELOPMENT.md).
 
 ## Testing
 
@@ -107,3 +97,9 @@ open a pull request**.
 
 See our [testing](./DEVELOPMENT.md#test-your-pgai-changes)
 instructions for help with how to test.
+
+## License
+
+By contributing to this repository, you agree that your contributions will be licensed under the same license as the project.
+
+We appreciate your time and effort in making Timescale pgai better. Happy coding!
