@@ -564,6 +564,25 @@ CREATE TABLE IF NOT EXISTS ai.embedding_batch_chunks
                     'expires_at': datetime.fromtimestamp(created_batch.expires_at, timezone.utc),
                 })
 
+                for doc in documents:
+                    await conn.execute("""
+                    INSERT INTO ai.embedding_batch_chunks (
+                        id,
+                        embedding_batch_id,
+                        text
+                    ) VALUES (
+                        %(id)s,
+                        %(embedding_batch_id)s,
+                        %(text)s
+                    )
+                    """, {
+                        'id': doc['unique_full_chunk_id'],
+                        'embedding_batch_id': created_batch.id,
+                        'text': doc['chunk']
+                    })
+
+                # TODO how to delete submitted entries from the queue?
+
                 return len(items)
         except Exception as e:
             async with conn.transaction():
