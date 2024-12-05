@@ -937,13 +937,17 @@ CREATE TABLE IF NOT EXISTS ai.embedding_batch_chunks
     ) -> openai.types.Batch:
         documents: list[dict[str, Any]] = []
         for item in items:
+            pk = self._get_item_pk_values(item)
             chunks = self.vectorizer.config.chunking.into_chunks(item)
             for chunk_id, chunk in enumerate(chunks, 0):
                 formatted = self.vectorizer.config.formatting.format(chunk, item)
+                unique_full_chunk_id = [
+                    ','.join(self.queries.pk_attnames),
+                    ','.join(map(str, pk)),
+                    str(chunk_id),
+                ]
                 documents.append({
-                    'pk': self._get_item_pk_values(item),
-                    'id': item['id'],
-                    'chunk_id': chunk_id,
+                    'unique_full_chunk_id': ':::'.join(unique_full_chunk_id),
                     'chunk': formatted,
                 })
 
