@@ -64,7 +64,7 @@ def file_contents(name: str) -> str:
     return host_dir().joinpath(f"{name}").read_text()
 
 
-def test_description():
+def test_event_triggers():
     with psycopg.connect(db_url("test")) as con:
         with con.cursor() as cur:
             cur.execute("""
@@ -81,6 +81,7 @@ def test_description():
             as $func$select 42$func$ language sql;
             """)
 
+            # 0 set descriptions
             cur.execute("""
             -- table
             select ai.set_table_description('bob', 'this is a comment about the bob table');
@@ -103,7 +104,7 @@ def test_description():
             expected = file_contents("0.expected")
             assert actual == expected
 
-            # change descriptions
+            # 1 change descriptions
             cur.execute(
                 "select ai.set_table_description('bob', 'this is a BETTER comment about the bob table')"
             )
@@ -124,7 +125,7 @@ def test_description():
             expected = file_contents("1.expected")
             assert actual == expected
 
-            # rename function
+            # 2 rename function
             cur.execute("alter function life(int) rename to death")
             con.commit()
             snapshot_descriptions("2")
@@ -132,7 +133,7 @@ def test_description():
             expected = file_contents("2.expected")
             assert actual == expected
 
-            # rename table column
+            # 3 rename table column
             cur.execute("alter table bob rename column foo to baz")
             con.commit()
             snapshot_descriptions("3")
@@ -140,7 +141,7 @@ def test_description():
             expected = file_contents("3.expected")
             assert actual == expected
 
-            # rename view
+            # 4 rename view
             cur.execute("alter view bobby rename to frederick")
             con.commit()
             snapshot_descriptions("4")
@@ -148,7 +149,7 @@ def test_description():
             expected = file_contents("4.expected")
             assert actual == expected
 
-            # drop view
+            # 5 drop view
             cur.execute("drop view frederick")
             con.commit()
             snapshot_descriptions("5")
@@ -156,7 +157,7 @@ def test_description():
             expected = file_contents("5.expected")
             assert actual == expected
 
-            # drop table column
+            # 6 drop table column
             cur.execute("alter table bob drop column baz")
             con.commit()
             snapshot_descriptions("6")
@@ -164,7 +165,7 @@ def test_description():
             expected = file_contents("6.expected")
             assert actual == expected
 
-            # alter function set schema
+            # 7 alter function set schema
             cur.execute("create schema maria")
             cur.execute("alter function death set schema maria")
             con.commit()
@@ -173,7 +174,7 @@ def test_description():
             expected = file_contents("7.expected")
             assert actual == expected
 
-            # alter table set schema
+            # 8 alter table set schema
             cur.execute("alter table bob set schema maria")
             con.commit()
             snapshot_descriptions("8")
@@ -181,7 +182,7 @@ def test_description():
             expected = file_contents("8.expected")
             assert actual == expected
 
-            # test overloaded function names
+            # 9 test overloaded function names
             cur.execute("""
             create function maria.death(x int, y int) returns int
             as $func$select 42$func$ language sql;
@@ -195,26 +196,36 @@ def test_description():
             expected = file_contents("9.expected")
             assert actual == expected
 
-            # drop function
-            cur.execute("drop function maria.death(int)")
+            # 10 alter schema rename
+            cur.execute("alter schema maria rename to lucinda")
             con.commit()
             snapshot_descriptions("10")
             actual = file_contents("10.actual")
             expected = file_contents("10.expected")
             assert actual == expected
 
-            # drop table
-            cur.execute("drop table maria.bob")
+            # 11 drop function
+            cur.execute("drop function lucinda.death(int)")
             con.commit()
             snapshot_descriptions("11")
             actual = file_contents("11.actual")
             expected = file_contents("11.expected")
             assert actual == expected
 
-            # drop schema cascade
-            cur.execute("drop schema maria cascade")
+            # 12 drop table
+            cur.execute("drop table lucinda.bob")
             con.commit()
             snapshot_descriptions("12")
             actual = file_contents("12.actual")
             expected = file_contents("12.expected")
             assert actual == expected
+
+            # 13 drop schema cascade
+            cur.execute("drop schema lucinda cascade")
+            con.commit()
+            snapshot_descriptions("13")
+            actual = file_contents("13.actual")
+            expected = file_contents("13.expected")
+            assert actual == expected
+
+            cur.execute("delete from ai.description")

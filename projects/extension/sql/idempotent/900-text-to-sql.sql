@@ -152,7 +152,6 @@ end;
 $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp;
 
-
 -------------------------------------------------------------------------------
 -- _description_handle_drop
 create or replace function ai._description_handle_drop()
@@ -169,13 +168,13 @@ begin
           d.classid
         , d.objid
         , d.objsubid
-        , d.original
-        , d.normal
-        , d.is_temporary
+        --, d.original
+        --, d.normal
+        --, d.is_temporary
         , d.object_type
-        , d.schema_name
-        , d.object_name
-        , d.object_identity
+        --, d.schema_name
+        --, d.object_name
+        --, d.object_identity
         , d.address_names
         , d.address_args
         from pg_catalog.pg_event_trigger_dropped_objects() d
@@ -261,7 +260,77 @@ begin
         , _rec.objsubid
         ) x;
 
-        -- handles rename, set schema
+        -- alter schema rename to
+        if _objtype = 'schema' then
+            -- tables/views/columns
+            with x as
+            (
+                select
+                  d.classid
+                , d.objid
+                , d.objsubid
+                , x."type" as objtype
+                , x.object_names as objnames
+                , x.object_args as objargs
+                from ai.description d
+                inner join pg_catalog.pg_class k on (d.objid operator(pg_catalog.=) k.oid)
+                cross join lateral pg_catalog.pg_identify_object_as_address
+                ( d.classid
+                , d.objid
+                , d.objsubid
+                ) x
+                where k.relnamespace operator(pg_catalog.=) _rec.objid
+            )
+            update ai.description as d set
+              objtype = x.objtype
+            , objnames = x.objnames
+            , objargs = x.objargs
+            from x
+            where d.classid operator(pg_catalog.=) x.classid
+            and d.objid operator(pg_catalog.=) x.objid
+            and d.objsubid operator(pg_catalog.=) x.objsubid
+            and (d.objtype, d.objnames, d.objargs) operator(pg_catalog.!=) (x.objtype, x.objnames, x.objargs) -- only if changed
+            ;
+
+            -- functions
+            with x as
+            (
+                select
+                  d.classid
+                , d.objid
+                , d.objsubid
+                , x."type" as objtype
+                , x.object_names as objnames
+                , x.object_args as objargs
+                from ai.description d
+                inner join pg_catalog.pg_proc f on (d.objid operator(pg_catalog.=) f.oid)
+                cross join lateral pg_catalog.pg_identify_object_as_address
+                ( d.classid
+                , d.objid
+                , d.objsubid
+                ) x
+                where f.pronamespace operator(pg_catalog.=) _rec.objid
+            )
+            update ai.description as d set
+              objtype = x.objtype
+            , objnames = x.objnames
+            , objargs = x.objargs
+            from x
+            where d.classid operator(pg_catalog.=) x.classid
+            and d.objid operator(pg_catalog.=) x.objid
+            and d.objsubid operator(pg_catalog.=) x.objsubid
+            and (d.objtype, d.objnames, d.objargs) operator(pg_catalog.!=) (x.objtype, x.objnames, x.objargs) -- only if changed
+            ;
+
+            return; -- done
+        end if;
+
+        -- alter table rename to
+        -- alter view rename to
+        -- alter function rename to
+        -- alter table set schema
+        -- alter view set schema
+        -- alter function set schema
         update ai.description set
           objtype = _objtype
         , objnames = _objnames
@@ -269,10 +338,11 @@ begin
         where classid operator(pg_catalog.=) _rec.classid
         and objid operator(pg_catalog.=) _rec.objid
         and objsubid operator(pg_catalog.=) _rec.objsubid
-        and (objtype, objnames, objargs) operator(pg_catalog.!=) (_objtype, _objnames, _objargs)
+        and (objtype, objnames, objargs) operator(pg_catalog.!=) (_objtype, _objnames, _objargs) -- only if changed
         ;
         if found and _objtype in ('table', 'view') then
-            -- deal with columns
+            -- if table or view renamed or schema changed
+            -- we need to update the columns too
             with a as
             (
                 select
@@ -307,7 +377,7 @@ begin
             where d.classid operator(pg_catalog.=) x.classid
             and d.objid operator(pg_catalog.=) x.objid
             and d.objsubid operator(pg_catalog.=) x.objsubid
-            and (d.objtype, d.objnames, d.objargs) operator(pg_catalog.!=) (x.objtype, x.objnames, x.objargs)
+            and (d.objtype, d.objnames, d.objargs) operator(pg_catalog.!=) (x.objtype, x.objnames, x.objargs) -- only if changed
             ;
         end if;
     end loop;
