@@ -26,6 +26,14 @@ structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.
 log = structlog.get_logger()
 
 
+class VectorizerNotFoundError(Exception):
+    pass
+
+
+class ApiKeyNotFoundError(Exception):
+    pass
+
+
 def asbool(value: str | None):
     """Convert the given String to a boolean object.
 
@@ -76,7 +84,7 @@ def get_vectorizer_ids(
         return valid_vectorizer_ids
 
 
-def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer | None:
+def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer:
     with (
         psycopg.Connection.connect(db_url) as con,
         con.cursor(row_factory=dict_row) as cur,
@@ -87,8 +95,7 @@ def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer | None:
         )
         row = cur.fetchone()
         if row is None:
-            log.warning("vectorizer not found", vectorizer_id=vectorizer_id)
-            return None
+            raise VectorizerNotFoundError(f"vectorizer_id={vectorizer_id}")
         vectorizer = row["vectorizer"]
         embedding = vectorizer["config"]["embedding"]
         vectorizer = Vectorizer(**vectorizer)
@@ -97,12 +104,9 @@ def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer | None:
             api_key_name = embedding["api_key_name"]
             api_key = os.getenv(api_key_name, None)
             if api_key is None:
-                log.error(
-                    "API key not found",
-                    api_key_name=api_key_name,
-                    vectorizer_id=vectorizer_id,
+                raise ApiKeyNotFoundError(
+                    f"api_key_name={api_key_name} vectorizer_id={vectorizer_id}"
                 )
-                return None
             secrets: dict[str, str | None] = {api_key_name: api_key}
             # The Ollama API doesn't need a key, so doesn't support `set_api_key`
             set_api_key = getattr(vectorizer.config.embedding, "set_api_key", None)
@@ -284,11 +288,16 @@ def vectorizer_worker(
                         log.warning("no vectorizers found")
 
                 for vectorizer_id in valid_vectorizer_ids:
-                    vectorizer = get_vectorizer(db_url, vectorizer_id)
-                    if vectorizer is None:
-                        continue
-                    log.info("running vectorizer", vectorizer_id=vectorizer_id)
-                    run_vectorizer(db_url, vectorizer, concurrency)
+                    try:
+                        vectorizer = get_vectorizer(db_url, vectorizer_id)
+                        log.info("running vectorizer", vectorizer_id=vectorizer_id)
+                        run_vectorizer(db_url, vectorizer, concurrency)
+                    except (VectorizerNotFoundError, ApiKeyNotFoundError) as e:
+                        log.error(
+                            f"error getting vectorizer: {type(e).__name__}: {str(e)} "
+                        )
+                        if exit_on_error:
+                            sys.exit(1)
         except psycopg.OperationalError as e:
             if "connection failed" in str(e):
                 log.error(f"unable to connect to database: {str(e)}")
