@@ -1,0 +1,31 @@
+interactions:
+- request:
+    body: '{"input": ["post_1"], "model": "voyage-3-lite", "input_type": "document",
+      "truncation": true, "encoding_format": "base64"}'
+    headers:
+      Content-Type:
+      - application/json
+    method: post
+    uri: https://api.voyageai.com/v1/embeddings
+  response:
+    body:
+      string: '{"object":"list","data":[{"object":"embedding","embedding":"GqqRvEqMAL3650g9wzmyvMG01TzRFri9rE4VvReV5DwpSSA8zY8svRGZgL1RFe48TM2kvB0s2jujO7u86UT1PMeCxrxIxTS9F6MfvTxpeTz2Wvy8mSewvH/ubr3Fe1S93vIMPW1KarxbrSQ7A7qxPO5NYz1z3Cy7kRibvdkbWb0Nbra8AWNcPf5ShjzRk1e9MryAvAOZUz26p2+9TtDRPU8UCr0GP/S8iobYO2GPOL1VnsI80xsuPUL8hr1luPQ6t+G7vW0OPD0fEb271xsmvTFXN72RN7A8acLgurxLrj3po8o8ojuIPO5NYz1+8TW9WIubPajGCz1Y4169H7DrPEfllLwMzgk9YbP+OiG4qDzy1ew83tIsPczfkTynwkY9FiI7POwJeD276yc8asZYvcuskr03Dgs8wPWTPQA01z1M20u9icVNPfWZcb3CdOK80BS8vCU/NL23Jqk8InmzvAV7b7zVooY8ywyZPQ6N/rzjN1y9wXinPbpWW73kOVg9FSOGuymGTDxZ5Vq9nrG1PHDRdTzSltG6KMcKPWjBYjzqS4G9u6o2PEPYYb3Ni+e5btSJvArm37wxmCi9Yfa4vOhCxjx2Lz08iodWPZMejz2dMRy9tW3NPTWAOL2hsdK8+OFUvZYkAz3vEzE8HGzNPYtI4TzE+zq9pn9ZvJRq4LxjbCM9pUCxOxT4gL0v0Vw9dmQDvTpsjTtvsq29wHLmvIN39jyiO4i9/W4hvcMDszxWYhS9MhX7vLdGhbyOEyU9BgBMvetKNj2aKSy8VJtIPB5zjDzZouy8PCpRvJwvoLyJCoQ8lRp9PZyuiD08Ilm9n9o+va1Yib11mnC82qPqPEBvbb2y2Rg8LlHDPLJlpr0WIT28YqkcvQFXsb3rCUU92moDvXgoiL3mvOs8QvdDvG0RAz1LDJq7zYlrved+P70mM4k8ctkyPZeh1b0og9K8yINEPPFU1b0zW6876JIoPSsKKz2drb09uLO0PPV/H7102Oc93K4hvbQegj1xFWG9ijtzPLffcj3455W8aCSwPN/xQb29cQI8uOS1O65UiT0sSSi9ni7VOg9UFz2Ff7M7WAPyvGZyFz2rJXo955MnvQH5przPNBw9fe+5vAtMJ737JfO894AbPRAXnrzcLL87gLO+PJU9V72Du669+QcpPRwvoTuf1A89WuhUPXnpkrz24p86kfsBvIiEqTwUmea8NeKHvKEuTT034rq9fO8GvGZDkjyCmh283TCEPc2LZztC/IY9VZ9AuzDSWj2akig9Cgg8vf6Psrxw2IE7+qZXvAbCob0W4Za91p32u52yAD7pCZK9dk5SPN6yGTuE/xk8mqfJvAXePDw+a/W7qMaLPWh/c723ZZq7QG/tPN6uVDwKR+S9psGVPf/0LjwbJ2Q950QPvdZAt7wl/Pk8+vKHvUR/Gj11XsK8jU1XPa5QxLzsfhi9gzpKPQjFm7167Iw8kfVAvM2Qqj3PFIk8PZIUvaI4wTpgt5A8Nd3EvMWuHr0syO69VqSDPNGTVzxesho8lF23PNGZGDyI//+9zpKmu4bApLw74ec8ja8mPbFS87x/9K88SYJ6vZprGz3MDRe9X/UHveihTrwgEfA8GKcXvVHmNbyzXCw8p4BXu4lpjLp67Iy93zOxvL9zsbz1Dis9vy39vAnIlbzw3+i8IHS9vEN9Hjp5ZzC9BfxTPX80oz1y2bI8GiqrPNWeQbzfr1I8cDeKvf+0CD2ecES9zdCdvAhGs73+blS9uaVAPCS7VTwUIYo82KaxPTtti7xv9Ro9AHTKPPZedLwnArs9EpZsPLNY5703ZRu875MXPfDTvbwXH/S7WKLtvIyPk7tYI9I7nATOPAgFwj3gcVs9W2k5PUG5mTy5aRI9q0wZO1tncD19sBE9pzaCPYgHir0/tSG9KYkTPRUiiDvYhh49uScjvYP3XDzA9RM92qNqvC/UIzwJBkC7YjkmvSY8bT02Xlw8MRgPPeJ6Fr3lwLC8MVH2OjKX3Ty9bzm84nmYvZcddz1aJ8o8RU5MvQgERL29cgA8gvqjvAgFQrsaKyk9pn5bPe0Rgj3C+EA9QbmZvEBS1LtryVI9Izw6PVeVET3TWyG9hsCkPJObrryPsVW9xf60vRun/TwPFKQ7bA8HvTbkg726Jdo7KCYTvUcVGD0nwsc8CgL7PB4zGbzhJjs9jVAevC1Ny7pE+268y4T1O8lHlj03pQ49YouFvXpKl72rjoi9mSTpugqG2T3tTq68UtR8vXflGj1uz8a6DY3LPdgiU71OS3U98STSvbR/hrtg9Dw8v7QivU2web34I0Q9MVF2u+yNoz0UfE09khqXu+nIoDy1HrW81aKGvR1yjj2gtC88kXTcvE+VoT1yl8M8mGNevYIcgD0syuq9PW48uzNWbDqUTpI89l+/PME1Oj3Xork8w/2DvWW68DvGg5E9BfxTPHOcBr3pQ/c8q0yZO36vRj0XHna8zrE7PX3PJrwKBHe9YLeQPQIaOD3qSoM7ugfDPPvwvrycb5M85Fppvbnh7rwg8SW9pDj0udakgjykOXK9pwK6PBOPBD1WH9q8BXpxvCQMtz3es5c5nCnfvBGWOTwxVHC8+2unPQ0RqryZpU29TYlsPcdf7Lt7ukA9sNUgPT5t8To4Q/Y89mC9PK9PebsZZlm99Fn+PLlpEr3RcQ09wHFovMxLQT30AIQ9MhoLvRYBKr3G++08gjsVPDlmTDk=","index":0}],"model":"voyage-3-lite","usage":{"total_tokens":2}}'
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Content-Length:
+      - '2857'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 26 Nov 2024 19:13:37 GMT
+      Server:
+      - uvicorn
+      Via:
+      - 1.1 google
+      x-api-warning:
+      - ''
+    status:
+      code: 200
+      message: OK
+version: 1

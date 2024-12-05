@@ -18,6 +18,8 @@ import ollama
 import openai
 import structlog
 import tiktoken
+import voyageai
+import voyageai.error
 from ddtrace import tracer
 from openai import resources
 from pydantic import BaseModel
@@ -29,6 +31,10 @@ TOKEN_CONTEXT_LENGTH_ERROR = "chunk exceeds model context length"
 
 openai_token_length_regex = re.compile(
     r"This model's maximum context length is (\d+) tokens"
+)
+
+voyageai_token_length_regex = re.compile(
+    r".*has too many tokens and does not fit into the model's context window of (\d+) tokens"  # noqa
 )
 
 logger = structlog.get_logger()
@@ -658,4 +664,129 @@ class Ollama(BaseModel, Embedder):
                             error_details=f"unexpected error: '{e}'",  # noqa
                         )
                     )
+        return embeddings
+
+
+class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
+    """
+    Embedder that uses Voyage AI to embed documents into vector representations.
+
+    Attributes:
+        implementation (Literal["voyageai"]): The literal identifier for this
+            implementation.
+        model (str): The name of the Voyage AU model used for embeddings.
+        truncate (bool): Truncate input longer than the model's context length
+        input_type ("document" | "query" | None): Set the input type of the
+            items to be embedded. If set, improves retrieval quality.
+
+    """
+
+    implementation: Literal["voyageai"]
+    model: str
+    truncate: bool = True
+    input_type: Literal["document"] | Literal["query"] | None = None
+
+    @override
+    async def embed(
+        self, documents: list[str]
+    ) -> Sequence[EmbeddingVector | ChunkEmbeddingError]:
+        """
+        Embeds a list of documents into vectors using the VoyageAI embeddings API.
+
+        If a request to generate embeddings fails because one or more chunks
+        exceed the model's token limit (and truncate is set to False), the
+        tokenizer for the chosen model is used to reject chunks that exceed the
+        model's token limit. The returned result will contain a
+        ChunkEmbeddingError in place of an EmbeddingVector for chunks that
+        exceeded the model's token limit.
+
+        Args:
+            documents (list[str]): A list of documents to be embedded.
+
+        Returns:
+            Sequence[EmbeddingVector | ChunkEmbeddingError]: The embeddings or
+            errors for each document.
+        """
+        await logger.adebug(f"Chunks produced: {len(documents)}")
+        try:
+            return await self._batcher.batch_chunks_and_embed(documents)
+        except voyageai.error.InvalidRequestError as e:
+            if not hasattr(e, "user_message") or e.user_message is None:  # type:ignore
+                raise e
+            message: str = e.user_message  # type:ignore
+            m = voyageai_token_length_regex.match(message)
+            if m is None:
+                raise e
+            model_token_length = int(m.group(1))
+            return await self._filter_by_length_and_embed(model_token_length, documents)
+        except voyageai.error.RateLimitError as e:
+            # TODO: handle separately?
+            raise e
+
+    @cached_property
+    def _batcher(self) -> BatchApiCaller[StringDocument]:
+        return BatchApiCaller(self._max_chunks_per_batch(), self.call_embed_api)
+
+    @override
+    def _max_chunks_per_batch(self) -> int:
+        return 128
+
+    async def call_embed_api(self, documents: list[str]) -> EmbeddingResponse:
+        response = await voyageai.AsyncClient(api_key=self._api_key).embed(
+            documents,
+            model=self.model,
+            input_type=self.input_type,
+            truncation=self.truncate,
+        )
+        usage = Usage(
+            prompt_tokens=response.total_tokens,
+            total_tokens=response.total_tokens,
+        )
+        return EmbeddingResponse(embeddings=response.embeddings, usage=usage)
+
+    async def _filter_by_length_and_embed(
+        self, model_token_length: int, documents: list[str]
+    ) -> Sequence[EmbeddingVector | ChunkEmbeddingError]:
+        """
+        Filters out documents that exceed the model's token limit and embeds
+        the valid ones. Chunks that exceed the limit are replaced in the
+        response with an ChunkEmbeddingError instead of an EmbeddingVector.
+
+        Args:
+            model_token_length (int): The token length limit for the model.
+            documents (list[str]): A list of documents.
+
+        Returns:
+            Sequence[EmbeddingVector | ChunkEmbeddingError]: EmbeddingVector
+            for the chunks that were successfully embedded, ChunkEmbeddingError
+            for the chunks that exceeded the model's token limit.
+        """
+        valid_document_idxs: list[int] = []
+        invalid_documents_idxs: list[int] = []
+        # Note: dynamically downloads the model's tokenizer from huggingface
+        tokenizer = voyageai.Client(api_key=self._api_key).tokenizer(self.model)
+        tokenized_docs = tokenizer.encode_batch(documents)
+        for i, doc in enumerate(tokenized_docs):
+            if len(doc.tokens) > model_token_length:
+                invalid_documents_idxs.append(i)
+            else:
+                valid_document_idxs.append(i)
+
+        assert len(valid_document_idxs) + len(invalid_documents_idxs) == len(documents)
+
+        valid_documents = [documents[i] for i in valid_document_idxs]
+
+        response = await self._batcher.batch_chunks_and_embed(valid_documents)
+
+        embeddings: list[ChunkEmbeddingError | list[float]] = []
+        for i in range(len(documents)):
+            if i in invalid_documents_idxs:
+                embedding = ChunkEmbeddingError(
+                    error=TOKEN_CONTEXT_LENGTH_ERROR,
+                    error_details=f"chunk exceeds the {self.model} model context length of {model_token_length} tokens",  # noqa
+                )
+            else:
+                embedding = response.pop(0)
+            embeddings.append(embedding)
+
         return embeddings

@@ -57,6 +57,68 @@ def test_embedding_openai():
                     assert k in expected and v == expected[k]
 
 
+def test_embedding_voyageai():
+    ok = [
+        (
+            "select ai.embedding_voyageai('voyage-3-lite', 512)",
+            {
+                "implementation": "voyageai",
+                "config_type": "embedding",
+                "model": "voyage-3-lite",
+                "dimensions": 512,
+                "truncate": True,
+                "input_type": "document",
+                "api_key_name": "VOYAGE_API_KEY",
+            },
+        ),
+        (
+            "select ai.embedding_voyageai('voyage-3-lite', 512, truncate => false, api_key_name => 'TEST_API_KEY', input_type => null)",
+            {
+                "implementation": "voyageai",
+                "config_type": "embedding",
+                "model": "voyage-3-lite",
+                "dimensions": 512,
+                "truncate": False,
+                "api_key_name": "TEST_API_KEY",
+            },
+        ),
+        (
+            "select ai.embedding_voyageai('voyage-3-lite', 512, truncate => false, api_key_name => 'TEST_API_KEY', input_type => 'query')",
+            {
+                "implementation": "voyageai",
+                "config_type": "embedding",
+                "model": "voyage-3-lite",
+                "dimensions": 512,
+                "truncate": False,
+                "input_type": "query",
+                "api_key_name": "TEST_API_KEY",
+            },
+        ),
+    ]
+    bad = [
+        (
+            "select ai.embedding_voyageai('voyage-3-lite', 512, input_type => 'foo')",
+            'invalid input_type for voyage ai "foo"',
+        ),
+    ]
+    with psycopg.connect(db_url("test")) as con:
+        with con.cursor() as cur:
+            for query, expected in ok:
+                cur.execute(query)
+                actual = cur.fetchone()[0]
+                assert actual.keys() == expected.keys()
+                for k, v in actual.items():
+                    assert k in expected and v == expected[k]
+            for query, err in bad:
+                try:
+                    cur.execute(query)
+                except psycopg.ProgrammingError as ex:
+                    msg = str(ex.args[0])
+                    assert len(msg) >= len(err) and msg[: len(err)] == err
+                else:
+                    pytest.fail(f"expected exception: {err}")
+
+
 def test_validate_embedding():
     ok = [
         "select ai._validate_embedding( ai.embedding_openai('text-embedding-3-small', 756))",
