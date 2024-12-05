@@ -3,7 +3,7 @@ PG_BIN := "/usr/lib/postgresql/" + PG_MAJOR + "/bin"
 
 # Show list of recipes
 default:
-    @just --list
+  @just --list
 
 ci: docker-build docker-run
   #!/usr/bin/env bash

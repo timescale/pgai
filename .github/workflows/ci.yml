@@ -59,6 +59,76 @@ jobs:
           just ext docker-stop
           just ext docker-rm
 
+  build-and-test-extension-windows-pg14:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@just
+
+      - name: Install PostgreSQL
+        uses: ikalnytskyi/action-setup-postgres@v7
+        with:
+          postgres-version: 16
+
+      - name: Configure Passwordless Authentication
+        shell: bash
+        run: |
+          # This is the PGDATA dir used on the previous step.
+          PGDATA="$RUNNER_TEMP/pgdata"
+          # Add trust authentication to pg_hba.conf the extension tests
+          # required this, otherwise they will fail.
+          echo "host all all 127.0.0.1/32 trust" > "$PGDATA/pg_hba.conf"
+          echo "host all all ::1/128 trust" >> "$PGDATA/pg_hba.conf"
+
+          # Restart PostgreSQL to apply changes
+          pg_ctl -D "$PGDATA" restart
+
+      - name: Install pgvector
+        shell: cmd
+        env:
+          PGROOT: "C:/Program Files/PostgreSQL/16"
+        run: |
+          git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git
+          cd pgvector
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" && ^
+          nmake /NOLOGO /F Makefile.win && ^
+          nmake /NOLOGO /F Makefile.win install
+
+      - name: Create pip cache directory
+        run: |
+          New-Item -Path "C:\Users\runneradmin\AppData\Local\pip\cache" -ItemType Directory -Force
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip" # caching pip dependencies
+
+      - name: Install test dependencies
+        shell: cmd
+        run: |
+          pip3 install -r projects/extension/requirements-test.txt
+
+      - name: Build and install extension
+        shell: cmd
+        env:
+          PGAI_EXT_SKIP_BUILD_CHECKS: "true"
+        run: |
+          just ext build-install
+
+      - name: Run test server
+        shell: cmd
+        env:
+          PYTHONUTF8: 1
+        run: |
+          start /b python3 -m fastapi dev projects/extension/tests/vectorizer/server.py
+
+      - name: Run test
+        shell: cmd
+        run: |
+          just ext test
+
   build-and-test-pgai:
     runs-on: ubuntu-latest
 

@@ -6,6 +6,8 @@ import psycopg
 import pytest
 from psycopg.rows import namedtuple_row
 
+from .db import db_url
+
 # skip tests in this module if disabled
 enable_vectorizer_tests = os.getenv("ENABLE_VECTORIZER_TESTS")
 if enable_vectorizer_tests == "0":
@@ -164,10 +166,6 @@ View definition:
    FROM website.blog_embedding_store t
      LEFT JOIN website.blog s ON t.title = s.title AND t.published = s.published;
 """.strip()
-
-
-def db_url(user: str) -> str:
-    return f"postgres://{user}@127.0.0.1:5432/test"
 
 
 def psql_cmd(cmd: str) -> str:

@@ -3,14 +3,12 @@ import os
 import psycopg
 import pytest
 
+from .db import db_url
+
 # skip tests in this module if disabled
 enable_vectorizer_tests = os.getenv("ENABLE_VECTORIZER_TESTS")
 if enable_vectorizer_tests == "0":
     pytest.skip(allow_module_level=True)
-
-
-def db_url(user: str) -> str:
-    return f"postgres://{user}@127.0.0.1:5432/test"
 
 
 def test_grant_to():

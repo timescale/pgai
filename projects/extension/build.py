@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 import hashlib
-import re
 import os
+import platform
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
-
 
 HELP = """Available targets:
 - help             displays this message and exits
@@ -326,9 +326,10 @@ def build_feature_flags() -> str:
 
 
 def build_sql() -> None:
-    check_versions()
-    check_incremental_sql_files(incremental_sql_files())
-    check_idempotent_sql_files(idempotent_sql_files())
+    if not os.environ.get("PGAI_EXT_SKIP_BUILD_CHECKS", "").lower() == "true":
+        check_versions()
+        check_incremental_sql_files(incremental_sql_files())
+        check_idempotent_sql_files(idempotent_sql_files())
     build_control_file()
     hr = "".rjust(80, "-")  # "horizontal rule"
     osf = output_sql_file()
@@ -376,34 +377,51 @@ def clean_sql() -> None:
 
 
 def postgres_bin_dir() -> Path:
-    bin_dir = os.getenv("PG_BIN")
-    if bin_dir:
-        return Path(bin_dir).resolve()
-    else:
-        bin_dir = Path(f"/usr/lib/postgresql/{pg_major()}/bin")
+    bin_dir_env = os.getenv("PG_BIN")
+    if bin_dir_env:
+        bin_dir = Path(bin_dir_env)
         if bin_dir.is_dir():
-            return bin_dir.resolve()
-        else:
-            p = shutil.which("pg_config")
-            if not p:
-                fatal("pg_config not found")
-            return Path(p).parent.resolve()
+            dir = bin_dir.resolve()
+            print(f"pg bin dir: using PG_BIN environment variable {dir}")
+            return dir
+
+    bin_dir = Path(f"/usr/lib/postgresql/{pg_major()}/bin")
+    if platform.system() == "Windows":
+        program_files = os.environ.get("ProgramFiles", r"C:\Program Files")
+        bin_dir = Path(f"{program_files}\\PostgreSQL\\{pg_major()}\\bin")
+    if bin_dir.is_dir():
+        dir = bin_dir.resolve()
+        print(f"pg bin dir: using default postgres bin directory {dir}")
+        return dir
+    else:
+        p = shutil.which("pg_config")
+        if p is None:
+            fatal("pg_config not found")
+        dir = Path(p).parent.resolve()
+        print(f"pg bin dir: parent directory of pg_config {dir}")
+        return dir
 
 
 def pg_config() -> Path:
-    return postgres_bin_dir() / "pg_config"
+    cmd = "pg_config"
+    if platform.system() == "Windows":
+        cmd = "pg_config.exe"
+    return postgres_bin_dir() / cmd
 
 
 def extension_install_dir() -> Path:
-    proc = subprocess.run(
-        f"{pg_config()} --sharedir",
-        check=True,
-        shell=True,
-        env=os.environ,
-        text=True,
-        capture_output=True,
-    )
-    return Path(str(proc.stdout).strip()).resolve() / "extension"
+    try:
+        proc = subprocess.run(
+            [pg_config(), "--sharedir"],
+            check=True,
+            env=os.environ,
+            text=True,
+            capture_output=True,
+        )
+        return Path(str(proc.stdout).strip()).resolve() / "extension"
+    except subprocess.CalledProcessError as e:
+        print(f"Error running pg_config: {e.stderr}", file=sys.stderr)
+        raise e
 
 
 def install_sql() -> None:
@@ -438,9 +456,12 @@ def python_install_dir() -> Path:
     # don't do it. i'm warning you
     # seriously.
     # you'll wreck old versions. look at build_idempotent_sql_file()
-    return Path(
-        "/usr/local/lib/pgai"
-    ).resolve()  # CONTROLS WHERE THE PYTHON LIB AND DEPS ARE INSTALLED
+    if platform.system() == "Windows":
+        program_files = Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
+        return (program_files / "pgai" / "lib").resolve()
+    else:
+        # Use the existing Unix-like directory structure
+        return Path("/usr/local/lib/pgai").resolve()
 
 
 def install_old_py_deps() -> None:
@@ -469,25 +490,25 @@ def install_prior_py() -> None:
             fatal(f"'{os.sep}' in version {version}. this is not supported")
         version_target_dir = python_install_dir().joinpath(version)
         if version_target_dir.exists():
+            print(f"Version {version} already installed in {version_target_dir}")
             continue
-        tmp_dir = Path(tempfile.gettempdir()).joinpath("pgai", version)
-        tmp_dir.mkdir(parents=True, exist_ok=True)
-        branch = git_tag(version)
-        subprocess.run(
-            f"git clone https://github.com/timescale/pgai.git --branch {branch} {tmp_dir}",
-            shell=True,
-            check=True,
-            env=os.environ,
-        )
-        tmp_src_dir = tmp_dir.joinpath("projects", "extension").resolve()
-        subprocess.run(
-            f'pip3 install -v --compile -t "{version_target_dir}" "{tmp_src_dir}"',
-            check=True,
-            shell=True,
-            env=os.environ,
-            cwd=str(tmp_src_dir),
-        )
-        shutil.rmtree(tmp_dir)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            branch = git_tag(version)
+            subprocess.run(
+                f"git clone https://github.com/timescale/pgai.git --branch {branch} {tmp_dir}",
+                shell=True,
+                check=True,
+                env=os.environ,
+            )
+            tmp_src_dir = Path(tmp_dir).joinpath("projects", "extension").resolve()
+            subprocess.run(
+                f'pip3 install -v --compile -t "{version_target_dir}" "{tmp_src_dir}"',
+                check=True,
+                shell=True,
+                env=os.environ,
+                cwd=str(tmp_src_dir),
+            )
 
 
 def build_init_py() -> None:
