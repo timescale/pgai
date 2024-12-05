@@ -700,6 +700,7 @@ def test_voyageai_vectorizer_fails_when_api_key_is_not_set(
     )
 
     assert result.exit_code == 1
+    assert "ApiKeyNotFoundError" in result.output
 
 
 def test_voyageai_vectorizer_handles_chunk_failure_correctly(
