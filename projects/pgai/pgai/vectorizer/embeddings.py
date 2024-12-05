@@ -14,7 +14,6 @@ from typing import (
     Literal,
     TypeAlias,
     TypeVar,
-    Optional,
 )
 
 import ollama
@@ -37,52 +36,6 @@ openai_token_length_regex = re.compile(
 )
 
 logger = structlog.get_logger()
-
-
-@dataclass
-class OpenAIBatch:
-    """
-    Represents detailed information about a batch process.
-
-    Attributes:
-        id (str): The unique identifier of the batch.
-        endpoint (str): The OpenAI API endpoint used by the batch.
-        errors (object): Any errors associated with the batch.
-        input_file_id (str): The ID of the input file for the batch.
-        completion_window (str): The time frame within which the batch should be processed.
-        status (str): The current status of the batch.
-        output_file_id (str): The ID of the file containing successful request outputs.
-        error_file_id (str): The ID of the file containing error request outputs.
-        created_at (int): The Unix timestamp for when the batch was created.
-        in_progress_at (Optional[int]): The Unix timestamp for when the batch started processing.
-        expires_at (int): The Unix timestamp for when the batch will expire.
-        finalizing_at (Optional[int]): The Unix timestamp for when the batch started finalizing.
-        completed_at (Optional[int]): The Unix timestamp for when the batch was completed.
-        failed_at (Optional[int]): The Unix timestamp for when the batch failed.
-        expired_at (Optional[int]): The Unix timestamp for when the batch expired.
-        cancelling_at (Optional[int]): The Unix timestamp for when the batch started cancelling.
-        cancelled_at (Optional[int]): The Unix timestamp for when the batch was cancelled.
-        metadata (Mapping[str, str]): A map of metadata associated with the batch.
-    """
-
-    id: str
-    endpoint: str
-    errors: object
-    input_file_id: str
-    completion_window: str
-    status: str
-    output_file_id: str
-    error_file_id: str
-    created_at: int
-    expires_at: int
-    metadata: Mapping[str, str]
-    in_progress_at: Optional[int] = None
-    finalizing_at: Optional[int] = None
-    completed_at: Optional[int] = None
-    failed_at: Optional[int] = None
-    expired_at: Optional[int] = None
-    cancelling_at: Optional[int] = None
-    cancelled_at: Optional[int] = None
 
 
 @dataclass
@@ -455,8 +408,9 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
             )
 
     async def create_and_submit_embedding_batch(
-            self, documents: list[dict[str, Any]]
-    ) -> OpenAIBatch:
+            self,
+            documents: list[dict[str, Any]],
+    ) -> openai.types.Batch:
         """
         Creates a batch of embeddings using OpenAI's embeddings API as outlined in
         https://platform.openai.com/docs/guides/batch/batch-api?lang=python
@@ -491,7 +445,7 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
             purpose="batch",
         )
 
-        batch = client.batches.create(
+        return client.batches.create(
             input_file_id=batch_input_file.id,
             endpoint="/v1/chat/completions",
             completion_window="24h",
@@ -499,8 +453,6 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
                 "description": "nightly eval job"
             }
         )
-
-        return OpenAIBatch(**batch.to_dict())
 
     async def _filter_by_length_and_embed(
         self, model_token_length: int, encoded_documents: list[list[int]]

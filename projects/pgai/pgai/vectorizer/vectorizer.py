@@ -18,13 +18,13 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from pydantic.dataclasses import dataclass
 from pydantic.fields import Field
-from openai import OpenAI
+import openai
 
 from .chunking import (
     LangChainCharacterTextSplitter,
     LangChainRecursiveCharacterTextSplitter,
 )
-from .embeddings import ChunkEmbeddingError, Ollama, OpenAI, VoyageAI, OpenAIBatch
+from .embeddings import ChunkEmbeddingError, Ollama, OpenAI, VoyageAI
 from .formatting import ChunkValue, PythonTemplate
 from .processing import ProcessingDefault
 
@@ -771,7 +771,7 @@ CREATE TABLE IF NOT EXISTS ai.embedding_batch_chunks
     async def _embed_and_write_from_batch(
             self,
             conn: AsyncConnection,
-            batch: Dict[str, Any],
+            batch: openai.types.Batch,
             client: OpenAI,
     ):
         """
@@ -791,7 +791,7 @@ CREATE TABLE IF NOT EXISTS ai.embedding_batch_chunks
         Returns:
             int: The number of records written to the database.
         """
-        batch_file = client.files.content(batch['output_file_id']).text
+        batch_file = client.files.content(batch.output_file_id)
 
         batch_data = batch_file.text.strip().split('\n')
         num_records = 0
@@ -934,7 +934,7 @@ CREATE TABLE IF NOT EXISTS ai.embedding_batch_chunks
 
     async def _generate_embedding_batch(
         self, items: list[SourceRow]
-    ) -> OpenAIBatch:
+    ) -> openai.types.Batch:
         documents: list[dict[str, Any]] = []
         for item in items:
             chunks = self.vectorizer.config.chunking.into_chunks(item)
