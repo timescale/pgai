@@ -602,37 +602,41 @@ CREATE TABLE IF NOT EXISTS ai.embedding_batch_chunks
             conn.transaction(),
             conn.cursor() as cursor,
         ):
-            client = OpenAI() # TODO how can I get the client? There has to be one created already that I can use?
-            await conn.execute("SELECT openai_batch_id, output_file_id FROM embedding_batches WHERE status not in('failed', 'processed', 'prepared')")
-            for batch_row in cursor.fetchall():
-                batch = client.batches.retrieve(batch_row['openai_batch_id'])
+            client = openai.OpenAI() # TODO how can I get the client? There has to be one created already that I can use?
+            await cursor.execute("SELECT openai_batch_id, output_file_id FROM ai.embedding_batches WHERE status not in('failed', 'processed', 'prepared')")
+            for batch_row in await cursor.fetchall():
+                batch = client.batches.retrieve(batch_row[0])
 
                 await conn.execute("""
-                    UPDATE embedding_batches 
-                    SET status = %s, completed_at = %s, failed_at = %s, 
-                        output_file_id = %s, errors = %s 
-                    WHERE id = %s
+                    UPDATE ai.embedding_batches 
+                    SET 
+                        status = %s, 
+                        completed_at = %s, 
+                        failed_at = %s, 
+                        output_file_id = %s, 
+                        errors = %s 
+                    WHERE embedding_batches.openai_batch_id = %s
                 """, (
-                    batch['status'],
-                    batch.get('completed_at'),
-                    batch.get('failed_at'),
-                    batch.get('output_file_id'),
-                    Jsonb(batch.get('errors')),
-                    batch_row['openai_batch_id'],
+                    batch.status,
+                    datetime.fromtimestamp(batch.completed_at, timezone.utc) if batch.completed_at else None,
+                    datetime.fromtimestamp(batch.failed_at, timezone.utc) if batch.failed_at else None,
+                    batch.output_file_id,
+                    Jsonb(batch.errors),
+                    batch_row[0],
                 ))
 
                 # batch has been processed successfully in openai, that means we can
                 # collect the results and store them in the database.
-                if batch['status'] == "completed":
+                if batch.status == 'completed':
                     await self._embed_and_write_from_batch(conn, batch, client)
 
                     await cursor.execute("""
-                        UPDATE embedding_batches 
+                        UPDATE ai.embedding_batches 
                         SET status = %s 
-                        WHERE id = %s
+                        WHERE openai_batch_id = %s
                     """, (
-                        "processed",
-                        batch_row['openai_batch_id'],
+                        'processed',
+                        batch_row[0],
                     ))
 
     @tracer.wrap()
@@ -814,32 +818,36 @@ CREATE TABLE IF NOT EXISTS ai.embedding_batch_chunks
 
         batch_data = batch_file.text.strip().split('\n')
         num_records = 0
-        document_chunks: Dict[int, Dict[int, str]] = {} # outer key is the document id, inner key is the chunk id, content is the chunk
         all_items = []
-        records: list[EmbeddingRecord] = []
-        for line in batch_data:
-            json_line = json.loads(line)
-            if "custom_id" in json_line and "response" in json_line:
+        all_records: list[EmbeddingRecord] = []
 
-                custom_id = json_line['custom_id']
-                pk, document_id, chunk_seq = custom_id.split('_')
-                embedding_data = json_line['response']['body']['data']
+        # Fetch all chunks from ai.embedding_batch_chunks where the embedding_batch_id is batch.id
+        async with conn.cursor() as cursor:
+            await cursor.execute(
+                "SELECT id, text FROM ai.embedding_batch_chunks WHERE embedding_batch_id = %s",
+                (batch.id,)
+            )
+            embedding_batch_chunks = {row[0]: row[1] for row in await cursor.fetchall()}
+            
+            for line in batch_data:
+                json_line = json.loads(line)
+                if "custom_id" in json_line and "response" in json_line:
 
-                item = {pk: document_id}
-                all_items.append(item)
+                    custom_id = json_line['custom_id']
+                    pk_names, document_id, chunk_seq = custom_id.split(':::')
+                    embedding_data = json_line['response']['body']['data'][0]['embedding']
 
-                if document_id not in document_chunks:
-                    document_chunks[document_id] = {}
-                    chunks = self.vectorizer.config.chunking.into_chunks(item)
+                    resolved_id = document_id.split(',')
+                    resolved_pk = pk_names.split(',')
+                    item = {pk: id_value for pk, id_value in zip(resolved_pk, resolved_id)}
+                    item[self.vectorizer.config.chunking.chunk_column] = embedding_batch_chunks[custom_id]
 
-                    for chunk_id, chunk in enumerate(chunks, 0):
-                        formatted = self.vectorizer.config.formatting.format(chunk, item)
-                        document_chunks[document_id][chunk_id] = formatted
-
-                records.append(pk + [chunk_seq, document_chunks[document_id][chunk_seq]] + [np.array(embedding_data)])
+                    all_items.append(item)
+                    all_records.append([resolved_id + [chunk_seq, embedding_batch_chunks[custom_id]] + [np.array(embedding_data)]])
 
         await self._delete_embeddings(conn, all_items)
-        await self._copy_embeddings(conn, records)
+        for records in all_records:
+            await self._copy_embeddings(conn, records)
 
         return num_records
 
