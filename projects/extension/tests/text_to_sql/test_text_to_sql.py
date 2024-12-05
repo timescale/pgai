@@ -6,6 +6,30 @@ import pytest
 import psycopg
 
 
+# skip tests in this module if disabled
+enable_text_to_sql_tests = os.getenv("ENABLE_TEXT_TO_SQL_TESTS")
+if enable_text_to_sql_tests == "0":
+    pytest.skip(allow_module_level=True)
+
+
+def db_url(user: str, dbname: str) -> str:
+    return f"postgres://{user}@127.0.0.1:5432/{dbname}"
+
+
+def where_am_i() -> str:
+    if "WHERE_AM_I" in os.environ and os.environ["WHERE_AM_I"] == "docker":
+        return "docker"
+    return "host"
+
+
+def docker_dir() -> str:
+    return "/pgai/tests/text_to_sql"
+
+
+def host_dir() -> Path:
+    return Path(__file__).parent.absolute()
+
+
 @pytest.fixture(scope="module", autouse=True)
 def set_up_test_db() -> None:
     # create a test user and test database owned by the test user
@@ -25,30 +49,12 @@ def set_up_test_db() -> None:
             cur.execute("create extension ai cascade")
 
 
-def db_url(user: str) -> str:
-    return f"postgres://{user}@127.0.0.1:5432/text_to_sql"
-
-
-def where_am_i() -> str:
-    if "WHERE_AM_I" in os.environ and os.environ["WHERE_AM_I"] == "docker":
-        return "docker"
-    return "host"
-
-
-def docker_dir() -> str:
-    return "/pgai/tests/text_to_sql"
-
-
-def host_dir() -> Path:
-    return Path(__file__).parent.absolute()
-
-
 def snapshot_descriptions(name: str) -> None:
     host_dir().joinpath(f"{name}.actual").unlink(missing_ok=True)
     cmd = " ".join(
         [
             "psql",
-            f'''-d "{db_url("test")}"''',
+            f'''-d "{db_url("test", "text_to_sql")}"''',
             "-v ON_ERROR_STOP=1",
             "-X",
             f"-o {docker_dir()}/{name}.actual",
@@ -65,7 +71,7 @@ def file_contents(name: str) -> str:
 
 
 def test_event_triggers():
-    with psycopg.connect(db_url("test")) as con:
+    with psycopg.connect(db_url("test", "text_to_sql")) as con:
         with con.cursor() as cur:
             cur.execute("""
             create table bob

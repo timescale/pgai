@@ -53,6 +53,7 @@ begin
         ( (false, 'ai', 'migration') -- only admins get any access to this table
         , (false, 'ai', '_secret_permissions') -- only admins get any access to this table
         , (false, 'ai', 'feature_flag') -- only admins get any access to this table
+        , (false, 'ai', 'post_restore') -- only admins get any access to this table
         )
         order by n.nspname, k.relname
     )

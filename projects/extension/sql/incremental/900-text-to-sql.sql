@@ -11,6 +11,7 @@ create table ai.description
 , primary key (objtype, objnames, objargs)
 );
 create index on ai.description (classid, objid, objsubid);
+perform pg_catalog.pg_extension_config_dump('ai.description', '');
 
 /*
 pg_identify_object_as_address translates
