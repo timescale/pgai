@@ -1,11 +1,12 @@
 import asyncio
+import json
 import os
 import threading
 import time
 from collections.abc import Callable
 from functools import cached_property
 from itertools import repeat
-from typing import Any, TypeAlias
+from typing import Any, TypeAlias, Dict
 
 import numpy as np
 import psycopg
@@ -17,6 +18,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from pydantic.dataclasses import dataclass
 from pydantic.fields import Field
+from openai import OpenAI
 
 from .chunking import (
     LangChainCharacterTextSplitter,
@@ -465,8 +467,9 @@ class Worker:
             await self.vectorizer.config.embedding.setup()
             while True:
                 if not self._continue_processing(loops, res):
+                    await self._check_and_process_openai_batches(conn)
                     # TODO how can we run this only after hitting the rate limit of the normal openai batch embedding api?
-                    self._do_openai_batch(conn)
+                    await self._do_openai_batch(conn)
                     return res
                 items_processed = await self._do_batch(conn)
                 if items_processed == 0:
@@ -563,6 +566,45 @@ class Worker:
                     ),
                 )
             raise e
+
+    @tracer.wrap()
+    async def _check_and_process_openai_batches(self, conn: AsyncConnection):
+        async with (
+            conn.transaction(),
+            conn.cursor() as cursor,
+        ):
+            client = OpenAI() # TODO how can I get the client? There has to be one created already that I can use?
+            await conn.execute("SELECT openai_batch_id, output_file_id FROM embedding_batches WHERE status not in('failed', 'processed', 'prepared')")
+            for batch_row in cursor.fetchall():
+                batch = client.batches.retrieve(batch_row['openai_batch_id'])
+
+                await conn.execute("""
+                    UPDATE embedding_batches 
+                    SET status = %s, completed_at = %s, failed_at = %s, 
+                        output_file_id = %s, errors = %s 
+                    WHERE id = %s
+                """, (
+                    batch['status'],
+                    batch.get('completed_at'),
+                    batch.get('failed_at'),
+                    batch.get('output_file_id'),
+                    Jsonb(batch.get('errors')),
+                    batch_row['openai_batch_id'],
+                ))
+
+                # batch has been processed successfully in openai, that means we can
+                # collect the results and store them in the database.
+                if batch['status'] == "completed":
+                    await self._embed_and_write_from_batch(conn, batch, client)
+
+                    await cursor.execute("""
+                        UPDATE embedding_batches 
+                        SET status = %s 
+                        WHERE id = %s
+                    """, (
+                        "processed",
+                        batch_row['openai_batch_id'],
+                    ))
 
     @tracer.wrap()
     async def _do_batch(self, conn: AsyncConnection) -> int:
@@ -715,6 +757,63 @@ class Worker:
 
         return len(records)
 
+    @tracer.wrap()
+    async def _embed_and_write_from_batch(
+            self,
+            conn: AsyncConnection,
+            batch: Dict[str, Any],
+            client: OpenAI,
+    ):
+        """
+        Embeds the items and writes them to the database.
+
+        - Deletes existing embeddings for the items.
+        - Generates the documents to be embedded, chunks them, and formats the chunks.
+        - Sends the documents to the embedding provider and writes embeddings
+          to the database.
+        - Logs any non-fatal errors encountered during embedding.
+
+        Args:
+            conn (AsyncConnection): The database connection.
+            batch: The batch as retrieved from OpenAI's api.
+            client: The OpenAI client to use.
+
+        Returns:
+            int: The number of records written to the database.
+        """
+        batch_file = client.files.content(batch['output_file_id']).text
+
+        batch_data = batch_file.text.strip().split('\n')
+        num_records = 0
+        document_chunks: Dict[int, Dict[int, str]] = {} # outer key is the document id, inner key is the chunk id, content is the chunk
+        all_items = []
+        records: list[EmbeddingRecord] = []
+        for line in batch_data:
+            json_line = json.loads(line)
+            if "custom_id" in json_line and "response" in json_line:
+
+                custom_id = json_line['custom_id']
+                pk, document_id, chunk_seq = custom_id.split('_')
+                embedding_data = json_line['response']['body']['data']
+
+                item = {pk: document_id}
+                all_items.append(item)
+
+                if document_id not in document_chunks:
+                    document_chunks[document_id] = {}
+                    chunks = self.vectorizer.config.chunking.into_chunks(item)
+
+                    for chunk_id, chunk in enumerate(chunks, 0):
+                        formatted = self.vectorizer.config.formatting.format(chunk, item)
+                        document_chunks[document_id][chunk_id] = formatted
+
+                records.append(pk + [chunk_seq, document_chunks[document_id][chunk_seq]] + [np.array(embedding_data)])
+
+        await self._delete_embeddings(conn, all_items)
+        await self._copy_embeddings(conn, records)
+
+        return num_records
+
     async def _delete_embeddings(self, conn: AsyncConnection, items: list[SourceRow]):
         """
         Deletes the embeddings for the given items from the target table.
@@ -832,6 +931,7 @@ class Worker:
             for chunk_id, chunk in enumerate(chunks, 0):
                 formatted = self.vectorizer.config.formatting.format(chunk, item)
                 documents.append({
+                    'pk': self._get_item_pk_values(item),
                     'id': item['id'],
                     'chunk_id': chunk_id,
                     'chunk': formatted,

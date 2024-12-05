@@ -472,7 +472,7 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
 
         for document in documents:
             entry = {
-                'custom_id': document['id'] + '_' + document['chunk_seq'],
+                'custom_id': document['pk'] + '_' + document['id'] + '_' + document['chunk_seq'],
                 'method': 'POST',
                 'url': '/v1/embeddings',
                 'body': {
