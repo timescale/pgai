@@ -8,7 +8,7 @@ This page shows you how to:
 
 ## Configure pgai for Voyage AI
 
-Most pgai functions require a [Voyage AI API key](https://docs.voyageai.com/docs/api-key-and-installation#authentication-with-api-keys).
+To use the Voyage AI functions, you need a [Voyage AI API key](https://docs.voyageai.com/docs/api-key-and-installation#authentication-with-api-keys).
 
 - [Handle API keys using pgai from psql](#handle-api-keys-using-pgai-from-psql)
 - [Handle API keys using pgai from python](#handle-api-keys-using-pgai-from-python)

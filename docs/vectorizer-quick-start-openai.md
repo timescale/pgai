@@ -15,7 +15,7 @@ On your local machine:
 
 1. **Create the Docker configuration for a local developer environment**
 
-   Add the following docker configuration to `<timescale-folder>/docker-compose.yml`:
+   Copy the following configuration into a file named `compose.yaml`:
     ```yaml
     name: pgai
     services:

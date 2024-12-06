@@ -8,7 +8,7 @@ This page shows you how to:
 
 ## Configure pgai for OpenAI
 
-Most pgai functions require an [OpenAI API key](https://platform.openai.com/docs/quickstart/step-2-set-up-your-api-key).
+To use the OpenAI functions, you need an [OpenAI API key](https://platform.openai.com/docs/quickstart/step-2-set-up-your-api-key).
 
 - [Handle API keys using pgai from psql](#handle-api-keys-using-pgai-from-psql)
 - [Handle API keys using pgai from python](#handle-api-keys-using-pgai-from-python)
