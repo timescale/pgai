@@ -45,7 +45,7 @@ The end-to-end vectorizer worker is a batteries-included Docker Compose
 configuration which you use to test pgai, vectorizers and vectorizer worker
 locally. It includes a:
 - local Postgres instance with pgai installed,
-- embedding API service (Ollama)
+- Ollama embedding API service
 - pgai vectorizer worker
 
 On your local machine:
