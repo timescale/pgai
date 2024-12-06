@@ -207,7 +207,11 @@ to implement embeddings in your own data. On a self-hosted Postgres
 installation, you use a [Vectorizer Worker](/docs/vectorizer-worker.md) to
 asynchronously processes your vectorizers. When you create Vectorizers in a
 Timescale Cloud database, embeddings are automatically created and synchronized
-in the background. Note: Timescale Cloud only supports embedding with OpenAI.
+in the background.
+
+Note: Timescale Cloud currently only supports embedding with OpenAI natively.
+If you want to use another provider (e.g. ollama) you can however disable [scheduling](/docs/vectorizer-api-reference.md#scheduling-configuration)
+and run the vectorizer worker yourself.
 
 ### Search your data using vector and semantic search
 
