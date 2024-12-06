@@ -376,7 +376,7 @@ SELECT ai.create_vectorizer(
 
 #### Parameters
 
-The function takes several parameters to customize the Ollama embedding configuration:
+The function takes several parameters to customize the Voyage AI embedding configuration:
 
 | Name         | Type    | Default          | Required | Description                                                                                                                                                                                                                                                               |
 |--------------|---------|------------------|----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

@@ -33,7 +33,7 @@ in your database. To quickly try out embeddings using a pre-built Docker develop
 Let's explore how the Vectorizer can transform your approach to unstructured,
 textual, data analysis and semantic search:
 
-- [Setup your API Keys](#setup-your-api-keys)
+- [Select an embedding provider and set up your API Keys](#select-an-embedding-provider-and-set-up-your-api-keys)
 - [Define a vectorizer](#define-a-vectorizer)
 - [Query an embedding](#query-an-embedding)
 - [Inject context into vectorizer chunks](#inject-context-into-vectorizer-chunks)
@@ -43,13 +43,24 @@ textual, data analysis and semantic search:
 - [Monitor a vectorizer](#monitor-a-vectorizer)
 
 
-## Setup your API Keys 
+## Select an embedding provider and set up your API Keys
 
-Before using Vectorizer, you need to setup your API keys for the embedding
-service you are using. To store several API keys, you give each key a name and
-reference them in the `embedding` section of the Vectorizer configuration. The default
-API key names match the embedding provider's default name. For example, for OpenAI, the default 
-key name is `OPENAI_API_KEY`.
+Vectorizer supports the following vector embedding providers:
+- [Ollama](https://ollama.com/)
+- [Voyage AI](https://www.voyageai.com/)
+- [OpenAI](https://openai.com/)
+
+When using an external embedding service, you need to setup your API keys to access
+the service. To store several API keys, you give each key a name and reference them
+in the `embedding` section of the Vectorizer configuration. The default API key
+names match the embedding provider's default name.
+
+The default key names are:
+
+| Provider  | Key name       |
+|-----------|----------------|
+| OpenAI    | OPENAI_API_KEY |
+| Voyage AI | VOYAGE_API_KEY |
 
 Setting up your API keys is done differently depending on whether you are using Vectorizer in
 Timescale Cloud or on a self-hosted Postgres server.
@@ -96,7 +107,12 @@ SELECT ai.create_vectorizer(
 );
 ```
 
-In this example, if the `contents` field is lengthy, it is split into multiple chunks, 
+This example uses the `ollama-embed-text` embedding model hosted on a local
+Ollama instance. Vectorizer supports other embedding providers, for more details
+consult the [embedding configuration](./vectorizer-api-reference.md#embedding-configuration)
+section of the vectorizer API reference.
+
+Additionally, if the `contents` field is lengthy, it is split into multiple chunks,
 resulting in several embeddings for a single blog post. Chunking helps
 ensure that each embedding is semantically coherent, typically representing a
 single thought or concept. A useful mental model is to think of embedding one

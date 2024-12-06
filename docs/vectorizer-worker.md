@@ -28,6 +28,7 @@ To run vectorizer workers, you need to:
   * All environments: A Postgres client like [psql][psql]
 * Create a key for your AI provider:
   * [OpenAI][openai-key]
+  * [Voyage AI][voyage-key]
 
 ## Install and configure vectorizer worker
 
@@ -249,6 +250,7 @@ the following environment variables.
 |---------------------------------------------|------------------------|-------------------------------------------------------------------------------------------|
 | PGAI_VECTORIZER_WORKER_DB_URL               | -                      | Configures the database url that the vectorizer worker uses to procesa vectorizers.       |
 | OPENAI_API_KEY                              | -                      | The API key that the vectorizer worker uses to authenticate against the OpenAI API.       |
+| VOYAGE_API_KEY                              | -                      | The API key that the vectorizer worker uses to authenticate against the Voyage AI API.    |
 | OLLAMA_HOST                                 | http://localhost:11434 | The host to use when communicating with the Ollama API.                                   |
 | PGAI_VECTORIZER_OLLAMA_MAX_CHUNKS_PER_BATCH | 2048                   | Configures the number of chunks of data embedded in one Ollama API call, defaults to 2048 |
 
@@ -258,3 +260,4 @@ the following environment variables.
 [docker]: https://docs.docker.com/get-docker/
 [psql]: https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/
 [openai-key]: https://platform.openai.com/api-keys
+[voyage-key]: https://dash.voyageai.com/api-keys
