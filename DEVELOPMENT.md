@@ -139,11 +139,6 @@ To set up the tests:
 1. In a [.env](https://saurabh-kumar.com/python-dotenv/) file, use the following flags to enable/disable test suites
     ```text
     # enable/disable tests
-    ENABLE_OPENAI_TESTS=1
-    ENABLE_OLLAMA_TESTS=1
-    ENABLE_ANTHROPIC_TESTS=1
-    ENABLE_COHERE_TESTS=1
-    ENABLE_VOYAGEAI_TESTS=1
     ENABLE_VECTORIZER_TESTS=1
     ENABLE_DUMP_RESTORE_TESTS=1
     ENABLE_PRIVILEGES_TESTS=1
@@ -153,13 +148,17 @@ To set up the tests:
 
 2. Some tests require extra environment variables to be added to the .env file
    - **OpenAI**:
-      - OPENAI_API_KEY - an [OpenAI API Key](https://platform.openai.com/api-keys) for OpenAI unit testing.
+      - `OPENAI_API_KEY` - an [OpenAI API Key](https://platform.openai.com/api-keys) for OpenAI unit testing.
    - **Ollama**:
-      - OLLAMA_HOST - the URL to the Ollama instance to use for testing. For example, `http://host.docker.internal:11434`.
+      - `OLLAMA_HOST` - the URL to the Ollama instance to use for testing. For example, `http://host.docker.internal:11434`.
    - **Anthropic**:
-      - ANTHROPIC_API_KEY - an [Anthropic API Key](https://docs.anthropic.com/en/docs/quickstart#set-your-api-key) for Anthropic unit testing.
+      - `ANTHROPIC_API_KEY` - an [Anthropic API Key](https://docs.anthropic.com/en/docs/quickstart#set-your-api-key) for Anthropic unit testing.
    - **Cohere**:
-      - COHERE_API_KEY - a [Cohere API Key](https://docs.cohere.com/docs/rate-limits) for Cohere unit testing.
+      - `COHERE_API_KEY` - a [Cohere API Key](https://docs.cohere.com/docs/rate-limits) for Cohere unit testing.
+   - **Voyage**:
+      - `VOYAGE_API_KEY` - a [Voyage API Key](https://voyageai.com) for Voyage unit testing.
+
+   Providing these keys automatically enables the corresponding tests.
 
 
 ### The pgai extension architecture
