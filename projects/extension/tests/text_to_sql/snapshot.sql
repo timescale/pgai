@@ -17,6 +17,8 @@ select format('%s %s', c.c, s.s)
 from unnest(array
 [ 'public'
 , 'ai'
+, 'bishop'
+, 'billy'
 ]) s(s)
 cross join unnest(array
 [ '\dp+' -- Lists tables, views and sequences with their associated access privileges
@@ -32,6 +34,8 @@ select format('%s %s', c.c, s.s)
 from unnest(array
 [ 'public.*'
 , 'ai.*'
+, 'bishop.*'
+, 'billy.*'
 ]) s(s)
 cross join unnest(array
 [ '\d+' -- Describe each relation
@@ -54,8 +58,8 @@ select
             then 'select name, body from ai.migration order by name, body;'
         when n.nspname = 'ai'::name and k.relname = 'feature_flag'::name
             then 'select name, applied_at_version from ai.migration order by name;'
-        when n.nspname = 'ai'::name and k.relname = 'description'::name
-            then 'select objtype, objnames, objargs, description from ai.description order by 1, 2, 3'
+        when n.nspname = 'ai'::name and k.relname = 'semantic_catalog_obj'::name
+            then 'select objtype, objnames, objargs, description from ai.semantic_catalog_obj order by 1, 2, 3'
         else format('select * from %I.%I tbl order by tbl;', n.nspname, k.relname)
     end
 from pg_namespace n

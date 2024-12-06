@@ -58,7 +58,7 @@ def snapshot_descriptions(name: str) -> None:
             "-v ON_ERROR_STOP=1",
             "-X",
             f"-o {docker_dir()}/{name}.actual",
-            '-c "select objtype, objnames, objargs, description from ai.description order by 1,2,3"',
+            '-c "select objtype, objnames, objargs, description from ai.semantic_catalog_obj order by 1,2,3"',
         ]
     )
     if where_am_i() != "docker":
@@ -234,4 +234,4 @@ def test_event_triggers():
             expected = file_contents("13.expected")
             assert actual == expected
 
-            cur.execute("delete from ai.description")
+            cur.execute("delete from ai.semantic_catalog_obj")
