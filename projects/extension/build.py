@@ -590,7 +590,13 @@ def where_am_i() -> str:
 
 def test_server() -> None:
     if where_am_i() == "host":
-        cmd = "docker exec -it -w /pgai/tests/vectorizer pgai-ext fastapi dev server.py"
+        cmd = """docker exec \
+            -e OPENAI_API_KEY=${OPENAI_API_KEY} \
+            -e ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY} \
+            -e COHERE_API_KEY=${COHERE_API_KEY} \
+            -e VOYAGE_API_KEY=${VOYAGE_API_KEY} \
+            -it -w /pgai/tests/vectorizer pgai-ext fastapi dev server.py
+            """
         subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
     else:
         cmd = "fastapi dev server.py"
@@ -648,7 +654,7 @@ def docker_build() -> None:
 def docker_run() -> None:
     cmd = " ".join(
         [
-            "docker run -d --name pgai-ext -p 127.0.0.1:5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust",
+            "docker run -d --name pgai-ext --network host -p 127.0.0.1:5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust",
             f"--mount type=bind,src={ext_dir()},dst=/pgai",
             "-e TEST_ENV_SECRET=super_secret",
             "pgai-ext",

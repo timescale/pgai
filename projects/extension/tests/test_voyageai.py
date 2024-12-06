@@ -5,7 +5,7 @@ import pytest
 
 
 # skip tests in this module if disabled
-enable_voyageai_tests = os.getenv("ENABLE_VOYAGEAI_TESTS")
+enable_voyageai_tests = os.getenv("VOYAGE_API_KEY")
 if not enable_voyageai_tests or enable_voyageai_tests == "0":
     pytest.skip(allow_module_level=True)
 
