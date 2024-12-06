@@ -1,6 +1,20 @@
 --FEATURE-FLAG: text_to_sql
 
 -------------------------------------------------------------------------------
+-- add_sql_example
+create or replace function ai.add_sql_example
+( sql pg_catalog.text
+, description pg_catalog.text
+) returns int
+as $func$
+    insert into ai.semantic_catalog_sql (sql, description)
+    values (trim(sql), trim(description))
+    returning id
+    ;
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp;
+
+-------------------------------------------------------------------------------
 -- _set_description
 create or replace function ai._set_description
 ( classid pg_catalog.oid
@@ -9,7 +23,7 @@ create or replace function ai._set_description
 , description pg_catalog.text
 ) returns void
 as $func$
-    insert into ai.description
+    insert into ai.semantic_catalog_obj
     ( objtype
     , objnames
     , objargs
@@ -31,7 +45,7 @@ as $func$
     , objid
     , objsubid
     ) x
-    on conflict on constraint description_pkey
+    on conflict on constraint semantic_catalog_obj_pkey
     do update set description = _set_description.description
     ;
 $func$ language sql volatile security invoker
@@ -153,8 +167,8 @@ $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp;
 
 -------------------------------------------------------------------------------
--- _description_handle_drop
-create or replace function ai._description_handle_drop()
+-- _semantic_catalog_obj_handle_drop
+create or replace function ai._semantic_catalog_obj_handle_drop()
 returns event_trigger as
 $func$
 declare
@@ -180,14 +194,14 @@ begin
         from pg_catalog.pg_event_trigger_dropped_objects() d
     )
     loop
-        delete from ai.description
+        delete from ai.semantic_catalog_obj
         where objtype operator(pg_catalog.=) _rec.object_type
         and objnames operator(pg_catalog.=) _rec.address_names
         and objargs operator(pg_catalog.=) _rec.address_args
         ;
         if _rec.object_type in ('table', 'view') then
             -- delete the columns too
-            delete from ai.description
+            delete from ai.semantic_catalog_obj
             where classid operator(pg_catalog.=) _rec.classid
             and objid operator(pg_catalog.=) _rec.objid
             ;
@@ -205,22 +219,22 @@ begin
     -- if the event trigger already exists, noop
     perform
     from pg_catalog.pg_event_trigger g
-    where g.evtname operator(pg_catalog.=) '_description_handle_drop'
-    and g.evtfoid operator(pg_catalog.=) pg_catalog.to_regproc('ai._description_handle_drop')
+    where g.evtname operator(pg_catalog.=) '_semantic_catalog_obj_handle_drop'
+    and g.evtfoid operator(pg_catalog.=) pg_catalog.to_regproc('ai._semantic_catalog_obj_handle_drop')
     ;
     if found then
         return;
     end if;
 
-    create event trigger _description_handle_drop
+    create event trigger _semantic_catalog_obj_handle_drop
     on sql_drop
-    execute function ai._description_handle_drop();
+    execute function ai._semantic_catalog_obj_handle_drop();
 end
 $block$;
 
 -------------------------------------------------------------------------------
--- _description_handle_ddl
-create or replace function ai._description_handle_ddl()
+-- _semantic_catalog_obj_handle_ddl
+create or replace function ai._semantic_catalog_obj_handle_ddl()
 returns event_trigger as
 $func$
 declare
@@ -272,7 +286,7 @@ begin
                 , x."type" as objtype
                 , x.object_names as objnames
                 , x.object_args as objargs
-                from ai.description d
+                from ai.semantic_catalog_obj d
                 inner join pg_catalog.pg_class k on (d.objid operator(pg_catalog.=) k.oid)
                 cross join lateral pg_catalog.pg_identify_object_as_address
                 ( d.classid
@@ -281,7 +295,7 @@ begin
                 ) x
                 where k.relnamespace operator(pg_catalog.=) _rec.objid
             )
-            update ai.description as d set
+            update ai.semantic_catalog_obj as d set
               objtype = x.objtype
             , objnames = x.objnames
             , objargs = x.objargs
@@ -302,7 +316,7 @@ begin
                 , x."type" as objtype
                 , x.object_names as objnames
                 , x.object_args as objargs
-                from ai.description d
+                from ai.semantic_catalog_obj d
                 inner join pg_catalog.pg_proc f on (d.objid operator(pg_catalog.=) f.oid)
                 cross join lateral pg_catalog.pg_identify_object_as_address
                 ( d.classid
@@ -311,7 +325,7 @@ begin
                 ) x
                 where f.pronamespace operator(pg_catalog.=) _rec.objid
             )
-            update ai.description as d set
+            update ai.semantic_catalog_obj as d set
               objtype = x.objtype
             , objnames = x.objnames
             , objargs = x.objargs
@@ -331,7 +345,7 @@ begin
         -- alter table set schema
         -- alter view set schema
         -- alter function set schema
-        update ai.description set
+        update ai.semantic_catalog_obj set
           objtype = _objtype
         , objnames = _objnames
         , objargs = _objargs
@@ -369,7 +383,7 @@ begin
                 , a.objsubid
                 ) x
             )
-            update ai.description d set
+            update ai.semantic_catalog_obj d set
               objtype = x.objtype
             , objnames = x.objnames
             , objargs = x.objargs
@@ -393,16 +407,16 @@ begin
     -- if the event trigger already exists, noop
     perform
     from pg_catalog.pg_event_trigger g
-    where g.evtname operator(pg_catalog.=) '_description_handle_ddl'
-    and g.evtfoid operator(pg_catalog.=) pg_catalog.to_regproc('ai._description_handle_ddl')
+    where g.evtname operator(pg_catalog.=) '_semantic_catalog_obj_handle_ddl'
+    and g.evtfoid operator(pg_catalog.=) pg_catalog.to_regproc('ai._semantic_catalog_obj_handle_ddl')
     ;
     if found then
         return;
     end if;
 
-    create event trigger _description_handle_ddl
+    create event trigger _semantic_catalog_obj_handle_ddl
     on ddl_command_end
-    execute function ai._description_handle_ddl();
+    execute function ai._semantic_catalog_obj_handle_ddl();
 end
 $block$;
 
@@ -413,15 +427,15 @@ as $func$
 declare
     _sql text;
 begin
-    -- disable vectorizer triggers on the ai.description table
+    -- disable vectorizer triggers on the ai.semantic_catalog_obj table
     for _sql in
     (
         select pg_catalog.format
-        ( $sql$alter table ai.description disable trigger %I$sql$
+        ( $sql$alter table ai.semantic_catalog_obj disable trigger %I$sql$
         , g.tgname
         )
         from pg_catalog.pg_trigger g
-        where g.tgrelid operator(pg_catalog.=) 'ai.description'::pg_catalog.regclass::pg_catalog.oid
+        where g.tgrelid operator(pg_catalog.=) 'ai.semantic_catalog_obj'::pg_catalog.regclass::pg_catalog.oid
         and g.tgname like '_vectorizer_src_trg_%'
     )
     loop
@@ -445,7 +459,7 @@ begin
             -- view columns and materialized view columns will throw an error
             -- https://github.com/postgres/postgres/blob/master/src/backend/catalog/objectaddress.c#L695
             select *
-            from ai.description d
+            from ai.semantic_catalog_obj d
             where d.objtype not in ('view column', 'materialized view column')
         ) d
         cross join lateral pg_catalog.pg_get_object_address
@@ -454,7 +468,7 @@ begin
         , d.objargs
         ) x
     )
-    update ai.description as d set
+    update ai.semantic_catalog_obj as d set
       classid = x.classid
     , objid = x.objid
     , objsubid = x.objsubid
@@ -474,7 +488,7 @@ begin
         , d.objtype
         , d.objnames
         , d.objargs
-        from ai.description d
+        from ai.semantic_catalog_obj d
         where d.objtype in ('view column', 'materialized view column')
         and pg_catalog.array_length(d.objnames, 1) operator(pg_catalog.=) 3
     )
@@ -492,7 +506,7 @@ begin
         on (x.attrelid::pg_catalog.oid operator(pg_catalog.=) a.attrelid and x.attname operator(pg_catalog.=) a.attname)
         where x.attrelid is not null
     )
-    update ai.description as d set
+    update ai.semantic_catalog_obj as d set
       classid = y.classid
     , objid = y.objid
     , objsubid = y.objsubid
@@ -503,21 +517,21 @@ begin
     and (d.classid, d.objid, d.objsubid) operator(pg_catalog.!=) (y.classid, y.objid, y.objsubid) -- noop if nothing to change
     ;
 
-    -- re-enable vectorizer triggers on the ai.description table
+    -- re-enable vectorizer triggers on the ai.semantic_catalog_obj table
     for _sql in
     (
         select pg_catalog.format
-        ( $sql$alter table ai.description enable trigger %I$sql$
+        ( $sql$alter table ai.semantic_catalog_obj enable trigger %I$sql$
         , g.tgname
         )
         from pg_catalog.pg_trigger g
-        where g.tgrelid operator(pg_catalog.=) 'ai.description'::pg_catalog.regclass::pg_catalog.oid
+        where g.tgrelid operator(pg_catalog.=) 'ai.semantic_catalog_obj'::pg_catalog.regclass::pg_catalog.oid
         and g.tgname like '_vectorizer_src_trg_%'
     )
     loop
         execute _sql;
     end loop;
 end;
-$func$ language plpgsql volatile security invoker
+$func$ language plpgsql volatile security definer -- definer on purpose
 set search_path to pg_catalog, pg_temp
 ;

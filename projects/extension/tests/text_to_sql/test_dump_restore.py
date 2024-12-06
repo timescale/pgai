@@ -152,7 +152,7 @@ def check_mapping() -> bool:
                 select
                   count(*) =
                   count(*) filter (where (d.objtype, d.objnames, d.objargs) = (x."type", x.object_names, x.object_args))
-                from ai.description d
+                from ai.semantic_catalog_obj d
                 cross join lateral pg_catalog.pg_identify_object_as_address
                 ( d.classid
                 , d.objid

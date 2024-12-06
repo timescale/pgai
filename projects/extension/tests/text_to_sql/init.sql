@@ -64,3 +64,14 @@ $func$ language sql
 ;
 select ai.set_function_description('billy.mac(bool)', 'description for billy.mac(bool)');
 
+select ai.add_sql_example
+( $sql$
+select id, concat(foo, bar, baz)
+from billy.poncho
+where id % 2 = 0
+$sql$
+, $description$
+This query concatenates foo, bar, and baz for even ids of billy.poncho.
+$description$
+);
+
