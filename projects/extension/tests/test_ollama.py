@@ -47,7 +47,7 @@ def ensure_models(ollama_host):
     Ensure required models are downloaded before running tests.
     This fixture runs automatically at the start of the test session.
     """
-    required_models = ["llama3", "llava:7b"]
+    required_models = ["llama3.2:1b", "smollm:135m"]
     for model in required_models:
         wait_for_model_download(ollama_host, model)
 
@@ -95,7 +95,7 @@ def test_ollama_embed(cur, ollama_host):
         select vector_dims
         (
             ai.ollama_embed
-            ( 'llama3'
+            ( 'llama3.2:1b'
             , 'the purple elephant sits on a red mushroom'
             , host=>%s
             )
@@ -104,7 +104,7 @@ def test_ollama_embed(cur, ollama_host):
         (ollama_host,),
     )
     actual = cur.fetchone()[0]
-    assert actual == 4096
+    assert actual == 2048
 
 
 def test_ollama_embed_no_host(cur_with_ollama_host):
@@ -112,13 +112,13 @@ def test_ollama_embed_no_host(cur_with_ollama_host):
         select vector_dims
         (
             ai.ollama_embed
-            ( 'llama3'
+            ( 'llama3.2:1b'
             , 'the purple elephant sits on a red mushroom'
             )
         )
     """)
     actual = cur_with_ollama_host.fetchone()[0]
-    assert actual == 4096
+    assert actual == 2048
 
 
 def test_ollama_embed_via_openai(cur, ollama_host):
@@ -127,7 +127,7 @@ def test_ollama_embed_via_openai(cur, ollama_host):
         select vector_dims
         (
             ai.openai_embed
-            ( 'llama3'
+            ( 'llama3.2:1b'
             , 'the purple elephant sits on a red mushroom'
             , api_key=>'this is a garbage api key'
             , base_url=>concat(%s::text, '/v1/')
@@ -137,14 +137,14 @@ def test_ollama_embed_via_openai(cur, ollama_host):
         (ollama_host,),
     )
     actual = cur.fetchone()[0]
-    assert actual == 4096
+    assert actual == 2048
 
 
 def test_ollama_generate(cur, ollama_host):
     cur.execute(
         """
         select ai.ollama_generate
-        ( 'llama3'
+        ( 'llama3.2:1b'
         , 'what is the typical weather like in Alabama in June'
         , system_prompt=>'you are a helpful assistant'
         , host=>%s
@@ -163,7 +163,7 @@ def test_ollama_generate(cur, ollama_host):
 def test_ollama_generate_no_host(cur_with_ollama_host):
     cur_with_ollama_host.execute("""
         select ai.ollama_generate
-        ( 'llama3'
+        ( 'llama3.2:1b'
         , 'what is the typical weather like in Alabama in June'
         , system_prompt=>'you are a helpful assistant'
         , embedding_options=> jsonb_build_object
@@ -179,7 +179,7 @@ def test_ollama_generate_no_host(cur_with_ollama_host):
 def test_ollama_image(cur_with_ollama_host):
     cur_with_ollama_host.execute("""
         select ai.ollama_generate
-        ( 'llava:7b'
+        ( 'smollm:135m'
         , 'Please describe this image.'
         , images=> array[pg_read_binary_file('/pgai/tests/postgresql-vs-pinecone.jpg')]
         , system_prompt=>'you are a helpful assistant'
@@ -197,7 +197,7 @@ def test_ollama_chat_complete(cur, ollama_host):
     cur.execute(
         """
         select ai.ollama_chat_complete
-        ( 'llama3'
+        ( 'llama3.2:1b'
           , jsonb_build_array
             ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
             , jsonb_build_object('role', 'user', 'content', 'what is the typical weather like in Alabama in June')
@@ -223,7 +223,7 @@ def test_ollama_chat_complete(cur, ollama_host):
 def test_ollama_chat_complete_no_host(cur_with_ollama_host):
     cur_with_ollama_host.execute("""
         select ai.ollama_chat_complete
-        ( 'llama3'
+        ( 'llama3.2:1b'
           , jsonb_build_array
             ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
             , jsonb_build_object('role', 'user', 'content', 'what is the typical weather like in Alabama in June')
@@ -246,7 +246,7 @@ def test_ollama_chat_complete_no_host(cur_with_ollama_host):
 def test_ollama_chat_complete_image(cur_with_ollama_host):
     cur_with_ollama_host.execute("""
         select ai.ollama_chat_complete
-        ( 'llava:7b'
+        ( 'smollm:135m'
         , jsonb_build_array
           ( jsonb_build_object
             ( 'role', 'user'
@@ -267,7 +267,7 @@ def test_ollama_chat_complete_image(cur_with_ollama_host):
 def test_ollama_ps(cur, ollama_host):
     cur.execute(
         """
-        select count(*) filter (where "name" = 'llava:7b') as actual
+        select count(*) filter (where "name" = 'smollm:135m') as actual
         from ai.ollama_ps(host=>%s)
     """,
         (ollama_host,),
@@ -278,7 +278,7 @@ def test_ollama_ps(cur, ollama_host):
 
 def test_ollama_ps_no_host(cur_with_ollama_host):
     cur_with_ollama_host.execute("""
-        select count(*) filter (where "name" = 'llava:7b') as actual
+        select count(*) filter (where "name" = 'smollm:135m') as actual
         from ai.ollama_ps()
     """)
     actual = cur_with_ollama_host.fetchone()[0]
