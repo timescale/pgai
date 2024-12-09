@@ -83,7 +83,7 @@ The `Vectorizer` accepts the following parameters:
 
 - `dimensions` (int): The size of the embedding vector (required)
 - `target_schema` (str, optional): Override the schema for the embeddings table. If not provided, inherits from the parent model's schema
-- `target_table` (str, optional): Override the table name for embeddings. Default is `{table_name}_{field_name}_store`
+- `target_table` (str, optional): Override the table name for embeddings. Default is `{table_name}_embedding_store`
 - `add_relationship` (bool, optional): Whether to automatically create a relationship to the embeddings table (default: False)
 
 ## Setting up the Vectorizer
@@ -93,7 +93,6 @@ After defining your model, you need to create the vectorizer using pgai's SQL fu
 ```sql
 SELECT ai.create_vectorizer(
     'blog_posts'::regclass,
-    target_table => 'blog_posts_content_embeddings_store',
     embedding => ai.embedding_openai('text-embedding-3-small', 768),
     chunking => ai.chunking_recursive_character_text_splitter(
         'content',

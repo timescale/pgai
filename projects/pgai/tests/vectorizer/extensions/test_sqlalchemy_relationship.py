@@ -55,7 +55,6 @@ def test_vectorizer_embedding_creation(
             text("""
                 SELECT ai.create_vectorizer(
                     'blog_posts'::regclass,
-                    target_table => 'blog_posts_content_embeddings_store',
                     embedding =>
                     ai.embedding_openai('text-embedding-3-small', 768),
                     chunking =>
