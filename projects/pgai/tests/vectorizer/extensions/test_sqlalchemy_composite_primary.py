@@ -58,7 +58,6 @@ def test_vectorizer_composite_key(
             text("""
                 SELECT ai.create_vectorizer(
                     'authors'::regclass,
-                    target_table => 'authors_bio_embeddings_store',
                     embedding => ai.embedding_openai('text-embedding-3-small', 768),
                     chunking =>
                     ai.chunking_recursive_character_text_splitter('bio', 50, 10)

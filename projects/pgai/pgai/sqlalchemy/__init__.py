@@ -64,7 +64,7 @@ class Vectorizer:
         self, owner: type[DeclarativeBase]
     ) -> type[EmbeddingModel[Any]]:
         assert self.name is not None
-        table_name = self.target_table or f"{owner.__tablename__}_{self.name}_store"
+        table_name = self.target_table or f"{owner.__tablename__}_embedding_store"
         self.set_schemas_correctly(owner)
         class_name = f"{to_pascal_case(self.name)}Embedding"
         registry_instance = owner.registry

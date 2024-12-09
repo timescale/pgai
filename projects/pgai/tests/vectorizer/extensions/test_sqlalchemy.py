@@ -37,7 +37,6 @@ def test_sqlalchemy(postgres_container: PostgresContainer, initialized_engine: E
             text("""
             SELECT ai.create_vectorizer(
                 'blog_posts'::regclass,
-                target_table => 'blog_posts_content_embeddings_store',
                 embedding => ai.embedding_openai('text-embedding-3-small', 768),
                 chunking => ai.chunking_recursive_character_text_splitter('content',
                 50,
