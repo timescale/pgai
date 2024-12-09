@@ -31,9 +31,8 @@ class Vectorizer:
         dimensions: int,
         target_schema: str | None = None,
         target_table: str | None = None,
-        add_relationship: bool = False,
+        **kwargs: Any,
     ):
-        self.add_relationship = add_relationship
         self.dimensions = dimensions
         self.target_schema = target_schema
         self.target_table = target_table
@@ -41,6 +40,7 @@ class Vectorizer:
         self.name: str | None = None
         self._embedding_class: type[EmbeddingModel[Any]] | None = None
         self._initialized = False
+        self.relationship_args = kwargs
 
     def _relationship_property(
         self, obj: Any = None
@@ -118,19 +118,19 @@ class Vectorizer:
             self._embedding_class = self.create_embedding_class(objtype)
 
             # Set up relationship if requested
-            if self.add_relationship:
-                mapper = inspect(objtype)
-                pk_cols = mapper.primary_key
+            mapper = inspect(objtype)
+            pk_cols = mapper.primary_key
 
-                relationship_instance = relationship(
-                    self._embedding_class,
-                    foreign_keys=[
-                        getattr(self._embedding_class, col.name) for col in pk_cols
-                    ],
-                    backref=backref("parent", lazy="select"),
-                )
-                # Store actual relationship under a private name
-                setattr(objtype, f"_{self.name}_relation", relationship_instance)
+            relationship_instance = relationship(
+                self._embedding_class,
+                foreign_keys=[
+                    getattr(self._embedding_class, col.name) for col in pk_cols
+                ],
+                backref=self.relationship_args.pop("backref", backref("parent", lazy="select")),
+                **self.relationship_args,
+            )
+            # Store actual relationship under a private name
+            setattr(objtype, f"_{self.name}_relation", relationship_instance)
 
             self._initialized = True
 
@@ -142,11 +142,12 @@ class Vectorizer:
     def __set_name__(self, owner: type[DeclarativeBase], name: str):
         self.owner = owner
         self.name = name
-        if self.add_relationship:
-            # Add the property that ensures initialization
-            setattr(owner, f"{name}_relation", property(self._relationship_property))
+        setattr(owner, f"{name}_relation", property(self._relationship_property))
 
         metadata = owner.registry.metadata
         if not hasattr(metadata, "info"):
             metadata.info = {}
         metadata.info.setdefault("pgai_managed_tables", set()).add(self.target_table)
+
+
+embedding_relation = Vectorizer
