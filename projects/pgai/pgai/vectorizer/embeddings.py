@@ -430,7 +430,7 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
                 'method': 'POST',
                 'url': '/v1/embeddings',
                 'body': {
-                    'model': 'text-embedding-3-small', # TODO how can I use the configured embeddings model?
+                    'model': self.model,
                     'input': document['chunk'],
                 },
             }
