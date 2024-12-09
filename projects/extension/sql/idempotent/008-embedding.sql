@@ -27,7 +27,6 @@ create or replace function ai.embedding_ollama
 ( model text
 , dimensions int
 , base_url text default null
-, truncate boolean default true
 , options jsonb default null
 , keep_alive text default null
 ) returns jsonb
@@ -38,7 +37,6 @@ as $func$
     , 'model': model
     , 'dimensions': dimensions
     , 'base_url': base_url
-    , 'truncate': truncate
     , 'options': options
     , 'keep_alive': keep_alive
     absent on null
@@ -52,7 +50,6 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.embedding_voyageai
 ( model text
 , dimensions int
-, truncate boolean default true
 , input_type text default 'document'
 , api_key_name text default 'VOYAGE_API_KEY'
 ) returns jsonb
@@ -68,7 +65,6 @@ begin
     , 'config_type': 'embedding'
     , 'model': model
     , 'dimensions': dimensions
-    , 'truncate': truncate
     , 'input_type': input_type
     , 'api_key_name': api_key_name
     absent on null

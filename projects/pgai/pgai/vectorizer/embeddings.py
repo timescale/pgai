@@ -33,10 +33,6 @@ openai_token_length_regex = re.compile(
     r"This model's maximum context length is (\d+) tokens"
 )
 
-voyageai_token_length_regex = re.compile(
-    r".*has too many tokens and does not fit into the model's context window of (\d+) tokens"  # noqa
-)
-
 logger = structlog.get_logger()
 
 
@@ -525,7 +521,6 @@ class Ollama(BaseModel, Embedder):
             implementation.
         model (str): The name of the Ollama model used for embeddings.
         base_url (str): The base url used to access the Ollama API.
-        truncate (bool): Truncate input longer than the model's context length
         options (dict): Additional ollama-specific runtime options
         keep_alive (str): How long to keep the model loaded after the request
     """
@@ -533,22 +528,13 @@ class Ollama(BaseModel, Embedder):
     implementation: Literal["ollama"]
     model: str
     base_url: str | None = None
-    truncate: bool = True
     options: OllamaOptions | None = None
     keep_alive: str | None = None  # this is only `str` because of the SQL API
 
     @override
-    async def embed(
-        self, documents: list[str]
-    ) -> Sequence[EmbeddingVector | ChunkEmbeddingError]:
+    async def embed(self, documents: list[str]) -> Sequence[EmbeddingVector]:
         """
         Embeds a list of documents into vectors using Ollama's embeddings API.
-
-        If a request to generate embeddings fails because one or more chunks
-        exceed the model's token limit (and truncate is set to False), every
-        chunk will be retried individually. The returned result will contain a
-        ChunkEmbeddingError in place of an EmbeddingVector for the chunks that
-        exceeded the model's token limit.
 
         Args:
             documents (list[str]): A list of documents to be embedded.
@@ -558,20 +544,7 @@ class Ollama(BaseModel, Embedder):
             errors for each document.
         """
         await logger.adebug(f"Chunks produced: {len(documents)}")
-        try:
-            return await self._batcher.batch_chunks_and_embed(documents)
-        except ollama.ResponseError as e:
-            if "input length exceeds maximum context length" not in e.error:
-                raise e
-            # Note: We don't attempt tokenizing data sent to Ollama models
-            # because every model has its own tokenizer, and there's no way to
-            # programmatically determine the tokenizer. Without knowing the
-            # token length of a chunk, we can't filter the long ones out (like
-            # we do in the OpenAI integration). Instead, we retry each chunk
-            # individually. It's not ideal, but not too bad because it's
-            # (probably) a local API.
-            context_length = await self._context_length()
-            return await self._fallback_retry_individually(context_length, documents)
+        return await self._batcher.batch_chunks_and_embed(documents)
 
     @cached_property
     def _batcher(self) -> BatchApiCaller[StringDocument]:
@@ -588,7 +561,6 @@ class Ollama(BaseModel, Embedder):
         response = await ollama.AsyncClient(host=self.base_url).embed(
             model=self.model,
             input=documents,
-            truncate=self.truncate,
             options=self.options,
             keep_alive=self.keep_alive,
         )
@@ -625,47 +597,6 @@ class Ollama(BaseModel, Embedder):
         )
         return min(model_context_length, num_ctx)
 
-    async def _fallback_retry_individually(
-        self, model_token_length: int | None, documents: list[str]
-    ) -> Sequence[EmbeddingVector | ChunkEmbeddingError]:
-        """
-        Retries embedding all documents individually. Chunks that fail are
-        converted to a ChunkEmbeddingError instead of an EmbeddingVector.
-
-        Args:
-            model_token_length (int | None): The token length limit for the model.
-            documents (list[str]): A list of documents.
-
-        Returns:
-            Sequence[EmbeddingVector | ChunkEmbeddingError]: EmbeddingVector
-            for the chunks that were successfully embedded, ChunkEmbeddingError
-            for the chunks that exceeded the model's token limit.
-        """
-        embeddings: list[ChunkEmbeddingError | list[float]] = []
-        for doc in documents:
-            try:
-                response = await self._batcher.batch_chunks_and_embed([doc])
-                embeddings.append(response[0])
-            except ollama.ResponseError as e:
-                if "input length exceeds maximum context length" in e.error:
-                    error_details = (
-                        f"chunk exceeds the {self.model} model context length"
-                    )
-                    if model_token_length is not None:
-                        error_details += f"of {model_token_length} tokens"
-                    error = ChunkEmbeddingError(
-                        error=TOKEN_CONTEXT_LENGTH_ERROR, error_details=error_details
-                    )
-                    embeddings.append(error)
-                else:
-                    embeddings.append(
-                        ChunkEmbeddingError(
-                            error="unknown error",
-                            error_details=f"unexpected error: '{e}'",  # noqa
-                        )
-                    )
-        return embeddings
-
 
 class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
     """
@@ -675,7 +606,6 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
         implementation (Literal["voyageai"]): The literal identifier for this
             implementation.
         model (str): The name of the Voyage AU model used for embeddings.
-        truncate (bool): Truncate input longer than the model's context length
         input_type ("document" | "query" | None): Set the input type of the
             items to be embedded. If set, improves retrieval quality.
 
@@ -683,22 +613,12 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
 
     implementation: Literal["voyageai"]
     model: str
-    truncate: bool = True
     input_type: Literal["document"] | Literal["query"] | None = None
 
     @override
-    async def embed(
-        self, documents: list[str]
-    ) -> Sequence[EmbeddingVector | ChunkEmbeddingError]:
+    async def embed(self, documents: list[str]) -> Sequence[EmbeddingVector]:
         """
         Embeds a list of documents into vectors using the VoyageAI embeddings API.
-
-        If a request to generate embeddings fails because one or more chunks
-        exceed the model's token limit (and truncate is set to False), the
-        tokenizer for the chosen model is used to reject chunks that exceed the
-        model's token limit. The returned result will contain a
-        ChunkEmbeddingError in place of an EmbeddingVector for chunks that
-        exceeded the model's token limit.
 
         Args:
             documents (list[str]): A list of documents to be embedded.
@@ -708,20 +628,7 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
             errors for each document.
         """
         await logger.adebug(f"Chunks produced: {len(documents)}")
-        try:
-            return await self._batcher.batch_chunks_and_embed(documents)
-        except voyageai.error.InvalidRequestError as e:
-            if not hasattr(e, "user_message") or e.user_message is None:  # type:ignore
-                raise e
-            message: str = e.user_message  # type:ignore
-            m = voyageai_token_length_regex.match(message)
-            if m is None:
-                raise e
-            model_token_length = int(m.group(1))
-            return await self._filter_by_length_and_embed(model_token_length, documents)
-        except voyageai.error.RateLimitError as e:
-            # TODO: handle separately?
-            raise e
+        return await self._batcher.batch_chunks_and_embed(documents)
 
     @cached_property
     def _batcher(self) -> BatchApiCaller[StringDocument]:
@@ -736,57 +643,9 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
             documents,
             model=self.model,
             input_type=self.input_type,
-            truncation=self.truncate,
         )
         usage = Usage(
             prompt_tokens=response.total_tokens,
             total_tokens=response.total_tokens,
         )
         return EmbeddingResponse(embeddings=response.embeddings, usage=usage)
-
-    async def _filter_by_length_and_embed(
-        self, model_token_length: int, documents: list[str]
-    ) -> Sequence[EmbeddingVector | ChunkEmbeddingError]:
-        """
-        Filters out documents that exceed the model's token limit and embeds
-        the valid ones. Chunks that exceed the limit are replaced in the
-        response with an ChunkEmbeddingError instead of an EmbeddingVector.
-
-        Args:
-            model_token_length (int): The token length limit for the model.
-            documents (list[str]): A list of documents.
-
-        Returns:
-            Sequence[EmbeddingVector | ChunkEmbeddingError]: EmbeddingVector
-            for the chunks that were successfully embedded, ChunkEmbeddingError
-            for the chunks that exceeded the model's token limit.
-        """
-        valid_document_idxs: list[int] = []
-        invalid_documents_idxs: list[int] = []
-        # Note: dynamically downloads the model's tokenizer from huggingface
-        tokenizer = voyageai.Client(api_key=self._api_key).tokenizer(self.model)
-        tokenized_docs = tokenizer.encode_batch(documents)
-        for i, doc in enumerate(tokenized_docs):
-            if len(doc.tokens) > model_token_length:
-                invalid_documents_idxs.append(i)
-            else:
-                valid_document_idxs.append(i)
-
-        assert len(valid_document_idxs) + len(invalid_documents_idxs) == len(documents)
-
-        valid_documents = [documents[i] for i in valid_document_idxs]
-
-        response = await self._batcher.batch_chunks_and_embed(valid_documents)
-
-        embeddings: list[ChunkEmbeddingError | list[float]] = []
-        for i in range(len(documents)):
-            if i in invalid_documents_idxs:
-                embedding = ChunkEmbeddingError(
-                    error=TOKEN_CONTEXT_LENGTH_ERROR,
-                    error_details=f"chunk exceeds the {self.model} model context length of {model_token_length} tokens",  # noqa
-                )
-            else:
-                embedding = response.pop(0)
-            embeddings.append(embedding)
-
-        return embeddings

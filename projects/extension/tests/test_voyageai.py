@@ -110,28 +110,7 @@ def test_voyageai_embed_with_input_type(cur, voyageai_api_key):
     assert query != document
 
 
-def test_voyageai_embed_fails_on_large_chunk_with_truncate_false(cur, voyageai_api_key):
-    with pytest.raises(
-        psycopg.errors.ExternalRoutineException,
-        match="The example at index 0 in your batch has too many tokens and does not fit into the model's context window of 32000 tokens.",
-    ) as _:
-        cur.execute(
-            """
-            select vector_dims
-            (
-                ai.voyageai_embed
-                ( 'voyage-3-lite'
-                , repeat('hello world', 20000)
-                , api_key=>%s
-                , truncation=>false
-                )
-            )
-        """,
-            (voyageai_api_key,),
-        )
-
-
-def test_voyageai_embed_successful_with_truncation(cur, voyageai_api_key):
+def test_voyageai_embed_successful_with_very_large_input(cur, voyageai_api_key):
     cur.execute(
         """
         select vector_dims
@@ -140,7 +119,6 @@ def test_voyageai_embed_successful_with_truncation(cur, voyageai_api_key):
             ( 'voyage-3-lite'
             , repeat('hello world', 20000)
             , api_key=>%s
-            , truncation=>true
             )
         )
     """,
