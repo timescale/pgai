@@ -1,4 +1,100 @@
 -------------------------------------------------------------------------------
+-- _vectorizer_create_queue_table
+create or replace function ai._vectorizer_create_embedding_batches_table
+( embedding_batch_schema name
+, embedding_batch_table name
+, embedding_batch_chunks_table name
+, grant_to name[]
+) returns void as
+$func$
+declare
+    _sql text;
+begin
+    -- create the batches table
+    select pg_catalog.format
+    ( $sql$create table %I.%I(
+    openai_batch_id VARCHAR(255) PRIMARY KEY,
+    input_file_id   VARCHAR(255) NOT NULL,
+    output_file_id  VARCHAR(255),
+    status          VARCHAR(255) NOT NULL,
+    errors          JSONB,
+    created_at      TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    expires_at      TIMESTAMP(0),
+    completed_at    TIMESTAMP(0),
+    failed_at       TIMESTAMP(0)
+))$sql$
+    , embedding_batch_schema
+    , embedding_batch_table
+    ) into strict _sql
+    ;
+    execute _sql;
+
+    -- create the index
+    select pg_catalog.format
+    ( $sql$create index on %I.%I (status)$sql$
+    , embedding_batch_schema, embedding_batch_table
+    ) into strict _sql
+    ;
+    execute _sql;
+
+    -- create the batch chunks table
+    select pg_catalog.format
+    ( $sql$create table %I.%I(
+    id                 VARCHAR(255) PRIMARY KEY,
+    embedding_batch_id VARCHAR(255) REFERENCES %I.%I (openai_batch_id),
+    text               TEXT
+))$sql$
+    , embedding_batch_schema
+    , embedding_batch_chunks_table
+    , embedding_batch_schema
+    , embedding_batch_table
+    ) into strict _sql
+    ;
+    execute _sql;
+
+    if grant_to is not null then
+        -- grant usage on queue schema to grant_to roles
+        select pg_catalog.format
+        ( $sql$grant usage on schema %I to %s$sql$
+        , embedding_batch_schema
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+
+        -- grant select, update, delete on batches table to grant_to roles
+        select pg_catalog.format
+        ( $sql$grant select, insert, update, delete on %I.%I to %s$sql$
+        , embedding_batch_schema
+        , embedding_batch_table
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+
+        -- grant select, update, delete on batch chunks table to grant_to roles
+        select pg_catalog.format
+        ( $sql$grant select, insert, update, delete on %I.%I to %s$sql$
+        , embedding_batch_schema
+        , embedding_batch_chunks_table
+        , (
+              select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+              from pg_catalog.unnest(grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+    end if;
+end;
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- create_vectorizer
 create or replace function ai.create_vectorizer
 ( source regclass
@@ -17,6 +113,9 @@ create or replace function ai.create_vectorizer
 , queue_table name default null
 , grant_to name[] default ai.grant_to()
 , enqueue_existing bool default true
+, embedding_batch_schema name default null
+, embedding_batch_table name default null
+, embedding_batch_chunks_table name default null
 ) returns int
 as $func$
 declare
@@ -30,6 +129,7 @@ declare
     _vectorizer_id int;
     _sql text;
     _job_id bigint;
+    _implementation text;
 begin
     -- make sure all the roles listed in grant_to exist
     if grant_to is not null then
@@ -201,6 +301,31 @@ begin
         scheduling = pg_catalog.jsonb_insert(scheduling, array['job_id'], to_jsonb(_job_id));
     end if;
 
+    -- create batch embedding tables
+    select (embedding operator (pg_catalog.->> 'implementation'))::text into _implementation;
+    if _implementation = 'openai' then
+        embedding_batch_schema = coalesce(embedding_batch_schema, 'ai');
+        embedding_batch_table = coalesce(embedding_batch_table, pg_catalog.concat('_vectorizer_embedding_batches_', _vectorizer_id));
+        embedding_batch_chunks_table = coalesce(embedding_batch_chunks_table, pg_catalog.concat('_vectorizer_embedding_batch_chunks_', _vectorizer_id));
+
+        -- make sure embedding batch table name is available
+        if pg_catalog.to_regclass(pg_catalog.format('%I.%I', embedding_batch_schema, embedding_batch_table)) is not null then
+            raise exception 'an object named %.% already exists. specify an alternate embedding_batch_table explicitly', queue_schema, queue_table;
+        end if;
+
+        -- make sure embedding batch chunks table name is available
+        if pg_catalog.to_regclass(pg_catalog.format('%I.%I', embedding_batch_schema, embedding_batch_chunks_table)) is not null then
+            raise exception 'an object named %.% already exists. specify an alternate embedding_batch_chunks_table explicitly', queue_schema, queue_table;
+        end if;
+
+        perform ai._vectorizer_create_embedding_batches_table
+        (embedding_batch_schema
+        , embedding_batch_table
+        , embedding_batch_chunks_table
+        , grant_to
+        );
+    end if;
+
     insert into ai.vectorizer
     ( id
     , source_schema
@@ -228,7 +353,7 @@ begin
     , queue_schema
     , queue_table
     , pg_catalog.jsonb_build_object
-      ( 'version', '0.5.0'
+      ( 'version', '0.6.0'
       , 'embedding', embedding
       , 'chunking', chunking
       , 'indexing', indexing
