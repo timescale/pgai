@@ -798,21 +798,17 @@ CREATE TABLE IF NOT EXISTS ai.embedding_batch_chunks
             client: OpenAI,
     ):
         """
-        Embeds the items and writes them to the database.
+        Writes embeddings from an OpenAI batch embedding to the database.
 
         - Deletes existing embeddings for the items.
-        - Generates the documents to be embedded, chunks them, and formats the chunks.
-        - Sends the documents to the embedding provider and writes embeddings
-          to the database.
+        - Loads created embeddings from the batch.
+        - Writes created embeddings to the database.
         - Logs any non-fatal errors encountered during embedding.
 
         Args:
             conn (AsyncConnection): The database connection.
             batch: The batch as retrieved from OpenAI's api.
             client: The OpenAI client to use.
-
-        Returns:
-            int: The number of records written to the database.
         """
         batch_file = client.files.content(batch.output_file_id)
 
