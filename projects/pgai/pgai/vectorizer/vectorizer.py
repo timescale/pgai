@@ -478,34 +478,6 @@ class Worker:
                 res += items_processed
                 loops += 1
 
-    async def _create_batch_table(self, conn: AsyncConnection):
-        # TODO this does not feel like the way to go, is there a way to do these kind of migrations properly?
-        await conn.execute("""
-CREATE TABLE IF NOT EXISTS ai.embedding_batches
-(
-    openai_batch_id VARCHAR(255) PRIMARY KEY,
-    input_file_id   VARCHAR(255) NOT NULL,
-    output_file_id  VARCHAR(255),
-    status          VARCHAR(255) NOT NULL,
-    errors          JSONB,
-    created_at      TIMESTAMP(0) NOT NULL DEFAULT NOW(),
-    expires_at      TIMESTAMP(0),
-    completed_at    TIMESTAMP(0),
-    failed_at       TIMESTAMP(0)
-);
-                """)
-        await conn.execute("""
-                CREATE INDEX IF NOT EXISTS embedding_batches_status_index ON ai.embedding_batches (status);
-                """)
-        return await conn.execute("""
-CREATE TABLE IF NOT EXISTS ai.embedding_batch_chunks
-(
-    id                 VARCHAR(255) PRIMARY KEY,
-    embedding_batch_id VARCHAR(255) REFERENCES ai.embedding_batches (openai_batch_id),
-    text               TEXT
-);
-        """)
-
     @tracer.wrap()
     async def _do_openai_batch(self, conn: AsyncConnection) -> int:
         """
