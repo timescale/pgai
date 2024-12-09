@@ -628,7 +628,7 @@ CREATE TABLE IF NOT EXISTS ai.embedding_batch_chunks
                 # batch has been processed successfully in openai, that means we can
                 # collect the results and store them in the database.
                 if batch.status == 'completed':
-                    await self._embed_and_write_from_batch(conn, batch, client)
+                    await self._write_embeddings_from_batch(conn, batch, client)
 
                     await cursor.execute("""
                         UPDATE ai.embedding_batches 
@@ -791,7 +791,7 @@ CREATE TABLE IF NOT EXISTS ai.embedding_batch_chunks
         return len(records)
 
     @tracer.wrap()
-    async def _embed_and_write_from_batch(
+    async def _write_embeddings_from_batch(
             self,
             conn: AsyncConnection,
             batch: openai.types.Batch,
