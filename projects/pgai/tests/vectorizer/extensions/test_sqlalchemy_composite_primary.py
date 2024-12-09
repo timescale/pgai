@@ -20,7 +20,6 @@ class Author(Base):
     bio = Column(Text, nullable=False)
     bio_embeddings = Vectorizer(
         dimensions=768,
-        add_relationship=True,
     )
 
     bio_embeddings_relation: Mapped[list[EmbeddingModel["Author"]]]

@@ -22,7 +22,6 @@ def test_sqlalchemy(postgres_container: PostgresContainer, initialized_engine: E
 
         content_embeddings = Vectorizer(
             dimensions=768,
-            add_relationship=True,
         )
 
     # Create tables

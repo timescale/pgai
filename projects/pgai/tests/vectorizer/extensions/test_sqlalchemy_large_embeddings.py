@@ -88,4 +88,3 @@ def test_vectorizer_embedding_creation(
         embedding_entity = session.query(BlogPost.content_embeddings).first()
         assert embedding_entity is not None
         assert embedding_entity.chunk in blog_post.content
-        assert not hasattr(embedding_entity, "parent")

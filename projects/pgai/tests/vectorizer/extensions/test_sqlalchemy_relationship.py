@@ -20,7 +20,6 @@ class BlogPost(Base):
     content = Column(Text, nullable=False)
     content_embeddings = Vectorizer(
         dimensions=768,
-        add_relationship=True,
     )
 
     content_embeddings_relation: Mapped[list[EmbeddingModel["BlogPost"]]]
