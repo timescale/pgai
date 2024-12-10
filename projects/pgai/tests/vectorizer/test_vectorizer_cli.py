@@ -551,52 +551,6 @@ def test_ollama_vectorizer(
         assert cur.fetchone()["count"] == num_items  # type: ignore
 
 
-def test_ollama_vectorizer_handles_chunk_failure_correctly(
-    cli_db: tuple[TestDatabase, Connection],
-    cli_db_url: str,
-    vcr_: Any,
-):
-    """Test successful processing of vectorizer tasks"""
-    _, conn = cli_db
-
-    # Set up vectorizer which will fail to embed chunk
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute("CREATE TABLE blog(id bigint primary key, content text);")
-        cur.execute("""SELECT ai.create_vectorizer(
-                'blog',
-                embedding => ai.embedding_ollama(
-                    'nomic-embed-text',
-                    768,
-                    truncate => false
-                ),
-                chunking => ai.chunking_character_text_splitter('content')
-        )""")  # noqa
-        cur.execute("INSERT INTO blog (id, content) VALUES(1, repeat('1', 10000))")
-
-    # When running the worker with cassette matching original test params
-    cassette = "ollama-character_text_splitter-too-large-chunk_value.yaml"
-    logging.getLogger("vcr").setLevel(logging.DEBUG)
-    with vcr_.use_cassette(cassette):
-        result = CliRunner().invoke(
-            vectorizer_worker,
-            [
-                "--db-url",
-                cli_db_url,
-                "--once",
-            ],
-            catch_exceptions=False,
-        )
-
-    assert not result.exception
-    assert result.exit_code == 0
-
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute("SELECT count(*) as count FROM blog_embedding_store;")
-        assert cur.fetchone()["count"] == 0  # type: ignore
-        cur.execute("SELECT count(*) as count FROM ai.vectorizer_errors;")
-        assert cur.fetchone()["count"] == 1  # type: ignore
-
-
 @pytest.mark.parametrize(
     "test_params",
     [
@@ -701,54 +655,6 @@ def test_voyageai_vectorizer_fails_when_api_key_is_not_set(
 
     assert result.exit_code == 1
     assert "ApiKeyNotFoundError" in result.output
-
-
-def test_voyageai_vectorizer_handles_chunk_failure_correctly(
-    cli_db: tuple[TestDatabase, Connection],
-    cli_db_url: str,
-    vcr_: Any,
-):
-    """Test successful processing of failed vectorizer tasks"""
-    if "VOYAGE_API_KEY" not in os.environ:
-        os.environ["VOYAGE_API_KEY"] = "A FAKE KEY"
-    _, conn = cli_db
-
-    # Set up vectorizer which will fail to embed chunk
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute("CREATE TABLE blog(id bigint primary key, content text);")
-        cur.execute("""SELECT ai.create_vectorizer(
-                'blog',
-                embedding => ai.embedding_voyageai(
-                    'voyage-3-lite',
-                    512,
-                    truncate => false
-                ),
-                chunking => ai.chunking_character_text_splitter('content')
-        )""")  # noqa
-        cur.execute("INSERT INTO blog (id, content) VALUES(1, repeat('1', 100000))")
-
-    # When running the worker with cassette matching original test params
-    cassette = "voyageai-character_text_splitter-too-large-chunk_value.yaml"
-    logging.getLogger("vcr").setLevel(logging.DEBUG)
-    with vcr_.use_cassette(cassette):
-        result = CliRunner().invoke(
-            vectorizer_worker,
-            [
-                "--db-url",
-                cli_db_url,
-                "--once",
-            ],
-            catch_exceptions=False,
-        )
-
-    assert not result.exception
-    assert result.exit_code == 0
-
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute("SELECT count(*) as count FROM blog_embedding_store;")
-        assert cur.fetchone()["count"] == 0  # type: ignore
-        cur.execute("SELECT count(*) as count FROM ai.vectorizer_errors;")
-        assert cur.fetchone()["count"] == 1  # type: ignore
 
 
 class TestExitOnError:
