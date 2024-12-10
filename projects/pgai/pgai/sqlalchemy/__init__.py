@@ -1,8 +1,9 @@
 from typing import Any, Generic, TypeVar
 
 from pgvector.sqlalchemy import Vector  # type: ignore
-from sqlalchemy import ForeignKeyConstraint, Integer, Text, inspect
-from sqlalchemy.orm import DeclarativeBase, Mapped, backref, mapped_column, relationship
+from sqlalchemy import ForeignKeyConstraint, Integer, Text, inspect, event
+from sqlalchemy.orm import DeclarativeBase, Mapped, backref, mapped_column, relationship, add_mapped_attribute, Mapper
+from sqlalchemy.orm.relationships import _RelationshipDeclared
 
 # Type variable for the parent model
 T = TypeVar("T", bound=DeclarativeBase)
@@ -39,17 +40,21 @@ class Vectorizer:
         self.owner: type[DeclarativeBase] | None = None
         self.name: str | None = None
         self._embedding_class: type[EmbeddingModel[Any]] | None = None
+        self._relationship: _RelationshipDeclared[Any] | None = None
         self._initialized = False
         self.relationship_args = kwargs
+        event.listen(Mapper, 'after_configured', self._initialize_all)
 
-    def _relationship_property(
-        self, obj: Any = None
-    ) -> Mapped[list[EmbeddingModel[Any]]]:
+    def _initialize_all(self):
+        """Force initialization during mapper configuration"""
+        if not self._initialized and self.owner is not None:
+            self.__get__(None, self.owner)
+
+    def _model_property(self, obj: Any = None) -> type[EmbeddingModel[Any]]:
         # Force initialization if not done yet
         if not self._initialized:
             _ = self.__get__(obj, self.owner)
-        # Return the actual relationship
-        return getattr(obj, f"_{self.name}_relation")
+        return self._embedding_class #type: ignore
 
     def set_schemas_correctly(self, owner: type[DeclarativeBase]) -> None:
         table_args_schema_name = getattr(owner, "__table_args__", {}).get("schema")
@@ -69,6 +74,14 @@ class Vectorizer:
         class_name = f"{to_pascal_case(self.name)}Embedding"
         registry_instance = owner.registry
         base: type[DeclarativeBase] = owner.__base__  # type: ignore
+
+        # Check if table already exists in metadata
+        key = f"{self.target_schema}.{table_name}"
+        if key in owner.metadata.tables:
+            # Find the mapped class in the registry
+            for cls in owner.registry._class_registry.values():
+                if hasattr(cls, '__table__') and cls.__table__.fullname == key:
+                    return cls  # type: ignore
 
         # Get primary key information from the fully initialized model
         mapper = inspect(owner)
@@ -113,36 +126,37 @@ class Vectorizer:
 
     def __get__(
         self, obj: DeclarativeBase | None, objtype: type[DeclarativeBase] | None = None
-    ) -> type[EmbeddingModel[Any]]:
-        if not self._initialized and objtype is not None:
+    ) -> Mapped[list[EmbeddingModel[Any]]]:
+        assert self.name is not None
+        if not self._initialized:
             self._embedding_class = self.create_embedding_class(objtype)
 
-            # Set up relationship if requested
             mapper = inspect(objtype)
             pk_cols = mapper.primary_key
-
-            relationship_instance = relationship(
-                self._embedding_class,
-                foreign_keys=[
-                    getattr(self._embedding_class, col.name) for col in pk_cols
-                ],
-                backref=self.relationship_args.pop("backref", backref("parent", lazy="select")),
-                **self.relationship_args,
-            )
-            # Store actual relationship under a private name
-            setattr(objtype, f"_{self.name}_relation", relationship_instance)
-
+            collection_name = f"{self.name}_collection"
+            if not hasattr(objtype, collection_name):
+                relationship_instance = relationship(
+                    self._embedding_class,
+                    collection_class=list,
+                    foreign_keys=[
+                        getattr(self._embedding_class, col.name) for col in pk_cols
+                    ],
+                    backref=self.relationship_args.pop("backref", backref("parent", lazy="joined")),
+                    lazy="joined",
+                )
+                setattr(objtype, f"{self.name}_collection", relationship_instance)
             self._initialized = True
+        if obj is None and self._initialized:
+            return self._embedding_class
 
-        if self._embedding_class is None:
-            raise RuntimeError("Embedding class not properly initialized")
-
-        return self._embedding_class
+        return getattr(obj, f"{self.name}_collection")
+        
 
     def __set_name__(self, owner: type[DeclarativeBase], name: str):
         self.owner = owner
         self.name = name
-        setattr(owner, f"{name}_relation", property(self._relationship_property))
+        # Set up the model property
+        setattr(owner, f"{name}_model", property(self._model_property))
 
         metadata = owner.registry.metadata
         if not hasattr(metadata, "info"):
