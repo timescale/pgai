@@ -378,7 +378,7 @@ def clean_sql() -> None:
 
 def postgres_bin_dir() -> Path:
     bin_dir = os.getenv("PG_BIN")
-    if Path(bin_dir).is_dir():
+    if bin_dir is not None and Path(bin_dir).is_dir():
         return Path(bin_dir).resolve()
     else:
         bin_dir = Path(f"/usr/lib/postgresql/{pg_major()}/bin")
