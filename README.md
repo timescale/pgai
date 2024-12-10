@@ -64,6 +64,7 @@ For other use cases, first [Install pgai](#installation) in Timescale Cloud, a p
      * [Cohere](./docs/cohere.md) - configure pgai for Cohere, then use the model to tokenize, embed, chat complete, classify, and rerank.
      * [Voyage AI](./docs/voyageai.md) - configure pgai for Voyage AI, then use the model to embed.
   - Leverage LLMs for data processing tasks such as classification, summarization, and data enrichment ([see the OpenAI example](/docs/openai.md)).
+  - Load datasets from Hugging Face into your database with [ai.load_dataset](/docs/load_dataset_from_huggingface.md).
 
 
 
@@ -178,7 +179,7 @@ You can use pgai to integrate AI from the following providers:
 - [Llama 3 (via Ollama)](/docs/ollama.md)
 - [Voyage AI](/docs/voyageai.md)
 
-Learn how to [moderate](/docs/moderate.md) content directly in the database using triggers and background jobs.
+Learn how to [moderate](/docs/moderate.md) content directly in the database using triggers and background jobs. To get started, [load datasets directly from Hugging Face](/docs/load_dataset_from_huggingface.md) into your database.
 
 ### Automatically create and sync LLM embeddings for your data
 
