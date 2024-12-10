@@ -1662,3 +1662,104 @@ def test_queue_pending():
             # a non-exact count should yield 9223372036854775807
             cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
             assert cur.fetchone()[0] == 9223372036854775807
+
+
+def create_user(cur: psycopg.Cursor, user: str) -> None:
+    cur.execute(
+        """
+        select count(*) > 0
+        from pg_catalog.pg_roles
+        where rolname = %s
+    """,
+        (user,),
+    )
+    if not cur.fetchone()[0]:
+        cur.execute(f"create user {user}")
+
+
+def test_create_vectorizer_privs():
+    with psycopg.connect(db_url("postgres")) as con:
+        with con.cursor() as cur:
+            create_user(cur, "jimmy")
+            cur.execute("grant create on schema public to jimmy")
+            cur.execute("select ai.grant_ai_usage('jimmy', admin=>false)")
+            create_user(cur, "greg")
+            cur.execute("select ai.grant_ai_usage('greg', admin=>false)")
+
+    # jimmy owns the source table
+    with psycopg.connect(db_url("jimmy")) as con:
+        with con.cursor() as cur:
+            cur.execute("""
+            create table priv_test
+            ( id int not null primary key generated always as identity
+            , foo text
+            , bar text
+            )
+            """)
+
+    # greg does not own the table, does not own the database, and is not superuser
+    # this should fail
+    with psycopg.connect(db_url("greg")) as con:
+        with con.cursor() as cur:
+            with pytest.raises(
+                psycopg.errors.RaiseException,
+                match=".*only a superuser or the owner of the source table may create a vectorizer on it",
+            ):
+                cur.execute("""
+                select ai.create_vectorizer
+                ( 'priv_test'::regclass
+                , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+                , chunking=>ai.chunking_character_text_splitter('foo')
+                , scheduling=>ai.scheduling_none()
+                , indexing=>ai.indexing_none()
+                , grant_to=>null
+                );
+                """)
+
+    # test owns the database, but not the table, and is not superuser
+    # this should not work
+    with psycopg.connect(db_url("test")) as con:
+        with con.cursor() as cur:
+            with pytest.raises(
+                psycopg.errors.RaiseException,
+                match=".*only a superuser or the owner of the source table may create a vectorizer on it",
+            ):
+                cur.execute("""
+                select ai.create_vectorizer
+                ( 'priv_test'::regclass
+                , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+                , chunking=>ai.chunking_character_text_splitter('foo')
+                , scheduling=>ai.scheduling_none()
+                , indexing=>ai.indexing_none()
+                , grant_to=>null
+                );
+                """)
+
+    # jimmy owns the table. this should work
+    with psycopg.connect(db_url("jimmy")) as con:
+        with con.cursor() as cur:
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'priv_test'::regclass
+            , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+            , chunking=>ai.chunking_character_text_splitter('foo')
+            , scheduling=>ai.scheduling_none()
+            , indexing=>ai.indexing_none()
+            , grant_to=>null
+            );
+            """)
+
+    # postgres is superuser. this should work
+    with psycopg.connect(db_url("postgres")) as con:
+        with con.cursor() as cur:
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'priv_test'::regclass
+            , destination=>'red_balloon'
+            , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+            , chunking=>ai.chunking_character_text_splitter('foo')
+            , scheduling=>ai.scheduling_none()
+            , indexing=>ai.indexing_none()
+            , grant_to=>null
+            );
+            """)

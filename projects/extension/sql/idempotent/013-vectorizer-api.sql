@@ -69,20 +69,30 @@ begin
     end if;
 
     -- get source table name and schema name
-    select k.relname, n.nspname, pg_catalog.pg_has_role(pg_catalog.current_user(), k.relowner, 'MEMBER')
+    select
+      k.relname
+    , n.nspname
+    , pg_catalog.pg_has_role(pg_catalog.current_user(), k.relowner, 'MEMBER')
     into strict _source_table, _source_schema, _is_owner
     from pg_catalog.pg_class k
     inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
     where k.oid operator(pg_catalog.=) source
     ;
+    -- not an owner of the table, but superuser?
+    if not _is_owner then
+        select r.rolsuper into strict _is_owner
+        from pg_catalog.pg_roles r
+        where r.rolname operator(pg_catalog.=) pg_catalog.current_user()
+        ;
+    end if;
 
     if not _is_owner then
-        raise exception 'only the owner of the source table may create a vectorizer on it';
+        raise exception 'only a superuser or the owner of the source table may create a vectorizer on it';
     end if;
 
     select (embedding operator(pg_catalog.->) 'dimensions')::int into _dimensions;
     if _dimensions is null then
-        raise exception '_dimensions argument is required';
+        raise exception 'dimensions argument is required';
     end if;
 
     -- get the source table's primary key definition
