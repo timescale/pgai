@@ -1,7 +1,7 @@
 
 -------------------------------------------------------------------------------
 -- indexing_none
-create or replace function ai.indexing_none() returns jsonb
+create or replace function ai.indexing_none() returns pg_catalog.jsonb
 as $func$
     select jsonb_build_object
     ( 'implementation', 'none'
@@ -13,7 +13,7 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- indexing_default
-create or replace function ai.indexing_default() returns jsonb
+create or replace function ai.indexing_default() returns pg_catalog.jsonb
 as $func$
     select jsonb_build_object
     ( 'implementation', 'default'
@@ -26,15 +26,15 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- indexing_diskann
 create or replace function ai.indexing_diskann
-( min_rows int default 100000
-, storage_layout text default null
-, num_neighbors int default null
-, search_list_size int default null
-, max_alpha float8 default null
-, num_dimensions int default null
-, num_bits_per_dimension int default null
-, create_when_queue_empty boolean default true
-) returns jsonb
+( min_rows pg_catalog.int4 default 100000
+, storage_layout pg_catalog.text default null
+, num_neighbors pg_catalog.int4 default null
+, search_list_size pg_catalog.int4 default null
+, max_alpha pg_catalog.float8 default null
+, num_dimensions pg_catalog.int4 default null
+, num_bits_per_dimension pg_catalog.int4 default null
+, create_when_queue_empty pg_catalog.bool default true
+) returns pg_catalog.jsonb
 as $func$
     select json_object
     ( 'implementation': 'diskann'
@@ -55,10 +55,10 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- _resolve_indexing_default
-create or replace function ai._resolve_indexing_default() returns jsonb
+create or replace function ai._resolve_indexing_default() returns pg_catalog.jsonb
 as $func$
 declare
-    _setting text;
+    _setting pg_catalog.text;
 begin
     select pg_catalog.current_setting('ai.indexing_default', true) into _setting;
     case _setting
@@ -76,10 +76,10 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- _validate_indexing_diskann
-create or replace function ai._validate_indexing_diskann(config jsonb) returns void
+create or replace function ai._validate_indexing_diskann(config pg_catalog.jsonb) returns void
 as $func$
 declare
-    _storage_layout text;
+    _storage_layout pg_catalog.text;
 begin
     _storage_layout = config operator(pg_catalog.->>) 'storage_layout';
     if _storage_layout is not null and not (_storage_layout operator(pg_catalog.=) any(array['memory_optimized', 'plain'])) then
@@ -93,12 +93,12 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- indexing_hnsw
 create or replace function ai.indexing_hnsw
-( min_rows int default 100000
-, opclass text default 'vector_cosine_ops'
-, m int default null
-, ef_construction int default null
-, create_when_queue_empty boolean default true
-) returns jsonb
+( min_rows pg_catalog.int4 default 100000
+, opclass pg_catalog.text default 'vector_cosine_ops'
+, m pg_catalog.int4 default null
+, ef_construction pg_catalog.int4 default null
+, create_when_queue_empty pg_catalog.bool default true
+) returns pg_catalog.jsonb
 as $func$
     select json_object
     ( 'implementation': 'hnsw'
@@ -116,10 +116,10 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- _validate_indexing_hnsw
-create or replace function ai._validate_indexing_hnsw(config jsonb) returns void
+create or replace function ai._validate_indexing_hnsw(config pg_catalog.jsonb) returns void
 as $func$
 declare
-    _opclass text;
+    _opclass pg_catalog.text;
 begin
     _opclass = config operator(pg_catalog.->>) 'opclass';
     if _opclass is not null
@@ -133,18 +133,18 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- _validate_indexing
-create or replace function ai._validate_indexing(config jsonb) returns void
+create or replace function ai._validate_indexing(config pg_catalog.jsonb) returns void
 as $func$
 declare
-    _config_type text;
-    _implementation text;
+    _config_type pg_catalog.text;
+    _implementation pg_catalog.text;
 begin
-    if pg_catalog.jsonb_typeof(config) != 'object' then
+    if pg_catalog.jsonb_typeof(config) operator(pg_catalog.!=) 'object' then
         raise exception 'indexing config is not a jsonb object';
     end if;
 
-    _config_type = config operator ( pg_catalog.->> ) 'config_type';
-    if _config_type is null or _config_type != 'indexing' then
+    _config_type = config operator(pg_catalog.->>) 'config_type';
+    if _config_type is null or _config_type operator(pg_catalog.!=) 'indexing' then
         raise exception 'invalid config_type for indexing config';
     end if;
     _implementation = config operator(pg_catalog.->>) 'implementation';

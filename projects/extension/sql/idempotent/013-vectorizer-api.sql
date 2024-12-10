@@ -2,7 +2,7 @@
 
 -------------------------------------------------------------------------------
 -- execute_vectorizer
-create or replace function ai.execute_vectorizer(vectorizer_id int) returns void
+create or replace function ai.execute_vectorizer(vectorizer_id pg_catalog.int4) returns void
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.vectorizer
@@ -15,35 +15,35 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- create_vectorizer
 create or replace function ai.create_vectorizer
-( source regclass
-, destination name default null
-, embedding jsonb default null
-, chunking jsonb default null
-, indexing jsonb default ai.indexing_default()
-, formatting jsonb default ai.formatting_python_template()
-, scheduling jsonb default ai.scheduling_default()
-, processing jsonb default ai.processing_default()
-, target_schema name default null
-, target_table name default null
-, view_schema name default null
-, view_name name default null
-, queue_schema name default null
-, queue_table name default null
-, grant_to name[] default ai.grant_to()
-, enqueue_existing bool default true
-) returns int
+( source pg_catalog.regclass
+, destination pg_catalog.name default null
+, embedding pg_catalog.jsonb default null
+, chunking pg_catalog.jsonb default null
+, indexing pg_catalog.jsonb default ai.indexing_default()
+, formatting pg_catalog.jsonb default ai.formatting_python_template()
+, scheduling pg_catalog.jsonb default ai.scheduling_default()
+, processing pg_catalog.jsonb default ai.processing_default()
+, target_schema pg_catalog.name default null
+, target_table pg_catalog.name default null
+, view_schema pg_catalog.name default null
+, view_name pg_catalog.name default null
+, queue_schema pg_catalog.name default null
+, queue_table pg_catalog.name default null
+, grant_to pg_catalog.name[] default ai.grant_to()
+, enqueue_existing pg_catalog.bool default true
+) returns pg_catalog.int4
 as $func$
 declare
-    _missing_roles name[];
-    _source_table name;
-    _source_schema name;
-    _trigger_name name;
-    _is_owner bool;
-    _dimensions int;
-    _source_pk jsonb;
-    _vectorizer_id int;
-    _sql text;
-    _job_id bigint;
+    _missing_roles pg_catalog.name[];
+    _source_table pg_catalog.name;
+    _source_schema pg_catalog.name;
+    _trigger_name pg_catalog.name;
+    _is_owner pg_catalog.bool;
+    _dimensions pg_catalog.int4;
+    _source_pk pg_catalog.jsonb;
+    _vectorizer_id pg_catalog.int4;
+    _sql pg_catalog.text;
+    _job_id pg_catalog.int8;
 begin
     -- make sure all the roles listed in grant_to exist
     if grant_to is not null then
@@ -55,7 +55,7 @@ begin
         , grant_to
         from pg_catalog.unnest(grant_to) r
         ;
-        if pg_catalog.array_length(_missing_roles, 1) > 0 then
+        if pg_catalog.array_length(_missing_roles, 1) operator(pg_catalog.>) 0 then
             raise warning 'one or more grant_to roles do not exist: %', _missing_roles;
         end if;
     end if;
@@ -90,14 +90,14 @@ begin
         raise exception 'only a superuser or the owner of the source table may create a vectorizer on it';
     end if;
 
-    select (embedding operator(pg_catalog.->) 'dimensions')::int into _dimensions;
+    select (embedding operator(pg_catalog.->) 'dimensions')::pg_catalog.int4 into _dimensions;
     if _dimensions is null then
         raise exception 'dimensions argument is required';
     end if;
 
     -- get the source table's primary key definition
     select ai._vectorizer_source_pk(source) into strict _source_pk;
-    if _source_pk is null or pg_catalog.jsonb_array_length(_source_pk) = 0 then
+    if _source_pk is null or pg_catalog.jsonb_array_length(_source_pk) operator(pg_catalog.=) 0 then
         raise exception 'source table must have a primary key constraint';
     end if;
 
@@ -222,7 +222,7 @@ begin
     ) into _job_id
     ;
     if _job_id is not null then
-        scheduling = pg_catalog.jsonb_insert(scheduling, array['job_id'], to_jsonb(_job_id));
+        scheduling = pg_catalog.jsonb_insert(scheduling, array['job_id'], pg_catalog.to_jsonb(_job_id));
     end if;
 
     insert into ai.vectorizer
@@ -299,13 +299,13 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- disable_vectorizer_schedule
-create or replace function ai.disable_vectorizer_schedule(vectorizer_id int) returns void
+create or replace function ai.disable_vectorizer_schedule(vectorizer_id pg_catalog.int4) returns void
 as $func$
 declare
     _vec ai.vectorizer%rowtype;
-    _schedule jsonb;
-    _job_id bigint;
-    _sql text;
+    _schedule pg_catalog.jsonb;
+    _job_id pg_catalog.int8;
+    _sql pg_catalog.text;
 begin
     select * into strict _vec
     from ai.vectorizer v
@@ -317,7 +317,7 @@ begin
         case _schedule operator(pg_catalog.->>) 'implementation'
             when 'none' then -- ok
             when 'timescaledb' then
-                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::bigint;
+                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::pg_catalog.int8;
                 select pg_catalog.format
                 ( $$select %I.alter_job(job_id, scheduled=>false) from timescaledb_information.jobs where job_id = %L$$
                 , n.nspname
@@ -339,13 +339,13 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- enable_vectorizer_schedule
-create or replace function ai.enable_vectorizer_schedule(vectorizer_id int) returns void
+create or replace function ai.enable_vectorizer_schedule(vectorizer_id pg_catalog.int4) returns void
 as $func$
 declare
     _vec ai.vectorizer%rowtype;
-    _schedule jsonb;
-    _job_id bigint;
-    _sql text;
+    _schedule pg_catalog.jsonb;
+    _job_id pg_catalog.int8;
+    _sql pg_catalog.text;
 begin
     select * into strict _vec
     from ai.vectorizer v
@@ -357,15 +357,15 @@ begin
         case _schedule operator(pg_catalog.->>) 'implementation'
             when 'none' then -- ok
             when 'timescaledb' then
-                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::bigint;
+                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::pg_catalog.int8;
                 select pg_catalog.format
                 ( $$select %I.alter_job(job_id, scheduled=>true) from timescaledb_information.jobs where job_id = %L$$
                 , n.nspname
                 , _job_id
                 ) into _sql
                 from pg_catalog.pg_extension x
-                inner join pg_catalog.pg_namespace n on (x.extnamespace = n.oid)
-                where x.extname = 'timescaledb'
+                inner join pg_catalog.pg_namespace n on (x.extnamespace operator(pg_catalog.=) n.oid)
+                where x.extname operator(pg_catalog.=) 'timescaledb'
                 ;
                 if _sql is not null then
                     execute _sql;
@@ -380,8 +380,8 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- drop_vectorizer
 create or replace function ai.drop_vectorizer
-( vectorizer_id int
-, drop_all boolean default false
+( vectorizer_id pg_catalog.int4
+, drop_all pg_catalog.bool default false
 ) returns void
 as $func$
 /* drop_vectorizer
@@ -398,10 +398,10 @@ UNLESS drop_all = true, it does NOT:
 */
 declare
     _vec ai.vectorizer%rowtype;
-    _schedule jsonb;
-    _job_id bigint;
+    _schedule pg_catalog.jsonb;
+    _job_id pg_catalog.int8;
     _trigger pg_catalog.pg_trigger%rowtype;
-    _sql text;
+    _sql pg_catalog.text;
 begin
     ---------------------------------------------------------------------------
     -- NOTE: this function is security invoker BUT it is called from an
@@ -423,7 +423,7 @@ begin
         case _schedule operator(pg_catalog.->>) 'implementation'
             when 'none' then -- ok
             when 'timescaledb' then
-                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::bigint;
+                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::pg_catalog.int8;
                 select pg_catalog.format
                 ( $$select %I.delete_job(job_id) from timescaledb_information.jobs where job_id = %L$$
                 , n.nspname
@@ -535,15 +535,15 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- vectorizer_queue_pending
 create or replace function ai.vectorizer_queue_pending
-( vectorizer_id int
-, exact_count boolean default false
-) returns bigint
+( vectorizer_id pg_catalog.int4
+, exact_count pg_catalog.bool default false
+) returns pg_catalog.int8
 as $func$
 declare
-    _queue_schema name;
-    _queue_table name;
-    _sql text;
-    _queue_depth bigint;
+    _queue_schema pg_catalog.name;
+    _queue_table pg_catalog.name;
+    _sql pg_catalog.text;
+    _queue_depth pg_catalog.int8;
 begin
     select v.queue_schema, v.queue_table into _queue_schema, _queue_table
     from ai.vectorizer v
@@ -566,7 +566,7 @@ begin
         ) into strict _sql
         ;
         execute _sql into strict _queue_depth;
-        if _queue_depth = 10001 then
+        if _queue_depth operator(pg_catalog.=) 10001 then
             _queue_depth = 9223372036854775807; -- max bigint value
         end if;
     end if;

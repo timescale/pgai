@@ -620,7 +620,7 @@ def lint_sql() -> None:
     cmd = " ".join(
         [
             "pgspot --ignore-lang=plpython3u",
-            '--proc-without-search-path "ai._vectorizer_job(job_id integer,config jsonb)"',
+            '--proc-without-search-path "ai._vectorizer_job(job_id integer,config pg_catalog.jsonb)"',
             f"{sql}",
         ]
     )
