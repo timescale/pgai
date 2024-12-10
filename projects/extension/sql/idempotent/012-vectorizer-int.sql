@@ -301,15 +301,22 @@ begin
     where v.id operator(pg_catalog.=) vectorizer_id
     ;
 
-    -- don't let anyone but the owner (or members of the owner's role) of the source table call this
+    -- don't let anyone but a superuser or the owner (or members of the owner's role) of the source table call this
     select pg_catalog.pg_has_role(pg_catalog.session_user(), k.relowner, 'MEMBER')
     into strict _is_owner
     from pg_catalog.pg_class k
     inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
     where k.oid operator(pg_catalog.=) pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::pg_catalog.regclass::pg_catalog.oid
     ;
+    -- not an owner of the table, but superuser?
     if not _is_owner then
-        raise exception 'only the owner of the source table may call ai._vectorizer_create_dependencies';
+        select r.rolsuper into strict _is_owner
+        from pg_catalog.pg_roles r
+        where r.rolname operator(pg_catalog.=) pg_catalog.current_user()
+        ;
+    end if;
+    if not _is_owner then
+        raise exception 'only a superuser or the owner of the source table may call ai._vectorizer_create_dependencies';
     end if;
 
     -- if we drop the source or the target with `cascade` it should drop the queue
