@@ -1,0 +1,13 @@
+   objtype    |      objnames      |  objargs  |                   description                    
+--------------+--------------------+-----------+--------------------------------------------------
+ function     | {public,death}     | {integer} | this is a BETTER comment about the life function
+ table        | {public,bob}       | {}        | this is a BETTER comment about the bob table
+ table column | {public,bob,bar}   | {}        | this is a comment about the bar column
+ table column | {public,bob,baz}   | {}        | this is a comment about the foo column
+ table column | {public,bob,id}    | {}        | this is a comment about the id column
+ view         | {public,bobby}     | {}        | this is a comment about the bob table
+ view column  | {public,bobby,bar} | {}        | this is a comment about the bar column
+ view column  | {public,bobby,foo} | {}        | this is a comment about the foo column
+ view column  | {public,bobby,id}  | {}        | this is a BETTER comment about the id column
+(9 rows)
+

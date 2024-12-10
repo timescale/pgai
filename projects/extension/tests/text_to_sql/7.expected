@@ -1,0 +1,8 @@
+   objtype    |     objnames     |  objargs  |                   description                    
+--------------+------------------+-----------+--------------------------------------------------
+ function     | {maria,death}    | {integer} | this is a BETTER comment about the life function
+ table        | {public,bob}     | {}        | this is a BETTER comment about the bob table
+ table column | {public,bob,bar} | {}        | this is a comment about the bar column
+ table column | {public,bob,id}  | {}        | this is a comment about the id column
+(4 rows)
+
