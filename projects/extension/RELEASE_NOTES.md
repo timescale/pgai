@@ -1,6 +1,22 @@
 
 # Pgai extension release notes
 
+## 0.6.0 (2024-12-10)
+
+This release adds support for using Voyage AI in a vectorizer, and loading
+datasets from hugging face.
+
+### New features and improvements
+
+- Use the `ai.voyageai_embed`, and `ai.embedding_voyageai` functions to use Voyage AI for vector embeddings 1b56d62295faf996697db75f3a9ac9391869a3bb.
+- Add `ai.load_dataset` to load datasets from hugging face 29469388f22d15ae79e293f8151ef0a730820b3c.
+- Change the type of `keep_alive` parameter from `float8` to `text` 0c747418efc70d656330f605195bf0d2c164bec2
+- Remove `truncate` parameter from Ollama/Voyage APIs ecda03cf5d27f750db534801719413d0abcfa557
+
+### Fixes
+
+- Fix Anthropic tool use 2cb2fe9c55f44da82e605a47194428a11f77f9de.
+
 ## 0.5.0 (2024-11-26)
 
 This release adds support for using Ollama in a vectorizer, and fixes a bug
