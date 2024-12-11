@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import hashlib
+import platform
 import re
 import os
 import shutil
@@ -653,9 +654,13 @@ def docker_build() -> None:
 
 
 def docker_run() -> None:
+    networking = (
+        "--network host" if platform.system() == "Linux" else "-p 127.0.0.1:5432:5432"
+    )
     cmd = " ".join(
         [
-            "docker run -d --name pgai-ext --network host -p 127.0.0.1:5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust",
+            "docker run -d --name pgai-ext --hostname pgai-ext -e POSTGRES_HOST_AUTH_METHOD=trust",
+            networking,
             f"--mount type=bind,src={ext_dir()},dst=/pgai",
             "-e TEST_ENV_SECRET=super_secret",
             "pgai-ext",
