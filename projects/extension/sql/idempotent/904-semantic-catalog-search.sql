@@ -40,7 +40,6 @@ begin
             , host=>(_config operator(pg_catalog.->>) 'base_url')
             , keep_alive=>(_config operator(pg_catalog.->>) 'keep_alive')
             , embedding_options=>(_config operator(pg_catalog.->) 'options')
-            -- TODO: ai.ollama_embed doesn't have a dimensions parameter???
             );
         when 'voyageai' then
             _emb = ai.voyageai_embed
@@ -48,7 +47,6 @@ begin
             , prompt
             , input_type=>'query'
             , api_key_name=>(_config operator(pg_catalog.->>) 'api_key_name')
-            -- TODO: ai.voyageai_embed doesn't have a dimensions parameter
             );
         else
             raise exception 'unsupported embedding implementation';
@@ -56,6 +54,43 @@ begin
 
     return _emb;
 end
+$func$ language plpgsql stable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- find_relevant_sql
+create or replace function ai.find_relevant_sql
+( catalog_id pg_catalog.int4
+, embedding @extschema:vector@.vector
+, "limit" pg_catalog.int8 default 5
+) returns table
+( id pg_catalog.int4
+, sql pg_catalog.text
+, description pg_catalog.text
+)
+as $func$
+begin
+    return query execute pg_catalog.format
+    ( $sql$
+    select distinct x.id, x.sql, x.description
+    from
+    (
+        select
+          x.id
+        , x.sql
+        , x.description
+        , x.embedding operator(@extschema:vector@.<=>) ($1::@extschema:vector@.vector(%s)) as dist
+        from ai.semantic_catalog_sql_%s x
+        order by dist
+        limit %L
+    ) x
+    $sql$
+    , @extschema:vector@.vector_dims(embedding)
+    , catalog_id
+    , "limit"
+    ) using embedding;
+end;
 $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -74,37 +109,113 @@ create or replace function ai.find_relevant_sql
 as $func$
 declare
     _catalog_id pg_catalog.int4;
-    _emb @extschema:vector@.vector;
-    _sql pg_catalog.text;
+    _embedding @extschema:vector@.vector;
 begin
     select x.id into strict _catalog_id
     from ai.semantic_catalog x
     where x."name" operator(pg_catalog.=) catalog_name
     ;
 
-    _emb = ai._semantic_catalog_embed(_catalog_id, prompt);
+    _embedding = ai._semantic_catalog_embed(_catalog_id, prompt);
 
-    _sql = pg_catalog.format
+    return query
+    select *
+    from ai.find_relevant_sql
+    ( _catalog_id
+    , _embedding
+    , "limit"
+    );
+end;
+$func$ language plpgsql stable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- find_relevant_obj
+create or replace function ai.find_relevant_obj
+( catalog_id pg_catalog.int4
+, embedding @extschema:vector@.vector
+, "limit" pg_catalog.int8 default 5
+) returns table
+( objtype pg_catalog.text
+, objnames pg_catalog.text[]
+, objargs pg_catalog.text[]
+, classid pg_catalog.oid
+, objid pg_catalog.oid
+, objsubid pg_catalog.int4
+, description pg_catalog.text
+)
+as $func$
+begin
+    return query execute pg_catalog.format
     ( $sql$
-    select distinct x.id, x.sql, x.description
+    select distinct
+      x.objtype
+    , x.objnames
+    , x.objargs
+    , x.classid
+    , x.objid
+    , x.objsubid
+    , x.description
     from
     (
         select
-          x.id
-        , x.sql
+          x.objtype
+        , x.objnames
+        , x.objargs
+        , x.classid
+        , x.objid
+        , x.objsubid
         , x.description
         , x.embedding operator(@extschema:vector@.<=>) ($1::@extschema:vector@.vector(%s)) as dist
-        from ai.semantic_catalog_sql_%s x
+        from ai.semantic_catalog_obj_%s x
         order by dist
         limit %L
     ) x
     $sql$
-    , @extschema:vector@.vector_dims(_emb)
-    , _catalog_id
+    , @extschema:vector@.vector_dims(embedding)
+    , catalog_id
+    , "limit"
+    ) using embedding;
+end;
+$func$ language plpgsql stable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- find_relevant_obj
+create or replace function ai.find_relevant_obj
+( prompt pg_catalog.text
+, catalog_name pg_catalog.name default 'default'
+, "limit" pg_catalog.int8 default 5
+) returns table
+( objtype pg_catalog.text
+, objnames pg_catalog.text[]
+, objargs pg_catalog.text[]
+, classid pg_catalog.oid
+, objid pg_catalog.oid
+, objsubid pg_catalog.int4
+, description pg_catalog.text
+)
+as $func$
+declare
+    _catalog_id pg_catalog.int4;
+    _embedding @extschema:vector@.vector;
+begin
+    select x.id into strict _catalog_id
+    from ai.semantic_catalog x
+    where x."name" operator(pg_catalog.=) catalog_name
+    ;
+
+    _embedding = ai._semantic_catalog_embed(_catalog_id, prompt);
+
+    return query
+    select *
+    from ai.find_relevant_obj
+    ( _catalog_id
+    , _embedding
     , "limit"
     );
-
-    return query execute _sql using _emb;
 end;
 $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp

@@ -275,7 +275,9 @@ def test_text_to_sql() -> None:
     assert ollama_host is not None
 
     set_up_test_db("text_to_sql_2")
-    with psycopg.connect(db_url("test", "text_to_sql_2"), row_factory=namedtuple_row) as con:
+    with psycopg.connect(
+        db_url("test", "text_to_sql_2"), row_factory=namedtuple_row
+    ) as con:
         with con.cursor() as cur:
             cur.execute("""select ai.grant_ai_usage('test', true)""")
             cur.execute("""
@@ -292,7 +294,8 @@ def test_text_to_sql() -> None:
             as $func$select 42$func$ language sql;
             """)
 
-            cur.execute("""
+            cur.execute(
+                """
             select ai.initialize_semantic_catalog
             ( embedding=>ai.embedding_ollama
               ( 'smollm:135m'
@@ -300,7 +303,9 @@ def test_text_to_sql() -> None:
               , base_url=>%s
               )
             )
-            """, (ollama_host,))
+            """,
+                (ollama_host,),
+            )
             con.commit()
 
             cur.execute("""
@@ -327,8 +332,25 @@ def test_text_to_sql() -> None:
             """)
             con.commit()
 
-            # generate embeddings
-            cur.execute("""
+            # generate obj embeddings
+            cur.execute(
+                """
+            insert into ai.semantic_catalog_obj_1_store(embedding_uuid, objtype, objnames, objargs, chunk_seq, chunk, embedding)
+            select
+              gen_random_uuid()
+            , objtype, objnames, objargs
+            , 0
+            , description
+            , ai.ollama_embed('smollm:135m', description, host=>%s)
+            from ai.semantic_catalog_obj
+            """,
+                (ollama_host,),
+            )
+            cur.execute("delete from ai._vectorizer_q_1")
+
+            # generate sql embeddings
+            cur.execute(
+                """
             insert into ai.semantic_catalog_sql_1_store(embedding_uuid, id, chunk_seq, chunk, embedding)
             select
               gen_random_uuid()
@@ -337,14 +359,31 @@ def test_text_to_sql() -> None:
             , description
             , ai.ollama_embed('smollm:135m', description, host=>%s)
             from ai.semantic_catalog_sql
-            """, (ollama_host,))
+            """,
+                (ollama_host,),
+            )
             cur.execute("delete from ai._vectorizer_q_2")
 
-            cur.execute("""select * from ai.find_relevant_sql('i need a query to tell me about bobby''s life')""")
+            cur.execute(
+                """select * from ai.find_relevant_obj('i need a function about life')"""
+            )
+            for row in cur.fetchall():
+                assert row.objtype == "function"
+                assert row.objnames == ["public", "life"]
+                assert row.objargs == ["integer"]
+                assert row.description == "this is a comment about the life function"
+                break
+
+            cur.execute(
+                """select * from ai.find_relevant_sql('i need a query to tell me about bobby''s life')"""
+            )
             for row in cur.fetchall():
                 assert row.id == 1
                 assert row.sql == "select * from bobby where id = life(id)"
-                assert row.description == "a bogus query against the bobby view using the life function"
+                assert (
+                    row.description
+                    == "a bogus query against the bobby view using the life function"
+                )
 
     snapshot_catalog("text_to_sql_2")
     actual = file_contents("snapshot-catalog.actual")
