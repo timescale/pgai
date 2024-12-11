@@ -14,7 +14,11 @@ select objtype, objnames, objargs from ai._vectorizer_q_1 order by objtype, objn
 select id from ai._vectorizer_q_2 order by id;
 select * from ai.vectorizer_status order by id;
 
-select jsonb_pretty(to_jsonb(x) #- array['config', 'version'])
+select jsonb_pretty
+( to_jsonb(x)
+  #- array['config', 'version']
+  #- array['config', 'embedding', 'base_url']
+)
 from ai.vectorizer x
 order by id
 ;
