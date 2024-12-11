@@ -165,7 +165,6 @@ View definition:
          },                                                        +
          "embedding": {                                            +
              "model": "smollm:135m",                               +
-             "base_url": "http://host.docker.internal:11434",      +
              "dimensions": 576,                                    +
              "config_type": "embedding",                           +
              "implementation": "ollama"                            +
@@ -240,7 +239,6 @@ View definition:
          },                                                        +
          "embedding": {                                            +
              "model": "smollm:135m",                               +
-             "base_url": "http://host.docker.internal:11434",      +
              "dimensions": 576,                                    +
              "config_type": "embedding",                           +
              "implementation": "ollama"                            +
