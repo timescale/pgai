@@ -1,12 +1,12 @@
 import numpy as np
 from click.testing import CliRunner
 from sqlalchemy import Column, Engine, Text
-from sqlalchemy.orm import DeclarativeBase, Mapped, Session
+from sqlalchemy.orm import DeclarativeBase, Session
 from sqlalchemy.sql import text
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.cli import vectorizer_worker
-from pgai.sqlalchemy import EmbeddingModel, Vectorizer
+from pgai.sqlalchemy import embedding_relationship
 
 
 class Base(DeclarativeBase):
@@ -18,11 +18,9 @@ class Author(Base):
     first_name = Column(Text, primary_key=True)
     last_name = Column(Text, primary_key=True)
     bio = Column(Text, nullable=False)
-    bio_embeddings = Vectorizer(
+    bio_embeddings = embedding_relationship(
         dimensions=768,
     )
-
-    bio_embeddings_relation: Mapped[list[EmbeddingModel["Author"]]]
 
 
 def run_vectorizer_worker(db_url: str, vectorizer_id: int) -> None:
@@ -100,10 +98,10 @@ def test_vectorizer_composite_key(
         # Verify relationship works
         author = session.query(Author).first()
         assert author is not None
-        assert hasattr(author, "bio_embeddings_relation")
-        assert author.bio_embeddings_relation is not None
-        assert len(author.bio_embeddings_relation) > 0
-        assert author.bio_embeddings_relation[0].chunk in author.bio
+        assert hasattr(author, "bio_embeddings")
+        assert author.bio_embeddings is not None
+        assert len(author.bio_embeddings) > 0  # type: ignore
+        assert author.bio_embeddings[0].chunk in author.bio
 
         # Test that parent relationship works
         embedding_entity = session.query(Author.bio_embeddings).first()

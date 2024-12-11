@@ -5,7 +5,7 @@ from sqlalchemy.sql import text
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.cli import vectorizer_worker
-from pgai.sqlalchemy import Vectorizer
+from pgai.sqlalchemy import embedding_relationship
 
 
 def test_sqlalchemy(postgres_container: PostgresContainer, initialized_engine: Engine):
@@ -20,7 +20,7 @@ def test_sqlalchemy(postgres_container: PostgresContainer, initialized_engine: E
         title = Column(Text, nullable=False)
         content = Column(Text, nullable=False)
 
-        content_embeddings = Vectorizer(
+        content_embeddings = embedding_relationship(
             dimensions=768,
         )
 

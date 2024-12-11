@@ -1,12 +1,12 @@
 from _pytest.logging import LogCaptureFixture
 from click.testing import CliRunner
-from sqlalchemy import Column, Integer, Text, Engine, inspect
-from sqlalchemy.orm import DeclarativeBase, Session, joinedload
+from sqlalchemy import Column, Engine, Integer, Text
+from sqlalchemy.orm import DeclarativeBase, Session
 from sqlalchemy.sql import text
-from testcontainers.postgres import PostgresContainer # type: ignore
+from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.cli import vectorizer_worker
-from pgai.sqlalchemy import Vectorizer
+from pgai.sqlalchemy import embedding_relationship
 
 
 class Base(DeclarativeBase):
@@ -20,14 +20,13 @@ class ArticleWithLazyStrategies(Base):
     content = Column(Text, nullable=False)
 
     # Different vectorizers with different lazy loading strategies
-    embeddings = Vectorizer(
-        dimensions=768
-    )
+    embeddings = embedding_relationship(dimensions=768, lazy="joined")
 
 
-
-def test_vectorizer_select_vs_joined_loading(
-    postgres_container: PostgresContainer, initialized_engine: Engine, caplog: LogCaptureFixture
+def test_joined_loading(
+    postgres_container: PostgresContainer,
+    initialized_engine: Engine,
+    caplog: LogCaptureFixture,
 ):
     """Test the difference between select and joined loading strategies."""
     db_url = postgres_container.get_connection_url()
@@ -44,7 +43,8 @@ def test_vectorizer_select_vs_joined_loading(
                 SELECT ai.create_vectorizer(
                     'articles_lazy_test'::regclass,
                     embedding => ai.embedding_openai('text-embedding-3-small', 768),
-                    chunking => ai.chunking_recursive_character_text_splitter('content', 50, 10)
+                    chunking =>
+                    ai.chunking_recursive_character_text_splitter('content', 50, 10)
                 );
                 """)
         )
@@ -56,7 +56,7 @@ def test_vectorizer_select_vs_joined_loading(
         for i in range(3):
             article = ArticleWithLazyStrategies(
                 title=f"Test Article {i}",
-                content=f"This is test content {i} that will be embedded."
+                content=f"This is test content {i} that will be embedded.",
             )
             session.add(article)
             articles.append(article)
@@ -78,29 +78,19 @@ def test_vectorizer_select_vs_joined_loading(
             ],
             catch_exceptions=False,
         )
-    with Session(initialized_engine) as session:
+
+    with (
+        Session(initialized_engine) as session,
+        caplog.at_level("DEBUG", "sqlalchemy.engine"),
+    ):
         articles = session.query(ArticleWithLazyStrategies).all()
-        articles[0].embeddings_model  # type: ignore
 
-    with Session(initialized_engine) as session:
-
-        #session.expire_all()
-        with caplog.at_level("DEBUG", "sqlalchemy.engine"):
-            # Test select loading (should see N+1 behavior)
-            articles = session.query(ArticleWithLazyStrategies).all()
-
-            initial_queries = [r.message for r in caplog.records if "SELECT" in r.message]
-            # Access select embeddings - should trigger one query per article
-            articles[0].embeddings_model  # type: ignore
-
-            _ = [article.embeddings[0].chunk for article in articles]
-            after_select_queries = [r.message for r in caplog.records if "SELECT" in r.message]
-            # Should see N additional queries (one per article)
-            assert len(after_select_queries) == len(initial_queries), \
-                f"Should not trigger additional queries but queries were: {after_select_queries}"
-
-            # Clear log
-            caplog.clear()
-
-            # Test joined loading
-            session.expire_all()  # Ensure fresh loading state
+        initial_queries = [r.message for r in caplog.records if "SELECT" in r.message]
+        _ = [article.embeddings[0].chunk for article in articles]
+        after_select_queries = [
+            r.message for r in caplog.records if "SELECT" in r.message
+        ]
+        assert len(after_select_queries) == len(initial_queries), (
+            f"Should not trigger additional queries"
+            f" but queries were: {after_select_queries}"
+        )

@@ -1,12 +1,12 @@
 import numpy as np
 from click.testing import CliRunner
 from sqlalchemy import Column, Engine, Integer, Text
-from sqlalchemy.orm import DeclarativeBase, Mapped, Session
+from sqlalchemy.orm import DeclarativeBase, Session
 from sqlalchemy.sql import text
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.cli import vectorizer_worker
-from pgai.sqlalchemy import EmbeddingModel, Vectorizer
+from pgai.sqlalchemy import embedding_relationship
 
 
 class Base(DeclarativeBase):
@@ -18,11 +18,9 @@ class BlogPost(Base):
     id = Column(Integer, primary_key=True)
     title = Column(Text, nullable=False)
     content = Column(Text, nullable=False)
-    content_embeddings = Vectorizer(
+    content_embeddings = embedding_relationship(
         dimensions=768,
     )
-
-    content_embeddings_relation: Mapped[list[EmbeddingModel["BlogPost"]]]
 
 
 def run_vectorizer_worker(db_url: str, vectorizer_id: int) -> None:
@@ -81,7 +79,7 @@ def test_vectorizer_embedding_creation(
 
         blog_post = session.query(BlogPost).first()
         assert blog_post is not None
-        assert blog_post.content_embeddings_relation is not None
+        assert blog_post.content_embeddings is not None
         assert BlogPost.content_embeddings.__name__ == "ContentEmbeddingsEmbedding"
 
         # Check embeddings exist and have correct properties
@@ -95,10 +93,10 @@ def test_vectorizer_embedding_creation(
         # Verify relationship works
         blog_post = session.query(BlogPost).first()
         assert blog_post is not None
-        assert hasattr(blog_post, "content_embeddings_relation")
-        assert blog_post.content_embeddings_relation is not None
-        assert len(blog_post.content_embeddings_relation) > 0
-        assert blog_post.content_embeddings_relation[0].chunk in blog_post.content
+        assert hasattr(blog_post, "content_embeddings")
+        assert blog_post.content_embeddings is not None
+        assert len(blog_post.content_embeddings) > 0  # type: ignore
+        assert blog_post.content_embeddings[0].chunk in blog_post.content
 
         embedding_entity = session.query(BlogPost.content_embeddings).first()
         assert embedding_entity is not None

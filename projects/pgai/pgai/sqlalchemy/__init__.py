@@ -1,9 +1,17 @@
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, TypeVar, overload
 
 from pgvector.sqlalchemy import Vector  # type: ignore
-from sqlalchemy import ForeignKeyConstraint, Integer, Text, inspect, event
-from sqlalchemy.orm import DeclarativeBase, Mapped, backref, mapped_column, relationship, add_mapped_attribute, Mapper
-from sqlalchemy.orm.relationships import _RelationshipDeclared
+from sqlalchemy import ForeignKeyConstraint, Integer, Text, event, inspect
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    Mapper,
+    Relationship,
+    RelationshipProperty,
+    backref,
+    mapped_column,
+    relationship,
+)
 
 # Type variable for the parent model
 T = TypeVar("T", bound=DeclarativeBase)
@@ -26,7 +34,7 @@ class EmbeddingModel(DeclarativeBase, Generic[T]):
     parent: T  # Type of the parent model
 
 
-class Vectorizer:
+class _Vectorizer:
     def __init__(
         self,
         dimensions: int,
@@ -40,21 +48,15 @@ class Vectorizer:
         self.owner: type[DeclarativeBase] | None = None
         self.name: str | None = None
         self._embedding_class: type[EmbeddingModel[Any]] | None = None
-        self._relationship: _RelationshipDeclared[Any] | None = None
+        self._relationship: RelationshipProperty[Any] | None = None
         self._initialized = False
         self.relationship_args = kwargs
-        event.listen(Mapper, 'after_configured', self._initialize_all)
+        event.listen(Mapper, "after_configured", self._initialize_all)
 
     def _initialize_all(self):
         """Force initialization during mapper configuration"""
         if not self._initialized and self.owner is not None:
             self.__get__(None, self.owner)
-
-    def _model_property(self, obj: Any = None) -> type[EmbeddingModel[Any]]:
-        # Force initialization if not done yet
-        if not self._initialized:
-            _ = self.__get__(obj, self.owner)
-        return self._embedding_class #type: ignore
 
     def set_schemas_correctly(self, owner: type[DeclarativeBase]) -> None:
         table_args_schema_name = getattr(owner, "__table_args__", {}).get("schema")
@@ -76,11 +78,16 @@ class Vectorizer:
         base: type[DeclarativeBase] = owner.__base__  # type: ignore
 
         # Check if table already exists in metadata
+        # There is probably a better way to do this
+        # than accessing the internal _class_registry
+        # Not doing this ends up in a recursion because
+        # creating the new class reconfigures tha parent mapper
+        # again triggering the after_configured event
         key = f"{self.target_schema}.{table_name}"
         if key in owner.metadata.tables:
             # Find the mapped class in the registry
-            for cls in owner.registry._class_registry.values():
-                if hasattr(cls, '__table__') and cls.__table__.fullname == key:
+            for cls in owner.registry._class_registry.values():  # type: ignore
+                if hasattr(cls, "__table__") and cls.__table__.fullname == key:  # type: ignore
                     return cls  # type: ignore
 
         # Get primary key information from the fully initialized model
@@ -124,39 +131,50 @@ class Vectorizer:
 
         return Embedding  # type: ignore
 
+    @overload
+    def __get__(
+        self, obj: None, objtype: type[DeclarativeBase]
+    ) -> type[EmbeddingModel[Any]]: ...
+
+    @overload
+    def __get__(
+        self, obj: DeclarativeBase, objtype: type[DeclarativeBase] | None = None
+    ) -> Relationship[EmbeddingModel[Any]]: ...
+
     def __get__(
         self, obj: DeclarativeBase | None, objtype: type[DeclarativeBase] | None = None
-    ) -> Mapped[list[EmbeddingModel[Any]]]:
+    ) -> Relationship[EmbeddingModel[Any]] | type[EmbeddingModel[Any]]:
         assert self.name is not None
-        if not self._initialized:
+        relationship_name = f"_{self.name}_relationship"
+        if not self._initialized and objtype is not None:
             self._embedding_class = self.create_embedding_class(objtype)
 
             mapper = inspect(objtype)
+            assert mapper is not None
             pk_cols = mapper.primary_key
-            collection_name = f"{self.name}_collection"
-            if not hasattr(objtype, collection_name):
-                relationship_instance = relationship(
+            if not hasattr(objtype, relationship_name):
+                self.relationship_instance = relationship(
                     self._embedding_class,
-                    collection_class=list,
                     foreign_keys=[
                         getattr(self._embedding_class, col.name) for col in pk_cols
                     ],
-                    backref=self.relationship_args.pop("backref", backref("parent", lazy="joined")),
-                    lazy="joined",
+                    backref=self.relationship_args.pop(
+                        "backref", backref("parent", lazy="select")
+                    ),
+                    **self.relationship_args,
                 )
-                setattr(objtype, f"{self.name}_collection", relationship_instance)
+                setattr(objtype, f"{self.name}_model", self._embedding_class)
+                setattr(objtype, relationship_name, self.relationship_instance)
             self._initialized = True
         if obj is None and self._initialized:
-            return self._embedding_class
+            return self._embedding_class  # type: ignore
 
-        return getattr(obj, f"{self.name}_collection")
-        
+        # return self.relationship_instance
+        return getattr(obj, relationship_name)
 
     def __set_name__(self, owner: type[DeclarativeBase], name: str):
         self.owner = owner
         self.name = name
-        # Set up the model property
-        setattr(owner, f"{name}_model", property(self._model_property))
 
         metadata = owner.registry.metadata
         if not hasattr(metadata, "info"):
@@ -164,4 +182,4 @@ class Vectorizer:
         metadata.info.setdefault("pgai_managed_tables", set()).add(self.target_table)
 
 
-embedding_relation = Vectorizer
+embedding_relationship = _Vectorizer
