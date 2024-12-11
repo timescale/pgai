@@ -48,8 +48,8 @@ begin
     -- make sure all the roles listed in grant_to exist
     if grant_to is not null then
         select
-          pg_catalog.array_agg(r) filter (where pg_catalog.to_regrole(r) is null) -- missing
-        , pg_catalog.array_agg(r) filter (where pg_catalog.to_regrole(r) is not null) -- real roles
+          pg_catalog.array_agg(r) filter (where r operator(pg_catalog.!=) 'public' and pg_catalog.to_regrole(r) is null) -- missing
+        , pg_catalog.array_agg(r) filter (where r operator(pg_catalog.=) 'public' or pg_catalog.to_regrole(r) is not null) -- real roles
         into strict
           _missing_roles
         , grant_to

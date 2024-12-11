@@ -1664,6 +1664,57 @@ def test_queue_pending():
             assert cur.fetchone()[0] == 9223372036854775807
 
 
+def test_grant_to_public():
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("create schema if not exists vec")
+            cur.execute("drop table if exists vec.note6")
+            cur.execute("""
+                create table vec.note6
+                ( id bigint not null primary key generated always as identity
+                , note text not null
+                )
+            """)
+
+            # create a vectorizer for the table
+            # language=PostgreSQL
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'vec.note6'::regclass
+            , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+            , chunking=>ai.chunking_character_text_splitter('note')
+            , scheduling=> ai.scheduling_none()
+            , indexing=>ai.indexing_none()
+            , grant_to=>ai.grant_to('public')
+            , enqueue_existing=>false
+            );
+            """)
+            vectorizer_id = cur.fetchone()[0]
+
+            cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
+            vectorizer = cur.fetchone()
+
+            cur.execute(f"""
+                select has_table_privilege
+                ( 'public'
+                , '{vectorizer.queue_schema}.{vectorizer.queue_table}'
+                , 'select'
+                )""")
+            assert cur.fetchone()[0]
+
+            cur.execute(f"""
+                select has_table_privilege
+                ( 'public'
+                , '{vectorizer.target_schema}.{vectorizer.target_table}'
+                , 'select'
+                )""")
+            assert cur.fetchone()[0]
+
+
 def create_user(cur: psycopg.Cursor, user: str) -> None:
     cur.execute(
         """
