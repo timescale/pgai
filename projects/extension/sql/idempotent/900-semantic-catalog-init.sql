@@ -16,6 +16,14 @@ declare
     _obj_vec_id pg_catalog.int4;
     _sql_vec_id pg_catalog.int4;
 begin
+    grant_to = pg_catalog.array_cat
+    ( grant_to
+    , array
+      [ pg_catalog."session_user"()
+      , 'pg_database_owner'::name
+      ]
+    );
+
     insert into ai.semantic_catalog("name")
     values (initialize_semantic_catalog."name")
     returning id

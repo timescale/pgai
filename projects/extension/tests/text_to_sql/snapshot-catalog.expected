@@ -27,7 +27,7 @@ Access method: heap
  objargs        | text[]      |           | not null |                   | extended |             |              | 
  chunk_seq      | integer     |           | not null |                   | plain    |             |              | 
  chunk          | text        |           | not null |                   | extended |             |              | 
- embedding      | vector(128) |           | not null |                   | main     |             |              | 
+ embedding      | vector(576) |           | not null |                   | main     |             |              | 
 Indexes:
     "semantic_catalog_obj_1_store_pkey" PRIMARY KEY, btree (embedding_uuid)
     "semantic_catalog_obj_1_store_objtype_objnames_objargs_chunk_key" UNIQUE CONSTRAINT, btree (objtype, objnames, objargs, chunk_seq)
@@ -42,7 +42,7 @@ Access method: heap
  id             | integer     |           | not null |                   | plain    |             |              | 
  chunk_seq      | integer     |           | not null |                   | plain    |             |              | 
  chunk          | text        |           | not null |                   | extended |             |              | 
- embedding      | vector(128) |           | not null |                   | main     |             |              | 
+ embedding      | vector(576) |           | not null |                   | main     |             |              | 
 Indexes:
     "semantic_catalog_sql_1_store_pkey" PRIMARY KEY, btree (embedding_uuid)
     "semantic_catalog_sql_1_store_id_chunk_seq_key" UNIQUE CONSTRAINT, btree (id, chunk_seq)
@@ -56,7 +56,7 @@ Access method: heap
  embedding_uuid | uuid        |           |          |         | plain    | 
  chunk_seq      | integer     |           |          |         | plain    | 
  chunk          | text        |           |          |         | extended | 
- embedding      | vector(128) |           |          |         | external | 
+ embedding      | vector(576) |           |          |         | external | 
  objtype        | text        |           |          |         | extended | 
  objnames       | text[]      |           |          |         | extended | 
  objargs        | text[]      |           |          |         | extended | 
@@ -85,7 +85,7 @@ View definition:
  embedding_uuid | uuid        |           |          |         | plain    | 
  chunk_seq      | integer     |           |          |         | plain    | 
  chunk          | text        |           |          |         | extended | 
- embedding      | vector(128) |           |          |         | external | 
+ embedding      | vector(576) |           |          |         | external | 
  id             | integer     |           |          |         | plain    | 
  sql            | text        |           |          |         | extended | 
  description    | text        |           |          |         | extended | 
@@ -138,13 +138,12 @@ View definition:
 
  id 
 ----
-  1
-(1 row)
+(0 rows)
 
  id |      source_table       |          target_table           |           view            | pending_items 
 ----+-------------------------+---------------------------------+---------------------------+---------------
   1 | ai.semantic_catalog_obj | ai.semantic_catalog_obj_1_store | ai.semantic_catalog_obj_1 |             9
-  2 | ai.semantic_catalog_sql | ai.semantic_catalog_sql_1_store | ai.semantic_catalog_sql_1 |             1
+  2 | ai.semantic_catalog_sql | ai.semantic_catalog_sql_1_store | ai.semantic_catalog_sql_1 |             0
 (2 rows)
 
                             jsonb_pretty                            
@@ -174,11 +173,11 @@ View definition:
              "implementation": "none"                              +
          },                                                        +
          "embedding": {                                            +
-             "model": "text-embedding-3-small",                    +
-             "dimensions": 128,                                    +
+             "model": "smollm:135m",                               +
+             "base_url": "http://host.docker.internal:11434",      +
+             "dimensions": 576,                                    +
              "config_type": "embedding",                           +
-             "api_key_name": "OPENAI_API_KEY",                     +
-             "implementation": "openai"                            +
+             "implementation": "ollama"                            +
          },                                                        +
          "formatting": {                                           +
              "template": "$chunk",                                 +
@@ -249,11 +248,11 @@ View definition:
              "implementation": "none"                              +
          },                                                        +
          "embedding": {                                            +
-             "model": "text-embedding-3-small",                    +
-             "dimensions": 128,                                    +
+             "model": "smollm:135m",                               +
+             "base_url": "http://host.docker.internal:11434",      +
+             "dimensions": 576,                                    +
              "config_type": "embedding",                           +
-             "api_key_name": "OPENAI_API_KEY",                     +
-             "implementation": "openai"                            +
+             "implementation": "ollama"                            +
          },                                                        +
          "formatting": {                                           +
              "template": "$chunk",                                 +
