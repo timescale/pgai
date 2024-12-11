@@ -1,6 +1,9 @@
 -------------------------------------------------------------------------------
 -- reveal_secret
-create or replace function ai.reveal_secret(secret_name text, use_cache boolean default true) returns text
+create or replace function ai.reveal_secret
+( secret_name pg_catalog.text
+, use_cache pg_catalog.bool default true
+) returns pg_catalog.text
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.secrets
@@ -23,7 +26,10 @@ where pg_catalog.to_regrole("role") is not null
 
 -------------------------------------------------------------------------------
 -- grant_secret
-create or replace function ai.grant_secret(secret_name text, grant_to_role text) returns void
+create or replace function ai.grant_secret
+( secret_name pg_catalog.text
+, grant_to_role pg_catalog.text
+) returns void
 as $func$
     insert into ai._secret_permissions ("name", "role") values (secret_name, grant_to_role);
 $func$ language sql volatile security invoker
@@ -31,8 +37,13 @@ set search_path to pg_catalog, pg_temp;
 
 -------------------------------------------------------------------------------
 -- revoke_secret
-create or replace function ai.revoke_secret(secret_name text, revoke_from_role text) returns void
+create or replace function ai.revoke_secret
+( secret_name pg_catalog.text
+, revoke_from_role pg_catalog.text
+) returns void
 as $func$
-    delete from ai._secret_permissions where "name" = secret_name and "role" = revoke_from_role;
+    delete from ai._secret_permissions
+    where "name" operator(pg_catalog.=) secret_name
+    and "role" operator(pg_catalog.=) revoke_from_role;
 $func$ language sql volatile security invoker
 set search_path to pg_catalog, pg_temp;

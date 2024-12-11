@@ -1,7 +1,7 @@
 
 -------------------------------------------------------------------------------
 -- formatting_python_template
-create or replace function ai.formatting_python_template(template text default '$chunk') returns jsonb
+create or replace function ai.formatting_python_template(template pg_catalog.text default '$chunk') returns pg_catalog.jsonb
 as $func$
     select json_object
     ( 'implementation': 'python_template'
@@ -16,14 +16,14 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _validate_formatting_python_template
 create or replace function ai._validate_formatting_python_template
-( config jsonb
-, source_schema name
-, source_table name
+( config pg_catalog.jsonb
+, source_schema pg_catalog.name
+, source_table pg_catalog.name
 ) returns void
 as $func$
 declare
-    _template text;
-    _found bool;
+    _template pg_catalog.text;
+    _found pg_catalog.bool;
 begin
     select config operator(pg_catalog.->>) 'template'
     into strict _template
@@ -33,7 +33,7 @@ begin
     end if;
 
     -- check that no columns on the source table are named "chunk"
-    select count(*) > 0 into strict _found
+    select count(*) operator(pg_catalog.>) 0 into strict _found
     from pg_catalog.pg_class k
     inner join pg_catalog.pg_namespace n on (k.relnamespace = n.oid)
     inner join pg_catalog.pg_attribute a on (k.oid = a.attrelid)
@@ -53,20 +53,20 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _validate_formatting
 create or replace function ai._validate_formatting
-( config jsonb
-, source_schema name
-, source_table name
+( config pg_catalog.jsonb
+, source_schema pg_catalog.name
+, source_table pg_catalog.name
 ) returns void
 as $func$
 declare
-    _config_type text;
+    _config_type pg_catalog.text;
 begin
     if pg_catalog.jsonb_typeof(config) != 'object' then
         raise exception 'formatting config is not a jsonb object';
     end if;
 
     _config_type = config operator ( pg_catalog.->> ) 'config_type';
-    if _config_type is null or _config_type != 'formatting' then
+    if _config_type is null or _config_type operator(pg_catalog.!=) 'formatting' then
         raise exception 'invalid config_type for formatting config';
     end if;
     case config operator(pg_catalog.->>) 'implementation'

@@ -2,12 +2,12 @@
 -------------------------------------------------------------------------------
 -- chunking_character_text_splitter
 create or replace function ai.chunking_character_text_splitter
-( chunk_column name
-, chunk_size int default 800
-, chunk_overlap int default 400
-, separator text default E'\n\n'
-, is_separator_regex bool default false
-) returns jsonb
+( chunk_column pg_catalog.name
+, chunk_size pg_catalog.int4 default 800
+, chunk_overlap pg_catalog.int4 default 400
+, separator pg_catalog.text default E'\n\n'
+, is_separator_regex pg_catalog.bool default false
+) returns pg_catalog.jsonb
 as $func$
     select json_object
     ( 'implementation': 'character_text_splitter'
@@ -26,12 +26,12 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- chunking_recursive_character_text_splitter
 create or replace function ai.chunking_recursive_character_text_splitter
-( chunk_column name
-, chunk_size int default 800
-, chunk_overlap int default 400
-, separators text[] default array[E'\n\n', E'\n', '.', '?', '!', ' ', '']
-, is_separator_regex bool default false
-) returns jsonb
+( chunk_column pg_catalog.name
+, chunk_size pg_catalog.int4 default 800
+, chunk_overlap pg_catalog.int4 default 400
+, separators pg_catalog.text[] default array[E'\n\n', E'\n', '.', '?', '!', ' ', '']
+, is_separator_regex pg_catalog.bool default false
+) returns pg_catalog.jsonb
 as $func$
     select json_object
     ( 'implementation': 'recursive_character_text_splitter'
@@ -50,23 +50,23 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _validate_chunking
 create or replace function ai._validate_chunking
-( config jsonb
-, source_schema name
-, source_table name
+( config pg_catalog.jsonb
+, source_schema pg_catalog.name
+, source_table pg_catalog.name
 ) returns void
 as $func$
 declare
-    _config_type text;
-    _implementation text;
-    _chunk_column text;
-    _found bool;
+    _config_type pg_catalog.text;
+    _implementation pg_catalog.text;
+    _chunk_column pg_catalog.text;
+    _found pg_catalog.bool;
 begin
-    if pg_catalog.jsonb_typeof(config) != 'object' then
+    if pg_catalog.jsonb_typeof(config) operator(pg_catalog.!=) 'object' then
         raise exception 'chunking config is not a jsonb object';
     end if;
 
     _config_type = config operator(pg_catalog.->>) 'config_type';
-    if _config_type is null or _config_type != 'chunking' then
+    if _config_type is null or _config_type operator(pg_catalog.!=) 'chunking' then
         raise exception 'invalid config_type for chunking config';
     end if;
 
@@ -77,7 +77,7 @@ begin
 
     _chunk_column = config operator(pg_catalog.->>) 'chunk_column';
 
-    select count(*) > 0 into strict _found
+    select count(*) operator(pg_catalog.>) 0 into strict _found
     from pg_catalog.pg_class k
     inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
     inner join pg_catalog.pg_attribute a on (k.oid operator(pg_catalog.=) a.attrelid)

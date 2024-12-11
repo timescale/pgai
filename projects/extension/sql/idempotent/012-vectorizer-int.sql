@@ -1,7 +1,7 @@
 
 -------------------------------------------------------------------------------
 -- _vectorizer_source_pk
-create or replace function ai._vectorizer_source_pk(source_table regclass) returns jsonb as
+create or replace function ai._vectorizer_source_pk(source_table pg_catalog.regclass) returns pg_catalog.jsonb as
 $func$
     select pg_catalog.jsonb_agg(x)
     from
@@ -24,13 +24,13 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_grant_to_source
 create or replace function ai._vectorizer_grant_to_source
-( source_schema name
-, source_table name
-, grant_to name[]
+( source_schema pg_catalog.name
+, source_table pg_catalog.name
+, grant_to pg_catalog.name[]
 ) returns void as
 $func$
 declare
-    _sql text;
+    _sql pg_catalog.text;
 begin
     if grant_to is not null then
         -- grant usage on source schema to grant_to roles
@@ -64,10 +64,10 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- _vectorizer_grant_to_vectorizer
-create or replace function ai._vectorizer_grant_to_vectorizer(grant_to name[]) returns void as
+create or replace function ai._vectorizer_grant_to_vectorizer(grant_to pg_catalog.name[]) returns void as
 $func$
 declare
-    _sql text;
+    _sql pg_catalog.text;
 begin
     if grant_to is not null then
         -- grant usage on schema ai to grant_to roles
@@ -99,18 +99,18 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_create_target_table
 create or replace function ai._vectorizer_create_target_table
-( source_schema name
-, source_table name
-, source_pk jsonb
-, target_schema name
-, target_table name
-, dimensions int
-, grant_to name[]
+( source_schema pg_catalog.name
+, source_table pg_catalog.name
+, source_pk pg_catalog.jsonb
+, target_schema pg_catalog.name
+, target_table pg_catalog.name
+, dimensions pg_catalog.int4
+, grant_to pg_catalog.name[]
 ) returns void as
 $func$
 declare
-    _pk_cols text;
-    _sql text;
+    _pk_cols pg_catalog.text;
+    _sql pg_catalog.text;
 begin
     select pg_catalog.string_agg(pg_catalog.format('%I', x.attname), ', ' order by x.pknum)
     into strict _pk_cols
@@ -186,18 +186,18 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_create_view
 create or replace function ai._vectorizer_create_view
-( view_schema name
-, view_name name
-, source_schema name
-, source_table name
-, source_pk jsonb
-, target_schema name
-, target_table name
-, grant_to name[]
+( view_schema pg_catalog.name
+, view_name pg_catalog.name
+, source_schema pg_catalog.name
+, source_table pg_catalog.name
+, source_pk pg_catalog.jsonb
+, target_schema pg_catalog.name
+, target_table pg_catalog.name
+, grant_to pg_catalog.name[]
 ) returns void as
 $func$
 declare
-    _sql text;
+    _sql pg_catalog.text;
 begin
     select pg_catalog.format
     ( $sql$
@@ -228,7 +228,7 @@ begin
         )
         from pg_catalog.pg_attribute a
         left outer join pg_catalog.jsonb_to_recordset(source_pk) x(attnum int) on (a.attnum operator(pg_catalog.=) x.attnum)
-        where a.attrelid operator(pg_catalog.=) pg_catalog.format('%I.%I', source_schema, source_table)::regclass::oid
+        where a.attrelid operator(pg_catalog.=) pg_catalog.format('%I.%I', source_schema, source_table)::pg_catalog.regclass::pg_catalog.oid
         and a.attnum operator(pg_catalog.>) 0
         and not a.attisdropped
       )
@@ -394,14 +394,14 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_create_queue_table
 create or replace function ai._vectorizer_create_queue_table
-( queue_schema name
-, queue_table name
-, source_pk jsonb
-, grant_to name[]
+( queue_schema pg_catalog.name
+, queue_table pg_catalog.name
+, source_pk pg_catalog.jsonb
+, grant_to pg_catalog.name[]
 ) returns void as
 $func$
 declare
-    _sql text;
+    _sql pg_catalog.text;
 begin
     -- create the table
     select pg_catalog.format
@@ -469,16 +469,16 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_create_source_trigger
 create or replace function ai._vectorizer_create_source_trigger
-( trigger_name name
-, queue_schema name
-, queue_table name
-, source_schema name
-, source_table name
-, source_pk jsonb
+( trigger_name pg_catalog.name
+, queue_schema pg_catalog.name
+, queue_table pg_catalog.name
+, source_schema pg_catalog.name
+, source_table pg_catalog.name
+, source_pk pg_catalog.jsonb
 ) returns void as
 $func$
 declare
-    _sql text;
+    _sql pg_catalog.text;
 begin
     -- create the trigger function
     -- the trigger function is security definer
@@ -547,14 +547,14 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_vector_index_exists
 create or replace function ai._vectorizer_vector_index_exists
-( target_schema name
-, target_table name
-, indexing jsonb
-) returns bool as
+( target_schema pg_catalog.name
+, target_table pg_catalog.name
+, indexing pg_catalog.jsonb
+) returns pg_catalog.bool as
 $func$
 declare
-    _implementation text;
-    _found bool;
+    _implementation pg_catalog.text;
+    _found pg_catalog.bool;
 begin
     _implementation = pg_catalog.jsonb_extract_path_text(indexing, 'implementation');
     if _implementation not in ('diskann', 'hnsw') then
@@ -590,12 +590,12 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai._vectorizer_should_create_vector_index(vectorizer ai.vectorizer) returns boolean
 as $func$
 declare
-    _indexing jsonb;
-    _implementation text;
-    _create_when_queue_empty bool;
-    _sql text;
-    _count bigint;
-    _min_rows bigint;
+    _indexing pg_catalog.jsonb;
+    _implementation pg_catalog.text;
+    _create_when_queue_empty pg_catalog.bool;
+    _sql pg_catalog.text;
+    _count pg_catalog.int8;
+    _min_rows pg_catalog.int8;
 begin
     -- grab the indexing config
     _indexing = pg_catalog.jsonb_extract_path(vectorizer.config, 'indexing');
@@ -616,7 +616,7 @@ begin
     end if;
 
     -- if flag set, only attempt to create the vector index if the queue table is empty
-    _create_when_queue_empty = coalesce(pg_catalog.jsonb_extract_path(_indexing, 'create_when_queue_empty')::boolean, true);
+    _create_when_queue_empty = coalesce(pg_catalog.jsonb_extract_path(_indexing, 'create_when_queue_empty')::pg_catalog.bool, true);
     if _create_when_queue_empty then
         -- count the rows in the queue table
         select pg_catalog.format
@@ -633,7 +633,7 @@ begin
     end if;
 
     -- if min_rows has a value
-    _min_rows = coalesce(pg_catalog.jsonb_extract_path_text(_indexing, 'min_rows')::bigint, 0);
+    _min_rows = coalesce(pg_catalog.jsonb_extract_path_text(_indexing, 'min_rows')::pg_catalog.int8, 0);
     if _min_rows > 0 then
         -- count the rows in the target table
         select pg_catalog.format
@@ -657,23 +657,23 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_create_vector_index
 create or replace function ai._vectorizer_create_vector_index
-( target_schema name
-, target_table name
-, indexing jsonb
+( target_schema pg_catalog.name
+, target_table pg_catalog.name
+, indexing pg_catalog.jsonb
 ) returns void as
 $func$
 declare
-    _key1 int = 1982010642;
-    _key2 int;
-    _implementation text;
-    _with_count bigint;
-    _with text;
-    _ext_schema name;
-    _sql text;
+    _key1 pg_catalog.int4 = 1982010642;
+    _key2 pg_catalog.int4;
+    _implementation pg_catalog.text;
+    _with_count pg_catalog.int8;
+    _with pg_catalog.text;
+    _ext_schema pg_catalog.name;
+    _sql pg_catalog.text;
 begin
 
     -- use the target table's oid as the second key for the advisory lock
-    select k.oid::int into strict _key2
+    select k.oid::pg_catalog.int4 into strict _key2
     from pg_catalog.pg_class k
     inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
     where k.relname operator(pg_catalog.=) target_table
@@ -703,8 +703,8 @@ begin
             , pg_catalog.string_agg
               ( case w.key
                   when 'storage_layout' then pg_catalog.format('%s=%L', w.key, w.value)
-                  when 'max_alpha' then pg_catalog.format('%s=%s', w.key, w.value::float8)
-                  else pg_catalog.format('%s=%s', w.key, w.value::int)
+                  when 'max_alpha' then pg_catalog.format('%s=%s', w.key, w.value::pg_catalog.float8)
+                  else pg_catalog.format('%s=%s', w.key, w.value::pg_catalog.int4)
                 end
               , ', '
               )
@@ -734,7 +734,7 @@ begin
         when 'hnsw' then
             select
               pg_catalog.count(*)
-            , pg_catalog.string_agg(pg_catalog.format('%s=%s', w.key, w.value::int), ', ')
+            , pg_catalog.string_agg(pg_catalog.format('%s=%s', w.key, w.value::pg_catalog.int4), ', ')
             into strict
               _with_count
             , _with
@@ -771,16 +771,16 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_job
 create or replace procedure ai._vectorizer_job
-( job_id int default null
-, config jsonb default null
+( job_id pg_catalog.int4 default null
+, config pg_catalog.jsonb default null
 ) as
 $func$
 declare
-    _vectorizer_id int;
+    _vectorizer_id pg_catalog.int4;
     _vec ai.vectorizer%rowtype;
-    _sql text;
-    _found bool;
-    _count bigint;
+    _sql pg_catalog.text;
+    _found pg_catalog.bool;
+    _count pg_catalog.int8;
 begin
     set local search_path = pg_catalog, pg_temp;
     if config is null then
@@ -788,7 +788,7 @@ begin
     end if;
 
     -- get the vectorizer id from the config
-    select pg_catalog.jsonb_extract_path_text(config, 'vectorizer_id')::int
+    select pg_catalog.jsonb_extract_path_text(config, 'vectorizer_id')::pg_catalog.int4
     into strict _vectorizer_id
     ;
 
@@ -840,7 +840,7 @@ begin
         commit;
         set local search_path = pg_catalog, pg_temp;
         -- for every 50 items in the queue, execute a vectorizer max out at 10 vectorizers
-        _count = least(pg_catalog.ceil(_count::float8 / 50.0::float8), 10::float8)::bigint;
+        _count = least(pg_catalog.ceil(_count::pg_catalog.float8 / 50.0::pg_catalog.float8), 10::pg_catalog.float8)::pg_catalog.int8;
         raise debug 'job_id %: executing % vectorizers...', job_id, _count;
         while _count > 0 loop
             -- execute the vectorizer
@@ -858,21 +858,21 @@ language plpgsql security invoker
 -------------------------------------------------------------------------------
 -- _vectorizer_schedule_job
 create or replace function ai._vectorizer_schedule_job
-( vectorizer_id int
-, scheduling jsonb
-) returns bigint as
+( vectorizer_id pg_catalog.int4
+, scheduling pg_catalog.jsonb
+) returns pg_catalog.int8 as
 $func$
 declare
-    _implementation text;
-    _sql text;
-    _extension_schema name;
-    _job_id bigint;
+    _implementation pg_catalog.text;
+    _sql pg_catalog.text;
+    _extension_schema pg_catalog.name;
+    _job_id pg_catalog.int8;
 begin
     select pg_catalog.jsonb_extract_path_text(scheduling, 'implementation')
     into strict _implementation
     ;
     case
-        when _implementation = 'timescaledb' then
+        when _implementation operator(pg_catalog.=) 'timescaledb' then
             -- look up schema/name of the extension for scheduling. may be null
             select n.nspname into _extension_schema
             from pg_catalog.pg_extension x
@@ -882,7 +882,7 @@ begin
             if _extension_schema is null then
                 raise exception 'timescaledb extension not found';
             end if;
-        when _implementation = 'none' then
+        when _implementation operator(pg_catalog.=) 'none' then
             return null;
         else
             raise exception 'scheduling implementation not recognized';
@@ -893,20 +893,20 @@ begin
         when 'timescaledb' then
             -- schedule the work proc with timescaledb background jobs
             select pg_catalog.format
-            ( $$select %I.add_job('ai._vectorizer_job'::regproc, %s, config=>%L)$$
+            ( $$select %I.add_job('ai._vectorizer_job'::pg_catalog.regproc, %s, config=>%L)$$
             , _extension_schema
             , ( -- gather up the arguments
-                select string_agg
+                select pg_catalog.string_agg
                 ( pg_catalog.format('%s=>%L', s.key, s.value)
                 , ', '
                 order by x.ord
                 )
                 from pg_catalog.jsonb_each_text(scheduling) s
                 inner join
-                unnest(array['schedule_interval', 'initial_start', 'fixed_schedule', 'timezone']) with ordinality x(key, ord)
+                pg_catalog.unnest(array['schedule_interval', 'initial_start', 'fixed_schedule', 'timezone']) with ordinality x(key, ord)
                 on (s.key = x.key)
               )
-            , pg_catalog.jsonb_build_object('vectorizer_id', vectorizer_id)::text
+            , pg_catalog.jsonb_build_object('vectorizer_id', vectorizer_id)::pg_catalog.text
             ) into strict _sql
             ;
             execute _sql into strict _job_id;

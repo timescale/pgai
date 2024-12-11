@@ -1,10 +1,10 @@
 
 -------------------------------------------------------------------------------
 -- grant_ai_usage
-create or replace function ai.grant_ai_usage(to_user name, admin bool default false) returns void
+create or replace function ai.grant_ai_usage(to_user pg_catalog.name, admin pg_catalog.bool default false) returns void
 as $func$
 declare
-    _sql text;
+    _sql pg_catalog.text;
 begin
     -- schema
     select pg_catalog.format
