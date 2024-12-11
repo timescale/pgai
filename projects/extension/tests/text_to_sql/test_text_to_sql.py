@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 import psycopg
-
+from psycopg.rows import namedtuple_row
 
 # skip tests in this module if disabled
 enable_text_to_sql_tests = os.getenv("ENABLE_TEXT_TO_SQL_TESTS")
@@ -270,9 +270,12 @@ def snapshot_catalog(dbname: str) -> None:
     subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
 
 
-def test_vectorizer_setup():
+def test_text_to_sql() -> None:
+    ollama_host = os.environ["OLLAMA_HOST"]
+    assert ollama_host is not None
+
     set_up_test_db("text_to_sql_2")
-    with psycopg.connect(db_url("test", "text_to_sql_2")) as con:
+    with psycopg.connect(db_url("test", "text_to_sql_2"), row_factory=namedtuple_row) as con:
         with con.cursor() as cur:
             cur.execute("""select ai.grant_ai_usage('test', true)""")
             cur.execute("""
@@ -291,9 +294,13 @@ def test_vectorizer_setup():
 
             cur.execute("""
             select ai.initialize_semantic_catalog
-            ( embedding=>ai.embedding_openai('text-embedding-3-small', 128)
+            ( embedding=>ai.embedding_ollama
+              ( 'smollm:135m'
+              , 576
+              , base_url=>%s
+              )
             )
-            """)
+            """, (ollama_host,))
             con.commit()
 
             cur.execute("""
@@ -319,6 +326,25 @@ def test_vectorizer_setup():
             );
             """)
             con.commit()
+
+            # generate embeddings
+            cur.execute("""
+            insert into ai.semantic_catalog_sql_1_store(embedding_uuid, id, chunk_seq, chunk, embedding)
+            select
+              gen_random_uuid()
+            , id
+            , 0
+            , description
+            , ai.ollama_embed('smollm:135m', description, host=>%s)
+            from ai.semantic_catalog_sql
+            """, (ollama_host,))
+            cur.execute("delete from ai._vectorizer_q_2")
+
+            cur.execute("""select * from ai.find_relevant_sql('i need a query to tell me about bobby''s life')""")
+            for row in cur.fetchall():
+                assert row.id == 1
+                assert row.sql == "select * from bobby where id = life(id)"
+                assert row.description == "a bogus query against the bobby view using the life function"
 
     snapshot_catalog("text_to_sql_2")
     actual = file_contents("snapshot-catalog.actual")
