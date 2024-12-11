@@ -5,7 +5,7 @@ To follow this tutorial you need to have a Voyage AI account API key. You can ge
 
 ## Setup a local development environment
 
-We use a docker-compose file to set up a development environment, it includes:
+To set up a development environment for Voyage AI, create a docker-compose file that includes:
 - The official TimescaleDB docker image with pgai, pgvectorscale and timescaledb included
 - The pgai vectorizer worker image
 
@@ -18,7 +18,7 @@ On your local machine:
    name: pgai
    services:
      db:
-       image: timescale/timescaledb-ha:pg16
+       image: timescale/timescaledb-ha:pg17
        environment:
          POSTGRES_PASSWORD: postgres
          VOYAGE_API_KEY: your-api-key
@@ -27,7 +27,7 @@ On your local machine:
        volumes:
          - ./data:/var/lib/postgresql/data
      vectorizer-worker:
-       image: timescale/pgai-vectorizer-worker:0.1.0
+       image: timescale/pgai-vectorizer-worker:v0.3.0
        environment:
          PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
          VOYAGE_API_KEY: your-api-key
@@ -41,14 +41,14 @@ On your local machine:
 
 ## Create and run a vectorizer
 
-Now we can create and run a vectorizer. A vectorizer is a pgai concept, it processes data in a table and automatically creates embeddings for it.
+Now you can create and run a vectorizer. A vectorizer is a pgai concept, it processes data in a table and automatically creates embeddings for it.
 
 1. **Connect to the database in your local developer environment**
 
    - Docker: `docker exec -it pgai-db-1 psql -U postgres`
    - psql:  `psql postgres://postgres:postgres@localhost:5432/postgres`
 
-1. **Enable pgai on your database**
+1. **Enable pgai on the database**
 
     ```sql
     CREATE EXTENSION IF NOT EXISTS ai CASCADE;
