@@ -27,7 +27,7 @@ On your local machine:
         ports:
           - "5432:5432"
         volumes:
-          - ./data:/var/lib/postgresql/data
+          - ./data:/home/postgres/pgdata/data
       vectorizer-worker:
         image: timescale/pgai-vectorizer-worker:v0.2.1
         environment:
@@ -50,7 +50,7 @@ To create and run a vectorizer, then query the auto-generated embeddings created
 
 1. **Connection to the database in your local developer environment**
 
-   - Docker: `docker exec -it pgai-db-1 psql -U postgres`
+   - Docker: `docker compose exec -it db psql`
    - psql:  `psql postgres://postgres:postgres@localhost:5432/postgres`
 
 1. **Enable pgai on your database**
