@@ -25,13 +25,15 @@ On your local machine:
        ports:
          - "5432:5432"
        volumes:
-         - ./data:/home/postgres/pgdata/data
+         - data:/home/postgres/pgdata/data
      vectorizer-worker:
        image: timescale/pgai-vectorizer-worker:v0.3.0
        environment:
          PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
          VOYAGE_API_KEY: your-api-key
        command: [ "--poll-interval", "5s" ]
+   volumes:
+     data:
     ```
 
 1. **Start the services**

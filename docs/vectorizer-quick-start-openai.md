@@ -27,12 +27,14 @@ On your local machine:
         ports:
           - "5432:5432"
         volumes:
-          - ./data:/home/postgres/pgdata/data
+          - data:/home/postgres/pgdata/data
       vectorizer-worker:
         image: timescale/pgai-vectorizer-worker:v0.2.1
         environment:
           PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
           OPENAI_API_KEY: <your-api-key>
+    volumes:
+      data:
     ```
 
 1. **Tune the developer image for your AI provider**
