@@ -27,7 +27,7 @@ On your local machine:
         ports:
           - "5432:5432"
         volumes:
-          - ./data:/var/lib/postgresql/data
+          - ./data:/home/postgres/pgdata/data
       vectorizer-worker:
         image: timescale/pgai-vectorizer-worker:v0.2.1
         environment:
