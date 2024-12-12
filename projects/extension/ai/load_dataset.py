@@ -120,7 +120,7 @@ def create_table(
         else:
             plpy.error(f"Unsupported if_table_exists value: {if_table_exists}")
     else:
-        plpy.notice(f"creating table {friendly_table_name}")
+        plpy.notice(f"creating table {qualified_table}")
 
     column_type_def = ", ".join(
         f'"{name}" {col_type}' for name, col_type in column_types.items()
