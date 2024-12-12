@@ -89,6 +89,8 @@ jobs:
         with:
           context: "{{defaultContext}}:projects/pgai"
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: | 
+            ${{ steps.meta.outputs.tags }}
+            latest
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
