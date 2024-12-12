@@ -132,6 +132,13 @@ To install pgai from source on a PostgreSQL server:
    These extensions are automatically added to your PostgreSQL database when you
    [Enable the pgai extension](#enable-the-pgai-extension-in-your-database).
 
+1. Clone the `pgai` repo at the latest tagged release:
+
+    ```bash
+    git clone https://github.com/timescale/pgai.git --branch extension-0.6.0
+    cd pgai
+    ```
+
 1. Install the `pgai` PostgreSQL extension:
 
     ```bash
