@@ -5,18 +5,155 @@
 
 <div align=center>
 
-<h3>pgai allows you to develop RAG, semantic search, and other AI applications directly in PostgreSQL</h3>
+<h3>pgai is your PostgreSQL-powered data layer for AI applications</h3>
 
 [![Discord](https://img.shields.io/badge/Join_us_on_Discord-black?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/KRdHVXAmkp)
 [![Try Timescale for free](https://img.shields.io/badge/Try_Timescale_for_free-black?style=for-the-badge&logo=timescale&logoColor=white)](https://tsdb.co/gh-pgai-signup)
 </div>
 
-pgai simplifies the process of building [search](https://en.wikipedia.org/wiki/Similarity_search),
-[Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation) (RAG), and other AI applications with PostgreSQL. It complements popular extensions for vector search in PostgreSQL like pgvector and pgvectorscale, building on top of their capabilities.
+pgai is a PostgreSQL extension that simplifies data storage and retrieval for [Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation) (RAG), and other AI applications.
+In particular, it automates the creation of embeddings for your data stored in PostgreSQL, simplifies
+[semantic search](https://en.wikipedia.org/wiki/Semantic_search), and allows you to call LLM models from SQL.
+
+<div align=center>
+
+[![Auto Create and Sync Vector Embeddings in 1 Line of SQL (pgai Vectorizer)](https://github.com/user-attachments/assets/8a71c774-505a-4335-8b34-cdea9dedb558)](https://youtu.be/ZoC2XYol6Zk?si=atI4XPurEifG0pd5)
+
+</div>
+
+
+# Quick Start with Ollama
+
+This section will walk you through the steps to get started with pgai and Ollama and show you the major features of pgai.
+
+### Setup
+
+After checking out the repo, change directory to `examples/docker_compose_pgai_ollama` and run the following command to start the docker compose file:
+
+```
+docker compose up -d
+```
+
+This will start Ollama and a PostgreSQL instance with the pgai extension installed. Now,
+tell Ollama to download the `all-minilm` model for embeddings and the `tinyllama` model for reasoning:
+
+```
+docker compose exec ollama ollama pull all-minilm
+docker compose exec ollama ollama pull tinyllama
+```
+
+### Create a table and run a vectorizer
+
+1. **Connect to the database in your local developer environment**
+   The easiest way connect to the database is with the following command:
+   `docker compose exec -it db psql`. 
+   
+   Alternatively, you can connect to the database with the following connection string: `postgres://postgres:postgres@localhost:5432/postgres`.
+
+1. **Enable pgai on your database**
+
+    ```sql
+    CREATE EXTENSION IF NOT EXISTS ai CASCADE;
+    ```
+    
+1. **Create a table with the data you want to embed from a huggingface dataset**
+
+    We'll create a table named `wiki` from a few rows of the english-language `wikimedia/wikipedia` dataset.
+
+    ```sql
+    SELECT ai.load_dataset('wikimedia/wikipedia', '20231101.en', table_name=>'wiki', batch_size=>5, max_batches=>1);
+    ```
+    
+    Related documentation: [load dataset from huggingface](/docs/load_dataset_from_huggingface.md).
+    
+    This table will contain the following columns: `id`, `url`, `title`, `text`. We'll create a primary key on the `id` column:
+
+    ```sql
+    ALTER TABLE wiki ADD PRIMARY KEY (id);
+    ```
+
+1. **Create a vectorizer for `wiki`**
+
+    We'll create a vectorizer that will automatically create embeddings for the `text` column in the `wiki` table.
+    
+    ```sql
+    SELECT ai.create_vectorizer(
+         'wiki'::regclass,
+         destination => 'wiki_embeddings',
+         embedding => ai.embedding_ollama('all-minilm', 384),
+         chunking => ai.chunking_recursive_character_text_splitter('text')
+    );
+    ```
+    
+     Related documentation: [vectorizer usage guide](/docs/vectorizer.md) and [vectorizer API reference](/docs/vectorizer-api-reference.md).
+    
+    
+1. **Check the progress of the vectorizer embedding creation**
+
+    ```sql
+    select * from ai.vectorizer_status;
+    ```
+ 
+    The output will look like this:
+
+
+    | id | source_table | target_table | view | pending_items |
+    |----|--------------|--------------|------|---------------|
+    | 1 | public.wiki | public.wiki_embeddings_store | public.wiki_embeddings | 10000 |
+    
+    All the embeddings have been created when the `pending_items` column is 0. This may take a few minutes as the model is running locally and not on a GPU.
+    
+1. **Search the embeddings**
+
+    We'll search the embeddings for the concept of "properties of light"
+
+    ```sql
+    SELECT title, chunk
+    FROM wiki_embeddings 
+    ORDER BY embedding <=> ai.ollama_embed('all-minilm', 'properties of light')
+    LIMIT 1;
+    ```
+    
+    Note the `ai.ollama_embed` function is used to call the `all-minilm` model. This is part of pgai's  [model calling capabilities](#model-calling).
+
+    The output will look like this:
+    
+    | title | chunk |
+    |-------|-------|
+    | Albedo |  Water reflects light very differently from typical terrestrial materials. The reflectivity of a water surface is calculated using the Fresnel equations.... |
+ 
+ 1. **Modify your data and have the vectorizer automatically update the embeddings**
+ 
+    We'll modify the data in the `wiki` table and have the vectorizer automatically update the embeddings.
+    
+    ```sql
+    INSERT INTO wiki (id, url, title, text) VALUES (11,'https://en.wikipedia.org/wiki/Light', 'Properties of light', 'Light is a form of electromagnetic radiation that can be detected by the human eye. It is a key component of the electromagnetic spectrum, which includes radio waves, microwaves, infrared, ultraviolet, and X-rays.');
+    ```
+    And now you don't need to do anything to update the embeddings. The vectorizer will automatically create the embeddings for the new row with any intervention from you. After a few seconds, you can run the search query again to see the new embedding.
+
+### Generate a summary of the article in the database
+1. **Generate a summary of the article in the database**
+
+    We'll generate a summary of the search results using the `ai.ollama_generate` function (this will take a few minutes).
+
+    ```sql
+    SELECT answer->>'response' as summary
+    FROM ai.ollama_generate('tinyllama', 
+    'Please summarize: '|| (SELECT text FROM wiki WHERE title='Albedo')) as answer;
+    ```
+  
+    This is just one example of [model calling capabilities](#model-calling). Model calling can be used for a variety of tasks, including classification, summarization, moderation, and other forms of data enrichment. 
+    
+    
+Other quick start guides:
+
+- [A more detailed quick start with Ollama](/docs/vectorizer-quick-start.md)
+- [A quick start with OpenAI](/docs/vectorizer-quick-start-openai.md)
+- [A quick start with Voyage AI](/docs/vectorizer-quick-start-voyage.md)
+
+
 
 # Overview
-The goal of pgai is to make working with AI easier and more accessible to developers. Because data is
-the foundation of most AI applications, pgai makes it easier to leverage your data in AI workflows. In particular, pgai supports:
 
 **Working with embeddings generated from your data:**
 * Automatically create and sync vector embeddings for your data ([learn more](#automatically-create-and-sync-llm-embeddings-for-your-data))
@@ -28,165 +165,51 @@ the foundation of most AI applications, pgai makes it easier to leverage your da
 * Retrieve LLM chat completions from models like Claude Sonnet 3.5, OpenAI GPT4o, Cohere Command, and Llama 3 (via Ollama). ([learn more](#usage-of-pgai))
 * Reason over your data and facilitate use cases like classification, summarization, and data enrichment on your existing relational data in PostgreSQL ([see an example](/docs/openai.md)).
 
+**Useful utilities:**
+* Load datasets from Hugging Face into your database with [ai.load_dataset](/docs/load_dataset_from_huggingface.md).
+
 **Learn more about pgai:** To learn more about the pgai extension and why we built it, read
 [pgai: Giving PostgreSQL Developers AI Engineering Superpowers](http://www.timescale.com/blog/pgai-giving-postgresql-developers-ai-engineering-superpowers).
 
 **Contributing**: We welcome contributions to pgai! See the [Contributing](/CONTRIBUTING.md) page for more information.
 
-# Demo: pgai Vectorizer
+# Installation
 
-[![Auto Create and Sync Vector Embeddings in 1 Line of SQL (pgai Vectorizer)](https://github.com/user-attachments/assets/8a71c774-505a-4335-8b34-cdea9dedb558)](https://youtu.be/ZoC2XYol6Zk?si=atI4XPurEifG0pd5)
+You have a few options for running a PostgreSQL instance with pgai installed:
 
-# Supported features in each model
+## Docker
 
-| **Model**       | **Tokenize** | **Embed** | **Chat Complete** | **Generate** | **Moderate** | **Classify** | **Rerank** |
-|------------------|:------------:|:---------:|:-----------------:|:------------:|:------------:|:------------:|:----------:|
-| **Ollama**       |              |     ✔️    |         ✔️         |      ✔️      |              |              |           |
-| **OpenAI**       |      ✔️️      |     ✔️    |         ✔️         |              |      ✔️      |              |           |
-| **Anthropic**    |              |           |                    |      ✔️      |              |              |           |
-| **Cohere**       |      ✔️      |     ✔️    |         ✔️         |              |              |      ✔️      |     ✔️     |
-
-# Getting Started
-
-Here's how to get started with pgai:
-
-For a quick start, try out automatic data embedding using pgai Vectorizer:
-
- - Try our cloud offering by creating a [free trial account](https://tsdb.co/gh-pgai-signup) and heading over to our pgai Vectorizer [documentation](/docs/vectorizer.md).
- - or check out our [quick start guide](/docs/vectorizer-quick-start.md) to get up and running in less than 10 minutes with a self-hosted Postgres instance.
-
-For other use cases, first [Install pgai](#installation) in Timescale Cloud, a pre-built Docker image, or from source. Then, choose your own adventure:
-  - Automate AI embedding with [pgai Vectorizer](/docs/vectorizer.md).
-  -  Use pgai to integrate AI from your provider. Some examples:
-     * [Ollama](./docs/ollama.md) - configure pgai for Ollama, then use the model to embed, chat complete and generate.
-     * [OpenAI](./docs/openai.md) - configure pgai for OpenAI, then use the model to tokenize, embed, chat complete and moderate. This page also includes advanced examples.
-     * [Anthropic](./docs/anthropic.md) - configure pgai for Anthropic, then use the model to generate content.
-     * [Cohere](./docs/cohere.md) - configure pgai for Cohere, then use the model to tokenize, embed, chat complete, classify, and rerank.
-     * [Voyage AI](./docs/voyageai.md) - configure pgai for Voyage AI, then use the model to embed.
-  - Leverage LLMs for data processing tasks such as classification, summarization, and data enrichment ([see the OpenAI example](/docs/openai.md)).
-  - Load datasets from Hugging Face into your database with [ai.load_dataset](/docs/load_dataset_from_huggingface.md).
-
-
-
-## Installation
-
-The fastest ways to run PostgreSQL with the pgai extension are to:
-
-1. Create your database environment. Either:
-   * [Use a pre-built Docker container](#use-a-pre-built-docker-container).
-   * [Use a Timescale Cloud service](#use-a-timescale-cloud-service).
-   * [Install from source](#install-from-source).
-
-2. [Enable the pgai extension](#enable-the-pgai-extension-in-your-database).
-
-3. [Use pgai](#use-pgai).
-
-### Use a pre-built Docker container
-
-[Run the TimescaleDB Docker image](https://docs.timescale.com/self-hosted/latest/install/installation-docker/), then
-[enable the pgai extension](#enable-the-pgai-extension-in-your-database).
-
-### Use a Timescale Cloud service
-
-pgai is available for [new][create-a-new-service] or existing Timescale Cloud services. For any service,
-[enable the pgai extension](#enable-the-pgai-extension-in-your-database).
-
-
-### Install from source
-
-To install pgai from source on a PostgreSQL server:
-
-1. **Install the prerequisite software system-wide**
-
-   - **PostgreSQL**: Version 16 or newer is required.
-
-   - **Python3**: if running `python3 --version` in Terminal returns `command
-     not found`, download and install the latest version of [Python3][python3].
-
-   - **Pip**: if running `pip --version` in Terminal returns `command not found`:
-     - **Standard installation**: use one of the pip [supported methods][pip].
-     - **Virtual environment**: usually, pip is automatically installed if you are working in a
-       [Python virtual environment][python-virtual-environment]. If you are running PostgreSQL in a virtual
-       environment, pgai requires several python packages. Set the `PYTHONPATH` and `VIRTUAL_ENV`
-       environment variables before you start your PostgreSQL server.
-
-       ```bash
-       PYTHONPATH=/path/to/venv/lib/python3.12/site-packages \
-       VIRTUAL_ENV=/path/to/venv \
-       pg_ctl -D /path/to/data -l logfile start
-       ```
-   - **PL/Python**: follow [How to install Postgres 16 with plpython3u: Recipes for macOS, Ubuntu, Debian, CentOS, Docker][pgai-plpython].
-
-      _macOS_: the standard PostgreSQL brew in Homebrew does not include the `plpython3` extension. These instructions show
-      how to install from an alternate tap.
-
-     - **[Postgresql plugin][asdf-postgres] for the [asdf][asdf] version manager**: set the `--with-python` option
-       when installing PostgreSQL:
-
-       ```bash
-       POSTGRES_EXTRA_CONFIGURE_OPTIONS=--with-python asdf install postgres 16.3
-       ```
-
-   - **pgvector**: follow the [install instructions][pgvector-install] from the official repository.
-
-   These extensions are automatically added to your PostgreSQL database when you
-   [Enable the pgai extension](#enable-the-pgai-extension-in-your-database).
-
-1. Clone the `pgai` repo at the latest tagged release:
-
-    ```bash
-    git clone https://github.com/timescale/pgai.git --branch extension-0.6.0
-    cd pgai
-    ```
-
-1. Install the `pgai` PostgreSQL extension:
-
-    ```bash
-    just ext install
-    ```
-    We use [just][just] to run project commands. If you don't have just you can
-    install the extension with:
-
-    ```bash
-    projects/extension/build.py install
-    ```
-1. [Enable the pgai extension](#enable-the-pgai-extension-in-your-database).
-
-### Enable the pgai extension in your database
-
-1. Connect to your database with a postgres client like [psql v16](https://docs.timescale.com/use-timescale/latest/integrations/query-admin/psql/)
-   or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/).
-   ```bash
-   psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+1. Run the docker container. The suggested command is:
    ```
+   docker run -d --name pgai -p 5432:5432 \
+   -v ./data:/pgdata \
+   -e PGDATA=/pgdata \
+   -e POSTGRES_PASSWORD=password timescale/timescaledb-ha:pg17
+   ``` 
 
-3. Create the pgai extension:
+   This will start a PostgreSQL instance for development purposes using the `./data` directory for storage. To run in production, you would need to change the password above. See the full  [Docker image instructions](https://docs.timescale.com/self-hosted/latest/install/installation-docker/) for more information. You'll be able to connect to the database using the following connection string: `postgres://postgres:password@localhost/postgres`
 
-    ```sql
-    CREATE EXTENSION IF NOT EXISTS ai CASCADE;
+2. Create the pgai extension in your database:
+
+    ```
+    docker exec -it pgai psql -U postgres -c "CREATE EXTENSION IF NOT EXISTS ai CASCADE;"
     ```
 
-   The `CASCADE` automatically installs `pgvector` and `plpython3u` extensions.
+**Note**: if you want to use pgai with Ollama, please see [example docker compose file](/examples/docker_compose_with_ollama.yml).
 
-### Usage of pgai
+## Timescale Cloud service
 
-The main features in pgai are:
+Try our cloud offering by creating a [free trial account](https://tsdb.co/gh-pgai-signup) on Timescale Cloud. 
 
-**Working with embeddings generated from your data:**
+## Installing pgai into an existing PostgreSQL instance
+
+Follow the [install from source instructions](/docs/install_from_source.md) instructions.
+
+# Automated embedding and semantic search
+
 * [Automatically create and sync vector embeddings for your data](#automatically-create-and-sync-llm-embeddings-for-your-data)
 * [Search your data using vector and semantic search](#search-your-data-using-vector-and-semantic-search)
 * [Implement Retrieval Augmented Generation inside a single SQL statement](#implement-retrieval-augmented-generation-inside-a-single-sql-statement)
-
-**Leverage LLMs for data processing tasks:**
-You can use pgai to integrate AI from the following providers:
-- [Ollama](./docs/ollama.md)
-- [OpenAI](./docs/openai.md)
-- [Anthropic](./docs/anthropic.md)
-- [Cohere](./docs/cohere.md)
-- [Llama 3 (via Ollama)](/docs/ollama.md)
-- [Voyage AI](/docs/voyageai.md)
-
-Learn how to [moderate](/docs/moderate.md) content directly in the database using triggers and background jobs. To get started, [load datasets directly from Hugging Face](/docs/load_dataset_from_huggingface.md) into your database.
 
 ### Automatically create and sync LLM embeddings for your data
 
@@ -281,6 +304,25 @@ enable you to implement RAG directly in your database. For example:
     ```sql
     SELECT generate_rag_response('Give me some startup advice');
     ```
+
+## Model calling
+
+Model calling is a feature of pgai that allows you to call LLM models from SQL. This lets you leverage the power of LLMs for a variety of tasks, including classification, summarization, moderation, and other forms of data enrichment.
+
+The following models are supported (click on the model to learn more):
+
+| **Model**       | **Tokenize** | **Embed** | **Chat Complete** | **Generate** | **Moderate** | **Classify** | **Rerank** |
+|------------------|:------------:|:---------:|:-----------------:|:------------:|:------------:|:------------:|:----------:|
+| **[Ollama](./docs/ollama.md)**       |              |     ✔️    |         ✔️         |      ✔️      |              |              |           |
+| **[OpenAI](./docs/openai.md)**       |      ✔️️      |     ✔️    |         ✔️         |              |      ✔️      |              |           |
+| **[Anthropic](./docs/anthropic.md)**    |              |           |                    |      ✔️      |              |              |           |
+| **[Cohere](./docs/cohere.md)**       |      ✔️      |     ✔️    |         ✔️         |              |              |      ✔️      |     ✔️     |
+| **[Voyage AI](./docs/voyageai.md)** |              |     ✔️    |                  |              |              |              |           |
+
+Some examples:
+- Learn how to [moderate](/docs/moderate.md) content directly in the database using triggers and background jobs. 
+- [load datasets directly from Hugging Face](/docs/load_dataset_from_huggingface.md) into your database.
+- Leverage LLMs for data processing tasks such as classification, summarization, and data enrichment ([see the OpenAI example](/docs/openai.md)).
 
 ## Get involved
 
