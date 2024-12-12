@@ -125,6 +125,8 @@ The results look like:
 | PostgreSQL is a powerful, open source object-relational database system... | 0.7789760644464416 |
 | As we look towards the future, artificial intelligence continues to evolve... | 0.9036547272308249 |
 | Cloud computing has revolutionized the way businesses operate... | 0.9131323552491029 |
+
+
 That's it, you're done. You now have a table in Postgres that pgai vectorizer automatically creates 
 and syncs embeddings for. You can use this vectorizer for semantic search, RAG or any other AI 
 app you can think of! If you have any questions, reach out to us on [Discord](https://discord.gg/KRdHVXAmkp).
