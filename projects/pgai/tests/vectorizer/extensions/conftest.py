@@ -44,3 +44,12 @@ def initialized_engine(
     with engine.connect() as conn:
         conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
         conn.commit()
+
+
+@pytest.fixture(autouse=True)
+def set_dummy_openai_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Generator[None, None, None]:
+    """Set a dummy OpenAI API key for testing."""
+    monkeypatch.setenv("OPENAI_API_KEY", "dummy_key")
+    yield

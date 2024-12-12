@@ -1,12 +1,13 @@
+from typing import Any
+
 from _pytest.logging import LogCaptureFixture
-from click.testing import CliRunner
 from sqlalchemy import Column, Engine, Integer, Text
 from sqlalchemy.orm import DeclarativeBase, Session
 from sqlalchemy.sql import text
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
-from pgai.cli import vectorizer_worker
 from pgai.sqlalchemy import embedding_relationship
+from tests.vectorizer.extensions.utils import run_vectorizer_worker
 
 
 class Base(DeclarativeBase):
@@ -27,6 +28,7 @@ def test_joined_loading(
     postgres_container: PostgresContainer,
     initialized_engine: Engine,
     caplog: LogCaptureFixture,
+    vcr_: Any,
 ):
     """Test the difference between select and joined loading strategies."""
     db_url = postgres_container.get_connection_url()
@@ -64,20 +66,8 @@ def test_joined_loading(
         session.commit()
 
     # Run vectorizer worker for each vectorizer
-    for i in range(1, 3):
-        CliRunner().invoke(
-            vectorizer_worker,
-            [
-                "--db-url",
-                db_url,
-                "--once",
-                "--vectorizer-id",
-                str(i),
-                "--concurrency",
-                "1",
-            ],
-            catch_exceptions=False,
-        )
+    with vcr_.use_cassette("test_joined_loading.yaml"):
+        run_vectorizer_worker(db_url, 1)
 
     with (
         Session(initialized_engine) as session,

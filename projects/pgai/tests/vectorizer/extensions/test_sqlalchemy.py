@@ -1,14 +1,17 @@
-from click.testing import CliRunner
+from typing import Any
+
 from sqlalchemy import Column, Engine, Integer, Text
 from sqlalchemy.orm import Session, declarative_base
 from sqlalchemy.sql import text
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
-from pgai.cli import vectorizer_worker
 from pgai.sqlalchemy import embedding_relationship
+from tests.vectorizer.extensions.utils import run_vectorizer_worker
 
 
-def test_sqlalchemy(postgres_container: PostgresContainer, initialized_engine: Engine):
+def test_sqlalchemy(
+    postgres_container: PostgresContainer, initialized_engine: Engine, vcr_: Any
+):
     db_url = postgres_container.get_connection_url()
     # Create engine and base
     Base = declarative_base()
@@ -64,19 +67,8 @@ def test_sqlalchemy(postgres_container: PostgresContainer, initialized_engine: E
         session.add_all(posts)
         session.commit()
 
-    CliRunner().invoke(
-        vectorizer_worker,
-        [
-            "--db-url",
-            db_url,
-            "--once",
-            "--vectorizer-id",
-            "1",
-            "--concurrency",
-            "1",
-        ],
-        catch_exceptions=False,
-    )
+    with vcr_.use_cassette("test_sqlalchemy.yaml"):
+        run_vectorizer_worker(db_url, 1)
 
     with Session(initialized_engine) as session:
         # Test 1: Access embedding class directly

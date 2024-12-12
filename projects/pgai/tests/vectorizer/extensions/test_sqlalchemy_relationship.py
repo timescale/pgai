@@ -1,12 +1,13 @@
+from typing import Any
+
 import numpy as np
-from click.testing import CliRunner
 from sqlalchemy import Column, Engine, Integer, Text
 from sqlalchemy.orm import DeclarativeBase, Session
 from sqlalchemy.sql import text
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
-from pgai.cli import vectorizer_worker
 from pgai.sqlalchemy import embedding_relationship
+from tests.vectorizer.extensions.utils import run_vectorizer_worker
 
 
 class Base(DeclarativeBase):
@@ -23,24 +24,8 @@ class BlogPost(Base):
     )
 
 
-def run_vectorizer_worker(db_url: str, vectorizer_id: int) -> None:
-    CliRunner().invoke(
-        vectorizer_worker,
-        [
-            "--db-url",
-            db_url,
-            "--once",
-            "--vectorizer-id",
-            str(vectorizer_id),
-            "--concurrency",
-            "1",
-        ],
-        catch_exceptions=False,
-    )
-
-
 def test_vectorizer_embedding_creation(
-    postgres_container: PostgresContainer, initialized_engine: Engine
+    postgres_container: PostgresContainer, initialized_engine: Engine, vcr_: Any
 ):
     """Test basic data insertion and embedding generation with default relationship."""
     db_url = postgres_container.get_connection_url()
@@ -71,7 +56,8 @@ def test_vectorizer_embedding_creation(
         session.commit()
 
     # Run vectorizer worker
-    run_vectorizer_worker(db_url, 1)
+    with vcr_.use_cassette("test_vectorizer_embedding_creation_relationship.yaml"):
+        run_vectorizer_worker(db_url, 1)
 
     # Verify embeddings were created
     with Session(initialized_engine) as session:
