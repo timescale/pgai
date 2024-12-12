@@ -169,6 +169,14 @@ begin
         , x.description
         , x.embedding operator(@extschema:vector@.<=>) ($1::@extschema:vector@.vector(%s)) as dist
         from ai.semantic_catalog_obj_%s x
+        where pg_catalog.has_schema_privilege($2, x.objnames[1], 'usage') and
+        case x.objtype
+            when 'table' then pg_catalog.has_table_privilege($2, x.objid, 'select')
+            when 'view' then pg_catalog.has_table_privilege($2, x.objid, 'select')
+            when 'table column' then pg_catalog.has_column_privilege($2, x.objid, x.objsubid::pg_catalog.int2, 'select')
+            when 'view column' then pg_catalog.has_column_privilege($2, x.objid, x.objsubid::pg_catalog.int2, 'select')
+            when 'function' then pg_catalog.has_function_privilege($2, x.objid, 'execute')
+        end
         order by dist
         limit %L
     ) x
@@ -176,7 +184,10 @@ begin
     , @extschema:vector@.vector_dims(embedding)
     , catalog_id
     , "limit"
-    ) using embedding;
+    ) using
+      embedding
+    , pg_catalog."current_user"()
+    ;
 end;
 $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
