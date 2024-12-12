@@ -1,7 +1,6 @@
 \set users {bob,fred,alice,jill}
 
 -- check view privileges
-\! rm -f view.actual
 select
   n.nspname as "schema"
 , k.relname as "view"
@@ -13,4 +12,3 @@ inner join pg_namespace n on (n.nspname = any(array['ai', 'wiki']))
 inner join pg_class k on (n.oid = k.relnamespace and k.relkind in ('v'))
 cross join unnest(array['select']) p
 order by n.nspname, k.relname, u, p
-\g (format=aligned) view.actual
