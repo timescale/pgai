@@ -1,7 +1,7 @@
 on:
   push:
 
-name: publish-pgai-vectorizer-worker-0.2.1
+name: publish-pgai-vectorizer-worker-0.3.0
 
 jobs:
   release-docker:
@@ -23,7 +23,8 @@ jobs:
             org.opencontainers.image.description=A worker for self-hosted pgai vectorizers
             org.opencontainers.image.title=pgai-vectorizer-worker
           tags: |
-            type=raw,value=v0.2.1
+            type=raw,value=v0.3.0
+            type=raw,value=latest
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -34,6 +35,7 @@ jobs:
         with:
           context: "{{defaultContext}}:projects/pgai"
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: |
+            ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
