@@ -507,11 +507,10 @@ def test_ollama_vectorizer(
     cli_db: tuple[TestDatabase, Connection],
     cli_db_url: str,
     configured_ollama_vectorizer_id: int,
-    vcr_: Any,
     test_params: tuple[int, int, int, str, str],
 ):
     """Test successful processing of vectorizer tasks"""
-    num_items, concurrency, batch_size, _, _ = test_params
+    num_items, concurrency, _, _, _ = test_params
     _, conn = cli_db
     # Insert pre-existing embedding for first item
     with conn.cursor() as cur:
@@ -522,26 +521,19 @@ def test_ollama_vectorizer(
             array_fill(0, ARRAY[768])::vector)
         """)
 
-    # When running the worker with cassette matching original test params
-    cassette = (
-        f"ollama-character_text_splitter-chunk_value-"
-        f"items={num_items}-batch_size={batch_size}.yaml"
+    result = CliRunner().invoke(
+        vectorizer_worker,
+        [
+            "--db-url",
+            cli_db_url,
+            "--once",
+            "--vectorizer-id",
+            str(configured_ollama_vectorizer_id),
+            "--concurrency",
+            str(concurrency),
+        ],
+        catch_exceptions=False,
     )
-    logging.getLogger("vcr").setLevel(logging.DEBUG)
-    with vcr_.use_cassette(cassette):
-        result = CliRunner().invoke(
-            vectorizer_worker,
-            [
-                "--db-url",
-                cli_db_url,
-                "--once",
-                "--vectorizer-id",
-                str(configured_ollama_vectorizer_id),
-                "--concurrency",
-                str(concurrency),
-            ],
-            catch_exceptions=False,
-        )
 
     assert not result.exception
     assert result.exit_code == 0

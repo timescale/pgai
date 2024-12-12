@@ -88,6 +88,11 @@ jobs:
           just ext docker-rm
 
   build-and-test-pgai:
+    services:
+      ollama:
+        image: ollama/ollama:latest
+        ports:
+          - 11434:11434
     runs-on: ubuntu-latest
 
     steps:

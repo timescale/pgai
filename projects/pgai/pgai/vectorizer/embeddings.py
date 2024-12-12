@@ -184,6 +184,11 @@ class Embedder(ABC):
         :return: int: the max chunk count
         """
 
+    async def setup(self) -> None:  # noqa: B027 empty on purpose
+        """
+        Setup the embedder
+        """
+
 
 class ApiKeyMixin:
     """
@@ -556,6 +561,18 @@ class Ollama(BaseModel, Embedder):
         return int(
             os.getenv("PGAI_VECTORIZER_OLLAMA_MAX_CHUNKS_PER_BATCH", default="2048")
         )
+
+    @override
+    async def setup(self):
+        client = ollama.AsyncClient(host=self.base_url)
+        try:
+            await client.show(self.model)
+        except ollama.ResponseError as e:
+            if f"model '{self.model}' not found" in e.error:
+                logger.warn(
+                    f"pulling ollama model '{self.model}', this may take a while"
+                )
+                await client.pull(self.model)
 
     async def call_embed_api(self, documents: str | list[str]) -> EmbeddingResponse:
         response = await ollama.AsyncClient(host=self.base_url).embed(
