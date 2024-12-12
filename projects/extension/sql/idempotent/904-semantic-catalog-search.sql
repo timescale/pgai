@@ -60,7 +60,7 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- find_relevant_sql
-create or replace function ai.find_relevant_sql
+create or replace function ai._find_relevant_sql
 ( catalog_id pg_catalog.int4
 , embedding @extschema:vector@.vector
 , "limit" pg_catalog.int8 default 5
@@ -120,7 +120,7 @@ begin
 
     return query
     select *
-    from ai.find_relevant_sql
+    from ai._find_relevant_sql
     ( _catalog_id
     , _embedding
     , "limit"
@@ -132,10 +132,11 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- find_relevant_obj
-create or replace function ai.find_relevant_obj
+create or replace function ai._find_relevant_obj
 ( catalog_id pg_catalog.int4
 , embedding @extschema:vector@.vector
 , "limit" pg_catalog.int8 default 5
+, only_objtype pg_catalog.text default null
 ) returns table
 ( objtype pg_catalog.text
 , objnames pg_catalog.text[]
@@ -177,12 +178,17 @@ begin
             when 'view column' then pg_catalog.has_column_privilege($2, x.objid, x.objsubid::pg_catalog.int2, 'select')
             when 'function' then pg_catalog.has_function_privilege($2, x.objid, 'execute')
         end
+        %s
         order by dist
         limit %L
     ) x
     $sql$
     , @extschema:vector@.vector_dims(embedding)
     , catalog_id
+    , case
+        when only_objtype is null then ''
+        else pg_catalog.format('and x.objtype operator(pg_catalog.=) %L', only_objtype)
+      end
     , "limit"
     ) using
       embedding
@@ -199,6 +205,7 @@ create or replace function ai.find_relevant_obj
 ( prompt pg_catalog.text
 , catalog_name pg_catalog.name default 'default'
 , "limit" pg_catalog.int8 default 5
+, only_objtype pg_catalog.text default null
 ) returns table
 ( objtype pg_catalog.text
 , objnames pg_catalog.text[]
@@ -222,10 +229,52 @@ begin
 
     return query
     select *
-    from ai.find_relevant_obj
+    from ai._find_relevant_obj
     ( _catalog_id
     , _embedding
     , "limit"
+    , only_objtype
+    );
+end;
+$func$ language plpgsql stable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- describe_relevant_obj
+create or replace function ai.describe_relevant_obj
+( prompt pg_catalog.text
+, catalog_name pg_catalog.name default 'default'
+, "limit" pg_catalog.int8 default 5
+, only_objtype pg_catalog.text default null
+) returns table
+( objtype pg_catalog.text
+, objnames pg_catalog.text[]
+, objargs pg_catalog.text[]
+, classid pg_catalog.oid
+, objid pg_catalog.oid
+, objsubid pg_catalog.int4
+, description pg_catalog.text
+)
+as $func$
+declare
+    _catalog_id pg_catalog.int4;
+    _embedding @extschema:vector@.vector;
+begin
+    select x.id into strict _catalog_id
+    from ai.semantic_catalog x
+    where x."name" operator(pg_catalog.=) catalog_name
+    ;
+
+    _embedding = ai._semantic_catalog_embed(_catalog_id, prompt);
+
+    return query
+    select *
+    from ai._find_relevant_obj
+    ( _catalog_id
+    , _embedding
+    , "limit"
+    , only_objtype
     );
 end;
 $func$ language plpgsql stable security invoker
