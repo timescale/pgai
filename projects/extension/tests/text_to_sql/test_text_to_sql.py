@@ -375,6 +375,12 @@ def test_text_to_sql() -> None:
                 break
 
             cur.execute(
+                """select * from ai.find_relevant_obj('i need a function about life', only_objtype=>'table column')"""
+            )
+            for row in cur.fetchall():
+                assert row.objtype == "table column"
+
+            cur.execute(
                 """select * from ai.find_relevant_sql('i need a query to tell me about bobby''s life')"""
             )
             for row in cur.fetchall():
