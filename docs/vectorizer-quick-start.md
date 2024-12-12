@@ -25,7 +25,7 @@ On your local machine:
        ports:
          - "5432:5432"
        volumes:
-         - ./data:/home/postgres/pgdata/data
+         - data:/home/postgres/pgdata/data
      vectorizer-worker:
        image: timescale/pgai-vectorizer-worker:v0.2.1
        environment:
@@ -34,6 +34,8 @@ On your local machine:
        command: [ "--poll-interval", "5s" ]
      ollama:
        image: ollama/ollama
+   volumes:
+     data:
     ```
 
 1. **Start the services**
