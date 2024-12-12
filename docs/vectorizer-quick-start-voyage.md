@@ -45,7 +45,7 @@ Now you can create and run a vectorizer. A vectorizer is a pgai concept, it proc
 
 1. **Connect to the database in your local developer environment**
 
-   - Docker: `docker exec -it pgai-db-1 psql -U postgres`
+   - Docker: `docker compose exec -it db psql`
    - psql:  `psql postgres://postgres:postgres@localhost:5432/postgres`
 
 1. **Enable pgai on the database**
