@@ -6,7 +6,7 @@ Create Date: {create_date}
 """
 from alembic import op
 from pgai.vectorizer.configuration import (
-   OpenAIEmbeddingConfig,
+   OpenAIConfig,
    CharacterTextSplitterConfig,
    PythonTemplateConfig
 )
@@ -22,7 +22,7 @@ def upgrade():
     op.create_vectorizer(
         'blog',
         target_table='blog_embeddings',
-        embedding=OpenAIEmbeddingConfig(
+        embedding=OpenAIConfig(
             model='text-embedding-3-small',
             dimensions=768
         ),

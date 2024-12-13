@@ -1,8 +1,6 @@
-import textwrap
+import re
 from dataclasses import dataclass, fields
-from typing import Any, Protocol, runtime_checkable
-
-from alembic.autogenerate.api import AutogenContext
+from typing import ClassVar, Protocol, runtime_checkable
 
 from pgai.vectorizer.base import (
     BaseDiskANNIndexing,
@@ -28,203 +26,115 @@ class PythonArgProvider(Protocol):
     def to_python_arg(self) -> str: ...
 
 
-def format_python_arg(config_type: str, instance: Any) -> str:
-    """Generate a formatted Python argument string for a config object.
-    If the instance has no fields, returns a simple constructor call."""
-    obj_fields = fields(instance)
-    if not obj_fields:
-        return f"{config_type}={type(instance).__name__}()"
-
-    formatted_fields = textwrap.indent(
-        ",\n".join(
-            f"{field.name}={repr(getattr(instance, field.name))}"
-            for field in obj_fields
-            if getattr(instance, field.name) is not None
-        ),
-        "    ",
-    )
-    return f"{config_type}={type(instance).__name__}(\n{formatted_fields}\n)"
+def format_sql_params(params: dict[str, str | None | bool]) -> str:
+    """Format dictionary of parameters into SQL argument string without any quoting."""
+    formatted: list[str] = []
+    for key, value in params.items():
+        if value is None:
+            continue
+        if isinstance(value, bool):
+            formatted.append(f"{key}=>{str(value).lower()}")
+        else:
+            formatted.append(f"{key}=>{value}")
+    return ", ".join(formatted)
 
 
-class OpenAIEmbeddingConfig(BaseOpenAIConfig):
+class SQLArgumentMixin:
+    arg_type: ClassVar[str]
+    function_name: ClassVar[str | None] = None
+
+    def to_sql_argument(self) -> str:
+        # Get all fields including from parent classes
+        params = {}
+        for field_name, _field in self.model_fields.items():  # type: ignore
+            if field_name != "arg_type":
+                value = getattr(self, field_name)  # type: ignore
+                if value is not None:
+                    if isinstance(value, str):
+                        # Use E string syntax to handle any special
+                        # characters in strings
+                        value = f"E'{value}'"
+                    params[field_name] = value
+
+        if self.function_name:
+            fn_name = self.function_name
+        else:
+            base_name = self.__class__.__name__
+            # Convert camelCase to snake_case
+            base_name = re.sub("([a-z0-9])([A-Z])", r"\1_\2", base_name).lower()
+            # Remove 'config' and clean up any double underscores
+            base_name = base_name.replace("config", "").strip("_")
+            # Remove any duplicate underscores that might have been created
+            fn_name = f"{self.arg_type}_{base_name}"
+
+        return f", {self.arg_type} => ai.{fn_name}({format_sql_params(params)})"  # type: ignore
+
+
+class OpenAIConfig(BaseOpenAIConfig, SQLArgumentMixin):
+    arg_type: ClassVar[str] = "embedding"
+    function_name: ClassVar[str] = "embedding_openai"  # type: ignore
     chat_user: str | None = None
     api_key_name: str | None = None
 
-    def to_sql_argument(self) -> str:
-        params = [
-            f"'{self.model}'",
-            str(self.dimensions),
-        ]
-        if self.chat_user:
-            params.append(f"chat_user=>'{self.chat_user}'")
-        if self.api_key_name:
-            params.append(f"api_key_name=>'{self.api_key_name}'")
-        return f", embedding => ai.embedding_openai({', '.join(params)})"
 
-    def to_python_arg(self) -> str:
-        return format_python_arg("embedding", self)
+class VoyageAIConfig(BaseVoyageAIConfig, SQLArgumentMixin):
+    arg_type: ClassVar[str] = "embedding"
+    function_name: ClassVar[str] = "embedding_voyageai"  # type: ignore
 
 
-class VoyageAIEmbeddingConfig(BaseVoyageAIConfig):
-    def to_sql_argument(self) -> str:
-        params = [
-            f"'{self.model}'",
-            str(self.input_type),
-        ]
-        return f", embedding => ai.embedding_voyageai({', '.join(params)})"
-
-    def to_python_arg(self) -> str:
-        return format_python_arg("embedding", self)
+class OllamaConfig(BaseOllamaConfig, SQLArgumentMixin):
+    arg_type: ClassVar[str] = "embedding"
 
 
-class OllamaEmbeddingConfig(BaseOllamaConfig):
-    def to_sql_argument(self) -> str:
-        params = [
-            f"'{self.model}'",
-            str(self.dimensions),
-        ]
-        if self.base_url:
-            params.append(f"base_url=>'{self.base_url}'")
-        if self.keep_alive:
-            params.append(f"keep_alive=>'{self.keep_alive}'")
-        return f", embedding => ai.embedding_ollama({', '.join(params)})"
-
-    def to_python_arg(self) -> str:
-        return format_python_arg("embedding", self)
+class CharacterTextSplitterConfig(ChunkingCharacterTextSplitter, SQLArgumentMixin):
+    arg_type: ClassVar[str] = "chunking"
 
 
-class CharacterTextSplitterConfig(ChunkingCharacterTextSplitter):
-    def to_sql_argument(self) -> str:
-        params = [
-            f"'{self.chunk_column}'",
-            str(self.chunk_size),
-            str(self.chunk_overlap),
-            f"'{self.separator}'",
-            str(self.is_separator_regex).lower(),
-        ]
-        return f", chunking => ai.chunking_character_text_splitter({', '.join(params)})"
-
-    def to_python_arg(self) -> str:
-        return format_python_arg("chunking", self)
-
-
-class RecursiveCharacterTextSplitterConfig(ChunkingRecursiveCharacterTextSplitter):
-    def to_sql_argument(self) -> str:
-        sep_str = "array[" + ",".join(f"'{s}'" for s in self.separators) + "]"
-        params = [
-            sep_str,
-            str(self.chunk_size),
-            f"'{self.chunk_column}'",
-            str(self.chunk_overlap),
-            str(self.is_separator_regex).lower(),
-        ]
-        return (
-            f", chunking =>"
-            f"ai.chunking_recursive_character_text_splitter({', '.join(params)})"
-        )
-
-    def to_python_arg(self) -> str:
-        return format_python_arg("chunking", self)
+class RecursiveCharacterTextSplitterConfig(
+    ChunkingRecursiveCharacterTextSplitter, SQLArgumentMixin
+):
+    arg_type: ClassVar[str] = "chunking"
 
 
 class ChunkValueConfig:
+    arg_type: ClassVar[str] = "formatting"
+
     def to_sql_argument(self) -> str:
-        return ", formatting => ai.formatting_chunk_value()"
-
-    def to_python_arg(self) -> str:
-        return format_python_arg("formatting", self)
+        return f", {self.arg_type: ClassVar[str]} => ai.formatting_chunk_value()"
 
 
-class PythonTemplateConfig(BasePythonTemplate):
-    def to_sql_argument(self) -> str:
-        return f", formatting => ai.formatting_python_template('{self.template}')"
-
-    def to_python_arg(self) -> str:
-        return format_python_arg("formatting", self)
+class PythonTemplateConfig(BasePythonTemplate, SQLArgumentMixin):
+    arg_type: ClassVar[str] = "formatting"
 
 
 class NoIndexingConfig:
+    arg_type: ClassVar[str] = "indexing"
+
     def to_sql_argument(self) -> str:
-        return ", indexing => ai.indexing_none()"
-
-    def to_python_arg(self) -> str:
-        return format_python_arg("indexing", self)
+        return f", {self.arg_type: ClassVar[str]} => ai.indexing_none()"
 
 
-class DiskANNIndexingConfig(BaseDiskANNIndexing):
-    def to_sql_argument(self) -> str:
-        params: list[str] = []
-        params.append(f"min_rows=>{self.min_rows}")
-        if self.storage_layout is not None:
-            params.append(f"storage_layout=>'{self.storage_layout}'")
-        if self.num_neighbors is not None:
-            params.append(f"num_neighbors=>{self.num_neighbors}")
-        if self.search_list_size is not None:
-            params.append(f"search_list_size=>{self.search_list_size}")
-        if self.max_alpha is not None:
-            params.append(f"max_alpha=>{self.max_alpha}")
-        if self.num_dimensions is not None:
-            params.append(f"num_dimensions=>{self.num_dimensions}")
-        if self.num_bits_per_dimension is not None:
-            params.append(f"num_bits_per_dimension=>{self.num_bits_per_dimension}")
-        params.append(
-            f"create_when_queue_empty=>{str(self.create_when_queue_empty).lower()}"
-        )
-        return f", indexing => ai.indexing_diskann({', '.join(params)})"
-
-    def to_python_arg(self) -> str:
-        return format_python_arg("indexing", self)
+class DiskANNIndexingConfig(BaseDiskANNIndexing, SQLArgumentMixin):
+    arg_type: ClassVar[str] = "indexing"
 
 
-class HNSWIndexingConfig(BaseHNSWIndexing):
-    def to_sql_argument(self) -> str:
-        params: list[str] = []
-        params.append(f"min_rows=>{self.min_rows}")
-        params.append(f"opclass=>'{self.opclass}'")
-        params.append(f"m=>{self.m}")
-        params.append(f"ef_construction=>{self.ef_construction}")
-        params.append(
-            f"create_when_queue_empty=>{str(self.create_when_queue_empty).lower()}"
-        )
-        return f", indexing => ai.indexing_hnsw({', '.join(params)})"
-
-    def to_python_arg(self) -> str:
-        return format_python_arg("indexing", self)
+class HNSWIndexingConfig(BaseHNSWIndexing, SQLArgumentMixin):
+    arg_type: ClassVar[str] = "indexing"
 
 
 class NoSchedulingConfig:
+    arg_type: ClassVar[str] = "scheduling"
+
     def to_sql_argument(self) -> str:
-        return ", scheduling => ai.scheduling_none()"
-
-    def to_python_arg(self) -> str:
-        return format_python_arg("scheduling", self)
+        return f", {self.arg_type: ClassVar[str]} => ai.scheduling_none()"
 
 
-class TimescaleSchedulingConfig(BaseTimescaleScheduling):
-    def to_sql_argument(self) -> str:
-        params: list[str] = []
-        params.append(f"fixed_schedule=>{str(self.fixed_schedule).lower()}")
-        if self.schedule_interval is not None:
-            params.append(f"schedule_interval=>'{self.schedule_interval}'")
-        if self.initial_start is not None:
-            params.append(f"initial_start=>'{self.initial_start}'")
-        if self.timezone is not None:
-            params.append(f"timezone=>'{self.timezone}'")
-        return f", scheduling => ai.scheduling_timescaledb({', '.join(params)})"
-
-    def to_python_arg(self) -> str:
-        return format_python_arg("scheduling", self)
+class TimescaleSchedulingConfig(BaseTimescaleScheduling, SQLArgumentMixin):
+    arg_type: ClassVar[str] = "scheduling"
 
 
-class ProcessingConfig(BaseProcessing):
-    def to_sql_argument(self) -> str:
-        params: list[str] = []
-        params.append(f"batch_size=>{self.batch_size}")
-        params.append(f"concurrency=>{self.concurrency}")
-        return f", processing => ai.processing_default({', '.join(params)})"
-
-    def to_python_arg(self) -> str:
-        return format_python_arg("processing", self)
+class ProcessingConfig(BaseProcessing, SQLArgumentMixin):
+    arg_type: ClassVar[str] = "processing"
 
 
 def format_string_param(name: str, value: str) -> str:
@@ -238,9 +148,7 @@ def format_bool_param(name: str, value: bool) -> str:
 @dataclass
 class CreateVectorizerParams:
     source_table: str | None
-    embedding: (
-        OpenAIEmbeddingConfig | OllamaEmbeddingConfig | VoyageAIEmbeddingConfig | None
-    ) = None
+    embedding: OpenAIConfig | OllamaConfig | VoyageAIConfig | None = None
     chunking: (
         CharacterTextSplitterConfig | RecursiveCharacterTextSplitterConfig | None
     ) = None
@@ -291,44 +199,3 @@ class CreateVectorizerParams:
 
         parts.append(")")
         return "\n".join(parts)
-
-    def to_python(self, autogen_context: AutogenContext) -> str:
-        used_configs: set[str] = set()
-        args = [repr(self.source_table)]
-
-        # Handle all config objects that implement to_python_arg
-        for field in fields(self):
-            value = getattr(self, field.name)
-            if isinstance(value, PythonArgProvider):
-                args.append(value.to_python_arg())
-                used_configs.add(type(value).__name__)
-
-        # Handle string parameters
-        string_fields = [
-            "target_schema",
-            "target_table",
-            "view_schema",
-            "view_name",
-            "queue_schema",
-            "queue_table",
-            "formatting_template",
-        ]
-        for field in string_fields:
-            value = getattr(self, field)
-            if value is not None:
-                args.append(f"{field}={repr(value)}")
-
-        # Handle special cases
-        if self.grant_to:
-            args.append(f"grant_to=[{', '.join(repr(x) for x in self.grant_to)}]")
-        if not self.enqueue_existing:
-            args.append("enqueue_existing=False")
-
-        # Generate single import line for used configs
-        if used_configs:
-            import_names = ", ".join(sorted(used_configs))
-            autogen_context.imports.add(
-                f"from pgai.configuration import {import_names}"
-            )
-
-        return "op.create_vectorizer(\n    " + ",\n    ".join(args) + "\n)"

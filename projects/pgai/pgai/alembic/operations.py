@@ -12,13 +12,13 @@ from pgai.vectorizer.configuration import (
     HNSWIndexingConfig,
     NoIndexingConfig,
     NoSchedulingConfig,
-    OllamaEmbeddingConfig,
-    OpenAIEmbeddingConfig,
+    OllamaConfig,
+    OpenAIConfig,
     ProcessingConfig,
     PythonTemplateConfig,
     RecursiveCharacterTextSplitterConfig,
     TimescaleSchedulingConfig,
-    VoyageAIEmbeddingConfig,
+    VoyageAIConfig,
 )
 
 
@@ -28,10 +28,7 @@ class CreateVectorizerOp(MigrateOperation):
     def __init__(
         self,
         source_table: str | None,
-        embedding: OpenAIEmbeddingConfig
-        | OllamaEmbeddingConfig
-        | VoyageAIEmbeddingConfig
-        | None = None,
+        embedding: OpenAIConfig | OllamaConfig | VoyageAIConfig | None = None,
         chunking: CharacterTextSplitterConfig
         | RecursiveCharacterTextSplitterConfig
         | None = None,

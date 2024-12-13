@@ -199,7 +199,7 @@ Then you can use the `create_vectorizer` operation to create a vectorizer for yo
 ```python
 from alembic import op
 from pgai.vectorizer.configuration import (
-    OpenAIEmbeddingConfig,
+    OpenAIConfig,
     CharacterTextSplitterConfig,
     PythonTemplateConfig
 )
@@ -209,7 +209,7 @@ def upgrade() -> None:
     op.create_vectorizer(
         source_table="blog",
         target_table='blog_embeddings',
-        embedding=OpenAIEmbeddingConfig(
+        embedding=OpenAIConfig(
             model='text-embedding-3-small',
             dimensions=768
         ),
