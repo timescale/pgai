@@ -102,6 +102,7 @@ def initialized_engine(
     """
     engine = create_engine(postgres_container.get_connection_url(driver="psycopg"))
     with engine.connect() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb;"))
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS ai CASCADE;"))
         conn.commit()
 

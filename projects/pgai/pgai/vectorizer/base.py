@@ -21,6 +21,7 @@ class BaseOllamaConfig(BaseModel):
 
 class BaseVoyageAIConfig(BaseModel):
     model: str
+    dimensions: int
     input_type: Literal["document"] | Literal["query"] | None = None
 
 
