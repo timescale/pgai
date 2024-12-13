@@ -27,7 +27,7 @@ order by id
 select objtype, objnames, objargs, description from ai.find_relevant_obj('i need a function about life');
 
 \pset title 'i need a function about life only_objtype=>function'
-select objtype, objnames, objargs, description from ai.find_relevant_obj('i need a function about life', only_objtype=>'function');
+select objtype, objnames, objargs, description from ai.find_relevant_obj('i need a function about life', objtypes=>array['function']);
 
 \pset title 'i need a function about life max_dist=>0.4'
 select objtype, objnames, objargs, description from ai.find_relevant_obj('i need a function about life', max_dist=>0.4);

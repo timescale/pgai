@@ -160,7 +160,7 @@ create or replace function ai._find_relevant_obj
 ( catalog_id pg_catalog.int4
 , embedding @extschema:vector@.vector
 , "limit" pg_catalog.int8 default 5
-, only_objtype pg_catalog.text default null
+, objtypes pg_catalog.text[] default null
 , max_dist pg_catalog.float8 default null
 ) returns table
 ( objtype pg_catalog.text
@@ -228,8 +228,8 @@ begin
     , _dimensions
     , catalog_id
     , case
-        when only_objtype is null then ''
-        else pg_catalog.format('and x.objtype operator(pg_catalog.=) %L', only_objtype)
+        when objtypes is null then ''
+        else pg_catalog.format('and x.objtype operator(pg_catalog.=) any(%L::pg_catalog.text[])', objtypes)
       end
     , case
         when max_dist is null then ''
@@ -250,7 +250,7 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.find_relevant_obj
 ( prompt pg_catalog.text
 , "limit" pg_catalog.int8 default 5
-, only_objtype pg_catalog.text default null
+, objtypes pg_catalog.text[] default null
 , max_dist pg_catalog.float8 default null
 , catalog_name pg_catalog.name default 'default'
 ) returns table
@@ -281,7 +281,7 @@ begin
     ( _catalog_id
     , _embedding
     , "limit"
-    , only_objtype
+    , objtypes
     , max_dist
     );
 end;
