@@ -250,8 +250,9 @@ enable you to implement RAG directly in your database. For example:
        response TEXT;
     BEGIN
        -- Perform similarity search to find relevant blog posts
-       SELECT string_agg(title || ': ' || chunk, ' ') INTO context_chunks
-       FROM (
+       SELECT string_agg(title || ': ' || chunk, E'\n') INTO context_chunks
+       FROM
+       (
            SELECT title, chunk
            FROM blogs_embedding
            ORDER BY embedding <=> ai.ollama_embed('nomic-embed-text', query_text)
@@ -259,16 +260,15 @@ enable you to implement RAG directly in your database. For example:
        ) AS relevant_posts;
 
        -- Generate a summary using llama3
-       SELECT ai.ollama_chat_complete(
-           'llama3',
-            , jsonb_build_array
-              ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
-              , jsonb_build_object('role', 'user', 'content', 'Give a short description of what a large language model is')
-              )
-            , chat_options=> jsonb_build_object
-            ( 'seed', 42
-            , 'temperature', 0.6
-            )
+       SELECT ai.ollama_chat_complete
+       ( 'llama3'
+       , jsonb_build_array
+         ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
+         , jsonb_build_object
+           ('role', 'user'
+           , 'content', query_text || E'\nUse the following context to respond.\n' || context_chunks
+           )
+         )
        )->'message'->>'content' INTO response;
 
        RETURN response;
