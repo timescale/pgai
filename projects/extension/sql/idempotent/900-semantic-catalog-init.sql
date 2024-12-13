@@ -24,11 +24,7 @@ begin
       ]
     );
 
-    insert into ai.semantic_catalog("name")
-    values (initialize_semantic_catalog."name")
-    returning id
-    into strict _catalog_id
-    ;
+    _catalog_id = pg_catalog.nextval('ai.semantic_catalog_id_seq'::pg_catalog.regclass);
 
     select ai.create_vectorizer
     ( 'ai.semantic_catalog_obj'::pg_catalog.regclass
@@ -56,10 +52,20 @@ begin
     ) into strict _sql_vec_id
     ;
 
-    update ai.semantic_catalog set
-      obj_vectorizer_id = _obj_vec_id
-    , sql_vectorizer_id = _sql_vec_id
-    where id operator(pg_catalog.=) _catalog_id
+    insert into ai.semantic_catalog
+    ( id
+    , "name"
+    , obj_vectorizer_id
+    , sql_vectorizer_id
+    )
+    values
+    ( _catalog_id
+    , initialize_semantic_catalog."name"
+    , _obj_vec_id
+    , _sql_vec_id
+    )
+    returning id
+    into strict _catalog_id
     ;
 
     return _catalog_id;
