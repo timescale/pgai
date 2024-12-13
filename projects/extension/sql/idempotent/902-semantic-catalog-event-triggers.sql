@@ -130,14 +130,12 @@ begin
                 where k.relnamespace operator(pg_catalog.=) _rec.objid
             )
             update ai.semantic_catalog_obj as d set
-              objtype = x.objtype
-            , objnames = x.objnames
-            , objargs = x.objargs
+              objnames = x.objnames
             from x
             where d.classid operator(pg_catalog.=) x.classid
             and d.objid operator(pg_catalog.=) x.objid
             and d.objsubid operator(pg_catalog.=) x.objsubid
-            and (d.objtype, d.objnames, d.objargs) operator(pg_catalog.!=) (x.objtype, x.objnames, x.objargs) -- only if changed
+            and d.objnames operator(pg_catalog.!=) x.objnames -- only if changed
             ;
 
             -- functions
@@ -160,14 +158,12 @@ begin
                 where f.pronamespace operator(pg_catalog.=) _rec.objid
             )
             update ai.semantic_catalog_obj as d set
-              objtype = x.objtype
-            , objnames = x.objnames
-            , objargs = x.objargs
+              objnames = x.objnames
             from x
             where d.classid operator(pg_catalog.=) x.classid
             and d.objid operator(pg_catalog.=) x.objid
             and d.objsubid operator(pg_catalog.=) x.objsubid
-            and (d.objtype, d.objnames, d.objargs) operator(pg_catalog.!=) (x.objtype, x.objnames, x.objargs) -- only if changed
+            and d.objnames operator(pg_catalog.!=) x.objnames -- only if changed
             ;
 
             return; -- done
@@ -180,13 +176,12 @@ begin
         -- alter view set schema
         -- alter function set schema
         update ai.semantic_catalog_obj set
-          objtype = _objtype
-        , objnames = _objnames
+          objnames = _objnames
         , objargs = _objargs
         where classid operator(pg_catalog.=) _rec.classid
         and objid operator(pg_catalog.=) _rec.objid
         and objsubid operator(pg_catalog.=) _rec.objsubid
-        and (objtype, objnames, objargs) operator(pg_catalog.!=) (_objtype, _objnames, _objargs) -- only if changed
+        and (objnames, objargs) operator(pg_catalog.!=) (_objnames, _objargs) -- only if changed
         ;
         if found and _objtype in ('table', 'view') then
             -- if table or view renamed or schema changed
@@ -219,14 +214,13 @@ begin
                 ) x
             )
             update ai.semantic_catalog_obj d set
-              objtype = xref.objtype
-            , objnames = xref.objnames
+              objnames = xref.objnames
             , objargs = xref.objargs
             from xref
             where d.classid operator(pg_catalog.=) xref.classid
             and d.objid operator(pg_catalog.=) xref.objid
             and d.objsubid operator(pg_catalog.=) xref.objsubid
-            and (d.objtype, d.objnames, d.objargs) operator(pg_catalog.!=) (xref.objtype, xref.objnames, xref.objargs) -- only if changed
+            and (d.objnames, d.objargs) operator(pg_catalog.!=) (xref.objnames, xref.objargs) -- only if changed
             ;
         end if;
     end loop;
