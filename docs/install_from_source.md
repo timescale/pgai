@@ -23,10 +23,15 @@ To install pgai from source on a PostgreSQL server:
        POSTGRES_EXTRA_CONFIGURE_OPTIONS=--with-python asdf install postgres 16.3
        ```
 
-   - **pgvector**: follow the [install instructions][pgvector-install] from the official repository.
+   - **pgvector**: follow the [install instructions][pgvector-install] from the official repository. This extension is automatically added to your PostgreSQL database when you install the pgai extension.
 
-   These extensions are automatically added to your PostgreSQL database when you
-   [Enable the pgai extension](#enable-the-pgai-extension-in-your-database).
+
+1. Clone the pgai repo at the latest tagged release:
+
+    ```bash
+    git clone https://github.com/timescale/pgai.git --branch extension-0.6.0
+    cd pgai
+    ```
 
 1. Install the `pgai` PostgreSQL extension:
 
