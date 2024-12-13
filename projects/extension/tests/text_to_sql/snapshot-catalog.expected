@@ -277,3 +277,33 @@ View definition:
  }
 (2 rows)
 
+                               i need a function about life
+   objtype    |      objnames      |  objargs  |                description                
+--------------+--------------------+-----------+-------------------------------------------
+ table column | {public,bob,foo}   | {}        | this is a comment about the foo column
+ view column  | {public,bobby,foo} | {}        | this is a comment about the foo column
+ function     | {public,life}      | {integer} | this is a comment about the life function
+ table column | {public,bob,id}    | {}        | this is a comment about the id column
+ view column  | {public,bobby,id}  | {}        | this is a comment about the id column
+(5 rows)
+
+               i need a function about life only_objtype=>function
+ objtype  |   objnames    |  objargs  |                description                
+----------+---------------+-----------+-------------------------------------------
+ function | {public,life} | {integer} | this is a comment about the life function
+(1 row)
+
+                        i need a function about life max_dist=>0.4
+   objtype    |      objnames      |  objargs  |                description                
+--------------+--------------------+-----------+-------------------------------------------
+ table column | {public,bob,foo}   | {}        | this is a comment about the foo column
+ view column  | {public,bobby,foo} | {}        | this is a comment about the foo column
+ function     | {public,life}      | {integer} | this is a comment about the life function
+(3 rows)
+
+                              i need a query to tell me about bobbys life
+                   sql                   |                         description                          
+-----------------------------------------+--------------------------------------------------------------
+ select * from bobby where id = life(id) | a bogus query against the bobby view using the life function
+(1 row)
+
