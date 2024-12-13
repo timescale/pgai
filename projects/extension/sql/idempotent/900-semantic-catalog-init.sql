@@ -3,12 +3,12 @@
 -------------------------------------------------------------------------------
 -- initialize_semantic_catalog
 create or replace function ai.initialize_semantic_catalog
-( "name" pg_catalog.name default 'default'
-, embedding pg_catalog.jsonb default null
+( embedding pg_catalog.jsonb default null
 , indexing pg_catalog.jsonb default ai.indexing_default()
 , scheduling pg_catalog.jsonb default ai.scheduling_default()
 , processing pg_catalog.jsonb default ai.processing_default()
 , grant_to pg_catalog.name[] default ai.grant_to()
+, "name" pg_catalog.name default 'default'
 ) returns pg_catalog.int4
 as $func$
 declare
