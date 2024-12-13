@@ -1,5 +1,6 @@
 --FEATURE-FLAG: text_to_sql
 
+/*
 -------------------------------------------------------------------------------
 -- _semantic_catalog_embed
 create or replace function ai._semantic_catalog_embed
@@ -57,6 +58,7 @@ end
 $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
+*/
 
 -------------------------------------------------------------------------------
 -- find_relevant_sql
@@ -132,14 +134,20 @@ create or replace function ai.find_relevant_sql
 as $func$
 declare
     _catalog_id pg_catalog.int4;
+    _vectorizer_id pg_catalog.int4;
     _embedding @extschema:vector@.vector;
 begin
-    select x.id into strict _catalog_id
+    select
+      x.id
+    , x.obj_vectorizer_id
+    into strict
+      _catalog_id
+    , _vectorizer_id
     from ai.semantic_catalog x
     where x."name" operator(pg_catalog.=) catalog_name
     ;
 
-    _embedding = ai._semantic_catalog_embed(_catalog_id, prompt);
+    _embedding = ai.vectorizer_embed(_vectorizer_id, prompt);
 
     return query
     select *
@@ -266,14 +274,20 @@ create or replace function ai.find_relevant_obj
 as $func$
 declare
     _catalog_id pg_catalog.int4;
+    _vectorizer_id pg_catalog.int4;
     _embedding @extschema:vector@.vector;
 begin
-    select x.id into strict _catalog_id
+    select
+      x.id
+    , x.obj_vectorizer_id
+    into strict
+      _catalog_id
+    , _vectorizer_id
     from ai.semantic_catalog x
     where x."name" operator(pg_catalog.=) catalog_name
     ;
 
-    _embedding = ai._semantic_catalog_embed(_catalog_id, prompt);
+    _embedding = ai.vectorizer_embed(_vectorizer_id, prompt);
 
     return query
     select *

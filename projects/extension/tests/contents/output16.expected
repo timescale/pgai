@@ -73,6 +73,7 @@ CREATE EXTENSION
  function ai._vectorizer_create_target_table(name,name,jsonb,name,name,integer,name[])
  function ai._vectorizer_create_vector_index(name,name,jsonb)
  function ai._vectorizer_create_view(name,name,name,name,jsonb,name,name,name[])
+ function ai.vectorizer_embed(integer,text,text)
  function ai._vectorizer_grant_to_source(name,name,name[])
  function ai._vectorizer_grant_to_vectorizer(name[])
  function ai._vectorizer_handle_drops()
@@ -92,7 +93,7 @@ CREATE EXTENSION
  table ai.vectorizer_errors
  view ai.secret_permissions
  view ai.vectorizer_status
-(88 rows)
+(89 rows)
 
                                     Table "ai._secret_permissions"
  Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
