@@ -22,9 +22,22 @@ In particular, it automates the creation and sync of embeddings for your data st
 </div>
 
 
+### Docker
+
+See the [install via docker](/docs/install_docker.md) guide for docker compose files and detailed container instructions.
+
+### Timescale Cloud
+
+Try pgai on cloud by creating a [free trial account](https://tsdb.co/gh-pgai-signup) on Timescale Cloud. 
+
+
+### Installing pgai into an existing PostgreSQL instance (Linux / MacOS)
+
+See the [install from source](/docs/install_from_source.md) guide for instructions on how to install pgai from source.                  
+
 # Quick Start
 
-This section will walk you through the steps to get started with pgai and Ollama and show you the major features of pgai. We also have a [quick start with OpenAI](/docs/vectorizer-quick-start-openai.md) and a [quick start with Voyage AI](/docs/vectorizer-quick-start-voyage.md).
+This section will walk you through the steps to get started with pgai and Ollama using docker and show you the major features of pgai. We also have a [quick start with OpenAI](/docs/vectorizer-quick-start-openai.md) and a [quick start with Voyage AI](/docs/vectorizer-quick-start-voyage.md).
 
 ### Setup
 
@@ -151,10 +164,7 @@ This section will walk you through the steps to get started with pgai and Ollama
   
     This is just one example of [model calling capabilities](#model-calling). Model calling can be used for a variety of tasks, including classification, summarization, moderation, and other forms of data enrichment. 
     
-
-# Overview
-
-### Features 
+# Features 
 
 **Working with embeddings generated from your data:**
 * Automatically create and sync vector embeddings for your data ([learn more](#automatically-create-and-sync-llm-embeddings-for-your-data))
@@ -169,50 +179,29 @@ This section will walk you through the steps to get started with pgai and Ollama
 **Useful utilities:**
 * Load datasets from Hugging Face into your database with [ai.load_dataset](/docs/load_dataset_from_huggingface.md).
 
-### Resources
+# Resources
+**Why we built it:**
+- [Vector Databases Are the Wrong Abstraction](https://www.timescale.com/blog/vector-databases-are-the-wrong-abstraction/)
+- [pgai: Giving PostgreSQL Developers AI Engineering Superpowers](http://www.timescale.com/blog/pgai-giving-postgresql-developers-ai-engineering-superpowers)
 
 **Quick start guides:**
+- [The quick start with Ollama guide above](#quick-start)
+- [Quick start with OpenAI](/docs/vectorizer-quick-start-openai.md)
+- [Quick start with VoyageAI](/docs/vectorizer-quick-start-voyage.md)
 
-- [A more detailed quick start with Ollama](/docs/vectorizer-quick-start.md)
-- [A quick start with OpenAI](/docs/vectorizer-quick-start-openai.md)
-- [A quick start with Voyage AI](/docs/vectorizer-quick-start-voyage.md)
+**Tutorials about pgai vectorizer:**
+- [How to Automatically Create & Update Embeddings in PostgreSQL—With One SQL Query](https://www.timescale.com/blog/how-to-automatically-create-update-embeddings-in-postgresql/)
+- [video] [Auto Create and Sync Vector Embeddings in 1 Line of SQL](https://www.youtube.com/watch?v=ZoC2XYol6Zk)
+- [Which OpenAI Embedding Model Is Best for Your RAG App With Pgvector?](https://www.timescale.com/blog/which-openai-embedding-model-is-best/)
+- [Which RAG Chunking and Formatting Strategy Is Best for Your App With Pgvector](https://www.timescale.com/blog/which-rag-chunking-and-formatting-strategy-is-best/)
+- [Parsing All the Data With Open-Source Tools: Unstructured and Pgai](https://www.timescale.com/blog/parsing-all-the-data-with-open-source-tools-unstructured-and-pgai/)
 
-**Learn more about pgai:** To learn more about the pgai extension and why we built it, read
-[pgai: Giving PostgreSQL Developers AI Engineering Superpowers](http://www.timescale.com/blog/pgai-giving-postgresql-developers-ai-engineering-superpowers).
+**Tutorials about pgai model calling:**
+- [In-Database AI Agents: Teaching Claude to Use Tools With Pgai](https://www.timescale.com/blog/in-database-ai-agents-teaching-claude-to-use-tools-with-pgai/)
+- [Build Search and RAG Systems on PostgreSQL Using Cohere and Pgai](https://www.timescale.com/blog/build-search-and-rag-systems-on-postgresql-using-cohere-and-pgai/)
+- [Use Open-Source LLMs in PostgreSQL With Ollama and Pgai](https://www.timescale.com/blog/use-open-source-llms-in-postgresql-with-ollama-and-pgai/)
 
 **Contributing**: We welcome contributions to pgai! See the [Contributing](/CONTRIBUTING.md) page for more information.
-
-# Installation
-
-You have a few options for running a PostgreSQL instance with pgai installed:
-
-## Docker
-
-1. Run the docker container. The suggested command is:
-   ```
-   docker run -d --name pgai -p 5432:5432 \
-   -v ./data:/pgdata \
-   -e PGDATA=/pgdata \
-   -e POSTGRES_PASSWORD=password timescale/timescaledb-ha:pg17
-   ``` 
-
-   This will start a PostgreSQL instance for development purposes using the `./data` directory for storage. To run in production, you would need to change the password above. See the full  [Docker image instructions](https://docs.timescale.com/self-hosted/latest/install/installation-docker/) for more information. You'll be able to connect to the database using the following connection string: `postgres://postgres:password@localhost/postgres`
-
-2. Create the pgai extension in your database:
-
-    ```
-    docker exec -it pgai psql -U postgres -c "CREATE EXTENSION IF NOT EXISTS ai CASCADE;"
-    ```
-
-**Note**: if you want to use pgai with Ollama, please see [example docker compose file](/examples/docker_compose_with_ollama.yml).
-
-## Timescale Cloud service
-
-Try our cloud offering by creating a [free trial account](https://tsdb.co/gh-pgai-signup) on Timescale Cloud. 
-
-## Installing pgai into an existing PostgreSQL instance
-
-Follow the [install from source instructions](/docs/install_from_source.md) instructions.
 
 # Automated embedding and semantic search
 
