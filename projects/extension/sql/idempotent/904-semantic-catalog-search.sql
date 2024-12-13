@@ -120,9 +120,9 @@ set search_path to pg_catalog, pg_temp
 -- find_relevant_sql
 create or replace function ai.find_relevant_sql
 ( prompt pg_catalog.text
-, catalog_name pg_catalog.name default 'default'
 , "limit" pg_catalog.int8 default 5
 , max_dist pg_catalog.float8 default null
+, catalog_name pg_catalog.name default 'default'
 ) returns table
 ( id pg_catalog.int4
 , sql pg_catalog.text
@@ -249,10 +249,10 @@ set search_path to pg_catalog, pg_temp
 -- find_relevant_obj
 create or replace function ai.find_relevant_obj
 ( prompt pg_catalog.text
-, catalog_name pg_catalog.name default 'default'
 , "limit" pg_catalog.int8 default 5
 , only_objtype pg_catalog.text default null
 , max_dist pg_catalog.float8 default null
+, catalog_name pg_catalog.name default 'default'
 ) returns table
 ( objtype pg_catalog.text
 , objnames pg_catalog.text[]
