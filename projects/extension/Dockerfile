@@ -51,6 +51,11 @@ WORKDIR /pgai
 COPY . .
 RUN just build install
 
+RUN mkdir -p /docker-entrypoint-initdb.d && \
+    echo "#!/bin/bash" > /docker-entrypoint-initdb.d/configure-timescaledb.sh && \
+    echo "echo \"shared_preload_libraries = 'timescaledb'\" >> \${PGDATA}/postgresql.conf" >> /docker-entrypoint-initdb.d/configure-timescaledb.sh && \
+    chmod +x /docker-entrypoint-initdb.d/configure-timescaledb.sh
+
 
 ###############################################################################
 # image for use in extension development

@@ -6,8 +6,12 @@ from langchain_text_splitters import (
     CharacterTextSplitter,
     RecursiveCharacterTextSplitter,
 )
-from pydantic import BaseModel
 from typing_extensions import override
+
+from pgai.vectorizer.base import (
+    ChunkingCharacterTextSplitter,
+    ChunkingRecursiveCharacterTextSplitter,
+)
 
 
 class Chunker(ABC):
@@ -33,7 +37,7 @@ class Chunker(ABC):
         """
 
 
-class LangChainCharacterTextSplitter(BaseModel, Chunker):
+class LangChainCharacterTextSplitter(ChunkingCharacterTextSplitter, Chunker):
     """
     A chunker implementation using LangChain's CharacterTextSplitter.
 
@@ -52,11 +56,6 @@ class LangChainCharacterTextSplitter(BaseModel, Chunker):
     """
 
     implementation: Literal["character_text_splitter"]
-    separator: str
-    chunk_size: int
-    chunk_column: str
-    chunk_overlap: int
-    is_separator_regex: bool
 
     @cached_property
     def _chunker(self) -> CharacterTextSplitter:
@@ -83,7 +82,9 @@ class LangChainCharacterTextSplitter(BaseModel, Chunker):
         return self._chunker.split_text(item[self.chunk_column])
 
 
-class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
+class LangChainRecursiveCharacterTextSplitter(
+    ChunkingRecursiveCharacterTextSplitter, Chunker
+):
     """
     Splits the text from the provided item into chunks using CharacterTextSplitter.
 
@@ -97,11 +98,6 @@ class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
     """
 
     implementation: Literal["recursive_character_text_splitter"]
-    separators: list[str]
-    chunk_size: int
-    chunk_column: str
-    chunk_overlap: int
-    is_separator_regex: bool
 
     @cached_property
     def _chunker(self) -> RecursiveCharacterTextSplitter:

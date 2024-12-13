@@ -22,8 +22,9 @@ import voyageai
 import voyageai.error
 from ddtrace import tracer
 from openai import resources
-from pydantic import BaseModel
 from typing_extensions import TypedDict, override
+
+from pgai.vectorizer.base import BaseOllamaConfig, BaseOpenAIConfig, BaseVoyageAIConfig
 
 MAX_RETRIES = 3
 
@@ -298,7 +299,7 @@ class EmbeddingStats:
         )
 
 
-class OpenAI(ApiKeyMixin, BaseModel, Embedder):
+class OpenAI(ApiKeyMixin, BaseOpenAIConfig, Embedder):
     """
     Embedder that uses OpenAI's API to embed documents into vector representations.
 
@@ -311,8 +312,6 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
     """
 
     implementation: Literal["openai"]
-    model: str
-    dimensions: int | None = None
     user: str | None = None
 
     @cached_property
@@ -321,7 +320,7 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
             if self.dimensions != 1536:
                 raise ValueError("dimensions must be 1536 for text-embedding-ada-002")
             return openai.NOT_GIVEN
-        return self.dimensions if self.dimensions is not None else openai.NOT_GIVEN
+        return self.dimensions
 
     @cached_property
     def _openai_user(self) -> str | openai.NotGiven:
@@ -512,7 +511,7 @@ class OllamaOptions(TypedDict, total=False):
     stop: Sequence[str]
 
 
-class Ollama(BaseModel, Embedder):
+class Ollama(BaseOllamaConfig, Embedder):
     """
     Embedder that uses Ollama to embed documents into vector representations.
 
@@ -526,10 +525,7 @@ class Ollama(BaseModel, Embedder):
     """
 
     implementation: Literal["ollama"]
-    model: str
-    base_url: str | None = None
     options: OllamaOptions | None = None
-    keep_alive: str | None = None  # this is only `str` because of the SQL API
 
     @override
     async def embed(self, documents: list[str]) -> Sequence[EmbeddingVector]:
@@ -598,7 +594,7 @@ class Ollama(BaseModel, Embedder):
         return min(model_context_length, num_ctx)
 
 
-class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
+class VoyageAI(ApiKeyMixin, BaseVoyageAIConfig, Embedder):
     """
     Embedder that uses Voyage AI to embed documents into vector representations.
 
@@ -612,8 +608,6 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
     """
 
     implementation: Literal["voyageai"]
-    model: str
-    input_type: Literal["document"] | Literal["query"] | None = None
 
     @override
     async def embed(self, documents: list[str]) -> Sequence[EmbeddingVector]:
