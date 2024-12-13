@@ -5,14 +5,14 @@
 
 <div align=center>
 
-<h3>pgai is your PostgreSQL-powered data layer for AI applications</h3>
+<h3>Power your AI applications with PostgreSQL</h3>
 
 [![Discord](https://img.shields.io/badge/Join_us_on_Discord-black?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/KRdHVXAmkp)
 [![Try Timescale for free](https://img.shields.io/badge/Try_Timescale_for_free-black?style=for-the-badge&logo=timescale&logoColor=white)](https://tsdb.co/gh-pgai-signup)
 </div>
 
 pgai is a PostgreSQL extension that simplifies data storage and retrieval for [Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation) (RAG), and other AI applications.
-In particular, it automates the creation of embeddings for your data stored in PostgreSQL, simplifies
+In particular, it automates the creation and sync of embeddings for your data stored in PostgreSQL, simplifies
 [semantic search](https://en.wikipedia.org/wiki/Semantic_search), and allows you to call LLM models from SQL.
 
 <div align=center>
@@ -22,25 +22,32 @@ In particular, it automates the creation of embeddings for your data stored in P
 </div>
 
 
-# Quick Start with Ollama
+# Quick Start
 
-This section will walk you through the steps to get started with pgai and Ollama and show you the major features of pgai.
+This section will walk you through the steps to get started with pgai and Ollama and show you the major features of pgai. We also have a [quick start with OpenAI](/docs/vectorizer-quick-start-openai.md) and a [quick start with Voyage AI](/docs/vectorizer-quick-start-voyage.md).
 
 ### Setup
 
-After checking out the repo, change directory to `examples/docker_compose_pgai_ollama` and run the following command to start the docker compose file:
+1. **Download the [docker compose file](/examples/docker_compose_pgai_ollama/docker-compose.yml) file.**
 
-```
-docker compose up -d
-```
+    ```
+    curl -O https://raw.githubusercontent.com/timescale/pgai/main/examples/docker_compose_pgai_ollama/docker-compose.yml
+    ```
 
-This will start Ollama and a PostgreSQL instance with the pgai extension installed. Now,
-tell Ollama to download the `all-minilm` model for embeddings and the `tinyllama` model for reasoning:
+1. **Start the docker compose file.**
+    ```
+    docker compose up -d
+    ```
 
-```
-docker compose exec ollama ollama pull all-minilm
-docker compose exec ollama ollama pull tinyllama
-```
+
+    This will start Ollama and a PostgreSQL instance with the pgai extension installed. 
+  
+1. **Download the Ollama models.** We'll use the `all-minilm` model for embeddings and the `tinyllama` model for reasoning.
+
+    ```
+    docker compose exec ollama ollama pull all-minilm
+    docker compose exec ollama ollama pull tinyllama
+    ```
 
 ### Create a table and run a vectorizer
 
@@ -144,16 +151,10 @@ docker compose exec ollama ollama pull tinyllama
   
     This is just one example of [model calling capabilities](#model-calling). Model calling can be used for a variety of tasks, including classification, summarization, moderation, and other forms of data enrichment. 
     
-    
-Other quick start guides:
-
-- [A more detailed quick start with Ollama](/docs/vectorizer-quick-start.md)
-- [A quick start with OpenAI](/docs/vectorizer-quick-start-openai.md)
-- [A quick start with Voyage AI](/docs/vectorizer-quick-start-voyage.md)
-
-
 
 # Overview
+
+### Features 
 
 **Working with embeddings generated from your data:**
 * Automatically create and sync vector embeddings for your data ([learn more](#automatically-create-and-sync-llm-embeddings-for-your-data))
@@ -167,6 +168,14 @@ Other quick start guides:
 
 **Useful utilities:**
 * Load datasets from Hugging Face into your database with [ai.load_dataset](/docs/load_dataset_from_huggingface.md).
+
+### Resources
+
+**Quick start guides:**
+
+- [A more detailed quick start with Ollama](/docs/vectorizer-quick-start.md)
+- [A quick start with OpenAI](/docs/vectorizer-quick-start-openai.md)
+- [A quick start with Voyage AI](/docs/vectorizer-quick-start-voyage.md)
 
 **Learn more about pgai:** To learn more about the pgai extension and why we built it, read
 [pgai: Giving PostgreSQL Developers AI Engineering Superpowers](http://www.timescale.com/blog/pgai-giving-postgresql-developers-ai-engineering-superpowers).
