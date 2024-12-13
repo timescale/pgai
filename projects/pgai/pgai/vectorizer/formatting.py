@@ -6,6 +6,8 @@ from typing import Any, Literal
 from pydantic import BaseModel
 from typing_extensions import override
 
+from pgai.vectorizer.base import BasePythonTemplate
+
 
 class Formatter(ABC):
     """
@@ -46,7 +48,7 @@ class ChunkValue(BaseModel, Formatter):
         return chunk
 
 
-class PythonTemplate(BaseModel, Formatter):
+class PythonTemplate(BasePythonTemplate, Formatter):
     """
     A formatter that uses Python's string.Template to format chunks of text.
 
@@ -58,7 +60,6 @@ class PythonTemplate(BaseModel, Formatter):
     """
 
     implementation: Literal["python_template"]
-    template: str
 
     @override
     def format(self, chunk: str, item: dict[str, Any]) -> str:

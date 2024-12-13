@@ -4,15 +4,21 @@ from alembic.operations import MigrateOperation, Operations
 from sqlalchemy import text
 from typing_extensions import override
 
-from pgai.configuration import (
-    ChunkingConfig,
+from pgai.vectorizer.configuration import (
+    CharacterTextSplitterConfig,
+    ChunkValueConfig,
     CreateVectorizerParams,
     DiskANNIndexingConfig,
     HNSWIndexingConfig,
+    NoIndexingConfig,
     NoSchedulingConfig,
+    OllamaEmbeddingConfig,
     OpenAIEmbeddingConfig,
     ProcessingConfig,
-    SchedulingConfig,
+    PythonTemplateConfig,
+    RecursiveCharacterTextSplitterConfig,
+    TimescaleSchedulingConfig,
+    VoyageAIEmbeddingConfig,
 )
 
 
@@ -21,12 +27,20 @@ class CreateVectorizerOp(MigrateOperation):
 
     def __init__(
         self,
-        source_table: str | None = None,
-        embedding: OpenAIEmbeddingConfig | None = None,
-        chunking: ChunkingConfig | None = None,
-        indexing: DiskANNIndexingConfig | HNSWIndexingConfig | None = None,
-        formatting_template: str | None = None,
-        scheduling: SchedulingConfig | NoSchedulingConfig | None = None,
+        source_table: str | None,
+        embedding: OpenAIEmbeddingConfig
+        | OllamaEmbeddingConfig
+        | VoyageAIEmbeddingConfig
+        | None = None,
+        chunking: CharacterTextSplitterConfig
+        | RecursiveCharacterTextSplitterConfig
+        | None = None,
+        indexing: DiskANNIndexingConfig
+        | HNSWIndexingConfig
+        | NoIndexingConfig
+        | None = None,
+        formatting: ChunkValueConfig | PythonTemplateConfig | None = None,
+        scheduling: TimescaleSchedulingConfig | NoSchedulingConfig | None = None,
         processing: ProcessingConfig | None = None,
         target_schema: str | None = None,
         target_table: str | None = None,
@@ -42,7 +56,7 @@ class CreateVectorizerOp(MigrateOperation):
             embedding=embedding,
             chunking=chunking,
             indexing=indexing,
-            formatting_template=formatting_template,
+            formatting=formatting,
             scheduling=scheduling,
             processing=processing,
             target_schema=target_schema,

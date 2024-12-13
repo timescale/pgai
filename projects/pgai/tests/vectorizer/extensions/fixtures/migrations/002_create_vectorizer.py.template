@@ -5,9 +5,10 @@ Revises: {revises}
 Create Date: {create_date}
 """
 from alembic import op
-from pgai.configuration import (
+from pgai.vectorizer.configuration import (
    OpenAIEmbeddingConfig,
-    ChunkingConfig
+   CharacterTextSplitterConfig,
+   PythonTemplateConfig
 )
 from sqlalchemy import text
 
@@ -25,11 +26,14 @@ def upgrade():
             model='text-embedding-3-small',
             dimensions=768
         ),
-        chunking=ChunkingConfig(
+        chunking=CharacterTextSplitterConfig(
             chunk_column='content',
-            chunk_size=700
+            chunk_size=800,
+            chunk_overlap=400,
+            separator='.',
+            is_separator_regex=False
         ),
-        formatting_template='$title - $chunk'
+        formatting=PythonTemplateConfig(template='$title - $chunk')
     )
 
 def downgrade():
