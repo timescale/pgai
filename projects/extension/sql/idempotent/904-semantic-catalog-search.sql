@@ -64,16 +64,23 @@ create or replace function ai._find_relevant_sql
 ( catalog_id pg_catalog.int4
 , embedding @extschema:vector@.vector
 , "limit" pg_catalog.int8 default 5
+, max_dist pg_catalog.float8 default null
 ) returns table
 ( id pg_catalog.int4
 , sql pg_catalog.text
 , description pg_catalog.text
+, dist pg_catalog.float8
 )
 as $func$
+declare
+    _dimensions pg_catalog.int4;
+    _sql pg_catalog.text;
 begin
-    return query execute pg_catalog.format
+    _dimensions = @extschema:vector@.vector_dims(embedding);
+
+    _sql = pg_catalog.format
     ( $sql$
-    select distinct x.id, x.sql, x.description
+    select x.id, x.sql, x.description, min(x.dist) as dist
     from
     (
         select
@@ -82,14 +89,28 @@ begin
         , x.description
         , x.embedding operator(@extschema:vector@.<=>) ($1::@extschema:vector@.vector(%s)) as dist
         from ai.semantic_catalog_sql_%s x
+        %s
         order by dist
         limit %L
     ) x
+    group by x.id, x.sql, x.description
+    order by min(x.dist)
     $sql$
-    , @extschema:vector@.vector_dims(embedding)
+    , _dimensions
     , catalog_id
+    , case
+        when max_dist is null then ''
+        else pg_catalog.format
+        ( $sql$where (x.embedding operator(@extschema:vector@.<=>) ($1::@extschema:vector@.vector(%s))) <= %s$sql$
+        , _dimensions
+        , max_dist
+        )
+      end
     , "limit"
-    ) using embedding;
+    );
+    -- raise log '%', _sql;
+
+    return query execute _sql using embedding;
 end;
 $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
@@ -101,10 +122,12 @@ create or replace function ai.find_relevant_sql
 ( prompt pg_catalog.text
 , catalog_name pg_catalog.name default 'default'
 , "limit" pg_catalog.int8 default 5
+, max_dist pg_catalog.float8 default null
 ) returns table
 ( id pg_catalog.int4
 , sql pg_catalog.text
 , description pg_catalog.text
+, dist pg_catalog.float8
 )
 as $func$
 declare
@@ -124,6 +147,7 @@ begin
     ( _catalog_id
     , _embedding
     , "limit"
+    , max_dist
     );
 end;
 $func$ language plpgsql stable security invoker
@@ -137,6 +161,7 @@ create or replace function ai._find_relevant_obj
 , embedding @extschema:vector@.vector
 , "limit" pg_catalog.int8 default 5
 , only_objtype pg_catalog.text default null
+, max_dist pg_catalog.float8 default null
 ) returns table
 ( objtype pg_catalog.text
 , objnames pg_catalog.text[]
@@ -145,12 +170,18 @@ create or replace function ai._find_relevant_obj
 , objid pg_catalog.oid
 , objsubid pg_catalog.int4
 , description pg_catalog.text
+, dist pg_catalog.float8
 )
 as $func$
+declare
+    _dimensions pg_catalog.int4;
+    _sql pg_catalog.text;
 begin
-    return query execute pg_catalog.format
+    _dimensions = @extschema:vector@.vector_dims(embedding);
+
+    _sql = pg_catalog.format
     ( $sql$
-    select distinct
+    select
       x.objtype
     , x.objnames
     , x.objargs
@@ -158,6 +189,7 @@ begin
     , x.objid
     , x.objsubid
     , x.description
+    , min(x.dist) as dist
     from
     (
         select
@@ -179,21 +211,35 @@ begin
             when 'function' then pg_catalog.has_function_privilege($2, x.objid, 'execute')
         end
         %s
+        %s
         order by dist
         limit %L
     ) x
+    group by
+      x.objtype
+    , x.objnames
+    , x.objargs
+    , x.classid
+    , x.objid
+    , x.objsubid
+    , x.description
+    order by min(x.dist)
     $sql$
-    , @extschema:vector@.vector_dims(embedding)
+    , _dimensions
     , catalog_id
     , case
         when only_objtype is null then ''
         else pg_catalog.format('and x.objtype operator(pg_catalog.=) %L', only_objtype)
       end
+    , case
+        when max_dist is null then ''
+        else pg_catalog.format('and (x.embedding operator(@extschema:vector@.<=>) ($1::@extschema:vector@.vector(%s))) <= %s', _dimensions, max_dist)
+      end
     , "limit"
-    ) using
-      embedding
-    , pg_catalog."current_user"()
-    ;
+    );
+    -- raise log '%', _sql;
+
+    return query execute _sql using embedding, pg_catalog."current_user"();
 end;
 $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
@@ -206,6 +252,7 @@ create or replace function ai.find_relevant_obj
 , catalog_name pg_catalog.name default 'default'
 , "limit" pg_catalog.int8 default 5
 , only_objtype pg_catalog.text default null
+, max_dist pg_catalog.float8 default null
 ) returns table
 ( objtype pg_catalog.text
 , objnames pg_catalog.text[]
@@ -214,6 +261,7 @@ create or replace function ai.find_relevant_obj
 , objid pg_catalog.oid
 , objsubid pg_catalog.int4
 , description pg_catalog.text
+, dist pg_catalog.float8
 )
 as $func$
 declare
@@ -234,49 +282,10 @@ begin
     , _embedding
     , "limit"
     , only_objtype
+    , max_dist
     );
 end;
 $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
--------------------------------------------------------------------------------
--- describe_relevant_obj
-create or replace function ai.describe_relevant_obj
-( prompt pg_catalog.text
-, catalog_name pg_catalog.name default 'default'
-, "limit" pg_catalog.int8 default 5
-, only_objtype pg_catalog.text default null
-) returns table
-( objtype pg_catalog.text
-, objnames pg_catalog.text[]
-, objargs pg_catalog.text[]
-, classid pg_catalog.oid
-, objid pg_catalog.oid
-, objsubid pg_catalog.int4
-, description pg_catalog.text
-)
-as $func$
-declare
-    _catalog_id pg_catalog.int4;
-    _embedding @extschema:vector@.vector;
-begin
-    select x.id into strict _catalog_id
-    from ai.semantic_catalog x
-    where x."name" operator(pg_catalog.=) catalog_name
-    ;
-
-    _embedding = ai._semantic_catalog_embed(_catalog_id, prompt);
-
-    return query
-    select *
-    from ai._find_relevant_obj
-    ( _catalog_id
-    , _embedding
-    , "limit"
-    , only_objtype
-    );
-end;
-$func$ language plpgsql stable security invoker
-set search_path to pg_catalog, pg_temp
-;

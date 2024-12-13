@@ -365,7 +365,7 @@ def test_text_to_sql() -> None:
             cur.execute("delete from ai._vectorizer_q_2")
 
             cur.execute(
-                """select * from ai.find_relevant_obj('i need a function about life')"""
+                """select * from ai.find_relevant_obj('i need a function about life', only_objtype=>'function')"""
             )
             for row in cur.fetchall():
                 assert row.objtype == "function"
@@ -379,6 +379,12 @@ def test_text_to_sql() -> None:
             )
             for row in cur.fetchall():
                 assert row.objtype == "table column"
+
+            cur.execute(
+                """select * from ai.find_relevant_obj('i need a function about life', max_dist=>0.4)"""
+            )
+            for row in cur.fetchall():
+                assert row.dist <= 0.4
 
             cur.execute(
                 """select * from ai.find_relevant_sql('i need a query to tell me about bobby''s life')"""
