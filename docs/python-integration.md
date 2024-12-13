@@ -165,7 +165,7 @@ for post, embedding in results:
 
 ## Working with alembic 
 
-
+### Excluding managed tables
 The `vectorizer_relationship` generates a new SQLAlchemy model, that is available under the attribute that you specify. If you are using alembic's autogenerate functionality to generate migrations, you will need to exclude these models from the autogenerate process.
 These are added to a list in your metadata called `pgai_managed_tables` and you can exclude them by adding the following to your `env.py`:
 
@@ -185,8 +185,8 @@ context.configure(
 This should now prevent alembic from generating tables for these models when you run `alembic revision --autogenerate`.
 
 
-
-pgai provides native Alembic operations for managing vectorizers. For them to work you need to run `setup_alembic` in your env.py file. Which registers the pgai operations under the global op context:
+### Creating vectorizers
+pgai provides native Alembic operations for managing vectorizers. For them to work you need to run `register_operations` in your env.py file. Which registers the pgai operations under the global op context:
 
 ```python
 from pgai.alembic import register_operations
@@ -198,30 +198,29 @@ Then you can use the `create_vectorizer` operation to create a vectorizer for yo
 
 ```python
 from alembic import op
-from pgai.configuration import (
+from pgai.vectorizer.configuration import (
     OpenAIEmbeddingConfig,
-    ChunkingConfig,
-    DiskANNIndexingConfig
+    CharacterTextSplitterConfig,
+    PythonTemplateConfig
 )
 
 
 def upgrade() -> None:
     op.create_vectorizer(
-        source_table="blog_posts",
-        target_table="blog_posts_content_embeddings_store",
+        source_table="blog",
+        target_table='blog_embeddings',
         embedding=OpenAIEmbeddingConfig(
-            model="text-embedding-3-small",
+            model='text-embedding-3-small',
             dimensions=768
         ),
-        chunking=ChunkingConfig.recursive_character_text_splitter(
-            source_column="content",
-            chunk_size=50,
-            chunk_overlap=10
+        chunking=CharacterTextSplitterConfig(
+            chunk_column='content',
+            chunk_size=800,
+            chunk_overlap=400,
+            separator='.',
+            is_separator_regex=False
         ),
-        indexing=DiskANNIndexingConfig(
-            min_rows=10,
-            num_dimensions=768
-        )
+        formatting=PythonTemplateConfig(template='$title - $chunk')
     )
 
 
