@@ -308,6 +308,10 @@
  f       | bob   | execute   | no      | ai     | scheduling_timescaledb(schedule_interval interval, initial_start timestamp with time zone, fixed_schedule boolean, timezone text)
  f       | fred  | execute   | no      | ai     | scheduling_timescaledb(schedule_interval interval, initial_start timestamp with time zone, fixed_schedule boolean, timezone text)
  f       | jill  | execute   | YES     | ai     | scheduling_timescaledb(schedule_interval interval, initial_start timestamp with time zone, fixed_schedule boolean, timezone text)
+ f       | alice | execute   | YES     | ai     | vectorizer_embed(vectorizer_id integer, input_text text, input_type text)
+ f       | bob   | execute   | no      | ai     | vectorizer_embed(vectorizer_id integer, input_text text, input_type text)
+ f       | fred  | execute   | no      | ai     | vectorizer_embed(vectorizer_id integer, input_text text, input_type text)
+ f       | jill  | execute   | YES     | ai     | vectorizer_embed(vectorizer_id integer, input_text text, input_type text)
  f       | alice | execute   | YES     | ai     | vectorizer_queue_pending(vectorizer_id integer, exact_count boolean)
  f       | bob   | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer, exact_count boolean)
  f       | fred  | execute   | no      | ai     | vectorizer_queue_pending(vectorizer_id integer, exact_count boolean)
@@ -320,5 +324,5 @@
  f       | bob   | execute   | no      | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text)
  f       | fred  | execute   | no      | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text)
  f       | jill  | execute   | YES     | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text)
-(320 rows)
+(324 rows)
 
