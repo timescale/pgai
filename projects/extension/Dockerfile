@@ -47,6 +47,7 @@ RUN set -e; \
 FROM base AS pgai-test-db
 ENV PG_MAJOR=${PG_MAJOR}
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
+RUN pip install uv==0.5.9
 WORKDIR /pgai
 COPY . .
 RUN just build install
@@ -58,17 +59,17 @@ FROM base
 ENV WHERE_AM_I=docker
 USER root
 
+RUN pip install --break-system-packages uv==0.5.9
+
 # install pgspot
-ENV PIP_BREAK_SYSTEM_PACKAGES=1
 RUN set -eux; \
     git clone https://github.com/timescale/pgspot.git /build/pgspot; \
-    pip install /build/pgspot; \
+    uv pip install --system --break-system-packages /build/pgspot; \
     rm -rf /build/pgspot
 
 # install our test python dependencies
-ENV PIP_BREAK_SYSTEM_PACKAGES=1
 COPY requirements-test.txt /build/requirements-test.txt
-RUN pip install -r /build/requirements-test.txt
+RUN uv pip install --system --break-system-packages -r /build/requirements-test.txt
 RUN rm -r /build
 
 WORKDIR /pgai

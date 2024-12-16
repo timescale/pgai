@@ -7,3 +7,4 @@ python-dotenv==1.0.1
 fastapi==0.112.0
 fastapi-cli==0.0.5
 psycopg[binary]==3.2.1
+uv==0.5.9

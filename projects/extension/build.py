@@ -451,9 +451,13 @@ def install_old_py_deps() -> None:
     old_reqs_file = ext_dir().joinpath("old_requirements.txt").resolve()
     if old_reqs_file.is_file():
         env = {k: v for k, v in os.environ.items()}
-        env["PIP_BREAK_SYSTEM_PACKAGES"] = "1"
+        cmd = (
+            f"pip3 install -v --compile --break-system-packages -r {old_reqs_file}"
+            if shutil.which("uv") is None
+            else f"uv pip install -v --compile --system --break-system-packages -r {old_reqs_file}"
+        )
         subprocess.run(
-            f"pip3 install -v --compile -r {old_reqs_file}",
+            cmd,
             shell=True,
             check=True,
             env=env,
@@ -482,8 +486,10 @@ def install_prior_py() -> None:
             env=os.environ,
         )
         tmp_src_dir = tmp_dir.joinpath("projects", "extension").resolve()
+        bin = "pip3" if shutil.which("uv") is None else "uv pip"
+        cmd = f'{bin} install -v --compile --target "{version_target_dir}" "{tmp_src_dir}"'
         subprocess.run(
-            f'pip3 install -v --compile -t "{version_target_dir}" "{tmp_src_dir}"',
+            cmd,
             check=True,
             shell=True,
             env=os.environ,
@@ -524,8 +530,10 @@ def install_py() -> None:
             "pgai-*.dist-info"
         ):  # delete package info if exists
             shutil.rmtree(d)
+        bin = "pip3" if shutil.which("uv") is None else "uv pip"
+        cmd = f'{bin} install -v --no-deps --compile --target "{version_target_dir}" "{ext_dir()}"'
         subprocess.run(
-            f'pip3 install -v --no-deps --compile -t "{version_target_dir}" "{ext_dir()}"',
+            cmd,
             check=True,
             shell=True,
             env=os.environ,
@@ -533,8 +541,12 @@ def install_py() -> None:
         )
     else:
         version_target_dir.mkdir(exist_ok=True)
+        bin = "pip3" if shutil.which("uv") is None else "uv pip"
+        cmd = (
+            f'{bin} install -v --compile --target "{version_target_dir}" "{ext_dir()}"'
+        )
         subprocess.run(
-            f'pip3 install -v --compile -t "{version_target_dir}" "{ext_dir()}"',
+            cmd,
             check=True,
             shell=True,
             env=os.environ,
