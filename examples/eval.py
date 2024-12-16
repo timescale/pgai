@@ -40,8 +40,20 @@ Installation and Setup:
 
 Dataset Setup:
 1. Load Paul Graham Essays dataset from HuggingFace: `SELECT ai.load_dataset('sgoel9/paul_graham_essays');`
-2. Create vectorizers for each model
-3. Verify vectorization status and dimensions
+2. Create vectorizers for each model (API docs: https://github.com/timescale/pgai/blob/main/docs/vectorizer.md)
+
+    -- OpenAI text-embedding-3-small (768 dim)
+    SELECT ai.create_vectorizer(
+        'pg_essays'::regclass,
+        destination => 'essays_openai_small_embeddings',
+        embedding => ai.embedding_openai('text-embedding-3-small', 768),
+        chunking => ai.chunking_recursive_character_text_splitter('text', 512, 50)
+    );
+
+    -- Also create Vectorizers for Nomic embed-text (768 dim), BGE Large (1024 dim), and OpenAI text-embedding-3-large (1536 dim)
+
+-- 3. Verify vectorization status
+SELECT * FROM ai.vectorizer_status;
 
 Usage:
 1. First-time setup:
