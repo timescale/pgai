@@ -45,9 +45,6 @@ Dataset Setup:
 
 Usage:
 1. First-time setup:
-   - Optional: Set OPENAI_API_KEY in environment (I think you only need 
-               to do this if you didn't set compose.yaml correctly 
-               initially, which I made the mistake of)
    - Ensure PostgreSQL Docker container is running with pgai extension
    - Configure Config class parameters if needed (top of file)
 
