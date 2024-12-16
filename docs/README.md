@@ -36,24 +36,32 @@ DDL-like feature — like an index.
 - **Reference**:
   * [pgai Vectorizer API reference](/docs/vectorizer-api-reference.md): API reference for Vectorizer functions 
 
+## pgai install
+
+* [Install pgai with Docker](/docs/install_docker.md): run pgai in a container environment.
+* [Install pgai from source](/docs/install_from_source.md): create a developer environment for pgai.
+
 ## pgai model calling
 
 Simplifies data storage and retrieval for AI apps. 
 
-- **Get started**:
-  * [Install pgai with Docker](/docs/install_docker.md): run pgai in a container environment.
-  * [Setup pgai with Anthropic](/docs/anthropic.md): configure pgai to connect to your Anthropic account.
-  * [Setup pgai with Cohere](/docs/cohere.md): configure pgai to connect to your Cohere account.
-  * [Setup pgai with Ollama](/docs/ollama.md): configure pgai to connect to your Ollama account.
-  * [Setup pgai with OpenAI](/docs/openai.md): configure pgai to connect to your OpenAI account.
-  * [Setup pgai with Voyage AI](/docs/voyageai.md): configure pgai to connect to your Voyage AI account.
+- **Choose your model**:
+
+  | **Model**       | **Tokenize** | **Embed** | **Chat Complete** | **Generate** | **Moderate** | **Classify** | **Rerank** |
+  |------------------|:------------:|:---------:|:-----------------:|:------------:|:------------:|:------------:|:----------:|
+  | **[Ollama](/docs/ollama.md)**      |              |     ✔️    |         ✔️         |      ✔️      |              |              |           |
+  | **[OpenAI](/docs/openai.md)**      |      ✔️️      |     ✔️    |         ✔️         |              |      ✔️      |              |           |
+  | **[Anthropic](/docs/anthropic.md)**  |              |           |                    |      ✔️      |              |              |           |
+  | **[Cohere](/docs/cohere.md)**      |      ✔️      |     ✔️    |         ✔️         |              |              |      ✔️      |     ✔️     |
+  | **[Voyage AI](/docs/voyageai.md)** |              |     ✔️    |                  |              |              |              |           |
+  
+  
 - **Use**:
   * [Delayed embed](/docs/delayed_embed.md): run pgai using pgai or TimescaleDB background actions.
   * [Load dataset from Hugging Face](/docs/load_dataset_from_huggingface.md): load datasets from Hugging Face's datasets library directly into your PostgreSQL database.
   * [Moderate comments using OpenAI](/docs/moderate.md): use triggers or actions to moderate comments using OpenAI.
   * [Secure pgai with user privilages](/docs/privileges.md): grant the necessary permissions for a specific user or role to use pgai functionality.
-- **Develop**:
-  * [Install pgai from source](/docs/install_from_source.md): create an environment to develop pgai. 
+
 
 
 
