@@ -42,12 +42,6 @@ On your local machine:
    ```shell
     docker compose up -d
     ```
-## Download your embedding model
-Before we start we need to tell ollama to download an embedding model so we can use it with pgai. For this example we will use the "nomic-embed-text" model.
-To download it into the container simply run:
-```
-docker compose exec ollama ollama pull nomic-embed-text
-```
 
 ## Create and run a vectorizer
 

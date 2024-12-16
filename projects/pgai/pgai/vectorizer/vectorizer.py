@@ -462,6 +462,7 @@ class Worker:
 
         async with await psycopg.AsyncConnection.connect(self.db_url) as conn:
             await register_vector_async(conn)
+            await self.vectorizer.config.embedding.setup()
             while True:
                 if not self._continue_processing(loops, res):
                     return res
