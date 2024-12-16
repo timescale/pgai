@@ -1,4 +1,4 @@
-# Moderate
+# Moderate comments using OpenAI
 
 Let's say you want to moderate comments using OpenAI. You can do it in two ways:
 

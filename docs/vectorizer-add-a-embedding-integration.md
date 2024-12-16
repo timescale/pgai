@@ -1,4 +1,4 @@
-# Adding a Vectorizer embedding integration
+# Add a Vectorizer embedding integration
 
 We welcome contributions to add new vectorizer embedding integrations.
 
