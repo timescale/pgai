@@ -18,13 +18,13 @@ In particular, it automates the creation and sync of embeddings for your data st
 The pgai documentation helps you setup, use and develop the projects that make up pgai.  
 
 
-## Vectorizer
+## pgai Vectorizer
 
 Vectorizer automates the embedding process within your database management by treating embeddings as a declarative,
 DDL-like feature — like an index.
 
 - **Get started**:
-  * [Vectorizer quickstart](/docs/vectorizer-quick-start.md): setup your developer environment, create and run a vectorizer.
+  * [Vectorizer quickstart for Ollama](/docs/vectorizer-quick-start.md): setup your developer environment, create and run a vectorizer.
   * [Vectorizer quickstart for OpenAI](/docs/vectorizer-quick-start-openai.md): setup your developer environment, create and run a vectorizer using OpenAI.
   * [Vectorizer quickstart for Voyage](/docs/vectorizer-quick-start-voyage.md): setup your developer environment, create and run a vectorizer using Voyage. 
 - **Use**:
@@ -36,7 +36,7 @@ DDL-like feature — like an index.
 - **Reference**:
   * [pgai Vectorizer API reference](/docs/vectorizer-api-reference.md): API reference for Vectorizer functions 
 
-## pgai
+## pgai model calling
 
 Simplifies data storage and retrieval for AI apps. 
 
