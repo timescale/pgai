@@ -100,9 +100,9 @@ View definition:
    FROM ai.semantic_catalog_sql_1_store t
      LEFT JOIN ai.semantic_catalog_sql s ON t.id = s.id;
 
- id |  name   | obj_vectorizer_id | sql_vectorizer_id 
-----+---------+-------------------+-------------------
-  1 | default |                 1 |                 2
+ id | catalog_name | obj_vectorizer_id | sql_vectorizer_id 
+----+--------------+-------------------+-------------------
+  1 | default      |                 1 |                 2
 (1 row)
 
    objtype    |      objnames      |  objargs  |                description                

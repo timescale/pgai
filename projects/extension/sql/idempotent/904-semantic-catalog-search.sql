@@ -1,6 +1,6 @@
 --FEATURE-FLAG: text_to_sql
 
-/*
+
 -------------------------------------------------------------------------------
 -- _semantic_catalog_embed
 create or replace function ai._semantic_catalog_embed
@@ -8,57 +8,18 @@ create or replace function ai._semantic_catalog_embed
 , prompt pg_catalog.text
 ) returns @extschema:vector@.vector
 as $func$
-declare
-    _vectorizer_id pg_catalog.int4;
-    _config pg_catalog.jsonb;
-    _emb @extschema:vector@.vector;
-begin
-    select x.obj_vectorizer_id -- TODO: assumes the embedding settings are the same for obj and sql
-    into strict _vectorizer_id
+    select ai.vectorizer_embed
+    ( v.config operator(pg_catalog.->) 'embedding'
+    , prompt
+    )
     from ai.semantic_catalog x
+    inner join ai.vectorizer v
+    on (x.obj_vectorizer_id operator(pg_catalog.=) v.id)
     where x.id operator(pg_catalog.=) catalog_id
     ;
-
-    select v.config operator(pg_catalog.->) 'embedding'
-    into strict _config
-    from ai.vectorizer v
-    where v.id operator(pg_catalog.=) _vectorizer_id
-    ;
-
-    case _config operator(pg_catalog.->>) 'implementation'
-        when 'openai' then
-            _emb = ai.openai_embed
-            ( _config operator(pg_catalog.->>) 'model'
-            , prompt
-            , api_key_name=>(_config operator(pg_catalog.->>) 'api_key_name')
-            , dimensions=>(_config operator(pg_catalog.->>) 'dimensions')::pg_catalog.int4
-            , openai_user=>(_config operator(pg_catalog.->>) 'user')
-            );
-        when 'ollama' then
-            _emb = ai.ollama_embed
-            ( _config operator(pg_catalog.->>) 'model'
-            , prompt
-            , host=>(_config operator(pg_catalog.->>) 'base_url')
-            , keep_alive=>(_config operator(pg_catalog.->>) 'keep_alive')
-            , embedding_options=>(_config operator(pg_catalog.->) 'options')
-            );
-        when 'voyageai' then
-            _emb = ai.voyageai_embed
-            ( _config operator(pg_catalog.->>) 'model'
-            , prompt
-            , input_type=>'query'
-            , api_key_name=>(_config operator(pg_catalog.->>) 'api_key_name')
-            );
-        else
-            raise exception 'unsupported embedding implementation';
-    end case;
-
-    return _emb;
-end
-$func$ language plpgsql stable security invoker
+$func$ language sql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
-*/
 
 -------------------------------------------------------------------------------
 -- find_relevant_sql
@@ -144,7 +105,7 @@ begin
       _catalog_id
     , _vectorizer_id
     from ai.semantic_catalog x
-    where x."name" operator(pg_catalog.=) catalog_name
+    where x.catalog_name operator(pg_catalog.=) find_relevant_sql.catalog_name
     ;
 
     _embedding = ai.vectorizer_embed(_vectorizer_id, prompt);
@@ -284,7 +245,7 @@ begin
       _catalog_id
     , _vectorizer_id
     from ai.semantic_catalog x
-    where x."name" operator(pg_catalog.=) catalog_name
+    where x.catalog_name operator(pg_catalog.=) find_relevant_obj.catalog_name
     ;
 
     _embedding = ai.vectorizer_embed(_vectorizer_id, prompt);
