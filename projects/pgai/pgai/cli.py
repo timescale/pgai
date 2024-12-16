@@ -102,8 +102,15 @@ def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer:
         # The Ollama API doesn't need a key, so `api_key_name` may be unset
         if "api_key_name" in embedding:
             api_key_name = embedding["api_key_name"]
-            api_key = os.getenv(api_key_name, None)
+            cur.execute(
+                "select ai.reveal_secret(%s)",  # noqa
+                (api_key_name,),
+            )
+            row = cur.fetchone()
+            api_key = row["reveal_secret"] if row is not None else None
             if api_key is None:
+                api_key = os.getenv(api_key_name, None)
+            if not api_key:
                 raise ApiKeyNotFoundError(
                     f"api_key_name={api_key_name} vectorizer_id={vectorizer_id}"
                 )

@@ -1,10 +1,12 @@
 import os
+from collections.abc import Callable, Generator, Mapping
 from pathlib import Path
 from typing import Any
 
 import pytest
 import tiktoken
 import vcr  # type:ignore
+from dotenv import load_dotenv
 from testcontainers.core.image import DockerImage  # type:ignore
 from testcontainers.postgres import PostgresContainer  # type:ignore
 
@@ -55,18 +57,59 @@ def vcr_():
 
 
 @pytest.fixture(scope="session")
-def postgres_container():
+def postgres_container_manager() -> (
+    Generator[Callable[[bool], PostgresContainer], None, None]
+):
+    load_dotenv()
     extension_dir = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "../../../extension/")
     )
     image = DockerImage(path=extension_dir, tag="pgai-test-db").build(  # type: ignore
         target="pgai-test-db"
     )
-    with PostgresContainer(
-        image=str(image),
-        username="tsdbquerier",
-        password="my-password",
-        dbname="tsdb",
-        driver=None,
-    ) as postgres:
-        yield postgres
+
+    containers: dict[str, PostgresContainer] = {}
+
+    def get_container(load_openai_key: bool = True) -> PostgresContainer:
+        # Use config as cache key
+        key = f"openai_{load_openai_key}"
+
+        if key not in containers:
+            container = PostgresContainer(
+                image=str(image),
+                username="tsdbquerier",
+                password="my-password",
+                dbname="tsdb",
+                driver=None,
+            )
+
+            if load_openai_key:
+                openai_api_key = os.environ["OPENAI_API_KEY"]
+                container = container.with_env("OPENAI_API_KEY", openai_api_key)
+
+            containers[key] = container
+            container.start()
+
+        return containers[key]
+
+    yield get_container
+
+    # Cleanup all containers
+    for container in containers.values():
+        container.stop()
+
+
+@pytest.fixture
+def postgres_container(
+    request: pytest.FixtureRequest,
+    postgres_container_manager: Callable[[bool], PostgresContainer],
+) -> Generator[PostgresContainer, None, None]:
+    marker: pytest.Mark | None = None
+    for marker in request.node.iter_markers():  # type: ignore
+        if marker.name == "postgres_params":  # type: ignore
+            break
+
+    params: Mapping[str, Any] = marker.kwargs if marker else {}  # type: ignore
+    load_openai_key: bool = params.get("load_openai_key", True)  # type: ignore
+
+    return postgres_container_manager(load_openai_key=load_openai_key)  # type: ignore
