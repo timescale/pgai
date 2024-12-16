@@ -28,9 +28,9 @@ Configuration:
 ]
 
 Installation and Setup:
-1. Create directory with compose.yaml. **MAKE SURE YOU HAVE OPEN_API_KEY IN compose.yaml, VERY IMPORTANT!!!**
-    - services.db.environment.OPEN_API_KEY="sk-project-.."
-    - services.vectorizer-worker.environment.OPEN_API_KEY="sk-project-.."=
+1. Create directory with compose.yaml. **MAKE SURE YOU HAVE OPENAI_API_KEY IN compose.yaml, VERY IMPORTANT!!!**
+    - services.db.environment.OPENAI_API_KEY="sk-project-.."
+    - services.vectorizer-worker.environment.OPENAI_API_KEY="sk-project-.."=
 2. Start services: docker compose up -d
 3. Pull embedding models (these are the ones I'm using, you can use others):
    docker compose exec ollama ollama pull nomic-embed-text
