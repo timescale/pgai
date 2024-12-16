@@ -30,20 +30,28 @@ def host_dir() -> Path:
     return Path(__file__).parent.absolute()
 
 
-def init(version: int) -> None:
+def init() -> str:
     cmd = " ".join(
         [
             "psql",
             f'''-d "{db_url("postgres", "postgres")}"''',
             "-v ON_ERROR_STOP=1",
             "-X",
-            f"-o {docker_dir()}/output{version}.actual",
             f"-f {docker_dir()}/init.sql",
         ]
     )
     if where_am_i() != "docker":
         cmd = f"docker exec -w {docker_dir()} pgai-ext {cmd}"
-    subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
+    result = subprocess.run(
+        cmd,
+        check=True,
+        shell=True,
+        env=os.environ,
+        cwd=str(host_dir()),
+        text=True,
+        capture_output=True,
+    )
+    return result.stdout
 
 
 def major_version() -> int:
@@ -56,9 +64,6 @@ def major_version() -> int:
             return int(version[0:2])
 
 
-def test_contents() -> None:
+def test_contents(snapshot) -> None:
     version = major_version()
-    init(version)
-    actual = host_dir().joinpath(f"output{version}.actual").read_text()
-    expected = host_dir().joinpath(f"output{version}.expected").read_text()
-    assert actual == expected
+    assert snapshot(f"pg{version}.txt") == init()
