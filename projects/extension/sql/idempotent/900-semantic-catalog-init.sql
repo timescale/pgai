@@ -8,7 +8,7 @@ create or replace function ai.initialize_semantic_catalog
 , scheduling pg_catalog.jsonb default ai.scheduling_default()
 , processing pg_catalog.jsonb default ai.processing_default()
 , grant_to pg_catalog.name[] default ai.grant_to()
-, "name" pg_catalog.name default 'default'
+, catalog_name pg_catalog.name default 'default'
 ) returns pg_catalog.int4
 as $func$
 declare
@@ -54,13 +54,13 @@ begin
 
     insert into ai.semantic_catalog
     ( id
-    , "name"
+    , catalog_name
     , obj_vectorizer_id
     , sql_vectorizer_id
     )
     values
     ( _catalog_id
-    , initialize_semantic_catalog."name"
+    , initialize_semantic_catalog.catalog_name
     , _obj_vec_id
     , _sql_vec_id
     )
