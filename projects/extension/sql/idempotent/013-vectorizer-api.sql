@@ -600,44 +600,37 @@ from ai.vectorizer v
 -------------------------------------------------------------------------------
 -- vectorizer_embed
 create or replace function ai.vectorizer_embed
-( vectorizer_id pg_catalog.int4
+( embedding_config pg_catalog.jsonb
 , input_text pg_catalog.text
 , input_type pg_catalog.text default null
 ) returns @extschema:vector@.vector
 as $func$
 declare
-    _config pg_catalog.jsonb;
     _emb @extschema:vector@.vector;
 begin
-    select v.config operator(pg_catalog.->) 'embedding'
-    into strict _config
-    from ai.vectorizer v
-    where v.id operator(pg_catalog.=) vectorizer_id
-    ;
-
-    case _config operator(pg_catalog.->>) 'implementation'
+    case embedding_config operator(pg_catalog.->>) 'implementation'
         when 'openai' then
             _emb = ai.openai_embed
-            ( _config operator(pg_catalog.->>) 'model'
+            ( embedding_config operator(pg_catalog.->>) 'model'
             , input_text
-            , api_key_name=>(_config operator(pg_catalog.->>) 'api_key_name')
-            , dimensions=>(_config operator(pg_catalog.->>) 'dimensions')::pg_catalog.int4
-            , openai_user=>(_config operator(pg_catalog.->>) 'user')
+            , api_key_name=>(embedding_config operator(pg_catalog.->>) 'api_key_name')
+            , dimensions=>(embedding_config operator(pg_catalog.->>) 'dimensions')::pg_catalog.int4
+            , openai_user=>(embedding_config operator(pg_catalog.->>) 'user')
             );
         when 'ollama' then
             _emb = ai.ollama_embed
-            ( _config operator(pg_catalog.->>) 'model'
+            ( embedding_config operator(pg_catalog.->>) 'model'
             , input_text
-            , host=>(_config operator(pg_catalog.->>) 'base_url')
-            , keep_alive=>(_config operator(pg_catalog.->>) 'keep_alive')
-            , embedding_options=>(_config operator(pg_catalog.->) 'options')
+            , host=>(embedding_config operator(pg_catalog.->>) 'base_url')
+            , keep_alive=>(embedding_config operator(pg_catalog.->>) 'keep_alive')
+            , embedding_options=>(embedding_config operator(pg_catalog.->) 'options')
             );
         when 'voyageai' then
             _emb = ai.voyageai_embed
-            ( _config operator(pg_catalog.->>) 'model'
+            ( embedding_config operator(pg_catalog.->>) 'model'
             , input_text
             , input_type=>coalesce(input_type, 'query')
-            , api_key_name=>(_config operator(pg_catalog.->>) 'api_key_name')
+            , api_key_name=>(embedding_config operator(pg_catalog.->>) 'api_key_name')
             );
         else
             raise exception 'unsupported embedding implementation';
@@ -645,6 +638,26 @@ begin
 
     return _emb;
 end
-$func$ language plpgsql stable security invoker
+$func$ language plpgsql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- vectorizer_embed
+create or replace function ai.vectorizer_embed
+( vectorizer_id pg_catalog.int4
+, input_text pg_catalog.text
+, input_type pg_catalog.text default null
+) returns @extschema:vector@.vector
+as $func$
+    select ai.vectorizer_embed
+    ( v.config operator(pg_catalog.->) 'embedding'
+    , input_text
+    , input_type
+    )
+    from ai.vectorizer v
+    where v.id operator(pg_catalog.=) vectorizer_id
+    ;
+$func$ language sql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
