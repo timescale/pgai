@@ -39,9 +39,17 @@ Installation and Setup:
    CREATE EXTENSION IF NOT EXISTS ai CASCADE;
 
 Dataset Setup:
-1. Load Paul Graham Essays dataset from HuggingFace: `SELECT ai.load_dataset('sgoel9/paul_graham_essays');`
-2. Create vectorizers for each model (API docs: https://github.com/timescale/pgai/blob/main/docs/vectorizer.md)
+1. Create table with primary key and load Paul Graham Essays dataset:
+   CREATE TABLE pg_essays (
+       id SERIAL PRIMARY KEY,
+       title TEXT,
+       link TEXT,
+       text TEXT
+   );
+   
+   SELECT ai.load_dataset('sgoel9/paul_graham_essays', table_name => 'pg_essays');
 
+2. Create vectorizers for each model:
     -- OpenAI text-embedding-3-small (768 dim)
     SELECT ai.create_vectorizer(
         'pg_essays'::regclass,
