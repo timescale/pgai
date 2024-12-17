@@ -602,7 +602,7 @@ HNSW is suitable for in-memory datasets and scenarios where query speed is cruci
 ```sql
   SELECT ai.create_vectorizer(
       'blog_posts'::regclass,
-      indexing => ai.indexing_hnsw(min_rows => 50000, opclass => 'vector_l2_ops'),
+      indexing => ai.indexing_hnsw(min_rows => 50000, opclass => 'vector_l1_ops'),
       -- other parameters...
   );
 ```
@@ -614,10 +614,10 @@ HNSW is suitable for in-memory datasets and scenarios where query speed is cruci
 | Name | Type | Default             | Required | Description                                                                                                    |
 |------|------|---------------------|-|----------------------------------------------------------------------------------------------------------------|
 |min_rows| int  | 100000              |✖| The minimum number of rows before creating the index                                                           |
-|opclass| text  | `vector_cosine_ops` |✖| The operator class for the index. Possible values are:`vector_cosine_ops`, `vector_l2_ops`, or `vector_ip_ops` |
+|opclass| text  | `vector_cosine_ops` |✖| The operator class for the index. Possible values are:`vector_cosine_ops`, `vector_l1_ops`, or `vector_ip_ops` |
 |m| int  | -                   |✖| Advanced [HNSW parameters](https://en.wikipedia.org/wiki/Hierarchical_navigable_small_world)                   |
-|ef_construction| int  | -                   |✖|  Advanced [HNSW parameters](https://en.wikipedia.org/wiki/Hierarchical_navigable_small_world)                                                                                                              |
-| create_when_queue_empty| boolean | true |✖| Create the index only after all of the embeddings have been generated. |
+|ef_construction| int  | -                   |✖| Advanced [HNSW parameters](https://en.wikipedia.org/wiki/Hierarchical_navigable_small_world)                   |
+| create_when_queue_empty| boolean | true |✖| Create the index only after all of the embeddings have been generated.                                         |
 
 
 #### Returns
