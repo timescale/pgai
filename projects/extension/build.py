@@ -83,7 +83,7 @@ def check_versions():
 
 
 def parse_version(version: str) -> tuple[int, int, int, str | None]:
-    parts = re.split(r"[.-]", version, 4)
+    parts = re.split(r"[.-]", version, maxsplit=4)
     return (
         int(parts[0]),
         int(parts[1]),
