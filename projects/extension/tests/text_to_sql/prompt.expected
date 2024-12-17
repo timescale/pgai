@@ -1,0 +1,45 @@
+Consider the following context when responding.
+Any relevant table, view, and functions descriptions and DDL definitions will appear in <table></table>, <view></view>, and <function></function> tags respectively.
+Any relevant example SQL statements will appear in <example-sql></example-sql> tags.
+<table>
+/*
+# public.bob
+this is a comment about the bob table
+## id
+this is a comment about the id column
+## foo
+this is a comment about the foo column
+*/
+CREATE TABLE public.bob
+( id integer NOT NULL 
+, foo text NOT NULL 
+, bar timestamp with time zone NOT NULL now()
+, PRIMARY KEY (id)
+);
+CREATE UNIQUE INDEX bob_pkey ON public.bob USING btree (id)
+</table>
+<view>
+/*
+# public.bobby
+
+## id
+this is a comment about the id column
+## foo
+this is a comment about the foo column
+*/
+CREATE VIEW public.bobby AS
+ SELECT id,
+    foo,
+    bar
+   FROM public.bob;
+
+</view>
+<example-sql>
+/*
+a bogus query against the bobby view using the life function
+*/
+select * from bobby where id = life(id)
+</example-sql>
+Respond to the following question with a SQL statement only. Only use syntax and functions that work with PostgreSQL.
+Q: Construct a query that gives me the distinct foo where the corresponding ids are evenly divisible life.
+A: 
