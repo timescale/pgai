@@ -1,3 +1,4 @@
+# Secure pgai with user privilages
 
 The ai.grant_ai_usage function is an important security and access control tool 
 in the pgai extension. Its primary purpose is to grant the necessary permissions 
