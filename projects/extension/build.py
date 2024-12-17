@@ -283,6 +283,13 @@ def build_idempotent_sql_file(input_file: Path) -> str:
         r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '{python_install_dir()}') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("{this_version()}")
         import site
         site.addsitedir(str(python_lib_dir))
