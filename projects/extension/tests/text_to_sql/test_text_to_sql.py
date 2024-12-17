@@ -397,6 +397,32 @@ def test_text_to_sql() -> None:
                     == "a bogus query against the bobby view using the life function"
                 )
 
+            cur.execute(
+                """select ai._text_to_sql_prompt('Construct a query that gives me the distinct foo where the corresponding ids are evenly divisible life.')"""
+            )
+            actual = cur.fetchone()[0]
+            # host_dir().joinpath("prompt.expected").write_text(actual)
+            expected = file_contents("prompt.expected")
+            assert actual == expected
+
+            anthropic_api_key = os.environ["ANTHROPIC_API_KEY"]
+            assert anthropic_api_key is not None
+            cur.execute(
+                "select set_config('ai.anthropic_api_key', %s, false) is not null",
+                (anthropic_api_key,),
+            )
+            cur.execute(
+                """
+                select ai.text_to_sql
+                ( 'Construct a query that gives me the distinct foo where the corresponding ids are evenly divisible life.'
+                , ai.text_to_sql_anthropic('claude-3-5-sonnet-20240620')
+                )
+                """
+            )
+            actual = cur.fetchone()[0]
+            assert actual is not None
+            cur.execute(f"explain {actual}")  # make sure it's valid sql
+
     snapshot_catalog("text_to_sql_2")
     actual = file_contents("snapshot-catalog.actual")
     expected = file_contents("snapshot-catalog.expected")
