@@ -65,7 +65,7 @@ On your local machine:
         volumes:
           - data:/var/lib/postgresql/data
       vectorizer-worker:
-        image: timescale/pgai-vectorizer-worker:v0.2.1
+        image: timescale/pgai-vectorizer-worker:latest
         environment:
           PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
           OLLAMA_HOST: http://ollama:11434
@@ -75,6 +75,7 @@ On your local machine:
     volumes:
       data:
     ```
+   **Note**: we are using the `:latest` version of the vectorizer worker imager here. This is a dev build and built on each push. While we try to keep this image working and will fix issues asap, it is not recommended for production use. For that, please use a specific version tag.
 
 1. **Start the services locally**
    ```shell

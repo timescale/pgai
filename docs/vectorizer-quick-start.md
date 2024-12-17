@@ -27,7 +27,7 @@ On your local machine:
        volumes:
          - data:/home/postgres/pgdata/data
      vectorizer-worker:
-       image: timescale/pgai-vectorizer-worker:v0.2.1
+       image: timescale/pgai-vectorizer-worker:latest
        environment:
          PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
          OLLAMA_HOST: http://ollama:11434
