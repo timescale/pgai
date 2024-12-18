@@ -39,6 +39,10 @@ test:
 lint:
 	@uv run ruff check ./
 
+# Run ruff linter checks and fix all auto-fixable issues
+lint-fix:
+	@uv run ruff check ./ --fix
+
 # Run pyright type checking
 type-check:
 	@uv run pyright ./

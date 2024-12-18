@@ -31,12 +31,16 @@ integration. Update the tests to account for the new function.
 The vectorizer worker reads the database's vectorizer configuration at runtime
 and turns it into a `pgai.vectorizer.Config`.
 
-To add a new integration, add a new embedding class with fields corresponding
-to the database's jsonb configuration to `pgai/vectorizer/embeddings.py`. See
+To add a new integration, add a new file containing the embedding class 
+with fields corresponding to the database's jsonb configuration into the 
+[embedders directory] directory. See
 the existing implementations for examples of how to do this. Implement the
 `Embedder` class' abstract methods. Use first-party python libraries for the
 integration, if available. If no first-party python libraries are available,
 use direct HTTP requests.
+
+Remember to include the import line of your recently created class into the 
+[embedders \_\_init\_\_.py].
 
 Add tests which perform end-to-end testing of the new integration. There are
 two options for handling API calls to the integration API:
@@ -49,6 +53,8 @@ used conservatively. We will determine on a case-by-case basis what level of
 testing we would like.
 
 [vcr.py]:https://vcrpy.readthedocs.io/en/latest/
+[embedders directory]:/projects/pgai/pgai/vectorizer/embedders
+[embedders \_\_init\_\_.py]:/projects/pgai/pgai/vectorizer/embedders/__init__.py
 
 ## Documentation
 
