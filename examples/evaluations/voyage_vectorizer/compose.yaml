@@ -1,0 +1,21 @@
+name: pgai
+services:
+ db:
+   image: timescale/timescaledb-ha:pg17
+   environment:
+     POSTGRES_PASSWORD: postgres
+     VOYAGE_API_KEY: your-key-here
+     OPENAI_API_KEY: your-key-here
+   ports:
+     - "5432:5432"
+   volumes:
+     - data:/home/postgres/pgdata/data
+ vectorizer-worker:
+   image: timescale/pgai-vectorizer-worker:v0.3.0
+   environment:
+     PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
+     VOYAGE_API_KEY: your-key-here
+     OPENAI_API_KEY: your-key-here
+   command: [ "--poll-interval", "5s" ]
+volumes:
+ data:
