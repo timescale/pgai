@@ -8,7 +8,7 @@ dynamic = ["version"]
 requires-python = ">=3.10"
 
 dependencies= [
-    "openai==1.44.0",
+    "openai==1.56.0",
     "tiktoken==0.7.0",
     "ollama==0.4.5",
     "anthropic==0.44.0",
@@ -16,6 +16,8 @@ dependencies= [
     "backoff==2.2.1",
     "voyageai==0.3.1",
     "datasets==3.1.0",
+    "litellm==1.58.2",
+    "google-cloud-aiplatform==1.74.0", # required for vertexAI (don't know why litellm doesn't include this)
 ]
 
 [dependency-groups]
