@@ -156,7 +156,10 @@ def ollama_connection_url():
         yield os.environ["OLLAMA_HOST"]
     else:
         with OllamaContainer(
-            image="ollama/ollama:latest", ollama_home=Path.home() / ".ollama"
+            image="ollama/ollama:latest",
+            # Passing the ollama_home lets us reuse models that have already
+            # been pulled to the `~/.ollama` path on the host machine.
+            ollama_home=Path.home() / ".ollama",
         ) as ollama:
             yield ollama.get_endpoint()
 
