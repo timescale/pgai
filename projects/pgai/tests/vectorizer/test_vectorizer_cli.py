@@ -238,7 +238,6 @@ class TestWithOpenAiVectorizer:
         cli_db: tuple[TestDatabase, Connection],
         cli_db_url: str,
         configured_openai_vectorizer_id: int,
-        monkeypatch: pytest.MonkeyPatch,
         vcr_: Any,
         test_params: tuple[int, int, int, str, str],
     ):
@@ -253,7 +252,10 @@ class TestWithOpenAiVectorizer:
                VALUES (gen_random_uuid(), 1, 1, 'post_1',
                 array_fill(0, ARRAY[1536])::vector)
             """)
-        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+        # Ensuring no OPENAI_API_KEY env set for the worker
+        # to test loading secret from db
+        del os.environ["OPENAI_API_KEY"]
 
         # When running the worker with cassette matching original test params
         cassette = (
@@ -287,6 +289,63 @@ class TestWithOpenAiVectorizer:
         "test_params",
         [
             (
+                1,
+                1,
+                1,
+                "chunking_character_text_splitter('content')",
+                "formatting_python_template('$chunk')",
+            ),
+        ],
+    )
+    @pytest.mark.postgres_params(load_openai_key=False)
+    def test_vectorizer_without_secrets_fails(
+        self,
+        cli_db: tuple[TestDatabase, Connection],
+        cli_db_url: str,
+        configured_openai_vectorizer_id: int,
+        vcr_: Any,
+        test_params: tuple[int, int, int, str, str],
+    ):
+        num_items, concurrency, batch_size, _, _ = test_params
+        _, conn = cli_db
+        # Insert pre-existing embedding for first item
+        with conn.cursor() as cur:
+            cur.execute("""
+               INSERT INTO
+               blog_embedding_store(embedding_uuid, id, chunk_seq, chunk, embedding)
+               VALUES (gen_random_uuid(), 1, 1, 'post_1',
+                array_fill(0, ARRAY[1536])::vector)
+                    """)
+        # Ensuring no OPENAI_API_KEY env set for the worker
+        del os.environ["OPENAI_API_KEY"]
+
+        cassette = (
+            f"openai-character_text_splitter-chunk_value-"
+            f"items={num_items}-batch_size={batch_size}.yaml"
+        )
+        logging.getLogger("vcr").setLevel(logging.DEBUG)
+        with vcr_.use_cassette(cassette):
+            result = CliRunner().invoke(
+                vectorizer_worker,
+                [
+                    "--db-url",
+                    cli_db_url,
+                    "--once",
+                    "--vectorizer-id",
+                    str(configured_openai_vectorizer_id),
+                    "--concurrency",
+                    str(concurrency),
+                ],
+                catch_exceptions=False,
+            )
+
+        assert result.exit_code == 1
+        assert "ApiKeyNotFoundError" in result.output
+
+    @pytest.mark.parametrize(
+        "test_params",
+        [
+            (
                 2,
                 1,
                 2,
@@ -301,7 +360,6 @@ class TestWithOpenAiVectorizer:
         cli_db: tuple[TestDatabase, Connection],
         cli_db_url: str,
         configured_openai_vectorizer_id: int,
-        monkeypatch: pytest.MonkeyPatch,
         vcr_: Any,
     ):
         """Test handling of documents that exceed the model's token limit"""
@@ -312,7 +370,6 @@ class TestWithOpenAiVectorizer:
             cur.execute(
                 f"UPDATE blog SET CONTENT = '{long_content}' where id = '2'",
             )
-        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
         # When running the worker
         with vcr_.use_cassette("test_document_in_batch_too_long.yaml"):
@@ -375,15 +432,12 @@ class TestWithOpenAiVectorizer:
         cli_db: tuple[TestDatabase, Connection],
         cli_db_url: str,
         configured_openai_vectorizer_id: int,
-        monkeypatch: pytest.MonkeyPatch,
         vcr_: Any,
     ):
         """Test that worker handles invalid API key appropriately"""
-        # Given an invalid API key
-        monkeypatch.setenv("OPENAI_API_KEY", "invalid")
         _, conn = cli_db
 
-        # When running the worker
+        # When running the worker and getting an invalid api key response
         with vcr_.use_cassette("test_invalid_api_key_error.yaml"):
             try:
                 CliRunner().invoke(
@@ -434,10 +488,8 @@ class TestWithOpenAiVectorizer:
         cli_db: tuple[TestDatabase, Connection],
         cli_db_url: str,
         configured_openai_vectorizer_id: int,
-        monkeypatch: pytest.MonkeyPatch,
     ):
         """Test that worker handles invalid embedding model arguments appropriately"""
-        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
         _, conn = cli_db
 
         # And a vectorizer with invalid embedding dimensions
@@ -802,7 +854,6 @@ def test_recursive_character_splitting(
     cli_db: tuple[PostgresContainer, Connection],
     cli_db_url: str,
     configured_openai_vectorizer_id: int,
-    monkeypatch: pytest.MonkeyPatch,
     vcr_: Any,
 ):
     """Test that recursive character splitting correctly chunks
@@ -829,8 +880,6 @@ Each type has its own unique applications and methodologies."""
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute("UPDATE blog SET content = %s WHERE id = 1", (sample_content,))
         cur.execute("UPDATE blog SET content = %s WHERE id = 2", (shorter_content,))
-
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
     # When running the worker
     with vcr_.use_cassette("test_recursive_character_splitting.yaml"):
