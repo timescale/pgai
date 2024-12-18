@@ -39,8 +39,8 @@ the existing implementations for examples of how to do this. Implement the
 integration, if available. If no first-party python libraries are available,
 use direct HTTP requests.
 
-Remember to include the name of your recently created class into the 
-[embedders \_\_init\_\_.py] `__all__` variable.
+Remember to include the import line of your recently created class into the 
+[embedders \_\_init\_\_.py].
 
 Add tests which perform end-to-end testing of the new integration. There are
 two options for handling API calls to the integration API:
