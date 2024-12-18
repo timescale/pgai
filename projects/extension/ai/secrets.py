@@ -24,11 +24,11 @@ def remove_secret_from_cache(sd_cache: dict[str, str], secret_name: str):
 
 def get_secret(
     plpy,
-    secret: Optional[str],
-    secret_name: Optional[str],
-    secret_name_default: str,
-    sd_cache: Optional[dict[str, str]],
-) -> str:
+    secret: Optional[str] = None,
+    secret_name: Optional[str] = None,
+    secret_name_default: Optional[str] = None,
+    sd_cache: Optional[dict[str, str]] = None,
+) -> str | None:
     if secret is not None:
         return secret
 
@@ -36,15 +36,9 @@ def get_secret(
         secret_name = secret_name_default
 
     if secret_name is None or secret_name == "":
-        plpy.error("secret_name is required")
+        return None
 
-    secret = reveal_secret(plpy, secret_name, sd_cache)
-    if secret is None:
-        plpy.error(f"missing {secret_name} secret")
-        # This line should never be reached, but it's here to make the type checker happy.
-        return ""
-
-    return secret
+    return reveal_secret(plpy, secret_name, sd_cache)
 
 
 def check_secret_permissions(plpy, secret_name: str) -> bool:
