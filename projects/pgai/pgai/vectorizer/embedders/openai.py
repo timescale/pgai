@@ -146,33 +146,33 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
 
         """
 
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jsonl', mode='w')
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".jsonl", mode="w") as temp_file:
+            for document in documents:
+                entry = {
+                    "custom_id": document["unique_full_chunk_id"],
+                    "method": "POST",
+                    "url": "/v1/embeddings",
+                    "body": {
+                        "model": self.model,
+                        "input": document["chunk"],
+                    },
+                }
+                temp_file.write(json.dumps(entry) + "\n")
 
-        for document in documents:
-            entry = {
-                'custom_id': document['unique_full_chunk_id'],
-                'method': 'POST',
-                'url': '/v1/embeddings',
-                'body': {
-                    'model': self.model,
-                    'input': document['chunk'],
-                },
-            }
-            temp_file.write(json.dumps(entry) + '\n')
-
-        temp_file.close()
+            temp_file.close()
 
         client = openai.OpenAI() # TODO there has to be a client already which I could use instead?
 
-        batch_input_file = client.files.create(
-            file=open(temp_file.name, "rb"),
-            purpose="batch",
-        )
+        with open(temp_file.name, "rb") as file:
+            batch_input_file = client.files.create(
+                file=file,
+                purpose="batch",
+            )
 
         return client.batches.create(
             input_file_id=batch_input_file.id,
-            endpoint='/v1/embeddings',
-            completion_window='24h',
+            endpoint="/v1/embeddings",
+            completion_window="24h",
         )
 
     async def _filter_by_length_and_embed(

@@ -7,9 +7,10 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from functools import cached_property
 from itertools import repeat
-from typing import Any, TypeAlias, Dict
+from typing import Any, TypeAlias
 
 import numpy as np
+import openai
 import psycopg
 import structlog
 from ddtrace import tracer
@@ -19,7 +20,6 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from pydantic.dataclasses import dataclass
 from pydantic.fields import Field
-import openai
 
 from .chunking import (
     LangChainCharacterTextSplitter,
@@ -330,18 +330,25 @@ class VectorizerQueryBuilder:
 
     @cached_property
     def fetch_batches_to_process_query(self) -> sql.Composed:
-        return sql.SQL(
-            "SELECT openai_batch_id, output_file_id FROM {}.{} WHERE status not in('failed', 'processed', 'prepared')"
-        ).format(
+        return sql.SQL("""
+            SELECT openai_batch_id, output_file_id FROM {}.{}
+            WHERE status not in('failed', 'processed', 'prepared')
+        """).format(
             self.vectorizer.config.embedding_batch_schema,
             self.vectorizer.config.embedding_batch_table,
         )
 
     @cached_property
     def update_batch_embedding_query(self) -> sql.Composed:
-        return sql.SQL(
-            "UPDATE {}.{} SET status = %s, completed_at = %s, failed_at = %s, output_file_id = %s, errors = %s WHERE openai_batch_id = %s"
-        ).format(
+        return sql.SQL("""
+        UPDATE {}.{} SET
+            status = %s
+            completed_at = %s,
+            failed_at = %s,
+            output_file_id = %s,
+            errors = %s
+        WHERE openai_batch_id = %s
+        """).format(
             self.vectorizer.config.embedding_batch_schema,
             self.vectorizer.config.embedding_batch_table,
         )
@@ -604,11 +611,13 @@ class Worker:
                 ))
 
                 for doc in documents:
-                    await conn.execute(self.queries.insert_batch_embedding_chunks_query, (
-                        doc['unique_full_chunk_id'],
-                        created_batch.id,
-                        doc['chunk']
-                    ))
+                    await conn.execute(
+                        self.queries.insert_batch_embedding_chunks_query,
+                        (
+                            doc["unique_full_chunk_id"],
+                            created_batch.id,
+                            doc["chunk"]
+                        ))
 
                 # TODO how to delete submitted entries from the queue?
 
@@ -631,15 +640,18 @@ class Worker:
             conn.transaction(),
             conn.cursor() as cursor,
         ):
-            client = openai.OpenAI() # TODO how can I get the client? There has to be one created already that I can use?
+            # TODO how can I get the client? There has to be one created already that I can use?
+            client = openai.OpenAI()
             await cursor.execute(self.queries.fetch_batches_to_process_query)
             for batch_row in await cursor.fetchall():
                 batch = client.batches.retrieve(batch_row[0])
 
                 await conn.execute(self.queries.update_batch_embedding_query, (
                     batch.status,
-                    datetime.fromtimestamp(batch.completed_at, timezone.utc) if batch.completed_at else None,
-                    datetime.fromtimestamp(batch.failed_at, timezone.utc) if batch.failed_at else None,
+                    datetime.fromtimestamp(batch.completed_at, timezone.utc)
+                        if batch.completed_at else None,
+                    datetime.fromtimestamp(batch.failed_at, timezone.utc)
+                        if batch.failed_at else None,
                     batch.output_file_id,
                     Jsonb(batch.errors),
                     batch_row[0],
@@ -647,13 +659,15 @@ class Worker:
 
                 # batch has been processed successfully in openai, that means we can
                 # collect the results and store them in the database.
-                if batch.status == 'completed':
+                if batch.status == "completed":
                     await self._write_embeddings_from_batch(conn, batch, client)
 
-                    await cursor.execute(self.queries.update_batch_embedding_status_query, (
-                        'processed',
-                        batch_row[0],
-                    ))
+                    await cursor.execute(
+                        self.queries.update_batch_embedding_status_query,
+                        (
+                            "processed",
+                            batch_row[0],
+                        ))
 
     @tracer.wrap()
     async def _do_batch(self, conn: AsyncConnection) -> int:
@@ -828,7 +842,7 @@ class Worker:
         """
         batch_file = client.files.content(batch.output_file_id)
 
-        batch_data = batch_file.text.strip().split('\n')
+        batch_data = batch_file.text.strip().split("\n")
         num_records = 0
         all_items = []
         all_records: list[EmbeddingRecord] = []
@@ -844,17 +858,21 @@ class Worker:
                 json_line = json.loads(line)
                 if "custom_id" in json_line and "response" in json_line:
 
-                    custom_id = json_line['custom_id']
-                    pk_names, document_id, chunk_seq = custom_id.split(':::')
-                    embedding_data = json_line['response']['body']['data'][0]['embedding']
+                    custom_id = json_line["custom_id"]
+                    pk_names, document_id, chunk_seq = custom_id.split(":::")
+                    embedding_data = json_line["response"]["body"]["data"][0]["embedding"]
 
-                    resolved_id = document_id.split(',')
-                    resolved_pk = pk_names.split(',')
-                    item = {pk: id_value for pk, id_value in zip(resolved_pk, resolved_id)}
+                    resolved_id = document_id.split(",")
+                    resolved_pk = pk_names.split(",")
+                    item = {pk: id_value
+                            for pk, id_value in zip(resolved_pk, resolved_id, strict=False)}
                     item[self.vectorizer.config.chunking.chunk_column] = embedding_batch_chunks[custom_id]
 
                     all_items.append(item)
-                    all_records.append([resolved_id + [chunk_seq, embedding_batch_chunks[custom_id]] + [np.array(embedding_data)]])
+                    all_records.append([
+                        resolved_id
+                        + [chunk_seq, embedding_batch_chunks[custom_id]]
+                        + [np.array(embedding_data)]])
 
         await self._delete_embeddings(conn, all_items)
         for records in all_records:
@@ -980,13 +998,13 @@ class Worker:
             for chunk_id, chunk in enumerate(chunks, 0):
                 formatted = self.vectorizer.config.formatting.format(chunk, item)
                 unique_full_chunk_id = [
-                    ','.join(self.queries.pk_attnames),
-                    ','.join(map(str, pk)),
+                    ",".join(self.queries.pk_attnames),
+                    ",".join(map(str, pk)),
                     str(chunk_id),
                 ]
                 documents.append({
-                    'unique_full_chunk_id': ':::'.join(unique_full_chunk_id),
-                    'chunk': formatted,
+                    "unique_full_chunk_id": ":::".join(unique_full_chunk_id),
+                    "chunk": formatted,
                 })
 
         try:
