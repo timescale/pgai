@@ -7,6 +7,7 @@ import tiktoken
 import vcr  # type:ignore
 from testcontainers.core.image import DockerImage  # type:ignore
 from testcontainers.postgres import PostgresContainer  # type:ignore
+from testcontainers.ollama import OllamaContainer  # type:ignore
 
 from pgai.vectorizer.vectorizer import TIKTOKEN_CACHE_DIR
 
@@ -70,3 +71,9 @@ def postgres_container():
         driver=None,
     ) as postgres:
         yield postgres
+
+@pytest.fixture(scope="session")
+def ollama_container():
+    with OllamaContainer(image="ollama/ollama:latest") as ollama:
+        yield ollama
+

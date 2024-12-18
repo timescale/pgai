@@ -12,6 +12,7 @@ from click.testing import CliRunner
 from psycopg import Connection, sql
 from psycopg.rows import dict_row
 from testcontainers.postgres import PostgresContainer  # type: ignore
+from testcontainers.ollama import OllamaContainer  # type: ignore
 
 from pgai.cli import vectorizer_worker
 from tests.vectorizer import expected
@@ -151,19 +152,28 @@ def configured_ollama_vectorizer_id(
     source_table: str,
     cli_db: tuple[TestDatabase, Connection],
     test_params: tuple[int, int, int, str, str],
+    ollama_container: OllamaContainer,
 ) -> int:
     """Creates and configures an ollama vectorizer for testing"""
     _, concurrency, batch_size, chunking, formatting = test_params
     _, conn = cli_db
 
+    base_url = ollama_container.get_endpoint()
+    if "OLLAMA_HOST" in os.environ: 
+        # The user is running it's own Ollama container
+        base_url = os.environ["OLLAMA_HOST"]
+        ollama_container.stop()
+
     with conn.cursor(row_factory=dict_row) as cur:
+        
         # Create vectorizer
         cur.execute(f"""
             SELECT ai.create_vectorizer(
                 '{source_table}'::regclass,
                 embedding => ai.embedding_ollama(
                     'nomic-embed-text',
-                    768
+                    768,
+                    base_url => '{base_url}'
                 ),
                 chunking => ai.{chunking},
                 formatting => ai.{formatting},
