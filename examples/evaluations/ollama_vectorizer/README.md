@@ -1,4 +1,4 @@
-Simple Embedding Model Evaluation
+Evaluating Embedding Models: OpenAI vs. Nomic vs. BGE vs. OpenAI Large
 Author: Jacky Liang
 
 Prerequisites:
@@ -31,10 +31,17 @@ Installation and Setup:
     - services.db.environment.OPENAI_API_KEY="sk-project-.."
     - services.vectorizer-worker.environment.OPENAI_API_KEY="sk-project-.."=
 2. Start services: docker compose up -d
-3. Pull embedding models (these are the ones I'm using, you can use others):
+3. Connect to the database:
+
+   docker compose exec -ti db psql
+
+4. Pull embedding models (these are the ones I'm using, you can use others):
+
    docker compose exec ollama ollama pull nomic-embed-text
    docker compose exec ollama ollama pull bge-large
-4. Enable pgai extension:
+
+5. Enable pgai extension:
+
    CREATE EXTENSION IF NOT EXISTS ai CASCADE;
 
 Dataset Setup:
@@ -42,22 +49,45 @@ Dataset Setup:
    CREATE TABLE pg_essays (
        id SERIAL PRIMARY KEY,
        title TEXT,
-       link TEXT,
+       date TEXT,
        text TEXT
    );
    
-   SELECT ai.load_dataset('sgoel9/paul_graham_essays', table_name => 'pg_essays');
+   SELECT ai.load_dataset('sgoel9/paul_graham_essays', table_name => 'pg_essays', if_table_exists => 'append');
 
 2. Create vectorizers for each model:
-    -- OpenAI text-embedding-3-small (768 dim)
-    SELECT ai.create_vectorizer(
-        'pg_essays'::regclass,
-        destination => 'essays_openai_small_embeddings',
-        embedding => ai.embedding_openai('text-embedding-3-small', 768),
-        chunking => ai.chunking_recursive_character_text_splitter('text', 512, 50)
-    );
 
-    -- Also create Vectorizers for Nomic embed-text (768 dim), BGE Large (1024 dim), and OpenAI text-embedding-3-large (1536 dim)
+   -- Nomic embed-text
+   SELECT ai.create_vectorizer(
+      'pg_essays'::regclass,
+      destination => 'essays_nomic_embeddings',
+      embedding => ai.embedding_ollama('nomic-embed-text', 768),
+      chunking => ai.chunking_recursive_character_text_splitter('text', 512, 50)
+   );
+
+   -- OpenAI text-embedding-3-small
+   SELECT ai.create_vectorizer(
+      'pg_essays'::regclass,
+      destination => 'essays_openai_small_embeddings',
+      embedding => ai.embedding_openai('text-embedding-3-small', 768),
+      chunking => ai.chunking_recursive_character_text_splitter('text', 512, 50)
+   );
+
+   -- BGE Large (1024 dim)
+   SELECT ai.create_vectorizer(
+      'pg_essays'::regclass,
+      destination => 'essays_bge_large_embeddings',
+      embedding => ai.embedding_ollama('bge-large', 1024),
+      chunking => ai.chunking_recursive_character_text_splitter('text', 512, 50)
+   );
+
+   -- OpenAI text-embedding-3-large (1536 dim)
+   SELECT ai.create_vectorizer(
+      'pg_essays'::regclass,
+      destination => 'essays_openai_large_embeddings', 
+      embedding => ai.embedding_openai('text-embedding-3-large', 1536),
+      chunking => ai.chunking_recursive_character_text_splitter('text', 512, 50)
+   );
 
 -- 3. Verify vectorization status
 SELECT * FROM ai.vectorizer_status;
