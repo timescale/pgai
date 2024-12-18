@@ -1,0 +1,309 @@
+                                                 Table "ai._vectorizer_q_1"
+  Column   |           Type           | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
+-----------+--------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
+ objtype   | text                     |           | not null |         | extended |             |              | 
+ objnames  | text[]                   |           | not null |         | extended |             |              | 
+ objargs   | text[]                   |           | not null |         | extended |             |              | 
+ queued_at | timestamp with time zone |           | not null | now()   | plain    |             |              | 
+Indexes:
+    "_vectorizer_q_1_objtype_objnames_objargs_idx" btree (objtype, objnames, objargs)
+Access method: heap
+
+                                                 Table "ai._vectorizer_q_2"
+  Column   |           Type           | Collation | Nullable | Default | Storage | Compression | Stats target | Description 
+-----------+--------------------------+-----------+----------+---------+---------+-------------+--------------+-------------
+ id        | integer                  |           | not null |         | plain   |             |              | 
+ queued_at | timestamp with time zone |           | not null | now()   | plain   |             |              | 
+Indexes:
+    "_vectorizer_q_2_id_idx" btree (id)
+Access method: heap
+
+                                            Table "ai.semantic_catalog_obj_1_store"
+     Column     |    Type     | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
+----------------+-------------+-----------+----------+-------------------+----------+-------------+--------------+-------------
+ embedding_uuid | uuid        |           | not null | gen_random_uuid() | plain    |             |              | 
+ objtype        | text        |           | not null |                   | extended |             |              | 
+ objnames       | text[]      |           | not null |                   | extended |             |              | 
+ objargs        | text[]      |           | not null |                   | extended |             |              | 
+ chunk_seq      | integer     |           | not null |                   | plain    |             |              | 
+ chunk          | text        |           | not null |                   | extended |             |              | 
+ embedding      | vector(576) |           | not null |                   | main     |             |              | 
+Indexes:
+    "semantic_catalog_obj_1_store_pkey" PRIMARY KEY, btree (embedding_uuid)
+    "semantic_catalog_obj_1_store_objtype_objnames_objargs_chunk_key" UNIQUE CONSTRAINT, btree (objtype, objnames, objargs, chunk_seq)
+Foreign-key constraints:
+    "semantic_catalog_obj_1_store_objtype_objnames_objargs_fkey" FOREIGN KEY (objtype, objnames, objargs) REFERENCES ai.semantic_catalog_obj(objtype, objnames, objargs) ON DELETE CASCADE
+Access method: heap
+
+                                            Table "ai.semantic_catalog_sql_1_store"
+     Column     |    Type     | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
+----------------+-------------+-----------+----------+-------------------+----------+-------------+--------------+-------------
+ embedding_uuid | uuid        |           | not null | gen_random_uuid() | plain    |             |              | 
+ id             | integer     |           | not null |                   | plain    |             |              | 
+ chunk_seq      | integer     |           | not null |                   | plain    |             |              | 
+ chunk          | text        |           | not null |                   | extended |             |              | 
+ embedding      | vector(576) |           | not null |                   | main     |             |              | 
+Indexes:
+    "semantic_catalog_sql_1_store_pkey" PRIMARY KEY, btree (embedding_uuid)
+    "semantic_catalog_sql_1_store_id_chunk_seq_key" UNIQUE CONSTRAINT, btree (id, chunk_seq)
+Foreign-key constraints:
+    "semantic_catalog_sql_1_store_id_fkey" FOREIGN KEY (id) REFERENCES ai.semantic_catalog_sql(id) ON DELETE CASCADE
+Access method: heap
+
+                            View "ai.semantic_catalog_obj_1"
+     Column     |    Type     | Collation | Nullable | Default | Storage  | Description 
+----------------+-------------+-----------+----------+---------+----------+-------------
+ embedding_uuid | uuid        |           |          |         | plain    | 
+ chunk_seq      | integer     |           |          |         | plain    | 
+ chunk          | text        |           |          |         | extended | 
+ embedding      | vector(576) |           |          |         | external | 
+ objtype        | text        |           |          |         | extended | 
+ objnames       | text[]      |           |          |         | extended | 
+ objargs        | text[]      |           |          |         | extended | 
+ classid        | oid         |           |          |         | plain    | 
+ objid          | oid         |           |          |         | plain    | 
+ objsubid       | integer     |           |          |         | plain    | 
+ description    | text        |           |          |         | extended | 
+View definition:
+ SELECT t.embedding_uuid,
+    t.chunk_seq,
+    t.chunk,
+    t.embedding,
+    t.objtype,
+    t.objnames,
+    t.objargs,
+    s.classid,
+    s.objid,
+    s.objsubid,
+    s.description
+   FROM ai.semantic_catalog_obj_1_store t
+     LEFT JOIN ai.semantic_catalog_obj s ON t.objtype = s.objtype AND t.objnames = s.objnames AND t.objargs = s.objargs;
+
+                            View "ai.semantic_catalog_sql_1"
+     Column     |    Type     | Collation | Nullable | Default | Storage  | Description 
+----------------+-------------+-----------+----------+---------+----------+-------------
+ embedding_uuid | uuid        |           |          |         | plain    | 
+ chunk_seq      | integer     |           |          |         | plain    | 
+ chunk          | text        |           |          |         | extended | 
+ embedding      | vector(576) |           |          |         | external | 
+ id             | integer     |           |          |         | plain    | 
+ sql            | text        |           |          |         | extended | 
+ description    | text        |           |          |         | extended | 
+View definition:
+ SELECT t.embedding_uuid,
+    t.chunk_seq,
+    t.chunk,
+    t.embedding,
+    t.id,
+    s.sql,
+    s.description
+   FROM ai.semantic_catalog_sql_1_store t
+     LEFT JOIN ai.semantic_catalog_sql s ON t.id = s.id;
+
+ id | catalog_name | obj_vectorizer_id | sql_vectorizer_id 
+----+--------------+-------------------+-------------------
+  1 | default      |                 1 |                 2
+(1 row)
+
+   objtype    |      objnames      |  objargs  |                description                
+--------------+--------------------+-----------+-------------------------------------------
+ function     | {public,life}      | {integer} | this is a comment about the life function
+ table        | {public,bob}       | {}        | this is a comment about the bob table
+ table column | {public,bob,bar}   | {}        | this is a comment about the bar column
+ table column | {public,bob,foo}   | {}        | this is a comment about the foo column
+ table column | {public,bob,id}    | {}        | this is a comment about the id column
+ view         | {public,bobby}     | {}        | this is a comment about the bob table
+ view column  | {public,bobby,bar} | {}        | this is a comment about the bar column
+ view column  | {public,bobby,foo} | {}        | this is a comment about the foo column
+ view column  | {public,bobby,id}  | {}        | this is a comment about the id column
+(9 rows)
+
+ id |                   sql                   |                         description                          
+----+-----------------------------------------+--------------------------------------------------------------
+  1 | select * from bobby where id = life(id) | a bogus query against the bobby view using the life function
+(1 row)
+
+ objtype | objnames | objargs 
+---------+----------+---------
+(0 rows)
+
+ id 
+----
+(0 rows)
+
+ id |      source_table       |          target_table           |           view            | pending_items 
+----+-------------------------+---------------------------------+---------------------------+---------------
+  1 | ai.semantic_catalog_obj | ai.semantic_catalog_obj_1_store | ai.semantic_catalog_obj_1 |             0
+  2 | ai.semantic_catalog_sql | ai.semantic_catalog_sql_1_store | ai.semantic_catalog_sql_1 |             0
+(2 rows)
+
+                            jsonb_pretty                            
+--------------------------------------------------------------------
+ {                                                                 +
+     "id": 1,                                                      +
+     "config": {                                                   +
+         "chunking": {                                             +
+             "chunk_size": 800,                                    +
+             "separators": [                                       +
+                 "\n\n",                                           +
+                 "\n",                                             +
+                 ".",                                              +
+                 "?",                                              +
+                 "!",                                              +
+                 " ",                                              +
+                 ""                                                +
+             ],                                                    +
+             "config_type": "chunking",                            +
+             "chunk_column": "description",                        +
+             "chunk_overlap": 400,                                 +
+             "implementation": "recursive_character_text_splitter",+
+             "is_separator_regex": false                           +
+         },                                                        +
+         "indexing": {                                             +
+             "config_type": "indexing",                            +
+             "implementation": "none"                              +
+         },                                                        +
+         "embedding": {                                            +
+             "model": "smollm:135m",                               +
+             "dimensions": 576,                                    +
+             "config_type": "embedding",                           +
+             "implementation": "ollama"                            +
+         },                                                        +
+         "formatting": {                                           +
+             "template": "$chunk",                                 +
+             "config_type": "formatting",                          +
+             "implementation": "python_template"                   +
+         },                                                        +
+         "processing": {                                           +
+             "config_type": "processing",                          +
+             "implementation": "default"                           +
+         },                                                        +
+         "scheduling": {                                           +
+             "config_type": "scheduling",                          +
+             "implementation": "none"                              +
+         }                                                         +
+     },                                                            +
+     "source_pk": [                                                +
+         {                                                         +
+             "pknum": 1,                                           +
+             "attnum": 1,                                          +
+             "attname": "objtype",                                 +
+             "typname": "text"                                     +
+         },                                                        +
+         {                                                         +
+             "pknum": 2,                                           +
+             "attnum": 2,                                          +
+             "attname": "objnames",                                +
+             "typname": "_text"                                    +
+         },                                                        +
+         {                                                         +
+             "pknum": 3,                                           +
+             "attnum": 3,                                          +
+             "attname": "objargs",                                 +
+             "typname": "_text"                                    +
+         }                                                         +
+     ],                                                            +
+     "view_name": "semantic_catalog_obj_1",                        +
+     "queue_table": "_vectorizer_q_1",                             +
+     "view_schema": "ai",                                          +
+     "queue_schema": "ai",                                         +
+     "source_table": "semantic_catalog_obj",                       +
+     "target_table": "semantic_catalog_obj_1_store",               +
+     "trigger_name": "_vectorizer_src_trg_1",                      +
+     "source_schema": "ai",                                        +
+     "target_schema": "ai"                                         +
+ }
+ {                                                                 +
+     "id": 2,                                                      +
+     "config": {                                                   +
+         "chunking": {                                             +
+             "chunk_size": 800,                                    +
+             "separators": [                                       +
+                 "\n\n",                                           +
+                 "\n",                                             +
+                 ".",                                              +
+                 "?",                                              +
+                 "!",                                              +
+                 " ",                                              +
+                 ""                                                +
+             ],                                                    +
+             "config_type": "chunking",                            +
+             "chunk_column": "description",                        +
+             "chunk_overlap": 400,                                 +
+             "implementation": "recursive_character_text_splitter",+
+             "is_separator_regex": false                           +
+         },                                                        +
+         "indexing": {                                             +
+             "config_type": "indexing",                            +
+             "implementation": "none"                              +
+         },                                                        +
+         "embedding": {                                            +
+             "model": "smollm:135m",                               +
+             "dimensions": 576,                                    +
+             "config_type": "embedding",                           +
+             "implementation": "ollama"                            +
+         },                                                        +
+         "formatting": {                                           +
+             "template": "$chunk",                                 +
+             "config_type": "formatting",                          +
+             "implementation": "python_template"                   +
+         },                                                        +
+         "processing": {                                           +
+             "config_type": "processing",                          +
+             "implementation": "default"                           +
+         },                                                        +
+         "scheduling": {                                           +
+             "config_type": "scheduling",                          +
+             "implementation": "none"                              +
+         }                                                         +
+     },                                                            +
+     "source_pk": [                                                +
+         {                                                         +
+             "pknum": 1,                                           +
+             "attnum": 1,                                          +
+             "attname": "id",                                      +
+             "typname": "int4"                                     +
+         }                                                         +
+     ],                                                            +
+     "view_name": "semantic_catalog_sql_1",                        +
+     "queue_table": "_vectorizer_q_2",                             +
+     "view_schema": "ai",                                          +
+     "queue_schema": "ai",                                         +
+     "source_table": "semantic_catalog_sql",                       +
+     "target_table": "semantic_catalog_sql_1_store",               +
+     "trigger_name": "_vectorizer_src_trg_2",                      +
+     "source_schema": "ai",                                        +
+     "target_schema": "ai"                                         +
+ }
+(2 rows)
+
+                               i need a function about life
+   objtype    |      objnames      |  objargs  |                description                
+--------------+--------------------+-----------+-------------------------------------------
+ table column | {public,bob,foo}   | {}        | this is a comment about the foo column
+ view column  | {public,bobby,foo} | {}        | this is a comment about the foo column
+ function     | {public,life}      | {integer} | this is a comment about the life function
+ table column | {public,bob,id}    | {}        | this is a comment about the id column
+ view column  | {public,bobby,id}  | {}        | this is a comment about the id column
+(5 rows)
+
+               i need a function about life only_objtype=>function
+ objtype  |   objnames    |  objargs  |                description                
+----------+---------------+-----------+-------------------------------------------
+ function | {public,life} | {integer} | this is a comment about the life function
+(1 row)
+
+                        i need a function about life max_dist=>0.4
+   objtype    |      objnames      |  objargs  |                description                
+--------------+--------------------+-----------+-------------------------------------------
+ table column | {public,bob,foo}   | {}        | this is a comment about the foo column
+ view column  | {public,bobby,foo} | {}        | this is a comment about the foo column
+ function     | {public,life}      | {integer} | this is a comment about the life function
+(3 rows)
+
+                              i need a query to tell me about bobbys life
+                   sql                   |                         description                          
+-----------------------------------------+--------------------------------------------------------------
+ select * from bobby where id = life(id) | a bogus query against the bobby view using the life function
+(1 row)
+

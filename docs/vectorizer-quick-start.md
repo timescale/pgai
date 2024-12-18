@@ -5,7 +5,7 @@ If you prefer working with the OpenAI API instead of self-hosting models, you ca
 
 ## Setup a local development environment
 
-To set up a development environment for OpenAI, use a docker compose file that includes a:
+To set up a development environment, use a docker compose file that includes a:
 - Postgres deployment image with the TimescaleDB and pgai extensions installed
 - pgai vectorizer worker image
 - ollama image to host embedding and large language models

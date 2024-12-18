@@ -103,7 +103,18 @@ def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer:
         if "api_key_name" in embedding:
             api_key_name = embedding["api_key_name"]
             api_key = os.getenv(api_key_name, None)
-            if api_key is None:
+            if api_key is not None:
+                log.debug(f"obtained secret '{api_key_name}' from environment")
+            else:
+                cur.execute(
+                    "select ai.reveal_secret(%s)",
+                    (api_key_name,),
+                )
+                row = cur.fetchone()
+                api_key = row["reveal_secret"] if row is not None else None
+                if api_key is not None:
+                    log.debug(f"obtained secret '{api_key_name}' from database")
+            if not api_key:
                 raise ApiKeyNotFoundError(
                     f"api_key_name={api_key_name} vectorizer_id={vectorizer_id}"
                 )

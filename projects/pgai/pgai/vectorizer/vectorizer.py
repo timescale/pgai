@@ -25,7 +25,8 @@ from .chunking import (
     LangChainCharacterTextSplitter,
     LangChainRecursiveCharacterTextSplitter,
 )
-from .embeddings import ChunkEmbeddingError, Ollama, OpenAI, VoyageAI
+from .embedders import Ollama, OpenAI, VoyageAI
+from .embeddings import ChunkEmbeddingError
 from .formatting import ChunkValue, PythonTemplate
 from .processing import ProcessingDefault
 
