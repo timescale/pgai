@@ -1,4 +1,6 @@
+import json
 import re
+import tempfile
 from collections.abc import Sequence
 from functools import cached_property
 from typing import Any, Literal
@@ -128,6 +130,50 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
             return await self._filter_by_length_and_embed(
                 model_token_length, encoded_documents
             )
+
+    async def create_and_submit_embedding_batch(
+            self,
+            documents: list[dict[str, Any]],
+    ) -> openai.types.Batch:
+        """
+        Creates a batch of embeddings using OpenAI's embeddings API as outlined in
+        https://platform.openai.com/docs/guides/batch/batch-api?lang=python
+
+        Args:
+            documents (list[str]): A list of document chunks to be embedded.
+
+        Returns:
+
+        """
+
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jsonl', mode='w')
+
+        for document in documents:
+            entry = {
+                'custom_id': document['unique_full_chunk_id'],
+                'method': 'POST',
+                'url': '/v1/embeddings',
+                'body': {
+                    'model': self.model,
+                    'input': document['chunk'],
+                },
+            }
+            temp_file.write(json.dumps(entry) + '\n')
+
+        temp_file.close()
+
+        client = openai.OpenAI() # TODO there has to be a client already which I could use instead?
+
+        batch_input_file = client.files.create(
+            file=open(temp_file.name, "rb"),
+            purpose="batch",
+        )
+
+        return client.batches.create(
+            input_file_id=batch_input_file.id,
+            endpoint='/v1/embeddings',
+            completion_window='24h',
+        )
 
     async def _filter_by_length_and_embed(
         self, model_token_length: int, encoded_documents: list[list[int]]
