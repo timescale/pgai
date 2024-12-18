@@ -3,6 +3,7 @@ import os
 import subprocess
 import time
 from collections.abc import Generator
+from pathlib import Path
 from typing import Any
 
 import openai
@@ -11,6 +12,7 @@ import pytest
 from click.testing import CliRunner
 from psycopg import Connection, sql
 from psycopg.rows import dict_row
+from testcontainers.ollama import OllamaContainer  # type: ignore
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.cli import vectorizer_worker
@@ -146,11 +148,28 @@ def configured_openai_vectorizer_id(
         return vectorizer_id
 
 
+@pytest.fixture(scope="session")
+def ollama_connection_url():
+    # If the OLLAMA_HOST environment variable is set, we assume that the user
+    # has an Ollama container running and we don't need to start a new one.
+    if "OLLAMA_HOST" in os.environ:
+        yield os.environ["OLLAMA_HOST"]
+    else:
+        with OllamaContainer(
+            image="ollama/ollama:latest",
+            # Passing the ollama_home lets us reuse models that have already
+            # been pulled to the `~/.ollama` path on the host machine.
+            ollama_home=Path.home() / ".ollama",
+        ) as ollama:
+            yield ollama.get_endpoint()
+
+
 @pytest.fixture
 def configured_ollama_vectorizer_id(
     source_table: str,
     cli_db: tuple[TestDatabase, Connection],
     test_params: tuple[int, int, int, str, str],
+    ollama_connection_url: str,
 ) -> int:
     """Creates and configures an ollama vectorizer for testing"""
     _, concurrency, batch_size, chunking, formatting = test_params
@@ -163,7 +182,8 @@ def configured_ollama_vectorizer_id(
                 '{source_table}'::regclass,
                 embedding => ai.embedding_ollama(
                     'nomic-embed-text',
-                    768
+                    768,
+                    base_url => '{ollama_connection_url}'
                 ),
                 chunking => ai.{chunking},
                 formatting => ai.{formatting},
