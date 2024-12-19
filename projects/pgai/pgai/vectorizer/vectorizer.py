@@ -75,9 +75,6 @@ class Config:
         processing: Processing settings such as batch size and concurrency.
         chunking: The chunking strategy.
         formatting: Formatting strategy to apply to the chunks.
-        embedding_batch_schema: The schema where the embedding batches are stored.
-        embedding_batch_table: The table where the embedding batches are stored.
-        embedding_batch_chunks_table: The table where the embedding batch chunks are stored.
     """
 
     version: str
@@ -87,9 +84,6 @@ class Config:
         LangChainCharacterTextSplitter | LangChainRecursiveCharacterTextSplitter
     ) = Field(..., discriminator="implementation")
     formatting: PythonTemplate | ChunkValue = Field(..., discriminator="implementation")
-    embedding_batch_schema: str | None
-    embedding_batch_table: str | None
-    embedding_batch_chunks_table: str | None
 
 
 @dataclass
@@ -334,8 +328,8 @@ class VectorizerQueryBuilder:
             SELECT openai_batch_id, output_file_id FROM {}.{}
             WHERE status not in('failed', 'processed', 'prepared')
         """).format(
-            self.vectorizer.config.embedding_batch_schema,
-            self.vectorizer.config.embedding_batch_table,
+            self.vectorizer.config.embedding.embedding_batch_schema,
+            self.vectorizer.config.embedding.embedding_batch_table,
         )
 
     @cached_property
@@ -349,8 +343,8 @@ class VectorizerQueryBuilder:
             errors = %s
         WHERE openai_batch_id = %s
         """).format(
-            self.vectorizer.config.embedding_batch_schema,
-            self.vectorizer.config.embedding_batch_table,
+            self.vectorizer.config.embedding.embedding_batch_schema,
+            self.vectorizer.config.embedding.embedding_batch_table,
         )
 
     @cached_property
@@ -358,8 +352,8 @@ class VectorizerQueryBuilder:
         return sql.SQL(
             "UPDATE {}.{} SET status = %s WHERE openai_batch_id = %s"
         ).format(
-            self.vectorizer.config.embedding_batch_schema,
-            self.vectorizer.config.embedding_batch_table,
+            self.vectorizer.config.embedding.embedding_batch_schema,
+            self.vectorizer.config.embedding.embedding_batch_table,
         )
 
     @cached_property
@@ -367,8 +361,8 @@ class VectorizerQueryBuilder:
         return sql.SQL(
             "SELECT id, text FROM {}.{} WHERE embedding_batch_id = %s",
         ).format(
-            self.vectorizer.config.embedding_batch_schema,
-            self.vectorizer.config.embedding_batch_chunks_table,
+            self.vectorizer.config.embedding.embedding_batch_schema,
+            self.vectorizer.config.embedding.embedding_batch_chunks_table,
         )
 
     @cached_property
@@ -390,8 +384,8 @@ class VectorizerQueryBuilder:
           %s
         )
         """).format(
-            self.vectorizer.config.embedding_batch_schema,
-            self.vectorizer.config.embedding_batch_table,
+            self.vectorizer.config.embedding.embedding_batch_schema,
+            self.vectorizer.config.embedding.embedding_batch_table,
         )
 
     @cached_property
@@ -407,8 +401,8 @@ class VectorizerQueryBuilder:
             %s
         )
         """).format(
-            self.vectorizer.config.embedding_batch_schema,
-            self.vectorizer.config.embedding_batch_chunks_table,
+            self.vectorizer.config.embedding.embedding_batch_schema,
+            self.vectorizer.config.embedding.embedding_batch_chunks_table,
         )
 
     def _pks_placeholders_tuples(self, items_count: int) -> sql.Composed:

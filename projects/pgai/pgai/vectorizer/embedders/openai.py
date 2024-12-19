@@ -41,12 +41,20 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
         model (str): The name of the OpenAI model used for embeddings.
         dimensions (int | None): Optional dimensions for the embeddings.
         user (str | None): Optional user identifier for OpenAI API usage.
+        use_batch (bool): Whether to use OpenAI Batch API.
+        embedding_batch_schema (str | None): The schema where the embedding batches are stored.
+        embedding_batch_table (str | None): The table where the embedding batches are stored.
+        embedding_batch_chunks_table (str | None): The table where the embedding batch chunks are stored.
     """
 
     implementation: Literal["openai"]
     model: str
     dimensions: int | None = None
     user: str | None = None
+    use_batch: bool = False
+    embedding_batch_schema: str | None = None
+    embedding_batch_table: str | None = None
+    embedding_batch_chunks_table: str | None = None
 
     @cached_property
     def _openai_dimensions(self) -> int | openai.NotGiven:

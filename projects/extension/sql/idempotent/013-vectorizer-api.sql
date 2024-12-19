@@ -29,9 +29,6 @@ create or replace function ai.create_vectorizer
 , queue_table pg_catalog.name default null
 , grant_to pg_catalog.name[] default ai.grant_to()
 , enqueue_existing pg_catalog.bool default true
-, embedding_batch_schema pg_catalog.name default null
-, embedding_batch_table pg_catalog.name default null
-, embedding_batch_chunks_table pg_catalog.name default null
 ) returns pg_catalog.int4
 as $func$
 declare
@@ -227,29 +224,15 @@ begin
         scheduling = pg_catalog.jsonb_insert(scheduling, array['job_id'], pg_catalog.to_jsonb(_job_id));
     end if;
 
-    embedding_batch_schema = coalesce(embedding_batch_schema, 'ai');
-    embedding_batch_table = coalesce(embedding_batch_table, pg_catalog.concat('_vectorizer_embedding_batches_', _vectorizer_id));
-    embedding_batch_chunks_table = coalesce(embedding_batch_chunks_table, pg_catalog.concat('_vectorizer_embedding_batch_chunks_', _vectorizer_id));
-
     -- create batch embedding tables
     select (embedding operator (pg_catalog.->> 'implementation'))::text into _implementation;
     if _implementation = 'openai' then
-        -- make sure embedding batch table name is available
-        if pg_catalog.to_regclass(pg_catalog.format('%I.%I', embedding_batch_schema, embedding_batch_table)) is not null then
-            raise exception 'an object named %.% already exists. specify an alternate embedding_batch_table explicitly', queue_schema, queue_table;
-        end if;
-
-        -- make sure embedding batch chunks table name is available
-        if pg_catalog.to_regclass(pg_catalog.format('%I.%I', embedding_batch_schema, embedding_batch_chunks_table)) is not null then
-            raise exception 'an object named %.% already exists. specify an alternate embedding_batch_chunks_table explicitly', queue_schema, queue_table;
-        end if;
-
         perform ai._vectorizer_create_embedding_batches_table
-                (embedding_batch_schema
+            (embedding_batch_schema
             , embedding_batch_table
             , embedding_batch_chunks_table
             , grant_to
-                );
+            );
     end if;
 
     insert into ai.vectorizer
@@ -286,9 +269,6 @@ begin
       , 'formatting', formatting
       , 'scheduling', scheduling
       , 'processing', processing
-      , 'embedding_batch_schema', embedding_batch_schema
-      , 'embedding_batch_table', embedding_batch_table
-      , 'embedding_batch_chunks_table', embedding_batch_chunks_table
       )
     );
 
