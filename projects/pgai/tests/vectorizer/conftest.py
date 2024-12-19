@@ -60,7 +60,6 @@ def vcr_():
 def postgres_container_manager() -> (
     Generator[Callable[[bool], PostgresContainer], None, None]
 ):
-    load_dotenv()
     extension_dir = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "../../../extension/")
     )
@@ -84,6 +83,7 @@ def postgres_container_manager() -> (
             )
 
             if load_openai_key:
+                load_dotenv()
                 openai_api_key = os.environ["OPENAI_API_KEY"]
                 container = container.with_env("OPENAI_API_KEY", openai_api_key)
 
