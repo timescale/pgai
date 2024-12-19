@@ -324,13 +324,34 @@ class VectorizerQueryBuilder:
 
     @cached_property
     def fetch_batches_to_process_query(self) -> sql.Composed:
-        return sql.SQL("""
-            SELECT openai_batch_id, output_file_id FROM {}.{}
-            WHERE status not in('failed', 'processed', 'prepared')
-        """).format(
-            self.vectorizer.config.embedding.embedding_batch_schema,
-            self.vectorizer.config.embedding.embedding_batch_table,
-        )
+        if not isinstance(self.vectorizer.config.embedding, OpenAI):
+            raise Exception("batch support is only available for openai")
+
+        batch_schema = self.vectorizer.config.embedding.batch_schema
+        batch_table = self.vectorizer.config.embedding.batch_table
+
+        return sql.SQL(
+            """
+                WITH locked_rows AS (
+                    SELECT openai_batch_id
+                    FROM {batch_table}
+                    WHERE next_attempt_after is null or next_attempt_after < NOW()
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                    FOR UPDATE SKIP LOCKED
+                ),
+                UPDATE
+                    {batch_table} batches
+                SET
+                    total_attempts = batches.total_attempts + 1,
+                    next_attempt_after = %s
+                FRO
+                    locked_rows l
+                WHERE
+                    l.openai_batch_id = cfw.openai_batch_id
+                RETURNING l.openai_batch_id
+                """
+        ).format(batch_table=sql.Identifier(batch_schema, batch_table))
 
     @cached_property
     def update_batch_embedding_query(self) -> sql.Composed:
