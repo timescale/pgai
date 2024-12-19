@@ -6,5 +6,5 @@ docker compose exec ollama ollama pull nomic-embed-text
 docker compose exec ollama ollama pull mxbai-embed-large
 docker compose exec ollama ollama pull bge-m3
 
-echo "Saving the dataset in the db container..."
-docker cp "./paul_graham_essays.csv" pgai-ollama-db-1:/tmp/
+echo "Pulling the generative model for question generation..."
+docker compose exec ollama ollama pull llama3.2
