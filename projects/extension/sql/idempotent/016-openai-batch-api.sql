@@ -42,7 +42,7 @@ begin
            ( $sql$create table %I.%I(
     id                 VARCHAR(255) PRIMARY KEY,
     embedding_batch_id VARCHAR(255) REFERENCES %I.%I (openai_batch_id),
-    text               TEXT
+    chunk              TEXT
 ))$sql$
                , embedding_batch_schema
                , embedding_batch_chunks_table

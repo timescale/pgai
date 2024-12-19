@@ -359,7 +359,7 @@ class VectorizerQueryBuilder:
     @cached_property
     def fetch_chunks_for_batch_id_query(self) -> sql.Composed:
         return sql.SQL(
-            "SELECT id, text FROM {}.{} WHERE embedding_batch_id = %s",
+            "SELECT id, chunk FROM {}.{} WHERE embedding_batch_id = %s",
         ).format(
             self.vectorizer.config.embedding.embedding_batch_schema,
             self.vectorizer.config.embedding.embedding_batch_chunks_table,
@@ -394,7 +394,7 @@ class VectorizerQueryBuilder:
         INSERT INTO {}.{} (
             id,
             embedding_batch_id,
-            text
+            chunk
         ) VALUES (
             %s,
             %s,
