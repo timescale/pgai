@@ -21,7 +21,9 @@ begin
     created_at      TIMESTAMP(0) NOT NULL DEFAULT NOW(),
     expires_at      TIMESTAMP(0),
     completed_at    TIMESTAMP(0),
-    failed_at       TIMESTAMP(0)
+    failed_at       TIMESTAMP(0),
+    next_attempt_after TIMESTAMPTZ,
+    total_attempts BIGINT NOT NULL DEFAULT 0
 ))$sql$
                , embedding_batch_schema
                , embedding_batch_table
