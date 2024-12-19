@@ -169,7 +169,6 @@ class _Vectorizer:
         if obj is None and self._initialized:
             return self._embedding_class  # type: ignore
 
-        # return self.relationship_instance
         return getattr(obj, relationship_name)
 
     def __set_name__(self, owner: type[DeclarativeBase], name: str):
