@@ -1,6 +1,8 @@
 # SQLAlchemy Integration with pgai Vectorizer
 
-The `embedding_relationship` is a SQLAlchemy helper that integrates pgai's vectorization capabilities directly into your SQLAlchemy models. This allows you to easily query vector embeddings created by pgai using familiar SQLAlchemy patterns.
+The `vectorizer_relationship` is a SQLAlchemy helper that integrates pgai's vectorization capabilities directly into your SQLAlchemy models.
+Think of it as a normal SQLAlchemy [relationship](https://docs.sqlalchemy.org/en/20/orm/basic_relationships.html), but with a preconfigured model instance under the hood.
+This allows you to easily query vector embeddings created by pgai using familiar SQLAlchemy patterns.
 
 ## Installation
 
@@ -12,11 +14,11 @@ pip install "pgai[sqlalchemy]"
 
 ## Basic Usage
 
-Here's a basic example of how to use the `embedding_relationship`:
+Here's a basic example of how to use the `vectorizer_relationship`:
 
 ```python
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from pgai.sqlalchemy import embedding_relationship, EmbeddingModel
+from pgai.sqlalchemy import vectorizer_relationship
 
 class Base(DeclarativeBase):
     pass
@@ -29,7 +31,7 @@ class BlogPost(Base):
     content: Mapped[str]
 
     # Add vector embeddings for the content field
-    content_embeddings = embedding_relationship(
+    content_embeddings = vectorizer_relationship(
         dimensions=768
     )
 ```
@@ -75,7 +77,7 @@ similar_posts = (
 
 ## Configuration
 
-The `embedding_relationship` accepts the following parameters:
+The `vectorizer_relationship` accepts the following parameters:
 
 - `dimensions` (int): The size of the embedding vector (required)
 - `target_schema` (str, optional): Override the schema for the embeddings table. If not provided, inherits from the parent model's schema
@@ -83,7 +85,7 @@ The `embedding_relationship` accepts the following parameters:
 
 Additional parameters are simply forwarded to the underlying [SQLAlchemy relationship](https://docs.sqlalchemy.org/en/20/orm/relationships.html) so you can configure it as you desire.
 
-Think of the `embedding_relationship` as a normal SQLAlchemy relationship, but with a preconfigured model instance under the hood.
+Think of the `vectorizer_relationship` as a normal SQLAlchemy relationship, but with a preconfigured model instance under the hood.
 
 
 ## Setting up the Vectorizer
@@ -107,11 +109,11 @@ We recommend adding this to a migration script and run it via alembic.
 
 ## Querying Embeddings
 
-The `embedding_relationship` provides several ways to work with embeddings:
+The `vectorizer_relationship` provides several ways to work with embeddings:
 
 ### 1. Direct Access to Embeddings
 
-If you access the class proeprty of your model the `embedding_relationship` provide a SQLAlchemy model that you can query directly:
+If you access the class proeprty of your model the `vectorizer_relationship` provide a SQLAlchemy model that you can query directly:
 
 ```python
 # Get all embeddings
@@ -163,7 +165,7 @@ for post, embedding in results:
 ## Working with alembic 
 
 
-The `embedding_relationship` generates a new SQLAlchemy model, that is available under the attribute that you specify. If you are using alembic's autogenerate functionality to generate migrations, you will need to exclude these models from the autogenerate process.
+The `vectorizer_relationship` generates a new SQLAlchemy model, that is available under the attribute that you specify. If you are using alembic's autogenerate functionality to generate migrations, you will need to exclude these models from the autogenerate process.
 These are added to a list in your metadata called `pgai_managed_tables` and you can exclude them by adding the following to your `env.py`:
 
 ```python

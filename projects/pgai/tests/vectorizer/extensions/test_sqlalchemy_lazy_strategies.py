@@ -6,7 +6,7 @@ from sqlalchemy.orm import DeclarativeBase, Session
 from sqlalchemy.sql import text
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
-from pgai.sqlalchemy import embedding_relationship
+from pgai.sqlalchemy import vectorizer_relationship
 from tests.vectorizer.extensions.utils import run_vectorizer_worker
 
 
@@ -21,7 +21,7 @@ class ArticleWithLazyStrategies(Base):
     content = Column(Text, nullable=False)
 
     # Different vectorizers with different lazy loading strategies
-    embeddings = embedding_relationship(dimensions=768, lazy="joined")
+    embeddings = vectorizer_relationship(dimensions=768, lazy="joined")
 
 
 def test_joined_loading(

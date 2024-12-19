@@ -182,4 +182,4 @@ class _Vectorizer:
         metadata.info.setdefault("pgai_managed_tables", set()).add(self.target_table)
 
 
-embedding_relationship = _Vectorizer
+vectorizer_relationship = _Vectorizer
