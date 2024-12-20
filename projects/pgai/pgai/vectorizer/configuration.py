@@ -1,16 +1,15 @@
 import re
 from dataclasses import dataclass, fields
 from datetime import timedelta
-from typing import ClassVar, Protocol, runtime_checkable
+from typing import ClassVar, Protocol, runtime_checkable, Literal
+
+from pydantic import BaseModel
 
 from pgai.vectorizer.base import (
-    BaseDiskANNIndexing,
-    BaseHNSWIndexing,
     BaseOllamaConfig,
     BaseOpenAIConfig,
     BaseProcessing,
     BasePythonTemplate,
-    BaseTimescaleScheduling,
     BaseVoyageAIConfig,
     ChunkingCharacterTextSplitter,
     ChunkingRecursiveCharacterTextSplitter,
@@ -117,14 +116,27 @@ class NoIndexingConfig:
         return f", {self.arg_type: ClassVar[str]} => ai.indexing_none()"
 
 
-class DiskANNIndexingConfig(BaseDiskANNIndexing, SQLArgumentMixin):
+class DiskANNIndexingConfig(BaseModel, SQLArgumentMixin):
     arg_type: ClassVar[str] = "indexing"
     function_name: ClassVar[str] = "indexing_diskann"  # type: ignore
+    min_rows: int
+    storage_layout: Literal["memory_optimized", "plain"] | None = None
+    num_neighbors: int | None = None
+    search_list_size: int | None = None
+    max_alpha: float | None = None
+    num_dimensions: int | None = None
+    num_bits_per_dimension: int | None = None
+    create_when_queue_empty: bool | None = None
 
 
-class HNSWIndexingConfig(BaseHNSWIndexing, SQLArgumentMixin):
+class HNSWIndexingConfig(BaseModel, SQLArgumentMixin):
     arg_type: ClassVar[str] = "indexing"
     function_name: ClassVar[str] = "indexing_hnsw"  # type: ignore
+    min_rows: int | None = None
+    opclass: Literal["vector_cosine_ops", "vector_l1_ops", "vector_ip_ops"] | None = None
+    m: int | None = None
+    ef_construction: int | None = None
+    create_when_queue_empty: bool | None = None
 
 
 class NoSchedulingConfig:
@@ -134,9 +146,15 @@ class NoSchedulingConfig:
         return f", {self.arg_type: ClassVar[str]} => ai.scheduling_none()"
 
 
-class TimescaleSchedulingConfig(BaseTimescaleScheduling, SQLArgumentMixin):
+class TimescaleSchedulingConfig(BaseModel, SQLArgumentMixin):
     arg_type: ClassVar[str] = "scheduling"
     function_name: ClassVar[str] = "scheduling_timescaledb"  # type: ignore
+    
+    schedule_interval: timedelta | None = None
+    initial_start: str | None = None
+    job_id: int | None = None
+    fixed_schedule: bool | None = None
+    timezone: str | None = None
 
 
 class ProcessingConfig(BaseProcessing, SQLArgumentMixin):

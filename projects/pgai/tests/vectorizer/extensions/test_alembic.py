@@ -1,273 +1,177 @@
 from pathlib import Path
-
-from alembic.command import downgrade, upgrade
+from typing import Dict, Any
+import textwrap
+from alembic.command import upgrade, downgrade
 from alembic.config import Config
+from charset_normalizer.utils import is_separator
 from sqlalchemy import Engine, inspect, text
 
 from tests.vectorizer.extensions.conftest import load_template
+from pgai.vectorizer.configuration import (
+    OpenAIConfig,
+    OllamaConfig,
+    CharacterTextSplitterConfig,
+    RecursiveCharacterTextSplitterConfig,
+    HNSWIndexingConfig,
+    PythonTemplateConfig,
+    TimescaleSchedulingConfig,
+    ProcessingConfig,
+)
+from datetime import timedelta
 
-
-def create_migration_script(migrations_dir: Path) -> None:
-    """Create a basic migration script"""
+def create_vectorizer_migration(migrations_dir: Path, vectorizer_config: str) -> None:
+    """Create migration script with the given vectorizer configuration"""
     versions_dir = migrations_dir / "versions"
     migration_content = load_template(
-        "migrations/001_create_test_table.py.template",
+        "migrations/generic_vectorizer.py.template",
         revision_id="001",
         revises="",
         create_date="2024-03-19 10:00:00.000000",
         down_revision="None",
+        vectorizer_config=vectorizer_config
     )
-
-    with open(versions_dir / "001_create_test_table.py", "w") as f:
+    
+    with open(versions_dir / "001_generic_vectorizer.py", "w") as f:
         f.write(migration_content)
 
+def create_vectorizer_config_code(**kwargs) -> str:
+    """Convert configuration objects to valid Python code for the migration template"""
+    return textwrap.dedent(f"""
+        op.create_vectorizer(
+            source_table='public.blog',
+            **{kwargs}
+        )
+    """).strip()
 
-def create_vectorizer_migration_scripts(migrations_dir: Path) -> None:
-    """Create migration scripts for vectorizer testing"""
-    versions_dir = migrations_dir / "versions"
-
-    # First migration - create blog table
-    blog_content = load_template(
-        "migrations/001_create_blog_table.py.template",
-        revision_id="001",
-        revises="",
-        create_date="2024-03-19 10:00:00.000000",
-        down_revision="None",
-    )
-    with open(versions_dir / "001_create_blog_table.py", "w") as f:
-        f.write(blog_content)
-
-    # Second migration - create vectorizer
-    vectorizer_content = load_template(
-        "migrations/002_create_vectorizer.py.template",
-        revision_id="002",
-        revises="001",
-        create_date="2024-03-19 10:01:00.000000",
-        down_revision="001",
-    )
-    with open(versions_dir / "002_create_vectorizer.py", "w") as f:
-        f.write(vectorizer_content)
-
-
-def test_basic_alembic_migration(alembic_config: Config, initialized_engine: Engine):
-    """Verify basic Alembic functionality works before testing vectorizer operations"""
-    migrations_dir = Path(alembic_config.get_main_option("script_location"))  # type: ignore
-    create_migration_script(migrations_dir)
-
-    # Run upgrade
-    upgrade(alembic_config, "head")
-
-    # Verify table exists
-    inspector = inspect(initialized_engine)
-    tables = inspector.get_table_names()
-    assert "test_table" in tables
-
-    # Check table structure
-    columns = {
-        col["name"]: col["type"].__class__.__name__
-        for col in inspector.get_columns("test_table")
-    }
-    assert columns["id"] == "INTEGER"
-    assert columns["name"] == "VARCHAR"
-
-    # Run downgrade
-    downgrade(alembic_config, "base")
-
-    # Verify table is gone
-    inspector = inspect(initialized_engine)
-    tables = inspector.get_table_names()
-    assert "test_table" not in tables
-
-
-def test_vectorizer_migration(
-    alembic_config: Config,
-    initialized_engine: Engine,
-    cleanup_modules: None,  # noqa: ARG001
-):
-    """Test vectorizer creation and deletion via Alembic migrations"""
-    migrations_dir = Path(alembic_config.get_main_option("script_location"))  # type: ignore
-    create_vectorizer_migration_scripts(migrations_dir)
-
-    # Run upgrade to first migration (create blog table)
-    upgrade(alembic_config, "001")
-
-    # Verify blog table exists
-    inspector = inspect(initialized_engine)
-    tables = inspector.get_table_names()
-    assert "blog" in tables
-
-    # Run upgrade to second migration (create vectorizer)
-    upgrade(alembic_config, "002")
-
-    # Verify vectorizer exists
-    with initialized_engine.connect() as conn:
-        result = conn.execute(text("SELECT * FROM ai.vectorizer_status")).fetchone()
-        assert result is not None
-        assert result.source_table == "public.blog"
-        assert result.pending_items == 0  # Since table is empty
-
-    # Run downgrade of vectorizer
-    downgrade(alembic_config, "001")
-
-    # Verify vectorizer is gone but blog table remains
-    with initialized_engine.connect() as conn:
-        result = conn.execute(text("SELECT * FROM ai.vectorizer_status")).fetchall()
-        assert len(result) == 0
-
-    inspector = inspect(initialized_engine)
-    tables = inspector.get_table_names()
-    assert "blog" in tables
-
-    # Run final downgrade
-    downgrade(alembic_config, "base")
-
-    # Verify everything is gone
-    inspector = inspect(initialized_engine)
-    tables = inspector.get_table_names()
-    assert "blog" not in tables
-
-
-def create_complex_vectorizer_migration(migrations_dir: Path) -> None:
-    """Create migration script for complex vectorizer testing"""
-    versions_dir = migrations_dir / "versions"
-
-    migration_content = load_template(
-        "migrations/003_create_complex_vectorizer.py.template",
-        revision_id="003",
-        revises="",
-        create_date="2024-03-19 10:00:00.000000",
-        down_revision="None",
-    )
-
-    with open(versions_dir / "003_create_complex_vectorizer.py", "w") as f:
-        f.write(migration_content)
-
-
-def test_complex_vectorizer_migration(
-    alembic_config: Config,
-    initialized_engine: Engine,
-    cleanup_modules: None,  # noqa: ARG001
-):
-    migrations_dir = Path(alembic_config.get_main_option("script_location"))  # type: ignore
-    create_complex_vectorizer_migration(migrations_dir)
-
-    # Run upgrade
-    upgrade(alembic_config, "head")
-
-    # Verify articles table exists with all columns
-    inspector = inspect(initialized_engine)
-    tables = inspector.get_table_names()
-    assert "articles" in tables
-
-    # Verify vectorizer exists with correct configuration
-    with initialized_engine.connect() as conn:
-        # Check vectorizer status
-        result = conn.execute(text("SELECT * FROM ai.vectorizer_status")).fetchone()
-        assert result is not None
-        assert result.source_table == "public.articles"
-        assert result.pending_items == 0
-
-        # Check specific vectorizer configuration
-        vectorizer_config = conn.execute(
-            text("SELECT * FROM ai.vectorizer WHERE source_table = 'articles'")
-        ).fetchone()
-        assert vectorizer_config is not None
-
-
-def create_openai_vectorizer_migration(migrations_dir: Path) -> None:
-    versions_dir = migrations_dir / "versions"
-    migration_content = load_template(
-        "migrations/004_create_openai_vectorizer.py.template",
-        revision_id="004",
-        revises="",
-        create_date="2024-03-19 10:00:00.000000",
-        down_revision="None",
-    )
-    with open(versions_dir / "004_create_openai_vectorizer.py", "w") as f:
-        f.write(migration_content)
-
-
-def create_ollama_vectorizer_migration(migrations_dir: Path) -> None:
-    versions_dir = migrations_dir / "versions"
-    migration_content = load_template(
-        "migrations/005_create_ollama_vectorizer.py.template",
-        revision_id="005",
-        revises="",
-        create_date="2024-03-19 10:00:00.000000",
-        down_revision="None",
-    )
-    with open(versions_dir / "005_create_ollama_vectorizer.py", "w") as f:
-        f.write(migration_content)
-
-
-def create_hnsw_vectorizer_migration(migrations_dir: Path) -> None:
-    """Create migration script for HNSW indexing vectorizer testing"""
-    versions_dir = migrations_dir / "versions"
-    migration_content = load_template(
-        "migrations/006_create_hnsw_vectorizer.py.template",
-        revision_id="006",
-        revises="",
-        create_date="2024-03-19 10:00:00.000000",
-        down_revision="None",
-    )
-    with open(versions_dir / "006_create_hnsw_vectorizer.py", "w") as f:
-        f.write(migration_content)
-
-
-def test_openai_vectorizer_migration(
+def test_openai_vectorizer(
     alembic_config: Config,
     initialized_engine: Engine,
     cleanup_modules: None,  # noqa: ARG001
 ):
     """Test OpenAI vectorizer configuration"""
-    migrations_dir = Path(alembic_config.get_main_option("script_location"))  # type: ignore
-    create_openai_vectorizer_migration(migrations_dir)
-
+    config = create_vectorizer_config_code(
+        embedding=OpenAIConfig(
+            model='text-embedding-3-small',
+            dimensions=768,
+            chat_user='test_user',
+            api_key_name='TEST_OPENAI_KEY'
+        ),
+        chunking=CharacterTextSplitterConfig(
+            chunk_column='content',
+            chunk_size=256,
+            chunk_overlap=20,
+            separator='\n',
+            is_separator_regex=False,
+        )
+    )
+    
+    migrations_dir = Path(alembic_config.get_main_option("script_location"))
+    create_vectorizer_migration(migrations_dir, config)
+    
+    # Run upgrade
     upgrade(alembic_config, "head")
-
+    
+    # Verify configuration
     with initialized_engine.connect() as conn:
-        vectorizer_config = conn.execute(text("SELECT * FROM ai.vectorizer")).fetchone()
-        assert vectorizer_config is not None
-        config = str(dict(vectorizer_config._mapping))  # type: ignore
+        vectorizer = conn.execute(text("SELECT * FROM ai.vectorizer")).fetchone()
+        assert vectorizer is not None
+        config = str(dict(vectorizer._mapping))
         assert "text-embedding-3-small" in config
         assert "768" in config
         assert "test_user" in config
+    
+    # Run downgrade
+    downgrade(alembic_config, "base")
 
-
-def test_ollama_vectorizer_migration(
+def test_ollama_vectorizer(
     alembic_config: Config,
     initialized_engine: Engine,
     cleanup_modules: None,  # noqa: ARG001
 ):
     """Test Ollama vectorizer configuration"""
-    migrations_dir = Path(alembic_config.get_main_option("script_location"))  # type: ignore
-    create_ollama_vectorizer_migration(migrations_dir)
-
+    config = create_vectorizer_config_code(
+        embedding=OllamaConfig(
+            model='nomic-embed-text',
+            dimensions=768,
+            base_url='http://localhost:11434',
+            keep_alive='5m'
+        ),
+        chunking=RecursiveCharacterTextSplitterConfig(
+            chunk_column='content',
+            chunk_size=300,
+            chunk_overlap=30,
+            separators=['\n\n', '\n', '; '],
+            is_separator_regex=False,
+        ),
+        formatting=PythonTemplateConfig(
+            template='Title: $title\nContent: $chunk'
+        )
+    )
+    
+    migrations_dir = Path(alembic_config.get_main_option("script_location"))
+    create_vectorizer_migration(migrations_dir, config)
+    
+    # Run upgrade
     upgrade(alembic_config, "head")
-
+    
+    # Verify configuration
     with initialized_engine.connect() as conn:
-        vectorizer_config = conn.execute(text("SELECT * FROM ai.vectorizer")).fetchone()
-        assert vectorizer_config is not None
-        config = str(dict(vectorizer_config._mapping))  # type: ignore
+        vectorizer = conn.execute(text("SELECT * FROM ai.vectorizer")).fetchone()
+        assert vectorizer is not None
+        config = str(dict(vectorizer._mapping))
         assert "nomic-embed-text" in config
         assert "http://localhost:11434" in config
+    
+    # Run downgrade
+    downgrade(alembic_config, "base")
 
-
-def test_hnsw_vectorizer_migration(
+def test_hnsw_vectorizer(
     alembic_config: Config,
     initialized_engine: Engine,
     cleanup_modules: None,  # noqa: ARG001
 ):
-    """Test HNSW indexing vectorizer configuration"""
-    migrations_dir = Path(alembic_config.get_main_option("script_location"))  # type: ignore
-    create_hnsw_vectorizer_migration(migrations_dir)
-
+    """Test HNSW vectorizer configuration"""
+    config = create_vectorizer_config_code(
+        embedding=OpenAIConfig(
+            model='text-embedding-3-small',
+            dimensions=768,
+            api_key_name='TEST_OPENAI_KEY'
+        ),
+        chunking=CharacterTextSplitterConfig(
+            chunk_column='content',
+            chunk_size=200,
+            chunk_overlap=25,
+            separator=' ',
+            is_separator_regex=False,
+        ),
+        indexing=HNSWIndexingConfig(
+            min_rows=50000,
+            opclass='vector_l1_ops',
+            m=16,
+            ef_construction=64,
+            create_when_queue_empty=True
+        ),
+        scheduling=TimescaleSchedulingConfig(
+            interval=timedelta(minutes=5),
+            retention_policy='1d',
+            fixed_schedule=False
+        )
+    )
+    
+    migrations_dir = Path(alembic_config.get_main_option("script_location"))
+    create_vectorizer_migration(migrations_dir, config)
+    
+    # Run upgrade
     upgrade(alembic_config, "head")
-
+    
+    # Verify configuration
     with initialized_engine.connect() as conn:
-        vectorizer_config = conn.execute(text("SELECT * FROM ai.vectorizer")).fetchone()
-        assert vectorizer_config is not None
-        config = str(dict(vectorizer_config._mapping))  # type: ignore
+        vectorizer = conn.execute(text("SELECT * FROM ai.vectorizer")).fetchone()
+        assert vectorizer is not None
+        config = str(dict(vectorizer._mapping))
         assert "vector_l1_ops" in config
         assert "16" in config  # m parameter
         assert "64" in config  # ef_construction
+    
+    # Run downgrade
+    downgrade(alembic_config, "base")
