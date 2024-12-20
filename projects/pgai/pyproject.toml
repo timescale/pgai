@@ -64,6 +64,9 @@ pgai = "pgai.cli:cli"
 addopts = [
     "--import-mode=importlib",
 ]
+markers = [
+    "postgres_params: Parameters for the postgres_container fixture (e.g. `load_openai_key=False`)"
+]
 python_files = ["test_*.py"]
 
 [tool.pyright]
