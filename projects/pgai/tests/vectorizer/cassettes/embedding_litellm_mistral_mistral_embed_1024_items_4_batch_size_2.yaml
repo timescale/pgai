@@ -1,0 +1,518 @@
+interactions:
+- request:
+    body: '{"input": ["post_1", "post_2"], "model": "mistral-embed", "encoding_format":
+      "base64"}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      connection:
+      - keep-alive
+      content-length:
+      - '86'
+      content-type:
+      - application/json
+      host:
+      - api.mistral.ai
+      user-agent:
+      - AsyncOpenAI/Python 1.58.1
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 1.58.1
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.10.15
+    method: POST
+    uri: https://api.mistral.ai/v1/embeddings
+  response:
+    body:
+      string: '{"message":"Requests rate limit exceeded"}'
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-RAY:
+      - 90162679bac6be66-ZRH
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '42'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Jan 2025 14:41:59 GMT
+      Server:
+      - cloudflare
+      access-control-allow-origin:
+      - '*'
+      alt-svc:
+      - h3=":443"; ma=86400
+      ratelimitbysize-limit:
+      - '20000000'
+      ratelimitbysize-query-cost:
+      - '3'
+      ratelimitbysize-remaining:
+      - '19999994'
+      ratelimitbysize-reset:
+      - '1'
+      x-kong-request-id:
+      - 46879355129b0f0eccaa4a48493bad56
+      x-kong-response-latency:
+      - '0'
+      x-ratelimitbysize-limit-minute:
+      - '20000000'
+      x-ratelimitbysize-limit-month:
+      - '200000000000'
+      x-ratelimitbysize-remaining-minute:
+      - '19999994'
+      x-ratelimitbysize-remaining-month:
+      - '199999980233'
+    status:
+      code: 429
+      message: Too Many Requests
+- request:
+    body: '{"input": ["post_3", "post_4"], "model": "mistral-embed", "encoding_format":
+      "base64"}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      connection:
+      - keep-alive
+      content-length:
+      - '86'
+      content-type:
+      - application/json
+      host:
+      - api.mistral.ai
+      user-agent:
+      - AsyncOpenAI/Python 1.58.1
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 1.58.1
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.10.15
+    method: POST
+    uri: https://api.mistral.ai/v1/embeddings
+  response:
+    body:
+      string: !!binary |
+        H4sIAAAAAAAAA3RZSbIdxw28y19TDCAx6ypeUaLkkMPDwtr58o6qfq8L6E8FN3z9e6jCkMjM+t/H
+        H98/fv749u13zu/fKkmgv3/zIpjTL98tVTl+lY8vH//55R+//frnx88f//zjv39+fPn4/u3Pbx8/
+        /+1/5w+//euX375//+Pff//40v7/899+oq+kyRkwSysJ+0JfSUhENeDm2BecVThT477CYqSEFJDw
+        dUmYQ4KcTD3Dvqx3s1qAVex1bX0OHIZC3TdJJDPifYm+EnlCtUQpX+/fL3MOFXYlf10RlgDFvQRK
+        5vCwyPczInV/fP2Gw0nC6rWV/d4iRFCV0x0Bd/D9ay2HPDLOJbhmoX2IJYLJgpFF7yBRwAv3c3sB
+        QZRk/trF/rxFEFw8+L1MF9IaWyULV6IwT7H7be4pom3h4BQTBGvq+yZGmEtLHiGtmM2J3lm/8gCi
+        QoTcj4oamySd2gCIUwXOZ7VkzOyl0lbGQsLz/aS5/hGgZ8FUpiqz/lhglRlediVfvyYTlaaIhBJE
+        f/uJXt8xo1FN5GKGNFe1d10YyFGZOOmiUb5XmCrCiWjUBqlVVtX66AlUPZ4VcSHpeeYoluR3svau
+        lKFhM+SpHKfu1S1CTZzlrNXTSYzv7LkXVRSRnEpjdk5SrgK/XmaiFcItDGSrECI5pIXiUS0QKQ6I
+        txUgo6QV2oYNSgKt6r2jQCWSEqcBUtlDk07/pYWplJ6H2ITU3LTlUJnC3YnvPAAazuWtu8TEK0Pa
+        21HKWWfDvIJZwR69PhzOKLYWP2InqwzTUSRpaSCjq833poNJ9QSZS6EqHRopAyQV9b5tfzXL1SQt
+        tF1kIbMkluJrs6+mS2N637i35TSXIZl6Nyp9pcgol2wIAk5fI+KN4hdcekRvPjYzF7G+I2fOCFU+
+        2AMRIT/4v4sSjgm9laG4wXeXwyoSgb1rZOfRQ+2eERsQQa5Yz793Q4KKJIu8+2B9Ueu9qA3AxT5S
+        mBGSpwl3fNfODHIj9YpdQLmBO2umls5C0goVN9wBJoKBKFWS+erGF5xLlk3wJhOConozwlKEDwZd
+        kyBVjBrwrVqqMh7YaqROyXeD7Na2zJ5tUSkRbmFlcku48ruL9jV2iL2x5OqYokCrEfJYgy5WD57b
+        PrW64iDEBggqViHvEytK1OKA5Ho1U4ar68n1yiOps7YckTgiHjPZ4Xm2uGuQ1EzQl88IzeC859Ou
+        jDWyaubzuTh2UbBLG3UPmgAXsDJ3aDaqXjq770yIjd8FsYsJ+cgXwuDZWBE0zc1vYN6YDkmqvBH8
+        Gisy2NpOPpVqogGLIMXrNMsqPxfX6IPXlWHkTL0eWHSNaef2ND/CTmzQgkG49sjP13gX8ijBTYEu
+        Brg4mucoDUiKAtk+bHN4XOPEWNK0+gBZt1HobBIN1lr13iZygY2yDSOOqh3UkyyqNUTkJhpXvyG0
+        XMZSVlUxRfFpJoiXZ3VMcvJ5j8FDRF7IVl+NM50jLjYiN4nBAjKPERBiLVUKf/OvV5S5Alyp2dov
+        CMZ3V10L5k/jhj1G07LBeoBo8Ss86LqIUQpRo9ROq3Kq88lYmoTbfH6Rm4DM8oUkjEJ6tUY8xjZS
+        yMg6lPsqTOmUyy3NSw6/ojIU88gmm/iT5io55xrHNwaZ66LlHd84evVcjykZzsh1qJy3/PRXOLO2
+        /4ne0xZv3DUGVt2VaaseSmjIg5OQebE9mCuXQMYAowKkJAbppYDg8KpL+jD07qW1rRpIgnyAGVGs
+        X6JUio1WL2rxSh2RrUJqX7X5AmMLjcYcjPkA02uY+ZCDmkqjlaEGyksJvONH6iDphIEz+sTYi880
+        TXdCXBG8cD5WUzUC5wkYtQoHkZtQDNWTa2YY+BSSzCl4CWBX4zOGr+J6VFsL+m4SKlidct97QdIU
+        Oqs+kYQu10yFaojmJ0zt29IHk16SLiRiiHKznITfdCmKTp1IRZ+cWRR6GMUGB127dX0QYmVF+IHj
+        62HWYu8ipopa/65isEKWWUMkpuBCHcG8Oz8px9gSIGPAltiSwTgb2PPbqUtHlqX007O9W5QXu25d
+        Xux4akJQTsKn7AM21/REHoy+VPNojx/L5hcOpGRlp7biZc2muBahEajG721Vya0d96ukNMHsd+Cv
+        qxrGWZOZK7jIjLvHsuK/mgX2wvV8VWyb0p8n8l84Dlio+GCfqpbOPQNUWlTedZ26YJojCuVjSmzY
+        YFM/HO+q6tC0Jq+RKfVgeUGPsJJ8yt51OdIpY+KQsFKbtC+TomKhe5fnqkE51VKpa2DoV8shsWn5
+        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
+        yx+/f/44/fXX/wIAAP//AwB1i7Vvy5cAAA==
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-RAY:
+      - 90162679c916be5c-ZRH
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 13 Jan 2025 14:41:59 GMT
+      Server:
+      - cloudflare
+      Transfer-Encoding:
+      - chunked
+      access-control-allow-origin:
+      - '*'
+      alt-svc:
+      - h3=":443"; ma=86400
+      ratelimitbysize-limit:
+      - '20000000'
+      ratelimitbysize-query-cost:
+      - '3'
+      ratelimitbysize-remaining:
+      - '19999997'
+      ratelimitbysize-reset:
+      - '1'
+      x-envoy-upstream-service-time:
+      - '268'
+      x-kong-proxy-latency:
+      - '1'
+      x-kong-request-id:
+      - ea106c1c8a1ba1559f69a6663ee53758
+      x-kong-upstream-latency:
+      - '268'
+      x-ratelimitbysize-limit-minute:
+      - '20000000'
+      x-ratelimitbysize-limit-month:
+      - '200000000000'
+      x-ratelimitbysize-remaining-minute:
+      - '19999997'
+      x-ratelimitbysize-remaining-month:
+      - '199999980236'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"input": ["post_1", "post_2"], "model": "mistral-embed", "encoding_format":
+      "base64"}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      connection:
+      - keep-alive
+      content-length:
+      - '86'
+      content-type:
+      - application/json
+      cookie:
+      - __cf_bm=qkL8iTckknyKAvrZvnqY6lA5F38SVEeruoVuEC4o0B0-1736779319-1.0.1.1-QcqC8bZ0TPHpUg4615Vt0NcNyvbBnybQOHgm9Xrm03Zvxg7hnY1QvORSFkq8zQ73kwnyLe1DGDbXvMNOjfrxZA
+      host:
+      - api.mistral.ai
+      user-agent:
+      - AsyncOpenAI/Python 1.58.1
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 1.58.1
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '1'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.10.15
+    method: POST
+    uri: https://api.mistral.ai/v1/embeddings
+  response:
+    body:
+      string: '{"message":"Requests rate limit exceeded"}'
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-RAY:
+      - 9016267ccf93be66-ZRH
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '42'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Jan 2025 14:41:59 GMT
+      Server:
+      - cloudflare
+      access-control-allow-origin:
+      - '*'
+      alt-svc:
+      - h3=":443"; ma=86400
+      ratelimitbysize-limit:
+      - '20000000'
+      ratelimitbysize-query-cost:
+      - '3'
+      ratelimitbysize-remaining:
+      - '19999996'
+      ratelimitbysize-reset:
+      - '1'
+      x-kong-request-id:
+      - 46c3b54c9edf081dc7b8fc03461b3c71
+      x-kong-response-latency:
+      - '0'
+      x-ratelimitbysize-limit-minute:
+      - '20000000'
+      x-ratelimitbysize-limit-month:
+      - '200000000000'
+      x-ratelimitbysize-remaining-minute:
+      - '19999996'
+      x-ratelimitbysize-remaining-month:
+      - '199999980235'
+    status:
+      code: 429
+      message: Too Many Requests
+- request:
+    body: '{"input": ["post_1", "post_2"], "model": "mistral-embed", "encoding_format":
+      "base64"}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      connection:
+      - keep-alive
+      content-length:
+      - '86'
+      content-type:
+      - application/json
+      cookie:
+      - __cf_bm=qkL8iTckknyKAvrZvnqY6lA5F38SVEeruoVuEC4o0B0-1736779319-1.0.1.1-QcqC8bZ0TPHpUg4615Vt0NcNyvbBnybQOHgm9Xrm03Zvxg7hnY1QvORSFkq8zQ73kwnyLe1DGDbXvMNOjfrxZA
+      host:
+      - api.mistral.ai
+      user-agent:
+      - AsyncOpenAI/Python 1.58.1
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 1.58.1
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '2'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.10.15
+    method: POST
+    uri: https://api.mistral.ai/v1/embeddings
+  response:
+    body:
+      string: '{"message":"Requests rate limit exceeded"}'
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-RAY:
+      - 90162682a844be66-ZRH
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '42'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Jan 2025 14:42:00 GMT
+      Server:
+      - cloudflare
+      access-control-allow-origin:
+      - '*'
+      alt-svc:
+      - h3=":443"; ma=86400
+      ratelimitbysize-limit:
+      - '20000000'
+      ratelimitbysize-query-cost:
+      - '3'
+      ratelimitbysize-remaining:
+      - '19999996'
+      ratelimitbysize-reset:
+      - '60'
+      x-kong-request-id:
+      - 5f67335983758c3f3ff005030525b01e
+      x-kong-response-latency:
+      - '1'
+      x-ratelimitbysize-limit-minute:
+      - '20000000'
+      x-ratelimitbysize-limit-month:
+      - '200000000000'
+      x-ratelimitbysize-remaining-minute:
+      - '19999996'
+      x-ratelimitbysize-remaining-month:
+      - '199999980235'
+    status:
+      code: 429
+      message: Too Many Requests
+version: 1

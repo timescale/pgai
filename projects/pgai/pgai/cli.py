@@ -131,7 +131,11 @@ def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer:
         return vectorizer
 
 
-def run_vectorizer(db_url: str, vectorizer: Vectorizer, concurrency: int) -> None:
+def run_vectorizer(
+    db_url: str,
+    vectorizer: Vectorizer,
+    concurrency: int,
+) -> None:
     async def run_workers(
         db_url: str, vectorizer: Vectorizer, concurrency: int
     ) -> list[int]:
