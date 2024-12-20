@@ -6,6 +6,7 @@ import random
 import signal
 import sys
 import time
+from asyncio import AbstractEventLoop
 from collections.abc import Sequence
 from typing import Any
 
@@ -130,7 +131,12 @@ def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer:
         return vectorizer
 
 
-def run_vectorizer(db_url: str, vectorizer: Vectorizer, concurrency: int) -> None:
+def run_vectorizer(
+    db_url: str,
+    vectorizer: Vectorizer,
+    concurrency: int,
+    event_loop: AbstractEventLoop | None = None,
+) -> None:
     async def run_workers(
         db_url: str, vectorizer: Vectorizer, concurrency: int
     ) -> list[int]:
@@ -140,7 +146,12 @@ def run_vectorizer(db_url: str, vectorizer: Vectorizer, concurrency: int) -> Non
         ]
         return await asyncio.gather(*tasks)
 
-    results = asyncio.run(run_workers(db_url, vectorizer, concurrency))
+    if event_loop is None:
+        results = asyncio.run(run_workers(db_url, vectorizer, concurrency))
+    else:
+        results = event_loop.run_until_complete(
+            run_workers(db_url, vectorizer, concurrency)
+        )
     items = sum(results)
     log.info("finished processing vectorizer", items=items, vectorizer_id=vectorizer.id)
 
@@ -268,6 +279,8 @@ def vectorizer_worker(
         # --once implies --exit-on-error
         exit_on_error = True
 
+    event_loop = asyncio.new_event_loop()
+
     while True:
         try:
             if not can_connect or pgai_version is None:
@@ -302,7 +315,9 @@ def vectorizer_worker(
                     try:
                         vectorizer = get_vectorizer(db_url, vectorizer_id)
                         log.info("running vectorizer", vectorizer_id=vectorizer_id)
-                        run_vectorizer(db_url, vectorizer, concurrency)
+                        run_vectorizer(
+                            db_url, vectorizer, concurrency, event_loop=event_loop
+                        )
                     except (VectorizerNotFoundError, ApiKeyNotFoundError) as e:
                         log.error(
                             f"error getting vectorizer: {type(e).__name__}: {str(e)} "

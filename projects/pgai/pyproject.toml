@@ -25,6 +25,7 @@ dependencies = [
     "datadog_lambda>=6.9,<7.0",
     "pytimeparse>=1.1,<2.0",
     "voyageai>=0.3.1,<0.4.0",
+    "litellm>=1.55.4,<1.56.0",
 ]
 classifiers = [
     "License :: OSI Approved :: PostgreSQL License",

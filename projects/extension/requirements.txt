@@ -1,4 +1,4 @@
-openai==1.44.0
+openai==1.56.0
 tiktoken==0.7.0
 ollama==0.2.1
 anthropic==0.29.0
@@ -6,3 +6,5 @@ cohere==5.5.8
 backoff==2.2.1
 voyageai==0.3.1
 datasets==3.1.0
+litellm==1.55.4
+google-cloud-aiplatform==1.74.0 # required for vertexAI (don't know why litellm doesn't include this)
