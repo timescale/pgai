@@ -77,6 +77,30 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- embedding_litellm
+create or replace function ai.embedding_litellm
+( model pg_catalog.text
+, dimensions pg_catalog.int4
+, api_key_name pg_catalog.text default null
+, extra_options pg_catalog.jsonb default null
+) returns pg_catalog.jsonb
+as $func$
+begin
+    return json_object
+    ( 'implementation': 'litellm'
+    , 'config_type': 'embedding'
+    , 'model': model
+    , 'dimensions': dimensions
+    , 'api_key_name': api_key_name
+    , 'extra_options': extra_options
+    absent on null
+    );
+end
+$func$ language plpgsql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- _validate_embedding
 create or replace function ai._validate_embedding(config pg_catalog.jsonb) returns void
 as $func$
@@ -99,6 +123,8 @@ begin
         when 'ollama' then
             -- ok
         when 'voyageai' then
+            -- ok
+        when 'litellm' then
             -- ok
         else
             if _implementation is null then

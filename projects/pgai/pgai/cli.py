@@ -19,6 +19,7 @@ from psycopg.rows import dict_row, namedtuple_row
 from pytimeparse import parse  # type: ignore
 
 from .__init__ import __version__
+from .vectorizer.embeddings import ApiKeyMixin
 from .vectorizer.vectorizer import Vectorizer, Worker
 
 load_dotenv()
@@ -120,10 +121,9 @@ def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer:
                     f"api_key_name={api_key_name} vectorizer_id={vectorizer_id}"
                 )
             secrets: dict[str, str | None] = {api_key_name: api_key}
-            # The Ollama API doesn't need a key, so doesn't support `set_api_key`
-            set_api_key = getattr(vectorizer.config.embedding, "set_api_key", None)
-            if callable(set_api_key):
-                set_api_key(secrets)
+            # The Ollama API doesn't need a key, so doesn't inherit `ApiKeyMixin`
+            if isinstance(vectorizer.config.embedding, ApiKeyMixin):
+                vectorizer.config.embedding.set_api_key(secrets)
             else:
                 log.error(
                     f"cannot set secret value '{api_key_name}' for vectorizer with id: '{vectorizer.id}'"  # noqa
@@ -131,7 +131,11 @@ def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer:
         return vectorizer
 
 
-def run_vectorizer(db_url: str, vectorizer: Vectorizer, concurrency: int) -> None:
+def run_vectorizer(
+    db_url: str,
+    vectorizer: Vectorizer,
+    concurrency: int,
+) -> None:
     async def run_workers(
         db_url: str, vectorizer: Vectorizer, concurrency: int
     ) -> list[int]:
