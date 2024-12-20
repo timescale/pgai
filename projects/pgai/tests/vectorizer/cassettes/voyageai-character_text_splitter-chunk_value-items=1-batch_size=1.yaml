@@ -1,7 +1,8 @@
 interactions:
 - request:
     body: '{"input": ["post_1"], "model": "voyage-3-lite", "input_type": "document",
-      "truncation": true, "encoding_format": "base64"}'
+      "truncation": true, "output_dtype": null, "output_dimension": null, "encoding_format":
+      "base64"}'
     headers:
       Content-Type:
       - application/json
@@ -18,7 +19,7 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Tue, 26 Nov 2024 19:13:37 GMT
+      - Mon, 20 Jan 2025 11:13:54 GMT
       Server:
       - uvicorn
       Via:

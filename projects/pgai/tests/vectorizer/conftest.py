@@ -55,10 +55,9 @@ def vcr_():
         serializer="yaml",
         cassette_library_dir=str(cassette_library_dir),
         record_mode=vcr.mode.ONCE,
-        filter_headers=["authorization"],
+        filter_headers=["authorization", "api-key"],
         match_on=["method", "scheme", "host", "port", "path", "query", "body"],
         before_record_response=remove_set_cookie_header,
-        ignore_hosts=["huggingface.co"],
     )
 
 
