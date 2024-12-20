@@ -25,7 +25,7 @@ build:
 
 # Install the wheel package locally
 install:
-	@uv sync
+	@uv sync --all-extras
 
 # Remove the installed pgai package
 uninstall:

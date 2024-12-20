@@ -112,8 +112,7 @@ jobs:
           python-version-file: "./projects/pgai/.python-version"
 
       - name: Install dependencies
-        working-directory: ./projects/pgai
-        run: uv sync --all-extras
+        run: just pgai install
 
       - name: Lint
         run: just pgai lint
