@@ -165,6 +165,26 @@ class Embedder(ABC):
         """
 
 
+class BaseURLMixin:
+    """
+    A mixin class that provides functionality for managing base URLs.
+
+    Attributes:
+        base_url (str | None): The base URL for the API.
+    """
+
+    base_url: str | None = None
+
+    def set_base_url(self, base_url: str | None):
+        """
+        Sets the base URL from the provided secrets.
+
+        Args:
+            base_url (str | None): The base URL to be set.
+        """
+        self.base_url = base_url
+
+
 class ApiKeyMixin:
     """
     A mixin class that provides functionality for managing API keys.
