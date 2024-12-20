@@ -22,7 +22,7 @@ from .chunking import (
     LangChainCharacterTextSplitter,
     LangChainRecursiveCharacterTextSplitter,
 )
-from .embedders import Ollama, OpenAI, VoyageAI
+from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .embeddings import ChunkEmbeddingError
 from .formatting import ChunkValue, PythonTemplate
 from .processing import ProcessingDefault
@@ -75,7 +75,7 @@ class Config:
     """
 
     version: str
-    embedding: OpenAI | Ollama | VoyageAI
+    embedding: OpenAI | Ollama | VoyageAI | LiteLLM
     processing: ProcessingDefault
     chunking: (
         LangChainCharacterTextSplitter | LangChainRecursiveCharacterTextSplitter

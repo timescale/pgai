@@ -251,9 +251,224 @@ generated for your data.
 
 The embedding functions are:
 
+- [ai.embedding_litellm](#aiembedding_litellm)
 - [ai.embedding_openai](#aiembedding_openai)
 - [ai.embedding_ollama](#aiembedding_ollama)
 - [ai.embedding_voyageai](#aiembedding_voyageai)
+
+### ai.embedding_litellm
+
+You call the `ai.embedding_litellm` function to use LiteLLM to generate embeddings for models from multiple providers.
+
+The purpose of `ai.embedding_litellm` is to:
+- Define the embedding model to use.
+- Specify the dimensionality of the embeddings.
+- Configure optional, provider-specific parameters.
+- Set the name of the environment variable that holds the value of your API key.  
+
+#### Example usage
+
+Use `ai.embedding_litellm` to create an embedding configuration object that is passed as an argument to [ai.create_vectorizer](#create-vectorizers):
+
+1. Set the required API key for your provider.
+
+   The API key should be set as an environment variable which is available to either the Vectorizer worker, or the
+   Postgres process.
+
+2. Create a vectorizer using LiteLLM to access the 'microsoft/codebert-base' embedding model on huggingface: 
+
+    ```sql
+    SELECT ai.create_vectorizer(
+        'my_table'::regclass,
+        embedding => ai.embedding_litellm(
+          'huggingface/microsoft/codebert-base',
+          768,
+          api_key_name => 'HUGGINGFACE_API_KEY',
+          extra_options => '{"wait_for_model": true}'::jsonb
+        ),
+        -- other parameters...
+    );
+    ```
+
+#### Parameters
+
+The function takes several parameters to customize the LiteLLM embedding configuration:
+
+| Name          | Type  | Default | Required | Description                                                                                                                                              |
+|---------------|-------|---------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------| 
+| model         | text  | -       | ✔        | Specify the name of the embedding model to use. Refer to the [LiteLLM embedding documentation] for an overview of the available providers and models.    |
+| dimensions    | int   | -       | ✔        | Define the number of dimensions for the embedding vectors. This should match the output dimensions of the chosen model.                                  |
+| api_key_name  | text  | -       | ✖        | Set the name of the environment variable that contains the API key. This allows for flexible API key management without hardcoding keys in the database. |
+| extra_options | jsonb | -       | ✖        | Set provider-specific configuration options.                                                                                                             |
+
+[LiteLLM embedding documentation]: https://docs.litellm.ai/docs/embedding/supported_embedding
+
+
+#### Returns
+
+A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
+
+#### Provider-specific configuration examples
+
+The following subsections show how to configure the vectorizer for all supported providers.
+
+##### Cohere
+
+```sql
+    SELECT ai.create_vectorizer(
+        'my_table'::regclass,
+        embedding => ai.embedding_litellm(
+          'cohere/embed-english-v3.0',
+          1024,
+          api_key_name => 'COHERE_API_KEY',
+        ),
+        -- other parameters...
+    );
+```
+
+Note: The [Cohere documentation on input_type] specifies that the `input_type` parameter is required.
+By default, LiteLLM sets this to `search_document`. The input type can be provided
+via `extra_options`, i.e. `extra_options => '{"input_type": "search_document"}'::jsonb`.
+
+[Cohere documentation on input_type]: https://docs.cohere.com/v2/docs/embeddings#the-input_type-parameter
+
+#### Mistral
+
+```sql
+    SELECT ai.create_vectorizer(
+        'my_table'::regclass,
+        embedding => ai.embedding_litellm(
+          'mistral/mistral-embed',
+          1024,
+          api_key_name => 'MISTRAL_API_KEY',
+        ),
+        -- other parameters...
+    );
+```
+
+Note: Mistral limits the maximum input per batch to 16384 tokens.
+
+##### Azure OpenAI
+
+To set up a vectorizer with Azure OpenAI you require three values from the Azure AI Foundry console:
+- deployment name
+- base URL
+- version
+- API key
+
+The deployment name is visible in the "Deployment info" section. The base URL and version are
+extracted from the "Target URI" field in the "Endpoint section". The Target URI has the form:
+`https://your-resource-name.openai.azure.com/openai/deployments/your-deployment-name/embeddings?api-version=2023-05-15`.
+In this example, the base URL is: `https://your-resource-name.openai.azure.com` and the version is `2023-05-15`. 
+
+![Azure AI Foundry console example](./images/azure_openai.png)
+
+Configure the vectorizer, note that the base URL and version are configured through `extra_options`:
+
+```sql
+    SELECT ai.create_vectorizer(
+        'my_table'::regclass,
+        embedding => ai.embedding_litellm(
+          'azure/<deployment name here>',
+          1024,
+          api_key_name => 'AZURE_API_KEY',
+          extra_options => '{"api_base": "<base URL here>", "api_version": "<version here>"}'::jsonb
+        ),
+        -- other parameters...
+    );
+```
+
+#### AWS Bedrock
+
+To set up a vectorizer with AWS Bedrock, you must ensure that the vectorizer
+is authenticated to make API calls to the AWS Bedrock endpoint. The vectorizer
+worker uses boto3 under the hood, so there are multiple ways to achieve this.
+
+The simplest method is to provide the `AWS_ACCESS_KEY_ID`,
+`AWS_SECRET_ACCESS_KEY`, and `AWS_REGION_NAME` environment variables to the
+vectorizer worker. Consult the [boto3 credentials documentation] for more
+options.
+
+[boto3 credentials documentation]: (https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html)
+
+```sql
+    SELECT ai.create_vectorizer(
+        'my_table'::regclass,
+        embedding => ai.embedding_litellm(
+          'bedrock/amazon.titan-embed-text-v2:0',
+          1024,
+          api_key_name => 'AWS_SECRET_ACCESS_KEY', -- optional
+          extra_options => '{"aws_access_key_id": "<access key id>", "aws_region_name": "<region name>"}'::jsonb -- optional
+        ),
+        -- other parameters...
+    );
+```
+
+You can also only configure the secret in the database, and provide the
+`api_key_name` parameter to prompt the vectorizer worker to load the api key
+from the database. When you do this, you may need to pass `aws_access_key_id`
+and `aws_region_name` through the `extra_options` parameter:
+
+```sql
+    SELECT ai.create_vectorizer(
+        'my_table'::regclass,
+        embedding => ai.embedding_litellm(
+          'bedrock/amazon.titan-embed-text-v2:0',
+          1024,
+          api_key_name => 'AWS_SECRET_ACCESS_KEY', -- optional
+          extra_options => '{"aws_access_key_id": "<access key id>", "aws_region_name": "<region name>"}'::jsonb -- optional
+        ),
+        -- other parameters...
+    );
+```
+
+#### Vertex AI
+
+To set up a vectorizer with Vertex AI, you must ensure that the vectorizer
+can make API calls to the Vertex AI endpoint. The vectorizer worker uses
+GCP's authentication under the hood, so there are multiple ways to achieve
+this.
+
+The simplest method is to provide the `VERTEX_PROJECT`, and
+`VERTEX_CREDENTIALS` environment variables to the vectorizer worker. These
+correspond to the project id, and the path to a file containing credentials for
+a service account. Consult the [Authentication methods at Google] for more
+options.
+
+[Authentication methods at Google]: https://cloud.google.com/docs/authentication
+
+```sql
+    SELECT ai.create_vectorizer(
+        'my_table'::regclass,
+        embedding => ai.embedding_litellm(
+          'vertex_ai/text-embedding-005',
+          768
+        ),
+        -- other parameters...
+    );
+```
+
+You can also only configure the secret in the database, and provide the
+`api_key_name` parameter to prompt the vectorizer worker to load the api key
+from the database. When you do this, you may need to pass `vertex_project` and
+`vertex_location` through the `extra_options` parameter.
+
+Note: `VERTEX_CREDENTIALS` should contain the path to a file
+containing the API key, the vectorizer worker requires to have access to this
+file in order to load the credentials.
+
+```sql
+    SELECT ai.create_vectorizer(
+        'my_table'::regclass,
+        embedding => ai.embedding_litellm(
+          'vertex_ai/text-embedding-005',
+          768,
+          api_key_name => 'VERTEX_CREDENTIALS', -- optional
+          extra_options => '{"vertex_project": "<project id>", "vertex_location": "<vertex location>"}'::jsonb -- optional
+        ),
+        -- other parameters...
+    );
+```
 
 ### ai.embedding_openai
 

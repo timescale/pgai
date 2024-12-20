@@ -45,10 +45,18 @@ textual, data analysis, and semantic search:
 
 ## Select an embedding provider and set up your API Keys
 
-Vectorizer supports the following vector embedding providers:
+Vectorizer supports the following vector embedding providers as first-party integrations:
 - [Ollama](https://ollama.com/)
 - [Voyage AI](https://www.voyageai.com/)
 - [OpenAI](https://openai.com/)
+
+Additionally, through the [LiteLLM](https://litellm.ai) provider we support:
+- [Cohere](https://cohere.com/)
+- [HuggingFace Inference Endpoints](https://endpoints.huggingface.co/)
+- [Mistral](https://mistral.ai/)
+- [Azure OpenAI](https://azure.microsoft.com/en-us/products/ai-services/openai-service)
+- [AWS Bedrock](https://aws.amazon.com/bedrock/)
+- [Vertex AI](https://cloud.google.com/vertex-ai)
 
 When using an external embedding service, you need to setup your API keys to access
 the service. To store several API keys, you give each key a name and reference them

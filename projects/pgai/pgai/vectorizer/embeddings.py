@@ -184,7 +184,7 @@ class ApiKeyMixin:
         api_key_name (str): The name of the API key attribute.
     """
 
-    api_key_name: str
+    api_key_name: str | None = None
     _api_key_: str | None = None
 
     @property
@@ -213,7 +213,11 @@ class ApiKeyMixin:
             ValueError: If the API key is missing from the secrets.
         """
 
-        api_key = secrets.get(self.api_key_name, None)
+        api_key = (
+            secrets.get(self.api_key_name, None)
+            if self.api_key_name is not None
+            else None
+        )
         if api_key is None:
             raise ValueError(f"missing API key: {self.api_key_name}")
         self._api_key_ = api_key

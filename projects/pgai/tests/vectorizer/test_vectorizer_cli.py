@@ -1,5 +1,7 @@
+import json
 import logging
 import os
+import re
 import subprocess
 import time
 from collections.abc import Generator
@@ -117,42 +119,6 @@ def source_table(
     return table_name
 
 
-@pytest.fixture
-def configured_openai_vectorizer_id(
-    source_table: str,
-    cli_db: tuple[TestDatabase, Connection],
-    test_params: tuple[int, int, int, str, str],
-    openai_proxy_url: str | None,
-) -> int:
-    """Creates and configures a vectorizer for testing"""
-    _, concurrency, batch_size, chunking, formatting = test_params
-    _, conn = cli_db
-
-    with conn.cursor(row_factory=dict_row) as cur:
-        # Create vectorizer
-        cur.execute(f"""
-            SELECT ai.create_vectorizer(
-                '{source_table}'::regclass,
-                embedding => ai.embedding_openai(
-                    'text-embedding-ada-002',
-                    1536,
-                    api_key_name => 'OPENAI_API_KEY'
-                    {
-                        f", base_url => '{openai_proxy_url}'"
-                        if openai_proxy_url is not None else ""
-                    }
-                ),
-                chunking => ai.{chunking},
-                formatting => ai.{formatting},
-                processing => ai.processing_default(batch_size => {batch_size},
-                                                    concurrency => {concurrency})
-            )
-        """)  # type: ignore
-        vectorizer_id: int = int(cur.fetchone()["create_vectorizer"])  # type: ignore
-
-        return vectorizer_id
-
-
 @pytest.fixture(scope="session")
 def ollama_connection_url():
     # If the OLLAMA_HOST environment variable is set, we assume that the user
@@ -169,14 +135,12 @@ def ollama_connection_url():
             yield ollama.get_endpoint()
 
 
-@pytest.fixture
-def configured_ollama_vectorizer_id(
+def configure_vectorizer(
     source_table: str,
     cli_db: tuple[TestDatabase, Connection],
     test_params: tuple[int, int, int, str, str],
-    ollama_connection_url: str,
-) -> int:
-    """Creates and configures an ollama vectorizer for testing"""
+    embedding: str,
+):
     _, concurrency, batch_size, chunking, formatting = test_params
     _, conn = cli_db
 
@@ -185,11 +149,7 @@ def configured_ollama_vectorizer_id(
         cur.execute(f"""
             SELECT ai.create_vectorizer(
                 '{source_table}'::regclass,
-                embedding => ai.embedding_ollama(
-                    'nomic-embed-text',
-                    768,
-                    base_url => '{ollama_connection_url}'
-                ),
+                embedding => ai.{embedding},
                 chunking => ai.{chunking},
                 formatting => ai.{formatting},
                 processing => ai.processing_default(batch_size => {batch_size},
@@ -199,6 +159,45 @@ def configured_ollama_vectorizer_id(
         vectorizer_id: int = int(cur.fetchone()["create_vectorizer"])  # type: ignore
 
         return vectorizer_id
+
+
+@pytest.fixture
+def configured_openai_vectorizer_id(
+    source_table: str,
+    cli_db: tuple[TestDatabase, Connection],
+    test_params: tuple[int, int, int, str, str],
+    openai_proxy_url: str | None,
+) -> int:
+    """Creates and configures a vectorizer for testing"""
+
+    base_url = (
+        f", base_url => '{openai_proxy_url}'" if openai_proxy_url is not None else ""
+    )
+
+    embedding = f"embedding_openai('text-embedding-ada-002', 1536{base_url})"
+
+    return configure_vectorizer(
+        source_table,
+        cli_db,
+        test_params,
+        embedding,
+    )
+
+
+@pytest.fixture
+def configured_ollama_vectorizer_id(
+    source_table: str,
+    cli_db: tuple[TestDatabase, Connection],
+    test_params: tuple[int, int, int, str, str],
+    ollama_connection_url: str,
+) -> int:
+    """Creates and configures an ollama vectorizer for testing"""
+    return configure_vectorizer(
+        source_table,
+        cli_db,
+        test_params,
+        f"embedding_ollama('nomic-embed-text', 768, base_url => '{ollama_connection_url}')",  # noqa: E501 Line too long
+    )
 
 
 @pytest.fixture
@@ -208,27 +207,9 @@ def configured_voyageai_vectorizer_id(
     test_params: tuple[int, int, int, str, str],
 ) -> int:
     """Creates and configures a VoyageAI vectorizer for testing"""
-    _, concurrency, batch_size, chunking, formatting = test_params
-    _, conn = cli_db
-
-    with conn.cursor(row_factory=dict_row) as cur:
-        # Create vectorizer
-        cur.execute(f"""
-            SELECT ai.create_vectorizer(
-                '{source_table}'::regclass,
-                embedding => ai.embedding_voyageai(
-                    'voyage-3-lite',
-                    512
-                ),
-                chunking => ai.{chunking},
-                formatting => ai.{formatting},
-                processing => ai.processing_default(batch_size => {batch_size},
-                                                    concurrency => {concurrency})
-            )
-        """)  # type: ignore
-        vectorizer_id: int = int(cur.fetchone()["create_vectorizer"])  # type: ignore
-
-        return vectorizer_id
+    return configure_vectorizer(
+        source_table, cli_db, test_params, "embedding_voyageai('voyage-3-lite', 512)"
+    )
 
 
 @pytest.fixture
@@ -478,10 +459,13 @@ class TestWithOpenAiVectorizer:
         cli_db: tuple[TestDatabase, Connection],
         cli_db_url: str,
         configured_openai_vectorizer_id: int,
+        test_params: Any,  # noqa
         vcr_: Any,
     ):
         """Test that worker handles invalid API key appropriately"""
         _, conn = cli_db
+
+        os.environ["OPENAI_API_KEY"] = "invalid"
 
         # When running the worker and getting an invalid api key response
         with vcr_.use_cassette("test_invalid_api_key_error.yaml"):
@@ -1035,3 +1019,115 @@ def test_vectorization_successful_with_null_contents(
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT count(*) as count FROM blog_embedding_store;")
         assert cur.fetchone()["count"] == 0  # type: ignore
+
+
+@pytest.mark.parametrize(
+    "test_params",
+    [
+        (
+            1,
+            1,
+            1,
+            "chunking_character_text_splitter('content')",
+            "formatting_python_template('$chunk')",
+        ),
+        (
+            4,
+            2,
+            2,
+            "chunking_character_text_splitter('content')",
+            "formatting_python_template('$chunk')",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "embedding",
+    [
+        ("openai/text-embedding-3-small", 1536, {}, "OPENAI_API_KEY"),
+        ("voyage/voyage-3-lite", 512, {}, "VOYAGE_API_KEY"),
+        ("mistral/mistral-embed", 1024, {}, "MISTRAL_API_KEY"),
+        ("cohere/embed-english-v3.0", 1024, {}, "COHERE_API_KEY"),
+        (
+            "huggingface/microsoft/codebert-base",
+            768,
+            {"wait_for_model": True, "use_cache": False},
+            "HUGGINGFACE_API_KEY",
+        ),
+        (
+            "azure/text-embedding-3-small",
+            1536,
+            {
+                "api_base": os.getenv("AZURE_OPENAI_API_BASE"),
+                "api_version": os.getenv("AZURE_OPENAI_API_VERSION"),
+            },
+            "AZURE_OPENAI_API_KEY",
+        ),
+    ],
+)
+def test_litellm_vectorizer(
+    source_table: str,
+    cli_db: tuple[TestDatabase, Connection],
+    cli_db_url: str,
+    embedding: tuple[str, int, dict[str, Any], str],
+    vcr_: Any,
+    test_params: tuple[int, int, int, str, str],
+):
+    model, dimensions, extra_options, api_key_name = embedding
+    function = "embedding_litellm"
+
+    if model == "huggingface/microsoft/codebert-base":
+        pytest.skip("unable to get huggingface tests to reproduce reliably")
+
+    if api_key_name not in os.environ:
+        pytest.skip(f"environment variable '{api_key_name}' unset")
+
+    embedding_str = f"{function}('{model}', {dimensions}, extra_options => '{json.dumps(extra_options)}'::jsonb)"  # noqa: E501 Line too long
+
+    vectorizer_id = configure_vectorizer(
+        source_table, cli_db, test_params, embedding_str
+    )
+
+    num_items, concurrency, batch_size, _, _ = test_params
+    _, conn = cli_db
+    # Insert pre-existing embedding for first item
+    with conn.cursor() as cur:
+        cur.execute(
+            sql.SQL("""
+           INSERT INTO
+           blog_embedding_store(embedding_uuid, id, chunk_seq, chunk, embedding)
+           VALUES (gen_random_uuid(), 1, 1, 'post_1',
+            array_fill(0, ARRAY[{0}])::vector)
+        """).format(dimensions)
+        )
+
+    stripped_model = re.sub(r"\W", "_", model)
+
+    # When running the worker with cassette matching original test params
+    cassette = f"{function}_{stripped_model}_{dimensions}_items_{num_items}_batch_size_{batch_size}.yaml"  # noqa: E501 Line too long
+    logging.getLogger("vcr").setLevel(logging.DEBUG)
+    with vcr_.use_cassette(cassette):
+        result = CliRunner().invoke(
+            vectorizer_worker,
+            [
+                "--db-url",
+                cli_db_url,
+                "--once",
+                "--vectorizer-id",
+                str(vectorizer_id),
+                "--concurrency",
+                str(concurrency),
+                "--log-level",
+                "debug",
+            ],
+            catch_exceptions=False,
+        )
+
+    if result.exception:
+        print(result.output)
+
+    assert not result.exception
+    assert result.exit_code == 0
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT count(*) as count FROM blog_embedding_store;")
+        assert cur.fetchone()["count"] == num_items  # type: ignore
