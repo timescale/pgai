@@ -13,7 +13,7 @@ begin
     -- create the batches table
     select pg_catalog.format
            ( $sql$create table %I.%I(
-    openai_batch_id VARCHAR(255) PRIMARY KEY,
+    external_batch_id VARCHAR(255) PRIMARY KEY,
     input_file_id   VARCHAR(255) NOT NULL,
     output_file_id  VARCHAR(255),
     status          VARCHAR(255) NOT NULL,
@@ -43,7 +43,7 @@ begin
     select pg_catalog.format
            ( $sql$create table %I.%I(
     id                 VARCHAR(255) PRIMARY KEY,
-    embedding_batch_id VARCHAR(255) REFERENCES %I.%I (openai_batch_id),
+    embedding_batch_id VARCHAR(255) REFERENCES %I.%I (external_batch_id) ON DELETE CASCADE,
     chunk              TEXT
 ))$sql$
                , embedding_batch_schema

@@ -1,5 +1,4 @@
 import asyncio
-import json
 import os
 import threading
 import time
@@ -10,7 +9,6 @@ from itertools import repeat
 from typing import Any, TypeAlias
 
 import numpy as np
-import openai
 import psycopg
 import structlog
 from ddtrace import tracer
@@ -84,6 +82,36 @@ class Config:
         LangChainCharacterTextSplitter | LangChainRecursiveCharacterTextSplitter
     ) = Field(..., discriminator="implementation")
     formatting: PythonTemplate | ChunkValue = Field(..., discriminator="implementation")
+
+
+@dataclass
+class AsyncBatch:
+    """
+    Represents a record in the external batch table.
+
+    Attributes:
+        external_batch_id (str): Primary key of the batch.
+        input_file_id (str): The ID of the input file. This is mandatory.
+        status (str): The current status of the batch.
+        errors (dict | None): Dictionary representing error details in JSONB format.
+        created_at (datetime): The timestamp when the record was created (defaults to current time).
+        expires_at (datetime | None): The optional expiration timestamp for the batch.
+        completed_at (datetime | None): The optional timestamp when the batch processing was completed.
+        failed_at (datetime | None): The timestamp when the batch processing failed (if applicable).
+        next_attempt_after (datetime | None): The timestamp when the batch can be retried next.
+        total_attempts (int): Count of the total number of attempts made to process this batch.
+    """
+
+    external_batch_id: str
+    input_file_id: str
+    status: str
+    errors: dict | None = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    expires_at: datetime | None = None
+    completed_at: datetime | None = None
+    failed_at: datetime | None = None
+    next_attempt_after: datetime | None = None
+    total_attempts: int = 0
 
 
 @dataclass
@@ -324,16 +352,13 @@ class VectorizerQueryBuilder:
 
     @cached_property
     def fetch_batches_to_process_query(self) -> sql.Composed:
-        if not isinstance(self.vectorizer.config.embedding, OpenAI):
-            raise Exception("batch support is only available for openai")
-
         batch_schema = self.vectorizer.config.embedding.batch_schema
         batch_table = self.vectorizer.config.embedding.batch_table
 
         return sql.SQL(
             """
                 WITH locked_rows AS (
-                    SELECT openai_batch_id
+                    SELECT external_batch_id
                     FROM {batch_table}
                     WHERE next_attempt_after is null or next_attempt_after < NOW()
                     ORDER BY created_at DESC
@@ -348,8 +373,8 @@ class VectorizerQueryBuilder:
                 FRO
                     locked_rows l
                 WHERE
-                    l.openai_batch_id = cfw.openai_batch_id
-                RETURNING l.openai_batch_id
+                    l.external_batch_id = cfw.external_batch_id
+                RETURNING l.external_batch_id
                 """
         ).format(batch_table=sql.Identifier(batch_schema, batch_table))
 
@@ -360,9 +385,18 @@ class VectorizerQueryBuilder:
             status = %s
             completed_at = %s,
             failed_at = %s,
-            output_file_id = %s,
             errors = %s
-        WHERE openai_batch_id = %s
+        WHERE external_batch_id = %s
+        """).format(
+            self.vectorizer.config.embedding.embedding_batch_schema,
+            self.vectorizer.config.embedding.embedding_batch_table,
+        )
+
+    @cached_property
+    def delete_batch_embedding_from_queue_query(self) -> sql.Composed:
+        return sql.SQL("""
+        DELETE FROM {}.{}
+        WHERE external_batch_id = %s
         """).format(
             self.vectorizer.config.embedding.embedding_batch_schema,
             self.vectorizer.config.embedding.embedding_batch_table,
@@ -371,7 +405,7 @@ class VectorizerQueryBuilder:
     @cached_property
     def update_batch_embedding_status_query(self) -> sql.Composed:
         return sql.SQL(
-            "UPDATE {}.{} SET status = %s WHERE openai_batch_id = %s"
+            "UPDATE {}.{} SET status = %s WHERE external_batch_id = %s"
         ).format(
             self.vectorizer.config.embedding.embedding_batch_schema,
             self.vectorizer.config.embedding.embedding_batch_table,
@@ -390,7 +424,7 @@ class VectorizerQueryBuilder:
     def insert_batch_embedding_query(self) -> sql.Composed:
         return sql.SQL("""
         INSERT INTO {}.{} (
-            openai_batch_id,
+            external_batch_id,
             input_file_id,
             output_file_id,
             status,
@@ -572,10 +606,11 @@ class Worker:
             await register_vector_async(conn)
             await self.vectorizer.config.embedding.setup()
             while True:
+                if self.vectorizer.config.embedding.is_api_async():
+                    res = await self._process_async_embeddings(conn)
+                    return res
+
                 if not self._continue_processing(loops, res):
-                    await self._check_and_process_openai_batches(conn)
-                    # TODO how can we run this only after hitting the rate limit of the normal openai batch embedding api?
-                    await self._do_openai_batch(conn)
                     return res
                 items_processed = await self._do_batch(conn)
                 if items_processed == 0:
@@ -583,106 +618,126 @@ class Worker:
                 res += items_processed
                 loops += 1
 
-    @tracer.wrap()
-    async def _do_openai_batch(self, conn: AsyncConnection) -> int:
+    async def _process_async_embeddings(self, conn):
+        async with conn.transaction():
+            await self.check_and_store_async_batches(conn)
+            await self.create_async_batches(conn)
+
+    async def check_and_store_async_batches(self, conn: AsyncConnection):
         """
-        Creates embeddings using openai's batch processing api. This allows to process
-        very large amounts of data faster than with the embeddings api, because the
-        batch api has vastly higher rate limits.
+        Checks if chunks submitted with create_async_batches completed and
+        stores them when they are completed.
+
+        This function is only called when is_api_async returns true.
 
         Args:
             conn (AsyncConnection): The asynchronous database connection.
         """
+        async with conn.cursor() as cursor:
+            with conn.transaction():
+                await cursor.execute(self.queries.fetch_batches_to_process_query)
 
-        # TODO do nothing when openai is not configured
-
-        try:
-            async with conn.transaction():
-                items = await self._fetch_work(conn)
-
-                await logger.adebug(f"Items pulled from queue for openai batch embedding: {len(items)}")
-
-                # Filter out items that were deleted from the source table.
-                # We use the first primary key column, since they can only
-                # be null if the LEFT JOIN didn't find a match.
-                items = [
-                    i
-                    for i in items
-                    if i[self.vectorizer.source_pk[0].attname] is not None
-                ]
-
-                if len(items) == 0:
-                    return 0
-
-                created_batch, documents = await self._generate_embedding_batch(items)
-
-                await conn.execute(self.queries.insert_batch_embedding_query, (
-                    created_batch.id,
-                    created_batch.input_file_id,
-                    created_batch.output_file_id,
-                    created_batch.status,
-                    created_batch.errors,
-                    datetime.fromtimestamp(created_batch.expires_at, timezone.utc),
-                ))
-
-                for doc in documents:
-                    await conn.execute(
-                        self.queries.insert_batch_embedding_chunks_query,
-                        (
-                            doc["unique_full_chunk_id"],
-                            created_batch.id,
-                            doc["chunk"]
-                        ))
-
-                # TODO how to delete submitted entries from the queue?
-
-                return len(items)
-        except Exception as e:
-            async with conn.transaction():
-                await self._insert_vectorizer_error(
-                    conn,
-                    (
-                        self.vectorizer.id,
-                        VECTORIZER_FAILED,
-                        Jsonb({"error_reason": str(e)}),
-                    ),
-                )
-            raise e
-
-    @tracer.wrap()
-    async def _check_and_process_openai_batches(self, conn: AsyncConnection):
-        async with (
-            conn.transaction(),
-            conn.cursor() as cursor,
-        ):
-            # TODO how can I get the client? There has to be one created already that I can use?
-            client = openai.OpenAI()
-            await cursor.execute(self.queries.fetch_batches_to_process_query)
             for batch_row in await cursor.fetchall():
-                batch = client.batches.retrieve(batch_row[0])
 
-                await conn.execute(self.queries.update_batch_embedding_query, (
-                    batch.status,
-                    datetime.fromtimestamp(batch.completed_at, timezone.utc)
+                batch = AsyncBatch(**batch_row)
+                batch = self.vectorizer.config.embedding.fetch_async_embedding_status(batch)
+
+                with conn.transaction():
+                    await conn.execute(self.queries.update_batch_embedding_query, (
+                        batch.status,
+                        datetime.fromtimestamp(batch.completed_at, timezone.utc)
                         if batch.completed_at else None,
-                    datetime.fromtimestamp(batch.failed_at, timezone.utc)
+                        datetime.fromtimestamp(batch.failed_at, timezone.utc)
                         if batch.failed_at else None,
-                    batch.output_file_id,
-                    Jsonb(batch.errors),
-                    batch_row[0],
-                ))
+                        Jsonb(batch.errors),
+                        batch.external_batch_id,
+                    ))
 
-                # batch has been processed successfully in openai, that means we can
+                # batch has been processed successfully by the external api, that means we can
                 # collect the results and store them in the database.
                 if batch.status == "completed":
-                    await self._write_embeddings_from_batch(conn, batch, client)
 
-                    await cursor.execute(
-                        self.queries.update_batch_embedding_status_query,
-                        (
-                            "processed",
-                            batch_row[0],
-                        ))
+                    with conn.transaction():
+                        await self.vectorizer.config.embedding.write_embeddings_from_batch(conn, batch)
+
+                        batch.status = "processed"
+
+                        await cursor.execute(
+                            self.queries.update_batch_embedding_status_query,
+                            (
+                                batch.status,
+                                batch.external_batch_id,
+                            ))
+
+                if batch.status == "processed":
+                    with conn.transaction():
+                        await self.vectorizer.config.embedding.finalize_async_embedding(batch)
+                        await cursor.execute(
+                            self.queries.delete_batch_embedding_from_queue_query,
+                            (
+                                batch.external_batch_id,
+                            ))
+
+
+    async def create_async_batches(self, conn: AsyncConnection) -> int:
+        """
+        Submits chunks for async embedding processing.
+        This allows to process very large amounts of data faster than with the
+        embeddings api, because batch apis usually have vastly higher rate limits.
+
+        This function is only called when is_api_async returns true.
+
+        Args:
+            conn (AsyncConnection): The asynchronous database connection.
+        """
+        try:
+            items = await self._fetch_work(conn)
+
+            await logger.adebug(f"Items pulled from queue for batch embedding: {len(items)}")
+
+            # Filter out items that were deleted from the source table.
+            # We use the first primary key column, since they can only
+            # be null if the LEFT JOIN didn't find a match.
+            items = [
+                i
+                for i in items
+                if i[self.vectorizer.source_pk[0].attname] is not None
+            ]
+
+            if len(items) == 0:
+                return 0
+
+            created_batch, documents = await self._generate_embedding_batch(items)
+
+            await conn.execute(self.queries.insert_batch_embedding_query, (
+                created_batch.external_id,
+                created_batch.input_file_id,
+                created_batch.output_file_id,
+                created_batch.status,
+                created_batch.errors,
+                datetime.fromtimestamp(created_batch.expires_at, timezone.utc),
+            ))
+
+            for doc in documents:
+                await conn.execute(
+                    self.queries.insert_batch_embedding_chunks_query,
+                    (
+                        doc["unique_full_chunk_id"],
+                        created_batch.id,
+                        doc["chunk"]
+                    ))
+
+            return len(items)
+        except Exception as e:
+            await self._insert_vectorizer_error(
+                conn,
+                (
+                    self.vectorizer.id,
+                    VECTORIZER_FAILED,
+                    Jsonb({"error_reason": str(e)}),
+                ),
+            )
+            raise e
 
     @tracer.wrap()
     async def _do_batch(self, conn: AsyncConnection) -> int:
@@ -835,66 +890,6 @@ class Worker:
 
         return len(records)
 
-    @tracer.wrap()
-    async def _write_embeddings_from_batch(
-            self,
-            conn: AsyncConnection,
-            batch: openai.types.Batch,
-            client: OpenAI,
-    ):
-        """
-        Writes embeddings from an OpenAI batch embedding to the database.
-
-        - Deletes existing embeddings for the items.
-        - Loads created embeddings from the batch.
-        - Writes created embeddings to the database.
-        - Logs any non-fatal errors encountered during embedding.
-
-        Args:
-            conn (AsyncConnection): The database connection.
-            batch: The batch as retrieved from OpenAI's api.
-            client: The OpenAI client to use.
-        """
-        batch_file = client.files.content(batch.output_file_id)
-
-        batch_data = batch_file.text.strip().split("\n")
-        num_records = 0
-        all_items = []
-        all_records: list[EmbeddingRecord] = []
-
-        async with conn.cursor() as cursor:
-            await cursor.execute(
-                self.queries.fetch_chunks_for_batch_id_query
-                (batch.id,)
-            )
-            embedding_batch_chunks = {row[0]: row[1] for row in await cursor.fetchall()}
-            
-            for line in batch_data:
-                json_line = json.loads(line)
-                if "custom_id" in json_line and "response" in json_line:
-
-                    custom_id = json_line["custom_id"]
-                    pk_names, document_id, chunk_seq = custom_id.split(":::")
-                    embedding_data = json_line["response"]["body"]["data"][0]["embedding"]
-
-                    resolved_id = document_id.split(",")
-                    resolved_pk = pk_names.split(",")
-                    item = {pk: id_value
-                            for pk, id_value in zip(resolved_pk, resolved_id, strict=False)}
-                    item[self.vectorizer.config.chunking.chunk_column] = embedding_batch_chunks[custom_id]
-
-                    all_items.append(item)
-                    all_records.append([
-                        resolved_id
-                        + [chunk_seq, embedding_batch_chunks[custom_id]]
-                        + [np.array(embedding_data)]])
-
-        await self._delete_embeddings(conn, all_items)
-        for records in all_records:
-            await self._copy_embeddings(conn, records)
-
-        return num_records
-
     async def _delete_embeddings(self, conn: AsyncConnection, items: list[SourceRow]):
         """
         Deletes the embeddings for the given items from the target table.
@@ -1005,7 +1000,7 @@ class Worker:
 
     async def _generate_embedding_batch(
         self, items: list[SourceRow]
-    ) -> tuple[openai.types.Batch, list[dict[str, Any]]]:
+    ) -> tuple[AsyncBatch, list[dict[str, Any]]]:
         documents: list[dict[str, Any]] = []
         for item in items:
             pk = self._get_item_pk_values(item)
