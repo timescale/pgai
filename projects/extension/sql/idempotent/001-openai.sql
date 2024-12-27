@@ -48,12 +48,15 @@ create or replace function ai.openai_list_models(
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
+    import ai.secrets
     import json
 
     # Prepare client args
     client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
+    # Resolve key
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
     # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url, **client_kwargs)
+    client = ai.openai.get_or_create_client(plpy, GD, api_key_resolved, base_url, **client_kwargs)
 
     # Prepare kwargs for the API call
     kwargs = {}
@@ -100,12 +103,15 @@ create or replace function ai.openai_embed
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
+    import ai.secrets
     import json
 
     # Prepare client args
     client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
+    # Resolve key
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
     # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url, **client_kwargs)
+    client = ai.openai.get_or_create_client(plpy, GD, api_key_resolved, base_url, **client_kwargs)
 
     # Prepare kwargs for the API call
     kwargs = ai.openai.prepare_kwargs({
@@ -159,12 +165,15 @@ create or replace function ai.openai_embed
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
+    import ai.secrets
     import json
 
     # Prepare client args
     client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
+    # Resolve key
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
     # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url, **client_kwargs)
+    client = ai.openai.get_or_create_client(plpy, GD, api_key_resolved, base_url, **client_kwargs)
 
     # Prepare kwargs for the API call
     kwargs = ai.openai.prepare_kwargs({
@@ -218,12 +227,15 @@ create or replace function ai.openai_embed
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
+    import ai.secrets
     import json
 
     # Prepare client args
     client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
+    # Resolve key
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
     # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url, **client_kwargs)
+    client = ai.openai.get_or_create_client(plpy, GD, api_key_resolved, base_url, **client_kwargs)
 
     # Prepare kwargs for the API call
     kwargs = ai.openai.prepare_kwargs({
@@ -295,6 +307,7 @@ CREATE OR REPLACE FUNCTION ai.openai_chat_complete
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
+    import ai.secrets
     import json
 
     # Process JSON inputs
@@ -309,8 +322,10 @@ as $python$
 
     # Prepare client args
     client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
+    # Resolve key
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
     # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url, **client_kwargs)
+    client = ai.openai.get_or_create_client(plpy, GD, api_key_resolved, base_url, **client_kwargs)
 
     # Prepare kwargs for the API call
     kwargs = ai.openai.prepare_kwargs({
@@ -406,12 +421,15 @@ create or replace function ai.openai_moderate
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
+    import ai.secrets
     import json
 
     # Prepare client args
     client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
+    # Resolve key
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
     # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url, **client_kwargs)
+    client = ai.openai.get_or_create_client(plpy, GD, api_key_resolved, base_url, **client_kwargs)
 
     # Prepare kwargs for the API call
     kwargs = ai.openai.prepare_kwargs({
@@ -455,12 +473,15 @@ create or replace function ai.openai_moderate
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
+    import ai.secrets
     import json
 
     # Prepare client args
     client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
+    # Resolve key
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
     # Create async client
-    client = ai.openai.get_or_create_client(plpy, GD, api_key, api_key_name, base_url, **client_kwargs)
+    client = ai.openai.get_or_create_client(plpy, GD, api_key_resolved, base_url, **client_kwargs)
 
     # Prepare kwargs for the API call
     kwargs = ai.openai.prepare_kwargs({

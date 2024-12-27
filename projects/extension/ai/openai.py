@@ -2,18 +2,8 @@ import json
 import asyncio
 import openai
 from typing import Optional, Any, Dict, Callable, Awaitable
-from .secrets import reveal_secret
 
-
-def get_openai_api_key(plpy, api_key_name: Optional[str] = None) -> str:
-    if api_key_name is None:
-        api_key_name = "OPENAI_API_KEY"
-    key = reveal_secret(plpy, api_key_name)
-    if key is None:
-        plpy.error(f"missing {api_key_name} secret")
-        # This line should never be reached, but it's here to make the type checker happy.
-        return ""
-    return key
+DEFAULT_KEY_NAME = "OPENAI_API_KEY"
 
 
 def get_openai_base_url(plpy) -> Optional[str]:
@@ -28,7 +18,6 @@ def get_openai_base_url(plpy) -> Optional[str]:
 def make_async_client(
         plpy,
         api_key: Optional[str] = None,
-        api_key_name: Optional[str] = None,
         organization: Optional[str] = None,
         base_url: Optional[str] = None,
         timeout: Optional[float] = None,
@@ -38,8 +27,6 @@ def make_async_client(
         http_client: Optional[Any] = None,
         _strict_response_validation: Optional[bool] = None
 ) -> openai.AsyncOpenAI:
-    if api_key is None:
-        api_key = get_openai_api_key(plpy, api_key_name)
     if base_url is None:
         base_url = get_openai_base_url(plpy)
 
@@ -57,8 +44,8 @@ def make_async_client(
 
     return openai.AsyncOpenAI(**client_kwargs)
 
-def get_or_create_client(plpy, GD: Dict[str, Any], api_key: str = None, api_key_name: str = None, base_url: str = None, **client_kwargs) -> Any:
-    new_config = prepare_kwargs({'api_key': api_key, 'api_key_name': api_key_name, 'base_url': base_url, **client_kwargs})
+def get_or_create_client(plpy, GD: Dict[str, Any], api_key: str = None, base_url: str = None, **client_kwargs) -> Any:
+    new_config = prepare_kwargs({'api_key': api_key, 'base_url': base_url, **client_kwargs})
     old_config = GD.get('openai_client', {}).get('config', {})
     merged_config = {**old_config, **new_config}
 
