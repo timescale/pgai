@@ -690,6 +690,12 @@ def docker_run() -> None:
     subprocess.run(cmd, shell=True, check=True, env=os.environ, text=True)
 
 
+def docker_start() -> None:
+    subprocess.run(
+        """docker start pgai-ext""", shell=True, check=True, env=os.environ, text=True
+    )
+
+
 def docker_stop() -> None:
     subprocess.run(
         """docker stop pgai-ext""", shell=True, check=True, env=os.environ, text=True
@@ -766,6 +772,8 @@ if __name__ == "__main__":
             docker_build()
         elif action == "docker-run":
             docker_run()
+        elif action == "docker-start":
+            docker_start()
         elif action == "docker-stop":
             docker_stop()
         elif action == "docker-rm":

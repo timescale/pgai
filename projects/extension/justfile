@@ -85,6 +85,9 @@ docker-build:
 docker-run:
 	@./build.py docker-run
 
+docker-start:
+	@./build.py docker-start
+
 docker-stop:
 	@./build.py docker-stop
 
