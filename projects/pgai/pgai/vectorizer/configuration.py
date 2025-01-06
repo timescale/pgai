@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass, fields
 from datetime import timedelta
-from typing import ClassVar, Protocol, runtime_checkable, Literal
+from typing import ClassVar, Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel
 
@@ -133,7 +133,9 @@ class HNSWIndexingConfig(BaseModel, SQLArgumentMixin):
     arg_type: ClassVar[str] = "indexing"
     function_name: ClassVar[str] = "indexing_hnsw"  # type: ignore
     min_rows: int | None = None
-    opclass: Literal["vector_cosine_ops", "vector_l1_ops", "vector_ip_ops"] | None = None
+    opclass: Literal["vector_cosine_ops", "vector_l1_ops", "vector_ip_ops"] | None = (
+        None
+    )
     m: int | None = None
     ef_construction: int | None = None
     create_when_queue_empty: bool | None = None
@@ -149,7 +151,7 @@ class NoSchedulingConfig:
 class TimescaleSchedulingConfig(BaseModel, SQLArgumentMixin):
     arg_type: ClassVar[str] = "scheduling"
     function_name: ClassVar[str] = "scheduling_timescaledb"  # type: ignore
-    
+
     schedule_interval: timedelta | None = None
     initial_start: str | None = None
     job_id: int | None = None

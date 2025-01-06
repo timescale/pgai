@@ -1,4 +1,3 @@
-import sys
 import tempfile
 from collections.abc import Generator, Iterator
 from pathlib import Path
@@ -71,7 +70,7 @@ def alembic_config(alembic_dir: Path, postgres_container: PostgresContainer) -> 
     config = Config(ini_path)
     config.set_main_option("script_location", str(alembic_dir / "migrations"))
 
-    engine = create_engine(postgres_container.get_connection_url())
+    engine = create_engine(postgres_container.get_connection_url(driver="psycopg"))
     config.attributes["connection"] = engine
 
     return config

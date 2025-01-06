@@ -11,6 +11,7 @@ from typing_extensions import override
 from pgai.vectorizer.base import (
     ChunkingCharacterTextSplitter,
     ChunkingRecursiveCharacterTextSplitter,
+    required,
 )
 
 
@@ -37,6 +38,7 @@ class Chunker(ABC):
         """
 
 
+@required
 class LangChainCharacterTextSplitter(ChunkingCharacterTextSplitter, Chunker):
     """
     A chunker implementation using LangChain's CharacterTextSplitter.
@@ -60,10 +62,10 @@ class LangChainCharacterTextSplitter(ChunkingCharacterTextSplitter, Chunker):
     @cached_property
     def _chunker(self) -> CharacterTextSplitter:
         return CharacterTextSplitter(
-            separator=self.separator,
+            separator=self.separator, # type: ignore
             chunk_size=self.chunk_size,
             chunk_overlap=self.chunk_overlap,
-            is_separator_regex=self.is_separator_regex,
+            is_separator_regex=self.is_separator_regex,  # type: ignore
         )
 
     @override
@@ -83,6 +85,7 @@ class LangChainCharacterTextSplitter(ChunkingCharacterTextSplitter, Chunker):
         return self._chunker.split_text(text)
 
 
+@required
 class LangChainRecursiveCharacterTextSplitter(
     ChunkingRecursiveCharacterTextSplitter, Chunker
 ):
@@ -106,7 +109,7 @@ class LangChainRecursiveCharacterTextSplitter(
             separators=self.separators,
             chunk_size=self.chunk_size,
             chunk_overlap=self.chunk_overlap,
-            is_separator_regex=self.is_separator_regex,
+            is_separator_regex=self.is_separator_regex,  # type: ignore
         )
 
     @override
