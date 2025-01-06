@@ -652,7 +652,7 @@ def lint_py() -> None:
 
 def lint() -> None:
     lint_py()
-    # lint_sql()  # TODO: enable this when pgspot is fixed
+    lint_sql()
 
 
 def format_py() -> None:
