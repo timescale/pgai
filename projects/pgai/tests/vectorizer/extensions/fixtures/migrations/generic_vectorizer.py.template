@@ -7,7 +7,7 @@ Create Date: {create_date}
 from alembic import op
 from sqlalchemy import Column, Integer, String, Text
 from sqlalchemy import text
-from pgai.vectorizer.configuration import (
+from pgai.alembic.configuration import (
     OpenAIConfig,
     OllamaConfig,
     VoyageAIConfig,

@@ -62,7 +62,7 @@ class LangChainCharacterTextSplitter(ChunkingCharacterTextSplitter, Chunker):
     @cached_property
     def _chunker(self) -> CharacterTextSplitter:
         return CharacterTextSplitter(
-            separator=self.separator, # type: ignore
+            separator=self.separator,  # type: ignore
             chunk_size=self.chunk_size,
             chunk_overlap=self.chunk_overlap,
             is_separator_regex=self.is_separator_regex,  # type: ignore

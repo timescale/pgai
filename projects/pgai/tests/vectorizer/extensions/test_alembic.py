@@ -7,7 +7,7 @@ but it validates that the create_vectorizer call works.
 
 If you add new configuration options, add a test for them here.
 Either in an existing test case or a new one.
-The config classes for migrations lie in pgai/vectorizer/configuration.py
+The config classes for migrations lie in pgai/alembic/configuration.py
 If the migration and the validation definitions overlap,
 it is possible to define a parent class in base.py
 see e.g. CharacterTextSplitterConfig as an example
@@ -22,7 +22,7 @@ from alembic.command import downgrade, upgrade
 from alembic.config import Config
 from sqlalchemy import Engine, text
 
-from pgai.vectorizer.configuration import (
+from pgai.alembic.configuration import (
     CharacterTextSplitterConfig,
     HNSWIndexingConfig,
     OllamaConfig,

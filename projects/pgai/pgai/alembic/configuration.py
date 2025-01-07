@@ -65,7 +65,6 @@ class SQLArgumentMixin:
             base_name = re.sub("([a-z0-9])([A-Z])", r"\1_\2", base_name).lower()
             # Remove 'config' and clean up any double underscores
             base_name = base_name.replace("config", "").strip("_")
-            # Remove any duplicate underscores that might have been created
             fn_name = f"{self.arg_type}_{base_name}"
 
         return f", {self.arg_type} => ai.{fn_name}({format_sql_params(params)})"  # type: ignore

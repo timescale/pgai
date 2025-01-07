@@ -198,7 +198,7 @@ Then you can use the `create_vectorizer` operation to create a vectorizer for yo
 
 ```python
 from alembic import op
-from pgai.vectorizer.configuration import (
+from pgai.alembic.configuration import (
     OpenAIConfig,
     CharacterTextSplitterConfig,
     PythonTemplateConfig
