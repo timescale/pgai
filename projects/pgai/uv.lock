@@ -1114,14 +1114,15 @@ wheels = [
 
 [[package]]
 name = "ollama"
-version = "0.3.3"
+version = "0.4.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
+    { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a6/8e/60a9b065eb796ef3996451cbe2d8044f6b030696166693b9805ae33b8b4c/ollama-0.3.3.tar.gz", hash = "sha256:f90a6d61803117f40b0e8ff17465cab5e1eb24758a473cfe8101aff38bc13b51", size = 10390 }
+sdist = { url = "https://files.pythonhosted.org/packages/16/fd/a130173a62fd6dc7f7875919593b1e7a47bf3870a913c35d51ea013cfe41/ollama-0.4.5.tar.gz", hash = "sha256:e7fb71a99147046d028ab8b75e51e09437099aea6f8f9a0d91a71f787e97439e", size = 13104 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6a/ca/d22905ac3f768523f778189d38c9c6cd9edf4fa9dd09cb5a3fc57b184f90/ollama-0.3.3-py3-none-any.whl", hash = "sha256:ca6242ce78ab34758082b7392df3f9f6c2cb1d070a9dede1a4c545c929e16dba", size = 10267 },
+    { url = "https://files.pythonhosted.org/packages/93/71/44e508b6be7cc12efc498217bf74f443dbc1a31b145c87421d20fe61b70b/ollama-0.4.5-py3-none-any.whl", hash = "sha256:74936de89a41c87c9745f09f2e1db964b4783002188ac21241bfab747f46d925", size = 13205 },
 ]
 
 [[package]]
@@ -1256,7 +1257,7 @@ requires-dist = [
     { name = "datadog-lambda", specifier = ">=6.9,<7.0" },
     { name = "langchain-openai", specifier = ">=0.1,<1.0" },
     { name = "langchain-text-splitters", specifier = ">=0.2,<1.0" },
-    { name = "ollama", specifier = ">=0.3.3,<0.4.0" },
+    { name = "ollama", specifier = ">=0.4.5,<0.5.0" },
     { name = "openai", specifier = ">=1.44,<2.0" },
     { name = "pgvector", specifier = ">=0.3,<1.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2,<4.0" },

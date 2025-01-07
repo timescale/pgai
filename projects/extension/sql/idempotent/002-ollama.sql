@@ -162,7 +162,7 @@ as $python$
         args["images"] = images_1
 
     resp = client.generate(model, prompt, stream=False, **args)
-    return json.dumps(resp)
+    return resp.model_dump_json()
 $python$
 language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
@@ -206,7 +206,7 @@ as $python$
 
     resp = client.chat(model, messages_1, stream=False, **args)
 
-    return json.dumps(resp)
+    return resp.model_dump_json()
 $python$
 language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp

@@ -1,12 +1,10 @@
 import os
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from functools import cached_property
-from typing import (
-    Any,
-    Literal,
-)
+from typing import Literal
 
 import ollama
+from ollama import ShowResponse
 from pydantic import BaseModel
 from typing_extensions import TypedDict, override
 
@@ -130,7 +128,7 @@ class Ollama(BaseModel, Embedder):
         )
         return EmbeddingResponse(embeddings=response["embeddings"], usage=usage)
 
-    async def _model(self) -> Mapping[str, Any]:
+    async def _model(self) -> ShowResponse:
         """
         Gets the model details from the Ollama API
         :return:
