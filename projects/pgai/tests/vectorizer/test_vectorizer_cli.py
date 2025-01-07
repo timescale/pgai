@@ -956,3 +956,56 @@ Each type has its own unique applications and methodologies."""
             assert sequences == list(
                 range(len(sequences))
             ), "Chunk sequences should be sequential starting from 0"
+
+
+@pytest.mark.parametrize(
+    "test_params",
+    [
+        (
+            1,
+            1,
+            1,
+            "chunking_character_text_splitter('content')",
+            "formatting_python_template('$chunk')",
+        ),
+        (
+            1,
+            1,
+            1,
+            "chunking_recursive_character_text_splitter('content')",
+            "formatting_python_template('$chunk')",
+        ),
+    ],
+)
+def test_vectorization_successful_with_null_contents(
+    cli_db: tuple[PostgresContainer, Connection],
+    cli_db_url: str,
+    configured_ollama_vectorizer_id: int,
+    test_params: tuple[int, int, int, str, str],  # noqa: ARG001
+):
+    _, conn = cli_db
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("ALTER TABLE blog ALTER COLUMN content DROP NOT NULL;")
+        cur.execute("UPDATE blog SET content = null;")
+
+    result = CliRunner().invoke(
+        vectorizer_worker,
+        [
+            "--db-url",
+            cli_db_url,
+            "--once",
+            "--vectorizer-id",
+            str(configured_ollama_vectorizer_id),
+        ],
+        catch_exceptions=False,
+    )
+
+    assert not result.exception
+    assert result.exit_code == 0
+
+    _, conn = cli_db
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT count(*) as count FROM blog_embedding_store;")
+        assert cur.fetchone()["count"] == 0  # type: ignore
