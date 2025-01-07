@@ -111,23 +111,7 @@ jobs:
         with:
           python-version-file: "./projects/pgai/.python-version"
 
-      - name: Install dependencies
-        run: just pgai install
-
-      - name: Lint
-        run: just pgai lint
-
-      - name: Check Typing
-        run: just pgai type-check
-
-      - name: Check Formatting
-        run: just pgai format
-
-      - name: Run Tests
-        run: just pgai test
+      - name: CI pipeline. Install dependencies, run linters and formatters, execute tests and build the project", 
+        run: just pgai ci
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        
-
-      - name: Build the pgai distributable and check artifacts
-        run: just pgai build

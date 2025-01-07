@@ -51,7 +51,8 @@ type-check:
 format:
 	@uv run ruff format --diff ./
 
-ci: lint type-check format test build
+# CI pipeline. Runs all recipes needed for ensuring the code is ready to be integrated. Triggered by GH Actions
+ci: install lint type-check format test build
 
 # Build Docker image with version tag
 docker-build:
