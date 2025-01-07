@@ -6,6 +6,7 @@ import random
 import signal
 import sys
 import time
+import traceback
 from collections.abc import Sequence
 from typing import Any
 
@@ -319,6 +320,9 @@ def vectorizer_worker(
         except Exception as e:
             # catch any exceptions, log them, and keep on going
             log.error(f"unexpected error: {str(e)}")
+            for exception_line in traceback.format_exception(e):
+                for line in exception_line.rstrip().split("\n"):
+                    log.debug(line)
             if exit_on_error:
                 sys.exit(1)
 
