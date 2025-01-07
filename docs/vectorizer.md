@@ -293,3 +293,13 @@ Sample output:
 | 1  | public.blog  | public.blog_contents_embedding_store | public.blog_contents_embeddings | 1             |
 
 The `pending_items` column indicates the number of items still awaiting embedding creation.
+If the number of pending items exceeds 10,000, we return the maximum value of a bigint (`9223372036854775807`)
+instead of exhaustively counting the items. This is done for performance.
+
+Alternately, you can call the `ai.vectorizer_queue_pending` function to get the count of pending items
+for a single vectorizer. The `exact_count` parameter is defaulted to `false`, but passing `true`
+will exhaustively count the exact number of pending items.
+
+```sql
+select ai.vectorizer_queue_pending(1, exact_count=>true);
+```
