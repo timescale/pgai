@@ -1,0 +1,19 @@
+name: pgai
+services:
+  db:
+    image: timescale/timescaledb-ha:pg17
+    environment:
+      POSTGRES_PASSWORD: postgres
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    ports:
+      - "5432:5432"
+    volumes:
+      - data:/home/postgres/pgdata/data
+  vectorizer-worker:
+    image: timescale/pgai-vectorizer-worker:latest
+    environment:
+      PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    command: [ "--poll-interval", "5s", "--log-level", "DEBUG" ]
+volumes:
+  data:
