@@ -73,7 +73,7 @@ class _Vectorizer:
         assert self.name is not None
         table_name = self.target_table or f"{owner.__tablename__}_embedding_store"
         self.set_schemas_correctly(owner)
-        class_name = f"{to_pascal_case(self.name)}Embedding"
+        class_name = f"{owner.__name__}{to_pascal_case(self.name)}Embedding"
         registry_instance = owner.registry
         base: type[DeclarativeBase] = owner.__base__  # type: ignore
 
