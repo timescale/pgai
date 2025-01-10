@@ -86,7 +86,8 @@ The `vectorizer_relationship` accepts the following parameters:
 Additional parameters are simply forwarded to the underlying [SQLAlchemy relationship](https://docs.sqlalchemy.org/en/20/orm/relationships.html) so you can configure it as you desire.
 
 Think of the `vectorizer_relationship` as a normal SQLAlchemy relationship, but with a preconfigured model instance under the hood.
-
+The relationship into the other direction is also automatically set, if you want to change it's configuration you can set the
+`parent_kwargs`parameter. E.g. `parent_kwargs={"lazy": "joined"}` to configure eager loading.
 
 ## Setting up the Vectorizer
 

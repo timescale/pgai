@@ -160,5 +160,5 @@ def test_can_build_select():
     to build queries like this would fail.
     """
     select(Document.content_embeddings).options(
-        joinedload(Document.content_embeddings.parent)
-    )  # type: ignore
+        joinedload(Document.content_embeddings.parent)  # type: ignore
+    )
