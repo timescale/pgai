@@ -2,12 +2,14 @@ from typing import Any
 
 import numpy as np
 from sqlalchemy import Column, Engine, Integer, Text, select
-from sqlalchemy.orm import DeclarativeBase, Session, backref, joinedload
+from sqlalchemy.orm import DeclarativeBase, Session, joinedload
 from sqlalchemy.sql import text
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.sqlalchemy import vectorizer_relationship
-from tests.vectorizer.extensions.utils import run_vectorizer_worker
+from tests.vectorizer.extensions.utils import (
+    run_vectorizer_worker,
+)
 
 
 class Base(DeclarativeBase):
@@ -19,9 +21,7 @@ class BlogPost(Base):
     id = Column(Integer, primary_key=True)
     title = Column(Text, nullable=False)
     content = Column(Text, nullable=False)
-    content_embeddings = vectorizer_relationship(
-        dimensions=768, backref=backref("parent", lazy="joined")
-    )
+    content_embeddings = vectorizer_relationship(dimensions=768, lazy="joined")
 
 
 def test_vectorizer_embedding_creation(
@@ -66,7 +66,7 @@ def test_vectorizer_embedding_creation(
         blog_post = session.query(BlogPost).first()
         assert blog_post is not None
         assert blog_post.content_embeddings is not None
-        assert BlogPost.content_embeddings.__name__ == "ContentEmbeddingsEmbedding"
+        assert BlogPost.content_embeddings.__name__ == "BlogPostContentEmbeddings"
 
         # Check embeddings exist and have correct properties
         embedding = session.query(BlogPost.content_embeddings).first()
@@ -131,7 +131,7 @@ def test_select_parent(
         embedding = (
             session.execute(
                 select(BlogPost.content_embeddings).options(
-                    joinedload(BlogPost.content_embeddings.parent)
+                    joinedload(BlogPost.content_embeddings.parent)  # type: ignore
                 )
             )
             .scalars()
@@ -139,3 +139,26 @@ def test_select_parent(
         )
         assert embedding is not None
         assert embedding.parent is not None
+
+
+class Document(Base):
+    __tablename__ = "documents"
+
+    id = Column(Integer, primary_key=True)
+    content = Column(Text())
+    content_embeddings = vectorizer_relationship(dimensions=768, lazy="joined")
+
+
+def test_can_build_select():
+    """
+    This is a very minimal test case that failed when doing
+    some development with the extension.
+    The nature of the vectorizer_relationship being a descriptor messes
+    with sqlalchemys relationship resolution.
+    It was previously using `backref` to propagate the parent field,
+    which is resolved later and an immediate access
+    to build queries like this would fail.
+    """
+    select(Document.content_embeddings).options(
+        joinedload(Document.content_embeddings.parent)
+    )  # type: ignore

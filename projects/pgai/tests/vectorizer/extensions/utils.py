@@ -4,7 +4,7 @@ from pgai.cli import vectorizer_worker
 
 
 def run_vectorizer_worker(db_url: str, vectorizer_id: int) -> None:
-    CliRunner().invoke(
+    result = CliRunner().invoke(
         vectorizer_worker,
         [
             "--db-url",
@@ -17,3 +17,5 @@ def run_vectorizer_worker(db_url: str, vectorizer_id: int) -> None:
         ],
         catch_exceptions=False,
     )
+    print(f"Exit code: {result.exit_code}")
+    print(f"Output: {result.output}")

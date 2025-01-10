@@ -2,7 +2,7 @@ from typing import Any
 
 from _pytest.logging import LogCaptureFixture
 from sqlalchemy import Column, Engine, Integer, Text
-from sqlalchemy.orm import DeclarativeBase, Session, backref
+from sqlalchemy.orm import DeclarativeBase, Session
 from sqlalchemy.sql import text
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
@@ -36,7 +36,7 @@ def test_joined_loading(
     # Create tables
 
     metadata = ArticleWithLazyStrategies.metadata
-    metadata.create_all(initialized_engine, tables=[metadata.sorted_tables[0]])
+    metadata.create_all(initialized_engine, tables=[metadata.sorted_tables[1]])
 
     # Create vectorizers in database
     with initialized_engine.connect() as conn:
@@ -96,7 +96,7 @@ class ArticleWithBackpopulatedField(Base):
         target_table="articles_backpopulated_embedding_store",
         dimensions=768,
         lazy="joined",
-        backref=backref("parent", lazy="joined"),
+        parent_kwargs={"lazy": "joined"},
     )
 
 
@@ -112,7 +112,7 @@ def test_back_populated_parent_loading(
     # Create tables
 
     metadata = ArticleWithBackpopulatedField.metadata
-    metadata.create_all(initialized_engine)
+    metadata.create_all(initialized_engine, tables=[metadata.sorted_tables[0]])
 
     # Create vectorizers in database
     with initialized_engine.connect() as conn:
