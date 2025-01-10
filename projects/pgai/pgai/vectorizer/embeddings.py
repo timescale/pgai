@@ -78,7 +78,7 @@ class BatchApiCaller(Generic[T]):
                 current_span.set_tag("batches.total", num_of_batches)
             for i in range(0, len(documents), max_chunks_per_batch):
                 batch_num = i // max_chunks_per_batch + 1
-                batch = documents[i : i + max_chunks_per_batch]
+                batch = documents[i: i + max_chunks_per_batch]
 
                 await logger.adebug(f"Batch {batch_num} of {num_of_batches}")
                 await logger.adebug(f"Chunks for this batch: {len(batch)}")
@@ -138,7 +138,7 @@ class Embedder(ABC):
 
     @abstractmethod
     async def embed(
-        self, documents: list[str]
+            self, documents: list[str]
     ) -> Sequence[EmbeddingVector | ChunkEmbeddingError]:
         """
         Embeds a list of documents into vectors.
@@ -161,7 +161,8 @@ class Embedder(ABC):
 
     async def setup(self) -> None:  # noqa: B027 empty on purpose
         """
-        Setup the embedder
+        Sets up the embedder, not an abstractmethod given that most providers don't need it,
+        it's currently only used in Ollama.
         """
 
 

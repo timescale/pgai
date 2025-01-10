@@ -211,7 +211,7 @@ class VectorizerQueryBuilder:
         the system avoids waiting on locks. The inclusion of the ORDER BY
         blog_id clause helps prevent potential deadlocks...
 
-        The only differece, between the blog and this query, is that we handle
+        The only difference, between the blog and this query, is that we handle
         composite primary keys.
         """
         return sql.SQL("""
