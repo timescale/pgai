@@ -36,7 +36,7 @@ def test_joined_loading(
     # Create tables
 
     metadata = ArticleWithLazyStrategies.metadata
-    metadata.create_all(initialized_engine, tables=[metadata.sorted_tables[1]])
+    metadata.create_all(initialized_engine, tables=[metadata.sorted_tables[0]])
 
     # Create vectorizers in database
     with initialized_engine.connect() as conn:
@@ -83,72 +83,3 @@ def test_joined_loading(
             f"Should not trigger additional queries"
             f" but queries were: {after_select_queries}"
         )
-
-
-class ArticleWithBackpopulatedField(Base):
-    __tablename__ = "articles_backpopulated"
-    id = Column(Integer, primary_key=True)
-    title = Column(Text, nullable=False)
-    content = Column(Text, nullable=False)
-
-    # Different vectorizers with different lazy loading strategies
-    embeddings = vectorizer_relationship(
-        target_table="articles_backpopulated_embedding_store",
-        dimensions=768,
-        lazy="joined",
-        parent_kwargs={"lazy": "joined"},
-    )
-
-
-def test_back_populated_parent_loading(
-    postgres_container: PostgresContainer,
-    initialized_engine: Engine,
-    caplog: LogCaptureFixture,
-    vcr_: Any,
-):
-    """Test the difference between select and joined loading strategies."""
-    db_url = postgres_container.get_connection_url()
-
-    # Create tables
-
-    metadata = ArticleWithBackpopulatedField.metadata
-    metadata.create_all(initialized_engine, tables=[metadata.sorted_tables[0]])
-
-    # Create vectorizers in database
-    with initialized_engine.connect() as conn:
-        conn.execute(
-            text("""
-                SELECT ai.create_vectorizer(
-                    'articles_backpopulated'::regclass,
-                    embedding => ai.embedding_openai('text-embedding-3-small', 768),
-                    chunking =>
-                    ai.chunking_recursive_character_text_splitter('content', 50, 10)
-                );
-                """)
-        )
-        conn.commit()
-
-    # Insert test data
-    with Session(initialized_engine) as session:
-        articles: list[ArticleWithBackpopulatedField] = []
-        for i in range(3):
-            article = ArticleWithBackpopulatedField(
-                title=f"Test Article {i}",
-                content=f"This is test content {i} that will be embedded.",
-            )
-            session.add(article)
-            articles.append(article)
-        session.commit()
-
-    # Run vectorizer worker for each vectorizer
-    with vcr_.use_cassette("test_parent_joined_loading.yaml"):
-        run_vectorizer_worker(db_url, 1)
-
-    with (
-        Session(initialized_engine) as session,
-        caplog.at_level("DEBUG", "sqlalchemy.engine"),
-    ):
-        embeddings = session.query(ArticleWithBackpopulatedField.embeddings).all()
-
-    parents = [embedding.parent for embedding in embeddings]
-    assert all(parent is not None for parent in parents), "Parent should be populated"

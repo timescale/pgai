@@ -148,9 +148,6 @@ class _Vectorizer:
         self, obj: DeclarativeBase | None, owner: type[DeclarativeBase]
     ) -> Relationship[EmbeddingModel[Any]] | type[EmbeddingModel[Any]]:
         assert self.name is not None
-        if not self._initialized:
-            # This will ensure all mappers are configured
-            owner.registry.configure()
         relationship_name = f"_{self.name}_relationship"
         if not self._initialized:
             self._embedding_class = self.create_embedding_class(
