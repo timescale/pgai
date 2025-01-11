@@ -58,7 +58,7 @@ def test_vectorizer_embedding_creation(
     # Verify embeddings were created
     with Session(initialized_engine) as session:
         # Verify embedding class was created correctly
-        assert BlogPost.content_embeddings.__name__ == "ContentEmbeddingsEmbedding"
+        assert BlogPost.content_embeddings.__name__ == "BlogPostContentEmbeddings"
 
         # Check embeddings exist and have correct properties
         embedding = session.query(BlogPost.content_embeddings).first()
