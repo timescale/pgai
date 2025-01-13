@@ -118,4 +118,5 @@ dev-dependencies = [
     "testcontainers==4.8.1",
     "build==1.2.2.post1",
     "twine==5.1.1",
+    "mitmproxy>=11.0.2",
 ]

@@ -1,12 +1,18 @@
+import asyncio
 import os
+import threading
 from collections.abc import Callable, Generator, Mapping
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import pytest
 import tiktoken
 import vcr  # type:ignore
 from dotenv import load_dotenv
+from mitmproxy import options
+from mitmproxy.http import HTTPFlow
+from mitmproxy.tools.dump import DumpMaster
 from testcontainers.core.image import DockerImage  # type:ignore
 from testcontainers.postgres import PostgresContainer  # type:ignore
 
@@ -113,3 +119,50 @@ def postgres_container(
     load_openai_key: bool = params.get("load_openai_key", True)  # type: ignore
 
     return postgres_container_manager(load_openai_key=load_openai_key)  # type: ignore
+
+
+class ReverseProxy:
+    def __init__(self, target_url: str):
+        self.target = urlparse(target_url)
+
+    def request(self, flow: HTTPFlow):
+        flow.request.host = str(self.target.hostname)
+        flow.request.path = self.target.path + flow.request.path
+        flow.request.scheme = "https"
+        flow.request.port = 443
+
+
+def run_reverse_proxy(
+    target_host: str, listen_port: int = 8000, listen_host: str = "localhost"
+):
+    async def start_proxy():
+        opts = options.Options(listen_host=listen_host, listen_port=listen_port)
+        master = DumpMaster(opts)
+        master.addons.add(ReverseProxy(target_host))  # type:ignore
+
+        try:
+            await master.run()
+        finally:
+            master.shutdown()
+
+    # mitmproxy relies on asyncio for its event loop
+    def run_event_loop():
+        asyncio.run(start_proxy())
+
+    proxy_thread = threading.Thread(target=run_event_loop, daemon=True)
+    proxy_thread.start()
+
+
+@pytest.fixture(scope="function")
+def openai_proxy_url(request: pytest.FixtureRequest):
+    if not hasattr(request, "param") or request.param is None:
+        # a valid url is required in order to start the openai proxy fixture
+        yield None
+        return
+
+    port = request.param
+    run_reverse_proxy("https://api.openai.com/v1", port)
+
+    proxy_url = f"http://localhost:{port}"
+    print(f"OpenAI API proxy running on {proxy_url}")
+    yield f"http://localhost:{port}"
