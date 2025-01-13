@@ -33,6 +33,23 @@ class EmbeddingModel(DeclarativeBase, Generic[T]):
     parent: T  # Type of the parent model
 
 
+def find_declarative_base(cls: type) -> type:
+    """Find the SQLAlchemy declarative base class in the inheritance hierarchy."""
+    for base in cls.__mro__:
+        if (
+            (
+                hasattr(base, "_sa_registry")  # Modern style
+                or hasattr(base, "__mapper__")  # Mapped class
+                or hasattr(base, "metadata")  # Legacy style
+            )
+            and
+            # Ensure it's the highest level base
+            not any(hasattr(parent, "_sa_registry") for parent in base.__bases__)
+        ):
+            return base
+    raise ValueError("No SQLAlchemy declarative base found in class hierarchy")
+
+
 class _Vectorizer:
     def __init__(
         self,
@@ -74,7 +91,7 @@ class _Vectorizer:
         self.set_schemas_correctly(owner)
         class_name = f"{owner.__name__}{to_pascal_case(self.name)}"
         registry_instance = owner.registry
-        base: type[DeclarativeBase] = owner.__base__  # type: ignore
+        base = find_declarative_base(owner)
 
         # Check if table already exists in metadata
         # There is probably a better way to do this
