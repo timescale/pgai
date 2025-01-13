@@ -121,7 +121,7 @@ def postgres_container(
     return postgres_container_manager(load_openai_key=load_openai_key)  # type: ignore
 
 
-class ReverseProxy:
+class ReverseProxyAddon:
     def __init__(self, target_url: str):
         self.target = urlparse(target_url)
 
@@ -138,7 +138,7 @@ def run_reverse_proxy(
     async def start_proxy():
         opts = options.Options(listen_host=listen_host, listen_port=listen_port)
         master = DumpMaster(opts)
-        master.addons.add(ReverseProxy(target_host))  # type:ignore
+        master.addons.add(ReverseProxyAddon(target_host))  # type:ignore
 
         try:
             await master.run()
@@ -157,12 +157,11 @@ def run_reverse_proxy(
 def openai_proxy_url(request: pytest.FixtureRequest):
     if not hasattr(request, "param") or request.param is None:
         # a valid url is required in order to start the openai proxy fixture
-        yield None
-        return
+        return None
 
     port = request.param
     run_reverse_proxy("https://api.openai.com/v1", port)
 
     proxy_url = f"http://localhost:{port}"
     print(f"OpenAI API proxy running on {proxy_url}")
-    yield f"http://localhost:{port}"
+    return f"http://localhost:{port}"
