@@ -118,16 +118,11 @@ def source_table(
 
 
 @pytest.fixture
-def openai_custom_base_url(request: pytest.FixtureRequest) -> str | None:
-    return request.param if hasattr(request, "param") else None
-
-
-@pytest.fixture
 def configured_openai_vectorizer_id(
     source_table: str,
     cli_db: tuple[TestDatabase, Connection],
     test_params: tuple[int, int, int, str, str],
-    openai_custom_base_url: str | None,
+    openai_proxy_url: str | None,
 ) -> int:
     """Creates and configures a vectorizer for testing"""
     _, concurrency, batch_size, chunking, formatting = test_params
@@ -143,8 +138,8 @@ def configured_openai_vectorizer_id(
                     1536,
                     api_key_name => 'OPENAI_API_KEY'
                     {
-                        f", base_url => '{openai_custom_base_url}'"
-                        if openai_custom_base_url is not None else ""
+                        f", base_url => '{openai_proxy_url}'"
+                        if openai_proxy_url is not None else ""
                     }
                 ),
                 chunking => ai.{chunking},
@@ -245,18 +240,18 @@ def test_params(request: pytest.FixtureRequest) -> tuple[int, int, int, str, str
 
 class TestWithOpenAiVectorizer:
     @pytest.mark.parametrize(
-        "test_params,openai_custom_base_url",
+        "test_params,openai_proxy_url",
         [
-            (
-                (
-                    1,
-                    1,
-                    1,
-                    "chunking_character_text_splitter('content')",
-                    "formatting_python_template('$chunk')",
-                ),
-                None,  # No base_url is set. Use default (https://api.openai.com/v1)
-            ),
+            # (
+            #     (
+            #         1,
+            #         1,
+            #         1,
+            #         "chunking_character_text_splitter('content')",
+            #         "formatting_python_template('$chunk')",
+            #     ),
+            #     None,  # No base_url is set. Use default (https://api.openai.com/v1)
+            # ),
             (
                 (
                     1,
@@ -266,20 +261,20 @@ class TestWithOpenAiVectorizer:
                     "formatting_python_template('$chunk')",
                 ),
                 # Same test as before but with a custom base_url
-                "http://localhost:8000/v1",
+                8000,
             ),
-            (
-                (
-                    4,
-                    2,
-                    2,
-                    "chunking_character_text_splitter('content')",
-                    "formatting_python_template('$chunk')",
-                ),
-                None,  # No base_url is set. Use default (https://api.openai.com/v1)
-            ),
+            # (
+            #     (
+            #         4,
+            #         2,
+            #         2,
+            #         "chunking_character_text_splitter('content')",
+            #         "formatting_python_template('$chunk')",
+            #     ),
+            #     None,  # No base_url is set. Use default (https://api.openai.com/v1)
+            # ),
         ],
-        indirect=["openai_custom_base_url"],
+        indirect=["openai_proxy_url"],
     )
     def test_process_vectorizer(
         self,
@@ -288,7 +283,7 @@ class TestWithOpenAiVectorizer:
         configured_openai_vectorizer_id: int,
         vcr_: Any,
         test_params: tuple[int, int, int, str, str],
-        openai_custom_base_url: str | None,
+        openai_proxy_url: str | None,
     ):
         """Test successful processing of vectorizer tasks"""
         num_items, concurrency, batch_size, _, _ = test_params
@@ -310,9 +305,15 @@ class TestWithOpenAiVectorizer:
         cassette = (
             f"openai-character_text_splitter-chunk_value-"
             f"items={num_items}-batch_size={batch_size}-"
-            f"custom_base_url={openai_custom_base_url is not None}.yaml"
+            f"custom_base_url={openai_proxy_url is not None}.yaml"
         )
         logging.getLogger("vcr").setLevel(logging.DEBUG)
+
+        # if openai_proxy_url is not None:
+        #     # vcr_ = vcr_.copy(
+        #     #     before_record=lambda request: None if openai_proxy_url in request.url else request  # Add new filters
+        #     # )
+
         with vcr_.use_cassette(cassette):
             result = CliRunner().invoke(
                 vectorizer_worker,

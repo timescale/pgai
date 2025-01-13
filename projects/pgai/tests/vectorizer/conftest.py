@@ -52,7 +52,7 @@ def vcr_():
         filter_headers=["authorization"],
         match_on=["method", "scheme", "host", "port", "path", "query", "body"],
         before_record_response=remove_set_cookie_header,
-        ignore_hosts=["huggingface.co"],
+        ignore_hosts=["huggingface.co", "localhost:8000"],
     )
 
 
@@ -113,3 +113,129 @@ def postgres_container(
     load_openai_key: bool = params.get("load_openai_key", True)  # type: ignore
 
     return postgres_container_manager(load_openai_key=load_openai_key)  # type: ignore
+
+
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import http.client
+from urllib.parse import urlparse, urljoin
+import threading
+
+class OpenAIProxy(BaseHTTPRequestHandler):
+    openai_api_url = "https://api.openai.com/v1"
+
+    # Only Post is allowed by now (embeddings path is POST).
+    def do_POST(self):
+        target = urlparse(self.openai_api_url)
+        dest_path = target.path + self.path
+        print(f"Proxied request to {target.hostname}{dest_path}")
+
+        conn = http.client.HTTPSConnection(target.hostname, 443)
+
+        # Forward headers and body
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length)
+        conn.request("POST", dest_path, body, {k: v for k, v in self.headers.items() if k.lower() != "host"})
+
+        # Relay the response back to the client
+        response = conn.getresponse()
+        self.send_response(response.status)
+        for key, value in response.getheaders():
+            self.send_header(key, value)
+        self.end_headers()
+        self.wfile.write(response.read())
+        conn.close()
+
+
+from mitmproxy import options
+from mitmproxy.tools.dump import DumpMaster
+from mitmproxy.http import HTTPFlow
+import asyncio
+
+
+class ReverseProxy:
+    def __init__(self, target_url):
+        self.target = urlparse(target_url)
+
+    def request(self, flow: HTTPFlow):
+        if flow.request.method == "POST":
+            flow.request.host = self.target.hostname
+            flow.request.path = self.target.path + flow.request.path
+            flow.request.scheme = "https"
+            flow.request.port = 443
+
+
+def run_reverse_proxy(target_host, listen_host="localhost", listen_port=8080):
+    async def start_proxy():
+        # Create mitmproxy options
+        opts = options.Options(listen_host=listen_host, listen_port=listen_port)
+
+        # Initialize DumpMaster and add the ReverseProxy addon
+        master = DumpMaster(opts)
+        master.addons.add(ReverseProxy(target_host))
+
+        try:
+            await master.run()  # Run the proxy asynchronously
+        except KeyboardInterrupt:
+            await master.shutdown()
+
+    # Start the event loop in a separate thread
+    def run_event_loop():
+        asyncio.run(start_proxy())
+
+    proxy_thread = threading.Thread(target=run_event_loop, daemon=True)
+    proxy_thread.start()
+    return proxy_thread
+
+
+@pytest.fixture(scope="function")
+def openai_proxy_url(request: pytest.FixtureRequest):
+    if not hasattr(request, "param") or request.param is None:
+        # a valid url is required in order to start the openai proxy fixture
+        yield None
+        return
+
+    port = request.param
+
+    # # Start the reverse proxy, forwarding POST requests to "example.com"
+    # master, proxy_thread = run_reverse_proxy("https://api.openai.com/v1", "localhost", port)
+    # proxy_url = f"http://localhost:{port}"
+    # print(f"OpenAI API proxy running on {proxy_url}")
+
+    # yield f"http://localhost:{port}"
+
+    proxy_thread = run_reverse_proxy("https://api.openai.com/v1", "localhost", port)
+
+    proxy_url = f"http://localhost:{port}"
+    print(f"OpenAI API proxy running on {proxy_url}")
+    yield f"http://localhost:{port}"
+    try:
+        while proxy_thread.is_alive():
+            pass
+    except KeyboardInterrupt:
+        print("Shutting down OpenAI proxy...")
+
+
+
+# @pytest.fixture(scope="function")
+# def openai_proxy_url(request: pytest.FixtureRequest):
+#     if not hasattr(request, "param") or request.param is None:
+#         # a valid url is required in order to start the openai proxy fixture
+#         yield None
+#         return
+#
+#     port = request.param
+#
+#     server = HTTPServer(('', port), OpenAIProxy)
+#     print(f"OpenAI API proxy running on port {port}")
+#     # server.serve_forever()
+#
+#     thread = threading.Thread(target=server.serve_forever, daemon=True)
+#     thread.start()  # Start the server in a separate thread
+#     yield f"http://localhost:{port}"
+#     server.shutdown()
+#     # try:
+#     #     server.serve_forever()
+#     # except KeyboardInterrupt:
+#     #     print("Shutting down OpenAI API proxy...")
+#     #     server.shutdown()
+
