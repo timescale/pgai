@@ -3,6 +3,7 @@ import os
 import threading
 import time
 from collections.abc import Callable
+from datetime import datetime, timezone
 from functools import cached_property
 from itertools import repeat
 from typing import Any, TypeAlias
@@ -81,6 +82,36 @@ class Config:
         LangChainCharacterTextSplitter | LangChainRecursiveCharacterTextSplitter
     ) = Field(..., discriminator="implementation")
     formatting: PythonTemplate | ChunkValue = Field(..., discriminator="implementation")
+
+
+@dataclass
+class AsyncBatch:
+    """
+    Represents a record in the external batch table.
+
+    Attributes:
+        external_batch_id (str): Primary key of the batch.
+        input_file_id (str): The ID of the input file. This is mandatory.
+        status (str): The current status of the batch.
+        errors (dict | None): Dictionary representing error details in JSONB format.
+        created_at (datetime): The timestamp when the record was created (defaults to current time).
+        expires_at (datetime | None): The optional expiration timestamp for the batch.
+        completed_at (datetime | None): The optional timestamp when the batch processing was completed.
+        failed_at (datetime | None): The timestamp when the batch processing failed (if applicable).
+        next_attempt_after (datetime | None): The timestamp when the batch can be retried next.
+        total_attempts (int): Count of the total number of attempts made to process this batch.
+    """
+
+    external_batch_id: str
+    input_file_id: str
+    status: str
+    errors: dict | None = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    expires_at: datetime | None = None
+    completed_at: datetime | None = None
+    failed_at: datetime | None = None
+    next_attempt_after: datetime | None = None
+    total_attempts: int = 0
 
 
 @dataclass
@@ -319,6 +350,116 @@ class VectorizerQueryBuilder:
             self.errors_table_ident,
         )
 
+    @cached_property
+    def fetch_batches_to_process_query(self) -> sql.Composed:
+        batch_schema = self.vectorizer.config.embedding.batch_schema
+        batch_table = self.vectorizer.config.embedding.batch_table
+
+        return sql.SQL(
+            """
+                WITH locked_rows AS (
+                    SELECT external_batch_id
+                    FROM {batch_table}
+                    WHERE next_attempt_after is null or next_attempt_after < NOW()
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                    FOR UPDATE SKIP LOCKED
+                ),
+                UPDATE
+                    {batch_table} batches
+                SET
+                    total_attempts = batches.total_attempts + 1,
+                    next_attempt_after = %s
+                FRO
+                    locked_rows l
+                WHERE
+                    l.external_batch_id = cfw.external_batch_id
+                RETURNING l.external_batch_id
+                """
+        ).format(batch_table=sql.Identifier(batch_schema, batch_table))
+
+    @cached_property
+    def update_batch_embedding_query(self) -> sql.Composed:
+        return sql.SQL("""
+        UPDATE {}.{} SET
+            status = %s
+            completed_at = %s,
+            failed_at = %s,
+            errors = %s
+        WHERE external_batch_id = %s
+        """).format(
+            self.vectorizer.config.embedding.embedding_batch_schema,
+            self.vectorizer.config.embedding.embedding_batch_table,
+        )
+
+    @cached_property
+    def delete_batch_embedding_from_queue_query(self) -> sql.Composed:
+        return sql.SQL("""
+        DELETE FROM {}.{}
+        WHERE external_batch_id = %s
+        """).format(
+            self.vectorizer.config.embedding.embedding_batch_schema,
+            self.vectorizer.config.embedding.embedding_batch_table,
+        )
+
+    @cached_property
+    def update_batch_embedding_status_query(self) -> sql.Composed:
+        return sql.SQL(
+            "UPDATE {}.{} SET status = %s WHERE external_batch_id = %s"
+        ).format(
+            self.vectorizer.config.embedding.embedding_batch_schema,
+            self.vectorizer.config.embedding.embedding_batch_table,
+        )
+
+    @cached_property
+    def fetch_chunks_for_batch_id_query(self) -> sql.Composed:
+        return sql.SQL(
+            "SELECT id, chunk FROM {}.{} WHERE embedding_batch_id = %s",
+        ).format(
+            self.vectorizer.config.embedding.embedding_batch_schema,
+            self.vectorizer.config.embedding.embedding_batch_chunks_table,
+        )
+
+    @cached_property
+    def insert_batch_embedding_query(self) -> sql.Composed:
+        return sql.SQL("""
+        INSERT INTO {}.{} (
+            external_batch_id,
+            input_file_id,
+            output_file_id,
+            status,
+            errors,
+            expires_at
+        ) VALUES (
+          %s,
+          %s,
+          %s,
+          %s,
+          %s,
+          %s
+        )
+        """).format(
+            self.vectorizer.config.embedding.embedding_batch_schema,
+            self.vectorizer.config.embedding.embedding_batch_table,
+        )
+
+    @cached_property
+    def insert_batch_embedding_chunks_query(self) -> sql.Composed:
+        return sql.SQL("""
+        INSERT INTO {}.{} (
+            id,
+            embedding_batch_id,
+            chunk
+        ) VALUES (
+            %s,
+            %s,
+            %s
+        )
+        """).format(
+            self.vectorizer.config.embedding.embedding_batch_schema,
+            self.vectorizer.config.embedding.embedding_batch_chunks_table,
+        )
+
     def _pks_placeholders_tuples(self, items_count: int) -> sql.Composed:
         """Generates a comma separated list of tuples with placeholders for the
         primary key fields of the source table.
@@ -465,6 +606,10 @@ class Worker:
             await register_vector_async(conn)
             await self.vectorizer.config.embedding.setup()
             while True:
+                if self.vectorizer.config.embedding.is_api_async():
+                    res = await self._process_async_embeddings(conn)
+                    return res
+
                 if not self._continue_processing(loops, res):
                     return res
                 items_processed = await self._do_batch(conn)
@@ -472,6 +617,127 @@ class Worker:
                     return res
                 res += items_processed
                 loops += 1
+
+    async def _process_async_embeddings(self, conn):
+        async with conn.transaction():
+            await self.check_and_store_async_batches(conn)
+            await self.create_async_batches(conn)
+
+    async def check_and_store_async_batches(self, conn: AsyncConnection):
+        """
+        Checks if chunks submitted with create_async_batches completed and
+        stores them when they are completed.
+
+        This function is only called when is_api_async returns true.
+
+        Args:
+            conn (AsyncConnection): The asynchronous database connection.
+        """
+        async with conn.cursor() as cursor:
+            with conn.transaction():
+                await cursor.execute(self.queries.fetch_batches_to_process_query)
+
+            for batch_row in await cursor.fetchall():
+
+                batch = AsyncBatch(**batch_row)
+                batch = self.vectorizer.config.embedding.fetch_async_embedding_status(batch)
+
+                with conn.transaction():
+                    await conn.execute(self.queries.update_batch_embedding_query, (
+                        batch.status,
+                        datetime.fromtimestamp(batch.completed_at, timezone.utc)
+                        if batch.completed_at else None,
+                        datetime.fromtimestamp(batch.failed_at, timezone.utc)
+                        if batch.failed_at else None,
+                        Jsonb(batch.errors),
+                        batch.external_batch_id,
+                    ))
+
+                # batch has been processed successfully by the external api, that means we can
+                # collect the results and store them in the database.
+                if batch.status == "completed":
+
+                    with conn.transaction():
+                        await self.vectorizer.config.embedding.write_embeddings_from_batch(conn, batch)
+
+                        batch.status = "processed"
+
+                        await cursor.execute(
+                            self.queries.update_batch_embedding_status_query,
+                            (
+                                batch.status,
+                                batch.external_batch_id,
+                            ))
+
+                if batch.status == "processed":
+                    with conn.transaction():
+                        await self.vectorizer.config.embedding.finalize_async_embedding(batch)
+                        await cursor.execute(
+                            self.queries.delete_batch_embedding_from_queue_query,
+                            (
+                                batch.external_batch_id,
+                            ))
+
+
+    async def create_async_batches(self, conn: AsyncConnection) -> int:
+        """
+        Submits chunks for async embedding processing.
+        This allows to process very large amounts of data faster than with the
+        embeddings api, because batch apis usually have vastly higher rate limits.
+
+        This function is only called when is_api_async returns true.
+
+        Args:
+            conn (AsyncConnection): The asynchronous database connection.
+        """
+        try:
+            items = await self._fetch_work(conn)
+
+            await logger.adebug(f"Items pulled from queue for batch embedding: {len(items)}")
+
+            # Filter out items that were deleted from the source table.
+            # We use the first primary key column, since they can only
+            # be null if the LEFT JOIN didn't find a match.
+            items = [
+                i
+                for i in items
+                if i[self.vectorizer.source_pk[0].attname] is not None
+            ]
+
+            if len(items) == 0:
+                return 0
+
+            created_batch, documents = await self._generate_embedding_batch(items)
+
+            await conn.execute(self.queries.insert_batch_embedding_query, (
+                created_batch.external_id,
+                created_batch.input_file_id,
+                created_batch.output_file_id,
+                created_batch.status,
+                created_batch.errors,
+                datetime.fromtimestamp(created_batch.expires_at, timezone.utc),
+            ))
+
+            for doc in documents:
+                await conn.execute(
+                    self.queries.insert_batch_embedding_chunks_query,
+                    (
+                        doc["unique_full_chunk_id"],
+                        created_batch.id,
+                        doc["chunk"]
+                    ))
+
+            return len(items)
+        except Exception as e:
+            await self._insert_vectorizer_error(
+                conn,
+                (
+                    self.vectorizer.id,
+                    VECTORIZER_FAILED,
+                    Jsonb({"error_reason": str(e)}),
+                ),
+            )
+            raise e
 
     @tracer.wrap()
     async def _do_batch(self, conn: AsyncConnection) -> int:
@@ -731,6 +997,31 @@ class Worker:
             else:
                 records.append(record + [np.array(embedding)])
         return records, errors
+
+    async def _generate_embedding_batch(
+        self, items: list[SourceRow]
+    ) -> tuple[AsyncBatch, list[dict[str, Any]]]:
+        documents: list[dict[str, Any]] = []
+        for item in items:
+            pk = self._get_item_pk_values(item)
+            chunks = self.vectorizer.config.chunking.into_chunks(item)
+            for chunk_id, chunk in enumerate(chunks, 0):
+                formatted = self.vectorizer.config.formatting.format(chunk, item)
+                unique_full_chunk_id = [
+                    ",".join(self.queries.pk_attnames),
+                    ",".join(map(str, pk)),
+                    str(chunk_id),
+                ]
+                documents.append({
+                    "unique_full_chunk_id": ":::".join(unique_full_chunk_id),
+                    "chunk": formatted,
+                })
+
+        try:
+            batch = await self.vectorizer.config.embedding.create_and_submit_embedding_batch(documents)
+            return batch, documents
+        except Exception as e:
+            raise EmbeddingProviderError() from e
 
     def _vectorizer_error_record(
         self, record: EmbeddingRecord, chunk_error: ChunkEmbeddingError
