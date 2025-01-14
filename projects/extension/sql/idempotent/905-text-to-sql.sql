@@ -155,20 +155,16 @@ begin
     (
         select pg_catalog.format
         ( E'<table>\n/*\n# %I.%I\n%s\n%s\n*/\n%s\n</table>'
-        , n.nspname
-        , k.relname
-        , td.description
+        , pt.schemaname
+        , pt.tablename
+        , pd.description
         , c.cols
-        , ai._table_def(k.oid)
+        , ai._table_def(pc.oid)
         ) as ctx
-        from pg_catalog.unnest(_distinct_tables) t
-        inner join pg_catalog.pg_class k on (t operator(pg_catalog.=) k.oid)
-        inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
-        left outer join pg_catalog.jsonb_to_recordset(_relevant_obj) td
-        ( objtype pg_catalog.text
-        , objid pg_catalog.oid
-        , description pg_catalog.text
-        ) on (td.objtype operator(pg_catalog.=) 'table' and td.objid operator(pg_catalog.=) k.oid)
+        from pg_tables pt
+        inner join pg_catalog.pg_namespace AS pn ON pn.nspname = pt.schemaname
+        inner join pg_catalog.pg_class AS pc ON pt.tablename = pc.relname AND pn.oid = pc.relnamespace
+        left join pg_catalog.pg_description pd ON pc.oid = pd.objoid AND pd.objsubid = 0
         left outer join
         (
             select c.oid
@@ -183,7 +179,7 @@ begin
             where a.attnum > 0
             and not a.attisdropped
             group by c.oid
-        ) c on (c.oid operator(pg_catalog.=) k.oid)
+        ) c on (c.oid operator(pg_catalog.=) pc.oid)
     ) x
     ;
 
