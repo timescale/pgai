@@ -43,6 +43,13 @@ On your local machine:
     docker compose up -d
     ```
 
+1. **Download the Ollama models.** We'll use the `nomic-embed-text` model to generate embeddings.
+
+    ```
+    docker compose exec ollama ollama pull nomic-embed-text
+    ```
+
+
 ## Create and run a vectorizer
 
 Now we can create and run a vectorizer. A vectorizer is a pgai concept, it processes data in a table and automatically creates embeddings for it.
@@ -114,7 +121,8 @@ Now we can create and run a vectorizer. A vectorizer is a pgai concept, it proce
         chunk,
         embedding <=>  ai.ollama_embed('nomic-embed-text', 'good food', host => 'http://ollama:11434') as distance
     FROM blog_contents_embeddings
-    ORDER BY distance;
+    ORDER BY distance
+    LIMIT;
     ```
 
 The results look like:
