@@ -406,6 +406,113 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- text_to_sql_debug
+create or replace function ai.text_to_sql_debug
+( prompt pg_catalog.text
+, config pg_catalog.jsonb
+, "limit" pg_catalog.int8 default 5
+, objtypes pg_catalog.text[] default null
+, max_dist pg_catalog.float8 default null
+, catalog_name pg_catalog.text default 'default'
+) returns pg_catalog.jsonb
+as $func$
+declare
+    _system_prompt pg_catalog.text;
+    _user_prompt pg_catalog.text;
+    _response pg_catalog.jsonb;
+    _sql pg_catalog.text;
+begin
+    _system_prompt = trim
+($txt$
+You are an expert database developer and DBA specializing in PostgreSQL.
+You will be provided with context about a database model and a question to be answered.
+You respond with nothing but a SQL statement that addresses the question posed.
+The SQL statement must be valid syntax for PostgreSQL.
+SQL features and functions that are built-in to PostgreSQL may be used.
+$txt$);
+
+    _user_prompt = ai._text_to_sql_prompt
+    ( prompt
+    , "limit"=>"limit"
+    , objtypes=>objtypes
+    , max_dist=>max_dist
+    , catalog_name=>catalog_name
+    );
+    raise log 'prompt: %', _user_prompt;
+
+    case config operator(pg_catalog.->>) 'provider'
+        when 'openai' then
+            _response = ai.openai_chat_complete
+            ( config operator(pg_catalog.->>) 'model'
+            , pg_catalog.jsonb_build_array
+              ( jsonb_build_object('role', 'system', 'content', _system_prompt)
+              , jsonb_build_object('role', 'user', 'content', _user_prompt)
+              )
+            , api_key=>config operator(pg_catalog.->>) 'api_key'
+            , api_key_name=>config operator(pg_catalog.->>) 'api_key_name'
+            , base_url=>config operator(pg_catalog.->>) 'base_url'
+            , frequency_penalty=>(config operator(pg_catalog.->>) 'frequency_penalty')::pg_catalog.float8
+            , logit_bias=>(config operator(pg_catalog.->>) 'logit_bias')::pg_catalog.jsonb
+            , logprobs=>(config operator(pg_catalog.->>) 'logprobs')::pg_catalog.bool
+            , top_logprobs=>(config operator(pg_catalog.->>) 'top_logprobs')::pg_catalog.int4
+            , max_tokens=>(config operator(pg_catalog.->>) 'max_tokens')::pg_catalog.int4
+            , n=>(config operator(pg_catalog.->>) 'n')::pg_catalog.int4
+            , presence_penalty=>(config operator(pg_catalog.->>) 'presence_penalty')::pg_catalog.float8
+            , seed=>(config operator(pg_catalog.->>) 'seed')::pg_catalog.int4
+            , stop=>(config operator(pg_catalog.->>) 'stop')
+            , temperature=>(config operator(pg_catalog.->>) 'temperature')::pg_catalog.float8
+            , top_p=>(config operator(pg_catalog.->>) 'top_p')::pg_catalog.float8
+            , openai_user=>(config operator(pg_catalog.->>) 'openai_user')
+            );
+            raise log 'response: %', _response;
+            _sql = pg_catalog.jsonb_extract_path_text(_response, 'choices', '0', 'message', 'content');
+        when 'ollama' then
+            _response = ai.ollama_chat_complete
+            ( config operator(pg_catalog.->>) 'model'
+            , pg_catalog.jsonb_build_array
+              ( jsonb_build_object('role', 'system', 'content', _system_prompt)
+              , jsonb_build_object('role', 'user', 'content', _user_prompt)
+              )
+            , host=>(config operator(pg_catalog.->>) 'host')
+            , keep_alive=>(config operator(pg_catalog.->>) 'keep_alive')
+            , chat_options=>(config operator(pg_catalog.->) 'chat_options')
+            );
+            raise log 'response: %', _response;
+            _sql = pg_catalog.jsonb_extract_path_text(_response, 'choices', '0', 'message', 'content');
+        when 'anthropic' then
+            _response = ai.anthropic_generate
+            ( config operator(pg_catalog.->>) 'model'
+            , pg_catalog.jsonb_build_array
+              ( jsonb_build_object('role', 'user', 'content', _user_prompt)
+              )
+            , system_prompt=>_system_prompt
+            , max_tokens=>(config operator(pg_catalog.->>) 'max_tokens')::pg_catalog.int4
+            , api_key=>(config operator(pg_catalog.->>) 'api_key')
+            , api_key_name=>(config operator(pg_catalog.->>) 'api_key_name')
+            , base_url=>(config operator(pg_catalog.->>) 'base_url')
+            , timeout=>(config operator(pg_catalog.->>) 'timeout')::pg_catalog.float8
+            , max_retries=>(config operator(pg_catalog.->>) 'max_retries')::pg_catalog.int4
+            , user_id=>(config operator(pg_catalog.->>) 'user_id')
+            , temperature=>(config operator(pg_catalog.->>) 'temperature')::pg_catalog.float8
+            , top_k=>(config operator(pg_catalog.->>) 'top_k')::pg_catalog.int4
+            , top_p=>(config operator(pg_catalog.->>) 'top_p')::pg_catalog.float8
+            );
+            raise log 'response: %', _response;
+            _sql = pg_catalog.jsonb_extract_path_text(_response, 'content', '0', 'text');
+        else
+            raise exception 'unsupported provider';
+    end case;
+    return pg_catalog.jsonb_build_object
+    ( 'system_prompt', _system_prompt
+    , 'user_prompt', _user_prompt
+    , 'response', _sql
+    );
+end
+$func$ language plpgsql stable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- text_to_sql
 create or replace function ai.text_to_sql
 ( prompt pg_catalog.text
