@@ -171,22 +171,19 @@ begin
         ) on (td.objtype operator(pg_catalog.=) 'table' and td.objid operator(pg_catalog.=) k.oid)
         left outer join
         (
-            select
-              c.objid
+            select c.oid
             , pg_catalog.string_agg
-              ( pg_catalog.format(E'## %s\n%s', c.objnames[3], c.description)
+              ( pg_catalog.format(E'## %s\n%s', a.attname, d.description)
               , E'\n'
               ) as cols
-            from pg_catalog.jsonb_to_recordset(_relevant_obj) c
-            ( objtype pg_catalog.text
-            , objid pg_catalog.oid
-            , objsubid pg_catalog.int4
-            , objnames pg_catalog.name[]
-            , description pg_catalog.text
-            )
-            where c.objtype operator(pg_catalog.=) 'table column'
-            group by c.objid
-        ) c on (c.objid operator(pg_catalog.=) k.oid)
+            from pg_attribute a
+            join pg_class c on c.oid = a.attrelid
+            left join pg_description d on d.objoid = a.attrelid
+            and d.objsubid = a.attnum
+            where a.attnum > 0
+            and not a.attisdropped
+            group by c.oid
+        ) c on (c.oid operator(pg_catalog.=) k.oid)
     ) x
     ;
 
