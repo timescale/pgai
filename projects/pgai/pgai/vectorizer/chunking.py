@@ -6,13 +6,8 @@ from langchain_text_splitters import (
     CharacterTextSplitter,
     RecursiveCharacterTextSplitter,
 )
+from pydantic import BaseModel
 from typing_extensions import override
-
-from pgai.vectorizer.base import (
-    ChunkingCharacterTextSplitter,
-    ChunkingRecursiveCharacterTextSplitter,
-    required,
-)
 
 
 class Chunker(ABC):
@@ -38,8 +33,7 @@ class Chunker(ABC):
         """
 
 
-@required
-class LangChainCharacterTextSplitter(ChunkingCharacterTextSplitter, Chunker):
+class LangChainCharacterTextSplitter(BaseModel, Chunker):
     """
     A chunker implementation using LangChain's CharacterTextSplitter.
 
@@ -58,14 +52,19 @@ class LangChainCharacterTextSplitter(ChunkingCharacterTextSplitter, Chunker):
     """
 
     implementation: Literal["character_text_splitter"]
+    separator: str
+    chunk_size: int
+    chunk_column: str
+    chunk_overlap: int
+    is_separator_regex: bool
 
     @cached_property
     def _chunker(self) -> CharacterTextSplitter:
         return CharacterTextSplitter(
-            separator=self.separator,  # type: ignore
+            separator=self.separator,
             chunk_size=self.chunk_size,
             chunk_overlap=self.chunk_overlap,
-            is_separator_regex=self.is_separator_regex,  # type: ignore
+            is_separator_regex=self.is_separator_regex,
         )
 
     @override
@@ -85,10 +84,7 @@ class LangChainCharacterTextSplitter(ChunkingCharacterTextSplitter, Chunker):
         return self._chunker.split_text(text)
 
 
-@required
-class LangChainRecursiveCharacterTextSplitter(
-    ChunkingRecursiveCharacterTextSplitter, Chunker
-):
+class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
     """
     Splits the text from the provided item into chunks using CharacterTextSplitter.
 
@@ -102,6 +98,11 @@ class LangChainRecursiveCharacterTextSplitter(
     """
 
     implementation: Literal["recursive_character_text_splitter"]
+    separators: list[str]
+    chunk_size: int
+    chunk_column: str
+    chunk_overlap: int
+    is_separator_regex: bool
 
     @cached_property
     def _chunker(self) -> RecursiveCharacterTextSplitter:
@@ -109,7 +110,7 @@ class LangChainRecursiveCharacterTextSplitter(
             separators=self.separators,
             chunk_size=self.chunk_size,
             chunk_overlap=self.chunk_overlap,
-            is_separator_regex=self.is_separator_regex,  # type: ignore
+            is_separator_regex=self.is_separator_regex,
         )
 
     @override

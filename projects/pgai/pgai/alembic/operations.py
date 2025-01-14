@@ -3,85 +3,37 @@ from typing import Any
 from alembic.operations import MigrateOperation, Operations
 from sqlalchemy import text
 
-from pgai.alembic.configuration import (
-    CharacterTextSplitterConfig,
-    ChunkValueConfig,
-    CreateVectorizerParams,
-    DiskANNIndexingConfig,
-    HNSWIndexingConfig,
-    NoIndexingConfig,
-    NoSchedulingConfig,
-    OllamaConfig,
-    OpenAIConfig,
-    ProcessingConfig,
-    PythonTemplateConfig,
-    RecursiveCharacterTextSplitterConfig,
-    TimescaleSchedulingConfig,
-    VoyageAIConfig,
-)
+from pgai.alembic.vectorizer_params import CreateVectorizerParams
 
 
 class CreateVectorizerOp(MigrateOperation):
     def __init__(
         self,
-        source_table: str | None,
-        embedding: OpenAIConfig | OllamaConfig | VoyageAIConfig | None = None,
-        chunking: CharacterTextSplitterConfig
-        | RecursiveCharacterTextSplitterConfig
-        | None = None,
-        indexing: DiskANNIndexingConfig
-        | HNSWIndexingConfig
-        | NoIndexingConfig
-        | None = None,
-        formatting: ChunkValueConfig | PythonTemplateConfig | None = None,
-        scheduling: TimescaleSchedulingConfig | NoSchedulingConfig | None = None,
-        processing: ProcessingConfig | None = None,
-        target_schema: str | None = None,
-        target_table: str | None = None,
-        view_schema: str | None = None,
-        view_name: str | None = None,
-        queue_schema: str | None = None,
-        queue_table: str | None = None,
-        grant_to: list[str] | None = None,
-        enqueue_existing: bool = True,
+        **kw: dict[str, Any],
     ):
         self.params = CreateVectorizerParams(
-            source_table=source_table,
-            embedding=embedding,
-            chunking=chunking,
-            indexing=indexing,
-            formatting=formatting,
-            scheduling=scheduling,
-            processing=processing,
-            target_schema=target_schema,
-            target_table=target_table,
-            view_schema=view_schema,
-            view_name=view_name,
-            queue_schema=queue_schema,
-            queue_table=queue_table,
-            grant_to=grant_to,
-            enqueue_existing=enqueue_existing,
+            **kw  # type: ignore
         )
 
     @classmethod
-    def create_vectorizer(cls, operations: Operations, source_table: str, **kw: Any):
-        op = CreateVectorizerOp(source_table, **kw)
+    def create_vectorizer(cls, operations: Operations, **kw: Any):
+        op = CreateVectorizerOp(**kw)  # type: ignore
         return operations.invoke(op)
 
 
 class DropVectorizerOp(MigrateOperation):
-    def __init__(self, vectorizer_id: int | None, drop_all: bool):
-        self.vectorizer_id = vectorizer_id
+    def __init__(self, table_name: str | None, drop_all: bool):
+        self.table_name = table_name
         self.drop_all = drop_all
 
     @classmethod
     def drop_vectorizer(
         cls,
         operations: Operations,
-        vectorizer_id: int | None = None,
+        table_name: str | None,
         drop_all: bool = True,
     ):
-        op = DropVectorizerOp(vectorizer_id, drop_all)
+        op = DropVectorizerOp(table_name, drop_all)
         return operations.invoke(op)
 
 
@@ -92,10 +44,21 @@ def create_vectorizer(operations: Operations, operation: CreateVectorizerOp):
 
 def drop_vectorizer(operations: Operations, operation: DropVectorizerOp):
     connection = operations.get_bind()
-    vectorizer_id = operation.vectorizer_id
+    result = connection.execute(
+        text("SELECT id FROM ai.vectorizer WHERE target_table = :table_name"),
+        {"table_name": operation.table_name},
+    ).scalar()
+
+    if result is None:
+        print(f"No vectorizer found for table .{operation.table_name}")
+        return
+
+    print(f"Found vectorizer with ID: {result} for table {operation.table_name}")
+
+    # Drop the vectorizer
     connection.execute(
         text("SELECT ai.drop_vectorizer(:id, drop_all=>:drop_all)"),
-        {"id": vectorizer_id, "drop_all": operation.drop_all},
+        {"id": result, "drop_all": operation.drop_all},
     )
 
 

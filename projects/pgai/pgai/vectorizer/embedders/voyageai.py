@@ -4,9 +4,9 @@ from typing import Literal
 
 import voyageai
 import voyageai.error
+from pydantic import BaseModel
 from typing_extensions import override
 
-from ..base import BaseVoyageAIConfig
 from ..embeddings import (
     ApiKeyMixin,
     BatchApiCaller,
@@ -19,7 +19,7 @@ from ..embeddings import (
 )
 
 
-class VoyageAI(ApiKeyMixin, BaseVoyageAIConfig, Embedder):
+class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
     """
     Embedder that uses Voyage AI to embed documents into vector representations.
 
@@ -33,6 +33,8 @@ class VoyageAI(ApiKeyMixin, BaseVoyageAIConfig, Embedder):
     """
 
     implementation: Literal["voyageai"]
+    model: str
+    input_type: Literal["document"] | Literal["query"] | None = None
 
     @override
     async def embed(self, documents: list[str]) -> Sequence[EmbeddingVector]:

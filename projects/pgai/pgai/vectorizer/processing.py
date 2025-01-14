@@ -1,9 +1,10 @@
-from typing import Literal
+from typing import Annotated, Literal
 
-from pgai.vectorizer.base import BaseProcessing
+from annotated_types import Gt, Le
+from pydantic import BaseModel
 
 
-class ProcessingDefault(BaseProcessing):
+class ProcessingDefault(BaseModel):
     """
     A model representing the default processing configuration.
 
@@ -25,6 +26,8 @@ class ProcessingDefault(BaseProcessing):
     """
 
     implementation: Literal["default"]
+    batch_size: Annotated[int, Gt(gt=0), Le(le=2048)] = 50
+    concurrency: Annotated[int, Gt(gt=0), Le(le=10)] = 1
     log_level: Literal[
         "CRITICAL",
         "FATAL",

@@ -23,15 +23,15 @@ from alembic.config import Config
 from sqlalchemy import Engine, text
 
 from pgai.alembic.configuration import (
-    CharacterTextSplitterConfig,
-    HNSWIndexingConfig,
-    OllamaConfig,
-    OpenAIConfig,
-    ProcessingConfig,
-    PythonTemplateConfig,
-    RecursiveCharacterTextSplitterConfig,
-    TimescaleSchedulingConfig,
-    VoyageAIConfig,
+    ChunkingCharacterTextSplitterConfig,
+    ChunkingRecursiveCharacterTextSplitterConfig,
+    EmbeddingOllamaConfig,
+    EmbeddingOpenaiConfig,
+    EmbeddingVoyageaiConfig,
+    FormattingPythonTemplateConfig,
+    IndexingHnswConfig,
+    ProcessingDefaultConfig,
+    SchedulingTimescaledbConfig,
 )
 from tests.vectorizer.extensions.conftest import load_template
 
@@ -56,7 +56,7 @@ def create_vectorizer_config_code(**kwargs: Any) -> str:
     """Convert configuration objects to valid Python code for the migration template"""
     return textwrap.dedent(f"""
         op.create_vectorizer(
-            source_table='public.blog',
+            source='public.blog',
             **{kwargs}
         )
     """).strip()
@@ -68,13 +68,13 @@ def test_openai_vectorizer(
 ):
     """Test OpenAI vectorizer configuration"""
     config = create_vectorizer_config_code(
-        embedding=OpenAIConfig(
+        embedding=EmbeddingOpenaiConfig(
             model="text-embedding-3-small",
             dimensions=768,
             chat_user="test_user",
             api_key_name="TEST_OPENAI_KEY",
         ),
-        chunking=CharacterTextSplitterConfig(
+        chunking=ChunkingCharacterTextSplitterConfig(
             chunk_column="content",
             chunk_size=256,
             chunk_overlap=20,
@@ -108,20 +108,22 @@ def test_ollama_vectorizer(
 ):
     """Test Ollama vectorizer configuration"""
     config = create_vectorizer_config_code(
-        embedding=OllamaConfig(
+        embedding=EmbeddingOllamaConfig(
             model="nomic-embed-text",
             dimensions=768,
             base_url="http://localhost:11434",
             keep_alive="5m",
         ),
-        chunking=RecursiveCharacterTextSplitterConfig(
+        chunking=ChunkingRecursiveCharacterTextSplitterConfig(
             chunk_column="content",
             chunk_size=300,
             chunk_overlap=30,
             separators=["\n\n", "\n", "; "],
             is_separator_regex=False,
         ),
-        formatting=PythonTemplateConfig(template="Title: $title\nContent: $chunk"),
+        formatting=FormattingPythonTemplateConfig(
+            template="Title: $title\nContent: $chunk"
+        ),
     )
 
     migrations_dir = Path(alembic_config.get_main_option("script_location"))  # type: ignore
@@ -148,24 +150,24 @@ def test_voyage_vectorizer(
 ):
     """Test VoyageAI vectorizer configuration"""
     config = create_vectorizer_config_code(
-        embedding=VoyageAIConfig(
+        embedding=EmbeddingVoyageaiConfig(
             model="voyage-ai-1",
             dimensions=256,
         ),
-        chunking=RecursiveCharacterTextSplitterConfig(
+        chunking=ChunkingRecursiveCharacterTextSplitterConfig(
             chunk_column="content",
         ),
-        indexing=HNSWIndexingConfig(
+        indexing=IndexingHnswConfig(
             min_rows=10000,
             opclass="vector_l1_ops",
             m=32,
             ef_construction=128,
             create_when_queue_empty=True,
         ),
-        scheduling=TimescaleSchedulingConfig(
+        scheduling=SchedulingTimescaledbConfig(
             schedule_interval=timedelta(minutes=10), timezone="UTC", fixed_schedule=True
         ),
-        processing=ProcessingConfig(batch_size=100, concurrency=2),
+        processing=ProcessingDefaultConfig(batch_size=100, concurrency=2),
     )
 
     migrations_dir = Path(alembic_config.get_main_option("script_location"))  # type: ignore
@@ -196,26 +198,26 @@ def test_hnsw_vectorizer(
 ):
     """Test HNSW vectorizer configuration"""
     config = create_vectorizer_config_code(
-        embedding=OpenAIConfig(
+        embedding=EmbeddingOpenaiConfig(
             model="text-embedding-3-small",
             dimensions=768,
             api_key_name="TEST_OPENAI_KEY",
         ),
-        chunking=CharacterTextSplitterConfig(
+        chunking=ChunkingCharacterTextSplitterConfig(
             chunk_column="content",
             chunk_size=200,
             chunk_overlap=25,
             separator=" ",
             is_separator_regex=False,
         ),
-        indexing=HNSWIndexingConfig(
+        indexing=IndexingHnswConfig(
             min_rows=50000,
             opclass="vector_l1_ops",
             m=16,
             ef_construction=64,
             create_when_queue_empty=True,
         ),
-        scheduling=TimescaleSchedulingConfig(
+        scheduling=SchedulingTimescaledbConfig(
             schedule_interval=timedelta(minutes=10), fixed_schedule=False
         ),
     )

@@ -8,15 +8,15 @@ from alembic import op
 from sqlalchemy import Column, Integer, String, Text
 from sqlalchemy import text
 from pgai.alembic.configuration import (
-    OpenAIConfig,
-    OllamaConfig,
-    VoyageAIConfig,
-    CharacterTextSplitterConfig,
-    RecursiveCharacterTextSplitterConfig,
-    HNSWIndexingConfig,
-    PythonTemplateConfig,
-    TimescaleSchedulingConfig,
-    ProcessingConfig,
+    ChunkingCharacterTextSplitterConfig,
+    IndexingHnswConfig,
+    EmbeddingOllamaConfig,
+    EmbeddingOpenaiConfig,
+    ProcessingDefaultConfig,
+    FormattingPythonTemplateConfig,
+    ChunkingRecursiveCharacterTextSplitterConfig,
+    SchedulingTimescaledbConfig,
+    EmbeddingVoyageaiConfig,
 )
 import datetime
 
@@ -42,17 +42,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    connection = op.get_bind()
-    # Look up the vectorizer ID
-    result = connection.execute(
-        text("SELECT id FROM ai.vectorizer WHERE source_table = 'blog'")
-    ).scalar()
-    
-    if result is not None:
-        print(f"Found vectorizer with ID: {{result}}")
-        op.drop_vectorizer(result, drop_all=True)
-    else:
-        print("No vectorizer found!")
-    
-    # Drop the blog table
+    op.drop_vectorizer("blog_embedding_store", drop_all=True)
     op.drop_table('blog', schema='public')
