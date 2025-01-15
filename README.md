@@ -101,11 +101,14 @@ This section will walk you through the steps to get started with pgai and Ollama
          'wiki'::regclass,
          destination => 'wiki_embeddings',
          embedding => ai.embedding_ollama('all-minilm', 384),
-         chunking => ai.chunking_recursive_character_text_splitter('text')
+         chunking => ai.chunking_recursive_character_text_splitter('text'),
+         indexing => ai.indexing_diskann()
     );
     ```
     
      Related documentation: [vectorizer usage guide](/docs/vectorizer.md) and [vectorizer API reference](/docs/vectorizer-api-reference.md).
+     
+     The embeddings will be stored in the `wiki_embeddings_store` table using the [pgvector](https://github.com/pgvector/pgvector) data format and be indexed with pgai's [StreamingDiskANN index](pgvectorscale/README.md) for fast and cost-efficient ANN search.
     
     
 1. **Check the progress of the vectorizer embedding creation**
@@ -166,11 +169,14 @@ This section will walk you through the steps to get started with pgai and Ollama
     
 # Features 
 
-**Working with embeddings generated from your data:**
+**Automating semantic search for your PostgreSQL data:**
 * Automatically create and sync vector embeddings for your data ([learn more](#automatically-create-and-sync-llm-embeddings-for-your-data))
 * Search your data using vector and semantic search ([learn more](#search-your-data-using-vector-and-semantic-search))
 * Implement Retrieval Augmented Generation inside a single SQL statement ([learn more](#implement-retrieval-augmented-generation-inside-a-single-sql-statement))
-* Perform high-performance, cost-efficient ANN search on large vector workloads with [pgvectorscale](https://github.com/timescale/pgvectorscale), which complements pgvector.
+
+**High-performance, cost-efficient ANN search on large vector workloads:**
+* Perform high-performance, cost-efficient ANN search on large vector workloads with pgai's [StreamingDiskANN index](pgvectorscale/README.md), which is part of the pgvectorscale extension.
+* This index [achieves](https://www.timescale.com/blog/pgvector-vs-pinecone) 28x lower p95 latency and 16x higher query throughput compared to Pinecone.
 
 **Leverage LLMs for data processing tasks:**
 * Retrieve LLM chat completions from models like Claude Sonnet 3.5, OpenAI GPT4o, Cohere Command, and Llama 3 (via Ollama). ([learn more](#usage-of-pgai))
@@ -200,6 +206,11 @@ This section will walk you through the steps to get started with pgai and Ollama
 - [In-Database AI Agents: Teaching Claude to Use Tools With Pgai](https://www.timescale.com/blog/in-database-ai-agents-teaching-claude-to-use-tools-with-pgai/)
 - [Build Search and RAG Systems on PostgreSQL Using Cohere and Pgai](https://www.timescale.com/blog/build-search-and-rag-systems-on-postgresql-using-cohere-and-pgai/)
 - [Use Open-Source LLMs in PostgreSQL With Ollama and Pgai](https://www.timescale.com/blog/use-open-source-llms-in-postgresql-with-ollama-and-pgai/)
+
+**Resources about the StreamingDiskANN index:**
+- [Understanding the design of the StreamingDiskANN index](https://www.timescale.com/blog/how-we-made-postgresql-as-fast-as-pinecone-for-vector-data)
+- [pgvector vs Pinecone: Cost and Performance comparison on 50M vector dataset](https://www.timescale.com/blog/pgvector-vs-pinecone)
+- [installation and usage guide](pgvectorscale/README.md)
 
 **Contributing**: We welcome contributions to pgai! See the [Contributing](/CONTRIBUTING.md) page for more information.
 
