@@ -82,6 +82,9 @@ lint:
 format-py:
 	@./build.py format-py
 
+reformat-py:
+	@./build.py reformat-py
+
 docker-build:
 	@PG_MAJOR={{PG_MAJOR}} ./build.py docker-build
 
