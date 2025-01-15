@@ -62,6 +62,9 @@ freeze:
 build-sql:
 	@./build.py build-sql
 
+build-release:
+    @./build.py build-release
+
 test-server:
 	@./build.py test-server
 
