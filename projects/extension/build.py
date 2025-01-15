@@ -26,6 +26,7 @@ HELP = """Available targets:
 - clean            removes python build artifacts from the src dir
 - clean-sql        removes sql file artifacts from the sql dir
 - clean-py         removes python build artifacts from the extension src dir
+- build-release    runs build-sql and updates the version in __init__.py
 - test             runs the tests in the docker container
 - test-server      runs the test http server in the docker container
 - lint-sql         runs pgspot against the `ai--<this_version>.sql` file
@@ -599,6 +600,13 @@ def clean() -> None:
     clean_py()
 
 
+def build_release() -> None:
+    clean_sql()
+    clean_py()
+    build()
+    build_init_py()
+
+
 def tests_dir() -> Path:
     return ext_dir().joinpath("tests").absolute()
 
@@ -750,6 +758,8 @@ if __name__ == "__main__":
             clean_py()
         elif action == "clean":
             clean()
+        elif action == "build-release":
+            build_release()
         elif action == "uninstall-py":
             uninstall_py()
         elif action == "uninstall-sql":
