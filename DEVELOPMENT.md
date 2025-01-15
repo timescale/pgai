@@ -336,6 +336,23 @@ changes to existing stuff are required for a new feature.
 Prior to pgai v0.4.0, Python dependencies were installed system-wide. Until pgai versions 0.1 - 0.3 are deprecated
 [old dependencies](./src/old_requirements.txt) are installed system-wide.
 
+#### Release the extension
+
+1. Run `just ext clean-sql` in order to remove any prior generated dev sql.
+2. Edit the [build.py](projects/extension/build.py).
+   - Set the version to be released as the first element of the array returned by `versions` function. I.e. `"0.7.0",  # released`.
+3. Edit the extension [__init__.py](projects/extension/ai/__init__.py) and set the value of the `__version__` variable to your new version . I.e. `__version__ = "0.7.0"`.
+4. Run `just ext build`. This will generate, among other tasks, the final .sql files in `projects/extension/sql`.
+5. As those files are git-ignored, you need to add those to the git index by forcing the addition. 
+   - Run `git add -f projects/extension/sql/ai--*<YOUR_NEW_VERSION_HERE>.sql`.
+6. Craft the release notes for the new version of the extension. Those should be added into [projects/extension/RELEASE_NOTES.md](projects/extension/RELEASE_NOTES.md).
+   - As we are not using release-please, those notes are not automatically generated. Instead, we need to manually add those.  
+     You can use the output of the following command to craft the release notes:
+     ```shell
+     git log $(git describe --tags --abbrev=0 --match "extension-*")..origin/main --pretty=format:"%s ([%h](https://github.com/timescale/pgai/commit/%h))" projects/extension
+     ```
+7. Create a PR with all the modified files. Use a commit message such as `chore: release extension <YOUR_NEW_VERSION_HERE>`.
+8. Once the PR is merged, TBD!
 
 ## Working on the pgai library
 
