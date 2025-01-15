@@ -34,6 +34,7 @@ HELP = """Available targets:
 - lint-py          runs ruff linter against the python source files
 - lint             runs both sql and python linters
 - format-py        runs ruff to check formatting of the python source files
+- reformat-py      runs ruff to update the formatting of the python source files
 - docker-build     builds the dev docker image
 - docker-run       launches a container in docker using the docker image
 - docker-stop      stops the container
@@ -696,6 +697,10 @@ def format_py() -> None:
     )
 
 
+def reformat_py() -> None:
+    subprocess.run(f"ruff format {ext_dir()}", shell=True, check=True, env=os.environ)
+
+
 def docker_build() -> None:
     subprocess.run(
         f"""docker build --build-arg PG_MAJOR={pg_major()} -t pgai-ext .""",
@@ -805,6 +810,8 @@ if __name__ == "__main__":
             lint()
         elif action == "format-py":
             format_py()
+        elif action == "reformat-py":
+            reformat_py()
         elif action == "docker-build":
             docker_build()
         elif action == "docker-run":
