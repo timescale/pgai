@@ -87,6 +87,19 @@ def test_load_dataset_with_field_types(cur):
     assert cur.fetchall() == [("text", "text"), ("label", "integer")]
 
 
+def test_load_dataset_with_struct_and_nulls(cur):
+    cur.execute(
+        """
+        select ai.load_dataset('foursquare/fsq-os-places', schema_name=>'public', table_name=>'fsq_places', batch_size=>100, max_batches=>1)
+    """,
+    )
+    actual = cur.fetchone()[0]
+    assert actual == 100
+
+    cur.execute("select count(*) from public.fsq_places")
+    assert cur.fetchone()[0] == actual
+
+
 def test_load_dataset_with_field_with_max_batches_and_timestamp(cur):
     cur.execute(
         """

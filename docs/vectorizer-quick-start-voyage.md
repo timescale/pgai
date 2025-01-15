@@ -27,7 +27,7 @@ On your local machine:
        volumes:
          - data:/home/postgres/pgdata/data
      vectorizer-worker:
-       image: timescale/pgai-vectorizer-worker:v0.3.0
+       image: timescale/pgai-vectorizer-worker:latest
        environment:
          PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
          VOYAGE_API_KEY: your-api-key

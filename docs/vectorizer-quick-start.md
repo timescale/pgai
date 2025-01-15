@@ -27,7 +27,7 @@ On your local machine:
        volumes:
          - data:/home/postgres/pgdata/data
      vectorizer-worker:
-       image: timescale/pgai-vectorizer-worker:v0.2.1
+       image: timescale/pgai-vectorizer-worker:latest
        environment:
          PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
          OLLAMA_HOST: http://ollama:11434
@@ -114,7 +114,8 @@ Now we can create and run a vectorizer. A vectorizer is a pgai concept, it proce
         chunk,
         embedding <=>  ai.ollama_embed('nomic-embed-text', 'good food', host => 'http://ollama:11434') as distance
     FROM blog_contents_embeddings
-    ORDER BY distance;
+    ORDER BY distance
+    LIMIT;
     ```
 
 The results look like:

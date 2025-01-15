@@ -31,7 +31,7 @@ in your database. To quickly try out embeddings using a pre-built Docker develop
 [Vectorizer API reference](./vectorizer-api-reference.md).
 
 Let's explore how the Vectorizer can transform your approach to unstructured,
-textual, data analysis and semantic search:
+textual, data analysis, and semantic search:
 
 - [Select an embedding provider and set up your API Keys](#select-an-embedding-provider-and-set-up-your-api-keys)
 - [Define a vectorizer](#define-a-vectorizer)
@@ -70,7 +70,7 @@ Timescale Cloud or on a self-hosted Postgres server.
   1. In [Timescale Console > Project Settings](https://console.cloud.timescale.com/dashboard/settings), click `AI Model API Keys`.
   1. Click `Add AI Model API Keys`, add your key, then click `Add API key`.
 
-  Your API key is stored securely in Timescale Cloud and not in your database.
+  Your API key is stored securely in Timescale Cloud, not your database.
 
 - Self-hosted Postgres
 
@@ -118,7 +118,7 @@ ensure that each embedding is semantically coherent, typically representing a
 single thought or concept. A useful mental model is to think of embedding one
 paragraph at a time.
 
-However, splitting text into chunks can sometimes lead to a loss of context. To
+However, splitting text into chunks can sometimes lead to losing context. To
 mitigate this, you can reintroduce context into each chunk. For instance, you
 might want to repeat the blog post's title in every chunk. This is easily
 achieved using the `formatting` parameter, which allows you to inject row data
@@ -137,8 +137,8 @@ SELECT ai.create_vectorizer(
 This approach ensures that each chunk retains important contextual information,
 improving the quality and relevance of the embeddings.
 
-On Timescale Cloud, vectorizers are created automatically, and scheduled using TimescaleDB background jobs running
-every five minutes. If you are self-hosting you need to [run the vectorizer-worker](./vectorizer-worker.md)
+On Timescale Cloud, vectorizers are created automatically and scheduled using TimescaleDB background jobs running
+every five minutes. If you are self-hosting, you need to [run the vectorizer-worker](./vectorizer-worker.md)
 manually to create and run the vectorizer.
 
 ## Query an embedding
@@ -148,7 +148,7 @@ specified destination. This view contains all the embeddings for the blog table.
 Note that you'll typically have multiple rows in the view for each blog entry,
 as multiple embeddings are usually generated for each source document.
 
-The view includes all columns from the blog table, plus the following additional columns:
+The view includes all columns from the blog table plus the following additional columns:
 
 | Column         | Type   | Description                                                     |
 |----------------|--------|-----------------------------------------------------------------|
@@ -203,7 +203,7 @@ LIMIT 10;
 ## Inject context into vectorizer chunks
 
 Formatting allows you to inject additional information into each chunk. This is
-needed because splitting up the text into chunks can lead to a loss of important
+needed because splitting the text into chunks can lead to losing important
 context. For instance, you might want to include the authors and title with each
 chunk. This is achieved using Python template strings, which have access to all
 columns in the row and a special `$chunk` variable containing the chunk's text.
@@ -249,12 +249,12 @@ feature will not work if scheduling is disabled (which is the default for self-h
 ## Control the vectorizer run time 
 
 When you use Vectorizer on Timescale Cloud, you use scheduling to control the time when vectorizers run.
-A scheduled job checks if there is work to be done and, if so, runs the cloud function to embed the data.
+A scheduled job checks for work to be done and, if so, runs the cloud function to embed the data.
 By default, scheduling uses TimescaleDB background jobs running every five minutes.
 Once the table is large enough, scheduling also handles index creation on the embedding column. 
 
 When you self-host vectorizer, the vectorizer worker uses a polling mechanism to check whether
-there is work to be done. Thus, scheduling is not needed, and is deactivated by default.
+there is work to be done. Thus, scheduling is not needed and is deactivated by default.
 
 Note: when scheduling is disabled, the index is not created automatically. You need to create it manually.
 
@@ -265,7 +265,7 @@ The view is based on a table storing blog embeddings, named
 potentially more efficient queries. The table structure is as follows:
 
 ```sql
-CREATE TABLE blog_embedding_store(
+CREATE TABLE blog_contents_embeddings_store(
     embedding_uuid UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),     
     id INT,  -- primary key referencing the blog table
     chunk_seq INT NOT NULL, 
@@ -278,7 +278,7 @@ CREATE TABLE blog_embedding_store(
 
 ## Monitor a vectorizer
 
-Since embeddings are created asynchronously, there may be a delay before they
+Since embeddings are created asynchronously, a delay may occur before they
 become available. Use the `vectorizer_status` view to monitor the vectorizer's
 status:
 
@@ -290,7 +290,7 @@ Sample output:
 
 | id | source_table | target_table                         | view                            | pending_items |
 |----|--------------|--------------------------------------|---------------------------------|---------------|
-| 1  | public.blog  | public.blog_contents_embedding_store | public.blog_contents_embeddings | 1             |
+| 1  | public.blog  | public.blog_contents_embeddings_store | public.blog_contents_embeddings | 1             |
 
 The `pending_items` column indicates the number of items still awaiting embedding creation.
 If the number of pending items exceeds 10,000, we return the maximum value of a bigint (`9223372036854775807`)

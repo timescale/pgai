@@ -10,7 +10,7 @@ services:
     volumes:
       - data:/var/lib/postgresql/data
   vectorizer-worker:
-    image: timescale/pgai-vectorizer-worker:v0.2.1
+    image: timescale/pgai-vectorizer-worker:latest
     environment:
       PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
       OPENAI_API_KEY: "sk-proj-"

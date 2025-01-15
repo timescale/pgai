@@ -11,6 +11,7 @@ from typing_extensions import override
 
 from ..embeddings import (
     ApiKeyMixin,
+    BaseURLMixin,
     BatchApiCaller,
     ChunkEmbeddingError,
     Embedder,
@@ -29,7 +30,7 @@ openai_token_length_regex = re.compile(
 )
 
 
-class OpenAI(ApiKeyMixin, BaseModel, Embedder):
+class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
     """
     Embedder that uses OpenAI's API to embed documents into vector representations.
 
@@ -60,7 +61,9 @@ class OpenAI(ApiKeyMixin, BaseModel, Embedder):
 
     @cached_property
     def _embedder(self) -> resources.AsyncEmbeddings:
-        return openai.AsyncOpenAI(api_key=self._api_key, max_retries=3).embeddings
+        return openai.AsyncOpenAI(
+            base_url=self.base_url, api_key=self._api_key, max_retries=3
+        ).embeddings
 
     @override
     def _max_chunks_per_batch(self) -> int:
