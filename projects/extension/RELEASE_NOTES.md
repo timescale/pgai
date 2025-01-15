@@ -1,6 +1,30 @@
 
 # Pgai extension release notes
 
+## 0.7.0 (2025-01-15)
+
+### New features and improvements
+
+- Allow users to configure a base_url for the vectorizer OpenAI embedder ([66ceb3d](https://github.com/timescale/pgai/commit/66ceb3d))
+- Upgrade ollama client to 0.4.5 ([c579238](https://github.com/timescale/pgai/commit/c579238))
+- Add just ext docker-start command ([96ac4f5](https://github.com/timescale/pgai/commit/96ac4f5))
+- Allow vectorizers to be granted to public ([7b2995b](https://github.com/timescale/pgai/commit/7b2995b))
+- Allow superusers to create vectorizers on any table ([027b3f4](https://github.com/timescale/pgai/commit/027b3f4))
+
+### Fixes
+
+- Fix load_datasets to handle structs ([25465ae](https://github.com/timescale/pgai/commit/25465ae))
+- Fix deprecation warning on re.split ([7b4a916](https://github.com/timescale/pgai/commit/7b4a916))
+- Fix exclude python system packages for versioned extension ([1f6d1a8](https://github.com/timescale/pgai/commit/1f6d1a8))
+- Fix schema qualify type definitions, casts, and operators ([ee86d35](https://github.com/timescale/pgai/commit/ee86d35))
+- Fix host networking not supported on macOS ([aac3d83](https://github.com/timescale/pgai/commit/aac3d83))
+- Fix handling of empty `PG_BIN` ([bd83165](https://github.com/timescale/pgai/commit/bd83165))
+
+### Other improvements
+
+- Add warning when trying to install pre-release version ([0b400a0](https://github.com/timescale/pgai/commit/0b400a0))
+- Support uv in extension install for development ([3f9736a](https://github.com/timescale/pgai/commit/3f9736a))
+
 ## 0.6.0 (2024-12-10)
 
 This release adds support for using Voyage AI in a vectorizer, and loading
