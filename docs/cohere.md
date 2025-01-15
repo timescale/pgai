@@ -9,21 +9,12 @@ This page shows you how to:
 
 Cohere functions in pgai require an [Cohere API key](https://docs.cohere.com/docs/rate-limits).
 
-- [Handle API keys using pgai from psql](#handle-api-keys-using-pgai-from-psql)
-- [Handle API keys using pgai from python](#handle-api-keys-using-pgai-from-python)
+In production, we suggest setting the API key using an environment variable.
+During testing and development, it may be easiest to configure the key value
+as a [session level parameter]. For more options and details, consult the
+[Handling API keys](./handling-api-keys.md) document.
 
-### Handle API keys using pgai from psql
-
-The api key is an [optional parameter to pgai functions](https://www.postgresql.org/docs/current/sql-syntax-calling-funcs.html).
-You can either:
-
-* [Run AI queries by passing your API key implicitly as a session parameter](#run-ai-queries-by-passing-your-api-key-implicitly-as-a-session-parameter)
-* [Run AI queries by passing your API key explicitly as a function argument](#run-ai-queries-by-passing-your-api-key-explicitly-as-a-function-argument)
-
-#### Run AI queries by passing your API key implicitly as a session parameter
-
-To use a [session level parameter when connecting to your database with psql](https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-SHELL)
-to run your AI queries:
+[session level parameter]: https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-SHELL
 
 1. Set your Cohere key as an environment variable in your shell:
     ```bash
@@ -47,86 +38,6 @@ to run your AI queries:
     )->>'text'
     ;
     ```
-
-#### Run AI queries by passing your API key explicitly as a function argument
-
-1. Set your Cohere key as an environment variable in your shell:
-    ```bash
-    export COHERE_API_KEY="this-is-my-super-secret-api-key-dont-tell"
-    ```
-
-2. Connect to your database and set your api key as a [psql variable](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-VARIABLES):
-
-      ```bash
-      psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>" -v cohere_api_key=$COHERE_API_KEY
-      ```
-   Your API key is now available as a psql variable named `cohere_api_key` in your psql session.
-
-   You can also log into the database, then set `cohere_api_key` using the `\getenv` [metacommand](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMAND-GETENV):
-
-      ```sql
-       \getenv cohere_api_key COHERE_API_KEY
-      ```
-
-4. Pass your API key to your parameterized query:
-    ```sql
-    SELECT ai.cohere_chat_complete
-    ( 'command-r-plus'
-    , 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
-    , api_key=>$1
-    , seed=>42
-    )->>'text'
-    \bind :cohere_api_key
-    \g
-    ```
-
-   Use [\bind](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMAND-BIND) to pass the value of `cohere_api_key` to the parameterized query.
-
-   The `\bind` metacommand is available in psql version 16+.
-
-### Handle API keys using pgai from python
-
-1. In your Python environment, include the dotenv and postgres driver packages:
-
-    ```bash
-    pip install python-dotenv
-    pip install psycopg2-binary
-    ```
-
-2. Set your Cohere API key in a .env file or as an environment variable:
-    ```bash
-    COHERE_API_KEY="this-is-my-super-secret-api-key-dont-tell"
-    DB_URL="your connection string"
-    ```
-
-3. Pass your API key as a parameter to your queries:
-
-    ```python
-    import os
-    from dotenv import load_dotenv
-         
-    load_dotenv()
-        
-    COHERE_API_KEY = os.environ["COHERE_API_KEY"]
-    DB_URL = os.environ["DB_URL"]
-        
-    import psycopg2
-        
-    with psycopg2.connect(DB_URL) as conn:
-        with conn.cursor() as cur:
-            # pass the API key as a parameter to the query. don't use string manipulations
-            cur.execute("""
-                SELECT ai.cohere_chat_complete
-                ( 'command-r-plus'
-                , 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
-                , api_key=>%s
-                , seed=>42
-                )->>'text'
-            """, (COHERE_API_KEY, ))
-            records = cur.fetchall()
-    ```
-
-   Do not use string manipulation to embed the key as a literal in the SQL query.
 
 ## Usage
 

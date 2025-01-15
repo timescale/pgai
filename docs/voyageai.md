@@ -4,29 +4,19 @@ This page shows you how to:
 
 - [Configure pgai for Voyage AI](#configure-pgai-for-voyage-ai)
 - [Add AI functionality to your database](#usage)
-- [Follow advanced AI examples](#advanced-examples)
 
 ## Configure pgai for Voyage AI
 
 To use the Voyage AI functions, you need a [Voyage AI API key](https://docs.voyageai.com/docs/api-key-and-installation#authentication-with-api-keys).
 
-- [Handle API keys using pgai from psql](#handle-api-keys-using-pgai-from-psql)
-- [Handle API keys using pgai from python](#handle-api-keys-using-pgai-from-python)
+In production, we suggest setting the API key using an environment variable.
+During testing and development, it may be easiest to configure the key value
+as a [session level parameter]. For more options and details, consult the
+[Handling API keys](./handling-api-keys.md) document.
 
-### Handle API keys using pgai from psql
+[session level parameter]: https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-SHELL
 
-The api key is an [optional parameter to pgai functions](https://www.postgresql.org/docs/current/sql-syntax-calling-funcs.html).
-You can either:
-
-* [Run AI queries by passing your API key implicitly as a session parameter](#run-ai-queries-by-passing-your-api-key-implicitly-as-a-session-parameter)
-* [Run AI queries by passing your API key explicitly as a function argument](#run-ai-queries-by-passing-your-api-key-explicitly-as-a-function-argument)
-
-#### Run AI queries by passing your API key implicitly as a session parameter
-
-To use a [session level parameter when connecting to your database with psql](https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-SHELL)
-to run your AI queries:
-
-1. Set your Voyage AI key as an environment variable in your shell:
+1. Set your Voyage key as an environment variable in your shell:
     ```bash
     export VOYAGE_API_KEY="this-is-my-super-secret-api-key-dont-tell"
     ```
@@ -43,89 +33,6 @@ to run your AI queries:
     ```sql
     SELECT * FROM ai.voyageai_embed('voyage-3-lite', 'sample text to embed');
     ```
-
-#### Run AI queries by passing your API key explicitly as a function argument
-
-1. Set your Voyage AI key as an environment variable in your shell:
-    ```bash
-    export VOYAGE_API_KEY="this-is-my-super-secret-api-key-dont-tell"
-    ```
-
-2. Connect to your database and set your api key as a [psql variable](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-VARIABLES):
-
-      ```bash
-      psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>" -v voyage_api_key=$VOYAGE_API_KEY
-      ```
-   Your API key is now available as a psql variable named `voyage_api_key` in your psql session.
-
-   You can also log into the database, then set `voyage_api_key` using the `\getenv` [metacommand](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMAND-GETENV):
-
-      ```sql
-      \getenv voyage_api_key VOYAGE_API_KEY
-      ```
-
-3. Pass your API key to your parameterized query:
-    ```sql
-    SELECT *
-    FROM ai.voyageai_embed('voyage-3-lite', 'sample text to embed', api_key=>$1)
-    ORDER BY created DESC
-    \bind :voyage_api_key
-    \g
-    ```
-
-   Use [\bind](https://www.postgresql.org/docs/current/app-psql.html#APP-PSQL-META-COMMAND-BIND) to pass the value of `voyage_api_key` to the parameterized query.
-
-   The `\bind` metacommand is available in psql version 16+.
-
-4. Once you have used `\getenv` to load the environment variable to a psql variable
-   you can optionally set it as a session-level parameter which can then be used explicitly.
-   ```sql
-   SELECT set_config('ai.voyage_api_key', $1, false) IS NOT NULL
-   \bind :voyage_api_key
-   \g
-   ```
-
-   ```sql
-   SELECT * FROM ai.voyageai_embed('voyage-3-lite', 'sample text to embed');
-   ```
-
-### Handle API keys using pgai from python
-
-1. In your Python environment, include the dotenv and postgres driver packages:
-
-    ```bash
-    pip install python-dotenv
-    pip install psycopg2-binary
-    ```
-
-1. Set your Voyage AI key in a .env file or as an environment variable:
-    ```bash
-    VOYAGE_API_KEY="this-is-my-super-secret-api-key-dont-tell"
-    DB_URL="your connection string"
-    ```
-
-1. Pass your API key as a parameter to your queries:
-
-    ```python
-    import os
-    from dotenv import load_dotenv
-
-    load_dotenv()
-
-    VOYAGE_API_KEY = os.environ["VOYAGE_API_KEY"]
-    DB_URL = os.environ["DB_URL"]
-
-    import psycopg2
-
-    with psycopg2.connect(DB_URL) as conn:
-        with conn.cursor() as cur:
-            # pass the API key as a parameter to the query. don't use string manipulations
-            cur.execute("SELECT * FROM ai.voyageai_embed('voyage-3-lite', 'sample text to embed', api_key=>%s)", (VOYAGE_API_KEY,))
-            records = cur.fetchall()
-    ```
-
-   Do not use string manipulation to embed the key as a literal in the SQL query.
-
 
 ## Usage
 
