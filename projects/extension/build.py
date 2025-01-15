@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 import hashlib
+import os
 import platform
 import re
-import os
 import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
-
 
 HELP = """Available targets:
 - help             displays this message and exits
@@ -42,7 +41,6 @@ HELP = """Available targets:
 def versions() -> list[str]:
     # ADD NEW VERSIONS TO THE FRONT OF THIS LIST! STAY SORTED PLEASE
     return [
-        "0.6.1-dev",
         "0.6.0",  # released
         "0.5.0",  # released
         "0.4.1",  # released
@@ -404,15 +402,18 @@ def pg_config() -> Path:
 
 
 def extension_install_dir() -> Path:
-    proc = subprocess.run(
-        f"{pg_config()} --sharedir",
-        check=True,
-        shell=True,
-        env=os.environ,
-        text=True,
-        capture_output=True,
-    )
-    return Path(str(proc.stdout).strip()).resolve() / "extension"
+    try:
+        proc = subprocess.run(
+            [pg_config(), "--sharedir"],
+            check=True,
+            env=os.environ,
+            text=True,
+            capture_output=True,
+        )
+        return Path(str(proc.stdout).strip()).resolve() / "extension"
+    except subprocess.CalledProcessError as e:
+        print(f"Error running pg_config: {e.stderr}", file=sys.stderr)
+        raise e
 
 
 def install_sql() -> None:
@@ -447,9 +448,11 @@ def python_install_dir() -> Path:
     # don't do it. i'm warning you
     # seriously.
     # you'll wreck old versions. look at build_idempotent_sql_file()
-    return Path(
-        "/usr/local/lib/pgai"
-    ).resolve()  # CONTROLS WHERE THE PYTHON LIB AND DEPS ARE INSTALLED
+    if platform.system() == "Windows":
+        program_files = Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
+        return (program_files / "pgai" / "lib").resolve()
+    else:
+        return Path("/usr/local/lib/pgai").resolve()
 
 
 def install_old_py_deps() -> None:
@@ -458,8 +461,11 @@ def install_old_py_deps() -> None:
     old_reqs_file = ext_dir().joinpath("old_requirements.txt").resolve()
     if old_reqs_file.is_file():
         env = {k: v for k, v in os.environ.items()}
+
+        # break system packages is not in Windows.
+        pip_flags = "--break-system-packages" if platform.system() != "Windows" else ""
         cmd = (
-            f"pip3 install -v --compile --break-system-packages -r {old_reqs_file}"
+            f"pip3 install -v --compile {pip_flags} -r {old_reqs_file}"
             if shutil.which("uv") is None
             else f"uv pip install -v --compile --system --break-system-packages -r {old_reqs_file}"
         )
@@ -483,26 +489,24 @@ def install_prior_py() -> None:
         version_target_dir = python_install_dir().joinpath(version)
         if version_target_dir.exists():
             continue
-        tmp_dir = Path(tempfile.gettempdir()).joinpath("pgai", version)
-        tmp_dir.mkdir(parents=True, exist_ok=True)
-        branch = git_tag(version)
-        subprocess.run(
-            f"git clone https://github.com/timescale/pgai.git --branch {branch} {tmp_dir}",
-            shell=True,
-            check=True,
-            env=os.environ,
-        )
-        tmp_src_dir = tmp_dir.joinpath("projects", "extension").resolve()
-        bin = "pip3" if shutil.which("uv") is None else "uv pip"
-        cmd = f'{bin} install -v --compile --target "{version_target_dir}" "{tmp_src_dir}"'
-        subprocess.run(
-            cmd,
-            check=True,
-            shell=True,
-            env=os.environ,
-            cwd=str(tmp_src_dir),
-        )
-        shutil.rmtree(tmp_dir)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            branch = git_tag(version)
+            subprocess.run(
+                f"git clone https://github.com/timescale/pgai.git --branch {branch} {tmp_dir}",
+                shell=True,
+                check=True,
+                env=os.environ,
+            )
+            tmp_src_dir = Path(tmp_dir).joinpath("projects", "extension").resolve()
+            bin = "pip3" if shutil.which("uv") is None else "uv pip"
+            cmd = f'{bin} install -v --compile --target "{version_target_dir}" "{tmp_src_dir}"'
+            subprocess.run(
+                cmd,
+                check=True,
+                shell=True,
+                env=os.environ,
+                cwd=str(tmp_src_dir),
+            )
 
 
 def build_init_py() -> None:

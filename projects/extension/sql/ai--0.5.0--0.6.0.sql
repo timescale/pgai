@@ -430,6 +430,35 @@ begin
 end;
 $outer_migration_block$;
 
+-------------------------------------------------------------------------------
+-- 010-drop-embedding-openai-outdated-function.sql
+do $outer_migration_block$ /*010-drop-embedding-openai-outdated-function.sql*/
+declare
+    _sql text;
+    _migration record;
+    _migration_name text = $migration_name$010-drop-embedding-openai-outdated-function.sql$migration_name$;
+    _migration_body text =
+$migration_body$
+
+-- dropping in favour of the new signature (adding base_url param)
+drop function if exists ai.embedding_openai(text,integer,text,text);
+$migration_body$;
+begin
+    select * into _migration from ai.migration where "name" operator(pg_catalog.=) _migration_name;
+    if _migration is not null then
+        raise notice 'migration %s already applied. skipping.', _migration_name;
+        if _migration.body operator(pg_catalog.!=) _migration_body then
+            raise warning 'the contents of migration "%s" have changed', _migration_name;
+        end if;
+        return;
+    end if;
+    _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
+    execute _sql;
+    insert into ai.migration ("name", body, applied_at_version)
+    values (_migration_name, _migration_body, $version$0.6.0$version$);
+end;
+$outer_migration_block$;
+
 --------------------------------------------------------------------------------
 -- 001-openai.sql
 
@@ -440,9 +469,16 @@ $outer_migration_block$;
 create or replace function ai.openai_tokenize(model text, text_input text) returns int[]
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -468,9 +504,16 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.openai_detokenize(model text, tokens int[]) returns text
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -501,9 +544,16 @@ returns table
 )
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -538,9 +588,16 @@ create or replace function ai.openai_embed
 ) returns @extschema:vector@.vector
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -578,9 +635,16 @@ create or replace function ai.openai_embed
 )
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -615,9 +679,16 @@ create or replace function ai.openai_embed
 ) returns @extschema:vector@.vector
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -665,9 +736,16 @@ create or replace function ai.openai_chat_complete
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -770,9 +848,16 @@ create or replace function ai.openai_moderate
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -817,9 +902,16 @@ returns table
 )
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -875,9 +967,16 @@ returns table
 )
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -926,9 +1025,16 @@ create or replace function ai.ollama_embed
 ) returns @extschema:vector@.vector
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -967,9 +1073,16 @@ create or replace function ai.ollama_generate
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -1008,7 +1121,7 @@ as $python$
         args["images"] = images_1
 
     resp = client.generate(model, prompt, stream=False, **args)
-    return json.dumps(resp)
+    return resp.model_dump_json()
 $python$
 language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
@@ -1026,9 +1139,16 @@ create or replace function ai.ollama_chat_complete
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -1064,7 +1184,7 @@ as $python$
 
     resp = client.chat(model, messages_1, stream=False, **args)
 
-    return json.dumps(resp)
+    return resp.model_dump_json()
 $python$
 language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
@@ -1096,9 +1216,16 @@ create or replace function ai.anthropic_generate
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -1163,9 +1290,16 @@ returns table
 )
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -1204,9 +1338,16 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.cohere_tokenize(model text, text_input text, api_key text default null, api_key_name text default null) returns int[]
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -1234,9 +1375,16 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.cohere_detokenize(model text, tokens int[], api_key text default null, api_key_name text default null) returns text
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -1271,9 +1419,16 @@ create or replace function ai.cohere_embed
 ) returns @extschema:vector@.vector
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -1313,9 +1468,16 @@ create or replace function ai.cohere_classify
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -1361,9 +1523,16 @@ create or replace function ai.cohere_classify_simple
 )
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -1408,9 +1577,16 @@ create or replace function ai.cohere_rerank
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -1508,9 +1684,16 @@ create or replace function ai.cohere_chat_complete
 ) returns jsonb
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -1580,12 +1763,12 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- chunking_character_text_splitter
 create or replace function ai.chunking_character_text_splitter
-( chunk_column name
-, chunk_size int default 800
-, chunk_overlap int default 400
-, separator text default E'\n\n'
-, is_separator_regex bool default false
-) returns jsonb
+( chunk_column pg_catalog.name
+, chunk_size pg_catalog.int4 default 800
+, chunk_overlap pg_catalog.int4 default 400
+, separator pg_catalog.text default E'\n\n'
+, is_separator_regex pg_catalog.bool default false
+) returns pg_catalog.jsonb
 as $func$
     select json_object
     ( 'implementation': 'character_text_splitter'
@@ -1604,12 +1787,12 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- chunking_recursive_character_text_splitter
 create or replace function ai.chunking_recursive_character_text_splitter
-( chunk_column name
-, chunk_size int default 800
-, chunk_overlap int default 400
-, separators text[] default array[E'\n\n', E'\n', '.', '?', '!', ' ', '']
-, is_separator_regex bool default false
-) returns jsonb
+( chunk_column pg_catalog.name
+, chunk_size pg_catalog.int4 default 800
+, chunk_overlap pg_catalog.int4 default 400
+, separators pg_catalog.text[] default array[E'\n\n', E'\n', '.', '?', '!', ' ', '']
+, is_separator_regex pg_catalog.bool default false
+) returns pg_catalog.jsonb
 as $func$
     select json_object
     ( 'implementation': 'recursive_character_text_splitter'
@@ -1628,23 +1811,23 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _validate_chunking
 create or replace function ai._validate_chunking
-( config jsonb
-, source_schema name
-, source_table name
+( config pg_catalog.jsonb
+, source_schema pg_catalog.name
+, source_table pg_catalog.name
 ) returns void
 as $func$
 declare
-    _config_type text;
-    _implementation text;
-    _chunk_column text;
-    _found bool;
+    _config_type pg_catalog.text;
+    _implementation pg_catalog.text;
+    _chunk_column pg_catalog.text;
+    _found pg_catalog.bool;
 begin
-    if pg_catalog.jsonb_typeof(config) != 'object' then
+    if pg_catalog.jsonb_typeof(config) operator(pg_catalog.!=) 'object' then
         raise exception 'chunking config is not a jsonb object';
     end if;
 
     _config_type = config operator(pg_catalog.->>) 'config_type';
-    if _config_type is null or _config_type != 'chunking' then
+    if _config_type is null or _config_type operator(pg_catalog.!=) 'chunking' then
         raise exception 'invalid config_type for chunking config';
     end if;
 
@@ -1655,7 +1838,7 @@ begin
 
     _chunk_column = config operator(pg_catalog.->>) 'chunk_column';
 
-    select count(*) > 0 into strict _found
+    select count(*) operator(pg_catalog.>) 0 into strict _found
     from pg_catalog.pg_class k
     inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
     inner join pg_catalog.pg_attribute a on (k.oid operator(pg_catalog.=) a.attrelid)
@@ -1680,7 +1863,7 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- formatting_python_template
-create or replace function ai.formatting_python_template(template text default '$chunk') returns jsonb
+create or replace function ai.formatting_python_template(template pg_catalog.text default '$chunk') returns pg_catalog.jsonb
 as $func$
     select json_object
     ( 'implementation': 'python_template'
@@ -1695,14 +1878,14 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _validate_formatting_python_template
 create or replace function ai._validate_formatting_python_template
-( config jsonb
-, source_schema name
-, source_table name
+( config pg_catalog.jsonb
+, source_schema pg_catalog.name
+, source_table pg_catalog.name
 ) returns void
 as $func$
 declare
-    _template text;
-    _found bool;
+    _template pg_catalog.text;
+    _found pg_catalog.bool;
 begin
     select config operator(pg_catalog.->>) 'template'
     into strict _template
@@ -1712,7 +1895,7 @@ begin
     end if;
 
     -- check that no columns on the source table are named "chunk"
-    select count(*) > 0 into strict _found
+    select count(*) operator(pg_catalog.>) 0 into strict _found
     from pg_catalog.pg_class k
     inner join pg_catalog.pg_namespace n on (k.relnamespace = n.oid)
     inner join pg_catalog.pg_attribute a on (k.oid = a.attrelid)
@@ -1732,20 +1915,20 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _validate_formatting
 create or replace function ai._validate_formatting
-( config jsonb
-, source_schema name
-, source_table name
+( config pg_catalog.jsonb
+, source_schema pg_catalog.name
+, source_table pg_catalog.name
 ) returns void
 as $func$
 declare
-    _config_type text;
+    _config_type pg_catalog.text;
 begin
     if pg_catalog.jsonb_typeof(config) != 'object' then
         raise exception 'formatting config is not a jsonb object';
     end if;
 
     _config_type = config operator ( pg_catalog.->> ) 'config_type';
-    if _config_type is null or _config_type != 'formatting' then
+    if _config_type is null or _config_type operator(pg_catalog.!=) 'formatting' then
         raise exception 'invalid config_type for formatting config';
     end if;
     case config operator(pg_catalog.->>) 'implementation'
@@ -1769,7 +1952,7 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- scheduling_none
-create or replace function ai.scheduling_none() returns jsonb
+create or replace function ai.scheduling_none() returns pg_catalog.jsonb
 as $func$
     select pg_catalog.jsonb_build_object
     ( 'implementation', 'none'
@@ -1781,7 +1964,7 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- scheduling_default
-create or replace function ai.scheduling_default() returns jsonb
+create or replace function ai.scheduling_default() returns pg_catalog.jsonb
 as $func$
     select pg_catalog.jsonb_build_object
     ( 'implementation', 'default'
@@ -1794,11 +1977,11 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- scheduling_timescaledb
 create or replace function ai.scheduling_timescaledb
-( schedule_interval interval default interval '5m'
-, initial_start timestamptz default null
-, fixed_schedule bool default null
-, timezone text default null
-) returns jsonb
+( schedule_interval pg_catalog.interval default interval '5m'
+, initial_start pg_catalog.timestamptz default null
+, fixed_schedule pg_catalog.bool default null
+, timezone pg_catalog.text default null
+) returns pg_catalog.jsonb
 as $func$
     select json_object
     ( 'implementation': 'timescaledb'
@@ -1815,10 +1998,10 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- _resolve_scheduling_default
-create or replace function ai._resolve_scheduling_default() returns jsonb
+create or replace function ai._resolve_scheduling_default() returns pg_catalog.jsonb
 as $func$
 declare
-    _setting text;
+    _setting pg_catalog.text;
 begin
     select pg_catalog.current_setting('ai.scheduling_default', true) into _setting;
     case _setting
@@ -1834,18 +2017,18 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- _validate_scheduling
-create or replace function ai._validate_scheduling(config jsonb) returns void
+create or replace function ai._validate_scheduling(config pg_catalog.jsonb) returns void
 as $func$
 declare
-    _config_type text;
-    _implementation text;
+    _config_type pg_catalog.text;
+    _implementation pg_catalog.text;
 begin
-    if pg_catalog.jsonb_typeof(config) != 'object' then
+    if pg_catalog.jsonb_typeof(config) operator(pg_catalog.!=) 'object' then
         raise exception 'scheduling config is not a jsonb object';
     end if;
 
-    _config_type = config operator ( pg_catalog.->> ) 'config_type';
-    if _config_type is null or _config_type != 'scheduling' then
+    _config_type = config operator(pg_catalog.->>) 'config_type';
+    if _config_type is null or _config_type operator(pg_catalog.!=) 'scheduling' then
         raise exception 'invalid config_type for scheduling config';
     end if;
     _implementation = config operator(pg_catalog.->>) 'implementation';
@@ -1873,11 +2056,12 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- embedding_openai
 create or replace function ai.embedding_openai
-( model text
-, dimensions int
-, chat_user text default null
-, api_key_name text default 'OPENAI_API_KEY'
-) returns jsonb
+( model pg_catalog.text
+, dimensions pg_catalog.int4
+, chat_user pg_catalog.text default null
+, api_key_name pg_catalog.text default 'OPENAI_API_KEY'
+, base_url text default null
+) returns pg_catalog.jsonb
 as $func$
     select json_object
     ( 'implementation': 'openai'
@@ -1886,6 +2070,7 @@ as $func$
     , 'dimensions': dimensions
     , 'user': chat_user
     , 'api_key_name': api_key_name
+    , 'base_url': base_url
     absent on null
     )
 $func$ language sql immutable security invoker
@@ -1895,12 +2080,12 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- embedding_ollama
 create or replace function ai.embedding_ollama
-( model text
-, dimensions int
-, base_url text default null
-, options jsonb default null
-, keep_alive text default null
-) returns jsonb
+( model pg_catalog.text
+, dimensions pg_catalog.int4
+, base_url pg_catalog.text default null
+, options pg_catalog.jsonb default null
+, keep_alive pg_catalog.text default null
+) returns pg_catalog.jsonb
 as $func$
     select json_object
     ( 'implementation': 'ollama'
@@ -1919,11 +2104,11 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- embedding_voyageai
 create or replace function ai.embedding_voyageai
-( model text
-, dimensions int
-, input_type text default 'document'
-, api_key_name text default 'VOYAGE_API_KEY'
-) returns jsonb
+( model pg_catalog.text
+, dimensions pg_catalog.int4
+, input_type pg_catalog.text default 'document'
+, api_key_name pg_catalog.text default 'VOYAGE_API_KEY'
+) returns pg_catalog.jsonb
 as $func$
 begin
     if input_type is not null and input_type not in ('query', 'document') then
@@ -1947,18 +2132,18 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- _validate_embedding
-create or replace function ai._validate_embedding(config jsonb) returns void
+create or replace function ai._validate_embedding(config pg_catalog.jsonb) returns void
 as $func$
 declare
-    _config_type text;
-    _implementation text;
+    _config_type pg_catalog.text;
+    _implementation pg_catalog.text;
 begin
-    if pg_catalog.jsonb_typeof(config) != 'object' then
+    if pg_catalog.jsonb_typeof(config) operator(pg_catalog.!=) 'object' then
         raise exception 'embedding config is not a jsonb object';
     end if;
 
-    _config_type = config operator ( pg_catalog.->> ) 'config_type';
-    if _config_type is null or _config_type != 'embedding' then
+    _config_type = config operator(pg_catalog.->>) 'config_type';
+    if _config_type is null or _config_type operator(pg_catalog.!=) 'embedding' then
         raise exception 'invalid config_type for embedding config';
     end if;
     _implementation = config operator(pg_catalog.->>) 'implementation';
@@ -1987,7 +2172,7 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- indexing_none
-create or replace function ai.indexing_none() returns jsonb
+create or replace function ai.indexing_none() returns pg_catalog.jsonb
 as $func$
     select jsonb_build_object
     ( 'implementation', 'none'
@@ -1999,7 +2184,7 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- indexing_default
-create or replace function ai.indexing_default() returns jsonb
+create or replace function ai.indexing_default() returns pg_catalog.jsonb
 as $func$
     select jsonb_build_object
     ( 'implementation', 'default'
@@ -2012,15 +2197,15 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- indexing_diskann
 create or replace function ai.indexing_diskann
-( min_rows int default 100000
-, storage_layout text default null
-, num_neighbors int default null
-, search_list_size int default null
-, max_alpha float8 default null
-, num_dimensions int default null
-, num_bits_per_dimension int default null
-, create_when_queue_empty boolean default true
-) returns jsonb
+( min_rows pg_catalog.int4 default 100000
+, storage_layout pg_catalog.text default null
+, num_neighbors pg_catalog.int4 default null
+, search_list_size pg_catalog.int4 default null
+, max_alpha pg_catalog.float8 default null
+, num_dimensions pg_catalog.int4 default null
+, num_bits_per_dimension pg_catalog.int4 default null
+, create_when_queue_empty pg_catalog.bool default true
+) returns pg_catalog.jsonb
 as $func$
     select json_object
     ( 'implementation': 'diskann'
@@ -2041,10 +2226,10 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- _resolve_indexing_default
-create or replace function ai._resolve_indexing_default() returns jsonb
+create or replace function ai._resolve_indexing_default() returns pg_catalog.jsonb
 as $func$
 declare
-    _setting text;
+    _setting pg_catalog.text;
 begin
     select pg_catalog.current_setting('ai.indexing_default', true) into _setting;
     case _setting
@@ -2062,10 +2247,10 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- _validate_indexing_diskann
-create or replace function ai._validate_indexing_diskann(config jsonb) returns void
+create or replace function ai._validate_indexing_diskann(config pg_catalog.jsonb) returns void
 as $func$
 declare
-    _storage_layout text;
+    _storage_layout pg_catalog.text;
 begin
     _storage_layout = config operator(pg_catalog.->>) 'storage_layout';
     if _storage_layout is not null and not (_storage_layout operator(pg_catalog.=) any(array['memory_optimized', 'plain'])) then
@@ -2079,12 +2264,12 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- indexing_hnsw
 create or replace function ai.indexing_hnsw
-( min_rows int default 100000
-, opclass text default 'vector_cosine_ops'
-, m int default null
-, ef_construction int default null
-, create_when_queue_empty boolean default true
-) returns jsonb
+( min_rows pg_catalog.int4 default 100000
+, opclass pg_catalog.text default 'vector_cosine_ops'
+, m pg_catalog.int4 default null
+, ef_construction pg_catalog.int4 default null
+, create_when_queue_empty pg_catalog.bool default true
+) returns pg_catalog.jsonb
 as $func$
     select json_object
     ( 'implementation': 'hnsw'
@@ -2102,10 +2287,10 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- _validate_indexing_hnsw
-create or replace function ai._validate_indexing_hnsw(config jsonb) returns void
+create or replace function ai._validate_indexing_hnsw(config pg_catalog.jsonb) returns void
 as $func$
 declare
-    _opclass text;
+    _opclass pg_catalog.text;
 begin
     _opclass = config operator(pg_catalog.->>) 'opclass';
     if _opclass is not null
@@ -2119,18 +2304,18 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- _validate_indexing
-create or replace function ai._validate_indexing(config jsonb) returns void
+create or replace function ai._validate_indexing(config pg_catalog.jsonb) returns void
 as $func$
 declare
-    _config_type text;
-    _implementation text;
+    _config_type pg_catalog.text;
+    _implementation pg_catalog.text;
 begin
-    if pg_catalog.jsonb_typeof(config) != 'object' then
+    if pg_catalog.jsonb_typeof(config) operator(pg_catalog.!=) 'object' then
         raise exception 'indexing config is not a jsonb object';
     end if;
 
-    _config_type = config operator ( pg_catalog.->> ) 'config_type';
-    if _config_type is null or _config_type != 'indexing' then
+    _config_type = config operator(pg_catalog.->>) 'config_type';
+    if _config_type is null or _config_type operator(pg_catalog.!=) 'indexing' then
         raise exception 'invalid config_type for indexing config';
     end if;
     _implementation = config operator(pg_catalog.->>) 'implementation';
@@ -2161,9 +2346,9 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- processing_default
 create or replace function ai.processing_default
-( batch_size int default null
-, concurrency int default null
-) returns jsonb
+( batch_size pg_catalog.int4 default null
+, concurrency pg_catalog.int4 default null
+) returns pg_catalog.jsonb
 as $func$
     select json_object
     ( 'implementation': 'default'
@@ -2178,19 +2363,19 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- _validate_processing
-create or replace function ai._validate_processing(config jsonb) returns void
+create or replace function ai._validate_processing(config pg_catalog.jsonb) returns void
 as $func$
 declare
-    _config_type text;
-    _implementation text;
-    _val jsonb;
+    _config_type pg_catalog.text;
+    _implementation pg_catalog.text;
+    _val pg_catalog.jsonb;
 begin
-    if pg_catalog.jsonb_typeof(config) != 'object' then
+    if pg_catalog.jsonb_typeof(config) operator(pg_catalog.!=) 'object' then
         raise exception 'processing config is not a jsonb object';
     end if;
 
-    _config_type = config operator ( pg_catalog.->> ) 'config_type';
-    if _config_type is null or _config_type != 'processing' then
+    _config_type = config operator(pg_catalog.->>) 'config_type';
+    if _config_type is null or _config_type operator(pg_catalog.!=) 'processing' then
         raise exception 'invalid config_type for processing config';
     end if;
     _implementation = config operator(pg_catalog.->>) 'implementation';
@@ -2201,10 +2386,10 @@ begin
                 if pg_catalog.jsonb_typeof(_val) operator(pg_catalog.!=) 'number' then
                     raise exception 'batch_size must be a number';
                 end if;
-                if cast(_val as int) > 2048 then
+                if cast(_val as pg_catalog.int4) operator(pg_catalog.>) 2048 then
                     raise exception 'batch_size must be less than or equal to 2048';
                 end if;
-                if cast(_val as int) < 1 then
+                if cast(_val as pg_catalog.int4) operator(pg_catalog.<) 1 then
                     raise exception 'batch_size must be greater than 0';
                 end if;
             end if;
@@ -2214,10 +2399,10 @@ begin
                 if pg_catalog.jsonb_typeof(_val) operator(pg_catalog.!=) 'number' then
                     raise exception 'concurrency must be a number';
                 end if;
-                if cast(_val as int) > 50 then
+                if cast(_val as pg_catalog.int4) operator(pg_catalog.>) 50 then
                     raise exception 'concurrency must be less than or equal to 50';
                 end if;
-                if cast(_val as int) < 1 then
+                if cast(_val as pg_catalog.int4) operator(pg_catalog.<) 1 then
                     raise exception 'concurrency must be greater than 0';
                 end if;
             end if;
@@ -2238,9 +2423,9 @@ set search_path to pg_catalog, pg_temp
 -- 011-grant-to.sql
 -------------------------------------------------------------------------------
 -- grant_to
-create or replace function ai.grant_to(variadic grantees name[]) returns name[]
+create or replace function ai.grant_to(variadic grantees pg_catalog.name[]) returns pg_catalog.name[]
 as $func$
-    select coalesce(pg_catalog.array_agg(cast(x as name)), array[]::name[])
+    select coalesce(pg_catalog.array_agg(cast(x as pg_catalog.name)), array[]::pg_catalog.name[])
     from (
         select pg_catalog.unnest(grantees) x
         union
@@ -2252,9 +2437,9 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- grant_to
-create or replace function ai.grant_to() returns name[]
+create or replace function ai.grant_to() returns pg_catalog.name[]
 as $func$
-    select ai.grant_to(variadic array[]::name[])
+    select ai.grant_to(variadic array[]::pg_catalog.name[])
 $func$ language sql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -2265,7 +2450,7 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- _vectorizer_source_pk
-create or replace function ai._vectorizer_source_pk(source_table regclass) returns jsonb as
+create or replace function ai._vectorizer_source_pk(source_table pg_catalog.regclass) returns pg_catalog.jsonb as
 $func$
     select pg_catalog.jsonb_agg(x)
     from
@@ -2288,13 +2473,13 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_grant_to_source
 create or replace function ai._vectorizer_grant_to_source
-( source_schema name
-, source_table name
-, grant_to name[]
+( source_schema pg_catalog.name
+, source_table pg_catalog.name
+, grant_to pg_catalog.name[]
 ) returns void as
 $func$
 declare
-    _sql text;
+    _sql pg_catalog.text;
 begin
     if grant_to is not null then
         -- grant usage on source schema to grant_to roles
@@ -2328,10 +2513,10 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- _vectorizer_grant_to_vectorizer
-create or replace function ai._vectorizer_grant_to_vectorizer(grant_to name[]) returns void as
+create or replace function ai._vectorizer_grant_to_vectorizer(grant_to pg_catalog.name[]) returns void as
 $func$
 declare
-    _sql text;
+    _sql pg_catalog.text;
 begin
     if grant_to is not null then
         -- grant usage on schema ai to grant_to roles
@@ -2363,18 +2548,18 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_create_target_table
 create or replace function ai._vectorizer_create_target_table
-( source_schema name
-, source_table name
-, source_pk jsonb
-, target_schema name
-, target_table name
-, dimensions int
-, grant_to name[]
+( source_schema pg_catalog.name
+, source_table pg_catalog.name
+, source_pk pg_catalog.jsonb
+, target_schema pg_catalog.name
+, target_table pg_catalog.name
+, dimensions pg_catalog.int4
+, grant_to pg_catalog.name[]
 ) returns void as
 $func$
 declare
-    _pk_cols text;
-    _sql text;
+    _pk_cols pg_catalog.text;
+    _sql pg_catalog.text;
 begin
     select pg_catalog.string_agg(pg_catalog.format('%I', x.attname), ', ' order by x.pknum)
     into strict _pk_cols
@@ -2450,18 +2635,18 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_create_view
 create or replace function ai._vectorizer_create_view
-( view_schema name
-, view_name name
-, source_schema name
-, source_table name
-, source_pk jsonb
-, target_schema name
-, target_table name
-, grant_to name[]
+( view_schema pg_catalog.name
+, view_name pg_catalog.name
+, source_schema pg_catalog.name
+, source_table pg_catalog.name
+, source_pk pg_catalog.jsonb
+, target_schema pg_catalog.name
+, target_table pg_catalog.name
+, grant_to pg_catalog.name[]
 ) returns void as
 $func$
 declare
-    _sql text;
+    _sql pg_catalog.text;
 begin
     select pg_catalog.format
     ( $sql$
@@ -2492,7 +2677,7 @@ begin
         )
         from pg_catalog.pg_attribute a
         left outer join pg_catalog.jsonb_to_recordset(source_pk) x(attnum int) on (a.attnum operator(pg_catalog.=) x.attnum)
-        where a.attrelid operator(pg_catalog.=) pg_catalog.format('%I.%I', source_schema, source_table)::regclass::oid
+        where a.attrelid operator(pg_catalog.=) pg_catalog.format('%I.%I', source_schema, source_table)::pg_catalog.regclass::pg_catalog.oid
         and a.attnum operator(pg_catalog.>) 0
         and not a.attisdropped
       )
@@ -2565,15 +2750,22 @@ begin
     where v.id operator(pg_catalog.=) vectorizer_id
     ;
 
-    -- don't let anyone but the owner (or members of the owner's role) of the source table call this
+    -- don't let anyone but a superuser or the owner (or members of the owner's role) of the source table call this
     select pg_catalog.pg_has_role(pg_catalog.session_user(), k.relowner, 'MEMBER')
     into strict _is_owner
     from pg_catalog.pg_class k
     inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
     where k.oid operator(pg_catalog.=) pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::pg_catalog.regclass::pg_catalog.oid
     ;
+    -- not an owner of the table, but superuser?
     if not _is_owner then
-        raise exception 'only the owner of the source table may call ai._vectorizer_create_dependencies';
+        select r.rolsuper into strict _is_owner
+        from pg_catalog.pg_roles r
+        where r.rolname operator(pg_catalog.=) pg_catalog.current_user()
+        ;
+    end if;
+    if not _is_owner then
+        raise exception 'only a superuser or the owner of the source table may call ai._vectorizer_create_dependencies';
     end if;
 
     -- if we drop the source or the target with `cascade` it should drop the queue
@@ -2651,14 +2843,14 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_create_queue_table
 create or replace function ai._vectorizer_create_queue_table
-( queue_schema name
-, queue_table name
-, source_pk jsonb
-, grant_to name[]
+( queue_schema pg_catalog.name
+, queue_table pg_catalog.name
+, source_pk pg_catalog.jsonb
+, grant_to pg_catalog.name[]
 ) returns void as
 $func$
 declare
-    _sql text;
+    _sql pg_catalog.text;
 begin
     -- create the table
     select pg_catalog.format
@@ -2726,16 +2918,16 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_create_source_trigger
 create or replace function ai._vectorizer_create_source_trigger
-( trigger_name name
-, queue_schema name
-, queue_table name
-, source_schema name
-, source_table name
-, source_pk jsonb
+( trigger_name pg_catalog.name
+, queue_schema pg_catalog.name
+, queue_table pg_catalog.name
+, source_schema pg_catalog.name
+, source_table pg_catalog.name
+, source_pk pg_catalog.jsonb
 ) returns void as
 $func$
 declare
-    _sql text;
+    _sql pg_catalog.text;
 begin
     -- create the trigger function
     -- the trigger function is security definer
@@ -2804,14 +2996,14 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_vector_index_exists
 create or replace function ai._vectorizer_vector_index_exists
-( target_schema name
-, target_table name
-, indexing jsonb
-) returns bool as
+( target_schema pg_catalog.name
+, target_table pg_catalog.name
+, indexing pg_catalog.jsonb
+) returns pg_catalog.bool as
 $func$
 declare
-    _implementation text;
-    _found bool;
+    _implementation pg_catalog.text;
+    _found pg_catalog.bool;
 begin
     _implementation = pg_catalog.jsonb_extract_path_text(indexing, 'implementation');
     if _implementation not in ('diskann', 'hnsw') then
@@ -2847,12 +3039,12 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai._vectorizer_should_create_vector_index(vectorizer ai.vectorizer) returns boolean
 as $func$
 declare
-    _indexing jsonb;
-    _implementation text;
-    _create_when_queue_empty bool;
-    _sql text;
-    _count bigint;
-    _min_rows bigint;
+    _indexing pg_catalog.jsonb;
+    _implementation pg_catalog.text;
+    _create_when_queue_empty pg_catalog.bool;
+    _sql pg_catalog.text;
+    _count pg_catalog.int8;
+    _min_rows pg_catalog.int8;
 begin
     -- grab the indexing config
     _indexing = pg_catalog.jsonb_extract_path(vectorizer.config, 'indexing');
@@ -2873,7 +3065,7 @@ begin
     end if;
 
     -- if flag set, only attempt to create the vector index if the queue table is empty
-    _create_when_queue_empty = coalesce(pg_catalog.jsonb_extract_path(_indexing, 'create_when_queue_empty')::boolean, true);
+    _create_when_queue_empty = coalesce(pg_catalog.jsonb_extract_path(_indexing, 'create_when_queue_empty')::pg_catalog.bool, true);
     if _create_when_queue_empty then
         -- count the rows in the queue table
         select pg_catalog.format
@@ -2890,7 +3082,7 @@ begin
     end if;
 
     -- if min_rows has a value
-    _min_rows = coalesce(pg_catalog.jsonb_extract_path_text(_indexing, 'min_rows')::bigint, 0);
+    _min_rows = coalesce(pg_catalog.jsonb_extract_path_text(_indexing, 'min_rows')::pg_catalog.int8, 0);
     if _min_rows > 0 then
         -- count the rows in the target table
         select pg_catalog.format
@@ -2914,23 +3106,23 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_create_vector_index
 create or replace function ai._vectorizer_create_vector_index
-( target_schema name
-, target_table name
-, indexing jsonb
+( target_schema pg_catalog.name
+, target_table pg_catalog.name
+, indexing pg_catalog.jsonb
 ) returns void as
 $func$
 declare
-    _key1 int = 1982010642;
-    _key2 int;
-    _implementation text;
-    _with_count bigint;
-    _with text;
-    _ext_schema name;
-    _sql text;
+    _key1 pg_catalog.int4 = 1982010642;
+    _key2 pg_catalog.int4;
+    _implementation pg_catalog.text;
+    _with_count pg_catalog.int8;
+    _with pg_catalog.text;
+    _ext_schema pg_catalog.name;
+    _sql pg_catalog.text;
 begin
 
     -- use the target table's oid as the second key for the advisory lock
-    select k.oid::int into strict _key2
+    select k.oid::pg_catalog.int4 into strict _key2
     from pg_catalog.pg_class k
     inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
     where k.relname operator(pg_catalog.=) target_table
@@ -2960,8 +3152,8 @@ begin
             , pg_catalog.string_agg
               ( case w.key
                   when 'storage_layout' then pg_catalog.format('%s=%L', w.key, w.value)
-                  when 'max_alpha' then pg_catalog.format('%s=%s', w.key, w.value::float8)
-                  else pg_catalog.format('%s=%s', w.key, w.value::int)
+                  when 'max_alpha' then pg_catalog.format('%s=%s', w.key, w.value::pg_catalog.float8)
+                  else pg_catalog.format('%s=%s', w.key, w.value::pg_catalog.int4)
                 end
               , ', '
               )
@@ -2991,7 +3183,7 @@ begin
         when 'hnsw' then
             select
               pg_catalog.count(*)
-            , pg_catalog.string_agg(pg_catalog.format('%s=%s', w.key, w.value::int), ', ')
+            , pg_catalog.string_agg(pg_catalog.format('%s=%s', w.key, w.value::pg_catalog.int4), ', ')
             into strict
               _with_count
             , _with
@@ -3028,16 +3220,16 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_job
 create or replace procedure ai._vectorizer_job
-( job_id int default null
-, config jsonb default null
+( job_id pg_catalog.int4 default null
+, config pg_catalog.jsonb default null
 ) as
 $func$
 declare
-    _vectorizer_id int;
+    _vectorizer_id pg_catalog.int4;
     _vec ai.vectorizer%rowtype;
-    _sql text;
-    _found bool;
-    _count bigint;
+    _sql pg_catalog.text;
+    _found pg_catalog.bool;
+    _count pg_catalog.int8;
 begin
     set local search_path = pg_catalog, pg_temp;
     if config is null then
@@ -3045,7 +3237,7 @@ begin
     end if;
 
     -- get the vectorizer id from the config
-    select pg_catalog.jsonb_extract_path_text(config, 'vectorizer_id')::int
+    select pg_catalog.jsonb_extract_path_text(config, 'vectorizer_id')::pg_catalog.int4
     into strict _vectorizer_id
     ;
 
@@ -3097,7 +3289,7 @@ begin
         commit;
         set local search_path = pg_catalog, pg_temp;
         -- for every 50 items in the queue, execute a vectorizer max out at 10 vectorizers
-        _count = least(pg_catalog.ceil(_count::float8 / 50.0::float8), 10::float8)::bigint;
+        _count = least(pg_catalog.ceil(_count::pg_catalog.float8 / 50.0::pg_catalog.float8), 10::pg_catalog.float8)::pg_catalog.int8;
         raise debug 'job_id %: executing % vectorizers...', job_id, _count;
         while _count > 0 loop
             -- execute the vectorizer
@@ -3115,21 +3307,21 @@ language plpgsql security invoker
 -------------------------------------------------------------------------------
 -- _vectorizer_schedule_job
 create or replace function ai._vectorizer_schedule_job
-( vectorizer_id int
-, scheduling jsonb
-) returns bigint as
+( vectorizer_id pg_catalog.int4
+, scheduling pg_catalog.jsonb
+) returns pg_catalog.int8 as
 $func$
 declare
-    _implementation text;
-    _sql text;
-    _extension_schema name;
-    _job_id bigint;
+    _implementation pg_catalog.text;
+    _sql pg_catalog.text;
+    _extension_schema pg_catalog.name;
+    _job_id pg_catalog.int8;
 begin
     select pg_catalog.jsonb_extract_path_text(scheduling, 'implementation')
     into strict _implementation
     ;
     case
-        when _implementation = 'timescaledb' then
+        when _implementation operator(pg_catalog.=) 'timescaledb' then
             -- look up schema/name of the extension for scheduling. may be null
             select n.nspname into _extension_schema
             from pg_catalog.pg_extension x
@@ -3139,7 +3331,7 @@ begin
             if _extension_schema is null then
                 raise exception 'timescaledb extension not found';
             end if;
-        when _implementation = 'none' then
+        when _implementation operator(pg_catalog.=) 'none' then
             return null;
         else
             raise exception 'scheduling implementation not recognized';
@@ -3150,20 +3342,20 @@ begin
         when 'timescaledb' then
             -- schedule the work proc with timescaledb background jobs
             select pg_catalog.format
-            ( $$select %I.add_job('ai._vectorizer_job'::regproc, %s, config=>%L)$$
+            ( $$select %I.add_job('ai._vectorizer_job'::pg_catalog.regproc, %s, config=>%L)$$
             , _extension_schema
             , ( -- gather up the arguments
-                select string_agg
+                select pg_catalog.string_agg
                 ( pg_catalog.format('%s=>%L', s.key, s.value)
                 , ', '
                 order by x.ord
                 )
                 from pg_catalog.jsonb_each_text(scheduling) s
                 inner join
-                unnest(array['schedule_interval', 'initial_start', 'fixed_schedule', 'timezone']) with ordinality x(key, ord)
+                pg_catalog.unnest(array['schedule_interval', 'initial_start', 'fixed_schedule', 'timezone']) with ordinality x(key, ord)
                 on (s.key = x.key)
               )
-            , pg_catalog.jsonb_build_object('vectorizer_id', vectorizer_id)::text
+            , pg_catalog.jsonb_build_object('vectorizer_id', vectorizer_id)::pg_catalog.text
             ) into strict _sql
             ;
             execute _sql into strict _job_id;
@@ -3236,12 +3428,19 @@ $block$;
 
 -------------------------------------------------------------------------------
 -- execute_vectorizer
-create or replace function ai.execute_vectorizer(vectorizer_id int) returns void
+create or replace function ai.execute_vectorizer(vectorizer_id pg_catalog.int4) returns void
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -3261,47 +3460,47 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- create_vectorizer
 create or replace function ai.create_vectorizer
-( source regclass
-, destination name default null
-, embedding jsonb default null
-, chunking jsonb default null
-, indexing jsonb default ai.indexing_default()
-, formatting jsonb default ai.formatting_python_template()
-, scheduling jsonb default ai.scheduling_default()
-, processing jsonb default ai.processing_default()
-, target_schema name default null
-, target_table name default null
-, view_schema name default null
-, view_name name default null
-, queue_schema name default null
-, queue_table name default null
-, grant_to name[] default ai.grant_to()
-, enqueue_existing bool default true
-) returns int
+( source pg_catalog.regclass
+, destination pg_catalog.name default null
+, embedding pg_catalog.jsonb default null
+, chunking pg_catalog.jsonb default null
+, indexing pg_catalog.jsonb default ai.indexing_default()
+, formatting pg_catalog.jsonb default ai.formatting_python_template()
+, scheduling pg_catalog.jsonb default ai.scheduling_default()
+, processing pg_catalog.jsonb default ai.processing_default()
+, target_schema pg_catalog.name default null
+, target_table pg_catalog.name default null
+, view_schema pg_catalog.name default null
+, view_name pg_catalog.name default null
+, queue_schema pg_catalog.name default null
+, queue_table pg_catalog.name default null
+, grant_to pg_catalog.name[] default ai.grant_to()
+, enqueue_existing pg_catalog.bool default true
+) returns pg_catalog.int4
 as $func$
 declare
-    _missing_roles name[];
-    _source_table name;
-    _source_schema name;
-    _trigger_name name;
-    _is_owner bool;
-    _dimensions int;
-    _source_pk jsonb;
-    _vectorizer_id int;
-    _sql text;
-    _job_id bigint;
+    _missing_roles pg_catalog.name[];
+    _source_table pg_catalog.name;
+    _source_schema pg_catalog.name;
+    _trigger_name pg_catalog.name;
+    _is_owner pg_catalog.bool;
+    _dimensions pg_catalog.int4;
+    _source_pk pg_catalog.jsonb;
+    _vectorizer_id pg_catalog.int4;
+    _sql pg_catalog.text;
+    _job_id pg_catalog.int8;
 begin
     -- make sure all the roles listed in grant_to exist
     if grant_to is not null then
         select
-          pg_catalog.array_agg(r) filter (where pg_catalog.to_regrole(r) is null) -- missing
-        , pg_catalog.array_agg(r) filter (where pg_catalog.to_regrole(r) is not null) -- real roles
+          pg_catalog.array_agg(r) filter (where r operator(pg_catalog.!=) 'public' and pg_catalog.to_regrole(r) is null) -- missing
+        , pg_catalog.array_agg(r) filter (where r operator(pg_catalog.=) 'public' or pg_catalog.to_regrole(r) is not null) -- real roles
         into strict
           _missing_roles
         , grant_to
         from pg_catalog.unnest(grant_to) r
         ;
-        if pg_catalog.array_length(_missing_roles, 1) > 0 then
+        if pg_catalog.array_length(_missing_roles, 1) operator(pg_catalog.>) 0 then
             raise warning 'one or more grant_to roles do not exist: %', _missing_roles;
         end if;
     end if;
@@ -3315,25 +3514,35 @@ begin
     end if;
 
     -- get source table name and schema name
-    select k.relname, n.nspname, pg_catalog.pg_has_role(pg_catalog.current_user(), k.relowner, 'MEMBER')
+    select
+      k.relname
+    , n.nspname
+    , pg_catalog.pg_has_role(pg_catalog.current_user(), k.relowner, 'MEMBER')
     into strict _source_table, _source_schema, _is_owner
     from pg_catalog.pg_class k
     inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
     where k.oid operator(pg_catalog.=) source
     ;
-
+    -- not an owner of the table, but superuser?
     if not _is_owner then
-        raise exception 'only the owner of the source table may create a vectorizer on it';
+        select r.rolsuper into strict _is_owner
+        from pg_catalog.pg_roles r
+        where r.rolname operator(pg_catalog.=) pg_catalog.current_user()
+        ;
     end if;
 
-    select (embedding operator(pg_catalog.->) 'dimensions')::int into _dimensions;
+    if not _is_owner then
+        raise exception 'only a superuser or the owner of the source table may create a vectorizer on it';
+    end if;
+
+    select (embedding operator(pg_catalog.->) 'dimensions')::pg_catalog.int4 into _dimensions;
     if _dimensions is null then
-        raise exception '_dimensions argument is required';
+        raise exception 'dimensions argument is required';
     end if;
 
     -- get the source table's primary key definition
     select ai._vectorizer_source_pk(source) into strict _source_pk;
-    if _source_pk is null or pg_catalog.jsonb_array_length(_source_pk) = 0 then
+    if _source_pk is null or pg_catalog.jsonb_array_length(_source_pk) operator(pg_catalog.=) 0 then
         raise exception 'source table must have a primary key constraint';
     end if;
 
@@ -3458,7 +3667,7 @@ begin
     ) into _job_id
     ;
     if _job_id is not null then
-        scheduling = pg_catalog.jsonb_insert(scheduling, array['job_id'], to_jsonb(_job_id));
+        scheduling = pg_catalog.jsonb_insert(scheduling, array['job_id'], pg_catalog.to_jsonb(_job_id));
     end if;
 
     insert into ai.vectorizer
@@ -3535,13 +3744,13 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- disable_vectorizer_schedule
-create or replace function ai.disable_vectorizer_schedule(vectorizer_id int) returns void
+create or replace function ai.disable_vectorizer_schedule(vectorizer_id pg_catalog.int4) returns void
 as $func$
 declare
     _vec ai.vectorizer%rowtype;
-    _schedule jsonb;
-    _job_id bigint;
-    _sql text;
+    _schedule pg_catalog.jsonb;
+    _job_id pg_catalog.int8;
+    _sql pg_catalog.text;
 begin
     select * into strict _vec
     from ai.vectorizer v
@@ -3553,7 +3762,7 @@ begin
         case _schedule operator(pg_catalog.->>) 'implementation'
             when 'none' then -- ok
             when 'timescaledb' then
-                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::bigint;
+                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::pg_catalog.int8;
                 select pg_catalog.format
                 ( $$select %I.alter_job(job_id, scheduled=>false) from timescaledb_information.jobs where job_id = %L$$
                 , n.nspname
@@ -3575,13 +3784,13 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- enable_vectorizer_schedule
-create or replace function ai.enable_vectorizer_schedule(vectorizer_id int) returns void
+create or replace function ai.enable_vectorizer_schedule(vectorizer_id pg_catalog.int4) returns void
 as $func$
 declare
     _vec ai.vectorizer%rowtype;
-    _schedule jsonb;
-    _job_id bigint;
-    _sql text;
+    _schedule pg_catalog.jsonb;
+    _job_id pg_catalog.int8;
+    _sql pg_catalog.text;
 begin
     select * into strict _vec
     from ai.vectorizer v
@@ -3593,15 +3802,15 @@ begin
         case _schedule operator(pg_catalog.->>) 'implementation'
             when 'none' then -- ok
             when 'timescaledb' then
-                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::bigint;
+                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::pg_catalog.int8;
                 select pg_catalog.format
                 ( $$select %I.alter_job(job_id, scheduled=>true) from timescaledb_information.jobs where job_id = %L$$
                 , n.nspname
                 , _job_id
                 ) into _sql
                 from pg_catalog.pg_extension x
-                inner join pg_catalog.pg_namespace n on (x.extnamespace = n.oid)
-                where x.extname = 'timescaledb'
+                inner join pg_catalog.pg_namespace n on (x.extnamespace operator(pg_catalog.=) n.oid)
+                where x.extname operator(pg_catalog.=) 'timescaledb'
                 ;
                 if _sql is not null then
                     execute _sql;
@@ -3616,8 +3825,8 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- drop_vectorizer
 create or replace function ai.drop_vectorizer
-( vectorizer_id int
-, drop_all boolean default false
+( vectorizer_id pg_catalog.int4
+, drop_all pg_catalog.bool default false
 ) returns void
 as $func$
 /* drop_vectorizer
@@ -3634,10 +3843,10 @@ UNLESS drop_all = true, it does NOT:
 */
 declare
     _vec ai.vectorizer%rowtype;
-    _schedule jsonb;
-    _job_id bigint;
+    _schedule pg_catalog.jsonb;
+    _job_id pg_catalog.int8;
     _trigger pg_catalog.pg_trigger%rowtype;
-    _sql text;
+    _sql pg_catalog.text;
 begin
     ---------------------------------------------------------------------------
     -- NOTE: this function is security invoker BUT it is called from an
@@ -3659,7 +3868,7 @@ begin
         case _schedule operator(pg_catalog.->>) 'implementation'
             when 'none' then -- ok
             when 'timescaledb' then
-                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::bigint;
+                _job_id = (_schedule operator(pg_catalog.->) 'job_id')::pg_catalog.int8;
                 select pg_catalog.format
                 ( $$select %I.delete_job(job_id) from timescaledb_information.jobs where job_id = %L$$
                 , n.nspname
@@ -3771,15 +3980,15 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- vectorizer_queue_pending
 create or replace function ai.vectorizer_queue_pending
-( vectorizer_id int
-, exact_count boolean default false
-) returns bigint
+( vectorizer_id pg_catalog.int4
+, exact_count pg_catalog.bool default false
+) returns pg_catalog.int8
 as $func$
 declare
-    _queue_schema name;
-    _queue_table name;
-    _sql text;
-    _queue_depth bigint;
+    _queue_schema pg_catalog.name;
+    _queue_table pg_catalog.name;
+    _sql pg_catalog.text;
+    _queue_depth pg_catalog.int8;
 begin
     select v.queue_schema, v.queue_table into _queue_schema, _queue_table
     from ai.vectorizer v
@@ -3802,7 +4011,7 @@ begin
         ) into strict _sql
         ;
         execute _sql into strict _queue_depth;
-        if _queue_depth = 10001 then
+        if _queue_depth operator(pg_catalog.=) 10001 then
             _queue_depth = 9223372036854775807; -- max bigint value
         end if;
     end if;
@@ -3833,17 +4042,92 @@ select
 from ai.vectorizer v
 ;
 
+-------------------------------------------------------------------------------
+-- vectorizer_embed
+create or replace function ai.vectorizer_embed
+( embedding_config pg_catalog.jsonb
+, input_text pg_catalog.text
+, input_type pg_catalog.text default null
+) returns @extschema:vector@.vector
+as $func$
+declare
+    _emb @extschema:vector@.vector;
+begin
+    case embedding_config operator(pg_catalog.->>) 'implementation'
+        when 'openai' then
+            _emb = ai.openai_embed
+            ( embedding_config operator(pg_catalog.->>) 'model'
+            , input_text
+            , api_key_name=>(embedding_config operator(pg_catalog.->>) 'api_key_name')
+            , dimensions=>(embedding_config operator(pg_catalog.->>) 'dimensions')::pg_catalog.int4
+            , openai_user=>(embedding_config operator(pg_catalog.->>) 'user')
+            );
+        when 'ollama' then
+            _emb = ai.ollama_embed
+            ( embedding_config operator(pg_catalog.->>) 'model'
+            , input_text
+            , host=>(embedding_config operator(pg_catalog.->>) 'base_url')
+            , keep_alive=>(embedding_config operator(pg_catalog.->>) 'keep_alive')
+            , embedding_options=>(embedding_config operator(pg_catalog.->) 'options')
+            );
+        when 'voyageai' then
+            _emb = ai.voyageai_embed
+            ( embedding_config operator(pg_catalog.->>) 'model'
+            , input_text
+            , input_type=>coalesce(input_type, 'query')
+            , api_key_name=>(embedding_config operator(pg_catalog.->>) 'api_key_name')
+            );
+        else
+            raise exception 'unsupported embedding implementation';
+    end case;
+
+    return _emb;
+end
+$func$ language plpgsql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- vectorizer_embed
+create or replace function ai.vectorizer_embed
+( vectorizer_id pg_catalog.int4
+, input_text pg_catalog.text
+, input_type pg_catalog.text default null
+) returns @extschema:vector@.vector
+as $func$
+    select ai.vectorizer_embed
+    ( v.config operator(pg_catalog.->) 'embedding'
+    , input_text
+    , input_type
+    )
+    from ai.vectorizer v
+    where v.id operator(pg_catalog.=) vectorizer_id
+    ;
+$func$ language sql stable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
 
 --------------------------------------------------------------------------------
 -- 014-secrets.sql
 -------------------------------------------------------------------------------
 -- reveal_secret
-create or replace function ai.reveal_secret(secret_name text, use_cache boolean default true) returns text
+create or replace function ai.reveal_secret
+( secret_name pg_catalog.text
+, use_cache pg_catalog.bool default true
+) returns pg_catalog.text
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -3873,7 +4157,10 @@ where pg_catalog.to_regrole("role") is not null
 
 -------------------------------------------------------------------------------
 -- grant_secret
-create or replace function ai.grant_secret(secret_name text, grant_to_role text) returns void
+create or replace function ai.grant_secret
+( secret_name pg_catalog.text
+, grant_to_role pg_catalog.text
+) returns void
 as $func$
     insert into ai._secret_permissions ("name", "role") values (secret_name, grant_to_role);
 $func$ language sql volatile security invoker
@@ -3881,9 +4168,14 @@ set search_path to pg_catalog, pg_temp;
 
 -------------------------------------------------------------------------------
 -- revoke_secret
-create or replace function ai.revoke_secret(secret_name text, revoke_from_role text) returns void
+create or replace function ai.revoke_secret
+( secret_name pg_catalog.text
+, revoke_from_role pg_catalog.text
+) returns void
 as $func$
-    delete from ai._secret_permissions where "name" = secret_name and "role" = revoke_from_role;
+    delete from ai._secret_permissions
+    where "name" operator(pg_catalog.=) secret_name
+    and "role" operator(pg_catalog.=) revoke_from_role;
 $func$ language sql volatile security invoker
 set search_path to pg_catalog, pg_temp;
 
@@ -3903,9 +4195,16 @@ create or replace function ai.voyageai_embed
 ) returns @extschema:vector@.vector
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -3944,9 +4243,16 @@ create or replace function ai.voyageai_embed
 )
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -3987,9 +4293,16 @@ create or replace procedure ai.load_dataset_multi_txn
 )
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -4044,9 +4357,16 @@ create or replace function ai.load_dataset
 ) returns bigint
 as $python$
     if "ai.version" not in GD:
-        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '/usr/local/lib/pgai') as python_lib_dir")
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), 'C:\Program Files\pgai\lib') as python_lib_dir")
         python_lib_dir = r[0]["python_lib_dir"]
         from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
+        # and take precedence over our extension-version specific packages.
+        # By removing the whole thing from the path we won't run into package conflicts.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("0.6.0")
         import site
         site.addsitedir(str(python_lib_dir))
@@ -4092,10 +4412,10 @@ set search_path to pg_catalog, pg_temp;
 
 -------------------------------------------------------------------------------
 -- grant_ai_usage
-create or replace function ai.grant_ai_usage(to_user name, admin bool default false) returns void
+create or replace function ai.grant_ai_usage(to_user pg_catalog.name, admin pg_catalog.bool default false) returns void
 as $func$
 declare
-    _sql text;
+    _sql pg_catalog.text;
 begin
     -- schema
     select pg_catalog.format
@@ -4117,6 +4437,7 @@ begin
             when admin then 'all privileges'
             else
                 case
+                    when k.relname operator(pg_catalog.=) 'semantic_catalog' then 'select'
                     when k.relkind in ('r', 'p') then 'select, insert, update, delete'
                     when k.relkind in ('S') then 'usage, select, update'
                     when k.relkind in ('v') then 'select'
@@ -4177,7 +4498,14 @@ begin
         and e.extname operator(pg_catalog.=) 'ai'
         and k.prokind in ('f', 'p')
         and case
-              when k.proname in ('grant_ai_usage', 'grant_secret', 'revoke_secret') then admin -- only admins get these function
+              when k.proname in
+                ( 'grant_ai_usage'
+                , 'grant_secret'
+                , 'revoke_secret'
+                , 'post_restore'
+                , 'initialize_semantic_catalog'
+                )
+              then admin -- only admins get these function
               else true
             end
     )
