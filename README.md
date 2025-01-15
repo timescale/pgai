@@ -175,8 +175,14 @@ This section will walk you through the steps to get started with pgai and Ollama
 * Implement Retrieval Augmented Generation inside a single SQL statement ([learn more](#implement-retrieval-augmented-generation-inside-a-single-sql-statement))
 
 **High-performance, cost-efficient ANN search on large vector workloads:**
+<div align=center>
+
+![Benchmarks](https://assets.timescale.com/docs/images/benchmark-comparison-pgvectorscale-pinecone.png)
+
+</div>
+
 * Perform high-performance, cost-efficient ANN search on large vector workloads with pgai's [StreamingDiskANN index](pgvectorscale/README.md), which is part of the pgvectorscale extension.
-* This index [achieves](https://www.timescale.com/blog/pgvector-vs-pinecone) 28x lower p95 latency and 16x higher query throughput compared to Pinecone.
+* This index achieves 28x lower p95 latency and 16x higher query throughput compared to Pinecone. More details in the [pgvector vs Pinecone blog post](https://www.timescale.com/blog/pgvector-vs-pinecone).
 
 **Leverage LLMs for data processing tasks:**
 * Retrieve LLM chat completions from models like Claude Sonnet 3.5, OpenAI GPT4o, Cohere Command, and Llama 3 (via Ollama). ([learn more](#usage-of-pgai))
