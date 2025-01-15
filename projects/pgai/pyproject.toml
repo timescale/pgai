@@ -24,7 +24,7 @@ dependencies = [
     "typing_extensions>=4.0,<5.0",
     "datadog_lambda>=6.9,<7.0",
     "pytimeparse>=1.1,<2.0",
-    "voyageai>=0.3.1,<0.4.0",
+    "voyageai>=0.3.1,<0.3.2", # 0.3.2 fails the tests somehow
 ]
 classifiers = [
     "License :: OSI Approved :: PostgreSQL License",
