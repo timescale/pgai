@@ -1,4 +1,3 @@
-from typing import Optional
 from ollama import Client
 
 
@@ -13,7 +12,7 @@ def get_ollama_host(plpy) -> str:
     return r[0]["ollama_host"]
 
 
-def make_client(plpy, host: Optional[str] = None) -> Client:
+def make_client(plpy, host: str | None = None) -> Client:
     if host is None:
         host = get_ollama_host(plpy)
     return Client(host)

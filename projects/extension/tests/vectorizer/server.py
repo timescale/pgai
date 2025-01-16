@@ -1,13 +1,14 @@
 import os
-from fastapi import FastAPI, Request, status, Header
+from datetime import datetime
+from typing import Literal
+
+import dotenv
+import psycopg
+from fastapi import FastAPI, Header, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-import psycopg
-from typing import Union, Literal
-from datetime import datetime
-import dotenv
 
 dotenv.load_dotenv()
 
@@ -111,18 +112,18 @@ class ProcessingDefault(BaseModel):
 
 class Config(BaseModel):
     version: str
-    indexing: Union[IndexingNone, IndexingDiskANN, IndexingHNSW] = Field(
+    indexing: IndexingNone | IndexingDiskANN | IndexingHNSW = Field(
         ..., discriminator="implementation"
     )
     formatting: FormattingPythonTemplate
     embedding: EmbeddingOpenAI
-    scheduling: Union[SchedulingNone, SchedulingPgCron, SchedulingTimescaledb] = Field(
+    scheduling: SchedulingNone | SchedulingPgCron | SchedulingTimescaledb = Field(
         ..., discriminator="implementation"
     )
-    chunking: Union[
-        ChunkingCharacterTextSplitter, ChunkingRecursiveCharacterTextSplitter
-    ] = Field(..., discriminator="implementation")
-    processing: Union[ProcessingDefault] = Field(..., discriminator="implementation")
+    chunking: ChunkingCharacterTextSplitter | ChunkingRecursiveCharacterTextSplitter = (
+        Field(..., discriminator="implementation")
+    )
+    processing: ProcessingDefault = Field(..., discriminator="implementation")
 
 
 class PrimaryKeyColumn(BaseModel):

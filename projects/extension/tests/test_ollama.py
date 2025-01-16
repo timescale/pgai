@@ -1,9 +1,9 @@
 import os
 import time
-import requests
+
 import psycopg
 import pytest
-
+import requests
 
 # skip tests in this module if disabled
 enable_ollama_tests = os.getenv("OLLAMA_HOST")

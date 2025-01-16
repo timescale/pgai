@@ -97,7 +97,10 @@ def test_reveal_secrets():
             with con.cursor() as cur:
                 cur.execute(setup)
                 if is_error:
-                    with pytest.raises(Exception):
+                    with pytest.raises(
+                        psycopg.errors.InternalError_,
+                        match="plpy.Error: failed to reveal secret 'ERROR_SECRET'",
+                    ):
                         cur.execute(query)
                 else:
                     cur.execute(query)

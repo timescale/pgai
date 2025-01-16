@@ -1,7 +1,7 @@
 import os
+import re
 import subprocess
 from pathlib import Path
-import re
 
 import psycopg
 import pytest
@@ -137,7 +137,7 @@ def init_src() -> None:
 
 
 def read_file(filename: str) -> str:
-    with open(filename, "r") as f:
+    with open(filename) as f:
         return f.read()
 
 

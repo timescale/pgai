@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 import hashlib
+import os
 import platform
 import re
-import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import textwrap
 from pathlib import Path
-
 
 HELP = """Available targets:
 - help             displays this message and exits
@@ -738,7 +737,7 @@ def check_requirements() -> None:
 
         from difflib import unified_diff
 
-        with open(lock_file, "r") as f1, open(tmp_file.name, "r") as f2:
+        with open(lock_file) as f1, open(tmp_file.name) as f2:
             # Skip the first 3 lines when reading both files since the contain a line with the file name
             # which will always be different
             lock_contents = f1.readlines()[3:]

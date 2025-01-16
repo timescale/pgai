@@ -3,7 +3,6 @@ import os
 import psycopg
 import pytest
 
-
 # skip tests in this module if disabled
 enable_cohere_tests = os.getenv("COHERE_API_KEY")
 if not enable_cohere_tests or enable_cohere_tests == "0":

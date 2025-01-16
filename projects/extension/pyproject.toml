@@ -90,9 +90,19 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.ruff.lint]
-# Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
-select = ["E4", "E7", "E9", "F"]
-ignore = []
+select = [
+    "E",    # pycodestyle
+    "F",    # Pyflakes
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+#    "SIM",  # flake8-simplify
+    "I",    # isort
+    "ARG",  # unused arguments
+    "W291", # trailing whitespace
+    "PIE",  # print statements
+    "Q"     # flakes8-quote
+]
+ignore = ["E501", "W291", "ARG001"]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
@@ -103,3 +113,5 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.uv]
 reinstall-package = ["pgai"]
+
+

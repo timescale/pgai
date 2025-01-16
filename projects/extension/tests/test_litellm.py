@@ -1,9 +1,9 @@
+import json
 import os
-from typing import List, Any
+from typing import Any
 
 import psycopg
 import pytest
-import json
 
 
 @pytest.fixture()
@@ -174,7 +174,7 @@ def test_litellm_embed_input_types(
     name: str,
     dimensions: int,
     api_key_name: str,
-    input_types: List[str],
+    input_types: list[str],
 ):
     api_key_value = os.getenv(api_key_name)
     if api_key_value is None:
