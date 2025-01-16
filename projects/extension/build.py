@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 import hashlib
+import os
 import platform
 import re
-import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import textwrap
 from pathlib import Path
-
 
 HELP = """Available targets:
 - help             displays this message and exits

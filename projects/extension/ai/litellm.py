@@ -1,18 +1,19 @@
+from collections.abc import Generator
+
 import litellm
-from typing import Optional, Generator
 
 
 def embed(
     model: str,
     input: list[str],
     api_key: str,
-    user: Optional[str] = None,
-    dimensions: Optional[int] = None,
-    timeout: Optional[int] = None,
-    api_base: Optional[str] = None,
-    api_version: Optional[str] = None,
-    api_type: Optional[str] = None,
-    organization: Optional[str] = None,
+    user: str | None = None,
+    dimensions: int | None = None,
+    timeout: int | None = None,
+    api_base: str | None = None,
+    api_version: str | None = None,
+    api_type: str | None = None,
+    organization: str | None = None,
     **kwargs,
 ) -> Generator[tuple[int, list[float]], None, None]:
     if organization is not None:

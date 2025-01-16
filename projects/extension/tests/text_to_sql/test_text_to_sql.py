@@ -1,10 +1,10 @@
 import os
+import re
 import subprocess
 from pathlib import Path
-import re
 
-import pytest
 import psycopg
+import pytest
 from psycopg.rows import namedtuple_row
 
 # skip tests in this module if disabled

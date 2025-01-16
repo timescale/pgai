@@ -31,7 +31,7 @@ def host_dir() -> Path:
 
 def read_file(filename: str) -> str:
     filename = Path(__file__).parent.absolute() / filename
-    with open(filename, "r") as f:
+    with open(filename) as f:
         return f.read()
 
 

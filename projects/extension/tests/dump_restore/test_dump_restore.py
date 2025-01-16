@@ -122,7 +122,7 @@ def init_src() -> None:
 
 
 def read_file(filename: str) -> str:
-    with open(filename, "r") as f:
+    with open(filename) as f:
         return f.read()
 
 

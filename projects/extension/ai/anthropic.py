@@ -1,4 +1,4 @@
-from typing import Optional
+
 from anthropic import Anthropic
 
 DEFAULT_KEY_NAME = "ANTHROPIC_API_KEY"
@@ -6,9 +6,9 @@ DEFAULT_KEY_NAME = "ANTHROPIC_API_KEY"
 
 def make_client(
     api_key: str,
-    base_url: Optional[str] = None,
-    timeout: Optional[float] = None,
-    max_retries: Optional[int] = None,
+    base_url: str | None = None,
+    timeout: float | None = None,
+    max_retries: int | None = None,
 ) -> Anthropic:
     args = {}
     if timeout is not None:

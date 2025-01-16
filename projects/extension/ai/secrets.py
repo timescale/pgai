@@ -1,5 +1,4 @@
 import os
-from typing import Optional
 from urllib.parse import urljoin
 
 import backoff
@@ -24,10 +23,10 @@ def remove_secret_from_cache(sd_cache: dict[str, str], secret_name: str):
 
 def get_secret(
     plpy,
-    secret: Optional[str] = None,
-    secret_name: Optional[str] = None,
-    secret_name_default: Optional[str] = None,
-    sd_cache: Optional[dict[str, str]] = None,
+    secret: str | None = None,
+    secret_name: str | None = None,
+    secret_name_default: str | None = None,
+    sd_cache: dict[str, str] | None = None,
 ) -> str | None:
     if secret is not None:
         return secret
@@ -68,7 +67,7 @@ def check_secret_permissions(plpy, secret_name: str) -> bool:
 
 
 def reveal_secret(
-    plpy, secret_name: str, sd_cache: Optional[dict[str, str]]
+    plpy, secret_name: str, sd_cache: dict[str, str] | None
 ) -> str | None:
     cache_key = _cache_key(secret_name)
     if sd_cache is not None:
