@@ -225,7 +225,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_vectorizer(vectorizer_id=1, drop_all=True)
+    op.drop_vectorizer(target_table_name="blog_embeddings", drop_all=True)
 ```
 
 The `create_vectorizer` operation supports all configuration options available in the [SQL API](vectorizer-api-reference.md).
