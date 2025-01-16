@@ -180,6 +180,7 @@ begin
             and not a.attisdropped
             group by c.oid
         ) c on (c.oid operator(pg_catalog.=) pc.oid)
+        where pt.schemaname NOT IN ('ai', 'information_schema', 'pg_catalog')
     ) x
     ;
 
