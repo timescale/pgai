@@ -59,7 +59,7 @@ testing we would like.
 ## pgai library
 The pgai library exposes helpers to create a vectorizer via pure python.
 The classes for this are autogenerate via code generation. To update the classes
-with a new integration look into the code generator docs in [/project/pgai/pgai/alembic/generate](/projects/pgai/pgai/alembic/generate/README.md).
+with a new integration look into the code generator docs in [/project/pgai/pgai/alembic/generate](/pgai/vectorizer/generate/README.md).
 
 ## Documentation
 

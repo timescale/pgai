@@ -60,7 +60,7 @@ path = "pgai/__init__.py"
 
 [project.scripts]
 pgai = "pgai.cli:cli"
-generate = "pgai.alembic.generate.generate:generate_models"
+generate = "pgai.vectorizer.generate.generate:generate_models"
 
 
 [tool.pytest.ini_options]

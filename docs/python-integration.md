@@ -1,3 +1,38 @@
+# Creating vectorizers from python
+
+If you prefer to create vectorizers directly from python you can use the `CreateVectorizer` helper class from the `pgai.vectorizer` module.
+It accepts all the options listed in the [SQL API](vectorizer-api-reference.md) and exposes `to_sql`
+method to generate the SQL query which you can then run through the sql library of your choice.
+
+First install the pgai library:
+```bash
+pip install pgai
+```
+
+Then you can create a vectorizer from python:
+
+```python
+from pgai.vectorizer import CreateVectorizer
+from pgai.vectorizer.configuration import OpenAIConfig, CharacterTextSplitterConfig, PythonTemplateConfig
+
+vectorizer_statement = CreateVectorizer(
+    source_table="blog",
+    target_table='blog_embeddings',
+    embedding=OpenAIConfig(
+        model='text-embedding-3-small',
+        dimensions=768
+    ),
+    chunking=CharacterTextSplitterConfig(
+        chunk_column='content',
+        chunk_size=800,
+        chunk_overlap=400,
+        separator='.',
+        is_separator_regex=False
+    ),
+    formatting=PythonTemplateConfig(template='$title - $chunk')
+).to_sql()
+```
+
 # SQLAlchemy Integration with pgai Vectorizer
 
 The `vectorizer_relationship` is a SQLAlchemy helper that integrates pgai's vectorization capabilities directly into your SQLAlchemy models.
@@ -198,7 +233,7 @@ Then you can use the `create_vectorizer` operation to create a vectorizer for yo
 
 ```python
 from alembic import op
-from pgai.alembic.configuration import (
+from pgai.vectorizer.configuration import (
     OpenAIConfig,
     CharacterTextSplitterConfig,
     PythonTemplateConfig

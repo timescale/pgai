@@ -3,7 +3,7 @@ from typing import Any
 from alembic.operations import MigrateOperation, Operations
 from sqlalchemy import text
 
-from pgai.alembic.vectorizer_params import CreateVectorizerParams
+from pgai.vectorizer.create_vectorizer import CreateVectorizer
 
 
 class CreateVectorizerOp(MigrateOperation):
@@ -11,7 +11,7 @@ class CreateVectorizerOp(MigrateOperation):
         self,
         **kw: dict[str, Any],
     ):
-        self.params = CreateVectorizerParams(
+        self.params = CreateVectorizer(
             **kw  # type: ignore
         )
 

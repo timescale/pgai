@@ -25,7 +25,7 @@ from .configuration import (
 
 
 @dataclass
-class CreateVectorizerParams:
+class CreateVectorizer:
     """Parameters for ai.create_vectorizer function"""
 
     source: str

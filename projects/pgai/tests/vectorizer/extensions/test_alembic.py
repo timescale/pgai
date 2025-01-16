@@ -22,7 +22,7 @@ from alembic.command import downgrade, upgrade
 from alembic.config import Config
 from sqlalchemy import Engine, text
 
-from pgai.alembic.configuration import (
+from pgai.vectorizer.configuration import (
     ChunkingCharacterTextSplitterConfig,
     ChunkingRecursiveCharacterTextSplitterConfig,
     EmbeddingOllamaConfig,

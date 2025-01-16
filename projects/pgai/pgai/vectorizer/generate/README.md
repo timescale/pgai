@@ -1,5 +1,5 @@
 # dataclasses generation for CreateVectorizerParams
-This module contains a script to generate dataclasses as params for the `CreateVectorizerParams` class.
+This module contains a script to generate dataclasses as params for the `CreateVectorizer` class.
 If the interface for the extension is changed, running this script via uv run generate should update the dataclasses in configuration.py and vectorizer_params.py without needing to manually update them.
 
 ## How to use

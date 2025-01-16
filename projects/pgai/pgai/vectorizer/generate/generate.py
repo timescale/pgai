@@ -2,11 +2,11 @@ from pathlib import Path
 
 import psycopg
 
-from pgai.alembic.generate.config_generator import (
+from pgai.vectorizer.generate.config_generator import (
     generate_config_classes,
     generate_vectorizer_params,
 )
-from pgai.alembic.generate.function_parser import (
+from pgai.vectorizer.generate.function_parser import (
     get_function_metadata,
     read_create_vectorizer_metadata,
 )
@@ -60,8 +60,8 @@ def generate_vectorizer_configs(
 def generate_models():
     # Connect to database
     conn_str = "postgresql://postgres:postgres@localhost:5432/postgres"
-    output_file = Path("../configuration.py")
-    vectorizer_output_file = Path("../vectorizer_params.py")
+    output_file = Path("../../vectorizer/configuration.py")
+    vectorizer_output_file = Path("../../vectorizer/create_vectorizer.py")
     generate_vectorizer_configs(conn_str, output_file, vectorizer_output_file)
 
 
