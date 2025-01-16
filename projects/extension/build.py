@@ -674,7 +674,9 @@ def lint_sql() -> None:
 
 
 def lint_py() -> None:
-    subprocess.run(f"ruff check {ext_dir()}", shell=True, check=True, env=os.environ)
+    subprocess.run(
+        f"uv run ruff check {ext_dir()}", shell=True, check=True, env=os.environ
+    )
 
 
 def lint() -> None:
@@ -684,7 +686,7 @@ def lint() -> None:
 
 def format_py() -> None:
     subprocess.run(
-        f"ruff format --diff {ext_dir()}", shell=True, check=True, env=os.environ
+        f"uv run ruff format --diff {ext_dir()}", shell=True, check=True, env=os.environ
     )
 
 
