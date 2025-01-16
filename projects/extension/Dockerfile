@@ -67,9 +67,10 @@ RUN set -eux; \
     uv pip install --system --break-system-packages /build/pgspot; \
     rm -rf /build/pgspot
 
-# install our test python dependencies
-COPY requirements-test.txt /build/requirements-test.txt
-RUN uv pip install --system --break-system-packages -r /build/requirements-test.txt
-RUN rm -r /build
-
 WORKDIR /pgai
+
+## install our test python dependencies
+COPY pyproject.toml uv.lock requirements-lock.txt build.py /pgai
+COPY ai /pgai/ai
+RUN uv sync
+ENV PATH="/pgai/.venv/bin:$PATH"
