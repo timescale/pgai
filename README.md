@@ -11,9 +11,27 @@
 [![Try Timescale for free](https://img.shields.io/badge/Try_Timescale_for_free-black?style=for-the-badge&logo=timescale&logoColor=white)](https://tsdb.co/gh-pgai-signup)
 </div>
 
-pgai is a PostgreSQL extension that simplifies data storage and retrieval for [Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation) (RAG), and other AI applications.
+<!-- pgai is a PostgreSQL extension that simplifies data storage and retrieval for [Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation) (RAG), and other AI applications.
 In particular, it automates the creation and sync of embeddings for your data stored in PostgreSQL, simplifies
-[semantic search](https://en.wikipedia.org/wiki/Semantic_search), and allows you to call LLM models from SQL.
+[semantic search](https://en.wikipedia.org/wiki/Semantic_search), and allows you to call LLM models from SQL. -->
+
+# Features
+
+**Manage data and embeddings together in Postgres**
+* Automatically create and sync vector embeddings for your data ([learn more](#automatically-create-and-sync-llm-embeddings-for-your-data))
+* Search your data using vector and semantic search ([learn more](#search-your-data-using-vector-and-semantic-search))
+* Implement Retrieval Augmented Generation inside a single SQL statement ([learn more](#implement-retrieval-augmented-generation-inside-a-single-sql-statement))
+* Perform high-performance, cost-efficient ANN search on large vector workloads with [`diskann`](https://github.com/timescale/pgvectorscale), which complements pgvector's `hnsw` and `ivfflat` vector indexes, while adding new capabilities.
+
+**Leverage LLMs for data processing tasks**
+* Retrieve LLM chat completions from models like Claude Sonnet 3.5, OpenAI GPT4o, Cohere Command, and Llama 3 (via Ollama). ([learn more](#usage-of-pgai))
+* Reason over your data and facilitate use cases like classification, summarization, and data enrichment on your existing relational data in PostgreSQL ([see an example](/docs/openai.md)).
+
+**Benefit from useful utilities**
+* Load datasets from Hugging Face into your database with [ai.load_dataset](/docs/load_dataset_from_huggingface.md).
+
+
+# System Overview
 
 <div align=center>
 
@@ -167,30 +185,6 @@ This section will walk you through the steps to get started with pgai and Ollama
   
     This is just one example of [model calling capabilities](#model-calling). Model calling can be used for a variety of tasks, including classification, summarization, moderation, and other forms of data enrichment. 
     
-# Features 
-
-**Automating semantic search for your PostgreSQL data:**
-* Automatically create and sync vector embeddings for your data ([learn more](#automatically-create-and-sync-llm-embeddings-for-your-data))
-* Search your data using vector and semantic search ([learn more](#search-your-data-using-vector-and-semantic-search))
-* Implement Retrieval Augmented Generation inside a single SQL statement ([learn more](#implement-retrieval-augmented-generation-inside-a-single-sql-statement))
-
-**High-performance, cost-efficient ANN search on large vector workloads:**
-<div align=center>
-
-![Benchmarks](https://assets.timescale.com/docs/images/benchmark-comparison-pgvectorscale-pinecone.png)
-
-</div>
-
-* Perform high-performance, cost-efficient ANN search on large vector workloads with pgai's [StreamingDiskANN index](pgvectorscale/README.md), which is part of the pgvectorscale extension.
-* This index achieves 28x lower p95 latency and 16x higher query throughput compared to Pinecone. More details in the [pgvector vs Pinecone blog post](https://www.timescale.com/blog/pgvector-vs-pinecone).
-
-**Leverage LLMs for data processing tasks:**
-* Retrieve LLM chat completions from models like Claude Sonnet 3.5, OpenAI GPT4o, Cohere Command, and Llama 3 (via Ollama). ([learn more](#usage-of-pgai))
-* Reason over your data and facilitate use cases like classification, summarization, and data enrichment on your existing relational data in PostgreSQL ([see an example](/docs/openai.md)).
-
-**Useful utilities:**
-* Load datasets from Hugging Face into your database with [ai.load_dataset](/docs/load_dataset_from_huggingface.md).
-
 # Resources
 **Why we built it:**
 - [Vector Databases Are the Wrong Abstraction](https://www.timescale.com/blog/vector-databases-are-the-wrong-abstraction/)
