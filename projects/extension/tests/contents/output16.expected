@@ -21,7 +21,7 @@ CREATE EXTENSION
  function ai.disable_vectorizer_schedule(integer)
  function ai.drop_vectorizer(integer,boolean)
  function ai.embedding_ollama(text,integer,text,jsonb,text)
- function ai.embedding_openai(text,integer,text,text)
+ function ai.embedding_openai(text,integer,text,text,text)
  function ai.embedding_voyageai(text,integer,text,text)
  function ai.enable_vectorizer_schedule(integer)
  function ai.execute_vectorizer(integer)

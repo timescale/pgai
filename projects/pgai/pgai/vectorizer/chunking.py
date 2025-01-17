@@ -80,7 +80,8 @@ class LangChainCharacterTextSplitter(BaseModel, Chunker):
         Returns:
             list[str]: A list of chunked strings.
         """
-        return self._chunker.split_text(item[self.chunk_column])
+        text = item[self.chunk_column] or ""
+        return self._chunker.split_text(text)
 
 
 class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
@@ -126,4 +127,5 @@ class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
         Returns:
             list[str]: A list of chunked strings.
         """
-        return self._chunker.split_text(item[self.chunk_column])
+        text = item[self.chunk_column] or ""
+        return self._chunker.split_text(text)

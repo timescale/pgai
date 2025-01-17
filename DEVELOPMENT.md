@@ -120,12 +120,18 @@ To make changes to pgai:
          just ext psql-shell
          ```
 
-1. Stop and delete the container:
+1. Stop and start the container:
 
    ```bash
    # Stop the container
    just ext docker-stop
-   # Delete the container
+   # Start the container
+   just ext docker-start
+
+1. Delete the container:
+
+   ```bash
+   # When stopped, delete the container
    just ext docker-rm
    ```
 

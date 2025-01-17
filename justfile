@@ -1,3 +1,5 @@
+export ROOT_JUSTFILE := "1" # Note: used in extension build.py
+
 # pgai python library. List recipes with `just -l pgai`
 mod pgai 'projects/pgai/justfile'
 # pgai postgres extension. List recipes with `just -l ext`

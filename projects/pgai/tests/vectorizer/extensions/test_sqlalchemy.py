@@ -72,7 +72,7 @@ def test_sqlalchemy(
 
     with Session(initialized_engine) as session:
         # Test 1: Access embedding class directly
-        assert BlogPost.content_embeddings.__name__ == "ContentEmbeddingsEmbedding"
+        assert BlogPost.content_embeddings.__name__ == "BlogPostContentEmbeddings"
 
         # Get all embeddings directly
         all_embeddings = session.query(BlogPost.content_embeddings).all()

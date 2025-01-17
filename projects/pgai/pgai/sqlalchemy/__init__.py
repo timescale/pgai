@@ -8,7 +8,6 @@ from sqlalchemy.orm import (
     Mapper,
     Relationship,
     RelationshipProperty,
-    backref,
     mapped_column,
     relationship,
 )
@@ -32,6 +31,23 @@ class EmbeddingModel(DeclarativeBase, Generic[T]):
     embedding: Mapped[Vector]
     chunk_seq: Mapped[int]
     parent: T  # Type of the parent model
+
+
+def find_declarative_base(cls: type) -> type:
+    """Find the SQLAlchemy declarative base class in the inheritance hierarchy."""
+    for base in cls.__mro__:
+        if (
+            (
+                hasattr(base, "_sa_registry")  # Modern style
+                or hasattr(base, "__mapper__")  # Mapped class
+                or hasattr(base, "metadata")  # Legacy style
+            )
+            and
+            # Ensure it's the highest level base
+            not any(hasattr(parent, "_sa_registry") for parent in base.__bases__)
+        ):
+            return base
+    raise ValueError("No SQLAlchemy declarative base found in class hierarchy")
 
 
 class _Vectorizer:
@@ -68,14 +84,14 @@ class _Vectorizer:
         )
 
     def create_embedding_class(
-        self, owner: type[DeclarativeBase]
+        self, owner: type[DeclarativeBase], parent_kwargs: dict[str, Any]
     ) -> type[EmbeddingModel[Any]]:
         assert self.name is not None
         table_name = self.target_table or f"{owner.__tablename__}_embedding_store"
         self.set_schemas_correctly(owner)
-        class_name = f"{to_pascal_case(self.name)}Embedding"
+        class_name = f"{owner.__name__}{to_pascal_case(self.name)}"
         registry_instance = owner.registry
-        base: type[DeclarativeBase] = owner.__base__  # type: ignore
+        base = find_declarative_base(owner)
 
         # Check if table already exists in metadata
         # There is probably a better way to do this
@@ -103,6 +119,10 @@ class _Vectorizer:
             "chunk": mapped_column(Text, nullable=False),
             "embedding": mapped_column(Vector(self.dimensions), nullable=False),
             "chunk_seq": mapped_column(Integer, nullable=False),
+            "parent": relationship(
+                owner,
+                **parent_kwargs,
+            ),
         }
 
         # Add primary key columns to the dictionary
@@ -133,38 +153,37 @@ class _Vectorizer:
 
     @overload
     def __get__(
-        self, obj: None, objtype: type[DeclarativeBase]
+        self, obj: None, owner: type[DeclarativeBase]
     ) -> type[EmbeddingModel[Any]]: ...
 
     @overload
     def __get__(
-        self, obj: DeclarativeBase, objtype: type[DeclarativeBase] | None = None
+        self, obj: DeclarativeBase, owner: type[DeclarativeBase]
     ) -> Relationship[EmbeddingModel[Any]]: ...
 
     def __get__(
-        self, obj: DeclarativeBase | None, objtype: type[DeclarativeBase] | None = None
+        self, obj: DeclarativeBase | None, owner: type[DeclarativeBase]
     ) -> Relationship[EmbeddingModel[Any]] | type[EmbeddingModel[Any]]:
         assert self.name is not None
         relationship_name = f"_{self.name}_relationship"
-        if not self._initialized and objtype is not None:
-            self._embedding_class = self.create_embedding_class(objtype)
+        if not self._initialized:
+            self._embedding_class = self.create_embedding_class(
+                owner, self.relationship_args.pop("parent_kwargs", {})
+            )
 
-            mapper = inspect(objtype)
+            mapper = inspect(owner)
             assert mapper is not None
             pk_cols = mapper.primary_key
-            if not hasattr(objtype, relationship_name):
+            if not hasattr(owner, relationship_name):
                 self.relationship_instance = relationship(
                     self._embedding_class,
                     foreign_keys=[
                         getattr(self._embedding_class, col.name) for col in pk_cols
                     ],
-                    backref=self.relationship_args.pop(
-                        "backref", backref("parent", lazy="select")
-                    ),
                     **self.relationship_args,
                 )
-                setattr(objtype, f"{self.name}_model", self._embedding_class)
-                setattr(objtype, relationship_name, self.relationship_instance)
+                setattr(owner, f"{self.name}_model", self._embedding_class)
+                setattr(owner, relationship_name, self.relationship_instance)
             self._initialized = True
         if obj is None and self._initialized:
             return self._embedding_class  # type: ignore

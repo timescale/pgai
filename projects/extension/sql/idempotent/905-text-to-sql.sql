@@ -64,7 +64,7 @@ begin
     ;
 
     -- indexes
-    select pg_catalog.string_agg(pg_catalog.pg_get_indexdef(i.indexrelid, 0, true), E';\n')
+    select coalesce(pg_catalog.string_agg(pg_catalog.pg_get_indexdef(i.indexrelid, 0, true), E';\n'), '')
     into strict _indexes
     from pg_catalog.pg_index i
     where i.indrelid operator(pg_catalog.=) objid

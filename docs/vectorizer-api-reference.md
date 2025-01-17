@@ -298,6 +298,7 @@ The function takes several parameters to customize the OpenAI embedding configur
 | dimensions   | int  | -                | ✔        | Define the number of dimensions for the embedding vectors. This should match the output dimensions of the chosen model.                                                                                                                                                                   |
 | chat_user    | text | -                | ✖        | The identifier for the user making the API call. This can be useful for tracking API usage or for OpenAI's monitoring purposes.                                                                                                                                                           |
 | api_key_name | text | `OPENAI_API_KEY` | ✖        | Set [the name of the environment variable that contains the OpenAI API key][openai-use-env-var]. This allows for flexible API key management without hardcoding keys in the database. On Timescale Cloud, you should set this to the name of the secret that contains the OpenAI API key. |
+| base_url     | text | -                | ✖        | Set the base_url of the OpenAI API. Note: no default configured here to allow configuration of the vectorizer worker through `OPENAI_BASE_URL` env var.                                                                                                                                   | 
 #### Returns
 
 A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
