@@ -11,8 +11,8 @@ as $python$
     tokens = encoding.encode(text_input)
     return tokens
 $python$
-language plpython3u strict immutable parallel safe security invoker
-set search_path to pg_catalog, pg_temp
+    language plpython3u strict immutable parallel safe security invoker
+                        set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
@@ -27,30 +27,58 @@ as $python$
     content = encoding.decode(tokens)
     return content
 $python$
-language plpython3u strict immutable parallel safe security invoker
-set search_path to pg_catalog, pg_temp
+    language plpython3u strict immutable parallel safe security invoker
+                        set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
 -- openai_list_models
 -- list models supported on the openai platform
 -- https://platform.openai.com/docs/api-reference/models/list
-create or replace function ai.openai_list_models(api_key text default null, api_key_name text default null, base_url text default null)
-returns table
-( id text
-, created timestamptz
-, owned_by text
-)
+create or replace function ai.openai_list_models(
+    api_key text DEFAULT NULL,
+    api_key_name text DEFAULT NULL,
+    base_url text DEFAULT NULL,
+    extra_headers jsonb DEFAULT NULL,
+    extra_query jsonb DEFAULT NULL,
+    extra_body jsonb DEFAULT NULL,
+    timeout float8 DEFAULT NULL,
+    client_extra_args jsonb DEFAULT NULL
+) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
+    import json
+
+    # Prepare client args
+    client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
+    # Resolve key
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
-    for tup in ai.openai.list_models(plpy, api_key_resolved, base_url):
-        yield tup
+    # Create async client
+    client = ai.openai.get_or_create_client(plpy, GD, api_key_resolved, base_url, **client_kwargs)
+
+    # Prepare kwargs for the API call
+    kwargs = {}
+    # Add extra parameters if provided
+    if extra_headers is not None:
+        kwargs['extra_headers'] = json.loads(extra_headers)
+    if extra_query is not None:
+        kwargs['extra_query'] = json.loads(extra_query)
+    if extra_body is not None:
+        kwargs['extra_body'] = json.loads(extra_body)
+
+    async def async_openai_call(client, kwargs):
+        response = await client.models.with_raw_response.list(**kwargs)
+        return response.text
+
+    # Execute the API call with cancellation support
+    result = ai.openai.execute_with_cancellation(plpy, client, async_openai_call, **kwargs)
+
+    return result
 $python$
-language plpython3u volatile parallel safe security invoker
-set search_path to pg_catalog, pg_temp
+    language plpython3u immutable parallel safe security invoker
+                        set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
@@ -58,24 +86,61 @@ set search_path to pg_catalog, pg_temp
 -- generate an embedding from a text value
 -- https://platform.openai.com/docs/api-reference/embeddings/create
 create or replace function ai.openai_embed
-( model text
-, input_text text
-, api_key text default null
-, api_key_name text default null
-, base_url text default null
-, dimensions int default null
-, openai_user text default null
-) returns @extschema:vector@.vector
+( input text
+, model text
+, api_key text DEFAULT NULL
+, api_key_name text DEFAULT NULL
+, base_url text DEFAULT NULL
+, encoding_format text DEFAULT NULL
+, dimensions int DEFAULT NULL
+, openai_user text DEFAULT NULL
+, extra_headers jsonb DEFAULT NULL
+, extra_query jsonb DEFAULT NULL
+, extra_body jsonb DEFAULT NULL
+, timeout float8 DEFAULT NULL
+, client_extra_args jsonb DEFAULT NULL
+) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
+    import json
+
+    # Prepare client args
+    client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
+    # Resolve key
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
-    for tup in ai.openai.embed(plpy, model, input_text, api_key=api_key_resolved, base_url=base_url, dimensions=dimensions, user=openai_user):
-        return tup[1]
+    # Create async client
+    client = ai.openai.get_or_create_client(plpy, GD, api_key_resolved, base_url, **client_kwargs)
+
+    # Prepare kwargs for the API call
+    kwargs = ai.openai.prepare_kwargs({
+        "input": [input],
+        "model": model,
+        "encoding_format": encoding_format,
+        "dimensions": dimensions,
+        "user": openai_user,
+    })
+
+    # Add extra parameters if provided
+    if extra_headers is not None:
+        kwargs['extra_headers'] = json.loads(extra_headers)
+    if extra_query is not None:
+        kwargs['extra_query'] = json.loads(extra_query)
+    if extra_body is not None:
+        kwargs['extra_body'] = json.loads(extra_body)
+
+    async def async_openai_call(client, kwargs):
+        response = await client.embeddings.with_raw_response.create(**kwargs)
+        return response.text
+
+    # Execute the API call with cancellation support
+    result = ai.openai.execute_with_cancellation(plpy, client, async_openai_call, **kwargs)
+
+    return result
 $python$
-language plpython3u immutable parallel safe security invoker
-set search_path to pg_catalog, pg_temp
+    language plpython3u immutable parallel safe security invoker
+                        set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
@@ -83,27 +148,61 @@ set search_path to pg_catalog, pg_temp
 -- generate embeddings from an array of text values
 -- https://platform.openai.com/docs/api-reference/embeddings/create
 create or replace function ai.openai_embed
-( model text
-, input_texts text[]
-, api_key text default null
-, api_key_name text default null
-, base_url text default null
-, dimensions int default null
-, openai_user text default null
-) returns table
-( "index" int
-, embedding @extschema:vector@.vector
-)
+( input text[]
+, model text
+, api_key text DEFAULT NULL
+, api_key_name text DEFAULT NULL
+, base_url text DEFAULT NULL
+, encoding_format text DEFAULT NULL
+, dimensions int DEFAULT NULL
+, openai_user text DEFAULT NULL
+, extra_headers jsonb DEFAULT NULL
+, extra_query jsonb DEFAULT NULL
+, extra_body jsonb DEFAULT NULL
+, timeout float8 DEFAULT NULL
+, client_extra_args jsonb DEFAULT NULL
+) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
+    import json
+
+    # Prepare client args
+    client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
+    # Resolve key
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
-    for tup in ai.openai.embed(plpy, model, input_texts, api_key=api_key_resolved, base_url=base_url, dimensions=dimensions, user=openai_user):
-        yield tup
+    # Create async client
+    client = ai.openai.get_or_create_client(plpy, GD, api_key_resolved, base_url, **client_kwargs)
+
+    # Prepare kwargs for the API call
+    kwargs = ai.openai.prepare_kwargs({
+        "input": input,
+        "model": model,
+        "encoding_format": encoding_format,
+        "dimensions": dimensions,
+        "user": openai_user,
+    })
+
+    # Add extra parameters if provided
+    if extra_headers is not None:
+        kwargs['extra_headers'] = json.loads(extra_headers)
+    if extra_query is not None:
+        kwargs['extra_query'] = json.loads(extra_query)
+    if extra_body is not None:
+        kwargs['extra_body'] = json.loads(extra_body)
+
+    async def async_openai_call(client, kwargs):
+        response = await client.embeddings.with_raw_response.create(**kwargs)
+        return response.text
+
+    # Execute the API call with cancellation support
+    result = ai.openai.execute_with_cancellation(plpy, client, async_openai_call, **kwargs)
+
+    return result
 $python$
-language plpython3u immutable parallel safe security invoker
-set search_path to pg_catalog, pg_temp
+    language plpython3u immutable parallel safe security invoker
+                        set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
@@ -112,104 +211,168 @@ set search_path to pg_catalog, pg_temp
 -- https://platform.openai.com/docs/api-reference/embeddings/create
 create or replace function ai.openai_embed
 ( model text
-, input_tokens int[]
-, api_key text default null
-, api_key_name text default null
-, base_url text default null
-, dimensions int default null
-, openai_user text default null
-) returns @extschema:vector@.vector
+, input int[]
+, api_key text DEFAULT NULL
+, api_key_name text DEFAULT NULL
+, base_url text DEFAULT NULL
+, encoding_format text DEFAULT NULL
+, dimensions int DEFAULT NULL
+, openai_user text DEFAULT NULL
+, extra_headers jsonb DEFAULT NULL
+, extra_query jsonb DEFAULT NULL
+, extra_body jsonb DEFAULT NULL
+, timeout float8 DEFAULT NULL
+, client_extra_args jsonb DEFAULT NULL
+) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
+    import json
+
+    # Prepare client args
+    client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
+    # Resolve key
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
-    for tup in ai.openai.embed(plpy, model, input_tokens, api_key=api_key_resolved, base_url=base_url, dimensions=dimensions, user=openai_user):
-        return tup[1]
+    # Create async client
+    client = ai.openai.get_or_create_client(plpy, GD, api_key_resolved, base_url, **client_kwargs)
+
+    # Prepare kwargs for the API call
+    kwargs = ai.openai.prepare_kwargs({
+        "input": [input],
+        "model": model,
+        "encoding_format": encoding_format,
+        "dimensions": dimensions,
+        "user": openai_user,
+    })
+
+    # Add extra parameters if provided
+    if extra_headers is not None:
+        kwargs['extra_headers'] = json.loads(extra_headers)
+    if extra_query is not None:
+        kwargs['extra_query'] = json.loads(extra_query)
+    if extra_body is not None:
+        kwargs['extra_body'] = json.loads(extra_body)
+
+    async def async_openai_call(client, kwargs):
+        response = await client.embeddings.with_raw_response.create(**kwargs)
+        return response.text
+
+    # Execute the API call with cancellation support
+    result = ai.openai.execute_with_cancellation(plpy, client, async_openai_call, **kwargs)
+
+    return result
 $python$
-language plpython3u immutable parallel safe security invoker
-set search_path to pg_catalog, pg_temp
+    language plpython3u immutable parallel safe security invoker
+                        set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
 -- openai_chat_complete
 -- text generation / chat completion
 -- https://platform.openai.com/docs/api-reference/chat/create
-create or replace function ai.openai_chat_complete
-( model text
-, messages jsonb
-, api_key text default null
-, api_key_name text default null
-, base_url text default null
-, frequency_penalty float8 default null
-, logit_bias jsonb default null
-, logprobs boolean default null
-, top_logprobs int default null
-, max_tokens int default null
-, n int default null
-, presence_penalty float8 default null
-, response_format jsonb default null
-, seed int default null
-, stop text default null
-, temperature float8 default null
-, top_p float8 default null
-, tools jsonb default null
-, tool_choice jsonb default null
-, openai_user text default null
+CREATE OR REPLACE FUNCTION ai.openai_chat_complete
+( messages jsonb
+, model text
+, api_key text DEFAULT NULL
+, api_key_name text DEFAULT NULL
+, base_url text DEFAULT NULL
+, frequency_penalty float8 DEFAULT NULL
+, logit_bias jsonb DEFAULT NULL
+, logprobs boolean DEFAULT NULL
+, top_logprobs int DEFAULT NULL
+, max_tokens int DEFAULT NULL
+, max_completion_tokens int DEFAULT NULL
+, n int DEFAULT NULL
+, presence_penalty float8 DEFAULT NULL
+, response_format jsonb DEFAULT NULL
+, seed int DEFAULT NULL
+, stop text DEFAULT NULL
+, stream boolean DEFAULT NULL
+, temperature float8 DEFAULT NULL
+, top_p float8 DEFAULT NULL
+, tools jsonb DEFAULT NULL
+, tool_choice jsonb DEFAULT NULL
+, openai_user text DEFAULT NULL
+, metadata jsonb DEFAULT NULL
+, service_tier text DEFAULT NULL
+, store boolean DEFAULT NULL
+, parallel_tool_calls boolean DEFAULT NULL
+, extra_headers jsonb DEFAULT NULL
+, extra_query jsonb DEFAULT NULL
+, extra_body jsonb DEFAULT NULL
+, timeout float8 DEFAULT NULL
+, client_extra_args jsonb DEFAULT NULL
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
-    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
-    client = ai.openai.make_client(plpy, api_key_resolved, base_url)
     import json
 
-    messages_1 = json.loads(messages)
-    if not isinstance(messages_1, list):
+    # Process JSON inputs
+    messages_parsed = json.loads(messages)
+    if not isinstance(messages_parsed, list):
         plpy.error("messages is not an array")
 
-    logit_bias_1 = None
-    if logit_bias is not None:
-      logit_bias_1 = json.loads(logit_bias)
+    # Handle stream parameter since we cannot support it
+    stream_val = False if stream is None else stream
+    if stream_val:
+        plpy.error("Streaming is not supported in this implementation")
 
-    response_format_1 = None
-    if response_format is not None:
-      response_format_1 = json.loads(response_format)
+    # Prepare client args
+    client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
+    # Resolve key
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
+    # Create async client
+    client = ai.openai.get_or_create_client(plpy, GD, api_key_resolved, base_url, **client_kwargs)
 
-    tools_1 = None
-    if tools is not None:
-      tools_1 = json.loads(tools)
+    # Prepare kwargs for the API call
+    kwargs = ai.openai.prepare_kwargs({
+        "model": model,
+        "messages": messages_parsed,
+        "frequency_penalty": frequency_penalty,
+        "logit_bias": ai.openai.process_json_input(logit_bias),
+        "logprobs": logprobs,
+        "top_logprobs": top_logprobs,
+        "max_tokens": max_tokens,
+        "max_completion_tokens": max_completion_tokens,
+        "n": n,
+        "presence_penalty": presence_penalty,
+        "response_format": ai.openai.process_json_input(response_format),
+        "seed": seed,
+        "stop": stop,
+        "temperature": temperature,
+        "top_p": top_p,
+        "tools": ai.openai.process_json_input(tools),
+        "tool_choice": ai.openai.process_json_input(tool_choice),
+        "user": openai_user,
+        "metadata": ai.openai.process_json_input(metadata),
+        "service_tier": service_tier,
+        "store": store,
+        "parallel_tool_calls": parallel_tool_calls,
+        "timeout": timeout,
+    })
 
-    tool_choice_1 = None
-    if tool_choice is not None:
-      tool_choice_1 = json.loads(tool_choice)
+    # Add extra parameters if provided
+    if extra_headers is not None:
+        kwargs['extra_headers'] = json.loads(extra_headers)
+    if extra_query is not None:
+        kwargs['extra_query'] = json.loads(extra_query)
+    if extra_body is not None:
+        kwargs['extra_body'] = json.loads(extra_body)
 
-    response = client.chat.completions.create(
-      model=model
-    , messages=messages_1
-    , frequency_penalty=frequency_penalty
-    , logit_bias=logit_bias_1
-    , logprobs=logprobs
-    , top_logprobs=top_logprobs
-    , max_tokens=max_tokens
-    , n=n
-    , presence_penalty=presence_penalty
-    , response_format=response_format_1
-    , seed=seed
-    , stop=stop
-    , stream=False
-    , temperature=temperature
-    , top_p=top_p
-    , tools=tools_1
-    , tool_choice=tool_choice_1
-    , user=openai_user
-    )
+    async def async_openai_call(client, kwargs):
+        response = await client.chat.completions.with_raw_response.create(**kwargs)
+        return response.text
 
-    return response.model_dump_json()
+    # Execute the API call with cancellation support
+    result = ai.openai.execute_with_cancellation(plpy, client, async_openai_call, **kwargs)
+
+    return result
 $python$
-language plpython3u volatile parallel safe security invoker
-set search_path to pg_catalog, pg_temp
+    LANGUAGE plpython3u volatile parallel safe security invoker
+                        SET search_path TO pg_catalog, pg_temp
 ;
 
 ------------------------------------------------------------------------------------
@@ -217,8 +380,8 @@ set search_path to pg_catalog, pg_temp
 -- simple chat completion that only requires a message and only returns the response
 create or replace function ai.openai_chat_complete_simple
 ( message text
-, api_key text default null
-, api_key_name text default null
+, api_key text DEFAULT NULL
+, api_key_name text DEFAULT NULL
 ) returns text
 as $$
 declare
@@ -226,17 +389,17 @@ declare
     messages jsonb;
 begin
     messages := pg_catalog.jsonb_build_array(
-        pg_catalog.jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant'),
-        pg_catalog.jsonb_build_object('role', 'user', 'content', message)
-    );
+            pg_catalog.jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant'),
+            pg_catalog.jsonb_build_object('role', 'user', 'content', message)
+                );
     return ai.openai_chat_complete(model, messages, api_key, api_key_name)
-        operator(pg_catalog.->)'choices'
-        operator(pg_catalog.->)0
-        operator(pg_catalog.->)'message'
+               operator(pg_catalog.->)'choices'
+               operator(pg_catalog.->)0
+               operator(pg_catalog.->)'message'
         operator(pg_catalog.->>)'content';
 end;
 $$ language plpgsql volatile parallel safe security invoker
-set search_path to pg_catalog, pg_temp
+                    set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
@@ -244,21 +407,105 @@ set search_path to pg_catalog, pg_temp
 -- classify text as potentially harmful or not
 -- https://platform.openai.com/docs/api-reference/moderations/create
 create or replace function ai.openai_moderate
-( model text
-, input_text text
-, api_key text default null
-, api_key_name text default null
-, base_url text default null
+(   input text,
+    api_key text DEFAULT NULL,
+    api_key_name text DEFAULT NULL,
+    base_url text DEFAULT NULL,
+    model text DEFAULT NULL,
+    extra_headers jsonb DEFAULT NULL,
+    extra_query jsonb DEFAULT NULL,
+    extra_body jsonb DEFAULT NULL,
+    timeout float8 DEFAULT NULL,
+    client_extra_args jsonb DEFAULT NULL
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
+    import json
+
+    # Prepare client args
+    client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
+    # Resolve key
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
-    client = ai.openai.make_client(plpy, api_key_resolved, base_url)
-    moderation = client.moderations.create(input=input_text, model=model)
-    return moderation.model_dump_json()
+    # Create async client
+    client = ai.openai.get_or_create_client(plpy, GD, api_key_resolved, base_url, **client_kwargs)
+
+    # Prepare kwargs for the API call
+    kwargs = ai.openai.prepare_kwargs({
+        "model": model,
+        "input": input,
+    })
+
+    # Add extra parameters if provided
+    if extra_headers is not None:
+        kwargs['extra_headers'] = json.loads(extra_headers)
+    if extra_query is not None:
+        kwargs['extra_query'] = json.loads(extra_query)
+    if extra_body is not None:
+        kwargs['extra_body'] = json.loads(extra_body)
+
+    async def async_openai_call(client, kwargs):
+        response = await client.moderations.with_raw_response.create(**kwargs)
+        return response.text
+
+    # Execute the API call with cancellation support
+    result = ai.openai.execute_with_cancellation(plpy, client, async_openai_call, **kwargs)
+
+    return result
 $python$
-language plpython3u immutable parallel safe security invoker
-set search_path to pg_catalog, pg_temp
+    language plpython3u stable parallel safe security invoker
+                        set search_path to pg_catalog, pg_temp
+;
+
+create or replace function ai.openai_moderate
+(   input text[],
+    api_key text DEFAULT NULL,
+    api_key_name text DEFAULT NULL,
+    base_url text DEFAULT NULL,
+    model text DEFAULT NULL,
+    extra_headers jsonb DEFAULT NULL,
+    extra_query jsonb DEFAULT NULL,
+    extra_body jsonb DEFAULT NULL,
+    timeout float8 DEFAULT NULL,
+    client_extra_args jsonb DEFAULT NULL
+) returns jsonb
+as $python$
+    #ADD-PYTHON-LIB-DIR
+    import ai.openai
+    import ai.secrets
+    import json
+
+    # Prepare client args
+    client_kwargs = ai.openai.process_json_input(client_extra_args) if client_extra_args is not None else {}
+    # Resolve key
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
+    # Create async client
+    client = ai.openai.get_or_create_client(plpy, GD, api_key_resolved, base_url, **client_kwargs)
+
+    # Prepare kwargs for the API call
+    kwargs = ai.openai.prepare_kwargs({
+        "model": model,
+        "input": input,
+    })
+
+    # Add extra parameters if provided
+    if extra_headers is not None:
+        kwargs['extra_headers'] = json.loads(extra_headers)
+    if extra_query is not None:
+        kwargs['extra_query'] = json.loads(extra_query)
+    if extra_body is not None:
+        kwargs['extra_body'] = json.loads(extra_body)
+
+    async def async_openai_call(client, kwargs):
+        response = await client.moderations.with_raw_response.create(**kwargs)
+        return response.text
+
+    # Execute the API call with cancellation support
+    result = ai.openai.execute_with_cancellation(plpy, client, async_openai_call, **kwargs)
+
+    return result
+$python$
+    language plpython3u stable parallel unsafe security invoker
+                        set search_path to pg_catalog, pg_temp
 ;
