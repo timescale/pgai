@@ -86,6 +86,9 @@ format-py:
 reformat-py:
 	@./build.py reformat-py
 
+check-requirements:
+    @./build.py check-requirements
+
 docker-build:
 	@PG_MAJOR={{PG_MAJOR}} ./build.py docker-build
 

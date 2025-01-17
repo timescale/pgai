@@ -656,7 +656,7 @@ def test_server() -> None:
             """
         subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
     else:
-        cmd = "fastapi dev server.py"
+        cmd = "uv run fastapi dev server.py"
         subprocess.run(
             cmd,
             shell=True,
@@ -667,7 +667,9 @@ def test_server() -> None:
 
 
 def test() -> None:
-    subprocess.run("pytest", shell=True, check=True, env=os.environ, cwd=tests_dir())
+    subprocess.run(
+        "uv run pytest", shell=True, check=True, env=os.environ, cwd=tests_dir()
+    )
 
 
 def lint_sql() -> None:
@@ -683,7 +685,9 @@ def lint_sql() -> None:
 
 
 def lint_py() -> None:
-    subprocess.run(f"ruff check {ext_dir()}", shell=True, check=True, env=os.environ)
+    subprocess.run(
+        f"uv run ruff check {ext_dir()}", shell=True, check=True, env=os.environ
+    )
 
 
 def lint() -> None:
@@ -693,12 +697,55 @@ def lint() -> None:
 
 def format_py() -> None:
     subprocess.run(
-        f"ruff format --diff {ext_dir()}", shell=True, check=True, env=os.environ
+        f"uv run ruff format --diff {ext_dir()}", shell=True, check=True, env=os.environ
     )
 
 
 def reformat_py() -> None:
     subprocess.run(f"ruff format {ext_dir()}", shell=True, check=True, env=os.environ)
+
+
+def check_requirements() -> None:
+    """
+    Verifies that requirements-lock.txt is up to date with pyproject.toml.
+    Creates a temporary file with the current state and compares it with the existing lock file.
+    """
+    if shutil.which("uv") is None:
+        fatal("uv not found")
+
+    # Create a temporary file to store current requirements
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt") as tmp_file:
+        # Generate current requirements
+        subprocess.run(
+            f"uv export --quiet --format requirements-txt -o {tmp_file.name}",
+            shell=True,
+            check=True,
+            env=os.environ,
+            text=True,
+        )
+
+        # Read both files
+        lock_file = ext_dir() / "requirements-lock.txt"
+        if not lock_file.exists():
+            fatal(
+                "requirements-lock.txt does not exist. Run 'uv export --format requirements-txt -o requirements-lock.txt' to create it."
+            )
+
+        from difflib import unified_diff
+
+        with open(lock_file, "r") as f1, open(tmp_file.name, "r") as f2:
+            # Skip the first 3 lines when reading both files since the contain a line with the file name
+            # which will always be different
+            lock_contents = f1.readlines()[3:]
+            current_contents = f2.readlines()[3:]
+
+            diff = list(unified_diff(lock_contents, current_contents))
+            if diff:
+                fatal(
+                    "requirements-lock.txt is out of sync with uv.lock.\n"
+                    "Run 'uv export --format requirements-txt -o requirements-lock.txt' to update it.\n"
+                    + "".join(diff)
+                )
 
 
 def docker_build() -> None:
@@ -721,6 +768,7 @@ def docker_run() -> None:
             "docker run -d --name pgai-ext --hostname pgai-ext -e POSTGRES_HOST_AUTH_METHOD=trust",
             networking,
             f"--mount type=bind,src={ext_dir()},dst=/pgai",
+            "--mount type=volume,dst=/pgai/.venv",
             "-e TEST_ENV_SECRET=super_secret",
             "pgai-ext",
             "-c shared_preload_libraries='timescaledb, pgextwlist'",
@@ -812,6 +860,8 @@ if __name__ == "__main__":
             format_py()
         elif action == "reformat-py":
             reformat_py()
+        elif action == "check-requirements":
+            check_requirements()
         elif action == "docker-build":
             docker_build()
         elif action == "docker-run":
