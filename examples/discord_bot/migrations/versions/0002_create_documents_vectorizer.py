@@ -10,8 +10,8 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-from pgai.alembic.configuration import OpenAIConfig, RecursiveCharacterTextSplitterConfig, \
-    PythonTemplateConfig
+from pgai.vectorizer.configuration import EmbeddingOpenaiConfig, ChunkingRecursiveCharacterTextSplitterConfig, \
+    FormattingPythonTemplateConfig
 
 # revision identifiers, used by Alembic.
 revision: str = '0002'
@@ -24,18 +24,18 @@ def upgrade() -> None:
     op.execute("CREATE EXTENSION IF NOT EXISTS ai CASCADE;")
     op.create_vectorizer(
         source_table="documents",
-        embedding=OpenAIConfig(
+        embedding=EmbeddingOpenaiConfig(
             model='text-embedding-3-small',
             dimensions=768
         ),
-        chunking=RecursiveCharacterTextSplitterConfig(
+        chunking=ChunkingRecursiveCharacterTextSplitterConfig(
             chunk_column='content',
             chunk_size=800,
             chunk_overlap=200,
         ),
-        formatting=PythonTemplateConfig(template='$file_name \n $chunk')
+        formatting=FormattingPythonTemplateConfig(template='$file_name \n $chunk')
     )
 
 
 def downgrade() -> None:
-    op.drop_vectorizer(vectorizer_id=1, drop_all=True)
+    op.drop_vectorizer("documents_embedding_store", drop_all=True)

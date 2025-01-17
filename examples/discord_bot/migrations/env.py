@@ -1,4 +1,6 @@
 import asyncio
+import os
+from dotenv import load_dotenv
 from logging.config import fileConfig
 
 from alembic.script import ScriptDirectory
@@ -10,11 +12,13 @@ from pgai_discord_bot.main import Base
 from pgai_discord_bot.main import engine as async_engine
 
 from pgai.alembic import register_operations
-
+load_dotenv()
 register_operations()
 
 # this is the Alembic Config object
 config = context.config
+
+config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"])
 
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:

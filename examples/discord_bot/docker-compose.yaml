@@ -1,5 +1,16 @@
 name: pgai
 services:
+  bot:
+    build:
+      dockerfile: Dockerfile
+      context: .
+      additional_contexts:
+        docs: ../../docs
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db/postgres
+      DOCS_PATH: /app/docs
+    volumes:
+      - ../../docs:/app/docs
   db:
     image: timescale/timescaledb-ha:pg17
     environment:

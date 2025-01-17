@@ -1,10 +1,11 @@
+import logging
 import os
 import re
 
 from dotenv import load_dotenv
 from sqlalchemy import Column, Integer, String, text, Text, select, func
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from sqlalchemy.orm import declarative_base, backref, joinedload
+from sqlalchemy.orm import declarative_base, joinedload
 import discord
 
 from openai import AsyncOpenAI
@@ -15,20 +16,21 @@ load_dotenv()
 
 # Create async engine
 engine = create_async_engine(
-    "postgresql+asyncpg://postgres:postgres@localhost/postgres",
+    os.environ["DATABASE_URL"],
     echo=True,
     future=True
 )
 
-# Create a base class for declarative models
-Base = declarative_base()
-
-# Create async session factory
 async_session = async_sessionmaker(
     engine
 )
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-# Example model
+Base = declarative_base()
 class Document(Base):
     __tablename__ = "documents"
 
@@ -37,21 +39,7 @@ class Document(Base):
     content = Column(Text())
     content_embeddings = vectorizer_relationship(
         dimensions=768,
-        backref=backref("parent", lazy="joined")
     )
-
-
-# Example usage
-async def main():
-    async with async_session() as session:
-        document = Document(file_name="test.md", content="Hello, world!")
-        session.add(document)
-        await session.commit()
-
-    async with async_session() as session:
-        docs = await session.execute(text("SELECT * FROM documents"))
-        for doc in docs:
-            print(doc)
 
 openai_client = AsyncOpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),  # This is the default and can be omitted
@@ -60,7 +48,8 @@ openai_client = AsyncOpenAI(
 async def retrieve_relevant_documents(user_message: str) -> str:
     async with async_session() as session:
         async with session.begin():
-            statement = select(Document.content_embeddings).order_by(
+            statement = select(Document.content_embeddings).options(
+                joinedload(Document.content_embeddings.parent)).order_by(  # type: ignore
                     Document.content_embeddings.embedding.cosine_distance(
                         func.ai.openai_embed(
                             "text-embedding-3-small",
@@ -70,14 +59,15 @@ async def retrieve_relevant_documents(user_message: str) -> str:
                     )
                 ).limit(5)
             result = await session.execute(statement)
-            relevant_docs = result.scalars().all() # type: ignore
+            relevant_docs = result.scalars().all()  # type: ignore
             results = "\n".join([f"{doc.parent.file_name}: {doc.chunk}" for doc in relevant_docs])
-            print("Query", user_message)
-            print("Results:", results)
+            logger.info("Query", user_message)
+            logger.info("Results:", results)
             return results
 
+
 async def ask_ai(bot: discord.ClientUser, previous_messages: list[discord.Message], relevant_docs: str) -> str:
-    print("Trying with these docs:", relevant_docs)
+    logger.info("Responding with these docs:", relevant_docs)
     system_message = {
         "content": f"""
         You're the pgai documentation bot. Try to help the user with answering any questions about pgai based on this system message.
@@ -107,8 +97,20 @@ async def ask_ai(bot: discord.ClientUser, previous_messages: list[discord.Messag
         model="gpt-4o",
     )
     return chat_completion.choices[0].message.content or chat_completion.choices[0].message.refusal # type: ignore
-    
-    
+
+
+async def summarize_chat(chat: list[discord.Message], response: str) -> str:
+    message = {
+        "content": "Write a concise title for this chat history. Focus on what the user asks about."
+                   "Keep it shorter than 8 words \n" 
+                   + "\n".join([f"{message.author}: {message.content}" for message in chat] + [response]),
+        "role": "user",
+    }
+    chat_completion = await openai_client.chat.completions.create(
+        messages=[message], # type: ignore
+        model="gpt-4o",
+    )
+    return chat_completion.choices[0].message.content or chat_completion.choices[0].message.refusal # type: ignore
 
 
 class MyClient(discord.Client):
@@ -132,7 +134,7 @@ class MyClient(discord.Client):
         return (channel.id == self.channel_id), channel # type: ignore
     
     async def on_ready(self):
-        print(f'Logged on as {self.user}!')
+        logger.info(f'Logged on as {self.user}!')
     
     async def on_message(self, message: discord.WebhookMessage):
         assert self.user is not None
@@ -156,6 +158,9 @@ class MyClient(discord.Client):
             messages.append(thread_message)
         response = await ask_ai(self.user, messages, docs)
         await thread.send(response)
+        if thread.name == "Discussion with " + message.author.name:
+            title = await summarize_chat(messages, response)
+            await thread.edit(name=title)
         
             
 if __name__ == "__main__":
