@@ -20,8 +20,6 @@ anyio==4.8.0
     #   anthropic
     #   httpx
     #   openai
-async-timeout==5.0.1
-    # via aiohttp
 attrs==24.3.0
     # via aiohttp
 backoff==2.2.1
@@ -51,8 +49,6 @@ distro==1.9.0
     # via
     #   anthropic
     #   openai
-exceptiongroup==1.2.2
-    # via anyio
 fastavro==1.10.0
     # via cohere
 filelock==3.16.1
@@ -188,7 +184,6 @@ typing-extensions==4.12.2
     #   anyio
     #   cohere
     #   huggingface-hub
-    #   multidict
     #   openai
     #   pydantic
     #   pydantic-core

@@ -80,6 +80,9 @@ lint:
 format-py:
 	@./build.py format-py
 
+check-requirements:
+    @./build.py check-requirements
+
 docker-build:
 	@PG_MAJOR={{PG_MAJOR}} ./build.py docker-build
 
