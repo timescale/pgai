@@ -8,6 +8,7 @@ Built with python, py-cord, sqlalchemy and pgai.
 You will need a .env file with the following variables:
 
 ```shell
+DATABASE_ULR=postgresql+asyncpg://postgres:postgres@localhost/postgres
 OPENAI_API_KEY=xxx
 DISCORD_BOT_TOKEN=xxx
 DISCORD_CHANNEL_ID=123
@@ -26,6 +27,11 @@ You'll also need to install the python requirements with:
 uv sync
 ```
 
+To run the migrations to create_necessary tables run:
+```shell
+uv run alembic upgrade head
+```
+
 To populate the database with our docs run the insert_docs.py script with:
 ```shell
 uv run python insert_docs.py
@@ -38,3 +44,11 @@ uv run python main.py
 ```
 
 The bot will answer questions by responding threads in the specified channel.
+
+## Build the docker container
+To build the docker container run:
+```shell
+docker build --build-context docs=../../docs . -t discord_bot
+```
+
+All files in the docs folder are inserted into the db on startup.

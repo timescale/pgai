@@ -83,13 +83,20 @@ async def process_markdown_files(
 
     return processed_count, failed_files
 
+
 def get_docs_directory() -> Path:
-    """Get the absolute path to the docs directory relative to this script."""
-    # Get the directory where the current script is located
+    """
+    Get the docs directory path from DOCS_PATH environment variable 
+    or fall back to docs directory next to script.
+    """
+    docs_env_path = os.getenv('DOCS_PATH')
+    if docs_env_path:
+        return Path(docs_env_path).resolve()
+
+    # Fallback: navigate up three directories and into docs
     script_location = Path(__file__).resolve().parent
-    # Navigate up three directories and into docs
     docs_path = script_location.parent.parent.parent / 'docs'
-    return docs_path.resolve()  # Resolve any symlinks and get absolute path
+    return docs_path.resolve()
 
 # Example usage:
 async def main():
