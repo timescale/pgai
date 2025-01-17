@@ -79,12 +79,21 @@ def is_query_cancelled(plpy):
 def execute_with_cancellation(plpy, client: openai.AsyncOpenAI, async_func: Callable[[openai.AsyncOpenAI, Dict[str, Any]], Awaitable[Dict[str, Any]]], **kwargs) -> Dict[str, Any]:
     async def main():
         task = asyncio.create_task(async_func(client, kwargs))
-        while not task.done():
-            if is_query_cancelled(plpy):
-                task.cancel()
-                raise plpy.SPIError("Query cancelled by user")
-            await asyncio.sleep(0.1)  # 100ms
-        return await task
+        try:
+            while True:
+                # Wait first to see if task completes within timeout
+                await asyncio.wait([task], timeout=0.1)
+
+                if task.done():
+                    return await task
+
+                if is_query_cancelled(plpy):
+                    task.cancel()
+                    raise plpy.SPIError("Query cancelled by user")
+
+        except Exception:
+            task.cancel()
+            raise
 
     loop = asyncio.get_event_loop()
     result = loop.run_until_complete(main())
