@@ -987,6 +987,7 @@ wheels = [
 
 [[package]]
 name = "pgai"
+version = "0.6.1.dev0"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
