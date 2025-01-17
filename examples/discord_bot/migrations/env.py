@@ -12,6 +12,7 @@ from pgai_discord_bot.main import Base
 from pgai_discord_bot.main import engine as async_engine
 
 from pgai.alembic import register_operations
+
 load_dotenv()
 register_operations()
 
@@ -39,15 +40,19 @@ def process_revision_directives(context, revision, directives):
         new_rev_id = 1
     else:
         # default branch with incrementation
-        last_rev_id = int(head_revision.lstrip('0'))
+        last_rev_id = int(head_revision.lstrip("0"))
         new_rev_id = last_rev_id + 1
     # fill zeros up to 4 digits: 1 -> 0001
-    migration_script.rev_id = '{0:04}'.format(new_rev_id)
+    migration_script.rev_id = "{0:04}".format(new_rev_id)
+
 
 def include_object(object, name, type_, reflected, compare_to):
-    if type_ == "table" and name in target_metadata.info.get("pgai_managed_tables", set()):
+    if type_ == "table" and name in target_metadata.info.get(
+        "pgai_managed_tables", set()
+    ):
         return False
     return True
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
@@ -58,21 +63,24 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         process_revision_directives=process_revision_directives,
-        include_object=include_object
+        include_object=include_object,
     )
 
     with context.begin_transaction():
         context.run_migrations()
 
+
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection,
-                      target_metadata=target_metadata,
-                      process_revision_directives=process_revision_directives,
-                      include_object=include_object
-                      )
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        process_revision_directives=process_revision_directives,
+        include_object=include_object,
+    )
 
     with context.begin_transaction():
         context.run_migrations()
+
 
 async def run_async_migrations() -> None:
     """In this scenario we need to create an Engine
@@ -85,10 +93,12 @@ async def run_async_migrations() -> None:
 
     await connectable.dispose()
 
+
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
 
     asyncio.run(run_async_migrations())
+
 
 if context.is_offline_mode():
     run_migrations_offline()
