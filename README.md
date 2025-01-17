@@ -11,9 +11,15 @@
 [![Try Timescale for free](https://img.shields.io/badge/Try_Timescale_for_free-black?style=for-the-badge&logo=timescale&logoColor=white)](https://tsdb.co/gh-pgai-signup)
 </div>
 
-pgai is a PostgreSQL extension that simplifies data storage and retrieval for [Retrieval Augmented Generation](https://en.wikipedia.org/wiki/Prompt_engineering#Retrieval-augmented_generation) (RAG), and other AI applications.
-In particular, it automates the creation and sync of embeddings for your data stored in PostgreSQL, simplifies
-[semantic search](https://en.wikipedia.org/wiki/Semantic_search), and allows you to call LLM models from SQL.
+Supercharge your PostgreSQL database with AI capabilities. Supports:  
+
+- Automatic creation and synchronization of vector embeddings for your data  
+- Seamless vector and semantic search  
+- Retrieval Augmented Generation (RAG) directly in SQL
+- Ability to call out to leading LLMs like OpenAI, Ollama, Cohere, and more via SQL.
+- Built-in utilities for dataset loading and processing 
+
+All with the reliability, scalability, and ACID compliance of PostgreSQL. 
 
 <div align=center>
 
@@ -37,7 +43,9 @@ See the [install from source](/docs/install_from_source.md) guide for instructio
 
 # Quick Start
 
-This section will walk you through the steps to get started with pgai and Ollama using docker and show you the major features of pgai. We also have a [quick start with OpenAI](/docs/vectorizer-quick-start-openai.md) and a [quick start with Voyage AI](/docs/vectorizer-quick-start-voyage.md).
+This section will walk you through the steps to get started with pgai and Ollama using docker and show you the major features of pgai. 
+
+Please note that using Ollama requires a large (>4GB) download of the docker image and model. If you don't want to download so much data, you may want to use the [OpenAI quick start](/docs/vectorizer-quick-start-openai.md) or [VoyageAI quick start](/docs/vectorizer-quick-start-voyage.md) instead.
 
 ### Setup
 
@@ -62,7 +70,7 @@ This section will walk you through the steps to get started with pgai and Ollama
     docker compose exec ollama ollama pull tinyllama
     ```
 
-### Create a table and run a vectorizer
+### Create a table, run a vectorizer, and perform semantic search
 
 1. **Connect to the database in your local developer environment**
    The easiest way connect to the database is with the following command:
@@ -94,7 +102,8 @@ This section will walk you through the steps to get started with pgai and Ollama
 
 1. **Create a vectorizer for `wiki`**
 
-    We'll create a vectorizer that will automatically create embeddings for the `text` column in the `wiki` table.
+    To enable semantic search on the `wiki` table, we need to create vector embeddings for the `text` column.
+    We use a vectorizer to automatically create these embeddings and keep them in sync with the data in the  `wiki` table.
     
     ```sql
     SELECT ai.create_vectorizer(
@@ -125,7 +134,9 @@ This section will walk you through the steps to get started with pgai and Ollama
     
 1. **Search the embeddings**
 
-    We'll search the embeddings for the concept of "properties of light"
+    We'll search the embeddings for the concept of "properties of light" even though these words are not in the text of the articles. This is possible because vector embeddings capture the semantic meaning of the text.
+    
+    Semantic search is a powerful feature in its own right, but it is also a key component of Retrieval Augmented Generation (RAG).
 
     ```sql
     SELECT title, chunk
@@ -133,6 +144,8 @@ This section will walk you through the steps to get started with pgai and Ollama
     ORDER BY embedding <=> ai.ollama_embed('all-minilm', 'properties of light')
     LIMIT 1;
     ```
+    
+    This query selects from the `wiki_embeddings` view, which is created by the vectorizer and joins the embeddings with the original data in the `wiki` table to give us the ability to search using the embeddings but still be able to access (or filter on) all the data in the original table (e.g. the `title` column).
     
     Note the `ai.ollama_embed` function is used to call the `all-minilm` model. This is part of pgai's  [model calling capabilities](#model-calling).
 
@@ -144,25 +157,88 @@ This section will walk you through the steps to get started with pgai and Ollama
  
  1. **Modify your data and have the vectorizer automatically update the embeddings**
  
-    We'll modify the data in the `wiki` table and have the vectorizer automatically update the embeddings.
+    We'll add a row about pgai to the `wiki` table and have the vectorizer automatically update the embeddings.
     
     ```sql
-    INSERT INTO wiki (id, url, title, text) VALUES (11,'https://en.wikipedia.org/wiki/Light', 'Properties of light', 'Light is a form of electromagnetic radiation that can be detected by the human eye. It is a key component of the electromagnetic spectrum, which includes radio waves, microwaves, infrared, ultraviolet, and X-rays.');
+    INSERT INTO wiki (id, url, title, text) VALUES (11,'https://en.wikipedia.org/wiki/Pgai', 'pgai - Power your AI applications with PostgreSQL', 'pgai is a tool to make developing RAG and other AI applications easier. It makes it simple to give an LLM access to data in your PostgreSQL database by enabling semantic search on your data and using the results as part of the Retrieval Augmented Generation (RAG) pipeline. This allows the LLM to answer questions about your data without needing to being trained on your data.');
     ```
-    And now you don't need to do anything to update the embeddings. The vectorizer will automatically create the embeddings for the new row with any intervention from you. After a few seconds, you can run the search query again to see the new embedding.
+    And now you don't need to do anything to update the embeddings. The vectorizer will automatically create the embeddings for the new row without any intervention from you. After a few seconds, you can run a search query related to the new entry and see it returned as part of the results:
+    
+    ```sql
+    SELECT title, chunk
+    FROM wiki_embeddings 
+    ORDER BY embedding <=> ai.ollama_embed('all-minilm', 'AI tools')
+    LIMIT 1;
+    ```
+### Perform Retrieval Augmented Generation (RAG)
+
+**Use RAG to answer questions about pgai**
+
+We'll create a function that uses RAG to allow an LLM to answer questions about pgai based on the wiki entry we added.
+
+RAG involves two steps:
+1. Perform a similarity search to find the most relevant chunks of data.
+2. Use the LLM to generate a response using the relevant chunks as context.
+
+```sql
+CREATE OR REPLACE FUNCTION generate_rag_response(query_text TEXT)
+RETURNS TEXT AS $$
+DECLARE
+    context_chunks TEXT;
+    response JSONB;
+BEGIN
+    -- Perform similarity search to find relevant wiki article
+    SELECT string_agg(title || ': ' || chunk, E'\n') INTO context_chunks
+    FROM
+    (
+        SELECT title, chunk
+        FROM wiki_embeddings 
+        ORDER BY embedding <=> ai.ollama_embed('all-minilm', query_text)
+        LIMIT 1
+    ) AS relevant_posts;
+
+    raise notice 'Context provided to LLM: %', context_chunks;
+    
+    -- Generate a summary using tinyllama
+    select ai.ollama_generate('tinyllama', 
+    query_text || E'\nUse the following context to respond.\n' || context_chunks) INTO response;
+
+    RETURN response->>'response';
+END;
+$$ LANGUAGE plpgsql;
+```
+
+Then, we can use the function to answer questions about the wiki data.
+
+```sql
+SELECT generate_rag_response('What can I use pgai for?') as response; 
+```
+
+The output will look like this:
+
+| response |
+|-----------------------|
+|   PGAI is a tool that makes it easier for developers to create AI applications by providing access to data in a PostgreSQL database using Semantic Search and answering RAG (Recommendation and Answer Generation) questions. This allows the LLM (Language Model) to answer questions about unseen data without being trained on your data, making it an important tool for building accurate and efficient AI applications. The context suggests that PGAI can be useful in a variety of industries or use cases where data access is critical, such as healthcare, finance, or customer service. |
+
 
 ### Generate a summary of the article in the database
-1. **Generate a summary of the article in the database**
+**Generate a summary of the article in the database**
 
-    We'll generate a summary of the search results using the `ai.ollama_generate` function (this will take a few minutes).
+We'll generate a summary of the search results using the `ai.ollama_generate` function (this will take a few minutes).
 
-    ```sql
-    SELECT answer->>'response' as summary
-    FROM ai.ollama_generate('tinyllama', 
-    'Please summarize: '|| (SELECT text FROM wiki WHERE title='Albedo')) as answer;
-    ```
-  
-    This is just one example of [model calling capabilities](#model-calling). Model calling can be used for a variety of tasks, including classification, summarization, moderation, and other forms of data enrichment. 
+```sql
+SELECT answer->>'response' as summary
+FROM ai.ollama_generate('tinyllama', 
+'Summarize the following and output the summary in a single sentence: '|| (SELECT text FROM wiki WHERE title like 'pgai%')) as answer;
+```
+
+The output will look like this:
+
+| summary |
+|--------------------------------|
+| Pgai is a tool that simplifies the process of making AI applications easier by providing easy access to data in PostgreSQL and enabling semantic search on the data for the Retrieval Augmented Generation (RAG) pipeline. This allows the AI system to answer questions about unseen data without being trained on it, simplifying the entire process. |
+
+This is just one example of [model calling capabilities](#model-calling). Model calling can be used for a variety of tasks, including classification, summarization, moderation, and other forms of data enrichment. 
     
 # Features 
 
