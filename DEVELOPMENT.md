@@ -166,6 +166,20 @@ To set up the tests:
 
    Providing these keys automatically enables the corresponding tests.
 
+### Dependency management in the pgai extension
+
+For development the extension uses uv just like in the pgai library. The dependencies are managed in the [pyproject.toml](./projects/extension/pyproject.toml) file.
+Uv is already installed in the dockerfile, if you want to use it in your local environment follow uvs [instructions](https://github.com/astral-sh/uv#installation).
+1. The basic commands are:
+   1. **Install dependencies**: `uv sync`
+   2. **Add a new dependency**: `uv add <package-name>`
+   3. **Remove a dependency**: `uv remove <package-name>`
+
+1. Locking:
+   - Uv locks dependencies in a `uv.lock` file. However using this requires uv to be installed. 
+   To make installation of the extension simpler we also check a requirements-lock.txt file into the repository.
+   Setuptools uses this requirements-lock.txt file to install the dependencies without uv. This file is automatically exported from
+   the uv.lock file via: `uv export --format requirements-txt -o requirements-lock.txt`.
 
 ### The pgai extension architecture
 
