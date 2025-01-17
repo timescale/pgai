@@ -714,44 +714,38 @@ def check_requirements() -> None:
         fatal("uv not found")
 
     # Create a temporary file to store current requirements
-    with tempfile.NamedTemporaryFile(
-        mode="w+", delete=False, suffix=".txt"
-    ) as tmp_file:
-        try:
-            # Generate current requirements
-            subprocess.run(
-                f"uv export --quiet --format requirements-txt -o {tmp_file.name}",
-                shell=True,
-                check=True,
-                env=os.environ,
-                text=True,
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt") as tmp_file:
+        # Generate current requirements
+        subprocess.run(
+            f"uv export --quiet --format requirements-txt -o {tmp_file.name}",
+            shell=True,
+            check=True,
+            env=os.environ,
+            text=True,
+        )
+
+        # Read both files
+        lock_file = ext_dir() / "requirements-lock.txt"
+        if not lock_file.exists():
+            fatal(
+                "requirements-lock.txt does not exist. Run 'uv export --format requirements-txt -o requirements-lock.txt' to create it."
             )
 
-            # Read both files
-            lock_file = ext_dir() / "requirements-lock.txt"
-            if not lock_file.exists():
+        from difflib import unified_diff
+
+        with open(lock_file, "r") as f1, open(tmp_file.name, "r") as f2:
+            # Skip the first 3 lines when reading both files since the contain a line with the file name
+            # which will always be different
+            lock_contents = f1.readlines()[3:]
+            current_contents = f2.readlines()[3:]
+
+            diff = list(unified_diff(lock_contents, current_contents))
+            if diff:
                 fatal(
-                    "requirements-lock.txt does not exist. Run 'uv export --format requirements-txt -o requirements-lock.txt' to create it."
+                    "requirements-lock.txt is out of sync with uv.lock.\n"
+                    "Run 'uv export --format requirements-txt -o requirements-lock.txt' to update it.\n"
+                    "".join(diff)
                 )
-
-            from difflib import unified_diff
-
-            with open(lock_file, "r") as f1, open(tmp_file.name, "r") as f2:
-                # Skip the first 3 lines when reading both files since the contain a line with the file name
-                # which will always be different
-                lock_contents = f1.readlines()[3:]
-                current_contents = f2.readlines()[3:]
-
-                diff = list(unified_diff(lock_contents, current_contents))
-                if diff:
-                    fatal(
-                        "requirements-lock.txt is out of sync with uv.lock.\n"
-                        "Run 'uv export --format requirements-txt -o requirements-lock.txt' to update it.\n"
-                        "".join(diff)
-                    )
-        finally:
-            # Clean up temporary file
-            os.unlink(tmp_file.name)
 
 
 def docker_build() -> None:
