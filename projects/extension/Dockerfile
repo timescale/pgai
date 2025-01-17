@@ -47,7 +47,7 @@ RUN set -e; \
 FROM base AS pgai-test-db
 ENV PG_MAJOR=${PG_MAJOR}
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
-RUN pip install uv==0.5.9
+RUN pip install uv==0.5.20
 WORKDIR /pgai
 COPY . .
 RUN just build install
@@ -59,7 +59,7 @@ FROM base
 ENV WHERE_AM_I=docker
 USER root
 
-RUN pip install --break-system-packages uv==0.5.9
+RUN pip install --break-system-packages uv==0.5.20
 
 # install pgspot
 RUN set -eux; \
