@@ -7,10 +7,10 @@ from pgai_discord_bot.main import async_session, Document
 
 
 async def process_markdown_files(
-        directory_path: str | Path,
-        async_session: AsyncSession,
-        recursive: bool = True,
-        excluded_dirs: list[str] | None = None
+    directory_path: str | Path,
+    async_session: AsyncSession,
+    recursive: bool = True,
+    excluded_dirs: list[str] | None = None,
 ) -> tuple[int, list[str]]:
     """
     Process all markdown files in a directory and insert them into the database.
@@ -28,7 +28,7 @@ async def process_markdown_files(
             - List of any files that failed to process
     """
     if excluded_dirs is None:
-        excluded_dirs = ['.git', 'node_modules', '__pycache__']
+        excluded_dirs = [".git", "node_modules", "__pycache__"]
 
     processed_count = 0
     failed_files = []
@@ -43,16 +43,13 @@ async def process_markdown_files(
         nonlocal processed_count
         try:
             # Read the markdown file
-            content = file_path.read_text(encoding='utf-8')
+            content = file_path.read_text(encoding="utf-8")
 
             # Create relative path for file_name
             relative_path = str(file_path.relative_to(base_path))
 
             # Create and add document to session
-            document = Document(
-                file_name=relative_path,
-                content=content
-            )
+            document = Document(file_name=relative_path, content=content)
             async_session.add(document)
             processed_count += 1
 
@@ -66,12 +63,12 @@ async def process_markdown_files(
             dirs[:] = [d for d in dirs if d not in excluded_dirs]
 
             for file in files:
-                if file.endswith('.md'):
+                if file.endswith(".md"):
                     file_path = Path(root) / file
                     await process_file(file_path)
     else:
         # Only process files in the specified directory
-        for file in base_path.glob('*.md'):
+        for file in base_path.glob("*.md"):
             await process_file(file)
 
     # Commit all changes
@@ -86,21 +83,21 @@ async def process_markdown_files(
 
 def get_docs_directory() -> Path:
     """
-    Get the docs directory path from DOCS_PATH environment variable 
+    Get the docs directory path from DOCS_PATH environment variable
     or fall back to docs directory next to script.
     """
-    docs_env_path = os.getenv('DOCS_PATH')
+    docs_env_path = os.getenv("DOCS_PATH")
     if docs_env_path:
         return Path(docs_env_path).resolve()
 
     # Fallback: navigate up three directories and into docs
     script_location = Path(__file__).resolve().parent
-    docs_path = script_location.parent.parent.parent / 'docs'
+    docs_path = script_location.parent.parent.parent / "docs"
     return docs_path.resolve()
+
 
 # Example usage:
 async def main():
-
     docs_path = get_docs_directory()
     print(f"Processing markdown files in: {docs_path}")
     async with async_session() as session:
@@ -108,7 +105,7 @@ async def main():
             directory_path=docs_path,
             async_session=session,
             recursive=True,
-            excluded_dirs=[".git", "node_modules", "tmp"]
+            excluded_dirs=[".git", "node_modules", "tmp"],
         )
 
         print(f"Processed {processed} files")
@@ -117,6 +114,8 @@ async def main():
             for failure in failed:
                 print(f"  - {failure}")
 
+
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(main())
