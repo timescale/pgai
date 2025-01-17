@@ -744,7 +744,7 @@ def check_requirements() -> None:
                 fatal(
                     "requirements-lock.txt is out of sync with uv.lock.\n"
                     "Run 'uv export --format requirements-txt -o requirements-lock.txt' to update it.\n"
-                    "".join(diff)
+                    + "".join(diff)
                 )
 
 
