@@ -62,7 +62,6 @@ def test_joined_loading(
             )
             session.add(article)
             articles.append(article)
-            # _ = article.embeddings
         session.commit()
 
     # Run vectorizer worker for each vectorizer

@@ -6,6 +6,7 @@ create or replace function ai.embedding_openai
 , dimensions pg_catalog.int4
 , chat_user pg_catalog.text default null
 , api_key_name pg_catalog.text default 'OPENAI_API_KEY'
+, base_url text default null
 ) returns pg_catalog.jsonb
 as $func$
     select json_object
@@ -15,6 +16,7 @@ as $func$
     , 'dimensions': dimensions
     , 'user': chat_user
     , 'api_key_name': api_key_name
+    , 'base_url': base_url
     absent on null
     )
 $func$ language sql immutable security invoker

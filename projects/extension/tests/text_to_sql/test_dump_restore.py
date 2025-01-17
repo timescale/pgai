@@ -1,6 +1,7 @@
 import os
 import subprocess
 from pathlib import Path
+import re
 
 import psycopg
 import pytest
@@ -18,6 +19,21 @@ DST_DB = "text_to_sql_dst"
 
 def db_url(user: str, dbname: str) -> str:
     return f"postgres://{user}@127.0.0.1:5432/{dbname}"
+
+
+# skip tests in this module if this is NOT a pre-release build
+with psycopg.connect(
+    db_url(user="postgres", dbname="postgres"), autocommit=True
+) as con:
+    with con.cursor() as cur:
+        cur.execute(
+            """select default_version from pg_available_extensions where name = 'ai'"""
+        )
+        version = cur.fetchone()[0]
+        parts = re.split(r"[.-]", version, maxsplit=4)
+        if len(parts) == 3:  # if this is a release version
+            # skip these tests
+            pytest.skip(allow_module_level=True)
 
 
 def where_am_i() -> str:

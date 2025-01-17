@@ -165,6 +165,17 @@ class Embedder(ABC):
         """
 
 
+class BaseURLMixin:
+    """
+    A mixin class that provides functionality for managing base URLs.
+
+    Attributes:
+        base_url (str | None): The base URL for the API.
+    """
+
+    base_url: str | None = None
+
+
 class ApiKeyMixin:
     """
     A mixin class that provides functionality for managing API keys.

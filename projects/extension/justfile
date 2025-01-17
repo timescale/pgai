@@ -1,3 +1,4 @@
+export PROJECT_JUSTFILE := "1" # Note: used in build.py
 PG_MAJOR := env("PG_MAJOR", "17")
 PG_BIN := env("PG_BIN", "/usr/lib/postgresql/" + PG_MAJOR + "/bin")
 
@@ -61,6 +62,9 @@ freeze:
 build-sql:
 	@./build.py build-sql
 
+build-release:
+    @./build.py build-release
+
 test-server:
 	@./build.py test-server
 
@@ -79,11 +83,17 @@ lint:
 format-py:
 	@./build.py format-py
 
+reformat-py:
+	@./build.py reformat-py
+
 docker-build:
 	@PG_MAJOR={{PG_MAJOR}} ./build.py docker-build
 
 docker-run:
 	@./build.py docker-run
+
+docker-start:
+	@./build.py docker-start
 
 docker-stop:
 	@./build.py docker-stop

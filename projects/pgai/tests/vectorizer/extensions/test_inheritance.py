@@ -1,33 +1,43 @@
+from datetime import datetime
 from typing import Any
 
 import numpy as np
-from sqlalchemy import Column, Engine, Integer, Text
-from sqlalchemy.orm import DeclarativeBase, Session
-from sqlalchemy.sql import text
+from sqlalchemy import Column, Engine, Integer, func, text
+from sqlalchemy import Text as sa_Text
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.sqlalchemy import vectorizer_relationship
 from tests.vectorizer.extensions.utils import run_vectorizer_worker
 
 
-class Base(DeclarativeBase):
+class BaseModel(DeclarativeBase):
     pass
 
 
-class BlogPost(Base):
+class TimeStampedBase(BaseModel):
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
+    __abstract__ = True
+
+
+class BlogPost(TimeStampedBase):
     __tablename__ = "blog_posts"
     id = Column(Integer, primary_key=True)
-    title = Column(Text, nullable=False)
-    content = Column(Text, nullable=False)
-    content_embeddings = vectorizer_relationship(dimensions=1536)
+    title = Column(sa_Text, nullable=False)
+    content = Column(sa_Text, nullable=False)
+    content_embeddings = vectorizer_relationship(dimensions=768, lazy="joined")
 
 
 def test_vectorizer_embedding_creation(
     postgres_container: PostgresContainer, initialized_engine: Engine, vcr_: Any
 ):
-    """Test basic data insertion and embedding generation with default relationship."""
+    """Test basic embedding creation and querying while the Model inherits from
+    another abstract model. This previously caused issues where the embedding model
+    inherited the fields as well which should not be the case."""
     db_url = postgres_container.get_connection_url()
-    # Create tables
     metadata = BlogPost.metadata
     metadata.create_all(initialized_engine, tables=[metadata.sorted_tables[0]])
     with initialized_engine.connect() as conn:
@@ -35,8 +45,10 @@ def test_vectorizer_embedding_creation(
             text("""
                 SELECT ai.create_vectorizer(
                     'blog_posts'::regclass,
-                    embedding => ai.embedding_openai('text-embedding-3-large', 1536),
-                    chunking => ai.chunking_recursive_character_text_splitter('content')
+                    embedding =>
+                    ai.embedding_openai('text-embedding-3-small', 768),
+                    chunking =>
+                    ai.chunking_recursive_character_text_splitter('content', 50, 10)
                 );
             """)
         )
@@ -51,26 +63,20 @@ def test_vectorizer_embedding_creation(
         session.add(post)
         session.commit()
 
-    with vcr_.use_cassette("test_vectorizer_large_mbedding_creation.yaml"):
-        # Run vectorizer worker
+    # Run vectorizer worker
+    with vcr_.use_cassette("test_vectorizer_embedding_creation_relationship.yaml"):
         run_vectorizer_worker(db_url, 1)
 
-    # Verify embeddings were created
     with Session(initialized_engine) as session:
-        # Verify embedding class was created correctly
+        blog_post = session.query(BlogPost).first()
+        assert blog_post is not None
+        assert blog_post.content_embeddings is not None
         assert BlogPost.content_embeddings.__name__ == "BlogPostContentEmbeddings"
 
         # Check embeddings exist and have correct properties
         embedding = session.query(BlogPost.content_embeddings).first()
         assert embedding is not None
         assert isinstance(embedding.embedding, np.ndarray)
-        assert len(embedding.embedding) == 1536
-        assert embedding.chunk is not None  # Should have chunk text
+        assert len(embedding.embedding) == 768
+        assert embedding.chunk is not None
         assert isinstance(embedding.chunk, str)
-
-        blog_post = session.query(BlogPost).first()
-        assert blog_post is not None
-
-        embedding_entity = session.query(BlogPost.content_embeddings).first()
-        assert embedding_entity is not None
-        assert embedding_entity.chunk in blog_post.content

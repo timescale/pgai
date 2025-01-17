@@ -66,7 +66,7 @@ def test_vectorizer_composite_key(
 
     # Verify embeddings were created
     with Session(initialized_engine) as session:
-        assert Author.bio_embeddings.__name__ == "BioEmbeddingsEmbedding"
+        assert Author.bio_embeddings.__name__ == "AuthorBioEmbeddings"
 
         # Check embeddings exist and have correct properties
         embedding = session.query(Author.bio_embeddings).first()

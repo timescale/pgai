@@ -1,16 +1,15 @@
 import os
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from functools import cached_property
-from typing import (
-    Any,
-    Literal,
-)
+from typing import Literal
 
 import ollama
+from ollama import ShowResponse
 from pydantic import BaseModel
 from typing_extensions import TypedDict, override
 
 from ..embeddings import (
+    BaseURLMixin,
     BatchApiCaller,
     Embedder,
     EmbeddingResponse,
@@ -60,7 +59,7 @@ class OllamaOptions(TypedDict, total=False):
     stop: Sequence[str]
 
 
-class Ollama(BaseModel, Embedder):
+class Ollama(BaseModel, BaseURLMixin, Embedder):
     """
     Embedder that uses Ollama to embed documents into vector representations.
 
@@ -68,14 +67,12 @@ class Ollama(BaseModel, Embedder):
         implementation (Literal["ollama"]): The literal identifier for this
             implementation.
         model (str): The name of the Ollama model used for embeddings.
-        base_url (str): The base url used to access the Ollama API.
         options (dict): Additional ollama-specific runtime options
         keep_alive (str): How long to keep the model loaded after the request
     """
 
     implementation: Literal["ollama"]
     model: str
-    base_url: str | None = None
     options: OllamaOptions | None = None
     keep_alive: str | None = None  # this is only `str` because of the SQL API
 
@@ -130,7 +127,7 @@ class Ollama(BaseModel, Embedder):
         )
         return EmbeddingResponse(embeddings=response["embeddings"], usage=usage)
 
-    async def _model(self) -> Mapping[str, Any]:
+    async def _model(self) -> ShowResponse:
         """
         Gets the model details from the Ollama API
         :return:

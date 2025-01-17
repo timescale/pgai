@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import textwrap
 from pathlib import Path
 
 
@@ -26,12 +27,14 @@ HELP = """Available targets:
 - clean            removes python build artifacts from the src dir
 - clean-sql        removes sql file artifacts from the sql dir
 - clean-py         removes python build artifacts from the extension src dir
+- build-release    runs build-sql and updates the version in __init__.py
 - test             runs the tests in the docker container
 - test-server      runs the test http server in the docker container
 - lint-sql         runs pgspot against the `ai--<this_version>.sql` file
 - lint-py          runs ruff linter against the python source files
 - lint             runs both sql and python linters
 - format-py        runs ruff to check formatting of the python source files
+- reformat-py      runs ruff to update the formatting of the python source files
 - docker-build     builds the dev docker image
 - docker-run       launches a container in docker using the docker image
 - docker-stop      stops the container
@@ -583,7 +586,33 @@ def build() -> None:
     build_sql()
 
 
+def error_if_pre_release() -> None:
+    # Note: released versions always have the output sql file commited into the repository.
+    output_file = output_sql_file()
+    command = (
+        "just ext build-install"
+        if "ROOT_JUSTFILE" in os.environ
+        else "just build-install"
+        if "PROJECT_JUSTFILE" in os.environ
+        else "python3 build.py build-install"
+    )
+    if not Path(output_file).exists():
+        print(
+            textwrap.dedent(f"""
+                WARNING: You're trying to install a pre-release version of pgai.
+                This is not supported, and there is no upgrade path.
+
+                Instead, install an official release from https://github.com/timescale/pgai/releases.
+
+                If you are certain that you want to install a pre-release version, run:
+                    `{command}`
+            """)
+        )
+        exit(1)
+
+
 def install() -> None:
+    error_if_pre_release()
     install_prior_py()
     install_py()
     install_sql()
@@ -597,6 +626,13 @@ def build_install() -> None:
 def clean() -> None:
     clean_sql()
     clean_py()
+
+
+def build_release() -> None:
+    clean_sql()
+    clean_py()
+    build()
+    build_init_py()
 
 
 def tests_dir() -> Path:
@@ -652,13 +688,17 @@ def lint_py() -> None:
 
 def lint() -> None:
     lint_py()
-    # lint_sql()  # TODO: enable this when pgspot is fixed
+    lint_sql()
 
 
 def format_py() -> None:
     subprocess.run(
         f"ruff format --diff {ext_dir()}", shell=True, check=True, env=os.environ
     )
+
+
+def reformat_py() -> None:
+    subprocess.run(f"ruff format {ext_dir()}", shell=True, check=True, env=os.environ)
 
 
 def docker_build() -> None:
@@ -688,6 +728,12 @@ def docker_run() -> None:
         ]
     )
     subprocess.run(cmd, shell=True, check=True, env=os.environ, text=True)
+
+
+def docker_start() -> None:
+    subprocess.run(
+        """docker start pgai-ext""", shell=True, check=True, env=os.environ, text=True
+    )
 
 
 def docker_stop() -> None:
@@ -744,6 +790,8 @@ if __name__ == "__main__":
             clean_py()
         elif action == "clean":
             clean()
+        elif action == "build-release":
+            build_release()
         elif action == "uninstall-py":
             uninstall_py()
         elif action == "uninstall-sql":
@@ -762,10 +810,14 @@ if __name__ == "__main__":
             lint()
         elif action == "format-py":
             format_py()
+        elif action == "reformat-py":
+            reformat_py()
         elif action == "docker-build":
             docker_build()
         elif action == "docker-run":
             docker_run()
+        elif action == "docker-start":
+            docker_start()
         elif action == "docker-stop":
             docker_stop()
         elif action == "docker-rm":
