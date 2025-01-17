@@ -647,7 +647,7 @@ def test_server() -> None:
             """
         subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
     else:
-        cmd = "fastapi dev server.py"
+        cmd = "uv run fastapi dev server.py"
         subprocess.run(
             cmd,
             shell=True,
@@ -658,7 +658,9 @@ def test_server() -> None:
 
 
 def test() -> None:
-    subprocess.run("pytest", shell=True, check=True, env=os.environ, cwd=tests_dir())
+    subprocess.run(
+        "uv run pytest", shell=True, check=True, env=os.environ, cwd=tests_dir()
+    )
 
 
 def lint_sql() -> None:
@@ -690,6 +692,49 @@ def format_py() -> None:
     )
 
 
+def check_requirements() -> None:
+    """
+    Verifies that requirements-lock.txt is up to date with pyproject.toml.
+    Creates a temporary file with the current state and compares it with the existing lock file.
+    """
+    if shutil.which("uv") is None:
+        fatal("uv not found")
+
+    # Create a temporary file to store current requirements
+    with tempfile.NamedTemporaryFile(
+        mode="w+", delete=False, suffix=".txt"
+    ) as tmp_file:
+        try:
+            # Generate current requirements
+            subprocess.run(
+                f"uv pip compile pyproject.toml -o {tmp_file.name}",
+                shell=True,
+                check=True,
+                env=os.environ,
+                text=True,
+            )
+
+            # Read both files
+            lock_file = ext_dir() / "requirements-lock.txt"
+            if not lock_file.exists():
+                fatal(
+                    "requirements-lock.txt does not exist. Run 'uv pip compile pyproject.toml -o requirements-lock.txt' to create it."
+                )
+
+            current_reqs = tmp_file.name
+
+            # Compare files
+            with open(lock_file, "r") as f1, open(current_reqs, "r") as f2:
+                if f1.read() != f2.read():
+                    fatal(
+                        "requirements-lock.txt is out of sync with pyproject.toml. "
+                        "Run 'uv pip compile pyproject.toml -o requirements-lock.txt' to update it."
+                    )
+        finally:
+            # Clean up temporary file
+            os.unlink(tmp_file.name)
+
+
 def docker_build() -> None:
     subprocess.run(
         f"""docker build --build-arg PG_MAJOR={pg_major()} -t pgai-ext .""",
@@ -710,6 +755,7 @@ def docker_run() -> None:
             "docker run -d --name pgai-ext --hostname pgai-ext -e POSTGRES_HOST_AUTH_METHOD=trust",
             networking,
             f"--mount type=bind,src={ext_dir()},dst=/pgai",
+            "--mount type=volume,dst=/pgai/.venv",
             "-e TEST_ENV_SECRET=super_secret",
             "pgai-ext",
             "-c shared_preload_libraries='timescaledb, pgextwlist'",
@@ -797,6 +843,8 @@ if __name__ == "__main__":
             lint()
         elif action == "format-py":
             format_py()
+        elif action == "check-requirements":
+            check_requirements()
         elif action == "docker-build":
             docker_build()
         elif action == "docker-run":

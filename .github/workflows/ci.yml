@@ -53,6 +53,9 @@ jobs:
 
       - name: Check Python Formatting
         run: docker exec pgai-ext just format-py
+      
+      - name: Compare requirements file
+        run: docker exec pgai-ext just check-requirements
 
       - name: Install extension
         run: docker exec pgai-ext just install
