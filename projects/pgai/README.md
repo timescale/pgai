@@ -49,5 +49,6 @@ For other use cases, first [Install pgai](https://github.com/timescale/pgai/blob
      * [Ollama](https://github.com/timescale/pgai/blob/main/docs/ollama.md) - configure pgai for Ollama, then use the model to embed, chat complete and generate.
      * [OpenAI](https://github.com/timescale/pgai/blob/main/docs/openai.md) - configure pgai for OpenAI, then use the model to tokenize, embed, chat complete and moderate. This page also includes advanced examples.
      * [Anthropic](https://github.com/timescale/pgai/blob/main/docs/anthropic.md) - configure pgai for Anthropic, then use the model to generate content.
+     * [Gemini](https://github.com/timescale/pgai/blob/main/docs/gemini.md) - configure pgai for Gemini, then use the model to generate content.
      * [Cohere](https://github.com/timescale/pgai/blob/main/docs/cohere.md) - configure pgai for Cohere, then use the model to tokenize, embed, chat complete, classify, and rerank.
   - Leverage LLMs for data processing tasks such as classification, summarization, and data enrichment ([see the OpenAI example](https://github.com/timescale/pgai/blob/main/docs/openai.md)).
