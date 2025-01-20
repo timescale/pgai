@@ -26,6 +26,8 @@ create table ai.semantic_catalog
 , catalog_name pg_catalog.text not null unique
 , obj_vectorizer_id pg_catalog.int4 not null references ai.vectorizer(id)
 , sql_vectorizer_id pg_catalog.int4 not null references ai.vectorizer(id)
+-- TODO: store text search config https://www.postgresql.org/docs/current/textsearch-configuration.html
+, text_to_sql jsonb
 );
 perform pg_catalog.pg_extension_config_dump('ai.semantic_catalog'::pg_catalog.regclass, '');
 perform pg_catalog.pg_extension_config_dump('ai.semantic_catalog_id_seq'::pg_catalog.regclass, '');
