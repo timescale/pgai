@@ -25,7 +25,8 @@ def cur() -> psycopg.Cursor:
 
 def test_voyageai_fails_without_secret(cur, voyageai_api_key):
     with pytest.raises(
-        psycopg.errors.InternalError_, match="missing VOYAGE_API_KEY secret"
+        psycopg.errors.ExternalRoutineException,
+        match="voyageai.error.AuthenticationError: No API key provided.",
     ) as _:
         cur.execute(
             """
