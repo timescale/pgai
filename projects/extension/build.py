@@ -651,6 +651,7 @@ def test_server() -> None:
             -e OPENAI_API_KEY=${OPENAI_API_KEY} \
             -e ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY} \
             -e COHERE_API_KEY=${COHERE_API_KEY} \
+            -e GEMINI_API_KEY=${GEMINI_API_KEY} \
             -e VOYAGE_API_KEY=${VOYAGE_API_KEY} \
             -it -w /pgai/tests/vectorizer pgai-ext fastapi dev server.py
             """
