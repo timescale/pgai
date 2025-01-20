@@ -32,14 +32,13 @@ On your local machine:
         image: timescale/pgai-vectorizer-worker:latest
         environment:
           PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
-          OPENAI_API_KEY: <your-api-key>
     volumes:
       data:
     ```
 
 1. **Tune the developer image for your AI provider**
 
-   Replace the instances of `OPENAI_API_KEY` with a key from your AI provider.
+   Replace `OPENAI_API_KEY` with a key from your AI provider.
 
 1. **Start the database**
    ```shell
