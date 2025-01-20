@@ -1,0 +1,46 @@
+"""Generic vectorizer migration template.
+
+Revision ID: {revision_id}
+Revises: {revises}
+Create Date: {create_date}
+"""
+from alembic import op
+from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy import text
+from pgai.vectorizer.configuration import (
+    ChunkingCharacterTextSplitterConfig,
+    IndexingHnswConfig,
+    EmbeddingOllamaConfig,
+    EmbeddingOpenaiConfig,
+    ProcessingDefaultConfig,
+    FormattingPythonTemplateConfig,
+    ChunkingRecursiveCharacterTextSplitterConfig,
+    SchedulingTimescaledbConfig,
+    EmbeddingVoyageaiConfig,
+)
+import datetime
+
+# revision identifiers, used by Alembic
+revision = '{revision_id}'
+down_revision = {down_revision}
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    # Create a generic blog table that we can use for all tests
+    op.create_table(
+        'blog',
+        Column('id', Integer, primary_key=True),
+        Column('title', String(200), nullable=False),
+        Column('content', Text, nullable=False),
+        schema='public'
+    )
+
+    # Create vectorizer using the provided configuration
+    {vectorizer_config}
+
+
+def downgrade() -> None:
+    op.drop_vectorizer("blog_embedding_store", drop_all=True)
+    op.drop_table('blog', schema='public')
