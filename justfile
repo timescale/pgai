@@ -18,6 +18,7 @@ ci:
   just ext ci
 
 # Install semantic commit message hook
-install-commit-hook:
-  @cd ../.. && curl --fail -o .git/hooks/commit-msg https://raw.githubusercontent.com/hazcod/semantic-commit-hook/master/commit-msg \
-  && chmod 500 .git/hooks/commit-msg
+@install-commit-hook:
+  curl --fail -s -o .git/hooks/commit-msg https://raw.githubusercontent.com/hazcod/semantic-commit-hook/master/commit-msg
+  chmod u+x .git/hooks/commit-msg
+  echo "commit-msg hook installed"
