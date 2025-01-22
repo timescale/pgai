@@ -633,6 +633,7 @@ def build_release() -> None:
     clean_py()
     build()
     build_init_py()
+    freeze()
 
 
 def tests_dir() -> Path:
