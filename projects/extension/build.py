@@ -530,30 +530,12 @@ def install_py() -> None:
     python_install_dir().mkdir(exist_ok=True)
     version = this_version()
     version_target_dir = python_install_dir().joinpath(version)
-    if version_target_dir.exists():
-        # if it already exists, assume the dependencies have already been installed
-        # and just install *our* code. this is for development workflow speed
-        d = version_target_dir.joinpath("ai")  # delete module if exists
-        if d.exists():
-            shutil.rmtree(d)
-        for d in version_target_dir.glob(
-            "pgai-*.dist-info"
-        ):  # delete package info if exists
-            shutil.rmtree(d)
-        bin = "pip3" if shutil.which("uv") is None else "uv pip"
-        cmd = f'{bin} install -v --no-deps --compile --target "{version_target_dir}" "{ext_dir()}"'
-        subprocess.run(
-            cmd,
-            check=True,
-            shell=True,
-            env=os.environ,
-            cwd=str(ext_dir()),
-        )
-    else:
+    bin = "pip3" if shutil.which("uv") is None else "uv pip"
+    if not version_target_dir.exists():
+        # if the target directory doesn't exist, create it and install dependencies
         version_target_dir.mkdir(exist_ok=True)
-        bin = "pip3" if shutil.which("uv") is None else "uv pip"
         cmd = (
-            f'{bin} install -v --compile --target "{version_target_dir}" "{ext_dir()}"'
+            f'{bin} install -r requirements-lock.txt -v --target "{version_target_dir}"',
         )
         subprocess.run(
             cmd,
@@ -562,6 +544,22 @@ def install_py() -> None:
             env=os.environ,
             cwd=str(ext_dir()),
         )
+    # install (or re-install) pgai
+    d = version_target_dir.joinpath("ai")  # delete module if exists
+    if d.exists():
+        shutil.rmtree(d)
+    for d in version_target_dir.glob(
+        "pgai-*.dist-info"
+    ):  # delete package info if exists
+        shutil.rmtree(d)
+    cmd = f'{bin} install -v --no-deps --compile --target "{version_target_dir}" "{ext_dir()}"'
+    subprocess.run(
+        cmd,
+        check=True,
+        shell=True,
+        env=os.environ,
+        cwd=str(ext_dir()),
+    )
 
 
 def clean_py() -> None:

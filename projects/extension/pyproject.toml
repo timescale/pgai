@@ -31,7 +31,6 @@ dev = [
 
 [tool.setuptools.dynamic]
 version = {attr = "ai.__version__"}
-dependencies = {file = ["requirements-lock.txt"]}
 
 [tool.setuptools]
 packages = ["ai"]
