@@ -42,6 +42,38 @@ def cur_with_external_functions_executor_url(cur) -> psycopg.Cursor:
         yield cur
 
 
+def test_anthropic_list_models(cur, anthropic_api_key):
+    cur.execute(
+        """
+        select count(*) > 0 as actual
+        from ai.anthropic_list_models(api_key=>%s)
+    """,
+        (anthropic_api_key,),
+    )
+    actual = cur.fetchone()[0]
+    assert actual > 0
+
+
+def test_anthropic_list_models_api_key_name(cur_with_external_functions_executor_url):
+    cur_with_external_functions_executor_url.execute(
+        """
+        select count(*) > 0 as actual
+        from ai.anthropic_list_models(api_key_name=> 'ANTHROPIC_API_KEY_REAL')
+    """
+    )
+    actual = cur_with_external_functions_executor_url.fetchone()[0]
+    assert actual > 0
+
+
+def test_anthropic_list_models_no_key(cur_with_api_key):
+    cur_with_api_key.execute("""
+        select count(*) > 0 as actual
+        from ai.anthropic_list_models()
+    """)
+    actual = cur_with_api_key.fetchone()[0]
+    assert actual > 0
+
+
 def test_anthropic_generate(cur, anthropic_api_key):
     cur.execute(
         """

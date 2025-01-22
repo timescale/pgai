@@ -108,6 +108,10 @@
  f       | bob   | execute   | no      | ai     | anthropic_generate(model text, messages jsonb, max_tokens integer, api_key text, api_key_name text, base_url text, timeout double precision, max_retries integer, system_prompt text, user_id text, stop_sequences text[], temperature double precision, tool_choice jsonb, tools jsonb, top_k integer, top_p double precision)
  f       | fred  | execute   | no      | ai     | anthropic_generate(model text, messages jsonb, max_tokens integer, api_key text, api_key_name text, base_url text, timeout double precision, max_retries integer, system_prompt text, user_id text, stop_sequences text[], temperature double precision, tool_choice jsonb, tools jsonb, top_k integer, top_p double precision)
  f       | jill  | execute   | YES     | ai     | anthropic_generate(model text, messages jsonb, max_tokens integer, api_key text, api_key_name text, base_url text, timeout double precision, max_retries integer, system_prompt text, user_id text, stop_sequences text[], temperature double precision, tool_choice jsonb, tools jsonb, top_k integer, top_p double precision)
+ f       | alice | execute   | YES     | ai     | anthropic_list_models(api_key text, api_key_name text, base_url text)
+ f       | bob   | execute   | no      | ai     | anthropic_list_models(api_key text, api_key_name text, base_url text)
+ f       | fred  | execute   | no      | ai     | anthropic_list_models(api_key text, api_key_name text, base_url text)
+ f       | jill  | execute   | YES     | ai     | anthropic_list_models(api_key text, api_key_name text, base_url text)
  f       | alice | execute   | YES     | ai     | chunking_character_text_splitter(chunk_column name, chunk_size integer, chunk_overlap integer, separator text, is_separator_regex boolean)
  f       | bob   | execute   | no      | ai     | chunking_character_text_splitter(chunk_column name, chunk_size integer, chunk_overlap integer, separator text, is_separator_regex boolean)
  f       | fred  | execute   | no      | ai     | chunking_character_text_splitter(chunk_column name, chunk_size integer, chunk_overlap integer, separator text, is_separator_regex boolean)
@@ -328,5 +332,5 @@
  f       | bob   | execute   | no      | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text)
  f       | fred  | execute   | no      | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text)
  f       | jill  | execute   | YES     | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text)
-(328 rows)
+(332 rows)
 
