@@ -338,7 +338,10 @@ Prior to pgai v0.4.0, Python dependencies were installed system-wide. Until pgai
      git log $(git describe --tags --abbrev=0 --match "extension-*")..origin/main --pretty=format:"%s ([%h](https://github.com/timescale/pgai/commit/%h))" projects/extension
      ```
 6. Create a PR with all the modified files. Use a commit message such as `chore: release extension <YOUR_NEW_VERSION_HERE>`.
-7. Once the PR is merged, create a new [github release](https://github.com/timescale/pgai/releases) using a new tag following the format `extension-<version>`. Copy the release notes for this version into the GitHub release description.
+7. Once the PR is merged, create:
+   1. A new PR with the result of running `just ext freeze`. This freezes incremental SQL files, preventing us from accidentally making changes to the incremental files published by the last release.
+      - The PR should have a commit message such as `chore: freeze extension sql files for last release`.
+   2. A new [github release](https://github.com/timescale/pgai/releases) using a new tag following the format `extension-<version>`. Copy the release notes for this version into the GitHub release description.
 8. Create a new PR on the following repositories replacing the value of the `PGAI_VERSION` variable located in the `Makefile` files with the new version:
    - [timescale/timescaledb-docker](https://github.com/timescale/timescaledb-docker/edit/main/Makefile)
    - [timescale/timescaledb-docker-ha](https://github.com/timescale/timescaledb-docker-ha/edit/master/Makefile)
