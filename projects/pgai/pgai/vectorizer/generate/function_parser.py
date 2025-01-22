@@ -7,7 +7,6 @@ import psycopg
 class PostgresParameter:
     name: str
     type_name: str
-    default_value: str | None = None
     is_array: bool = False
     is_required: bool = False
 
@@ -109,7 +108,6 @@ def get_function_metadata(
                 type_name = type_info[1]  # type: ignore
                 is_array = type_info[2]  # type: ignore
 
-                default = None
                 # A parameter is required if it has no default value
                 is_required = i < non_default_count
 
@@ -117,7 +115,6 @@ def get_function_metadata(
                     PostgresParameter(
                         name=name,  # type: ignore
                         type_name=type_name,  # type: ignore
-                        default_value=default,
                         is_array=is_array,  # type: ignore
                         is_required=is_required,
                     )
@@ -143,7 +140,6 @@ class VectorizerParameter:
     python_type: str
     accepted_configs: list[str] | None = None
     is_required: bool = False
-    default_value: str | None = None
 
 
 def read_create_vectorizer_metadata(
@@ -197,7 +193,6 @@ def read_create_vectorizer_metadata(
                 python_type=python_type,
                 accepted_configs=accepted_configs,
                 is_required=param.is_required,
-                default_value=param.default_value,
             )
         )
 

@@ -57,7 +57,7 @@ class {{ function.name|replace('ai.', '')|replace('_', ' ')|title|replace(' ', '
     function_name: ClassVar[str] = "{{ function.name }}"
 
     {% for param in function.parameters %}
-    {{ param.name }}: {{ param.python_type }}{% if param.is_required == False %} = {{ param.default_value }}{% endif %}
+    {{ param.name }}: {{ param.python_type }}{% if param.is_required == False %} = None{% endif %}
 
     {% endfor %}
 {% endfor %}
@@ -82,7 +82,7 @@ from .configuration import (
 class CreateVectorizer:
     """Parameters for ai.create_vectorizer function"""
     {% for param in parameters %}
-    {{ param.name }}: {{ param.python_type }}{% if not param.is_required %} = {{ param.default_value or 'None' }}{% endif %}
+    {{ param.name }}: {{ param.python_type }}{% if not param.is_required %} = None{% endif %}
     
     {% endfor %}
 
