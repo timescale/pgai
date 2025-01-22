@@ -1,3 +1,38 @@
+# Creating vectorizers from python
+
+To create a vectorizer from python you use the `CreateVectorizer` helper class from the `pgai.vectorizer` module.
+It accepts all the options listed in the [SQL API](vectorizer-api-reference.md) and exposes the `to_sql`
+method to generate a SQL query which you can then run through the SQL library of your choice.
+
+First install the pgai library:
+```bash
+pip install pgai
+```
+
+Then you can create a vectorizer from python:
+
+```python
+from pgai.vectorizer import CreateVectorizer
+from pgai.vectorizer.configuration import OpenAIConfig, CharacterTextSplitterConfig, PythonTemplateConfig
+
+vectorizer_statement = CreateVectorizer(
+    source_table="blog",
+    target_table='blog_embeddings',
+    embedding=OpenAIConfig(
+        model='text-embedding-3-small',
+        dimensions=768
+    ),
+    chunking=CharacterTextSplitterConfig(
+        chunk_column='content',
+        chunk_size=800,
+        chunk_overlap=400,
+        separator='.',
+        is_separator_regex=False
+    ),
+    formatting=PythonTemplateConfig(template='$title - $chunk')
+).to_sql()
+```
+
 # SQLAlchemy Integration with pgai Vectorizer
 
 The `vectorizer_relationship` is a SQLAlchemy helper that integrates pgai's vectorization capabilities directly into your SQLAlchemy models.
@@ -165,7 +200,7 @@ for post, embedding in results:
 
 ## Working with alembic 
 
-
+### Excluding managed tables
 The `vectorizer_relationship` generates a new SQLAlchemy model, that is available under the attribute that you specify. If you are using alembic's autogenerate functionality to generate migrations, you will need to exclude these models from the autogenerate process.
 These are added to a list in your metadata called `pgai_managed_tables` and you can exclude them by adding the following to your `env.py`:
 
@@ -183,3 +218,49 @@ context.configure(
 ```
 
 This should now prevent alembic from generating tables for these models when you run `alembic revision --autogenerate`.
+
+
+### Creating vectorizers
+pgai provides native Alembic operations for managing vectorizers. For them to work you need to run `register_operations` in your env.py file. Which registers the pgai operations under the global op context:
+
+```python
+from pgai.alembic import register_operations
+
+register_operations()
+```
+
+Then you can use the `create_vectorizer` operation to create a vectorizer for your model. As well as the `drop_vectorizer` operation to remove it.
+
+```python
+from alembic import op
+from pgai.vectorizer.configuration import (
+    OpenAIConfig,
+    CharacterTextSplitterConfig,
+    PythonTemplateConfig
+)
+
+
+def upgrade() -> None:
+    op.create_vectorizer(
+        source_table="blog",
+        target_table='blog_embeddings',
+        embedding=OpenAIConfig(
+            model='text-embedding-3-small',
+            dimensions=768
+        ),
+        chunking=CharacterTextSplitterConfig(
+            chunk_column='content',
+            chunk_size=800,
+            chunk_overlap=400,
+            separator='.',
+            is_separator_regex=False
+        ),
+        formatting=PythonTemplateConfig(template='$title - $chunk')
+    )
+
+
+def downgrade() -> None:
+    op.drop_vectorizer(target_table_name="blog_embeddings", drop_all=True)
+```
+
+The `create_vectorizer` operation supports all configuration options available in the [SQL API](vectorizer-api-reference.md).
