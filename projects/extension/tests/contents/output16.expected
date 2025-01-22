@@ -6,6 +6,7 @@ CREATE EXTENSION
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  event trigger _vectorizer_handle_drops
  function ai.anthropic_generate(text,jsonb,integer,text,text,text,double precision,integer,text,text,text[],double precision,jsonb,jsonb,integer,double precision)
+ function ai.anthropic_list_models(text,text,text)
  function ai.chunking_character_text_splitter(name,integer,integer,text,boolean)
  function ai.chunking_recursive_character_text_splitter(name,integer,integer,text[],boolean)
  function ai.cohere_chat_complete(text,text,text,text,text,jsonb,text,text,jsonb,boolean,jsonb,text,double precision,integer,integer,integer,double precision,integer,text[],double precision,double precision,jsonb,jsonb,boolean)
@@ -94,7 +95,7 @@ CREATE EXTENSION
  table ai.vectorizer_errors
  view ai.secret_permissions
  view ai.vectorizer_status
-(90 rows)
+(91 rows)
 
                                     Table "ai._secret_permissions"
  Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
