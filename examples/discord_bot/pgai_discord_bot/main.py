@@ -15,7 +15,7 @@ from pgai.sqlalchemy import vectorizer_relationship
 load_dotenv()
 
 # Create async engine
-engine = create_async_engine(os.environ["DATABASE_URL"], echo=True, future=True)
+engine = create_async_engine(os.environ["DATABASE_URL"].replace('\n', ''), echo=True, future=True)
 
 async_session = async_sessionmaker(engine)
 logging.basicConfig(

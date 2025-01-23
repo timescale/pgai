@@ -19,7 +19,7 @@ register_operations()
 # this is the Alembic Config object
 config = context.config
 
-config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"])
+config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"].replace('\n', ''))
 
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:
