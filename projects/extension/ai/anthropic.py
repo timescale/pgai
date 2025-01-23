@@ -22,7 +22,7 @@ def make_client(
 def list_models(
     api_key: str,
     base_url: Optional[str] = None,
-) -> Generator[tuple[str, datetime], None, None]:
+) -> Generator[tuple[str, str, datetime], None, None]:
     client = make_client(api_key, base_url)
 
     for model in client.models.list():
