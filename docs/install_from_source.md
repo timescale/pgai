@@ -1,5 +1,12 @@
 # Install the pgai extension from source
 
+> ⚠️ **Note:**
+>
+> For Windows users, we recommend using the [pgai Docker
+image](./install_docker.md) to run the pgai extension. These instructions have
+only been tested on macOS and Linux.
+
+
 To install pgai from source on a PostgreSQL server:
 
 1. **Install the prerequisite software system-wide**
