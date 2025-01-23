@@ -16,7 +16,7 @@ from pgai.vectorizer import CreateVectorizer
 from pgai.vectorizer.configuration import OpenAIConfig, CharacterTextSplitterConfig, PythonTemplateConfig
 
 vectorizer_statement = CreateVectorizer(
-    source_table="blog",
+    source="blog",
     target_table='blog_embeddings',
     embedding=OpenAIConfig(
         model='text-embedding-3-small',
@@ -242,7 +242,7 @@ from pgai.vectorizer.configuration import (
 
 def upgrade() -> None:
     op.create_vectorizer(
-        source_table="blog",
+        source="blog",
         target_table='blog_embeddings',
         embedding=OpenAIConfig(
             model='text-embedding-3-small',
