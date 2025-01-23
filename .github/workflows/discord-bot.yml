@@ -2,6 +2,7 @@ on:
   push:
     branches:
       - main
+      - jascha/discord-bot-example
 
 name: build-discord-bot-image
 
@@ -39,8 +40,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: "{{defaultContext}}:examples/discord_bot"
-          build-contexts:
-            - docs=docs
+          build-contexts: |
+            "docs={{defaultContext}}:docs"
           push: true
           tags: |
             ${{ steps.meta.outputs.tags }}
