@@ -27,7 +27,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.execute("CREATE EXTENSION IF NOT EXISTS ai CASCADE;")
     op.create_vectorizer(
-        source_table="documents",
+        source="documents",
         embedding=EmbeddingOpenaiConfig(model="text-embedding-3-small", dimensions=768),
         chunking=ChunkingRecursiveCharacterTextSplitterConfig(
             chunk_column="content",

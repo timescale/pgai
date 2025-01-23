@@ -765,8 +765,8 @@ wheels = [
 
 [[package]]
 name = "pgai"
-version = "0.4.0"
-source = { git = "https://github.com/timescale/pgai?subdirectory=projects%2Fpgai&rev=jascha%2Fadd-alembic-migration-ops#9e98564e2c380ead41f40ee43aa113a6228d516e" }
+version = "0.5.0"
+source = { git = "https://github.com/timescale/pgai?subdirectory=projects%2Fpgai&rev=main#670754231ae4c7f62d9def7a2a244920dc53931a" }
 dependencies = [
     { name = "click" },
     { name = "datadog-lambda" },
@@ -820,7 +820,7 @@ requires-dist = [
     { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "audioop-lts", specifier = ">=0.2.1" },
     { name = "openai", specifier = ">=1.59.3" },
-    { name = "pgai", extras = ["sqlalchemy"], git = "https://github.com/timescale/pgai?subdirectory=projects%2Fpgai&rev=jascha%2Fadd-alembic-migration-ops" },
+    { name = "pgai", extras = ["sqlalchemy"], git = "https://github.com/timescale/pgai?subdirectory=projects%2Fpgai&rev=main" },
     { name = "py-cord", specifier = ">=2.6.1" },
     { name = "python-dotenv", specifier = "==1.0.1" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.36" },
