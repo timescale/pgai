@@ -121,7 +121,7 @@ def idempotent_sql_dir() -> Path:
 
 
 def idempotent_sql_files() -> list[Path]:
-    paths = [x for x in idempotent_sql_dir().glob("*.sql")]
+    paths = [x for x in idempotent_sql_dir().glob("*.sql") if not x.name.startswith("x")]
     paths.sort()
     return paths
 
@@ -131,7 +131,7 @@ def incremental_sql_dir() -> Path:
 
 
 def incremental_sql_files() -> list[Path]:
-    paths = [x for x in incremental_sql_dir().glob("*.sql")]
+    paths = [x for x in incremental_sql_dir().glob("*.sql") if not x.name.startswith("x")]
     paths.sort()
     return paths
 
