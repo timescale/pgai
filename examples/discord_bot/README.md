@@ -1,6 +1,6 @@
 # Discord Bot
 
-A minimal discord bot that answers questions based on pgais documentation via RAG.
+A minimal discord bot that answers questions based on pgai's documentation via RAG.
 Built with python, py-cord, sqlalchemy and pgai.
 
 ## Running the Example
@@ -8,7 +8,7 @@ Built with python, py-cord, sqlalchemy and pgai.
 You will need a .env file with the following variables:
 
 ```shell
-DATABASE_ULR=postgresql+asyncpg://postgres:postgres@localhost/postgres
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost/postgres
 OPENAI_API_KEY=xxx
 DISCORD_BOT_TOKEN=xxx
 DISCORD_CHANNEL_ID=123
@@ -22,33 +22,36 @@ You will need to then run the vectorizer and database with:
 ```
 docker compose up -d
 ```
-You'll also need to install the python requirements with:
+
+The compose file by default also starts the bot container itself, if you want to run it locally for faster development you can do so by following the instructions below.
+
+Install the python requirements with:
 ```shell
 uv sync
 ```
 
-To run the migrations to create_necessary tables run:
+To run the migrations to create necessary tables and setup the vectorizer run:
 ```shell
 uv run alembic upgrade head
 ```
 
 To populate the database with our docs run the insert_docs.py script with:
 ```shell
-uv run python insert_docs.py
+uv run python -m pgai_discord_bot.insert_docs
 ```
 
 Afterwards you can run the bot with:
 
 ```shell
-uv run python main.py
+uv run python -m pgai_discord_bot.main
 ```
 
-The bot will answer questions by responding threads in the specified channel.
+The bot will answer questions by creating threads and responding to them in the specified channel.
 
 ## Build the docker container
-To build the docker container run:
+To build the docker container manually run:
 ```shell
 docker build --build-context docs=../../docs . -t discord_bot
 ```
 
-All files in the docs folder are inserted into the db on startup.
+All files in the docs folder are inserted or updated in the db on startup.

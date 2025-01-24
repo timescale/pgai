@@ -1,10 +1,10 @@
 import os
 from pathlib import Path
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from pgai_discord_bot.main import async_session, Document
+from pgai_discord_bot.main import Document, async_session
 
 
 async def process_markdown_files(
@@ -19,7 +19,6 @@ async def process_markdown_files(
     Args:
         directory_path: Path to the directory containing markdown files
         async_session: SQLAlchemy async session
-        Document: Your SQLAlchemy Document model class
         recursive: Whether to search subdirectories
         excluded_dirs: List of directory names to exclude from search
 
@@ -29,7 +28,7 @@ async def process_markdown_files(
             - List of any files that failed to process
     """
     if excluded_dirs is None:
-        excluded_dirs = [".git", "node_modules", "__pycache__"]
+        excluded_dirs = [".git"]
 
     processed_count = 0
     failed_files = []

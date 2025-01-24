@@ -2,20 +2,20 @@ import logging
 import os
 import re
 
-from dotenv import load_dotenv
-from sqlalchemy import Column, Integer, String, text, Text, select, func
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from sqlalchemy.orm import declarative_base, joinedload, Mapped, mapped_column
 import discord
-
+from dotenv import load_dotenv
 from openai import AsyncOpenAI
-
 from pgai.sqlalchemy import vectorizer_relationship
+from sqlalchemy import Column, Integer, String, Text, func, select, text
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.orm import Mapped, declarative_base, joinedload, mapped_column
 
 load_dotenv()
 
 # Create async engine
-engine = create_async_engine(os.environ["DATABASE_URL"].replace('\n', ''), echo=True, future=True)
+engine = create_async_engine(
+    os.environ["DATABASE_URL"].replace("\n", ""), echo=True, future=True
+)
 
 async_session = async_sessionmaker(engine)
 logging.basicConfig(
@@ -138,7 +138,7 @@ class MyClient(discord.Client):
     async def check_message(
         self, message: discord.Message
     ) -> tuple[bool, discord.TextChannel | None]:
-        """Check if we should process this message based on channel rules"""
+        """Check if we should process this message"""
         if message.author == self.user:
             return False, None
 

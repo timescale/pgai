@@ -10,7 +10,7 @@ dependencies = [
     "py-cord>=2.6.1",
     "sqlalchemy[asyncio]>=2.0.36",
     "python-dotenv==1.0.1",
-    "audioop-lts>=0.2.1",
+    "audioop-lts>=0.2.1", # See issue: https://github.com/Rapptz/discord.py/issues/9742
 ]
 
 [tool.pytest.ini_options]

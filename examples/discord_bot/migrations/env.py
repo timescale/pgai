@@ -1,20 +1,20 @@
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).parent.parent))
 import asyncio
 import os
-from dotenv import load_dotenv
 from logging.config import fileConfig
 
-from alembic.script import ScriptDirectory
-from sqlalchemy.engine import Connection
 from alembic import context
+from alembic.script import ScriptDirectory
+from dotenv import load_dotenv
+from pgai.alembic import register_operations
+from sqlalchemy.engine import Connection
 
 # Import your models and config
 from pgai_discord_bot.main import Base
 from pgai_discord_bot.main import engine as async_engine
-
-from pgai.alembic import register_operations
 
 load_dotenv()
 register_operations()
@@ -22,7 +22,7 @@ register_operations()
 # this is the Alembic Config object
 config = context.config
 
-config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"].replace('\n', ''))
+config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"].replace("\n", ""))
 
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:
@@ -46,7 +46,8 @@ def process_revision_directives(context, revision, directives):
         last_rev_id = int(head_revision.lstrip("0"))
         new_rev_id = last_rev_id + 1
     # fill zeros up to 4 digits: 1 -> 0001
-    migration_script.rev_id = "{0:04}".format(new_rev_id)
+    migration_script.rev_id = f"{new_rev_id:04}"
+
 
 def include_object(object, name, type_, reflected, compare_to):
     if type_ == "table" and name in target_metadata.info.get(
