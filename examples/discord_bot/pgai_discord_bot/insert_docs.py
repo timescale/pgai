@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from pgai_discord_bot.main import async_session, Document
 
@@ -42,16 +43,28 @@ async def process_markdown_files(
     async def process_file(file_path: Path) -> None:
         nonlocal processed_count
         try:
-            # Read the markdown file
-            content = file_path.read_text(encoding="utf-8")
-
             # Create relative path for file_name
             relative_path = str(file_path.relative_to(base_path))
 
-            # Create and add document to session
-            document = Document(file_name=relative_path, content=content)
-            async_session.add(document)
-            processed_count += 1
+            # Check if document already exists
+            existing_document = await async_session.execute(
+                select(Document).where(Document.file_name == relative_path)
+            )
+            existing_document = existing_document.scalar_one_or_none()
+
+            # Read the markdown file
+            content = file_path.read_text(encoding="utf-8")
+
+            if existing_document:
+                # Update existing document if content has changed
+                if existing_document.content != content:
+                    existing_document.content = content
+                    processed_count += 1
+            else:
+                # Create new document only if it doesn't exist
+                document = Document(file_name=relative_path, content=content)
+                async_session.add(document)
+                processed_count += 1
 
         except Exception as e:
             failed_files.append(f"{file_path}: {str(e)}")
@@ -105,7 +118,7 @@ async def main():
             directory_path=docs_path,
             async_session=session,
             recursive=True,
-            excluded_dirs=[".git", "node_modules", "tmp"],
+            excluded_dirs=[".git"],
         )
 
         print(f"Processed {processed} files")

@@ -1,3 +1,6 @@
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
 import asyncio
 import os
 from dotenv import load_dotenv
@@ -44,7 +47,6 @@ def process_revision_directives(context, revision, directives):
         new_rev_id = last_rev_id + 1
     # fill zeros up to 4 digits: 1 -> 0001
     migration_script.rev_id = "{0:04}".format(new_rev_id)
-
 
 def include_object(object, name, type_, reflected, compare_to):
     if type_ == "table" and name in target_metadata.info.get(

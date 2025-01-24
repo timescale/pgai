@@ -5,7 +5,7 @@ import re
 from dotenv import load_dotenv
 from sqlalchemy import Column, Integer, String, text, Text, select, func
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from sqlalchemy.orm import declarative_base, joinedload
+from sqlalchemy.orm import declarative_base, joinedload, Mapped, mapped_column
 import discord
 
 from openai import AsyncOpenAI
@@ -30,15 +30,15 @@ class Document(Base):
     __tablename__ = "documents"
 
     id = Column(Integer, primary_key=True)
-    file_name = Column(String())
-    content = Column(Text())
+    file_name: Mapped[str] = mapped_column(String())
+    content: Mapped[str] = mapped_column(Text())
     content_embeddings = vectorizer_relationship(
         dimensions=768,
     )
 
 
 openai_client = AsyncOpenAI(
-    api_key=os.environ.get("OPENAI_API_KEY"),  # This is the default and can be omitted
+    api_key=os.environ.get("OPENAI_API_KEY"),
 )
 
 
@@ -64,8 +64,8 @@ async def retrieve_relevant_documents(user_message: str) -> str:
             results = "\n".join(
                 [f"{doc.parent.file_name}: {doc.chunk}" for doc in relevant_docs]
             )
-            logger.info("Query", user_message)
-            logger.info("Results:", results)
+            logger.info("Query" + str(user_message))
+            logger.info("Results:" + results)
             return results
 
 
@@ -74,7 +74,7 @@ async def ask_ai(
     previous_messages: list[discord.Message],
     relevant_docs: str,
 ) -> str:
-    logger.info("Responding with these docs:", relevant_docs)
+    logger.info("Responding with these docs:" + relevant_docs)
     system_message = {
         "content": f"""
         You're the pgai documentation bot. Try to help the user with answering any questions about pgai based on this system message.
