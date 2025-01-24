@@ -2,7 +2,6 @@ on:
   push:
     branches:
       - main
-      - jascha/discord-bot-example
 
 name: build-discord-bot-image
 
