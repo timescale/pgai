@@ -121,11 +121,7 @@ On your local machine:
     a vectorizer worker to generate and update your embeddings:
 
     1. Configure environment variables if necessary (see [Additional configuration via environment variables](#additional-configuration-via-environment-variables))
-       for a list of the available environment variables:
-
-       ```bash
-       export OPENAI_API_KEY="..."
-       ```
+       for a list of the available environment variables.
 
     1. Run the vectorizer worker:
 
@@ -248,13 +244,13 @@ multiple asynchronous tasks to process a queue:
 Some important internals of the vectorizer worker are configured through
 the following environment variables.
 
-| Environment Variable                        | Default                | Purpose                                                                                   |
-|---------------------------------------------|------------------------|-------------------------------------------------------------------------------------------|
-| PGAI_VECTORIZER_WORKER_DB_URL               | -                      | Configures the database url that the vectorizer worker uses to procesa vectorizers.       |
-| OPENAI_API_KEY                              | -                      | The API key that the vectorizer worker uses to authenticate against the OpenAI API.       |
-| VOYAGE_API_KEY                              | -                      | The API key that the vectorizer worker uses to authenticate against the Voyage AI API.    |
-| OLLAMA_HOST                                 | http://localhost:11434 | The host to use when communicating with the Ollama API.                                   |
-| PGAI_VECTORIZER_OLLAMA_MAX_CHUNKS_PER_BATCH | 2048                   | Configures the number of chunks of data embedded in one Ollama API call, defaults to 2048 |
+| Environment Variable                        | Default                | Purpose                                                                                                                         |
+|---------------------------------------------|------------------------|---------------------------------------------------------------------------------------------------------------------------------|
+| PGAI_VECTORIZER_WORKER_DB_URL               | -                      | Configures the database url that the vectorizer worker uses to procesa vectorizers.                                             |
+| OPENAI_API_KEY                              | -                      | The API key that the vectorizer worker uses to authenticate against the OpenAI API. Can also be provided on the db instance.    |
+| VOYAGE_API_KEY                              | -                      | The API key that the vectorizer worker uses to authenticate against the Voyage AI API. Can also be provided on the db instance. |
+| OLLAMA_HOST                                 | http://localhost:11434 | The host to use when communicating with the Ollama API.                                                                         |
+| PGAI_VECTORIZER_OLLAMA_MAX_CHUNKS_PER_BATCH | 2048                   | Configures the number of chunks of data embedded in one Ollama API call, defaults to 2048                                       |
 
 
 [python3]: https://www.python.org/downloads/
