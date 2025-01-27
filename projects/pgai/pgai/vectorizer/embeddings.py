@@ -48,7 +48,7 @@ class EmbeddingResponse:
     usage: Usage
 
 
-T = TypeVar("T", StringDocument, TokenDocument)
+T = TypeVar("T", StringDocument, TokenDocument, Document)
 
 
 @dataclass

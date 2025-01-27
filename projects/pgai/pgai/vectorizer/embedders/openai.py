@@ -1,7 +1,7 @@
 import re
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from functools import cached_property
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import openai
 import tiktoken
@@ -14,11 +14,11 @@ from ..embeddings import (
     BaseURLMixin,
     BatchApiCaller,
     ChunkEmbeddingError,
+    Document,
     Embedder,
     EmbeddingResponse,
     EmbeddingVector,
     StringDocument,
-    TokenDocument,
     Usage,
     logger,
 )
@@ -69,9 +69,9 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
     def _max_chunks_per_batch(self) -> int:
         return 2048
 
-    async def call_embed_api(self, documents: list[TokenDocument]) -> EmbeddingResponse:
+    async def call_embed_api(self, documents: list[Document]) -> EmbeddingResponse:
         response = await self._embedder.create(
-            input=documents,
+            input=cast(list[str] | Iterable[Iterable[int]], documents),
             model=self.model,
             dimensions=self._openai_dimensions,
             user=self._openai_user,
@@ -86,7 +86,7 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
         )
 
     @cached_property
-    def _batcher(self) -> BatchApiCaller[TokenDocument]:
+    def _batcher(self) -> BatchApiCaller[Document]:
         return BatchApiCaller(self._max_chunks_per_batch(), self.call_embed_api)
 
     @override
@@ -127,13 +127,18 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
             m = openai_token_length_regex.match(msg)
             if not m:
                 raise e
+
+            # non-tokenized documents are discarded
+            if self._encoder is None:
+                raise e
+
             model_token_length = int(m.group(1))
             return await self._filter_by_length_and_embed(
                 model_token_length, encoded_documents
             )
 
     async def _filter_by_length_and_embed(
-        self, model_token_length: int, encoded_documents: list[list[int]]
+        self, model_token_length: int, encoded_documents: list[Document]
     ) -> Sequence[EmbeddingVector | ChunkEmbeddingError]:
         """
         Filters out documents that exceed the model's token limit and embeds
@@ -142,14 +147,15 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
 
         Args:
             model_token_length (int): The token length limit for the model.
-            encoded_documents (list[list[int]]): A list of encoded documents.
+            encoded_documents (list[Document]): A list of encoded documents.
+            if non-encoded documents are provided, those are discarded.
 
         Returns:
             Sequence[EmbeddingVector | ChunkEmbeddingError]: EmbeddingVector
             for the chunks that were successfully embedded, ChunkEmbeddingError
             for the chunks that exceeded the model's token limit.
         """
-        valid_documents: list[list[int]] = []
+        valid_documents: list[Document] = []
         invalid_documents_idxs: list[int] = []
         for i, doc in enumerate(encoded_documents):
             if len(doc) > model_token_length:
@@ -176,30 +182,44 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
 
         return embeddings
 
-    async def _encode(self, documents: list[str]) -> list[list[int]]:
+    async def _encode(self, documents: list[StringDocument]) -> list[Document]:
         """
         Encodes a list of documents into a list of tokenized documents, using
         the corresponding encoder for the model.
+        In case no encoder is found, the documents are returned as is (NOOP).
 
         Args:
             documents (list[str]): A list of text documents to be tokenized.
 
         Returns:
-            list[list[int]]: A list of tokenized documents.
+            list[Document]: A list of tokenized or non-tokenized documents.
         """
+        encoder = self._encoder
+        if encoder is None:
+            return list[Document](documents)
+
         total_tokens = 0
-        encoded_documents: list[list[int]] = []
+        encoded_documents: list[Document] = []
         for document in documents:
             if self.model.endswith("001"):
                 # See: https://github.com/openai/openai-python/issues/418#issuecomment-1525939500
                 # replace newlines, which can negatively affect performance.
                 document = document.replace("\n", " ")
-            tokenized = self._encoder.encode_ordinary(document)
+
+            tokenized = encoder.encode_ordinary(document)
             total_tokens += len(tokenized)
+            await logger.adebug(f"Total tokens in batch: {total_tokens}")
             encoded_documents.append(tokenized)
-        await logger.adebug(f"Total tokens in batch: {total_tokens}")
         return encoded_documents
 
     @cached_property
-    def _encoder(self) -> tiktoken.Encoding:
-        return tiktoken.encoding_for_model(self.model)
+    def _encoder(self) -> tiktoken.Encoding | None:
+        try:
+            encoder = tiktoken.encoding_for_model(self.model)
+        except KeyError:
+            logger.warning(
+                f"Tokenizer for the model {self.model} not found. "
+                "Fallback to non-tokenized plain text"
+            )
+            return None
+        return encoder
