@@ -5,7 +5,6 @@ from pathlib import Path
 import psycopg
 import pytest
 
-
 # skip tests in this module if disabled
 enable_contents_tests = os.getenv("ENABLE_CONTENTS_TESTS")
 if enable_contents_tests == "0":

@@ -3,7 +3,6 @@ import os
 import psycopg
 import pytest
 
-
 # skip tests in this module if disabled
 enable_anthropic_tests = os.getenv("ANTHROPIC_API_KEY")
 if not enable_anthropic_tests or enable_anthropic_tests == "0":

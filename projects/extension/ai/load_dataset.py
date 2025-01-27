@@ -1,6 +1,7 @@
 import json
+from typing import Any
+
 import datasets
-from typing import Optional, Dict, Any
 
 from .utils import get_guc_value
 
@@ -40,8 +41,8 @@ def field_name_to_column_name(field_name: str) -> str:
 
 
 def get_column_info(
-    dataset: datasets.Dataset, field_types: Optional[Dict[str, str]]
-) -> tuple[Dict[str, str], Dict[str, Any], str]:
+    dataset: datasets.Dataset, field_types: dict[str, str] | None
+) -> tuple[dict[str, str], dict[str, Any], str]:
     # Extract types from features
     column_dtypes = {
         name: feature.dtype for name, feature in dataset.features.flatten().items()
@@ -56,7 +57,7 @@ def get_column_info(
             else get_default_column_type(str(py_type))
         )
     column_names = ", ".join(
-        f'"{field_name_to_column_name(name)}"' for name in column_dtypes.keys()
+        f'"{field_name_to_column_name(name)}"' for name in column_dtypes
     )
     return column_pgtypes, column_dtypes, column_names
 
@@ -64,10 +65,10 @@ def get_column_info(
 def create_table(
     plpy: Any,
     name: str,
-    config_name: Optional[str],
+    config_name: str | None,
     schema: str,
-    table_name: Optional[str],
-    column_types: Dict[str, str],
+    table_name: str | None,
+    column_types: dict[str, str],
     if_table_exists: str,
 ) -> str:
     # Generate default table name if not provided
@@ -146,19 +147,19 @@ def load_dataset(
     plpy: Any,
     # Dataset loading parameters
     name: str,
-    config_name: Optional[str] = None,
-    split: Optional[str] = None,
+    config_name: str | None = None,
+    split: str | None = None,
     # Database target parameters
     schema: str = "public",
-    table_name: Optional[str] = None,
+    table_name: str | None = None,
     if_table_exists: str = "error",
     # Advanced options
-    field_types: Optional[Dict[str, str]] = None,
+    field_types: dict[str, str] | None = None,
     batch_size: int = 5000,
-    max_batches: Optional[int] = None,
-    commit_every_n_batches: Optional[int] = None,
+    max_batches: int | None = None,
+    commit_every_n_batches: int | None = None,
     # Additional dataset loading options
-    **kwargs: Dict[str, Any],
+    **kwargs: dict[str, Any],
 ) -> int:
     """
     Load a dataset into PostgreSQL database using plpy with batch UNNEST operations.
@@ -220,7 +221,7 @@ def load_dataset(
     # Prepare the UNNEST parameters and INSERT statement once
     unnest_params = []
     type_params = []
-    for i, (col_name, col_type) in enumerate(column_pgtypes.items(), 1):
+    for i, (col_type) in enumerate(column_pgtypes.values(), 1):
         unnest_params.append(f"${i}::{col_type}[]")
         type_params.append(f"{col_type}[]")
 
@@ -233,7 +234,7 @@ def load_dataset(
     num_rows = 0
     batch_count = 0
     batches_since_commit = 0
-    for split, dataset in datasetdict.items():
+    for dataset in datasetdict.values():
         # use arrow format to allow you to use the flatten method to flatten nested structs
         batched_dataset = dataset.with_format("arrow")
         # Process data in batches using dataset iteration
@@ -254,12 +255,11 @@ def load_dataset(
                         json.dumps(value.as_py()) if value is not None else None
                         for value in array_values
                     ]
-                elif type_str in ("int64", "int32", "int16", "int8"):
-                    batch_arrays[i] = [
-                        value.as_py() if value is not None else None
-                        for value in array_values
-                    ]
-                elif type_str in ("float64", "float32", "float16"):
+                elif type_str in ("int64", "int32", "int16", "int8") or type_str in (
+                    "float64",
+                    "float32",
+                    "float16",
+                ):
                     batch_arrays[i] = [
                         value.as_py() if value is not None else None
                         for value in array_values

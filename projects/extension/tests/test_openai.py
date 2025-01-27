@@ -3,7 +3,6 @@ import os
 import psycopg
 import pytest
 
-
 # skip tests in this module if disabled
 enable_openai_tests = os.getenv("OPENAI_API_KEY")
 if not enable_openai_tests or enable_openai_tests == "0":

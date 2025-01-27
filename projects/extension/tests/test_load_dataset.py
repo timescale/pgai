@@ -4,7 +4,6 @@ import os
 import psycopg
 import pytest
 
-
 # skip tests in this module if disabled
 enable_load_dataset_tests = os.getenv("ENABLE_LOAD_DATASET_TESTS")
 if not enable_load_dataset_tests or enable_load_dataset_tests == "0":
@@ -61,7 +60,10 @@ def test_load_dataset(cur):
     assert cur.fetchone()[0] == 2
 
     # test error
-    with pytest.raises(Exception):
+    with pytest.raises(
+        psycopg.errors.InternalError_,
+        match="plpy.Error: Table public.rotten_tomatoes already exists.",
+    ):
         cur.execute(
             """
             select ai.load_dataset('rotten_tomatoes', split=>'test', if_table_exists=>'error')
