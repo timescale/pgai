@@ -76,7 +76,8 @@ VECTORIZER_ROW = r"""
     "target_table": "blog_embedding_store",
     "trigger_name": "_vectorizer_src_trg_1",
     "source_schema": "website",
-    "target_schema": "website"
+    "target_schema": "website",
+    "disabled": false
 }
 """
 
@@ -171,7 +172,7 @@ def db_url(user: str) -> str:
 
 
 def psql_cmd(cmd: str) -> str:
-    cmd = f'''psql -X -d "{db_url('test')}" -c "{cmd}"'''
+    cmd = f'''psql -X -d "{db_url("test")}" -c "{cmd}"'''
     proc = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
     return str(proc.stdout).strip()
 

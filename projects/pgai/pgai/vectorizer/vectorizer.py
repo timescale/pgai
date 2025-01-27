@@ -24,6 +24,7 @@ from .chunking import (
 )
 from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .embeddings import ChunkEmbeddingError
+from .features import Features
 from .formatting import ChunkValue, PythonTemplate
 from .processing import ProcessingDefault
 
@@ -115,6 +116,8 @@ class Vectorizer:
     source_pk: list[PkAtt]
     errors_schema: str = "ai"
     errors_table: str = "vectorizer_errors"
+    schema: str = "ai"
+    table: str = "vectorizer"
 
 
 class VectorizerQueryBuilder:
@@ -180,6 +183,14 @@ class VectorizerQueryBuilder:
         Returns the SQL identifier for the fully qualified name of the queue table.
         """
         return sql.Identifier(self.vectorizer.queue_schema, self.vectorizer.queue_table)
+
+    @property
+    def vectorizer_table_ident(self) -> sql.Identifier:
+        """
+        Returns the SQL identifier for the fully qualified name of the
+        vectorizer table.
+        """
+        return sql.Identifier(self.vectorizer.schema, self.vectorizer.table)
 
     @cached_property
     def fetch_work_query(self) -> sql.Composed:
@@ -345,6 +356,12 @@ class VectorizerQueryBuilder:
         )
         return tuples
 
+    @cached_property
+    def is_vectorizer_disabled_query(self) -> sql.Composed:
+        return sql.SQL("SELECT disabled FROM {} WHERE id = %s").format(
+            self.vectorizer_table_ident,
+        )
+
 
 class ProcessingStats:
     """
@@ -437,18 +454,22 @@ class Worker:
     """
 
     _queue_table_oid = None
-    _continue_processing: Callable[[int, int], bool]
+    _should_continue_processing_hook: Callable[[int, int], bool]
 
     def __init__(
         self,
         db_url: str,
         vectorizer: Vectorizer,
-        continue_processing: None | Callable[[int, int], bool] = None,
+        features: Features,
+        should_continue_processing_hook: None | Callable[[int, int], bool] = None,
     ):
         self.db_url = db_url
         self.vectorizer = vectorizer
         self.queries = VectorizerQueryBuilder(vectorizer)
-        self._continue_processing = continue_processing or (lambda _loops, _res: True)
+        self._should_continue_processing_hook = should_continue_processing_hook or (
+            lambda _loops, _res: True
+        )
+        self.features = features
 
     async def run(self) -> int:
         """
@@ -461,17 +482,50 @@ class Worker:
         res = 0
         loops = 0
 
-        async with await psycopg.AsyncConnection.connect(self.db_url) as conn:
+        async with await psycopg.AsyncConnection.connect(
+            self.db_url, autocommit=True
+        ) as conn:
             await register_vector_async(conn)
             await self.vectorizer.config.embedding.setup()
             while True:
-                if not self._continue_processing(loops, res):
+                if not await self._should_continue_processing(conn, loops, res):
                     return res
                 items_processed = await self._do_batch(conn)
                 if items_processed == 0:
                     return res
                 res += items_processed
                 loops += 1
+
+    async def _should_continue_processing(
+        self, conn: AsyncConnection, loops: int, res: int
+    ) -> bool:
+        """Determine whether to continue processing based on vectorizer status
+        and custom logic.
+
+        Args:
+            conn (AsyncConnection): Database connection for checking vectorizer status.
+            loops (int): Number of processing loops completed.
+            res (int): Result from the previous processing iteration.
+
+        Returns:
+            bool: True if processing should continue, False otherwise.
+
+        Raises:
+            Exception: If the vectorizer row is not found in the database.
+        """
+        if self.features.disable_vectorizers:
+            async with conn.cursor() as cursor:
+                await cursor.execute(
+                    self.queries.is_vectorizer_disabled_query,
+                    [self.vectorizer.id],
+                )
+                row = await cursor.fetchone()
+                if not row:
+                    raise Exception("vectorizer row not found")
+                if row[0]:
+                    return False
+
+        return self._should_continue_processing_hook(loops, res)
 
     @tracer.wrap()
     async def _do_batch(self, conn: AsyncConnection) -> int:

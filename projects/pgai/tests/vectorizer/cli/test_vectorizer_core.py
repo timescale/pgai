@@ -1,3 +1,4 @@
+import asyncio
 import os
 import subprocess
 import time
@@ -7,6 +8,8 @@ from psycopg import Connection
 from psycopg.rows import dict_row
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
+from pgai.vectorizer import Vectorizer, Worker
+from pgai.vectorizer.features.features import Features
 from tests.vectorizer.cli.conftest import (
     TestDatabase,
     configure_vectorizer,
@@ -212,3 +215,186 @@ Each type has its own unique applications and methodologies."""
             assert sequences == list(
                 range(len(sequences))
             ), "Chunk sequences should be sequential starting from 0"
+
+
+def test_disabled_vectorizer_is_skipped(
+    cli_db: tuple[PostgresContainer, Connection],
+    cli_db_url: str,
+):
+    """Test that disabled vectorizers won't process any batches"""
+    _, connection = cli_db
+    table_name = setup_source_table(connection, 2)
+    # Given a disabled vectorizer.
+    vectorizer_id = configure_vectorizer(
+        table_name,
+        cli_db[1],
+        batch_size=2,
+        chunking="chunking_recursive_character_text_splitter('content', 100, 20,"
+        " separators => array[E'\\n\\n', E'\\n', ' '])",
+    )
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("select ai.disable_vectorizer_schedule(%s)", (vectorizer_id,))
+
+    # When the worker is executed.
+    result = run_vectorizer_worker(cli_db_url, vectorizer_id)
+
+    assert result.exit_code == 0, result.output
+
+    with connection.cursor(row_factory=dict_row) as cur:
+        # Then no chunks were created.
+        cur.execute("""
+            SELECT count(*)
+            FROM blog_embedding_store
+        """)
+        row = cur.fetchone()
+        assert row is not None and row["count"] == 0
+
+        # And the pending items are still present.
+        cur.execute(
+            """
+            SELECT pending_items, disabled
+            FROM ai.vectorizer_status
+            WHERE id = %s
+        """,
+            (vectorizer_id,),
+        )
+        row = cur.fetchone()
+        assert row is not None and row["pending_items"] == 2
+        assert row["disabled"]
+
+
+def test_disabled_vectorizer_is_skipped_before_next_batch(
+    cli_db: tuple[PostgresContainer, Connection],
+    cli_db_url: str,
+    vcr_: Any,
+):
+    """Test that a disabled vectorizer will exit before starting a new batch"""
+    _, connection = cli_db
+    table_name = setup_source_table(connection, 2)
+
+    # Given a vectorizer that has 2 items and a batch size of 1
+    vectorizer_id = configure_vectorizer(
+        table_name,
+        cli_db[1],
+        batch_size=1,
+        chunking="chunking_recursive_character_text_splitter('content', 100, 20,"
+        " separators => array[E'\\n\\n', E'\\n', ' '])",
+    )
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "select pg_catalog.to_jsonb(v) as vectorizer from ai.vectorizer v where v.id = %s",  # noqa
+            (vectorizer_id,),
+        )
+        row = cur.fetchone()
+    assert row is not None
+    vectorizer = Vectorizer(**row["vectorizer"])
+    vectorizer.config.embedding.set_api_key(  # type: ignore
+        {"OPENAI_API_KEY": "empty"}
+    )
+
+    features = Features("100.0.0")
+
+    # When the vectorizer is disabled after processing the first batch.
+    def should_continue_processing_hook(_loops: int, _res: int) -> bool:
+        with connection.cursor(row_factory=dict_row) as cur:
+            cur.execute("select ai.disable_vectorizer_schedule(%s)", (vectorizer_id,))
+        return True
+
+    with vcr_.use_cassette(
+        "test_disabled_vectorizer_is_skipped_before_next_batch.yaml"
+    ):
+        results = asyncio.run(
+            Worker(
+                cli_db_url, vectorizer, features, should_continue_processing_hook
+            ).run()
+        )
+    # Then it successfully exits after the first batch.
+    assert results == 1
+
+    with connection.cursor(row_factory=dict_row) as cur:
+        # And it embeds a single item.
+        cur.execute("""
+            SELECT count(*)
+            FROM blog_embedding_store
+        """)
+        row = cur.fetchone()
+        assert row is not None and row["count"] == 1
+
+        # And there's a single pending item.
+        cur.execute(
+            """
+            SELECT pending_items
+            FROM ai.vectorizer_status
+            WHERE id = %s
+        """,
+            (vectorizer_id,),
+        )
+        row = cur.fetchone()
+        assert row is not None and row["pending_items"] == 1
+
+
+def test_disabled_vectorizer_is_backwards_compatible(
+    cli_db: tuple[PostgresContainer, Connection],
+    cli_db_url: str,
+    vcr_: Any,
+):
+    """Test the backwards compatible path. Even if the vectorizer is disabled
+    it'll get embedded. It's not a 100% backwards compatible test, since the DB
+    has support for disable_vectorizers, but it tests the path"""
+    _, connection = cli_db
+    table_name = setup_source_table(connection, 2)
+
+    # Given a vectorizer and the `disable_vectorizers` feature is disabled.
+    vectorizer_id = configure_vectorizer(
+        table_name,
+        cli_db[1],
+        batch_size=2,
+        chunking="chunking_recursive_character_text_splitter('content', 100, 20,"
+        " separators => array[E'\\n\\n', E'\\n', ' '])",
+    )
+    features = Features("0.6.0")
+    assert not features.disable_vectorizers
+
+    # And the vectorizer is disabled so that we can test the backwards
+    # compatible path, to the best of our ability.
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("select ai.disable_vectorizer_schedule(%s)", (vectorizer_id,))
+
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "select pg_catalog.to_jsonb(v) as vectorizer from ai.vectorizer v where v.id = %s",  # noqa
+            (vectorizer_id,),
+        )
+        row = cur.fetchone()
+    assert row is not None
+    vectorizer = Vectorizer(**row["vectorizer"])
+    vectorizer.config.embedding.set_api_key(  # type: ignore
+        {"OPENAI_API_KEY": "empty"}
+    )
+
+    # When the vectorizer is executed.
+    with vcr_.use_cassette("test_disabled_vectorizer_is_backwards_compatible.yaml"):
+        results = asyncio.run(Worker(cli_db_url, vectorizer, features).run())
+
+    # Then the disable is ignored and the vectorizer successfully exits after
+    # processing the batches.
+    assert results == 2
+
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("""
+            SELECT count(*)
+            FROM blog_embedding_store
+        """)
+        row = cur.fetchone()
+        assert row is not None and row["count"] == 2
+
+        cur.execute(
+            """
+            SELECT pending_items
+            FROM ai.vectorizer_status
+            WHERE id = %s
+        """,
+            (vectorizer_id,),
+        )
+        row = cur.fetchone()
+        assert row is not None and row["pending_items"] == 0

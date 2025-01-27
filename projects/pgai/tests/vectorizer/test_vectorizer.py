@@ -6,6 +6,7 @@ from psycopg.rows import namedtuple_row
 from psycopg.sql import SQL, Identifier
 
 from pgai import cli
+from pgai.vectorizer.features import Features
 
 # skip tests in this module if disabled
 enable_vectorizer_tool_tests = os.getenv("ENABLE_VECTORIZER_TOOL_TESTS")
@@ -108,7 +109,8 @@ def test_vectorizer_internal():
         assert vectorizer_expected.source_table == vectorizer_actual.source_table  # type: ignore
 
         # run the vectorizer
-        cli.run_vectorizer(_db_url, vectorizer_actual, 1)
+        features = Features(pgai_version)
+        cli.run_vectorizer(_db_url, vectorizer_actual, 1, features)
 
         # make sure the queue was emptied
         cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))

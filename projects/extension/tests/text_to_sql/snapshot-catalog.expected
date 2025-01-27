@@ -183,6 +183,7 @@ View definition:
              "implementation": "none"                              +
          }                                                         +
      },                                                            +
+     "disabled": false,                                            +
      "source_pk": [                                                +
          {                                                         +
              "pknum": 1,                                           +
@@ -257,6 +258,7 @@ View definition:
              "implementation": "none"                              +
          }                                                         +
      },                                                            +
+     "disabled": false,                                            +
      "source_pk": [                                                +
          {                                                         +
              "pknum": 1,                                           +

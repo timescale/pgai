@@ -121,7 +121,7 @@ def test_vectorizer_without_secrets_fails(
     # Ensuring no OPENAI_API_KEY env set for the worker
     del os.environ["OPENAI_API_KEY"]
 
-    cassette = "openai-character_text_splitter-chunk_value-" "items=1-batch_size=1.yaml"
+    cassette = "openai-character_text_splitter-chunk_value-items=1-batch_size=1.yaml"
     logging.getLogger("vcr").setLevel(logging.DEBUG)
     with vcr_.use_cassette(cassette):
         result = run_vectorizer_worker(cli_db_url, vectorizer_id)
