@@ -264,6 +264,86 @@ def test_ollama_chat_complete_image(cur_with_ollama_host):
     assert actual is not None
 
 
+def test_ollama_chat_complete_tool_use(cur_with_ollama_host):
+    cur_with_ollama_host.execute("""
+        select ai.ollama_chat_complete
+        ( 'llama3.2:1b'
+        , jsonb_build_array
+          ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
+          , jsonb_build_object('role', 'user', 'content', 'What is the weather today in Birmingham, Alabama?')
+          )
+        , tools=> $json$
+              [
+                {
+                  "type": "function",
+                  "function": {
+                    "name": "get_current_weather",
+                    "description": "Get the current weather for a location",
+                    "parameters": {
+                      "type": "object",
+                      "properties": {
+                        "location": {
+                          "type": "string",
+                          "description": "The location to get the weather for, e.g. San Francisco, CA"
+                        },
+                        "format": {
+                          "type": "string",
+                          "description": "The format to return the weather in, e.g. 'celsius' or 'fahrenheit'",
+                          "enum": ["celsius", "fahrenheit"]
+                        }
+                      },
+                      "required": ["location", "format"]
+                    }
+                  }
+                }
+              ]
+          $json$::jsonb
+        )
+    """)
+    actual = cur_with_ollama_host.fetchone()[0]
+    assert (
+        actual["message"]["tool_calls"][0]["function"]["name"] == "get_current_weather"
+        and actual["done_reason"] == "stop"
+        and actual["done"] is True
+    )
+
+
+def test_ollama_chat_complete_structured_output(cur_with_ollama_host):
+    import json
+    cur_with_ollama_host.execute("""
+        select ai.ollama_chat_complete
+        ( 'llama3.2:1b'
+        , jsonb_build_array
+          ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
+          , jsonb_build_object('role', 'user', 'content', 'Ollama is 22 years old and busy saving the world. Return a JSON object with the age and availability.')
+          )
+        , response_format=> $json$
+            {
+                "type": "object",
+                "properties": {
+                    "age": {
+                        "type": "integer"
+                    },
+                    "available": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "age",
+                    "available"
+                ]
+            }
+          $json$::jsonb
+        )
+    """)
+    actual = cur_with_ollama_host.fetchone()[0]
+    assert (
+        json.loads(actual["message"]["content"])["age"] == 22
+        and actual["done_reason"] == "stop"
+        and actual["done"] is True
+    )
+
+
 def test_ollama_ps(cur, ollama_host):
     cur.execute(
         """

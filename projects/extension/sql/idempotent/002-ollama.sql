@@ -177,9 +177,12 @@ create or replace function ai.ollama_chat_complete
 , host text default null
 , keep_alive text default null
 , chat_options jsonb default null
+, tools jsonb default null
+, response_format jsonb default null
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
+    import json
     import ai.ollama
     client = ai.ollama.make_client(plpy, host)
 
@@ -192,6 +195,12 @@ as $python$
 
     if chat_options is not None:
         args["options"] = {k: v for k, v in json.loads(chat_options).items()}
+
+    if tools is not None:
+        args["tools"] = json.loads(tools)
+
+    if response_format is not None:
+        args["format"] = json.loads(response_format)
 
     messages_1 = json.loads(messages)
     if not isinstance(messages_1, list):
