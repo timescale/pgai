@@ -1,27 +1,9 @@
 from pathlib import Path
 from typing import Any
 
-from click.testing import CliRunner
 from sqlalchemy import Column
 
-from pgai.cli import vectorizer_worker
 from tests.vectorizer.extensions.conftest import load_template
-
-
-def run_vectorizer_worker(db_url: str, vectorizer_id: int) -> None:
-    CliRunner().invoke(
-        vectorizer_worker,
-        [
-            "--db-url",
-            db_url,
-            "--once",
-            "--vectorizer-id",
-            str(vectorizer_id),
-            "--concurrency",
-            "1",
-        ],
-        catch_exceptions=False,
-    )
 
 
 def create_vectorizer_migration(
