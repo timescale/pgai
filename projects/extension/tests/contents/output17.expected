@@ -40,7 +40,7 @@ CREATE EXTENSION
  function ai.litellm_embed(text,text[],text,text,jsonb)
  function ai.load_dataset_multi_txn(text,text,text,name,name,text,jsonb,integer,integer,integer,jsonb)
  function ai.load_dataset(text,text,text,name,name,text,jsonb,integer,integer,jsonb)
- function ai.ollama_chat_complete(text,jsonb,text,text,jsonb)
+ function ai.ollama_chat_complete(text,jsonb,text,text,jsonb,jsonb,jsonb)
  function ai.ollama_embed(text,text,text,text,jsonb)
  function ai.ollama_generate(text,text,text,bytea[],text,jsonb,text,text,integer[])
  function ai.ollama_list_models(text)
