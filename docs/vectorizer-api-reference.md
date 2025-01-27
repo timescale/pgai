@@ -1076,11 +1076,10 @@ Key points about schedule enable and disable:
 - When a schedule is disabled, new or updated data is not automatically processed. However, the data is still 
    queued, and will be processed when the schedule is re-enabled, or when the vectorizer is run manually.
 
-- These functions only affect vectorizers configured with [ai.scheduling_timescaledb](#aischeduling_timescaledb). 
-  Vectorizers configured with [ai.scheduling_none](#aischeduling_none) are not affected.
-
-- After re-enabling a schedule, the next run is based on the original scheduling configuration. For example, 
-  if the vectorizer was set to run every hour, it will run at the next hour mark after being enabled.
+- After re-enabling a schedule, for a vectorizer configured with
+  [ai.scheduling_timescaledb](#aischeduling_timescaledb), the next run is based
+  on the original scheduling configuration. For example, if the vectorizer was
+  set to run every hour, it will run at the next hour mark after being enabled.
 
 Usage example in a maintenance scenario:
 

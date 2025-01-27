@@ -20,12 +20,13 @@ To make changes to the pgai extension, do the following in your developer enviro
    git clone git@github.com:timescale/pgai.git
    cd pgai
    ```
-* Ollama only:
+* Ollama and Text to SQL only:
    * [Run Ollama somewhere accessible from your developer environment](https://github.com/ollama/ollama/blob/main/README.md#quickstart).
    * [Pull the `llama3` and  `llava:7b` models](https://github.com/ollama/ollama/blob/main/README.md#pull-a-model):
      ```shell
      ollama pull llama3
      ollama pull llava:7b
+     ollama pull smollm:135m
      ```
 
 ## The pgai extension development workflow

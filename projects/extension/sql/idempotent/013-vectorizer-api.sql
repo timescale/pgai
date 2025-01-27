@@ -59,11 +59,11 @@ begin
             raise warning 'one or more grant_to roles do not exist: %', _missing_roles;
         end if;
     end if;
-    
+
     if embedding is null then
         raise exception 'embedding configuration is required';
     end if;
-    
+
     if chunking is null then
         raise exception 'chunking configuration is required';
     end if;
@@ -307,9 +307,10 @@ declare
     _job_id pg_catalog.int8;
     _sql pg_catalog.text;
 begin
-    select * into strict _vec
-    from ai.vectorizer v
+    update ai.vectorizer v
+    set disabled = true
     where v.id operator(pg_catalog.=) vectorizer_id
+    returning * into strict _vec
     ;
     -- enable the scheduled job if exists
     _schedule = _vec.config operator(pg_catalog.->) 'scheduling';
@@ -347,9 +348,10 @@ declare
     _job_id pg_catalog.int8;
     _sql pg_catalog.text;
 begin
-    select * into strict _vec
-    from ai.vectorizer v
+    update ai.vectorizer v
+    set disabled = false
     where v.id operator(pg_catalog.=) vectorizer_id
+    returning * into strict _vec
     ;
     -- enable the scheduled job if exists
     _schedule = _vec.config operator(pg_catalog.->) 'scheduling';
@@ -594,6 +596,7 @@ select
     then ai.vectorizer_queue_pending(v.id)
   else null
   end as pending_items
+, disabled
 from ai.vectorizer v
 ;
 

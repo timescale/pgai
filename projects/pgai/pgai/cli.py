@@ -20,6 +20,7 @@ from pytimeparse import parse  # type: ignore
 
 from .__init__ import __version__
 from .vectorizer.embeddings import ApiKeyMixin
+from .vectorizer.features import Features
 from .vectorizer.vectorizer import Vectorizer, Worker
 
 load_dotenv()
@@ -135,12 +136,13 @@ def run_vectorizer(
     db_url: str,
     vectorizer: Vectorizer,
     concurrency: int,
+    features: Features,
 ) -> None:
     async def run_workers(
         db_url: str, vectorizer: Vectorizer, concurrency: int
     ) -> list[int]:
         tasks = [
-            asyncio.create_task(Worker(db_url, vectorizer).run())
+            asyncio.create_task(Worker(db_url, vectorizer, features).run())
             for _ in range(concurrency)
         ]
         return await asyncio.gather(*tasks)
@@ -273,6 +275,7 @@ def vectorizer_worker(
         # --once implies --exit-on-error
         exit_on_error = True
 
+    features = None
     while True:
         try:
             if not can_connect or pgai_version is None:
@@ -286,12 +289,17 @@ def vectorizer_worker(
                         log.error("the pgai extension is not installed")
                         if exit_on_error:
                             sys.exit(1)
+                    else:
+                        features = Features(pgai_version)
 
-            if can_connect and pgai_version is not None:
+            if can_connect and pgai_version is not None and features is not None:
                 if not dynamic_mode and len(valid_vectorizer_ids) != len(
                     vectorizer_ids
                 ):
-                    valid_vectorizer_ids = get_vectorizer_ids(db_url, vectorizer_ids)
+                    valid_vectorizer_ids = get_vectorizer_ids(
+                        db_url,
+                        vectorizer_ids,
+                    )
                     if len(valid_vectorizer_ids) != len(vectorizer_ids):
                         log.error(
                             f"invalid vectorizers, wanted: {list(vectorizer_ids)}, got: {valid_vectorizer_ids}"  # noqa: E501 (line too long)
@@ -299,7 +307,10 @@ def vectorizer_worker(
                         if exit_on_error:
                             sys.exit(1)
                 else:
-                    valid_vectorizer_ids = get_vectorizer_ids(db_url, vectorizer_ids)
+                    valid_vectorizer_ids = get_vectorizer_ids(
+                        db_url,
+                        vectorizer_ids,
+                    )
                     if len(valid_vectorizer_ids) == 0:
                         log.warning("no vectorizers found")
 
@@ -307,7 +318,7 @@ def vectorizer_worker(
                     try:
                         vectorizer = get_vectorizer(db_url, vectorizer_id)
                         log.info("running vectorizer", vectorizer_id=vectorizer_id)
-                        run_vectorizer(db_url, vectorizer, concurrency)
+                        run_vectorizer(db_url, vectorizer, concurrency, features)
                     except (VectorizerNotFoundError, ApiKeyNotFoundError) as e:
                         log.error(
                             f"error getting vectorizer: {type(e).__name__}: {str(e)} "

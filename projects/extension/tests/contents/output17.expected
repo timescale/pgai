@@ -191,6 +191,7 @@ View definition:
  queue_schema  | name    |           |          |                                  | plain    |             |              | 
  queue_table   | name    |           |          |                                  | plain    |             |              | 
  config        | jsonb   |           | not null |                                  | extended |             |              | 
+ disabled      | boolean |           | not null | false                            | plain    |             |              | 
 Indexes:
     "vectorizer_pkey" PRIMARY KEY, btree (id)
     "vectorizer_target_schema_target_table_key" UNIQUE CONSTRAINT, btree (target_schema, target_table)
@@ -238,6 +239,7 @@ primary key, btree, for table "ai.vectorizer"
  target_table  | text    | C         |          |         | extended | 
  view          | text    | C         |          |         | extended | 
  pending_items | bigint  |           |          |         | plain    | 
+ disabled      | boolean |           |          |         | plain    | 
 View definition:
  SELECT id,
     format('%I.%I'::text, source_schema, source_table) AS source_table,
@@ -246,7 +248,8 @@ View definition:
         CASE
             WHEN queue_table IS NOT NULL AND has_table_privilege(CURRENT_USER, format('%I.%I'::text, queue_schema, queue_table), 'select'::text) THEN ai.vectorizer_queue_pending(id)
             ELSE NULL::bigint
-        END AS pending_items
+        END AS pending_items,
+    disabled
    FROM ai.vectorizer v;
 
           Index "ai.vectorizer_target_schema_target_table_key"
