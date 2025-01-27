@@ -309,13 +309,18 @@ Model calling is a feature of pgai that allows you to call LLM models from SQL. 
 
 The following models are supported (click on the model to learn more):
 
-| **Model**       | **Tokenize** | **Embed** | **Chat Complete** | **Generate** | **Moderate** | **Classify** | **Rerank** |
-|------------------|:------------:|:---------:|:-----------------:|:------------:|:------------:|:------------:|:----------:|
-| **[Ollama](./docs/ollama.md)**       |              |     ✔️    |         ✔️         |      ✔️      |              |              |           |
-| **[OpenAI](./docs/openai.md)**       |      ✔️️      |     ✔️    |         ✔️         |              |      ✔️      |              |           |
-| **[Anthropic](./docs/anthropic.md)**    |              |           |                    |      ✔️      |              |              |           |
-| **[Cohere](./docs/cohere.md)**       |      ✔️      |     ✔️    |         ✔️         |              |              |      ✔️      |     ✔️     |
-| **[Voyage AI](./docs/voyageai.md)** |              |     ✔️    |                  |              |              |              |           |
+| **Model**                                            | **Tokenize** | **Embed** | **Chat Complete** | **Generate** | **Moderate** | **Classify** | **Rerank** |
+|------------------------------------------------------|:------------:|:---------:|:-----------------:|:------------:|:------------:|:------------:|:----------:|
+| **[Ollama](./docs/ollama.md)**                       |              |    ✔️     |        ✔️         |      ✔️      |              |              |            |
+| **[OpenAI](./docs/openai.md)**                       |     ✔️️      |    ✔️     |        ✔️         |              |      ✔️      |              |            |
+| **[Anthropic](./docs/anthropic.md)**                 |              |           |                   |      ✔️      |              |              |            |
+| **[Cohere](./docs/cohere.md)**                       |      ✔️      |    ✔️     |        ✔️         |              |              |      ✔️      |     ✔️     |
+| **[Voyage AI](./docs/voyageai.md)**                  |              |    ✔️     |                   |              |              |              |            |
+| **[Huggingface (with LiteLLM)](./docs/litellm.md)**  |              |    ✔️     |                   |              |              |              |            |
+| **[Mistral (with LiteLLM)](./docs/litellm.md)**      |              |    ✔️     |                   |              |              |              |            |
+| **[Azure OpenAI (with LiteLLM)](./docs/litellm.md)** |              |    ✔️     |                   |              |              |              |            |
+| **[AWS Bedrock (with LiteLLM)](./docs/litellm.md)**  |              |    ✔️     |                   |              |              |              |            |
+| **[Vertex AI (with LiteLLM)](./docs/litellm.md)**    |              |    ✔️     |                   |              |              |              |            |
 
 Some examples:
 - Learn how to [moderate](/docs/moderate.md) content directly in the database using triggers and background jobs. 
