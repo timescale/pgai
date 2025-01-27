@@ -8,7 +8,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.sqlalchemy import vectorizer_relationship
-from tests.vectorizer.utils import run_vectorizer_worker
+from tests.vectorizer.cli.conftest import run_vectorizer_worker
 
 
 class BaseModel(DeclarativeBase):
