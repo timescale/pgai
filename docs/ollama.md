@@ -183,6 +183,97 @@ These models have numerous applications in areas like:
 In summary, a large language model is a powerful AI tool capable of processing and generating human-like language, with applications in various industries and aspects of our lives!
 ```
 
+#### Tool Use
+
+You can [provide tools for the LLM to call](https://github.com/ollama/ollama/blob/main/docs/api.md#chat-request-with-tools) using the `tools` parameter.
+
+```sql
+select ai.ollama_chat_complete
+( 'llama3.2:1b'
+, $json$[{"role": "user", "content": "What is the weather today in Birmingham, Alabama?"}]$json$::jsonb
+, tools=> $json$
+      [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_current_weather",
+            "description": "Get the current weather for a location",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "location": {
+                  "type": "string",
+                  "description": "The location to get the weather for, e.g. San Francisco, CA"
+                },
+                "format": {
+                  "type": "string",
+                  "description": "The format to return the weather in, e.g. 'celsius' or 'fahrenheit'",
+                  "enum": ["celsius", "fahrenheit"]
+                }
+              },
+              "required": ["location", "format"]
+            }
+          }
+        }
+      ]
+  $json$::jsonb
+)->'message'->'tool_calls'
+```
+
+The data returned looks like:
+
+```json
+[
+   {
+       "function": {
+           "name": "get_current_weather",
+           "arguments": {
+               "format": "celsius",
+               "location": "Birmingham, Alabama"
+           }
+       }
+   }
+]
+```
+
+#### Structured Output
+
+You can [force the LLM to respond with json of a particular "shape"](https://github.com/ollama/ollama/blob/main/docs/api.md#chat-request-structured-outputs) using the `response_format` parameter:
+
+```sql
+select ai.ollama_chat_complete
+( 'llama3.2:1b'
+, $json$[{"role": "user", "content": "Ollama is 22 years old and busy saving the world. Return a JSON object with the age and availability."}]$json$::jsonb
+, response_format=> $json$
+    {
+        "type": "object",
+        "properties": {
+            "age": {
+                "type": "integer"
+            },
+            "available": {
+                "type": "boolean"
+            }
+        },
+        "required": [
+            "age",
+            "available"
+        ]
+    }
+  $json$::jsonb
+)->'message'->'content'
+;
+```
+
+The data returned looks like:
+
+```text
+                  structured
+-----------------------------------------------
+ "{\n  \"age\": 22,\n  \"available\": true\n}"
+(1 row)
+```
+
 ### Generate
 
 [Generate a response for the prompt provided](https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-completion):
