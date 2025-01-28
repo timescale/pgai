@@ -11,6 +11,12 @@ if not enable_ollama_tests or enable_ollama_tests == "0":
     pytest.skip(allow_module_level=True)
 
 
+def where_am_i() -> str:
+    if "WHERE_AM_I" in os.environ and os.environ["WHERE_AM_I"] == "docker":
+        return "docker"
+    return "host"
+
+
 def wait_for_model_download(host: str, model: str, timeout: int = 300) -> None:
     """
     Wait for a model to be downloaded, with timeout.
@@ -19,6 +25,13 @@ def wait_for_model_download(host: str, model: str, timeout: int = 300) -> None:
         model: Name of the model to wait for
         timeout: Maximum time to wait in seconds
     """
+
+    # if we are running the tests from a development host with the database in a docker container
+    # then the OLLAMA_HOST env var will not work for pulling models
+    # attempting to use the env var will spin wait for 5 minutes. super annoying
+    if "host.docker.internal" in host and where_am_i() == "host":
+        host = "http://localhost:11434"
+
     start_time = time.time()
     while time.time() - start_time < timeout:
         try:
@@ -310,6 +323,7 @@ def test_ollama_chat_complete_tool_use(cur_with_ollama_host):
 
 def test_ollama_chat_complete_structured_output(cur_with_ollama_host):
     import json
+
     cur_with_ollama_host.execute("""
         select ai.ollama_chat_complete
         ( 'llama3.2:1b'
