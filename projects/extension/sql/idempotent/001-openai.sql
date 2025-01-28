@@ -154,7 +154,7 @@ create or replace function ai.openai_chat_complete
 , temperature float8 default null
 , top_p float8 default null
 , tools jsonb default null
-, tool_choice jsonb default null
+, tool_choice text default null
 , openai_user text default null
 ) returns jsonb
 as $python$
@@ -167,43 +167,60 @@ as $python$
 
     messages_1 = json.loads(messages)
     if not isinstance(messages_1, list):
-        plpy.error("messages is not an array")
+      plpy.error("messages is not an array")
 
-    logit_bias_1 = None
+    args = {}
+
+    if frequency_penalty is not None:
+      args["frequency_penalty"] = frequency_penalty
+
     if logit_bias is not None:
-      logit_bias_1 = json.loads(logit_bias)
+      args["logit_bias"] = json.loads(logit_bias)
 
-    response_format_1 = None
+    if logprobs is not None:
+      args["logprobs"] = logprobs
+
+    if top_logprobs is not None:
+      args["top_logprobs"] = top_logprobs
+
+    if max_tokens is not None:
+      args["max_tokens"] = max_tokens
+
+    if n is not None:
+      args["n"] = n
+
+    if presence_penalty is not None:
+      args["presence_penalty"] = presence_penalty
+
     if response_format is not None:
-      response_format_1 = json.loads(response_format)
+      args["response_format"] = json.loads(response_format)
 
-    tools_1 = None
+    if seed is not None:
+        args["seed"] = seed
+
+    if stop is not None:
+      args["stop"] = stop
+
+    if temperature is not None:
+      args["temperature"] = temperature
+
+    if top_p is not None:
+      args["top_p"] = top_p
+
     if tools is not None:
-      tools_1 = json.loads(tools)
+      args["tools"] = json.loads(tools)
 
-    tool_choice_1 = None
     if tool_choice is not None:
-      tool_choice_1 = json.loads(tool_choice)
+      args["tool_choice"] = tool_choice if tool_choice in {'auto', 'none', 'required'} else json.loads(tool_choice)
+
+    if openai_user is not None:
+      args["user"] = openai_user
 
     response = client.chat.completions.create(
       model=model
     , messages=messages_1
-    , frequency_penalty=frequency_penalty
-    , logit_bias=logit_bias_1
-    , logprobs=logprobs
-    , top_logprobs=top_logprobs
-    , max_tokens=max_tokens
-    , n=n
-    , presence_penalty=presence_penalty
-    , response_format=response_format_1
-    , seed=seed
-    , stop=stop
     , stream=False
-    , temperature=temperature
-    , top_p=top_p
-    , tools=tools_1
-    , tool_choice=tool_choice_1
-    , user=openai_user
+    , **args
     )
 
     return response.model_dump_json()

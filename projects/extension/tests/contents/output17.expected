@@ -46,7 +46,7 @@ CREATE EXTENSION
  function ai.ollama_list_models(text)
  function ai.ollama_ps(text)
  function ai.openai_chat_complete_simple(text,text,text)
- function ai.openai_chat_complete(text,jsonb,text,text,text,double precision,jsonb,boolean,integer,integer,integer,double precision,jsonb,integer,text,double precision,double precision,jsonb,jsonb,text)
+ function ai.openai_chat_complete(text,jsonb,text,text,text,double precision,jsonb,boolean,integer,integer,integer,double precision,jsonb,integer,text,double precision,double precision,jsonb,text,text)
  function ai.openai_detokenize(text,integer[])
  function ai.openai_embed(text,integer[],text,text,text,integer,text)
  function ai.openai_embed(text,text,text,text,text,integer,text)
