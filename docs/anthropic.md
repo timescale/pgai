@@ -46,7 +46,32 @@ as a [session level parameter]. For more options and details, consult the
 
 This section shows you how to use AI directly from your database using SQL.
 
-- [Generate](#generate): generate a response to a prompt
+- [List Models](#list-models): list the models supported by Anthropic functions in pgai.
+- [Generate](#generate): generate a response to a prompt.
+
+### List models
+
+List the models supported by your AI provider in pgai:
+
+  ```sql
+  SELECT * 
+  FROM ai.anthropic_list_models()
+  ORDER BY created DESC
+  ;
+  ```
+The data returned looks like:
+
+```text
+             id              |        name              | created  
+-----------------------------+--------------------------+------------------------
+ claude-3-5-sonnet-20241022  | Claude 3.5 Sonnet (New)  | 2024-10-22 00:00:00+00
+ claude-3-5-haiku-20241022   | Claude 3.5 Haiku         | 2024-10-22 00:00:00+00
+ claude-3-5-sonnet-20240620  | Claude 3.5 Sonnet (Old)  | 2024-06-20 00:00:00+00
+ claude-3-haiku-20240307     | Claude 3 Haiku           | 2024-03-07 00:00:00+00
+ claude-3-opus-20240229      | Claude 3 Opus            | 2024-02-29 00:00:00+00
+ ...
+(N rows)
+```
 
 ### Generate
 
