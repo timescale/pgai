@@ -1,10 +1,10 @@
 import json
 from urllib.parse import urljoin
 
-import backoff
+# import backoff
 import httpx
-from backoff._typing import Details
 
+# from backoff._typing import Details
 from .utils import get_guc_value
 
 GUC_VECTORIZER_URL = "ai.external_functions_executor_url"
@@ -40,20 +40,20 @@ def execute_vectorizer(plpy, vectorizer_id: int) -> None:
     )
     plpy.debug(f"posting execution request to {the_url}")
 
-    def on_backoff(detail: Details):
-        wait = detail.get("wait", 0)
-        plpy.warning(
-            f"{vectorizer_id} retry: {detail['tries']} elapsed: {detail['elapsed']} wait: {wait}..."
-        )
+    # def on_backoff(detail: Details):
+    #     wait = detail.get("wait", 0)
+    #     plpy.warning(
+    #         f"{vectorizer_id} retry: {detail['tries']} elapsed: {detail['elapsed']} wait: {wait}..."
+    #     )
 
-    @backoff.on_exception(
-        backoff.expo,
-        httpx.HTTPError,
-        max_tries=10,
-        max_time=120,
-        on_backoff=on_backoff,
-        raise_on_giveup=True,
-    )
+    # @backoff.on_exception(
+    #     backoff.expo,
+    #     httpx.HTTPError,
+    #     max_tries=10,
+    #     max_time=120,
+    #     on_backoff=on_backoff,
+    #     raise_on_giveup=True,
+    # )
     def post() -> httpx.Response:
         return httpx.post(the_url, json=vectorizer)
 

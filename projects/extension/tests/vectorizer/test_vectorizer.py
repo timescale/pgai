@@ -23,7 +23,8 @@ VECTORIZER_ROW = r"""
             "chunk_column": "body",
             "chunk_overlap": 10,
             "implementation": "character_text_splitter",
-            "is_separator_regex": false
+            "is_separator_regex": false,
+            "chunk_document": false
         },
         "indexing": {
             "config_type": "indexing",

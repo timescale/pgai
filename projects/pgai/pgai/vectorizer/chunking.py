@@ -68,7 +68,7 @@ class LangChainCharacterTextSplitter(BaseModel, Chunker):
         )
 
     @override
-    def into_chunks(self, item: dict[str, Any]) -> list[str]:
+    def into_chunks(    self, item: dict[str, Any]) -> list[str]:
         """
         Splits the text from the provided item into chunks using CharacterTextSplitter.
 
