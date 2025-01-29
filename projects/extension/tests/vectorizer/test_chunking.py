@@ -25,6 +25,7 @@ def test_chunking_character_text_splitter():
                 "chunk_overlap": 400,
                 "implementation": "character_text_splitter",
                 "config_type": "chunking",
+                "chunk_document": False,
             },
         ),
         (
@@ -37,6 +38,7 @@ def test_chunking_character_text_splitter():
                 "chunk_overlap": 10,
                 "implementation": "character_text_splitter",
                 "config_type": "chunking",
+                "chunk_document": False,
             },
         ),
         (
@@ -49,6 +51,7 @@ def test_chunking_character_text_splitter():
                 "chunk_overlap": 20,
                 "implementation": "character_text_splitter",
                 "config_type": "chunking",
+                "chunk_document": False,
             },
         ),
         (
@@ -69,6 +72,20 @@ def test_chunking_character_text_splitter():
                 "chunk_overlap": 20,
                 "implementation": "character_text_splitter",
                 "config_type": "chunking",
+                "chunk_document": False,
+            },
+        ),
+        (
+            "select ai.chunking_character_text_splitter(chunk_document=>True)",
+            {
+                "separator": "\n\n",
+                "is_separator_regex": False,
+                "chunk_size": 800,
+                "chunk_column": "",
+                "chunk_overlap": 400,
+                "implementation": "character_text_splitter",
+                "config_type": "chunking",
+                "chunk_document": True,
             },
         ),
     ]
@@ -94,6 +111,7 @@ def test_chunking_recursive_character_text_splitter():
                 "chunk_overlap": 400,
                 "implementation": "recursive_character_text_splitter",
                 "config_type": "chunking",
+                "chunk_document": False,
             },
         ),
         (
@@ -106,6 +124,7 @@ def test_chunking_recursive_character_text_splitter():
                 "chunk_overlap": 10,
                 "implementation": "recursive_character_text_splitter",
                 "config_type": "chunking",
+                "chunk_document": False,
             },
         ),
         (
@@ -118,6 +137,7 @@ def test_chunking_recursive_character_text_splitter():
                 "chunk_overlap": 20,
                 "implementation": "recursive_character_text_splitter",
                 "config_type": "chunking",
+                "chunk_document": False,
             },
         ),
         (
@@ -138,6 +158,7 @@ def test_chunking_recursive_character_text_splitter():
                 "chunk_overlap": 20,
                 "implementation": "recursive_character_text_splitter",
                 "config_type": "chunking",
+                "chunk_document": False,
             },
         ),
     ]
