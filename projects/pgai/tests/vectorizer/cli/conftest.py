@@ -83,9 +83,13 @@ def configure_vectorizer(
     chunking: str = "chunking_character_text_splitter('content')",
     formatting: str = "formatting_python_template('$chunk')",
     embedding: str = "embedding_openai('text-embedding-ada-002', 1536)",
+    loader: str | None = None,
+    parser: str | None = None,
 ):
     with connection.cursor(row_factory=dict_row) as cur:
         # Create vectorizer
+        parser = f", parser => {parser}" if parser else ""
+        loader = f", loader => {loader}" if loader else ""
         cur.execute(f"""
             SELECT ai.create_vectorizer(
                 '{source_table}'::regclass,
@@ -93,7 +97,10 @@ def configure_vectorizer(
                 chunking => ai.{chunking},
                 formatting => ai.{formatting},
                 processing => ai.processing_default(batch_size => {batch_size},
-                                                    concurrency => {concurrency})
+                                                    concurrency => {concurrency}
+                                                    {loader}
+                                                    {parser}
+                                                    )
             )
         """)  # type: ignore
         vectorizer_id: int = int(cur.fetchone()["create_vectorizer"])  # type: ignore
