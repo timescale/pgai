@@ -7,7 +7,6 @@ create or replace function ai.chunking_character_text_splitter
 , chunk_overlap pg_catalog.int4 default 400
 , separator pg_catalog.text default E'\n\n'
 , is_separator_regex pg_catalog.bool default false
-, chunk_document pg_catalog.bool default false
 ) returns pg_catalog.jsonb
 as $func$
     select json_object
@@ -18,7 +17,6 @@ as $func$
     , 'chunk_overlap': chunk_overlap
     , 'separator': separator
     , 'is_separator_regex': is_separator_regex
-    , 'chunk_document': chunk_document
     absent on null
     )
 $func$ language sql immutable security invoker
@@ -33,7 +31,6 @@ create or replace function ai.chunking_recursive_character_text_splitter
 , chunk_overlap pg_catalog.int4 default 400
 , separators pg_catalog.text[] default array[E'\n\n', E'\n', '.', '?', '!', ' ', '']
 , is_separator_regex pg_catalog.bool default false
-, chunk_document pg_catalog.bool default false
 ) returns pg_catalog.jsonb
 as $func$
     select json_object
@@ -44,7 +41,6 @@ as $func$
     , 'chunk_overlap': chunk_overlap
     , 'separators': separators
     , 'is_separator_regex': is_separator_regex
-    , 'chunk_document': chunk_document
     absent on null
     )
 $func$ language sql immutable security invoker
@@ -57,6 +53,7 @@ create or replace function ai._validate_chunking
 ( config pg_catalog.jsonb
 , source_schema pg_catalog.name
 , source_table pg_catalog.name
+, chunk_document pg_catalog.bool
 ) returns void
 as $func$
 declare
@@ -64,7 +61,6 @@ declare
     _implementation pg_catalog.text;
     _chunk_column pg_catalog.text;
     _found pg_catalog.bool;
-    _chunk_document pg_catalog.bool;
 begin
     if pg_catalog.jsonb_typeof(config) operator(pg_catalog.!=) 'object' then
         raise exception 'chunking config is not a jsonb object';
@@ -80,13 +76,12 @@ begin
         raise exception 'invalid chunking config implementation';
     end if;
 
-    _chunk_document = config operator(pg_catalog.->>) 'chunk_document';
     _chunk_column = config operator(pg_catalog.->>) 'chunk_column';
-    if (_chunk_document is false and _chunk_column = '') or (_chunk_document is true and _chunk_column != '') then
+    if (chunk_document is false and _chunk_column = '') or (chunk_document is true and _chunk_column != '') then
        raise exception 'either one of chunk_column or chunk_document should be set in config';
     end if;
 
-    if _chunk_document is false then
+    if chunk_document is false then
         _chunk_column = config operator(pg_catalog.->>) 'chunk_column';
 
         select count(*) operator(pg_catalog.>) 0 into strict _found

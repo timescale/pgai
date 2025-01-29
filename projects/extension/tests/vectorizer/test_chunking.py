@@ -161,6 +161,19 @@ def test_chunking_recursive_character_text_splitter():
                 "chunk_document": False,
             },
         ),
+        (
+            "select ai.chunking_recursive_character_text_splitter(chunk_document=>True)",
+            {
+                "separators": ["\n\n", "\n", ".", "?", "!", " ", ""],
+                "is_separator_regex": False,
+                "chunk_size": 800,
+                "chunk_column": "",
+                "chunk_overlap": 400,
+                "implementation": "recursive_character_text_splitter",
+                "config_type": "chunking",
+                "chunk_document": True,
+            },
+        ),
     ]
     with psycopg.connect(db_url("test")) as con:
         with con.cursor() as cur:
@@ -214,6 +227,33 @@ def test_validate_chunking():
             )
             """,
             "invalid config_type for chunking config",
+        ),
+        (
+            """
+            select ai._validate_chunking
+            ( ai.chunking_recursive_character_text_splitter('column_a', chunk_document=>True)
+            , 'public', 'thing'
+            )
+            """,
+            "either one of chunk_column or chunk_document should be set in config",
+        ),
+        (
+            """
+            select ai._validate_chunking
+            ( ai.chunking_recursive_character_text_splitter('', chunk_document=>False)
+            , 'public', 'thing'
+            )
+            """,
+            "either one of chunk_column or chunk_document should be set in config",
+        ),
+        (
+            """
+            select ai._validate_chunking
+            ( ai.chunking_recursive_character_text_splitter()
+            , 'public', 'thing'
+            )
+            """,
+            "either one of chunk_column or chunk_document should be set in config",
         ),
     ]
     with psycopg.connect(db_url("test"), autocommit=True) as con:
