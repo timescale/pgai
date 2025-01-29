@@ -149,7 +149,7 @@ The `vectorizer_relationship` provides several ways to work with embeddings:
 
 ### 1. Direct Access to Embeddings
 
-If you access the class proeprty of your model the `vectorizer_relationship` provide a SQLAlchemy model that you can query directly:
+If you access the class property of your model the `vectorizer_relationship` provide a SQLAlchemy model that you can query directly:
 
 ```python
 # Get all embeddings
