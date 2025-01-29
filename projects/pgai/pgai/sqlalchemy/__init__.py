@@ -180,6 +180,7 @@ class _Vectorizer:
                     foreign_keys=[
                         getattr(self._embedding_class, col.name) for col in pk_cols
                     ],
+                    back_populates="parent",
                     **self.relationship_args,
                 )
                 setattr(owner, f"{self.name}_model", self._embedding_class)
