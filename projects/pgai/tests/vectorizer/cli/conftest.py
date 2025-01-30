@@ -98,9 +98,9 @@ def configure_vectorizer(
                 formatting => ai.{formatting},
                 processing => ai.processing_default(batch_size => {batch_size},
                                                     concurrency => {concurrency}
-                                                    {loader}
-                                                    {parser}
                                                     )
+                {loader}
+                {parser}
             )
         """)  # type: ignore
         vectorizer_id: int = int(cur.fetchone()["create_vectorizer"])  # type: ignore

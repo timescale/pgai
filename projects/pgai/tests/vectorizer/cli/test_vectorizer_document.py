@@ -14,11 +14,7 @@ load_dotenv()
 
 s3_base = os.environ["S3_BASE_URL"]
 docs = [
-    "sample_pdf.pdf",
-    "sample_with_table.pdf",
-    "stop recommending clean code.pdf",
-    "stop_recommending_clean_code.pdf",
-    "stop_recommending_clean_code.txt",
+    "r1cover.pdf",
 ]
 
 
@@ -49,7 +45,7 @@ def configure_document_vectorizer(
     number_of_rows: int = 1,
     concurrency: int = 1,
     batch_size: int = 1,
-    chunking: str = "chunking_character_text_splitter()",
+    chunking: str = "chunking_character_text_splitter('url')",
     formatting: str = "formatting_python_template('$chunk')",
 ) -> int:
     """Creates and configures a vectorizer for testing"""
@@ -66,7 +62,7 @@ def configure_document_vectorizer(
         chunking=chunking,
         formatting=formatting,
         embedding=embedding,
-        loader="ai.loader_s3(url_column => 'url')",  # this could also just be ai.file_loader() ?
+        loader="ai.loader_file_loader(url_column => 'url')",
         parser="ai.parser_pymupdf()",
     )
 
@@ -76,7 +72,6 @@ def test_simple_document_embedding(
 ):
     """Test that a document is successfully embedded"""
     connection = cli_db[1]
-    setup_documents_table(connection, 1)
     vectorizer_id = configure_document_vectorizer(cli_db[1])
 
     run_vectorizer_worker(cli_db_url, vectorizer_id)

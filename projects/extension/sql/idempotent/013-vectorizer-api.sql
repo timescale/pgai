@@ -23,6 +23,8 @@ create or replace function ai.create_vectorizer
 , formatting pg_catalog.jsonb default ai.formatting_python_template()
 , scheduling pg_catalog.jsonb default ai.scheduling_default()
 , processing pg_catalog.jsonb default ai.processing_default()
+, loader pg_catalog.jsonb default null
+, parser pg_catalog.jsonb default null
 , target_schema pg_catalog.name default null
 , target_table pg_catalog.name default null
 , view_schema pg_catalog.name default null
@@ -259,6 +261,8 @@ begin
       , 'formatting', formatting
       , 'scheduling', scheduling
       , 'processing', processing
+      , 'loader', loader
+      , 'parser', parser
       )
     );
 

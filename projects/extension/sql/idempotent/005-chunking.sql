@@ -2,7 +2,7 @@
 -------------------------------------------------------------------------------
 -- chunking_character_text_splitter
 create or replace function ai.chunking_character_text_splitter
-( chunk_column pg_catalog.name
+( chunk_column pg_catalog.name default ''
 , chunk_size pg_catalog.int4 default 800
 , chunk_overlap pg_catalog.int4 default 400
 , separator pg_catalog.text default E'\n\n'
@@ -26,7 +26,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- chunking_recursive_character_text_splitter
 create or replace function ai.chunking_recursive_character_text_splitter
-( chunk_column pg_catalog.name
+( chunk_column pg_catalog.name default ''
 , chunk_size pg_catalog.int4 default 800
 , chunk_overlap pg_catalog.int4 default 400
 , separators pg_catalog.text[] default array[E'\n\n', E'\n', '.', '?', '!', ' ', '']
@@ -76,20 +76,22 @@ begin
     end if;
 
     _chunk_column = config operator(pg_catalog.->>) 'chunk_column';
-
-    select count(*) operator(pg_catalog.>) 0 into strict _found
-    from pg_catalog.pg_class k
-    inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
-    inner join pg_catalog.pg_attribute a on (k.oid operator(pg_catalog.=) a.attrelid)
-    inner join pg_catalog.pg_type y on (a.atttypid operator(pg_catalog.=) y.oid)
-    where n.nspname operator(pg_catalog.=) source_schema
-    and k.relname operator(pg_catalog.=) source_table
-    and a.attnum operator(pg_catalog.>) 0
-    and a.attname operator(pg_catalog.=) _chunk_column
-    and y.typname in ('text', 'varchar', 'char', 'bpchar')
-    ;
-    if not _found then
-        raise exception 'chunk column in config does not exist in the table: %', _chunk_column;
+    
+    if _chunk_column operator(pg_catalog.!=) '' then
+        select count(*) operator(pg_catalog.>) 0 into strict _found
+        from pg_catalog.pg_class k
+        inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
+        inner join pg_catalog.pg_attribute a on (k.oid operator(pg_catalog.=) a.attrelid)
+        inner join pg_catalog.pg_type y on (a.atttypid operator(pg_catalog.=) y.oid)
+        where n.nspname operator(pg_catalog.=) source_schema
+        and k.relname operator(pg_catalog.=) source_table
+        and a.attnum operator(pg_catalog.>) 0
+        and a.attname operator(pg_catalog.=) _chunk_column
+        and y.typname in ('text', 'varchar', 'char', 'bpchar')
+        ;
+        if not _found then
+            raise exception 'chunk column in config does not exist in the table: %', _chunk_column;
+        end if;
     end if;
 end
 $func$ language plpgsql stable security invoker

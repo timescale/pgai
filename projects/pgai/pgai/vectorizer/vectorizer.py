@@ -1,4 +1,5 @@
 import asyncio
+import io
 import os
 import threading
 import time
@@ -7,10 +8,14 @@ from functools import cached_property
 from itertools import repeat
 from typing import Any, TypeAlias
 
+import fitz
 import numpy as np
 import psycopg
+import pymupdf4llm
+import smart_open
 import structlog
 from ddtrace import tracer
+from filetype import filetype
 from pgvector.psycopg import register_vector_async  # type: ignore
 from psycopg import AsyncConnection, sql
 from psycopg.rows import dict_row
@@ -25,6 +30,8 @@ from .chunking import (
 from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .embeddings import ChunkEmbeddingError
 from .formatting import ChunkValue, PythonTemplate
+from .loader import pgaiFileLoader
+from .parser import PyMuPDFParser
 from .processing import ProcessingDefault
 
 logger = structlog.get_logger()
@@ -81,6 +88,8 @@ class Config:
         LangChainCharacterTextSplitter | LangChainRecursiveCharacterTextSplitter
     ) = Field(..., discriminator="implementation")
     formatting: PythonTemplate | ChunkValue = Field(..., discriminator="implementation")
+    parser: PyMuPDFParser | None = None
+    loader: pgaiFileLoader | None = None
 
 
 @dataclass
@@ -708,6 +717,23 @@ class Worker:
         documents: list[str] = []
         for item in items:
             pk = self._get_item_pk_values(item)
+            if self.vectorizer.config.loader is not None:
+                loader = self.vectorizer.config.loader
+                url = item[loader.url_column]
+                with smart_open.open(url, "rb") as file:
+                    content = file.read()
+                file_like = io.BytesIO(content)
+                kind = filetype.guess(file_like)
+
+                if kind is None:
+                    raise ValueError("Could not determine file type")
+
+                file_like.seek(0)  # Reset buffer position
+                with fitz.open(stream=file_like, filetype="pdf") as pdf_document:
+                    # Convert to markdown using pymupdf4llm
+                    md_text = pymupdf4llm.to_markdown(pdf_document)
+                    item.update({loader.url_column: md_text})
+
             chunks = self.vectorizer.config.chunking.into_chunks(item)
             for chunk_id, chunk in enumerate(chunks, 0):
                 formatted = self.vectorizer.config.formatting.format(chunk, item)
