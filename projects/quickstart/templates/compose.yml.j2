@@ -1,0 +1,28 @@
+name: pgai-quickstart
+services:
+  db:
+    image: timescale/timescaledb-ha:pg17
+    environment:
+      POSTGRES_PASSWORD: postgres
+      {{ api_key_name }}: {{ api_key }}
+    ports:
+      - "5432"
+    volumes:
+      - data:/home/postgres/pgdata/data
+    {% if use_ollama is true %}
+    command: [ "-c", "ai.ollama_host=http://ollama:11434" ]
+    {% endif %}
+  vectorizer-worker:
+    image: timescale/pgai-vectorizer-worker:latest
+    environment:
+      PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
+      {% if use_ollama is true %}
+      OLLAMA_HOST: http://ollama:11434
+      {% endif %}
+    command: [ "--poll-interval", "5s", "--log-level", "DEBUG" ]
+  {% if use_ollama is true %}
+  ollama:
+    image: ollama/ollama
+  {% endif %}
+volumes:
+  data:
