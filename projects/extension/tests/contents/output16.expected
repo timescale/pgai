@@ -2,7 +2,7 @@ DROP DATABASE
 CREATE DATABASE
 CREATE EXTENSION
                                                                                           Objects in extension "ai"
-                                                                                             Object description
+                                                                                             Object description                                                                                              
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  event trigger _vectorizer_handle_drops
  function ai.anthropic_generate(text,jsonb,integer,text,text,text,double precision,integer,text,text,text[],double precision,jsonb,jsonb,integer,double precision)
