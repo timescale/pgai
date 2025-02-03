@@ -290,3 +290,17 @@ as $func$
 $func$ language sql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
+
+-------------------------------------------------------------------------------
+-- render_obj_sample
+create or replace function ai.render_obj_sample
+( relation pg_catalog.regclass
+) returns text
+as $python$
+    #ADD-PYTHON-LIB-DIR
+    import ai.semantic_catalog
+    return ai.semantic_catalog.render_obj_sample(plpy, relation)
+$python$
+language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;

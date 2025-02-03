@@ -104,7 +104,7 @@ begin
     _min_ts_rank = case when _config is not null then (_config->>'min_ts_rank')::real end;
     _obj_renderer = coalesce(case when _config is not null then (_config->>'obj_renderer')::pg_catalog.regprocedure end, 'ai.render_semantic_catalog_obj(bigint, oid, oid)'::pg_catalog.regprocedure);
     _sql_renderer = coalesce(case when _config is not null then (_config->>'sql_renderer')::pg_catalog.regprocedure end, 'ai.render_semantic_catalog_sql(bigint, text, text)'::pg_catalog.regprocedure);
-    _model = coalesce(case when _config is not null and _config operator(pg_catalog.?) 'model' then _config->>'model' end, 'claude-3-5-sonnet-latest');
+    _model = coalesce(case when _config is not null and _config operator(pg_catalog.?) 'model' then _config->>'model' end, 'gpt-4o');
     _api_key = (case when _config is not null then _config operator(pg_catalog.->>) 'api_key' end);
     _api_key_name = (case when _config is not null then _config operator(pg_catalog.->>) 'api_key_name' end);
     _base_url = (case when _config is not null then _config operator(pg_catalog.->>) 'base_url' end);
