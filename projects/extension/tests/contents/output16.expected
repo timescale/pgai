@@ -1,22 +1,22 @@
 DROP DATABASE
 CREATE DATABASE
 CREATE EXTENSION
-                                                                                                     Objects in extension "ai"
-                                                                                                         Object description                                                                                                         
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                                          Objects in extension "ai"
+                                                                                             Object description
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  event trigger _vectorizer_handle_drops
  function ai.anthropic_generate(text,jsonb,integer,text,text,text,double precision,integer,text,text,text[],double precision,jsonb,jsonb,integer,double precision)
  function ai.anthropic_list_models(text,text,text)
  function ai.chunking_character_text_splitter(name,integer,integer,text,boolean)
  function ai.chunking_recursive_character_text_splitter(name,integer,integer,text[],boolean)
- function ai.cohere_chat_complete(text,text,text,text,text,jsonb,text,text,jsonb,boolean,jsonb,text,double precision,integer,integer,integer,double precision,integer,text[],double precision,double precision,jsonb,jsonb,boolean)
+ function ai.cohere_chat_complete(text,jsonb,text,text,jsonb,jsonb,jsonb,jsonb,text,integer,text[],double precision,integer,double precision,double precision,integer,double precision,boolean,text,boolean)
  function ai.cohere_classify_simple(text,text[],text,text,jsonb,text)
  function ai.cohere_classify(text,text[],text,text,jsonb,text)
  function ai.cohere_detokenize(text,integer[],text,text)
  function ai.cohere_embed(text,text,text,text,text,text)
  function ai.cohere_list_models(text,text,text,boolean)
- function ai.cohere_rerank_simple(text,text,jsonb,text,text,integer,integer)
- function ai.cohere_rerank(text,text,jsonb,text,text,integer,text[],boolean,integer)
+ function ai.cohere_rerank_simple(text,text,text[],text,text,integer,integer)
+ function ai.cohere_rerank(text,text,text[],text,text,integer,integer)
  function ai.cohere_tokenize(text,text,text,text)
  function ai.create_vectorizer(regclass,name,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name,name,name,name,name[],boolean)
  function ai.disable_vectorizer_schedule(integer)
