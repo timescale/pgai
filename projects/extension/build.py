@@ -652,13 +652,7 @@ def where_am_i() -> str:
 
 def test_server() -> None:
     if where_am_i() == "host":
-        cmd = """docker exec \
-            -e OPENAI_API_KEY=${OPENAI_API_KEY} \
-            -e ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY} \
-            -e COHERE_API_KEY=${COHERE_API_KEY} \
-            -e VOYAGE_API_KEY=${VOYAGE_API_KEY} \
-            -it -w /pgai/tests/vectorizer pgai-ext fastapi dev server.py
-            """
+        cmd = """docker exec -it -w /pgai/tests/vectorizer pgai-ext uv run fastapi dev server.py"""
         subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
     else:
         cmd = "uv run fastapi dev server.py"
