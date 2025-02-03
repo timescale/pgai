@@ -19,6 +19,12 @@ create or replace function ai.text_to_sql_openai
 , temperature pg_catalog.float8 default null
 , top_p pg_catalog.float8 default null
 , openai_user pg_catalog.text default null
+, max_iter pg_catalog.int2 default null
+, max_results pg_catalog.int8 default null
+, max_vector_dist pg_catalog.float8 default null
+, min_ts_rank pg_catalog.float4 default null
+, obj_renderer pg_catalog.regprocedure default null
+, sql_renderer pg_catalog.regprocedure default null
 ) returns pg_catalog.jsonb
 as $func$
     select json_object
@@ -39,6 +45,12 @@ as $func$
     , 'temperature': temperature
     , 'top_p': top_p
     , 'openai_user': openai_user
+    , 'max_iter': max_iter
+    , 'max_results': max_results
+    , 'max_vector_dist': max_vector_dist
+    , 'min_ts_rank': min_ts_rank
+    , 'obj_renderer': obj_renderer
+    , 'sql_renderer': sql_renderer
     absent on null
     )
 $func$ language sql immutable security invoker
@@ -50,7 +62,7 @@ set search_path to pg_catalog, pg_temp
 create function ai._text_to_sql_openai
 ( question text
 , catalog_name text default 'default'
-, config jsonb default null -- TODO: use this for LLM configuration
+, config jsonb default null
 ) returns jsonb
 as $func$
 declare
