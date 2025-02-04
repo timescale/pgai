@@ -33,8 +33,14 @@ def get_parsed_config(plpy, catalog_name: str, config: dict | None) -> dict:
     return json.loads(config)  # type: dict
 
 
-def get_obj_description(plpy, relation: str | None = None, fn: str | None = None) -> str:
-    objid = f"'{relation}'::pg_catalog.regclass::pg_catalog.oid" if relation else f"'{fn}'::regprocedure::pg_catalog.oid"
+def get_obj_description(
+    plpy, relation: str | None = None, fn: str | None = None
+) -> str:
+    objid = (
+        f"'{relation}'::pg_catalog.regclass::pg_catalog.oid"
+        if relation
+        else f"'{fn}'::regprocedure::pg_catalog.oid"
+    )
     result = plpy.execute(
         f"select ai.render_semantic_catalog_obj(0, 'pg_catalog.pg_class'::pg_catalog.regclass::pg_catalog.oid, {objid}) as description;"
     )
