@@ -236,7 +236,7 @@ def test_validate_chunking():
             , 'public', 'thing'
             )
             """,
-            "either one of config.chunk_column or chunk_document argument should be set"
+            "either one of config.chunk_column or chunk_document argument should be set",
         ),
     ]
     with psycopg.connect(db_url("test"), autocommit=True) as con:
