@@ -1,9 +1,9 @@
 DROP DATABASE
 CREATE DATABASE
 CREATE EXTENSION
-                                                                                          Objects in extension "ai"
-                                                                                             Object description                                                                                              
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                                                          Objects in extension "ai"
+                                                                                                             Object description                                                                                                              
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  event trigger _vectorizer_handle_drops
  function ai.anthropic_generate(text,jsonb,integer,text,text,text,double precision,integer,text,text,text[],double precision,jsonb,jsonb,integer,double precision)
  function ai.anthropic_list_models(text,text,text)
@@ -46,13 +46,13 @@ CREATE EXTENSION
  function ai.ollama_list_models(text)
  function ai.ollama_ps(text)
  function ai.openai_chat_complete_simple(text,text,text)
- function ai.openai_chat_complete(text,jsonb,text,text,text,double precision,jsonb,boolean,integer,integer,integer,double precision,jsonb,integer,text,double precision,double precision,jsonb,text,text)
+ function ai.openai_chat_complete(text,jsonb,text,text,text,double precision,jsonb,boolean,integer,integer,integer,double precision,jsonb,integer,text,double precision,double precision,jsonb,text,text,jsonb,jsonb,jsonb,double precision)
  function ai.openai_detokenize(text,integer[])
- function ai.openai_embed(text,integer[],text,text,text,integer,text)
- function ai.openai_embed(text,text,text,text,text,integer,text)
- function ai.openai_embed(text,text[],text,text,text,integer,text)
- function ai.openai_list_models(text,text,text)
- function ai.openai_moderate(text,text,text,text,text)
+ function ai.openai_embed(text,integer[],text,text,text,integer,text,jsonb,jsonb,jsonb,double precision)
+ function ai.openai_embed(text,text,text,text,text,integer,text,jsonb,jsonb,jsonb,double precision)
+ function ai.openai_embed(text,text[],text,text,text,integer,text,jsonb,jsonb,jsonb,double precision)
+ function ai.openai_list_models(text,text,text,jsonb,jsonb,double precision)
+ function ai.openai_moderate(text,text,text,text,text,jsonb,jsonb,jsonb,double precision)
  function ai.openai_tokenize(text,text)
  function ai.processing_default(integer,integer)
  function ai._resolve_indexing_default()
