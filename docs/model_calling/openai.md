@@ -510,6 +510,17 @@ from
 ;
 ```
 
+### Raw response
+
+Each OpenAI function has a variant that returns the raw API response as JSONB.
+These variants accept the same arguments as their regular counterparts and are
+suffixed with `_with_raw_response`:
+
+- ai.openai_list_models_with_raw_response
+- ai.openai_embed_with_raw_response
+- ai.openai_moderate_with_raw_response
+- ai.openai_chat_complete_with_raw_response
+
 ### Undocumented request params
 
 If you want to include additional parameters in a request, you can do so using
