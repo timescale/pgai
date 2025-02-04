@@ -190,30 +190,30 @@ The SQL is organized into:
   [wrapped](./projects/extension/sql/migration.sql). Each migration id is tracked in the `migration` table. For more information,
   see [./projects/extension/sql/head.sql](./projects/extension/sql/head.sql).
 
-* **Built scripts**: `./projects/extension/sql/ai--*.sql`
+* **Built scripts**: `./projects/extension/sql/output/ai--*.sql`
 
   `just ext build` "compiles" the idempotent and incremental scripts into the final
   form that is installed into a postgres environment as an extension. A script
-  named `./projects/extension/sql/ai--<current-version>.sql` is built. For every prior version,
-  the file is copied to
-  `./projects/extension/sql/ai--<prior-version>--<current-version>.sql` to give postgres an upgrade
-  path from prior versions. The `./projects/extension/sql/ai.control` is also ensured to have the
+  named `./projects/extension/sql/output/ai--<current-version>.sql` is built. For every prior version
+  (other than 0.1.0, 0.2.0, and 0.3.0), the file is copied to
+  `./projects/extension/sql/output/ai--<prior-version>--<current-version>.sql` to give postgres an upgrade
+  path from prior versions. The `./projects/extension/sql/output/ai.control` is also ensured to have the
   correct version listed in it.
 
-  When you release a new version, add the `./projects/extension/sql/ai--*<current-version>.sql` scripts to this repo with your
+  When you release a new version, add the `./projects/extension/sql/output/ai--*<current-version>.sql` scripts to this repo with your
   pull request. The scripts from prior versions are checked in and should not be modified after
   having been released.
 
 If you are exclusively working on SQL, you may want to forego the high-level just
 recipes in favor of the SQL-specific just recipes:
 
-1. **Clean your environment**: run `just ext clean-sql` to delete `./projects/extension/sql/ai--*<current-version>.sql`.
+1. **Clean your environment**: run `just ext clean-sql` to delete `./projects/extension/sql/output/ai--*<current-version>.sql`.
 
    The `<current-version>` is defined in `versions()` in [./projects/extension/build.py](./projects/extension/build.py).
 
 1. **Build pgai**: run `just ext build` to compile idempotent and incremental scripts
-   into `./projects/extension/sql/ai--*<current-version>.sql`.
-1. **Install pgai**: run `just ext install-sql` to install `./projects/extension/sql/ai--*.sql` and `./projects/extension/sql/ai*.control` into your local
+   into `./projects/extension/sql/output/ai--*<current-version>.sql`.
+1. **Install pgai**: run `just ext install-sql` to install `./projects/extension/sql/output/ai--*.sql` and `./projects/extension/sql/output/ai*.control` into your local
    Postgres environment.
 
 ### Develop Python in the pgai extension
@@ -324,9 +324,9 @@ changes to existing stuff are required for a new feature.
 1. Run `just ext clean-sql` in order to remove any prior generated dev sql.
 2. Edit the [build.py](projects/extension/build.py).
    - Set the version to be released as the first element of the array returned by `versions` function. I.e. `"0.7.0",  # released`.
-3. Run `just ext build-release`. This will generate, among other tasks, the final .sql files in `projects/extension/sql` and update the version in [__init__.py](projects/extension/ai/__init__.py).
+3. Run `just ext build-release`. This will generate, among other tasks, the final .sql files in `projects/extension/sql/output` and update the version in [__init__.py](projects/extension/ai/__init__.py).
 4. As those files are git-ignored, you need to add those to the git index by forcing the addition. 
-   - Run `git add -f projects/extension/sql/ai--*<YOUR_NEW_VERSION_HERE>.sql`.
+   - Run `git add -f projects/extension/sql/output/ai--*<YOUR_NEW_VERSION_HERE>.sql`.
 5. Craft the release notes for the new version of the extension. Those should be added into [projects/extension/RELEASE_NOTES.md](projects/extension/RELEASE_NOTES.md).
    - As we are not using release-please, those notes are not automatically generated. Instead, we need to manually add those.  
      You can use the output of the following command to craft the release notes:

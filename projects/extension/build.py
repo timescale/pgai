@@ -111,16 +111,16 @@ class Actions:
             fatal(f"required sql file is missing: {this_sql_file}")
         if not control_file().is_file():
             fatal(f"required control file is missing: {control_file()}")
-        for src in sql_dir().glob("ai*.control"):
+        for src in output_sql_dir().glob("ai*.control"):
             dest = ext_dir / src.name
             shutil.copyfile(src, dest)
         if all:
-            for src in sql_dir().glob("ai--*.sql"):
+            for src in output_sql_dir().glob("ai--*.sql"):
                 dest = ext_dir / src.name
                 shutil.copyfile(src, dest)
         else:
             # only install sql files for this version
-            for src in sql_dir().glob(f"ai*--{this_version()}.sql"):
+            for src in output_sql_dir().glob(f"ai*--{this_version()}.sql"):
                 dest = ext_dir / src.name
                 shutil.copyfile(src, dest)
 
@@ -272,7 +272,9 @@ class Actions:
             if is_prerelease(prior_version):
                 # we don't allow upgrades from prerelease versions
                 continue
-            dest = sql_dir().joinpath(f"ai--{prior_version}--{this_version()}.sql")
+            dest = output_sql_dir().joinpath(
+                f"ai--{prior_version}--{this_version()}.sql"
+            )
             dest.unlink(missing_ok=True)
             shutil.copyfile(osf, dest)
 
@@ -285,7 +287,7 @@ class Actions:
     @staticmethod
     def clean_sql() -> None:
         """removes sql file artifacts from the sql dir"""
-        for f in sql_dir().glob(f"ai--*.*.*--{this_version()}.sql"):
+        for f in output_sql_dir().glob(f"ai--*.*.*--{this_version()}.sql"):
             f.unlink(missing_ok=True)
         output_sql_file().unlink(missing_ok=True)
 
@@ -334,12 +336,11 @@ class Actions:
     @staticmethod
     def lint_sql() -> None:
         """runs pgspot against the `ai--<this_version>.sql` file"""
-        sql = sql_dir().joinpath(f"ai--{this_version()}.sql")
         cmd = " ".join(
             [
                 "pgspot --ignore-lang=plpython3u",
                 '--proc-without-search-path "ai._vectorizer_job(job_id integer,config pg_catalog.jsonb)"',
-                f"{sql}",
+                f"{output_sql_file()}",
             ]
         )
         subprocess.run(cmd, shell=True, check=True, env=os.environ)
@@ -575,6 +576,10 @@ def sql_dir() -> Path:
     return ext_dir() / "sql"
 
 
+def output_sql_dir() -> Path:
+    return sql_dir() / "output"
+
+
 def idempotent_sql_dir() -> Path:
     return sql_dir() / "idempotent"
 
@@ -689,11 +694,11 @@ def check_incremental_sql_files(paths: list[Path]) -> None:
 
 
 def output_sql_file() -> Path:
-    return sql_dir() / f"ai--{this_version()}.sql"
+    return output_sql_dir() / f"ai--{this_version()}.sql"
 
 
 def control_file() -> Path:
-    return sql_dir() / "ai.control"
+    return output_sql_dir() / "ai.control"
 
 
 def build_control_file() -> None:
