@@ -4,7 +4,7 @@
 build
 *.egg-info
 __pycache__
-projects/extension/sql/ai--*.sql
+projects/extension/sql/output/ai--*.sql
 projects/extension/tests/dump_restore/describe_objects.sql
 projects/extension/tests/dump_restore/describe_schemas.sql
 projects/extension/tests/dump_restore/dump.sql
