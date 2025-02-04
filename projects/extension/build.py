@@ -8,37 +8,479 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+from collections import OrderedDict
 from pathlib import Path
 
-HELP = """Available targets:
-- help             displays this message and exits
-- build-install    runs build followed by install
-- install          installs the project
-- install-sql      installs the sql files into the postgres installation
-- install-prior-py installs the extension's python package for prior versions
-- install-py       installs the extension's python package
-- uninstall        uninstalls the project
-- uninstall-sql    removes the sql extension from the postgres installation
-- uninstall-py     removes the extension's python package from the system
-- freeze           updates frozen.txt with hashes of incremental sql files
-- build            alias for build-sql
-- build-sql        constructs the sql files for the extension
-- clean            removes python build artifacts from the src dir
-- clean-sql        removes sql file artifacts from the sql dir
-- clean-py         removes python build artifacts from the extension src dir
-- build-release    runs build-sql and updates the version in __init__.py
-- test             runs the tests in the docker container
-- test-server      runs the test http server in the docker container
-- lint-sql         runs pgspot against the `ai--<this_version>.sql` file
-- lint-py          runs ruff linter against the python source files
-- lint             runs both sql and python linters
-- format-py        runs ruff to check formatting of the python source files
-- reformat-py      runs ruff to update the formatting of the python source files
-- docker-build     builds the dev docker image
-- docker-run       launches a container in docker using the docker image
-- docker-stop      stops the container
-- docker-rm        deletes the dev container
-- run              builds+runs the dev container and installs the extension"""
+
+class Actions:
+    """Collects all actions which the build.py script supports
+
+    Actions are derived from public member functions of this class.
+    Action names are kebap-case, by doing a `.replace("_", "-")` on the method.
+    e.g. `def build_install` becomes the action `build-install`.
+
+    The help text is auto-generated from the member function name and docblock.
+
+    The containment check is aware of this difference, so the following works:
+    ```
+        actions = Actions()
+        if "build-install" in actions:
+            print "true"
+    ```
+
+    To get the action function for an action name, use indexed access:
+
+    ```
+        actions = BuildPuActions()
+        action_name = "build-install"
+        action_function = actions[action_name]
+        action_function()
+    """
+
+    def __contains__(self, item):
+        """containment check for action"""
+        return getattr(self, item.replace("-", "_"), None) is not None
+
+    def __getitem__(self, key):
+        """get the member function for an action, indexed by action name"""
+        return getattr(self, key.replace("-", "_"))
+
+    @classmethod
+    def help(cls):
+        """displays this message and exits"""
+        message = "Available targets:"
+        descriptions = OrderedDict()
+        longest_key = 0
+        for key in cls.__dict__.keys():
+            if key.startswith("_"):
+                continue
+            description = getattr(cls, key).__doc__.splitlines()[0].strip()
+            key = key.replace("_", "-")
+            longest_key = len(key) if len(key) > longest_key else longest_key
+            descriptions[key] = description
+        for key, description in descriptions.items():
+            message += f"\n- {key: <{longest_key + 2}}{description}"
+        print(message)
+
+    @staticmethod
+    def build_install() -> None:
+        """runs build followed by install"""
+        Actions.build()
+        Actions.install()
+
+    @staticmethod
+    def install() -> None:
+        """installs the project"""
+        error_if_pre_release()
+        Actions.install_prior_py()
+        Actions.install_py()
+        Actions.install_sql()
+
+    @staticmethod
+    def install_sql() -> None:
+        """installs the sql files into the postgres installation"""
+        ext_dir = extension_install_dir()
+        if not ext_dir.is_dir():
+            fatal(f"extension directory does not exist: {ext_dir}")
+        this_sql_file = output_sql_file()
+        if not this_sql_file.is_file():
+            fatal(f"required sql file is missing: {this_sql_file}")
+        if not control_file().is_file():
+            fatal(f"required control file is missing: {control_file()}")
+        for src in sql_dir().glob("ai*.control"):
+            dest = ext_dir / src.name
+            shutil.copyfile(src, dest)
+        for src in sql_dir().glob("ai--*.sql"):
+            dest = ext_dir / src.name
+            shutil.copyfile(src, dest)
+
+    @staticmethod
+    def install_prior_py() -> None:
+        """installs the extension's python package for prior versions"""
+        install_old_py_deps()
+        for version in prior_versions():
+            if version in deprecated_versions():
+                # these are handled by install_old_py_deps()
+                continue
+            if os.sep in version:
+                fatal(f"'{os.sep}' in version {version}. this is not supported")
+            version_target_dir = python_install_dir().joinpath(version)
+            if version_target_dir.exists():
+                continue
+            tmp_dir = Path(tempfile.gettempdir()).joinpath("pgai", version)
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+            branch = git_tag(version)
+            subprocess.run(
+                f"git clone https://github.com/timescale/pgai.git --branch {branch} {tmp_dir}",
+                shell=True,
+                check=True,
+                env=os.environ,
+            )
+            tmp_src_dir = tmp_dir.joinpath("projects", "extension").resolve()
+            bin = "pip3" if shutil.which("uv") is None else "uv pip"
+            cmd = f'{bin} install -v --compile --target "{version_target_dir}" "{tmp_src_dir}"'
+            subprocess.run(
+                cmd,
+                check=True,
+                shell=True,
+                env=os.environ,
+                cwd=str(tmp_src_dir),
+            )
+            shutil.rmtree(tmp_dir)
+
+    @staticmethod
+    def install_py() -> None:
+        """installs the extension's python package"""
+        build_init_py()
+        python_install_dir().mkdir(exist_ok=True)
+        version = this_version()
+        version_target_dir = python_install_dir().joinpath(version)
+        if version_target_dir.exists():
+            # if it already exists, assume the dependencies have already been installed
+            # and just install *our* code. this is for development workflow speed
+            d = version_target_dir.joinpath("ai")  # delete module if exists
+            if d.exists():
+                shutil.rmtree(d)
+            for d in version_target_dir.glob(
+                "pgai-*.dist-info"
+            ):  # delete package info if exists
+                shutil.rmtree(d)
+            bin = "pip3" if shutil.which("uv") is None else "uv pip"
+            cmd = f'{bin} install -v --no-deps --compile --target "{version_target_dir}" "{ext_dir()}"'
+            subprocess.run(
+                cmd,
+                check=True,
+                shell=True,
+                env=os.environ,
+                cwd=str(ext_dir()),
+            )
+        else:
+            version_target_dir.mkdir(exist_ok=True)
+            bin = "pip3" if shutil.which("uv") is None else "uv pip"
+            cmd = f'{bin} install -v --compile --target "{version_target_dir}" "{ext_dir()}"'
+            subprocess.run(
+                cmd,
+                check=True,
+                shell=True,
+                env=os.environ,
+                cwd=str(ext_dir()),
+            )
+
+    @staticmethod
+    def uninstall() -> None:
+        """uninstalls the project"""
+        Actions.uninstall_sql()
+        Actions.uninstall_py()
+
+    @staticmethod
+    def uninstall_sql() -> None:
+        """removes the sql extension from the postgres installation"""
+        ext_dir = extension_install_dir()
+        if not ext_dir.exists():
+            return
+        for f in ext_dir.glob("ai*.control"):
+            f.unlink()
+        for f in ext_dir.glob("ai--*.sql"):
+            f.unlink()
+
+    @staticmethod
+    def uninstall_py() -> None:
+        """removes the extension's python package from the system"""
+        shutil.rmtree(python_install_dir(), ignore_errors=True)
+
+    @staticmethod
+    def freeze() -> None:
+        """updates frozen.txt with hashes of incremental sql files"""
+        lines: list[str] = []
+        for file in incremental_sql_files():
+            if sql_file_number(file) >= 900:
+                break
+            lines.append(f"{hash_file(file)} {file.name}")
+        frozen_file().write_text("\n".join(lines))
+
+    @staticmethod
+    def build() -> None:
+        """alias for build-sql"""
+        Actions.build_sql()
+
+    @staticmethod
+    def build_sql() -> None:
+        """constructs the sql files for the extension"""
+        check_versions()
+        check_incremental_sql_files(incremental_sql_files())
+        check_idempotent_sql_files(idempotent_sql_files())
+        build_control_file()
+        hr = "".rjust(80, "-")  # "horizontal rule"
+        osf = output_sql_file()
+        osf.unlink(missing_ok=True)
+        with osf.open("w") as wf:
+            wf.write(f"{hr}\n-- ai {this_version()}\n\n")
+            wf.write(sql_dir().joinpath("head.sql").read_text())
+            if is_prerelease(this_version()):
+                wf.write("\n\n")
+                wf.write(build_feature_flags())
+            wf.write("\n\n")
+            for inc_file in incremental_sql_files():
+                if sql_file_number(inc_file) >= 900 and not is_prerelease(
+                    this_version()
+                ):
+                    # don't include pre-release code in non-prerelease versions
+                    continue
+                code = build_incremental_sql_file(inc_file)
+                wf.write(code)
+                wf.write("\n\n")
+            for idm_file in idempotent_sql_files():
+                nbr = sql_file_number(idm_file)
+                if nbr != 999 and nbr >= 900 and not is_prerelease(this_version()):
+                    # don't include pre-release code in non-prerelease versions
+                    continue
+                wf.write(f"{hr}\n-- {idm_file.name}\n")
+                wf.write(build_idempotent_sql_file(idm_file))
+                wf.write("\n\n")
+            wf.flush()
+            wf.close()
+        for prior_version in prior_versions():
+            if prior_version in deprecated_versions():
+                # we don't allow upgrades from these versions. they are deprecated
+                continue
+            if is_prerelease(prior_version):
+                # we don't allow upgrades from prerelease versions
+                continue
+            dest = sql_dir().joinpath(f"ai--{prior_version}--{this_version()}.sql")
+            dest.unlink(missing_ok=True)
+            shutil.copyfile(osf, dest)
+
+    @staticmethod
+    def clean() -> None:
+        """removes python build artifacts from the src dir"""
+        Actions.clean_sql()
+        Actions.clean_py()
+
+    @staticmethod
+    def clean_sql() -> None:
+        """removes sql file artifacts from the sql dir"""
+        for f in sql_dir().glob(f"ai--*.*.*--{this_version()}.sql"):
+            f.unlink(missing_ok=True)
+        output_sql_file().unlink(missing_ok=True)
+
+    @staticmethod
+    def clean_py() -> None:
+        """removes python build artifacts from the extension src dir"""
+        d = ext_dir().joinpath("build")
+        if d.exists():
+            shutil.rmtree(d, ignore_errors=True)
+        d = ext_dir().joinpath("pgai.egg-info")
+        if d.exists():
+            shutil.rmtree(d, ignore_errors=True)
+
+    @staticmethod
+    def build_release() -> None:
+        """runs build-sql and updates the version in __init__.py"""
+        Actions.clean_sql()
+        Actions.clean_py()
+        Actions.build()
+        build_init_py()
+        Actions.freeze()
+
+    @staticmethod
+    def test() -> None:
+        """runs the tests in the docker container"""
+        subprocess.run(
+            "uv run pytest", shell=True, check=True, env=os.environ, cwd=tests_dir()
+        )
+
+    @staticmethod
+    def test_server() -> None:
+        """runs the test http server in the docker container"""
+        if where_am_i() == "host":
+            cmd = "docker exec -it -w /pgai/tests/vectorizer pgai-ext fastapi dev server.py"
+            subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
+        else:
+            cmd = "uv run fastapi dev server.py"
+            subprocess.run(
+                cmd,
+                shell=True,
+                check=True,
+                env=os.environ,
+                cwd=tests_dir().joinpath("vectorizer"),
+            )
+
+    @staticmethod
+    def lint_sql() -> None:
+        """runs pgspot against the `ai--<this_version>.sql` file"""
+        sql = sql_dir().joinpath(f"ai--{this_version()}.sql")
+        cmd = " ".join(
+            [
+                "pgspot --ignore-lang=plpython3u",
+                '--proc-without-search-path "ai._vectorizer_job(job_id integer,config pg_catalog.jsonb)"',
+                f"{sql}",
+            ]
+        )
+        subprocess.run(cmd, shell=True, check=True, env=os.environ)
+
+    @staticmethod
+    def lint_py() -> None:
+        """runs ruff linter against the python source files"""
+        subprocess.run(
+            f"uv run ruff check {ext_dir()}", shell=True, check=True, env=os.environ
+        )
+
+    @staticmethod
+    def lint() -> None:
+        """runs both sql and python linters"""
+        Actions.lint_py()
+        Actions.lint_sql()
+
+    @staticmethod
+    def format_py() -> None:
+        """runs ruff to check formatting of the python source files"""
+        subprocess.run(
+            f"uv run ruff format --diff {ext_dir()}",
+            shell=True,
+            check=True,
+            env=os.environ,
+        )
+
+    @staticmethod
+    def reformat_py() -> None:
+        """runs ruff to update the formatting of the python source files"""
+        subprocess.run(
+            f"ruff format {ext_dir()}", shell=True, check=True, env=os.environ
+        )
+
+    @staticmethod
+    def check_requirements() -> None:
+        """verifies that requirements-lock.txt is up to date with pyproject.toml
+
+        Creates a temporary file with the current state and compares it with the existing lock file.
+        """
+        if shutil.which("uv") is None:
+            fatal("uv not found")
+
+        # Create a temporary file to store current requirements
+        with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt") as tmp_file:
+            # Generate current requirements
+            subprocess.run(
+                f"uv export --quiet --format requirements-txt -o {tmp_file.name}",
+                shell=True,
+                check=True,
+                env=os.environ,
+                text=True,
+            )
+
+            # Read both files
+            lock_file = ext_dir() / "requirements-lock.txt"
+            if not lock_file.exists():
+                fatal(
+                    "requirements-lock.txt does not exist. Run 'uv export --format requirements-txt -o requirements-lock.txt' to create it."
+                )
+
+            from difflib import unified_diff
+
+            with open(lock_file) as f1, open(tmp_file.name) as f2:
+                # Skip the first 3 lines when reading both files since the contain a line with the file name
+                # which will always be different
+                lock_contents = f1.readlines()[3:]
+                current_contents = f2.readlines()[3:]
+
+                diff = list(unified_diff(lock_contents, current_contents))
+                if diff:
+                    fatal(
+                        "requirements-lock.txt is out of sync with uv.lock.\n"
+                        "Run 'uv export --format requirements-txt -o requirements-lock.txt' to update it.\n"
+                        + "".join(diff)
+                    )
+
+    @staticmethod
+    def docker_build() -> None:
+        """builds the dev docker image"""
+        subprocess.run(
+            f"""docker build --build-arg PG_MAJOR={pg_major()} -t pgai-ext .""",
+            shell=True,
+            check=True,
+            env=os.environ,
+            text=True,
+            cwd=ext_dir(),
+        )
+
+    @staticmethod
+    def docker_run() -> None:
+        """launches a container in docker using the docker image"""
+        networking = (
+            "--network host"
+            if platform.system() == "Linux"
+            else "-p 127.0.0.1:5432:5432"
+        )
+        cmd = " ".join(
+            [
+                "docker run -d --name pgai-ext --hostname pgai-ext -e POSTGRES_HOST_AUTH_METHOD=trust",
+                networking,
+                f"--mount type=bind,src={ext_dir()},dst=/pgai",
+                "--mount type=volume,dst=/pgai/.venv",
+                "-e OPENAI_API_KEY",
+                "-e COHERE_API_KEY",
+                "-e MISTRAL_API_KEY",
+                "-e VOYAGE_API_KEY",
+                "-e HUGGINGFACE_API_KEY",
+                "-e AZURE_API_KEY",
+                "-e AZURE_API_BASE",
+                "-e AZURE_API_VERSION",
+                "-e AWS_ACCESS_KEY_ID",
+                "-e AWS_REGION_NAME",
+                "-e AWS_SECRET_ACCESS_KEY",
+                "-e VERTEX_CREDENTIALS",
+                "-e TEST_ENV_SECRET=super_secret",
+                "pgai-ext",
+                "-c shared_preload_libraries='timescaledb, pgextwlist'",
+                "-c extwlist.extensions='ai,vector'",
+            ]
+        )
+        subprocess.run(cmd, shell=True, check=True, env=os.environ, text=True)
+
+    @staticmethod
+    def docker_start() -> None:
+        """starts the container"""
+        subprocess.run(
+            """docker start pgai-ext""",
+            shell=True,
+            check=True,
+            env=os.environ,
+            text=True,
+        )
+
+    @staticmethod
+    def docker_stop() -> None:
+        """stops the container"""
+        subprocess.run(
+            """docker stop pgai-ext""",
+            shell=True,
+            check=True,
+            env=os.environ,
+            text=True,
+        )
+
+    @staticmethod
+    def docker_rm() -> None:
+        """deletes the dev container"""
+        subprocess.run(
+            """docker rm --force --volumes pgai-ext""",
+            shell=True,
+            check=True,
+            env=os.environ,
+            text=True,
+        )
+
+    @staticmethod
+    def run() -> None:
+        """builds+runs the dev container and installs the extension"""
+        Actions.docker_build()
+        Actions.docker_run()
+        cmd = "docker exec pgai-ext make build-install"
+        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
+        cmd = 'docker exec -u postgres pgai-ext psql -c "create extension ai cascade"'
+        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
+        cmd = "docker exec -it -d -w /pgai/tests pgai-ext fastapi dev server.py"
+        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
 
 
 def versions() -> list[str]:
@@ -148,15 +590,6 @@ def hash_file(path: Path) -> str:
 
 def frozen_file() -> Path:
     return incremental_sql_dir() / "frozen.txt"
-
-
-def freeze() -> None:
-    lines: list[str] = []
-    for file in incremental_sql_files():
-        if sql_file_number(file) >= 900:
-            break
-        lines.append(f"{hash_file(file)} {file.name}")
-    frozen_file().write_text("\n".join(lines))
 
 
 def read_frozen_file() -> dict[str, str]:
@@ -341,56 +774,6 @@ def build_feature_flags() -> str:
     return output
 
 
-def build_sql() -> None:
-    check_versions()
-    check_incremental_sql_files(incremental_sql_files())
-    check_idempotent_sql_files(idempotent_sql_files())
-    build_control_file()
-    hr = "".rjust(80, "-")  # "horizontal rule"
-    osf = output_sql_file()
-    osf.unlink(missing_ok=True)
-    with osf.open("w") as wf:
-        wf.write(f"{hr}\n-- ai {this_version()}\n\n")
-        wf.write(sql_dir().joinpath("head.sql").read_text())
-        if is_prerelease(this_version()):
-            wf.write("\n\n")
-            wf.write(build_feature_flags())
-        wf.write("\n\n")
-        for inc_file in incremental_sql_files():
-            if sql_file_number(inc_file) >= 900 and not is_prerelease(this_version()):
-                # don't include pre-release code in non-prerelease versions
-                continue
-            code = build_incremental_sql_file(inc_file)
-            wf.write(code)
-            wf.write("\n\n")
-        for idm_file in idempotent_sql_files():
-            nbr = sql_file_number(idm_file)
-            if nbr != 999 and nbr >= 900 and not is_prerelease(this_version()):
-                # don't include pre-release code in non-prerelease versions
-                continue
-            wf.write(f"{hr}\n-- {idm_file.name}\n")
-            wf.write(build_idempotent_sql_file(idm_file))
-            wf.write("\n\n")
-        wf.flush()
-        wf.close()
-    for prior_version in prior_versions():
-        if prior_version in deprecated_versions():
-            # we don't allow upgrades from these versions. they are deprecated
-            continue
-        if is_prerelease(prior_version):
-            # we don't allow upgrades from prerelease versions
-            continue
-        dest = sql_dir().joinpath(f"ai--{prior_version}--{this_version()}.sql")
-        dest.unlink(missing_ok=True)
-        shutil.copyfile(osf, dest)
-
-
-def clean_sql() -> None:
-    for f in sql_dir().glob(f"ai--*.*.*--{this_version()}.sql"):
-        f.unlink(missing_ok=True)
-    output_sql_file().unlink(missing_ok=True)
-
-
 def postgres_bin_dir() -> Path:
     bin_dir = os.getenv("PG_BIN")
     if bin_dir is not None and Path(bin_dir).is_dir():
@@ -420,33 +803,6 @@ def extension_install_dir() -> Path:
         capture_output=True,
     )
     return Path(str(proc.stdout).strip()).resolve() / "extension"
-
-
-def install_sql() -> None:
-    ext_dir = extension_install_dir()
-    if not ext_dir.is_dir():
-        fatal(f"extension directory does not exist: {ext_dir}")
-    this_sql_file = output_sql_file()
-    if not this_sql_file.is_file():
-        fatal(f"required sql file is missing: {this_sql_file}")
-    if not control_file().is_file():
-        fatal(f"required control file is missing: {control_file()}")
-    for src in sql_dir().glob("ai*.control"):
-        dest = ext_dir / src.name
-        shutil.copyfile(src, dest)
-    for src in sql_dir().glob("ai--*.sql"):
-        dest = ext_dir / src.name
-        shutil.copyfile(src, dest)
-
-
-def uninstall_sql() -> None:
-    ext_dir = extension_install_dir()
-    if not ext_dir.exists():
-        return
-    for f in ext_dir.glob("ai*.control"):
-        f.unlink()
-    for f in ext_dir.glob("ai--*.sql"):
-        f.unlink()
 
 
 def python_install_dir() -> Path:
@@ -479,39 +835,6 @@ def install_old_py_deps() -> None:
         )
 
 
-def install_prior_py() -> None:
-    install_old_py_deps()
-    for version in prior_versions():
-        if version in deprecated_versions():
-            # these are handled by install_old_py_deps()
-            continue
-        if os.sep in version:
-            fatal(f"'{os.sep}' in version {version}. this is not supported")
-        version_target_dir = python_install_dir().joinpath(version)
-        if version_target_dir.exists():
-            continue
-        tmp_dir = Path(tempfile.gettempdir()).joinpath("pgai", version)
-        tmp_dir.mkdir(parents=True, exist_ok=True)
-        branch = git_tag(version)
-        subprocess.run(
-            f"git clone https://github.com/timescale/pgai.git --branch {branch} {tmp_dir}",
-            shell=True,
-            check=True,
-            env=os.environ,
-        )
-        tmp_src_dir = tmp_dir.joinpath("projects", "extension").resolve()
-        bin = "pip3" if shutil.which("uv") is None else "uv pip"
-        cmd = f'{bin} install -v --compile --target "{version_target_dir}" "{tmp_src_dir}"'
-        subprocess.run(
-            cmd,
-            check=True,
-            shell=True,
-            env=os.environ,
-            cwd=str(tmp_src_dir),
-        )
-        shutil.rmtree(tmp_dir)
-
-
 def build_init_py() -> None:
     # ai/__init__.py is checked in to version control. So, all the previous
     # versions will have the file with the correct version already in it. This
@@ -527,67 +850,6 @@ def build_init_py() -> None:
         else:
             lines.append(line)
     init_py.write_text("".join(lines))
-
-
-def install_py() -> None:
-    build_init_py()
-    python_install_dir().mkdir(exist_ok=True)
-    version = this_version()
-    version_target_dir = python_install_dir().joinpath(version)
-    if version_target_dir.exists():
-        # if it already exists, assume the dependencies have already been installed
-        # and just install *our* code. this is for development workflow speed
-        d = version_target_dir.joinpath("ai")  # delete module if exists
-        if d.exists():
-            shutil.rmtree(d)
-        for d in version_target_dir.glob(
-            "pgai-*.dist-info"
-        ):  # delete package info if exists
-            shutil.rmtree(d)
-        bin = "pip3" if shutil.which("uv") is None else "uv pip"
-        cmd = f'{bin} install -v --no-deps --compile --target "{version_target_dir}" "{ext_dir()}"'
-        subprocess.run(
-            cmd,
-            check=True,
-            shell=True,
-            env=os.environ,
-            cwd=str(ext_dir()),
-        )
-    else:
-        version_target_dir.mkdir(exist_ok=True)
-        bin = "pip3" if shutil.which("uv") is None else "uv pip"
-        cmd = (
-            f'{bin} install -v --compile --target "{version_target_dir}" "{ext_dir()}"'
-        )
-        subprocess.run(
-            cmd,
-            check=True,
-            shell=True,
-            env=os.environ,
-            cwd=str(ext_dir()),
-        )
-
-
-def clean_py() -> None:
-    d = ext_dir().joinpath("build")
-    if d.exists():
-        shutil.rmtree(d, ignore_errors=True)
-    d = ext_dir().joinpath("pgai.egg-info")
-    if d.exists():
-        shutil.rmtree(d, ignore_errors=True)
-
-
-def uninstall_py() -> None:
-    shutil.rmtree(python_install_dir(), ignore_errors=True)
-
-
-def uninstall() -> None:
-    uninstall_sql()
-    uninstall_py()
-
-
-def build() -> None:
-    build_sql()
 
 
 def error_if_pre_release() -> None:
@@ -615,31 +877,6 @@ def error_if_pre_release() -> None:
         exit(1)
 
 
-def install() -> None:
-    error_if_pre_release()
-    install_prior_py()
-    install_py()
-    install_sql()
-
-
-def build_install() -> None:
-    build()
-    install()
-
-
-def clean() -> None:
-    clean_sql()
-    clean_py()
-
-
-def build_release() -> None:
-    clean_sql()
-    clean_py()
-    build()
-    build_init_py()
-    freeze()
-
-
 def tests_dir() -> Path:
     return ext_dir().joinpath("tests").absolute()
 
@@ -650,241 +887,15 @@ def where_am_i() -> str:
     return "host"
 
 
-def test_server() -> None:
-    if where_am_i() == "host":
-        cmd = """docker exec -it -w /pgai/tests/vectorizer pgai-ext uv run fastapi dev server.py"""
-        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
-    else:
-        cmd = "uv run fastapi dev server.py"
-        subprocess.run(
-            cmd,
-            shell=True,
-            check=True,
-            env=os.environ,
-            cwd=tests_dir().joinpath("vectorizer"),
-        )
-
-
-def test() -> None:
-    subprocess.run(
-        "uv run pytest", shell=True, check=True, env=os.environ, cwd=tests_dir()
-    )
-
-
-def lint_sql() -> None:
-    sql = sql_dir().joinpath(f"ai--{this_version()}.sql")
-    cmd = " ".join(
-        [
-            "pgspot --ignore-lang=plpython3u",
-            '--proc-without-search-path "ai._vectorizer_job(job_id integer,config pg_catalog.jsonb)"',
-            f"{sql}",
-        ]
-    )
-    subprocess.run(cmd, shell=True, check=True, env=os.environ)
-
-
-def lint_py() -> None:
-    subprocess.run(
-        f"uv run ruff check {ext_dir()}", shell=True, check=True, env=os.environ
-    )
-
-
-def lint() -> None:
-    lint_py()
-    lint_sql()
-
-
-def format_py() -> None:
-    subprocess.run(
-        f"uv run ruff format --diff {ext_dir()}", shell=True, check=True, env=os.environ
-    )
-
-
-def reformat_py() -> None:
-    subprocess.run(f"ruff format {ext_dir()}", shell=True, check=True, env=os.environ)
-
-
-def check_requirements() -> None:
-    """
-    Verifies that requirements-lock.txt is up to date with pyproject.toml.
-    Creates a temporary file with the current state and compares it with the existing lock file.
-    """
-    if shutil.which("uv") is None:
-        fatal("uv not found")
-
-    # Create a temporary file to store current requirements
-    with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt") as tmp_file:
-        # Generate current requirements
-        subprocess.run(
-            f"uv export --quiet --format requirements-txt -o {tmp_file.name}",
-            shell=True,
-            check=True,
-            env=os.environ,
-            text=True,
-        )
-
-        # Read both files
-        lock_file = ext_dir() / "requirements-lock.txt"
-        if not lock_file.exists():
-            fatal(
-                "requirements-lock.txt does not exist. Run 'uv export --format requirements-txt -o requirements-lock.txt' to create it."
-            )
-
-        from difflib import unified_diff
-
-        with open(lock_file) as f1, open(tmp_file.name) as f2:
-            # Skip the first 3 lines when reading both files since the contain a line with the file name
-            # which will always be different
-            lock_contents = f1.readlines()[3:]
-            current_contents = f2.readlines()[3:]
-
-            diff = list(unified_diff(lock_contents, current_contents))
-            if diff:
-                fatal(
-                    "requirements-lock.txt is out of sync with uv.lock.\n"
-                    "Run 'uv export --format requirements-txt -o requirements-lock.txt' to update it.\n"
-                    + "".join(diff)
-                )
-
-
-def docker_build() -> None:
-    subprocess.run(
-        f"""docker build --build-arg PG_MAJOR={pg_major()} -t pgai-ext .""",
-        shell=True,
-        check=True,
-        env=os.environ,
-        text=True,
-        cwd=ext_dir(),
-    )
-
-
-def docker_run() -> None:
-    networking = (
-        "--network host" if platform.system() == "Linux" else "-p 127.0.0.1:5432:5432"
-    )
-    cmd = " ".join(
-        [
-            "docker run -d --name pgai-ext --hostname pgai-ext -e POSTGRES_HOST_AUTH_METHOD=trust",
-            networking,
-            f"--mount type=bind,src={ext_dir()},dst=/pgai",
-            "--mount type=volume,dst=/pgai/.venv",
-            "-e OPENAI_API_KEY",
-            "-e COHERE_API_KEY",
-            "-e MISTRAL_API_KEY",
-            "-e VOYAGE_API_KEY",
-            "-e HUGGINGFACE_API_KEY",
-            "-e AZURE_API_KEY",
-            "-e AZURE_API_BASE",
-            "-e AZURE_API_VERSION",
-            "-e AWS_ACCESS_KEY_ID",
-            "-e AWS_REGION_NAME",
-            "-e AWS_SECRET_ACCESS_KEY",
-            "-e VERTEX_CREDENTIALS",
-            "-e TEST_ENV_SECRET=super_secret",
-            "pgai-ext",
-            "-c shared_preload_libraries='timescaledb, pgextwlist'",
-            "-c extwlist.extensions='ai,vector'",
-        ]
-    )
-    subprocess.run(cmd, shell=True, check=True, env=os.environ, text=True)
-
-
-def docker_start() -> None:
-    subprocess.run(
-        """docker start pgai-ext""", shell=True, check=True, env=os.environ, text=True
-    )
-
-
-def docker_stop() -> None:
-    subprocess.run(
-        """docker stop pgai-ext""", shell=True, check=True, env=os.environ, text=True
-    )
-
-
-def docker_rm() -> None:
-    subprocess.run(
-        """docker rm --force --volumes pgai-ext""",
-        shell=True,
-        check=True,
-        env=os.environ,
-        text=True,
-    )
-
-
-def run() -> None:
-    docker_build()
-    docker_run()
-    cmd = "docker exec pgai-ext make build-install"
-    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
-    cmd = 'docker exec -u postgres pgai-ext psql -c "create extension ai cascade"'
-    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
-    cmd = "docker exec -it -d -w /pgai/tests pgai-ext fastapi dev server.py"
-    subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
-
-
 if __name__ == "__main__":
+    actions = Actions()
     if len(sys.argv) <= 1 or "help" in sys.argv[1:]:
-        print(HELP)
+        actions.help()
         sys.exit(0)
     for action in sys.argv[1:]:
-        if action == "install":
-            install()
-        elif action == "build":
-            build()
-        elif action == "build-install":
-            build_install()
-        elif action == "install-prior-py":
-            install_prior_py()
-        elif action == "install-py":
-            install_py()
-        elif action == "install-sql":
-            install_sql()
-        elif action == "freeze":
-            freeze()
-        elif action == "build-sql":
-            build_sql()
-        elif action == "clean-sql":
-            clean_sql()
-        elif action == "clean-py":
-            clean_py()
-        elif action == "clean":
-            clean()
-        elif action == "build-release":
-            build_release()
-        elif action == "uninstall-py":
-            uninstall_py()
-        elif action == "uninstall-sql":
-            uninstall_sql()
-        elif action == "uninstall":
-            uninstall()
-        elif action == "test-server":
-            test_server()
-        elif action == "test":
-            test()
-        elif action == "lint-sql":
-            lint_sql()
-        elif action == "lint-py":
-            lint_py()
-        elif action == "lint":
-            lint()
-        elif action == "format-py":
-            format_py()
-        elif action == "reformat-py":
-            reformat_py()
-        elif action == "check-requirements":
-            check_requirements()
-        elif action == "docker-build":
-            docker_build()
-        elif action == "docker-run":
-            docker_run()
-        elif action == "docker-start":
-            docker_start()
-        elif action == "docker-stop":
-            docker_stop()
-        elif action == "docker-rm":
-            docker_rm()
-        elif action == "run":
-            run()
+        if action in actions:
+            fn = actions[action]
+            fn()
         else:
             print(f"{action} is not a valid action", file=sys.stderr)
             sys.exit(1)
