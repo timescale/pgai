@@ -25,7 +25,6 @@ def test_chunking_character_text_splitter():
                 "chunk_overlap": 400,
                 "implementation": "character_text_splitter",
                 "config_type": "chunking",
-                "chunk_document": False,
             },
         ),
         (
@@ -38,7 +37,6 @@ def test_chunking_character_text_splitter():
                 "chunk_overlap": 10,
                 "implementation": "character_text_splitter",
                 "config_type": "chunking",
-                "chunk_document": False,
             },
         ),
         (
@@ -51,7 +49,6 @@ def test_chunking_character_text_splitter():
                 "chunk_overlap": 20,
                 "implementation": "character_text_splitter",
                 "config_type": "chunking",
-                "chunk_document": False,
             },
         ),
         (
@@ -72,11 +69,11 @@ def test_chunking_character_text_splitter():
                 "chunk_overlap": 20,
                 "implementation": "character_text_splitter",
                 "config_type": "chunking",
-                "chunk_document": False,
             },
         ),
         (
-            "select ai.chunking_character_text_splitter(chunk_document=>True)",
+            # allowing empty chunk_column for the use case of chunking a document
+            "select ai.chunking_character_text_splitter()",
             {
                 "separator": "\n\n",
                 "is_separator_regex": False,
@@ -85,7 +82,6 @@ def test_chunking_character_text_splitter():
                 "chunk_overlap": 400,
                 "implementation": "character_text_splitter",
                 "config_type": "chunking",
-                "chunk_document": True,
             },
         ),
     ]
@@ -111,7 +107,6 @@ def test_chunking_recursive_character_text_splitter():
                 "chunk_overlap": 400,
                 "implementation": "recursive_character_text_splitter",
                 "config_type": "chunking",
-                "chunk_document": False,
             },
         ),
         (
@@ -124,7 +119,6 @@ def test_chunking_recursive_character_text_splitter():
                 "chunk_overlap": 10,
                 "implementation": "recursive_character_text_splitter",
                 "config_type": "chunking",
-                "chunk_document": False,
             },
         ),
         (
@@ -137,7 +131,6 @@ def test_chunking_recursive_character_text_splitter():
                 "chunk_overlap": 20,
                 "implementation": "recursive_character_text_splitter",
                 "config_type": "chunking",
-                "chunk_document": False,
             },
         ),
         (
@@ -158,11 +151,11 @@ def test_chunking_recursive_character_text_splitter():
                 "chunk_overlap": 20,
                 "implementation": "recursive_character_text_splitter",
                 "config_type": "chunking",
-                "chunk_document": False,
             },
         ),
         (
-            "select ai.chunking_recursive_character_text_splitter(chunk_document=>True)",
+            # allowing empty chunk_column for the use case of chunking a document
+            "select ai.chunking_recursive_character_text_splitter()",
             {
                 "separators": ["\n\n", "\n", ".", "?", "!", " ", ""],
                 "is_separator_regex": False,
@@ -171,7 +164,6 @@ def test_chunking_recursive_character_text_splitter():
                 "chunk_overlap": 400,
                 "implementation": "recursive_character_text_splitter",
                 "config_type": "chunking",
-                "chunk_document": True,
             },
         ),
     ]
@@ -231,20 +223,11 @@ def test_validate_chunking():
         (
             """
             select ai._validate_chunking
-            ( ai.chunking_recursive_character_text_splitter('column_a', chunk_document=>True)
-            , 'public', 'thing'
+            ( ai.chunking_recursive_character_text_splitter('column_a')
+            , 'public', 'thing', chunk_document => True
             )
             """,
-            "either one of chunk_column or chunk_document should be set in config",
-        ),
-        (
-            """
-            select ai._validate_chunking
-            ( ai.chunking_recursive_character_text_splitter('', chunk_document=>False)
-            , 'public', 'thing'
-            )
-            """,
-            "either one of chunk_column or chunk_document should be set in config",
+            "either one of config.chunk_column or chunk_document argument should be set",
         ),
         (
             """
@@ -253,7 +236,7 @@ def test_validate_chunking():
             , 'public', 'thing'
             )
             """,
-            "either one of chunk_column or chunk_document should be set in config",
+            "either one of config.chunk_column or chunk_document argument should be set"
         ),
     ]
     with psycopg.connect(db_url("test"), autocommit=True) as con:

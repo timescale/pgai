@@ -671,17 +671,3 @@ as $func$
 $func$ language sql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
-
--------------------------------------------------------------------------------
--- document_loader
--- create or replace function ai.document_loader
--- ( file_uri pg_catalog.name
--- ) returns pg_catalog.jsonb
--- as $func$
--- select json_object
---        , 'file_uri': file_uri
---     absent on null
---        )
--- $func$ language sql immutable security invoker
--- set search_path to pg_catalog, pg_temp
--- ;
