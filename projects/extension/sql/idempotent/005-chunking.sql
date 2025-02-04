@@ -53,7 +53,7 @@ create or replace function ai._validate_chunking
 ( config pg_catalog.jsonb
 , source_schema pg_catalog.name
 , source_table pg_catalog.name
-, chunk_document pg_catalog.bool
+, chunk_document pg_catalog.bool default false
 ) returns void
 as $func$
 declare
@@ -78,7 +78,7 @@ begin
 
     _chunk_column = config operator(pg_catalog.->>) 'chunk_column';
     if (chunk_document is false and _chunk_column = '') or (chunk_document is true and _chunk_column != '') then
-       raise exception 'either one of chunk_column or chunk_document should be set in config';
+       raise exception 'either one of config.chunk_column or chunk_document argument should be set';
     end if;
 
     if chunk_document is false then
