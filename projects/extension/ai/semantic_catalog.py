@@ -33,9 +33,10 @@ def get_parsed_config(plpy, catalog_name: str, config: dict | None) -> dict:
     return json.loads(config)  # type: dict
 
 
-def get_obj_description(plpy, relation: str) -> str:
+def get_obj_description(plpy, relation: str | None = None, fn: str | None = None) -> str:
+    objid = f"'{relation}'::pg_catalog.regclass::pg_catalog.oid" if relation else f"'{fn}'::regprocedure::pg_catalog.oid"
     result = plpy.execute(
-        f"select ai.render_semantic_catalog_obj(0, 'pg_catalog.pg_class'::pg_catalog.regclass::pg_catalog.oid, '{relation}'::pg_catalog.regclass::pg_catalog.oid) as description;"
+        f"select ai.render_semantic_catalog_obj(0, 'pg_catalog.pg_class'::pg_catalog.regclass::pg_catalog.oid, {objid}) as description;"
     )
     return result[0]["description"]
 
@@ -281,3 +282,96 @@ def generate_column_descriptions(
                 )
     for column in columns:
         yield column["name"], column["description"]
+
+
+def generate_function_description(
+    plpy,
+    fn: str,
+    catalog_name: str,
+    config: dict | None,
+    save: bool,
+    overwrite: bool,
+) -> Generator[GeneratedDescription, None, None]:
+    parsed_config = get_parsed_config(plpy, catalog_name, config)
+    description = "None"
+    system_prompt = """
+    You are a SQL expert generates natural language descriptions of functions in a database.
+
+    The descriptions that you generate should be a concise single sentence.
+    """
+
+    message_content = f"""
+    Given the following function, generate a natural language description of it:
+
+    {get_obj_description(plpy, fn=fn)}
+    """
+
+    tools = [
+        {
+            "name": "generate_description",
+            "description": "Record description of function in well-formed JSON",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "description": "Description of the function",
+                    }
+                },
+            },
+        }
+    ]
+
+    provider = parsed_config.get("provider", None)
+    if provider == "anthropic":
+        model = parsed_config.get("model", "claude-3-5-sonnet-latest")
+        messages = [{"role": "user", "content": message_content}]
+
+        result = plpy.execute(f"""
+            select ai.anthropic_generate(
+                '{model}'
+                , '{json.dumps(messages).replace("'", "''")}'::jsonb
+                , system_prompt => '{system_prompt}'
+                , tools => '{json.dumps(tools)}'::jsonb
+                , tool_choice => '{{"type": "tool", "name": "generate_description"}}'::jsonb
+            )
+        """)
+        response = json.loads(result[0]["anthropic_generate"])
+        description = response["content"][0]["input"]["description"]
+    elif provider == "ollama":
+        pass
+    elif provider == "openai":
+        model = parsed_config.get("model", "gpt-4o")
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": message_content},
+        ]
+        result = plpy.execute(f"""
+            select ai.openai_chat_complete(
+                '{model}'
+                , '{json.dumps(messages).replace("'", "''")}'::jsonb
+                , tools => '{json.dumps(map_tools_to_openai(tools))}'::jsonb
+                , tool_choice => '{{"type": "function", "function": {{"name": "generate_description"}}}}'
+            )
+        """)
+        response = json.loads(result[0]["openai_chat_complete"])
+        description = json.loads(
+            response["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"]
+        )["description"]
+    elif provider == "cohere":
+        pass
+    else:
+        raise Exception(f"provider {provider} not found")
+
+    if save:
+        result = plpy.execute(
+            f"select 1 from ai.semantic_catalog_obj x where x.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass::pg_catalog.oid and x.objid = '{fn}'::regprocedure::pg_catalog.oid"
+        )
+        plpy.notice(result[0])
+        if len(result) == 0 or overwrite:
+            plpy.debug(
+                f"set description for {fn} (existing={len(result) > 0}, overwrite={overwrite})"
+            )
+            plpy.execute(f"select ai.set_description('{fn}', '{description}'")
+
+    yield fn, description
