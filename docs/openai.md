@@ -509,3 +509,14 @@ from
 ) x
 ;
 ```
+
+### Undocumented request params
+
+If you want to include additional parameters in a request, you can do so using
+the extra_query, extra_body, and extra_headers options.
+
+These values will be passed down to the corresponding method in the OpenAI
+Python library and used in the same way as described in the [OpenAI Python
+library documentation for Undocumented request params][undocumented-params].
+
+[undocumented-params]: https://openai.com/docs/api-reference/python#undocumented-request-params

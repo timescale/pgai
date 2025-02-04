@@ -45,7 +45,12 @@ def test_openai_list_models(cur, openai_api_key):
     cur.execute(
         """
         select count(*) > 0 as actual
-        from ai.openai_list_models(api_key=>%s)
+        from ai.openai_list_models(
+            api_key=>%s,
+            extra_headers=>'{"X-Custom-Header": "my-value"}',
+            extra_query=>'{"debug": true}',
+            timeout=>600::float8
+        )
     """,
         (openai_api_key,),
     )
@@ -98,6 +103,9 @@ def test_openai_embed(cur, openai_api_key):
             ( 'text-embedding-ada-002'
             , 'the purple elephant sits on a red mushroom'
             , api_key=>%s
+            , extra_headers=>'{"X-Custom-Header": "my-value"}'
+            , extra_query=>'{"debug": true}'
+            , timeout=>600::float8
             )
         )
     """,
@@ -262,6 +270,9 @@ def test_openai_chat_complete(cur, openai_api_key):
             , jsonb_build_object('role', 'user', 'content', 'what is the typical weather like in Alabama in June')
             )
           , api_key=>%s
+          , extra_headers=>'{"X-Custom-Header": "my-value"}'
+          , extra_query=>'{"debug": true}'
+          , timeout=>600::float8
           ) as actual
         )
         select jsonb_extract_path_text(x.actual, 'choices', '0', 'message', 'content') is not null
@@ -352,6 +363,9 @@ def test_openai_moderate(cur, openai_api_key):
             ( 'text-moderation-stable'
             , 'I want to kill them.'
             , api_key=>%s
+            , extra_headers=>'{"X-Custom-Header": "my-value"}'
+            , extra_query=>'{"debug": true}'
+            , timeout=>600::float8
             ) as actual
         )
         select jsonb_extract_path_text(x.actual, 'results', '0', 'flagged')::bool
