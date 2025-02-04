@@ -550,6 +550,37 @@ begin
 end;
 $outer_migration_block$;
 
+-------------------------------------------------------------------------------
+-- 014-drop-create-vectorizer-old-function.sql
+do $outer_migration_block$ /*014-drop-create-vectorizer-old-function.sql*/
+declare
+    _sql text;
+    _migration record;
+    _migration_name text = $migration_name$014-drop-create-vectorizer-old-function.sql$migration_name$;
+    _migration_body text =
+$migration_body$
+-- adding a new jsonb param to include the loader.
+drop function if exists ai.create_vectorizer(regclass,name,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name,name,name,name,name[],boolean);
+-- adding a new boolean chunk_document to infer if we're validating a chunker that relies on documents.
+drop function if exists ai._validate_chunking(jsonb,name,name);
+
+$migration_body$;
+begin
+    select * into _migration from ai.migration where "name" operator(pg_catalog.=) _migration_name;
+    if _migration is not null then
+        raise notice 'migration %s already applied. skipping.', _migration_name;
+        if _migration.body operator(pg_catalog.!=) _migration_body then
+            raise warning 'the contents of migration "%s" have changed', _migration_name;
+        end if;
+        return;
+    end if;
+    _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
+    execute _sql;
+    insert into ai.migration ("name", body, applied_at_version)
+    values (_migration_name, _migration_body, $version$0.8.0$version$);
+end;
+$outer_migration_block$;
+
 --------------------------------------------------------------------------------
 -- 001-openai.sql
 
@@ -1905,7 +1936,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- chunking_character_text_splitter
 create or replace function ai.chunking_character_text_splitter
-( chunk_column pg_catalog.name
+( chunk_column pg_catalog.name default ''
 , chunk_size pg_catalog.int4 default 800
 , chunk_overlap pg_catalog.int4 default 400
 , separator pg_catalog.text default E'\n\n'
@@ -1929,7 +1960,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- chunking_recursive_character_text_splitter
 create or replace function ai.chunking_recursive_character_text_splitter
-( chunk_column pg_catalog.name
+( chunk_column pg_catalog.name default ''
 , chunk_size pg_catalog.int4 default 800
 , chunk_overlap pg_catalog.int4 default 400
 , separators pg_catalog.text[] default array[E'\n\n', E'\n', '.', '?', '!', ' ', '']
@@ -1956,6 +1987,7 @@ create or replace function ai._validate_chunking
 ( config pg_catalog.jsonb
 , source_schema pg_catalog.name
 , source_table pg_catalog.name
+, chunk_document pg_catalog.bool default false
 ) returns void
 as $func$
 declare
@@ -1979,20 +2011,27 @@ begin
     end if;
 
     _chunk_column = config operator(pg_catalog.->>) 'chunk_column';
+    if (chunk_document is false and _chunk_column = '') or (chunk_document is true and _chunk_column != '') then
+       raise exception 'either one of config.chunk_column or chunk_document argument should be set';
+    end if;
 
-    select count(*) operator(pg_catalog.>) 0 into strict _found
-    from pg_catalog.pg_class k
-    inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
-    inner join pg_catalog.pg_attribute a on (k.oid operator(pg_catalog.=) a.attrelid)
-    inner join pg_catalog.pg_type y on (a.atttypid operator(pg_catalog.=) y.oid)
-    where n.nspname operator(pg_catalog.=) source_schema
-    and k.relname operator(pg_catalog.=) source_table
-    and a.attnum operator(pg_catalog.>) 0
-    and a.attname operator(pg_catalog.=) _chunk_column
-    and y.typname in ('text', 'varchar', 'char', 'bpchar')
-    ;
-    if not _found then
-        raise exception 'chunk column in config does not exist in the table: %', _chunk_column;
+    if chunk_document is false then
+        _chunk_column = config operator(pg_catalog.->>) 'chunk_column';
+
+        select count(*) operator(pg_catalog.>) 0 into strict _found
+        from pg_catalog.pg_class k
+        inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
+        inner join pg_catalog.pg_attribute a on (k.oid operator(pg_catalog.=) a.attrelid)
+        inner join pg_catalog.pg_type y on (a.atttypid operator(pg_catalog.=) y.oid)
+        where n.nspname operator(pg_catalog.=) source_schema
+        and k.relname operator(pg_catalog.=) source_table
+        and a.attnum operator(pg_catalog.>) 0
+        and a.attname operator(pg_catalog.=) _chunk_column
+        and y.typname in ('text', 'varchar', 'char', 'bpchar')
+        ;
+        if not _found then
+            raise exception 'chunk column in config does not exist in the table: %', _chunk_column;
+        end if;
     end if;
 end
 $func$ language plpgsql stable security invoker
@@ -3644,6 +3683,7 @@ create or replace function ai.create_vectorizer
 , queue_table pg_catalog.name default null
 , grant_to pg_catalog.name[] default ai.grant_to()
 , enqueue_existing pg_catalog.bool default true
+, loader pg_catalog.jsonb default null
 ) returns pg_catalog.int4
 as $func$
 declare
@@ -3657,6 +3697,7 @@ declare
     _vectorizer_id pg_catalog.int4;
     _sql pg_catalog.text;
     _job_id pg_catalog.int8;
+    _chunk_document pg_catalog.bool;
 begin
     -- make sure all the roles listed in grant_to exist
     if grant_to is not null then
@@ -3679,6 +3720,11 @@ begin
 
     if chunking is null then
         raise exception 'chunking configuration is required';
+    end if;
+
+    _chunk_document = false;
+    if loader is not null then
+       _chunk_document = true;
     end if;
 
     -- get source table name and schema name
@@ -3750,7 +3796,7 @@ begin
     perform ai._validate_embedding(embedding);
 
     -- validate the chunking config
-    perform ai._validate_chunking(chunking, _source_schema, _source_table);
+    perform ai._validate_chunking(chunking, _source_schema, _source_table, _chunk_document);
 
     -- if ai.indexing_default, resolve the default
     if indexing operator(pg_catalog.->>) 'implementation' = 'default' then
@@ -4277,7 +4323,6 @@ as $func$
 $func$ language sql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
-
 
 --------------------------------------------------------------------------------
 -- 014-secrets.sql

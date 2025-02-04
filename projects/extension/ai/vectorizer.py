@@ -3,8 +3,8 @@ from urllib.parse import urljoin
 
 import backoff
 import httpx
-
 from backoff._typing import Details
+
 from .utils import get_guc_value
 
 GUC_VECTORIZER_URL = "ai.external_functions_executor_url"
