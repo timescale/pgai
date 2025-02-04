@@ -10,7 +10,6 @@ create or replace function ai.text_to_sql_ollama
 , max_iter pg_catalog.int2 default null
 , max_results pg_catalog.int8 default null
 , max_vector_dist pg_catalog.float8 default null
-, min_ts_rank pg_catalog.float4 default null
 , obj_renderer pg_catalog.regprocedure default null
 , sql_renderer pg_catalog.regprocedure default null
 ) returns pg_catalog.jsonb
@@ -24,7 +23,6 @@ as $func$
     , 'max_iter': max_iter
     , 'max_results': max_results
     , 'max_vector_dist': max_vector_dist
-    , 'min_ts_rank': min_ts_rank
     , 'obj_renderer': obj_renderer
     , 'sql_renderer': sql_renderer
     absent on null
@@ -38,7 +36,7 @@ set search_path to pg_catalog, pg_temp
 create function ai._text_to_sql_ollama
 ( question text
 , catalog_name text default 'default'
-, config jsonb default null -- TODO: use this for LLM configuration
+, config jsonb default null
 ) returns jsonb
 as $func$
 declare
@@ -48,7 +46,6 @@ declare
     _iter_remaining int2;
     _max_results int8;
     _max_vector_dist float8;
-    _min_ts_rank real;
     _obj_renderer regprocedure;
     _sql_renderer regprocedure;
     _model text;
@@ -59,7 +56,6 @@ declare
     _system_prompt text;
     _questions jsonb = jsonb_build_array(question);
     _questions_embedded @extschema:vector@.vector[];
-    _keywords jsonb = jsonb_build_array();
     _ctx_obj jsonb = jsonb_build_array();
     _ctx_sql jsonb = jsonb_build_array();
     _sql text;
@@ -77,7 +73,6 @@ begin
     _iter_remaining = _max_iter;
     _max_results = coalesce(case when _config is not null then (_config->>'max_results')::int8 end, 5);
     _max_vector_dist = case when _config is not null then (_config->>'max_vector_dist')::float8 end;
-    _min_ts_rank = case when _config is not null then (_config->>'min_ts_rank')::real end;
     _obj_renderer = coalesce(case when _config is not null then (_config->>'obj_renderer')::pg_catalog.regprocedure end, 'ai.render_semantic_catalog_obj(bigint, oid, oid)'::pg_catalog.regprocedure);
     _sql_renderer = coalesce(case when _config is not null then (_config->>'sql_renderer')::pg_catalog.regprocedure end, 'ai.render_semantic_catalog_sql(bigint, text, text)'::pg_catalog.regprocedure);
     _model = coalesce(case when _config is not null and _config operator(pg_catalog.?) 'model' then _config->>'model' end, 'claude-3-5-sonnet-latest');
@@ -94,7 +89,6 @@ begin
     while _iter_remaining > 0 loop
         raise debug 'iteration: %', (_max_iter - _iter_remaining + 1);
         raise debug 'searching with % questions', jsonb_array_length(_questions);
-        raise debug 'searching with % sets of keywords', jsonb_array_length(_keywords);
 
         -- search -------------------------------------------------------------
 
@@ -110,7 +104,7 @@ begin
         end if;
 
         -- search obj
-        if jsonb_array_length(_questions) > 0 or jsonb_array_length(_keywords) > 0 then
+        if jsonb_array_length(_questions) > 0 then
             raise debug 'searching for database objects';
             select jsonb_agg(x.obj)
             into _ctx_obj
@@ -135,16 +129,6 @@ begin
                     , _max_vector_dist
                     ) x
                     union
-                    -- keyword search
-                    select distinct x.classid, x.objid
-                    from jsonb_to_recordset(_keywords) k(keywords text[])
-                    cross join lateral ai._search_semantic_catalog_obj
-                    ( k.keywords
-                    , catalog_name
-                    , _max_results
-                    , _min_ts_rank
-                    ) x
-                    union
                     -- unroll objects previously marked as relevant
                     select *
                     from jsonb_to_recordset(_ctx_obj) r(classid oid, objid oid)
@@ -155,7 +139,7 @@ begin
         end if;
 
         -- search sql
-        if jsonb_array_length(_questions) > 0 or jsonb_array_length(_keywords) > 0 then
+        if jsonb_array_length(_questions) > 0 then
             raise debug 'searching for sql examples';
             select jsonb_agg(x)
             into _ctx_sql
@@ -172,16 +156,6 @@ begin
                 , _max_vector_dist
                 ) x
                 union
-                -- keyword search
-                select distinct x.id, x.sql, x.description
-                from jsonb_to_recordset(_keywords) k(keywords text[])
-                cross join lateral ai._search_semantic_catalog_sql
-                ( k.keywords
-                , catalog_name
-                , _max_results
-                , _min_ts_rank
-                ) x
-                union
                 -- unroll sql examples previously marked as relevant
                 select *
                 from jsonb_to_recordset(_ctx_sql) r(id int, sql text, description text)
@@ -193,7 +167,6 @@ begin
         -- reset our search params
         _questions = jsonb_build_array();
         _questions_embedded = null;
-        _keywords = jsonb_build_array();
 
         -- render prompt ------------------------------------------------------
         -- render obj
@@ -248,28 +221,6 @@ begin
         raise debug '%', _prompt;
 
         -- call llm -----------------------------------------------------------
-        /*
-            {
-                "type": "function":
-                "function": {
-                    "name": "request_more_context_by_keywords",
-                    "description": "If you do not have enough context to confidently answer the user's question, use this tool to ask for more context by providing a list of keywords to use in performing a full-text search.",
-                    "parameters": {
-                        "type": "object",
-                        "properties" : {
-                            "keywords": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "A list of keywords relevant to the user's question that will be used to perform a full-text search to gather more context. Each item must be a single word with no whitespace."
-                            }
-                        },
-                        "required": ["keywords"],
-                        "additionalProperties": false
-                    },
-                    "strict": true
-                }
-            },
-        */
         _tools = $json$
         [
             {
@@ -378,12 +329,6 @@ begin
                         -- append the question to the list of questions to use on the next iteration
                         select _questions || jsonb_build_array(_tool_call.arguments->'question')
                         into strict _questions
-                        ;
-                    when 'request_more_context_by_keywords' then
-                        raise debug 'tool use: request_more_context_by_keywords: %', _tool_call.arguments->'keywords';
-                        -- append the keywords to the list of keywords to use on the next iteration
-                        select _keywords || jsonb_build_array(jsonb_build_object('keywords', _tool_call.arguments->'keywords'))
-                        into strict _keywords
                         ;
                     when 'answer_user_question_with_sql_statement' then
                         raise debug 'tool use: answer_user_question_with_sql_statement: %', _tool_call.arguments;

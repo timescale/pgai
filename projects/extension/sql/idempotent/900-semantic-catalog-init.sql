@@ -8,7 +8,6 @@ create or replace function ai.create_semantic_catalog
 , scheduling pg_catalog.jsonb default ai.scheduling_default()
 , processing pg_catalog.jsonb default ai.processing_default()
 , grant_to pg_catalog.name[] default ai.grant_to()
--- TODO: need to specify text search config https://www.postgresql.org/docs/current/textsearch-configuration.html
 , text_to_sql pg_catalog.jsonb default null
 , catalog_name pg_catalog.name default 'default'
 ) returns pg_catalog.int4
@@ -43,8 +42,6 @@ begin
     ) into strict _obj_vec_id
     ;
 
-    -- TODO: create text search index on vectorizer target table
-
     select ai.create_vectorizer
     ( 'ai.semantic_catalog_sql'::pg_catalog.regclass
     , destination=>pg_catalog.format('semantic_catalog_sql_%s', _catalog_id)
@@ -57,8 +54,6 @@ begin
     , chunking=>ai.chunking_recursive_character_text_splitter('description') -- TODO
     ) into strict _sql_vec_id
     ;
-
-    -- TODO: create text search index on vectorizer target table
 
     insert into ai.semantic_catalog
     ( id

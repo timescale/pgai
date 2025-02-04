@@ -19,7 +19,6 @@ $func$ language sql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
-
 -------------------------------------------------------------------------------
 -- _search_semantic_catalog_obj
 create function ai._search_semantic_catalog_obj
@@ -90,6 +89,7 @@ $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+/*
 -------------------------------------------------------------------------------
 -- _search_semantic_catalog_obj
 create function ai._search_semantic_catalog_obj
@@ -173,6 +173,7 @@ end;
 $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
+*/
 
 /*
 -------------------------------------------------------------------------------
@@ -273,6 +274,7 @@ $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+/*
 -------------------------------------------------------------------------------
 -- _search_semantic_catalog_sql
 create function ai._search_semantic_catalog_sql
@@ -338,6 +340,7 @@ end;
 $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
+*/
 
 /*
 -------------------------------------------------------------------------------
