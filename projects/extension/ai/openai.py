@@ -1,3 +1,4 @@
+import json
 from collections.abc import Generator
 from datetime import datetime
 
@@ -25,15 +26,36 @@ def make_client(
     return openai.Client(api_key=api_key, base_url=base_url)
 
 
+def str_arg_to_dict(arg: str | None) -> dict | None:
+    return json.loads(arg) if arg is not None else None
+
+
+def create_kwargs(**kwargs) -> dict:
+    kwargs_ = {}
+    for k, v in kwargs.items():
+        if v is not None:
+            kwargs_[k] = v
+    return kwargs_
+
+
 def list_models(
     plpy,
     api_key: str,
     base_url: str | None = None,
+    extra_headers: str | None = None,
+    extra_query: str | None = None,
+    timeout: float | None = None,
 ) -> Generator[tuple[str, datetime, str], None, None]:
     client = make_client(plpy, api_key, base_url)
     from datetime import datetime, timezone
 
-    for model in client.models.list():
+    kwargs = create_kwargs(
+        extra_headers=str_arg_to_dict(extra_headers),
+        extra_query=str_arg_to_dict(extra_query),
+        timeout=timeout,
+    )
+
+    for model in client.models.list(**kwargs):
         created = datetime.fromtimestamp(model.created, timezone.utc)
         yield model.id, created, model.owned_by
 
@@ -46,14 +68,22 @@ def embed(
     base_url: str | None = None,
     dimensions: int | None = None,
     user: str | None = None,
+    extra_headers: str | None = None,
+    extra_query: str | None = None,
+    extra_body: str | None = None,
+    timeout: float | None = None,
 ) -> Generator[tuple[int, list[float]], None, None]:
     client = make_client(plpy, api_key, base_url)
-    args = {}
-    if dimensions is not None:
-        args["dimensions"] = dimensions
-    if user is not None:
-        args["user"] = user
-    response = client.embeddings.create(input=input, model=model, **args)
+
+    kwargs = create_kwargs(
+        dimensions=dimensions,
+        user=user,
+        extra_headers=str_arg_to_dict(extra_headers),
+        extra_query=str_arg_to_dict(extra_query),
+        extra_body=str_arg_to_dict(extra_body),
+        timeout=timeout,
+    )
+    response = client.embeddings.create(input=input, model=model, **kwargs)
     if not hasattr(response, "data"):
         return None
     for obj in response.data:

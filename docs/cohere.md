@@ -31,11 +31,17 @@ as a [session level parameter]. For more options and details, consult the
    `ai.cohere_api_key` is set for the duration of your psql session, you do not need to specify it for pgai functions.
 
     ```sql
-    SELECT ai.cohere_chat_complete
+    select ai.cohere_chat_complete
     ( 'command-r-plus'
-    , 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
+    , jsonb_build_array
+      ( jsonb_build_object
+        ( 'role', 'user'
+        , 'content', 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
+        )
+      )
     , seed=>42
-    )->>'text'
+    , temperature=>0.0
+    )->'message'->'content'->0->>'text'
     ;
     ```
 
@@ -269,22 +275,20 @@ Rank documents according to semantic similarity to a query prompt.
 ```sql
 select
   x."index"
-, x.document->>'text' as "text"
 , x.relevance_score
 from jsonb_to_recordset
 (
     ai.cohere_rerank
     ( 'rerank-english-v3.0'
     , 'How long does it take for two programmers to work on something?'
-    , jsonb_build_array
-      ( $$Good programmers don't just write programs. They build a working vocabulary.$$
+    , array
+      [ $$Good programmers don't just write programs. They build a working vocabulary.$$
       , 'One of the best programming skills you can have is knowing when to walk away for awhile.'
       , 'What one programmer can do in one month, two programmers can do in two months.'
       , 'how much wood would a woodchuck chuck if a woodchuck could chuck wood?'
-      )
-    , return_documents=>true
+      ]
     )->'results'
-) x("index" int, "document" jsonb, relevance_score float8)
+) x("index" int, relevance_score float8)
 order by relevance_score desc
 ;
 ```
@@ -292,12 +296,12 @@ order by relevance_score desc
 Results:
 
 ```text
- index |                                           text                                           | relevance_score 
--------+------------------------------------------------------------------------------------------+-----------------
-     2 | What one programmer can do in one month, two programmers can do in two months.           |       0.8003801
-     0 | Good programmers don't just write programs. They build a working vocabulary.             |    0.0011559008
-     1 | One of the best programming skills you can have is knowing when to walk away for awhile. |    0.0006932423
-     3 | how much wood would a woodchuck chuck if a woodchuck could chuck wood?                   |    2.637042e-07
+ index | relevance_score
+-------+-----------------
+     2 |       0.8003801
+     0 |    0.0011559008
+     1 |    0.0006932423
+     3 |    2.637042e-07
 (4 rows)
 ```
 
@@ -310,12 +314,12 @@ select *
 from ai.cohere_rerank_simple
 ( 'rerank-english-v3.0'
 , 'How long does it take for two programmers to work on something?'
-, jsonb_build_array
-  ( $$Good programmers don't just write programs. They build a working vocabulary.$$
+, array
+  [ $$Good programmers don't just write programs. They build a working vocabulary.$$
   , 'One of the best programming skills you can have is knowing when to walk away for awhile.'
   , 'What one programmer can do in one month, two programmers can do in two months.'
   , 'how much wood would a woodchuck chuck if a woodchuck could chuck wood?'
-  )
+  ]
 ) x
 order by relevance_score desc
 ;
@@ -324,12 +328,12 @@ order by relevance_score desc
 Results:
 
 ```text
- index |                                               document                                               | relevance_score 
--------+------------------------------------------------------------------------------------------------------+-----------------
-     2 | {"text": "What one programmer can do in one month, two programmers can do in two months."}           |       0.8003801
-     0 | {"text": "Good programmers don't just write programs. They build a working vocabulary."}             |    0.0011559008
-     1 | {"text": "One of the best programming skills you can have is knowing when to walk away for awhile."} |    0.0006932423
-     3 | {"text": "how much wood would a woodchuck chuck if a woodchuck could chuck wood?"}                   |    2.637042e-07
+ index |                                         document                                         | relevance_score
+-------+------------------------------------------------------------------------------------------+-----------------
+     2 | What one programmer can do in one month, two programmers can do in two months.           |       0.8003801
+     0 | Good programmers don't just write programs. They build a working vocabulary.             |    0.0011559008
+     1 | One of the best programming skills you can have is knowing when to walk away for awhile. |    0.0006932423
+     3 | how much wood would a woodchuck chuck if a woodchuck could chuck wood?                   |    2.637042e-07
 (4 rows)
 ```
 
@@ -340,16 +344,23 @@ Complete chat prompts
 ```sql
 select ai.cohere_chat_complete
 ( 'command-r-plus'
-, 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
+, jsonb_build_array
+  ( jsonb_build_object
+    ( 'role', 'user'
+    , 'content', 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
+    )
+  )
 , seed=>42
-)->>'text'
+, temperature=>0.0
+)->'message'->'content'->0->>'text'
 ;
 ```
 
 Results:
 
 ```text
-According to a tongue-twister poem often attributed to Robert Hobart Davis and Richard Wayne Peck, a woodchuck (also known as a groundhog) would chuck, or throw, "as much wood as a woodchuck would, if a woodchuck could chuck wood." 
-
-In a more serious biological context, woodchucks are known to be capable of causing significant damage to wood-based structures and landscapes due to their burrowing and chewing habits. They can chew through small trees and branches, although the exact amount of wood they could chuck or chew through would depend on various factors such as the size and age of the woodchuck, the type and condition of the wood, and the woodchuck's motivation and determination.
+                              ?column?
+---------------------------------------------------------------------
+ As much wood as a woodchuck would, if a woodchuck could chuck wood.
+(1 row)
 ```

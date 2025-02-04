@@ -99,8 +99,8 @@ as $python$
         args["input_type"] = input_type
     if truncate_long_inputs is not None:
         args["truncate"] = truncate_long_inputs
-    response = client.embed(texts=[input_text], model=model, **args)
-    return response.embeddings[0]
+    response = client.embed(texts=[input_text], model=model, embedding_types=["float"], **args)
+    return response.embeddings.float[0]
 $python$
 language plpython3u immutable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
@@ -180,13 +180,11 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.cohere_rerank
 ( model text
 , query text
-, documents jsonb
+, documents text[]
 , api_key text default null
 , api_key_name text default null
 , top_n integer default null
-, rank_fields text[] default null
-, return_documents bool default null
-, max_chunks_per_doc int default null
+, max_tokens_per_doc int default null
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
@@ -195,18 +193,13 @@ as $python$
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
     client = ai.cohere.make_client(api_key_resolved)
 
-    import json
     args = {}
     if top_n is not None:
         args["top_n"] = top_n
-    if rank_fields is not None:
-        args["rank_fields"] = rank_fields
-    if return_documents is not None:
-        args["return_documents"] = return_documents
-    if max_chunks_per_doc is not None:
-        args["max_chunks_per_doc"] = max_chunks_per_doc
-    documents_1 = json.loads(documents)
-    response = client.rerank(model=model, query=query, documents=documents_1, **args)
+    if max_tokens_per_doc is not None:
+        args["max_tokens_per_doc"] = max_tokens_per_doc
+
+    response = client.rerank(model=model, query=query, documents=documents, **args)
     return response.json()
 $python$ language plpython3u immutable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
@@ -218,18 +211,21 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.cohere_rerank_simple
 ( model text
 , query text
-, documents jsonb
+, documents text[]
 , api_key text default null
 , api_key_name text default null
 , top_n integer default null
-, max_chunks_per_doc int default null
+, max_tokens_per_doc int default null
 ) returns table
 ( "index" int
-, "document" jsonb
+, "document" text
 , relevance_score float8
 )
 as $func$
-select *
+select
+  x."index"
+, d.document
+, x.relevance_score
 from pg_catalog.jsonb_to_recordset
 (
     ai.cohere_rerank
@@ -239,10 +235,11 @@ from pg_catalog.jsonb_to_recordset
     , api_key=>api_key
     , api_key_name=>api_key_name
     , top_n=>top_n
-    , return_documents=>true
-    , max_chunks_per_doc=>max_chunks_per_doc
+    , max_tokens_per_doc=>max_tokens_per_doc
     ) operator(pg_catalog.->) 'results'
-) x("index" int, "document" jsonb, relevance_score float8)
+) x("index" int, relevance_score float8)
+inner join unnest(documents) with ordinality d (document, ord)
+on (x."index" = (d.ord - 1))
 $func$ language sql immutable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -252,29 +249,25 @@ set search_path to pg_catalog, pg_temp
 -- https://docs.cohere.com/reference/chat
 create or replace function ai.cohere_chat_complete
 ( model text
-, message text
+, messages jsonb
 , api_key text default null
 , api_key_name text default null
-, preamble text default null
-, chat_history jsonb default null
-, conversation_id text default null
-, prompt_truncation text default null
-, connectors jsonb default null
-, search_queries_only bool default null
+, tools jsonb default null
 , documents jsonb default null
-, citation_quality text default null
-, temperature float8 default null
+, citation_options jsonb default null
+, response_format jsonb default null
+, safety_mode text default null
 , max_tokens int default null
-, max_input_tokens int default null
-, k int default null
-, p float8 default null
-, seed int default null
 , stop_sequences text[] default null
+, temperature float8 default null
+, seed int default null
 , frequency_penalty float8 default null
 , presence_penalty float8 default null
-, tools jsonb default null
-, tool_results jsonb default null
-, force_single_step bool default null
+, k int default null
+, p float8 default null
+, logprobs boolean default null
+, tool_choice text default null
+, strict_tools bool default null
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
@@ -285,48 +278,41 @@ as $python$
 
     import json
     args = {}
-    if preamble is not None:
-        args["preamble"] = preamble
-    if chat_history is not None:
-        args["chat_history"] = json.loads(chat_history)
-    if conversation_id is not None:
-        args["conversation_id"] = conversation_id
-    if prompt_truncation is not None:
-        args["prompt_truncation"] = prompt_truncation
-    if connectors is not None:
-        args["connectors"] = json.loads(connectors)
-    if search_queries_only is not None:
-        args["search_queries_only"] = search_queries_only
+
+    if tools is not None:
+        args["tools"] = json.loads(tools)
     if documents is not None:
         args["documents"] = json.loads(documents)
-    if citation_quality is not None:
-        args["citation_quality"] = citation_quality
-    if temperature is not None:
-        args["temperature"] = temperature
+    if citation_options is not None:
+        args["citation_options"] = json.loads(citation_options)
+    if response_format is not None:
+        args["response_format"] = json.loads(response_format)
+    if safety_mode is not None:
+        args["safety_mode"] = safety_mode
     if max_tokens is not None:
         args["max_tokens"] = max_tokens
-    if max_input_tokens is not None:
-        args["max_input_tokens"] = max_input_tokens
-    if k is not None:
-        args["k"] = k
-    if p is not None:
-        args["p"] = p
-    if seed is not None:
-        args["seed"] = seed
     if stop_sequences is not None:
         args["stop_sequences"] = stop_sequences
+    if temperature is not None:
+        args["temperature"] = temperature
+    if seed is not None:
+        args["seed"] = seed
     if frequency_penalty is not None:
         args["frequency_penalty"] = frequency_penalty
     if presence_penalty is not None:
         args["presence_penalty"] = presence_penalty
-    if tools is not None:
-        args["tools"] = json.loads(tools)
-    if tool_results is not None:
-        args["tool_results"] = json.loads(tool_results)
-    if force_single_step is not None:
-        args["force_single_step"] = force_single_step
+    if k is not None:
+        args["k"] = k
+    if p is not None:
+        args["p"] = p
+    if logprobs is not None:
+        args["logprobs"] = logprobs
+    if tool_choice is not None:
+        args["tool_choice"] = tool_choice
+    if strict_tools is not None:
+        args["strict_tools"] = strict_tools
 
-    response = client.chat(model=model, message=message, **args)
+    response = client.chat(model=model, messages=json.loads(messages), **args)
     return response.json()
 $python$ language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp

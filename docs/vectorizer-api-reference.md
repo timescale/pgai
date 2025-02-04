@@ -350,7 +350,7 @@ Note: Mistral limits the maximum input per batch to 16384 tokens.
 
 ##### Azure OpenAI
 
-To set up a vectorizer with Azure OpenAI you require three values from the Azure AI Foundry console:
+To set up a vectorizer with Azure OpenAI you require these values from the Azure AI Foundry console:
 - deployment name
 - base URL
 - version
@@ -377,6 +377,34 @@ Configure the vectorizer, note that the base URL and version are configured thro
         -- other parameters...
     );
 ```
+
+#### Huggingface inference models
+
+You can use [Huggingface inference] to obtain vector embeddings. Note that
+Huggingface has two categories of inference: "serverless inference", and
+"inference endpoints". Serverless inference is free, but is limited to models
+under 10GB in size, and the model may not be immediately available to serve
+requests. Inference endpoints are a paid service and provide always-on APIs
+for production use-cases.
+
+Note: We recommend using the `wait_for_model` parameter when using vectorizer
+with serverless inference to force the call to block until the model has been
+loaded. If you do not use `wait_for_model`, it's likely that vectorization will
+never succeed.
+
+```sql
+    SELECT ai.create_vectorizer(
+        'my_table'::regclass,
+        embedding => ai.embedding_litellm(
+          'huggingface/BAAI/bge-small-en-v1.5',
+        , 384
+        , extra_options => '{"wait_for_model": true}'::jsonb
+        )
+        -- other parameters...
+    );
+```
+
+[Huggingface inference]: https://huggingface.co/docs/huggingface_hub/en/guides/inference
 
 #### AWS Bedrock
 
