@@ -70,9 +70,9 @@ begin
         raise exception 'chunking configuration is required';
     end if;
 
-    _chunk_document = true;
-    if loader is null then
-       _chunk_document = false;
+    _chunk_document = false;
+    if loader is not null then
+       _chunk_document = true;
     end if;
 
     -- get source table name and schema name
