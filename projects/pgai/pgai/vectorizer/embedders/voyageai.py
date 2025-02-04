@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from functools import cached_property
-from typing import Literal
+from typing import Any, Literal
 
 import voyageai
 import voyageai.error
@@ -10,11 +10,13 @@ from typing_extensions import override
 from ..embeddings import (
     ApiKeyMixin,
     BatchApiCaller,
+    ChunkEmbeddingError,
     Embedder,
     EmbeddingResponse,
     EmbeddingVector,
     StringDocument,
     Usage,
+    embedding,
     logger,
 )
 
@@ -32,7 +34,6 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
 
     """
 
-    implementation: Literal["voyageai"]
     model: str
     input_type: Literal["document"] | Literal["query"] | None = None
 
@@ -70,3 +71,10 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
             total_tokens=response.total_tokens,
         )
         return EmbeddingResponse(embeddings=response.embeddings, usage=usage)
+
+
+@embedding(name="voyageai")
+async def voyage_embedding(
+    documents: list[str], config: dict[str, Any]
+) -> Sequence[list[float] | ChunkEmbeddingError]:
+    return await VoyageAI(**config).embed(documents)

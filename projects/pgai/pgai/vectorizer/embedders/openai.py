@@ -1,7 +1,7 @@
 import re
 from collections.abc import Iterable, Sequence
 from functools import cached_property
-from typing import Any, Literal, cast
+from typing import Any, cast
 
 import openai
 import tiktoken
@@ -20,6 +20,7 @@ from ..embeddings import (
     EmbeddingVector,
     StringDocument,
     Usage,
+    embedding,
     logger,
 )
 
@@ -42,7 +43,6 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
         user (str | None): Optional user identifier for OpenAI API usage.
     """
 
-    implementation: Literal["openai"]
     model: str
     dimensions: int | None = None
     user: str | None = None
@@ -223,3 +223,11 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
             )
             return None
         return encoder
+
+
+@embedding(name="openai")
+async def openai_embedding(
+    documents: list[str], config: dict[str, Any]
+) -> Sequence[list[float] | ChunkEmbeddingError]:
+    result = await OpenAI(**config).embed(documents)
+    return result

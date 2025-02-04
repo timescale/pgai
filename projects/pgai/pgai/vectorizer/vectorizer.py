@@ -22,8 +22,8 @@ from .chunking import (
     LangChainCharacterTextSplitter,
     LangChainRecursiveCharacterTextSplitter,
 )
-from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
-from .embeddings import ChunkEmbeddingError
+from .embedders import *
+from .embeddings import ChunkEmbeddingError, EmbeddingConfig, registered_embeddings
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
 from .processing import ProcessingDefault
@@ -74,7 +74,7 @@ class Config:
     """
 
     version: str
-    embedding: OpenAI | Ollama | VoyageAI | LiteLLM
+    embedding: EmbeddingConfig
     processing: ProcessingDefault
     chunking: (
         LangChainCharacterTextSplitter | LangChainRecursiveCharacterTextSplitter
@@ -776,7 +776,12 @@ class Worker:
                 documents.append(formatted)
 
         try:
-            embeddings = await self.vectorizer.config.embedding.embed(documents)
+            embeddings = await registered_embeddings[
+                self.vectorizer.config.embedding.implementation
+            ](
+                documents,
+                self.vectorizer.config.embedding.model_dump(exclude={"implementation"}),
+            )
         except Exception as e:
             raise EmbeddingProviderError() from e
 

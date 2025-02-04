@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from functools import cached_property
-from typing import Any, Literal
+from typing import Any
 
 import litellm
 from litellm import EmbeddingResponse as LiteLLMEmbeddingResponse  # type: ignore
@@ -11,11 +11,13 @@ from typing_extensions import override
 from ..embeddings import (
     ApiKeyMixin,
     BatchApiCaller,
+    ChunkEmbeddingError,
     Embedder,
     EmbeddingResponse,
     EmbeddingVector,
     StringDocument,
     Usage,
+    embedding,
     logger,
 )
 
@@ -60,7 +62,6 @@ class LiteLLM(ApiKeyMixin, BaseModel, Embedder):
         extra_options (dict): Additional litellm-specific options
     """
 
-    implementation: Literal["litellm"]
     model: str
     extra_options: dict[str, Any] = {}
 
@@ -132,3 +133,10 @@ class LiteLLM(ApiKeyMixin, BaseModel, Embedder):
         return EmbeddingResponse(
             embeddings=[d["embedding"] for d in response["data"]], usage=usage
         )
+
+
+@embedding(name="litellm")
+async def litellm_embedding(
+    documents: list[str], config: dict[str, Any]
+) -> Sequence[list[float] | ChunkEmbeddingError]:
+    return await LiteLLM(**config).embed(documents)

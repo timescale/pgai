@@ -3,10 +3,11 @@ import time
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from typing import Generic, TypeAlias, TypeVar
+from typing import Any, Generic, TypeAlias, TypeVar, overload
 
 import structlog
 from ddtrace import tracer
+from pydantic import BaseModel, ConfigDict
 
 logger = structlog.get_logger()
 
@@ -291,3 +292,53 @@ class EmbeddingStats:
             total_chunks=self.total_chunks,
             chunks_per_second=self.chunks_per_second(),
         )
+
+
+class EmbeddingConfig(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    implementation: str
+
+
+EmbeddingFunc = Callable[
+    [list[str], dict[str, Any]], Awaitable[Sequence[list[float] | ChunkEmbeddingError]]
+]
+
+registered_embeddings: dict[str, EmbeddingFunc] = dict()
+
+
+# Type overloads to help type checkers understand both usage patterns
+@overload
+def embedding(func: EmbeddingFunc) -> EmbeddingFunc: ...
+
+
+@overload
+def embedding(
+    *, name: str | None = None
+) -> Callable[[EmbeddingFunc], EmbeddingFunc]: ...
+
+
+def embedding(
+    func: EmbeddingFunc | None = None,
+    *,  # enforce keyword-only arguments
+    name: str | None = None,
+) -> EmbeddingFunc | Callable[[EmbeddingFunc], EmbeddingFunc]:
+    """
+    Decorator to register embedding functions in the global registry.
+    """
+
+    def decorator(f: EmbeddingFunc) -> EmbeddingFunc:
+        registration_name = name if name is not None else f.__name__
+        registered_embeddings[registration_name] = f
+        return f
+
+    if func is not None:
+        return decorator(func)
+
+    return decorator
+
+
+@embedding(name="custom_openai")
+async def another_openai_embedding(
+    text: list[str], config: dict[str, Any]
+) -> Sequence[list[float]]:
+    return [[4.0, 5.0, 6.0]]

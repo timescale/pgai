@@ -1,7 +1,7 @@
 import os
 from collections.abc import Sequence
 from functools import cached_property
-from typing import Literal
+from typing import Any
 
 import ollama
 from ollama import ShowResponse
@@ -11,11 +11,13 @@ from typing_extensions import TypedDict, override
 from ..embeddings import (
     BaseURLMixin,
     BatchApiCaller,
+    ChunkEmbeddingError,
     Embedder,
     EmbeddingResponse,
     EmbeddingVector,
     StringDocument,
     Usage,
+    embedding,
     logger,
 )
 
@@ -71,7 +73,6 @@ class Ollama(BaseModel, BaseURLMixin, Embedder):
         keep_alive (str): How long to keep the model loaded after the request
     """
 
-    implementation: Literal["ollama"]
     model: str
     options: OllamaOptions | None = None
     keep_alive: str | None = None  # this is only `str` because of the SQL API
@@ -153,3 +154,13 @@ class Ollama(BaseModel, BaseURLMixin, Embedder):
             else self.options.get("num_ctx", float("inf"))
         )
         return min(model_context_length, num_ctx)
+
+
+@embedding(name="ollama")
+async def ollama_embedding(
+    documents: list[str], config: dict[str, Any]
+) -> Sequence[list[float] | ChunkEmbeddingError]:
+    client = Ollama(**config)
+    await client.setup()
+    result = await client.embed(documents)
+    return result

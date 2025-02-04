@@ -19,7 +19,6 @@ from psycopg.rows import dict_row, namedtuple_row
 from pytimeparse import parse  # type: ignore
 
 from .__init__ import __version__
-from .vectorizer.embeddings import ApiKeyMixin
 from .vectorizer.features import Features
 from .vectorizer.vectorizer import Vectorizer, Worker
 
@@ -123,7 +122,7 @@ def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer:
                 )
             secrets: dict[str, str | None] = {api_key_name: api_key}
             # The Ollama API doesn't need a key, so doesn't inherit `ApiKeyMixin`
-            if isinstance(vectorizer.config.embedding, ApiKeyMixin):
+            if vectorizer.config.embedding.implementation != "ollama":
                 vectorizer.config.embedding.set_api_key(secrets)
             else:
                 log.error(
@@ -329,7 +328,7 @@ def vectorizer_worker(
             if "connection failed" in str(e):
                 log.error(f"unable to connect to database: {str(e)}")
             else:
-                log.error(f"unexpected error: {str(e)}")
+                log.error(f"unexpected error: {str(e)}", exc_info=True)
             if exit_on_error:
                 sys.exit(1)
         except Exception as e:
