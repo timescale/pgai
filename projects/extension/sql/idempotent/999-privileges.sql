@@ -92,7 +92,7 @@ begin
                 , 'grant_secret'
                 , 'revoke_secret'
                 , 'post_restore'
-                , 'initialize_semantic_catalog'
+                , 'create_semantic_catalog'
                 )
               then admin -- only admins get these function
               else true
