@@ -1,6 +1,25 @@
 
 # Pgai extension release notes
 
+## 0.8.0 (2025-02-04)
+
+### New features and improvements
+
+- Add vectorizer enable/disable support for `ai.scheduling_none` ([#402](https://github.com/timescale/pgai/pull/402))
+- Add LiteLLM embedding and vectorizer integration ([#320](https://github.com/timescale/pgai/pull/320))
+- Add Ollama support for tool use and structured outputs ([#403](https://github.com/timescale/pgai/pull/403))
+- [BREAKING] Update cohere embed, chat, rerank to use V2 endpoints ([#417](https://github.com/timescale/pgai/pull/417))
+- Add `ai.anthropic_list_models` ([#386](https://github.com/timescale/pgai/pull/386))
+
+### Fixes
+
+- Changed tool_choice type and null args omitted ([#405](https://github.com/timescale/pgai/pull/405))
+
+### Other improvements
+
+- Update anthropic library to 0.44.0 ([#385](https://github.com/timescale/pgai/pull/385))
+- Improve and split DEVELOPMENT.md ([#380](https://github.com/timescale/pgai/pull/380))
+
 ## 0.7.0 (2025-01-15)
 
 ### New features and improvements
