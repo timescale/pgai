@@ -118,3 +118,28 @@ docker-shell:
 # Launches a psql shell in the container
 psql-shell:
 	@docker exec -it -u postgres pgai-ext /bin/bash -c "set -e; if [ -f .env ]; then set -a; source .env; set +a; fi; psql"
+
+# Runs tests that rely on snapshots against PG 17 and 16 and updates the
+# expected files with the generated actual files.
+update-snapshots: docker-rm docker-build docker-run
+    #!/usr/bin/env bash
+    set -uo pipefail
+    docker exec pgai-ext just install-py install-sql
+    docker exec pgai-ext uv run pytest tests/contents/test_contents.py
+    rm tests/contents/output17.expected
+    mv tests/contents/output17.actual tests/contents/output17.expected
+    docker exec pgai-ext uv run pytest tests/privileges/test_privileges.py
+    for f in tests/privileges/*.actual; do
+        if [ -f "$f" ]; then
+            expected="${f%.actual}.expected"
+            rm -f "$expected"
+            mv "$f" "$expected"
+        fi
+    done
+    just docker-rm
+    PG_MAJOR=16 just docker-build docker-run
+    docker exec pgai-ext just install-py install-sql
+    docker exec pgai-ext uv run pytest tests/contents/test_contents.py
+    rm tests/contents/output16.expected
+    mv tests/contents/output16.actual tests/contents/output16.expected
+    just docker-rm

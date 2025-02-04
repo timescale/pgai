@@ -58,6 +58,23 @@ def test_openai_list_models(cur, openai_api_key):
     assert actual > 0
 
 
+def test_openai_list_models_with_raw_response(cur, openai_api_key):
+    cur.execute(
+        """
+        select ai.openai_list_models_with_raw_response(
+            api_key=>%s,
+            extra_headers=>'{"X-Custom-Header": "my-value"}',
+            extra_query=>'{"debug": true}',
+            timeout=>600::float8
+        )
+    """,
+        (openai_api_key,),
+    )
+    actual = cur.fetchone()[0]
+    assert len(actual["data"]) > 0
+    assert actual["object"] == "list"
+
+
 def test_openai_list_models_api_key_name(cur_with_external_functions_executor_url):
     cur_with_external_functions_executor_url.execute(
         """
@@ -113,6 +130,39 @@ def test_openai_embed(cur, openai_api_key):
     )
     actual = cur.fetchone()[0]
     assert actual == 1536
+
+
+def test_openai_embed_with_raw_response(cur, openai_api_key):
+    cur.execute(
+        """
+        select ai.openai_embed_with_raw_response
+            ( 'text-embedding-ada-002'
+            , 'the purple elephant sits on a red mushroom'
+            , api_key=>%s
+            , extra_headers=>'{"X-Custom-Header": "my-value"}'
+            , extra_query=>'{"debug": true}'
+            , timeout=>600::float8
+            )
+    """,
+        (openai_api_key,),
+    )
+    actual = cur.fetchone()[0]
+    embedding = actual["data"][0].pop("embedding")
+    assert actual == {
+        "data": [
+            {
+                "index": 0,
+                "object": "embedding",
+            },
+        ],
+        "model": "text-embedding-ada-002-v2",
+        "object": "list",
+        "usage": {
+            "prompt_tokens": 8,
+            "total_tokens": 8,
+        },
+    }
+    assert len(embedding) == 8192
 
 
 def test_openai_embed_api_key_name(cur_with_external_functions_executor_url):
@@ -214,7 +264,7 @@ def test_openai_embed_3_no_key(cur_with_api_key):
     assert actual == 3072
 
 
-def test_openai_embed_4(cur_with_api_key):
+def test_openai_embed_array_of_text(cur_with_api_key):
     cur_with_api_key.execute("""
         select sum(vector_dims(embedding)) as actual
         from ai.openai_embed
@@ -226,7 +276,47 @@ def test_openai_embed_4(cur_with_api_key):
     assert actual == 6144
 
 
-def test_openai_embed_5(cur, openai_api_key):
+def test_openai_embed_array_of_text_with_raw_response(cur, openai_api_key):
+    cur.execute(
+        """
+        select ai.openai_embed_with_raw_response
+            ( 'text-embedding-ada-002'
+            , array['the purple elephant sits on a red mushroom', 'timescale is postgres made powerful']
+            , api_key=>%s
+            , extra_headers=>'{"X-Custom-Header": "my-value"}'
+            , extra_query=>'{"debug": true}'
+            , timeout=>600::float8
+            )
+    """,
+        (openai_api_key,),
+    )
+    actual = cur.fetchone()[0]
+    embeddings = actual["data"]
+    for embedding_result in embeddings:
+        embedding = embedding_result.pop("embedding")
+        assert len(embedding) == 8192
+
+    assert actual == {
+        "data": [
+            {
+                "index": 0,
+                "object": "embedding",
+            },
+            {
+                "index": 1,
+                "object": "embedding",
+            },
+        ],
+        "model": "text-embedding-ada-002-v2",
+        "object": "list",
+        "usage": {
+            "prompt_tokens": 14,
+            "total_tokens": 14,
+        },
+    }
+
+
+def test_openai_embed_array_of_tokens(cur, openai_api_key):
     cur.execute(
         """
         select vector_dims
@@ -242,6 +332,36 @@ def test_openai_embed_5(cur, openai_api_key):
     )
     actual = cur.fetchone()[0]
     assert actual == 1536
+
+
+def test_openai_embed_array_of_tokens_with_raw_response(cur, openai_api_key):
+    cur.execute(
+        """
+        select ai.openai_embed_with_raw_response
+            ( 'text-embedding-ada-002'
+            , array[1820,25977,46840,23874,389,264,2579,58466]
+            , api_key=>%s
+            )
+    """,
+        (openai_api_key,),
+    )
+    actual = cur.fetchone()[0]
+    embedding = actual["data"][0].pop("embedding")
+    assert actual == {
+        "data": [
+            {
+                "index": 0,
+                "object": "embedding",
+            },
+        ],
+        "model": "text-embedding-ada-002-v2",
+        "object": "list",
+        "usage": {
+            "prompt_tokens": 8,
+            "total_tokens": 8,
+        },
+    }
+    assert len(embedding) == 8192
 
 
 def test_openai_embed_5_no_key(cur_with_api_key):
@@ -282,6 +402,28 @@ def test_openai_chat_complete(cur, openai_api_key):
     )
     actual = cur.fetchone()[0]
     assert actual is True
+
+
+def test_openai_chat_complete_with_raw_response(cur, openai_api_key):
+    cur.execute(
+        """
+        select ai.openai_chat_complete_with_raw_response
+          ( 'gpt-4o'
+          , jsonb_build_array
+            ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
+            , jsonb_build_object('role', 'user', 'content', 'what is the typical weather like in Alabama in June')
+            )
+          , api_key=>%s
+          , extra_headers=>'{"X-Custom-Header": "my-value"}'
+          , extra_query=>'{"debug": true}'
+          , timeout=>600::float8
+          ) as actual
+    """,
+        (openai_api_key,),
+    )
+    actual = cur.fetchone()[0]
+    assert len(actual["choices"][0]["message"]) > 0
+    assert actual["object"] == "chat.completion"
 
 
 def test_openai_chat_complete_api_key_name(cur_with_external_functions_executor_url):
@@ -375,6 +517,24 @@ def test_openai_moderate(cur, openai_api_key):
     )
     actual = cur.fetchone()[0]
     assert actual is True
+
+
+def test_openai_moderate_with_raw_response(cur, openai_api_key):
+    cur.execute(
+        """
+        select ai.openai_moderate
+        ( 'text-moderation-stable'
+        , 'I want to kill them.'
+        , api_key=>%s
+        , extra_headers=>'{"X-Custom-Header": "my-value"}'
+        , extra_query=>'{"debug": true}'
+        , timeout=>600::float8
+        ) as actual
+    """,
+        (openai_api_key,),
+    )
+    actual = cur.fetchone()[0]
+    assert actual["results"][0]["flagged"] is True
 
 
 def test_openai_moderate_api_key_name(cur_with_external_functions_executor_url):

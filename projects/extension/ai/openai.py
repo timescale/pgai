@@ -88,3 +88,32 @@ def embed(
         return None
     for obj in response.data:
         yield obj.index, obj.embedding
+
+
+def embed_with_raw_response(
+    plpy,
+    model: str,
+    input: str | list[str] | list[int],
+    api_key: str,
+    base_url: str | None = None,
+    dimensions: int | None = None,
+    user: str | None = None,
+    extra_headers: str | None = None,
+    extra_query: str | None = None,
+    extra_body: str | None = None,
+    timeout: float | None = None,
+) -> str:
+    client = make_client(plpy, api_key, base_url)
+
+    kwargs = create_kwargs(
+        dimensions=dimensions,
+        user=user,
+        extra_headers=str_arg_to_dict(extra_headers),
+        extra_query=str_arg_to_dict(extra_query),
+        extra_body=str_arg_to_dict(extra_body),
+        timeout=timeout,
+    )
+    response = client.embeddings.with_raw_response.create(
+        input=input, model=model, **kwargs
+    )
+    return response.text
