@@ -9,6 +9,8 @@ CREATE EXTENSION
  function ai.anthropic_list_models(text,text,text)
  function ai.chunking_character_text_splitter(name,integer,integer,text,boolean)
  function ai.chunking_recursive_character_text_splitter(name,integer,integer,text[],boolean)
+ function ai.chunk_text_recursively(text,integer,integer,text[],boolean)
+ function ai.chunk_text(text,integer,integer,text,boolean)
  function ai.cohere_chat_complete(text,jsonb,text,text,jsonb,jsonb,jsonb,jsonb,text,integer,text[],double precision,integer,double precision,double precision,integer,double precision,boolean,text,boolean)
  function ai.cohere_classify_simple(text,text[],text,text,jsonb,text)
  function ai.cohere_classify(text,text[],text,text,jsonb,text)
@@ -98,7 +100,7 @@ CREATE EXTENSION
  table ai.vectorizer_errors
  view ai.secret_permissions
  view ai.vectorizer_status
-(94 rows)
+(96 rows)
 
                                     Table "ai._secret_permissions"
  Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
