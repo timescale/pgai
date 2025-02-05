@@ -67,7 +67,6 @@ declare
     _prompt_obj text;
     _prompt_sql text;
     _prompt text;
-    _system_prompt text;
     _response jsonb;
     _message record;
     _tool_call record;
