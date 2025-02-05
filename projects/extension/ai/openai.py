@@ -1,6 +1,7 @@
 import json
 from collections.abc import Generator
 from datetime import datetime
+from typing import Any
 
 import openai
 
@@ -19,11 +20,13 @@ def get_openai_base_url(plpy) -> str | None:
 def make_client(
     plpy,
     api_key: str,
-    base_url: str | None = None,
+    client_config: dict[str, Any] | None = None,
 ) -> openai.Client:
-    if base_url is None:
-        base_url = get_openai_base_url(plpy)
-    return openai.Client(api_key=api_key, base_url=base_url)
+    if client_config is None:
+        client_config = {}
+    if "base_url" not in client_config:
+        client_config["base_url"] = get_openai_base_url(plpy)
+    return openai.Client(api_key=api_key, **client_config)
 
 
 def str_arg_to_dict(arg: str | None) -> dict | None:
@@ -41,18 +44,16 @@ def create_kwargs(**kwargs) -> dict:
 def list_models(
     plpy,
     api_key: str,
-    base_url: str | None = None,
+    client_config: dict[str, Any] | None = None,
     extra_headers: str | None = None,
     extra_query: str | None = None,
-    timeout: float | None = None,
 ) -> Generator[tuple[str, datetime, str], None, None]:
-    client = make_client(plpy, api_key, base_url)
+    client = make_client(plpy, api_key, client_config)
     from datetime import datetime, timezone
 
     kwargs = create_kwargs(
         extra_headers=str_arg_to_dict(extra_headers),
         extra_query=str_arg_to_dict(extra_query),
-        timeout=timeout,
     )
 
     for model in client.models.list(**kwargs):
@@ -62,18 +63,17 @@ def list_models(
 
 def embed(
     plpy,
+    client_config: dict[str, Any] | None,
     model: str,
     input: str | list[str] | list[int],
     api_key: str,
-    base_url: str | None = None,
     dimensions: int | None = None,
     user: str | None = None,
     extra_headers: str | None = None,
     extra_query: str | None = None,
     extra_body: str | None = None,
-    timeout: float | None = None,
 ) -> Generator[tuple[int, list[float]], None, None]:
-    client = make_client(plpy, api_key, base_url)
+    client = make_client(plpy, api_key, client_config)
 
     kwargs = create_kwargs(
         dimensions=dimensions,
@@ -81,7 +81,6 @@ def embed(
         extra_headers=str_arg_to_dict(extra_headers),
         extra_query=str_arg_to_dict(extra_query),
         extra_body=str_arg_to_dict(extra_body),
-        timeout=timeout,
     )
     response = client.embeddings.create(input=input, model=model, **kwargs)
     if not hasattr(response, "data"):
@@ -92,18 +91,17 @@ def embed(
 
 def embed_with_raw_response(
     plpy,
+    client_config: dict[str, Any] | None,
     model: str,
     input: str | list[str] | list[int],
     api_key: str,
-    base_url: str | None = None,
     dimensions: int | None = None,
     user: str | None = None,
     extra_headers: str | None = None,
     extra_query: str | None = None,
     extra_body: str | None = None,
-    timeout: float | None = None,
 ) -> str:
-    client = make_client(plpy, api_key, base_url)
+    client = make_client(plpy, api_key, client_config)
 
     kwargs = create_kwargs(
         dimensions=dimensions,
@@ -111,7 +109,6 @@ def embed_with_raw_response(
         extra_headers=str_arg_to_dict(extra_headers),
         extra_query=str_arg_to_dict(extra_query),
         extra_body=str_arg_to_dict(extra_body),
-        timeout=timeout,
     )
     response = client.embeddings.with_raw_response.create(
         input=input, model=model, **kwargs
