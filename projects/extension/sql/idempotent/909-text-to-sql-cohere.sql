@@ -20,6 +20,8 @@ create or replace function ai.text_to_sql_cohere
 , max_vector_dist pg_catalog.float8 default null
 , obj_renderer pg_catalog.regprocedure default null
 , sql_renderer pg_catalog.regprocedure default null
+, prompt_renderer pg_catalog.regprocedure default null
+, system_prompt text default null
 ) returns pg_catalog.jsonb
 as $func$
     select json_object
@@ -41,6 +43,8 @@ as $func$
     , 'max_vector_dist': max_vector_dist
     , 'obj_renderer': obj_renderer
     , 'sql_renderer': sql_renderer
+    , 'prompt_renderer': prompt_renderer
+    , 'system_prompt': system_prompt
     absent on null
     )
 $func$ language sql immutable security invoker
@@ -65,6 +69,7 @@ declare
     _max_vector_dist float8;
     _obj_renderer regprocedure;
     _sql_renderer regprocedure;
+    _prompt_renderer regprocedure;
     _model text;
     _api_key text;
     _api_key_name text;
@@ -92,29 +97,33 @@ declare
 begin
     -- if a config was provided, use the settings available. defaults where missing
     -- if no config provided, use defaults for everything
-    _max_iter = coalesce(case when _config is not null then (_config->>'max_iter')::int2 end, 10);
+    _max_iter = coalesce((_config->>'max_iter')::int2, 10);
     _iter_remaining = _max_iter;
-    _max_results = coalesce(case when _config is not null then (_config->>'max_results')::int8 end, 5);
-    _max_vector_dist = case when _config is not null then (_config->>'max_vector_dist')::float8 end;
-    _obj_renderer = coalesce(case when _config is not null then (_config->>'obj_renderer')::pg_catalog.regprocedure end, 'ai.render_semantic_catalog_obj(bigint, oid, oid)'::pg_catalog.regprocedure);
-    _sql_renderer = coalesce(case when _config is not null then (_config->>'sql_renderer')::pg_catalog.regprocedure end, 'ai.render_semantic_catalog_sql(bigint, text, text)'::pg_catalog.regprocedure);
-    _model = coalesce(case when _config is not null and _config operator(pg_catalog.?) 'model' then _config->>'model' end, 'claude-3-5-sonnet-latest');
-    _api_key = (case when _config is not null then _config operator(pg_catalog.->>) 'api_key' end);
-    _api_key_name = (case when _config is not null then _config operator(pg_catalog.->>) 'api_key_name' end);
-    _max_tokens = (case when _config is not null then _config operator(pg_catalog.->>) 'max_tokens' end)::int4;
-    _stop_sequences = (case when _config is not null then (select array_agg(x) from jsonb_array_elements_text(_config operator(pg_catalog.->) '_stop_sequences') x) end);
-    _temperature = (case when _config is not null then _config operator(pg_catalog.->>) 'temperature' end)::float8;
-    _seed = (case when _config is not null then _config operator(pg_catalog.->>) 'seed' end)::int4;
-    _frequency_penalty = (case when _config is not null then _config operator(pg_catalog.->>) 'frequency_penalty' end)::float8;
-    _presence_penalty = (case when _config is not null then _config operator(pg_catalog.->>) 'presence_penalty' end)::float8;
-    _k = (case when _config is not null then _config operator(pg_catalog.->>) 'k' end)::int;
-    _p = (case when _config is not null then _config operator(pg_catalog.->>) 'p' end)::float8;
-    _logprobs = (case when _config is not null then _config operator(pg_catalog.->>) 'logprobs' end)::boolean;
-    _system_prompt = pg_catalog.concat_ws
-    ( ' '
-    , 'You are an expert at analyzing PostgreSQL database schemas and writing SQL statements to answer questions.'
-    , 'You have access to tools.'
-    );
+    _max_results = coalesce((_config->>'max_results')::int8, 5);
+    _max_vector_dist = (_config->>'max_vector_dist')::float8;
+    _obj_renderer = coalesce((_config->>'obj_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_obj(bigint, oid, oid)'::pg_catalog.regprocedure);
+    _sql_renderer = coalesce((_config->>'sql_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_sql(bigint, text, text)'::pg_catalog.regprocedure);
+    _prompt_renderer = coalesce((_config->>'prompt_renderer')::pg_catalog.regprocedure, 'ai.text_to_sql_render_prompt(text, text, text)'::pg_catalog.regprocedure);
+    _model = coalesce( _config->>'model', 'claude-3-5-sonnet-latest');
+    _api_key = _config operator(pg_catalog.->>) 'api_key';
+    _api_key_name = _config operator(pg_catalog.->>) 'api_key_name';
+    _max_tokens = (_config operator(pg_catalog.->>) 'max_tokens')::int4;
+    _stop_sequences = (select array_agg(x) from jsonb_array_elements_text(_config operator(pg_catalog.->) '_stop_sequences') x);
+    _temperature = (_config operator(pg_catalog.->>) 'temperature')::float8;
+    _seed = (_config operator(pg_catalog.->>) 'seed')::int4;
+    _frequency_penalty = (_config operator(pg_catalog.->>) 'frequency_penalty')::float8;
+    _presence_penalty = (_config operator(pg_catalog.->>) 'presence_penalty')::float8;
+    _k = (_config operator(pg_catalog.->>) 'k')::int;
+    _p = (_config operator(pg_catalog.->>) 'p')::float8;
+    _logprobs = (_config operator(pg_catalog.->>) 'logprobs')::boolean;
+    _system_prompt = coalesce
+        ( _config->>'system_prompt'
+        , pg_catalog.concat_ws
+          ( ' '
+          , 'You are an expert at analyzing PostgreSQL database schemas and writing SQL statements to answer questions.'
+          , 'You have access to tools.'
+          )
+        );
 
     while _iter_remaining > 0 loop
         raise debug 'iteration: %', (_max_iter - _iter_remaining + 1);
@@ -134,7 +143,7 @@ begin
         end if;
 
         -- search obj
-        if jsonb_array_length(_questions) > 0 or jsonb_array_length(_keywords) > 0 then
+        if jsonb_array_length(_questions) > 0 then
             raise debug 'searching for database objects';
             select jsonb_agg(x.obj)
             into _ctx_obj
@@ -234,20 +243,18 @@ begin
         execute _sql using _ctx_sql into _prompt_sql;
 
         -- render the user prompt
-        select concat_ws
-        ( E'\n'
-        , $$Below are descriptions of database objects and examples of SQL statements that are meant to give context to a user's question.$$
-        , $$Analyze the context provided. Identify the elements that are relevant to the user's question.$$
-        , $$If enough context has been provided to confidently address the question, use the "answer_user_question_with_sql_statement" tool to record your final answer in the form of a valid SQL statement.$$
-        , E'\n'
-        , coalesce(_prompt_obj, '')
-        , E'\n'
-        , coalesce(_prompt_sql, '')
-        , E'\n'
-        , concat('Q: ', question)
-        , 'A: '
-        ) into strict _prompt
+        raise debug 'rendering user prompt';
+        select format
+        ( $sql$select %I.%I($1, $2, $3)$sql$
+        , n.nspname
+        , f.proname
+        )
+        into strict _sql
+        from pg_proc f
+        inner join pg_namespace n on (f.pronamespace = n.oid)
+        where f.oid = _prompt_renderer::oid
         ;
+        execute _sql using question, _prompt_obj, _prompt_sql into _prompt;
         raise debug '%', _prompt;
 
         -- call llm -----------------------------------------------------------
