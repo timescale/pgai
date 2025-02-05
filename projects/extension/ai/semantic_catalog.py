@@ -9,11 +9,18 @@ class GeneratedDescription(TypedDict):
 
 
 def render_obj_sample(plpy, relation: str) -> str:
-    result = plpy.execute(f"select * from {relation}", 5)
+    ident = ".".join([plpy.quote_ident(part) for part in relation.split(".")])
+    result = plpy.execute(f"select * from {ident}", 5)
 
     ret_obj = f"""<data id="{relation}">"""
     for r in result:
-        ret_obj += f"""\n  insert into {relation} ({', '.join(r.keys())}) values ({', '.join([str(v) for v in r.values()])});"""
+        values = []
+        for v in r.values():
+            if isinstance(v, str):
+                values.append(plpy.quote_nullable(v))
+            else:
+                values.append(str(v))
+        ret_obj += f"""\n  insert into {ident} ({', '.join(plpy.quote_ident(key) for key in r.keys())}) values ({', '.join(values)});"""
     ret_obj += "\n</data>"
 
     return ret_obj
@@ -21,8 +28,14 @@ def render_obj_sample(plpy, relation: str) -> str:
 
 def get_parsed_config(plpy, catalog_name: str, config: dict | None) -> dict:
     if config is None:
+        plan = plpy.prepare(
+            f"select x.text_to_sql from ai.semantic_catalog x where x.catalog_name = $1",
+            ["text"],
+        )
         result = plpy.execute(
-            f"select x.text_to_sql from ai.semantic_catalog x where x.catalog_name = '{catalog_name}';"
+            plan,
+            [catalog_name],
+            1,
         )
         if len(result) > 0:
             config = result[0]["text_to_sql"]
@@ -36,14 +49,14 @@ def get_parsed_config(plpy, catalog_name: str, config: dict | None) -> dict:
 def get_obj_description(
     plpy, relation: str | None = None, fn: str | None = None
 ) -> str:
-    objid = (
-        f"'{relation}'::pg_catalog.regclass::pg_catalog.oid"
-        if relation
-        else f"'{fn}'::regprocedure::pg_catalog.oid"
-    )
-    result = plpy.execute(
-        f"select ai.render_semantic_catalog_obj(0, 'pg_catalog.pg_class'::pg_catalog.regclass::pg_catalog.oid, {objid}) as description;"
-    )
+    if relation:
+        result = plpy.execute(
+            f"select ai.render_semantic_catalog_obj(0, 'pg_catalog.pg_class'::pg_catalog.regclass::pg_catalog.oid, {plpy.quote_literal(relation)}::pg_catalog.regclass::pg_catalog.oid) as description"
+        )
+    else:
+        result = plpy.execute(
+            f"select ai.render_semantic_catalog_obj(0, 'pg_catalog.pg_proc'::pg_catalog.regclass::pg_catalog.oid, {plpy.quote_literal(fn)}::regprocedure::pg_catalog.oid) as description"
+        )
     return result[0]["description"]
 
 
@@ -110,15 +123,21 @@ def generate_description(
         model = parsed_config.get("model", "claude-3-5-sonnet-latest")
         messages = [{"role": "user", "content": message_content}]
 
-        result = plpy.execute(f"""
-            select ai.anthropic_generate(
-                '{model}'
-                , '{json.dumps(messages).replace("'", "''")}'::jsonb
-                , system_prompt => '{system_prompt}'
-                , tools => '{json.dumps(tools)}'::jsonb
-                , tool_choice => '{{"type": "tool", "name": "generate_description"}}'::jsonb
-            )
-        """)
+        plan = plpy.prepare(
+            f"""
+                select ai.anthropic_generate(
+                    $1
+                    , $2
+                    , system_prompt => $3
+                    , tools => $4
+                    , tool_choice => '{{"type": "tool", "name": "generate_description"}}'::jsonb
+                )
+            """,
+            ["text", "jsonb", "text", "jsonb"],
+        )
+        result = plpy.execute(
+            plan, [model, json.dumps(messages), system_prompt, json.dumps(tools)]
+        )
         response = json.loads(result[0]["anthropic_generate"])
         description = response["content"][0]["input"]["description"]
     elif provider == "ollama":
@@ -129,14 +148,20 @@ def generate_description(
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": message_content},
         ]
-        result = plpy.execute(f"""
-            select ai.openai_chat_complete(
-                '{model}'
-                , '{json.dumps(messages).replace("'", "''")}'::jsonb
-                , tools => '{json.dumps(map_tools_to_openai(tools))}'::jsonb
-                , tool_choice => '{{"type": "function", "function": {{"name": "generate_description"}}}}'
-            )
-        """)
+        plan = plpy.prepare(
+            f"""
+                select ai.openai_chat_complete(
+                    $1
+                    , $2
+                    , tools => $3
+                    , tool_choice => '{{"type": "function", "function": {{"name": "generate_description"}}}}'
+                )
+            """,
+            ["text", "jsonb", "jsonb"],
+        )
+        result = plpy.execute(
+            plan, [model, json.dumps(messages), json.dumps(map_tools_to_openai(tools))]
+        )
         response = json.loads(result[0]["openai_chat_complete"])
         description = json.loads(
             response["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"]
@@ -148,13 +173,14 @@ def generate_description(
 
     if save:
         result = plpy.execute(
-            f"select 1 from ai.semantic_catalog_obj x where x.objsubid = 0 and x.classid = 'pg_catalog.pg_class'::pg_catalog.regclass::pg_catalog.oid and x.objid = '{relation}'::pg_catalog.regclass::pg_catalog.oid"
+            f"select 1 from ai.semantic_catalog_obj x where x.objsubid = 0 and x.classid = 'pg_catalog.pg_class'::pg_catalog.regclass::pg_catalog.oid and x.objid = {plpy.quote_literal(relation)}::pg_catalog.regclass::pg_catalog.oid"
         )
         if len(result) == 0 or overwrite:
             plpy.debug(
                 f"set description for {relation} (existing={len(result) > 0}, overwrite={overwrite})"
             )
-            plpy.execute(f"select ai.set_description('{relation}', '{description}'")
+            plan = plpy.prepare(f"select ai.set_description($1, $2)", ["text", "text"])
+            plpy.execute(plan, [relation, description])
     yield relation, description
 
 
@@ -172,7 +198,7 @@ def generate_column_descriptions(
     result = plpy.execute(f"""
     SELECT attname AS col
     FROM   pg_attribute
-    WHERE  attrelid = '{relation}'::regclass
+    WHERE  attrelid = {plpy.quote_literal(relation)}::regclass
     AND    attnum > 0
     AND    NOT attisdropped;
     """)
@@ -230,15 +256,21 @@ def generate_column_descriptions(
     provider = parsed_config.get("provider", None)
     if provider == "anthropic":
         model = parsed_config.get("model", "claude-3-5-sonnet-latest")
-        result = plpy.execute(f"""
-            SELECT ai.anthropic_generate(
-                '{model}'
-                , '{json.dumps(messages).replace("'", "''")}'::jsonb
-                , system_prompt => '{system_prompt}'
-                , tools => '{json.dumps(tools)}'::jsonb
-                , tool_choice => '{{"type": "tool", "name": "generate_description"}}'::jsonb
-            )
-        """)
+        plan = plpy.prepare(
+            f"""
+                SELECT ai.anthropic_generate(
+                    $1
+                    , $2
+                    , system_prompt => $3
+                    , tools => $4
+                    , tool_choice => '{{"type": "tool", "name": "generate_description"}}'::jsonb
+                )
+            """,
+            ["text", "jsonb", "text", "jsonb"],
+        )
+        result = plpy.execute(
+            plan, [model, json.dumps(messages), system_prompt, json.dumps(tools)]
+        )
         columns = json.loads(result[0]["anthropic_generate"])["content"][0]["input"][
             "columns"
         ]
@@ -251,15 +283,20 @@ def generate_column_descriptions(
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": message_content},
         ]
-        openai_tools = map_tools_to_openai(tools)
-        result = plpy.execute(f"""
-            select ai.openai_chat_complete(
-                '{model}'
-                , '{json.dumps(messages).replace("'", "''")}'::jsonb
-                , tools => '{json.dumps(openai_tools)}'::jsonb
-                , tool_choice => '{{"type": "function", "function": {{"name": "generate_description"}}}}'
-            )
-        """)
+        plan = plpy.prepare(
+            f"""
+                select ai.openai_chat_complete(
+                    $1
+                    , $2
+                    , tools => $3
+                    , tool_choice => '{{"type": "function", "function": {{"name": "generate_description"}}}}'
+                )
+            """,
+            ["text", "jsonb", "jsonb"],
+        )
+        result = plpy.execute(
+            plan, [model, json.dumps(messages), json.dumps(map_tools_to_openai(tools))]
+        )
         response = json.loads(result[0]["openai_chat_complete"])
         columns = json.loads(
             response["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"]
@@ -271,21 +308,22 @@ def generate_column_descriptions(
 
     if save:
         result = plpy.execute(
-            f"select objnames from ai.semantic_catalog_obj x where x.objsubid > 0 and x.classid = 'pg_catalog.pg_class'::pg_catalog.regclass::pg_catalog.oid and x.objid = '{relation}'::pg_catalog.regclass::pg_catalog.oid"
+            f"select objnames from ai.semantic_catalog_obj x where x.objsubid > 0 and x.classid = 'pg_catalog.pg_class'::pg_catalog.regclass::pg_catalog.oid and x.objid = {plpy.quote_literal(relation)}::pg_catalog.regclass::pg_catalog.oid"
         )
         existing_columns = dict()
         for r in result:
             existing_columns[r["objnames"][-1]] = True
 
+        plan = plpy.prepare(
+            f"select ai.set_column_description($1, $2, $3)", ["text", "text", "text"]
+        )
         for column in columns:
             exists = column["name"] in existing_columns
             if not exists or overwrite:
                 plpy.debug(
                     f"set description for {column['name']} (existing={exists}, overwrite={overwrite})"
                 )
-                plpy.execute(
-                    f"select ai.set_column_description('{relation}', '{column['name']}', '{column['description']}')"
-                )
+                plpy.execute(plan, [relation, column["name"], column["description"]])
     for column in columns:
         yield column["name"], column["description"]
 
@@ -333,15 +371,21 @@ def generate_function_description(
         model = parsed_config.get("model", "claude-3-5-sonnet-latest")
         messages = [{"role": "user", "content": message_content}]
 
-        result = plpy.execute(f"""
-            select ai.anthropic_generate(
-                '{model}'
-                , '{json.dumps(messages).replace("'", "''")}'::jsonb
-                , system_prompt => '{system_prompt}'
-                , tools => '{json.dumps(tools)}'::jsonb
-                , tool_choice => '{{"type": "tool", "name": "generate_description"}}'::jsonb
-            )
-        """)
+        plan = plpy.prepare(
+            f"""
+                select ai.anthropic_generate(
+                    $1
+                    , $2
+                    , system_prompt => $3
+                    , tools => $4
+                    , tool_choice => '{{"type": "tool", "name": "generate_description"}}'::jsonb
+                )
+            """,
+            ["text", "jsonb", "text", "jsonb"],
+        )
+        result = plpy.execute(
+            plan, [model, json.dumps(messages), system_prompt, json.dumps(tools)]
+        )
         response = json.loads(result[0]["anthropic_generate"])
         description = response["content"][0]["input"]["description"]
     elif provider == "ollama":
@@ -352,14 +396,20 @@ def generate_function_description(
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": message_content},
         ]
-        result = plpy.execute(f"""
-            select ai.openai_chat_complete(
-                '{model}'
-                , '{json.dumps(messages).replace("'", "''")}'::jsonb
-                , tools => '{json.dumps(map_tools_to_openai(tools))}'::jsonb
-                , tool_choice => '{{"type": "function", "function": {{"name": "generate_description"}}}}'
-            )
-        """)
+        plan = plpy.prepare(
+            f"""
+                select ai.openai_chat_complete(
+                    $1
+                    , $2
+                    , tools => $3
+                    , tool_choice => '{{"type": "function", "function": {{"name": "generate_description"}}}}'
+                )
+            """,
+            ["text", "jsonb", "jsonb"],
+        )
+        result = plpy.execute(
+            plan, [model, json.dumps(messages), json.dumps(map_tools_to_openai(tools))]
+        )
         response = json.loads(result[0]["openai_chat_complete"])
         description = json.loads(
             response["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"]
@@ -371,13 +421,13 @@ def generate_function_description(
 
     if save:
         result = plpy.execute(
-            f"select 1 from ai.semantic_catalog_obj x where x.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass::pg_catalog.oid and x.objid = '{fn}'::regprocedure::pg_catalog.oid"
+            f"select 1 from ai.semantic_catalog_obj x where x.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass::pg_catalog.oid and x.objid = {plpy.quote_literal(fn)}::regprocedure::pg_catalog.oid"
         )
-        plpy.notice(result[0])
         if len(result) == 0 or overwrite:
             plpy.debug(
                 f"set description for {fn} (existing={len(result) > 0}, overwrite={overwrite})"
             )
-            plpy.execute(f"select ai.set_description('{fn}', '{description}'")
+            plan = plpy.prepare(f"select ai.set_description($1, $2)", ["text", "text"])
+            plpy.execute(plan, [fn, description])
 
     yield fn, description
