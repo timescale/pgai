@@ -101,7 +101,7 @@ def test_simple_document_embedding_s3_no_credentials(
     cli_db: tuple[TestDatabase, Connection],
     cli_db_url: str,
 ):
-    """Test that a document is successfully embedded"""
+    """Test that embedding fails when no credentials are available"""
     vectorizer_id = configure_document_vectorizer(
         cli_db[1], base_path="s3://adol-docs-test"
     )
