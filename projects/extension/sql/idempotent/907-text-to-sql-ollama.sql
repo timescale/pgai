@@ -12,6 +12,8 @@ create or replace function ai.text_to_sql_ollama
 , max_vector_dist pg_catalog.float8 default null
 , obj_renderer pg_catalog.regprocedure default null
 , sql_renderer pg_catalog.regprocedure default null
+, prompt_renderer regprocedure default null
+, system_prompt text default null
 ) returns pg_catalog.jsonb
 as $func$
     select json_object
@@ -25,6 +27,8 @@ as $func$
     , 'max_vector_dist': max_vector_dist
     , 'obj_renderer': obj_renderer
     , 'sql_renderer': sql_renderer
+    , 'prompt_renderer': prompt_renderer
+    , 'system_prompt': system_prompt
     absent on null
     )
 $func$ language sql immutable security invoker
@@ -48,6 +52,7 @@ declare
     _max_vector_dist float8;
     _obj_renderer regprocedure;
     _sql_renderer regprocedure;
+    _prompt_renderer regprocedure;
     _model text;
     _host text;
     _keep_alive text;
@@ -62,6 +67,7 @@ declare
     _prompt_obj text;
     _prompt_sql text;
     _prompt text;
+    _system_prompt text;
     _response jsonb;
     _message record;
     _tool_call record;
@@ -69,22 +75,25 @@ declare
 begin
     -- if a config was provided, use the settings available. defaults where missing
     -- if no config provided, use defaults for everything
-    _max_iter = coalesce(case when _config is not null then (_config->>'max_iter')::int2 end, 10);
+    _max_iter = coalesce((_config->>'max_iter')::int2, 10);
     _iter_remaining = _max_iter;
-    _max_results = coalesce(case when _config is not null then (_config->>'max_results')::int8 end, 5);
-    _max_vector_dist = case when _config is not null then (_config->>'max_vector_dist')::float8 end;
-    _obj_renderer = coalesce(case when _config is not null then (_config->>'obj_renderer')::pg_catalog.regprocedure end, 'ai.render_semantic_catalog_obj(bigint, oid, oid)'::pg_catalog.regprocedure);
-    _sql_renderer = coalesce(case when _config is not null then (_config->>'sql_renderer')::pg_catalog.regprocedure end, 'ai.render_semantic_catalog_sql(bigint, text, text)'::pg_catalog.regprocedure);
-    _model = coalesce(case when _config is not null and _config operator(pg_catalog.?) 'model' then _config->>'model' end, 'claude-3-5-sonnet-latest');
-    _host = (case when _config is not null and _config operator(pg_catalog.?) 'host' then config->>'host' end);
-    _keep_alive = (case when _config is not null and _config operator(pg_catalog.?) 'keep_alive' then config->>'keep_alive' end);
-    _chat_options = (case when _config is not null and _config operator(pg_catalog.?) 'chat_options' then config->'chat_options' end);
-
-    _system_prompt = pg_catalog.concat_ws
-    ( ' '
-    , 'You are an expert at analyzing PostgreSQL database schemas and writing SQL statements to answer questions.'
-    , 'You have access to tools.'
-    );
+    _max_results = coalesce((_config->>'max_results')::int8, 5);
+    _max_vector_dist = (_config->>'max_vector_dist')::float8;
+    _obj_renderer = coalesce((_config->>'obj_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_obj(bigint, oid, oid)'::pg_catalog.regprocedure);
+    _sql_renderer = coalesce((_config->>'sql_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_sql(bigint, text, text)'::pg_catalog.regprocedure);
+    _prompt_renderer = coalesce((_config->>'prompt_renderer')::pg_catalog.regprocedure, 'ai.text_to_sql_render_prompt(text, text, text)'::pg_catalog.regprocedure);
+    _model = coalesce(_config->>'model', 'claude-3-5-sonnet-latest');
+    _host = config->>'host';
+    _keep_alive = config->>'keep_alive';
+    _chat_options = config->'chat_options';
+    _system_prompt = coalesce
+        ( _config->>'system_prompt'
+        , pg_catalog.concat_ws
+          ( ' '
+          , 'You are an expert at analyzing PostgreSQL database schemas and writing SQL statements to answer questions.'
+          , 'You have access to tools.'
+          )
+        );
 
     while _iter_remaining > 0 loop
         raise debug 'iteration: %', (_max_iter - _iter_remaining + 1);
@@ -204,20 +213,18 @@ begin
         execute _sql using _ctx_sql into _prompt_sql;
 
         -- render the user prompt
-        select concat_ws
-        ( E'\n'
-        , $$Below are descriptions of database objects and examples of SQL statements that are meant to give context to a user's question.$$
-        , $$Analyze the context provided. Identify the elements that are relevant to the user's question.$$
-        , $$If enough context has been provided to confidently address the question, use the "answer_user_question_with_sql_statement" tool to record your final answer in the form of a valid SQL statement.$$
-        , E'\n'
-        , coalesce(_prompt_obj, '')
-        , E'\n'
-        , coalesce(_prompt_sql, '')
-        , E'\n'
-        , concat('Q: ', question)
-        --, 'A: '
-        ) into strict _prompt
+        raise debug 'rendering user prompt';
+        select format
+        ( $sql$select %I.%I($1, $2, $3)$sql$
+        , n.nspname
+        , f.proname
+        )
+        into strict _sql
+        from pg_proc f
+        inner join pg_namespace n on (f.pronamespace = n.oid)
+        where f.oid = _prompt_renderer::oid
         ;
+        execute _sql using question, _prompt_obj, _prompt_sql into _prompt;
         raise debug '%', _prompt;
 
         -- call llm -----------------------------------------------------------
