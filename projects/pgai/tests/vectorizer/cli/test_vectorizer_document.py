@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 from typing import Any
 
-from dotenv import load_dotenv
 from psycopg import Connection
 from psycopg.rows import dict_row
 
@@ -126,7 +125,8 @@ def test_simple_document_embedding_s3(
     vectorizer_id = configure_document_vectorizer(
         cli_db[1], base_path="s3://adol-docs-test"
     )
-    load_dotenv()
+    os.environ["AWS_ACCESS_KEY_ID"] = "FAKE"
+    os.environ["AWS_SECRET_ACCESS_KEY"] = "FAKE"
 
     with vcr_.use_cassette("simple-s3-docs.yaml"):
         result = run_vectorizer_worker(cli_db_url, vectorizer_id)
