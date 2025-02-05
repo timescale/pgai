@@ -99,6 +99,8 @@ declare
     _ctx_obj jsonb = jsonb_build_array();
     _ctx_sql jsonb = jsonb_build_array();
     _sql text;
+    _samples jsonb = '{}';
+    _samples_sql text;
     _prompt_obj text;
     _prompt_sql text;
     _prompt text;
@@ -115,7 +117,7 @@ begin
     _max_vector_dist = (_config->>'max_vector_dist')::float8;
     _obj_renderer = coalesce((_config->>'obj_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_obj(bigint, oid, oid)'::pg_catalog.regprocedure);
     _sql_renderer = coalesce((_config->>'sql_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_sql(bigint, text, text)'::pg_catalog.regprocedure);
-    _prompt_renderer = coalesce((_config->>'prompt_renderer')::pg_catalog.regprocedure, 'ai.text_to_sql_render_prompt(text, text, text)'::pg_catalog.regprocedure);
+    _prompt_renderer = coalesce((_config->>'prompt_renderer')::pg_catalog.regprocedure, 'ai.text_to_sql_render_prompt(text, text, text, text)'::pg_catalog.regprocedure);
     _model = coalesce(_config->>'model', 'claude-3-5-sonnet-latest');
     _api_key = _config operator(pg_catalog.->>) 'api_key';
     _api_key_name = _config operator(pg_catalog.->>) 'api_key_name';
@@ -257,10 +259,17 @@ begin
         ;
         execute _sql using _ctx_sql into _prompt_sql;
 
+        -- render samples
+        raise debug 'rendering table samples';
+        select string_agg(value, E'\n\n')
+        into strict _samples_sql
+        from jsonb_each_text(_samples)
+        ;
+
         -- render the user prompt
         raise debug 'rendering user prompt';
         select format
-        ( $sql$select %I.%I($1, $2, $3)$sql$
+        ( $sql$select %I.%I($1, $2, $3, $4)$sql$
         , n.nspname
         , f.proname
         )
@@ -269,7 +278,7 @@ begin
         inner join pg_namespace n on (f.pronamespace = n.oid)
         where f.oid = _prompt_renderer::oid
         ;
-        execute _sql using question, _prompt_obj, _prompt_sql into _prompt;
+        execute _sql using question, _prompt_obj, _samples_sql, _prompt_sql into _prompt;
         raise debug '%', _prompt;
 
         -- call llm -----------------------------------------------------------
@@ -292,6 +301,27 @@ begin
                         "additionalProperties": false
                     },
                     "strict": true
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "request_table_sample",
+                    "description": "If you do not have enough context about a table to confidently answer the user's question, use this tool to ask for a sample of the table's data.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "The name of the table or view to sample."
+                            },
+                            "total": {
+                                "type": "integer",
+                                "description": "The total number of rows to return in the sample."
+                            }
+                        },
+                        "required": ["name", "total"]
+                    }
                 }
             },
             {
@@ -392,6 +422,11 @@ begin
                         -- append the question to the list of questions to use on the next iteration
                         select _questions || jsonb_build_array(_tool_call.arguments->'question')
                         into strict _questions
+                        ;
+                    when 'request_table_sample' then
+                        raise debug 'tool use: request_table_sample';
+                        select _samples || jsonb_build_object(_tool_call.arguments->'name', ai.render_sample(_tool_call.arguments->'name', _tool_call.arguments->'total'))
+                        into strict _samples
                         ;
                     when 'answer_user_question_with_sql_statement' then
                         raise debug 'tool use: answer_user_question_with_sql_statement: %', _tool_call.arguments;
