@@ -509,6 +509,81 @@ from
 ) x
 ;
 ```
+### OpenAI Client Configuration
+
+Client configuration is supported through the `ai.openai_client_config()`
+function. This function generates a configuration object that can be used
+across OpenAI-related functions to customize the client behavior.
+
+The `ai.openai_client_config` function accepts the following parameters:
+
+- `base_url` (text, optional): The base URL for the OpenAI API.
+- `timeout_seconds` (float8, optional): Request timeout in seconds.
+  OpenAI-related functions accepts a timeout_seconds parameter that takes
+  precedence over this value.
+- `organization` (text, optional): OpenAI organization ID.
+- `project` (text, optional): Project identifier for tracking purposes.
+- `max_retries` (int, optional): Maximum number of retry attempts for failed
+  requests.
+- `default_headers` (jsonb, optional): Default headers to include in all
+  requests.
+- `default_query` (jsonb, optional): Default query parameters to include in all
+  requests.
+
+All parameters are optional and will use their default values defined by the
+[OpenAI python library][openai-python-lib] if not provided.
+
+For example, to set the project, and organization for OpenAI requests:
+
+```sql
+SELECT ai.openai_embed(
+    model => 'text-embedding-ada-002',
+    input_text => 'Hello world',
+    client_config => ai.openai_client_config(
+        organization => 'org-0F65JvbWoebpWcrboA6vR2zP',
+        project => 'my-pgai-project'
+    )
+);
+```
+
+Setting the timeout and retries for OpenAI requests:
+
+```sql
+SELECT ai.openai_moderate(
+    input_text => 'Check this content',
+    client_config => ai.openai_client_config(
+        max_retries => 3,
+        timeout_seconds => 45.0
+    )
+);
+```
+
+#### Base URL Migration from versions prior to 0.9.0
+
+Version 0.9.0 introduced a new way to configure the base URL for OpenAI
+requests. Previously, the base URL was passed as a separate parameter to the
+OpenAI functions:
+
+```sql
+SELECT ai.openai_embed(
+    model => 'text-embedding-ada-002',
+    input_text => 'Hello world',
+    base_url => 'https://api.openai.com/v1'
+);
+```
+
+Starting from version 0.9.0, the base URL is configured using the
+`ai.openai_client_config` function:
+
+```sql
+SELECT ai.openai_embed(
+    model => 'text-embedding-ada-002',
+    input_text => 'Hello world',
+    client_config => ai.openai_client_config(
+        base_url => 'https://custom-openai-api.com/v1'
+    )
+);
+```
 
 ### Raw response
 
@@ -531,3 +606,4 @@ Python library and used in the same way as described in the [OpenAI Python
 library documentation for Undocumented request params][undocumented-params].
 
 [undocumented-params]: https://openai.com/docs/api-reference/python#undocumented-request-params
+[openai-python-lib]: https://github.com/openai/openai-python
