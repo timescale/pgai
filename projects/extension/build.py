@@ -805,26 +805,6 @@ def python_install_dir() -> Path:
     ).resolve()  # CONTROLS WHERE THE PYTHON LIB AND DEPS ARE INSTALLED
 
 
-def install_old_py_deps() -> None:
-    # this is necessary for versions prior to 0.4.0
-    # we will deprecate these versions and then get rid of this function
-    old_reqs_file = ext_dir().joinpath("old_requirements.txt").resolve()
-    if old_reqs_file.is_file():
-        env = {k: v for k, v in os.environ.items()}
-        cmd = (
-            f"pip3 install -v --compile --break-system-packages -r {old_reqs_file}"
-            if shutil.which("uv") is None
-            else f"uv pip install -v --compile --system --break-system-packages -r {old_reqs_file}"
-        )
-        subprocess.run(
-            cmd,
-            shell=True,
-            check=True,
-            env=env,
-            cwd=str(ext_dir()),
-        )
-
-
 def build_init_py() -> None:
     # ai/__init__.py is checked in to version control. So, all the previous
     # versions will have the file with the correct version already in it. This
