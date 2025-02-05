@@ -8,9 +8,9 @@ class GeneratedDescription(TypedDict):
     description: str
 
 
-def render_sample(plpy, relation: str, limit: int = 5) -> str:
+def render_sample(plpy, relation: str, total: int = 5) -> str:
     ident = ".".join([plpy.quote_ident(part) for part in relation.split(".")])
-    result = plpy.execute(f"select * from {ident}", limit)
+    result = plpy.execute(f"select * from {ident}", total)
 
     ret_obj = f"""<data id="{relation}">"""
     for r in result:

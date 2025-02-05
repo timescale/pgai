@@ -295,12 +295,12 @@ set search_path to pg_catalog, pg_temp
 -- render_obj_sample
 create or replace function ai.render_sample
 ( relation pg_catalog.regclass
-, limit int default 5
+, total int default 5
 ) returns text
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.semantic_catalog
-    return ai.semantic_catalog.render_sample(plpy, relation, limit)
+    return ai.semantic_catalog.render_sample(plpy, relation, total)
 $python$
 language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
