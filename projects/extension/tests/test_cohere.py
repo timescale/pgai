@@ -233,6 +233,9 @@ def test_cohere_embed_no_key(cur_with_api_key):
     assert actual == 384
 
 
+@pytest.mark.skip(
+    reason="classification can only be performed on fine-tuned models, which we don't have"
+)
 def test_cohere_classify(cur_with_api_key):
     cur_with_api_key.execute("""
         with examples(example, label) as
@@ -259,6 +262,9 @@ def test_cohere_classify(cur_with_api_key):
     assert actual == """{"bird": "animal", "corn": "food", "airplane": "machine"}"""
 
 
+@pytest.mark.skip(
+    reason="classification can only be performed on fine-tuned models, which we don't have"
+)
 def test_cohere_classify_simple(cur_with_api_key):
     cur_with_api_key.execute("""
         with examples(example, label) as
