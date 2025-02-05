@@ -8,7 +8,7 @@ class GeneratedDescription(TypedDict):
     description: str
 
 
-def render_obj_sample(plpy, relation: str) -> str:
+def render_sample(plpy, relation: str) -> str:
     ident = ".".join([plpy.quote_ident(part) for part in relation.split(".")])
     result = plpy.execute(f"select * from {ident}", 5)
 
@@ -100,7 +100,7 @@ def generate_description(
     Given the following table or view and some sample rows from it, generate a natural language description of it:
 
     {get_obj_description(plpy, relation)}
-    {render_obj_sample(plpy, relation)}
+    {render_sample(plpy, relation)}
     """
     tools = [
         {
@@ -223,7 +223,7 @@ def generate_column_descriptions(
     Given the following table or view and some sample rows from it, generate a natural language description of all columns:
 
     {obj_description}
-    {render_obj_sample(plpy, relation)}
+    {render_sample(plpy, relation)}
     """
     messages = [{"role": "user", "content": message_content}]
     tools = [
