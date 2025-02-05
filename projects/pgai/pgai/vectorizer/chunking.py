@@ -19,7 +19,7 @@ class Chunker(ABC):
     """
 
     @abstractmethod
-    def into_chunks(self, item: dict[str, Any]) -> list[str]:
+    def into_chunks(self, item_or_text: dict[str, Any] | str) -> list[str]:
         """
         Breaks the provided dictionary item into chunks of text.
 
@@ -68,7 +68,7 @@ class LangChainCharacterTextSplitter(BaseModel, Chunker):
         )
 
     @override
-    def into_chunks(self, item: dict[str, Any]) -> list[str]:
+    def into_chunks(self, item_or_text: dict[str, Any] | str) -> list[str]:
         """
         Splits the text from the provided item into chunks using CharacterTextSplitter.
 
@@ -80,7 +80,11 @@ class LangChainCharacterTextSplitter(BaseModel, Chunker):
         Returns:
             list[str]: A list of chunked strings.
         """
-        text = item[self.chunk_column] or ""
+        text: str
+        if self.chunk_column:
+            text = item_or_text[self.chunk_column] or ""  #  type: ignore
+        else:
+            text = item_or_text  # type: ignore
         return self._chunker.split_text(text)
 
 
@@ -114,7 +118,7 @@ class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
         )
 
     @override
-    def into_chunks(self, item: dict[str, Any]) -> list[str]:
+    def into_chunks(self, item_or_text: dict[str, Any] | str) -> list[str]:
         """
         Recursively splits the text from the provided item into chunks using
         RecursiveCharacterTextSplitter.
@@ -127,5 +131,9 @@ class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
         Returns:
             list[str]: A list of chunked strings.
         """
-        text = item[self.chunk_column] or ""
+        text: str
+        if self.chunk_column:
+            text = item_or_text[self.chunk_column] or ""  # type: ignore
+        else:
+            text = item_or_text  # type: ignore
         return self._chunker.split_text(text)

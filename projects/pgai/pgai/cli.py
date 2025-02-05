@@ -14,7 +14,6 @@ import click
 import psycopg
 import structlog
 from ddtrace import tracer
-from dotenv import load_dotenv
 from psycopg.rows import dict_row, namedtuple_row
 from pytimeparse import parse  # type: ignore
 
@@ -22,8 +21,6 @@ from .__init__ import __version__
 from .vectorizer.embeddings import ApiKeyMixin
 from .vectorizer.features import Features
 from .vectorizer.vectorizer import Vectorizer, Worker
-
-load_dotenv()
 
 structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
 log = structlog.get_logger()
@@ -334,7 +331,7 @@ def vectorizer_worker(
                 sys.exit(1)
         except Exception as e:
             # catch any exceptions, log them, and keep on going
-            log.error(f"unexpected error: {str(e)}")
+            log.error(f"unexpected error: {str(e)}", exc_info=True)
             for exception_line in traceback.format_exception(e):
                 for line in exception_line.rstrip().split("\n"):
                     log.debug(line)

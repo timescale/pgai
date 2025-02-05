@@ -32,6 +32,7 @@ create or replace function ai.create_vectorizer
 , grant_to pg_catalog.name[] default ai.grant_to()
 , enqueue_existing pg_catalog.bool default true
 , loader pg_catalog.jsonb default null
+, parser pg_catalog.jsonb default ai.parser_auto()
 ) returns pg_catalog.int4
 as $func$
 declare
@@ -266,6 +267,8 @@ begin
       , 'formatting', formatting
       , 'scheduling', scheduling
       , 'processing', processing
+      , 'loader', loader
+      , 'parser', parser
       )
     );
 

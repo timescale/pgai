@@ -26,6 +26,8 @@ from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .embeddings import ChunkEmbeddingError
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
+from .loader import DocumentLoader
+from .parser import AutoParser
 from .processing import ProcessingDefault
 
 logger = structlog.get_logger()
@@ -82,6 +84,10 @@ class Config:
         LangChainCharacterTextSplitter | LangChainRecursiveCharacterTextSplitter
     ) = Field(..., discriminator="implementation")
     formatting: PythonTemplate | ChunkValue = Field(..., discriminator="implementation")
+    loader: DocumentLoader | None = None
+    parser: AutoParser = Field(
+        default_factory=lambda: AutoParser(implementation="auto")
+    )
 
 
 @dataclass
@@ -762,7 +768,14 @@ class Worker:
         documents: list[str] = []
         for item in items:
             pk = self._get_item_pk_values(item)
-            chunks = self.vectorizer.config.chunking.into_chunks(item)
+            if self.vectorizer.config.loader is not None:
+                file_content = self.vectorizer.config.loader.load(item)
+                markdown_content = self.vectorizer.config.parser.parse_file_content(
+                    file_content
+                )
+                chunks = self.vectorizer.config.chunking.into_chunks(markdown_content)
+            else:
+                chunks = self.vectorizer.config.chunking.into_chunks(item)
             for chunk_id, chunk in enumerate(chunks, 0):
                 formatted = self.vectorizer.config.formatting.format(chunk, item)
                 records_without_embeddings.append(pk + [chunk_id, formatted])
