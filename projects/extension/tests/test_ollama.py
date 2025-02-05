@@ -1,5 +1,4 @@
 import os
-import time
 
 import psycopg
 import pytest
@@ -32,26 +31,19 @@ def wait_for_model_download(host: str, model: str, timeout: int = 300) -> None:
     if "host.docker.internal" in host and where_am_i() == "host":
         host = "http://localhost:11434"
 
-    start_time = time.time()
-    while time.time() - start_time < timeout:
-        try:
-            # Check if model exists in list of models
-            response = requests.get(f"{host}/api/tags")
-            if response.status_code == 200:
-                models = response.json().get("models", [])
-                if any(m["name"] == model for m in models):
-                    return
-            # If not found, trigger download
-            response = requests.post(
-                f"{host}/api/pull",
-                json={"name": model},
-            )
-            if response.status_code == 200:
+        # Check if model exists in list of models
+        response = requests.get(f"{host}/api/tags", timeout=timeout)
+        if response.status_code == 200:
+            models = response.json().get("models", [])
+            if any(m["name"] == model for m in models):
                 return
-        except requests.RequestException:
-            pass
-        time.sleep(5)
-    raise TimeoutError(f"Timeout waiting for model {model} to be ready")
+        # If not found, trigger download
+        response = requests.post(
+            f"{host}/api/pull",
+            json={"name": model},
+        )
+        if response.status_code == 200:
+            return
 
 
 @pytest.fixture(scope="session", autouse=True)
