@@ -16,7 +16,7 @@ class Actions:
     """Collects all actions which the build.py script supports
 
     Actions are derived from public member functions of this class.
-    Action names are kebap-case, by doing a `.replace("_", "-")` on the method.
+    Action names are kebab-case, by doing a `.replace("_", "-")` on the method.
     e.g. `def build_install` becomes the action `build-install`.
 
     The help text is auto-generated from the member function name and docblock.
@@ -35,6 +35,7 @@ class Actions:
         action_name = "build-install"
         action_function = actions[action_name]
         action_function()
+    ```
     """
 
     def __contains__(self, item):
@@ -51,34 +52,57 @@ class Actions:
         message = "Available targets:"
         descriptions = OrderedDict()
         longest_key = 0
+
+        def get_docstring_parts(docstring: str | None):
+            if not docstring:
+                return "", ""
+
+            lines = docstring.splitlines()
+            title = lines[0].strip() if lines else ""
+            description = "\n".join(lines[1:]).strip() if len(lines) > 1 else ""
+
+            return title, description
+
         for key in cls.__dict__.keys():
             if key.startswith("_"):
+                # ignore private methods
                 continue
-            description = getattr(cls, key).__doc__.splitlines()[0].strip()
+            title, description = get_docstring_parts(getattr(cls, key).__doc__)
             key = key.replace("_", "-")
             longest_key = len(key) if len(key) > longest_key else longest_key
-            descriptions[key] = description
-        for key, description in descriptions.items():
-            message += f"\n- {key: <{longest_key + 2}}{description}"
+            descriptions[key] = (title, description)
+        for key, (title, description) in descriptions.items():
+            message += f"\n- {key: <{longest_key + 2}}{title}"
+            if description != "":
+                message += f"\n{'':{longest_key + 4}}{description}"
         print(message)
 
     @staticmethod
-    def build_install() -> None:
-        """runs build followed by install"""
+    def build_install(version: str | None = None) -> None:
+        """runs build followed by install
+
+        takes an optional argument, 'all' which installs all versions and their dependencies"""
         Actions.build()
-        Actions.install()
+        Actions.install(version)
 
     @staticmethod
-    def install() -> None:
-        """installs the project"""
+    def install(version: str | None = None) -> None:
+        """install the pgai extension
+
+        takes an optional argument 'all' which installs all versions and their dependencies"""
+        all = version is not None and version.strip() == "all"
         error_if_pre_release()
-        Actions.install_prior_py()
+        if all:
+            Actions.install_prior_py()
         Actions.install_py()
-        Actions.install_sql()
+        Actions.install_sql(version)
 
     @staticmethod
-    def install_sql() -> None:
-        """installs the sql files into the postgres installation"""
+    def install_sql(version: str | None = None) -> None:
+        """installs the sql files into the postgres installation
+
+        takes an optional argument 'all' which installs the sql for all versions"""
+        all = version is not None and version.strip() == "all"
         ext_dir = extension_install_dir()
         if not ext_dir.is_dir():
             fatal(f"extension directory does not exist: {ext_dir}")
@@ -90,9 +114,15 @@ class Actions:
         for src in sql_dir().glob("ai*.control"):
             dest = ext_dir / src.name
             shutil.copyfile(src, dest)
-        for src in sql_dir().glob("ai--*.sql"):
-            dest = ext_dir / src.name
-            shutil.copyfile(src, dest)
+        if all:
+            for src in sql_dir().glob("ai--*.sql"):
+                dest = ext_dir / src.name
+                shutil.copyfile(src, dest)
+        else:
+            # only install sql files for this version
+            for src in sql_dir().glob(f"ai*--{this_version()}.sql"):
+                dest = ext_dir / src.name
+                shutil.copyfile(src, dest)
 
     @staticmethod
     def install_prior_py() -> None:
@@ -346,10 +376,7 @@ class Actions:
 
     @staticmethod
     def check_requirements() -> None:
-        """verifies that requirements-lock.txt is up to date with pyproject.toml
-
-        Creates a temporary file with the current state and compares it with the existing lock file.
-        """
+        """verifies that requirements-lock.txt is up to date with pyproject.toml"""
         if shutil.which("uv") is None:
             fatal("uv not found")
 
@@ -862,10 +889,24 @@ if __name__ == "__main__":
     if len(sys.argv) <= 1 or "help" in sys.argv[1:]:
         actions.help()
         sys.exit(0)
-    for action in sys.argv[1:]:
+    i = 1
+    functions = []
+    while i < len(sys.argv):
+        action = sys.argv[i]
         if action in actions:
+            # check if next item in argv is potentially an arg to the current action
+            arg = None
+            if len(sys.argv) > i + 1 and sys.argv[i + 1] not in actions:
+                arg = sys.argv[i + 1]
+                i += 1
             fn = actions[action]
-            fn()
+            functions.append((fn, arg))
+            i += 1
         else:
             print(f"{action} is not a valid action", file=sys.stderr)
             sys.exit(1)
+    for fn, arg in functions:
+        if arg is not None:
+            fn(arg)
+        else:
+            fn()

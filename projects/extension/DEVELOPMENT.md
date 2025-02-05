@@ -56,7 +56,7 @@ To make changes to pgai:
 
          ```bash
          just ext build
-         just ext install
+         just ext install-all
          ```
 
       1. Run the unit tests

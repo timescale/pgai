@@ -58,7 +58,7 @@ jobs:
         run: docker exec pgai-ext just check-requirements
 
       - name: Install extension
-        run: docker exec pgai-ext just install
+        run: docker exec pgai-ext just install-all
 
       - name: Run test server
         run: docker exec -d
