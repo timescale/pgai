@@ -72,13 +72,12 @@ def test_chunking_character_text_splitter():
             },
         ),
         (
-            # allowing empty chunk_column for the use case of chunking a document
+            # allowing null chunk_column for the use case of chunking a document
             "select ai.chunking_character_text_splitter()",
             {
                 "separator": "\n\n",
                 "is_separator_regex": False,
                 "chunk_size": 800,
-                "chunk_column": "",
                 "chunk_overlap": 400,
                 "implementation": "character_text_splitter",
                 "config_type": "chunking",
@@ -154,13 +153,12 @@ def test_chunking_recursive_character_text_splitter():
             },
         ),
         (
-            # allowing empty chunk_column for the use case of chunking a document
+            # allowing null chunk_column for the use case of chunking a document
             "select ai.chunking_recursive_character_text_splitter()",
             {
                 "separators": ["\n\n", "\n", ".", "?", "!", " ", ""],
                 "is_separator_regex": False,
                 "chunk_size": 800,
-                "chunk_column": "",
                 "chunk_overlap": 400,
                 "implementation": "recursive_character_text_splitter",
                 "config_type": "chunking",

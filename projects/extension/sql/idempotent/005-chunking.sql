@@ -2,7 +2,7 @@
 -------------------------------------------------------------------------------
 -- chunking_character_text_splitter
 create or replace function ai.chunking_character_text_splitter
-( chunk_column pg_catalog.name default ''
+( chunk_column pg_catalog.name default null
 , chunk_size pg_catalog.int4 default 800
 , chunk_overlap pg_catalog.int4 default 400
 , separator pg_catalog.text default E'\n\n'
@@ -26,7 +26,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- chunking_recursive_character_text_splitter
 create or replace function ai.chunking_recursive_character_text_splitter
-( chunk_column pg_catalog.name default ''
+( chunk_column pg_catalog.name default null
 , chunk_size pg_catalog.int4 default 800
 , chunk_overlap pg_catalog.int4 default 400
 , separators pg_catalog.text[] default array[E'\n\n', E'\n', '.', '?', '!', ' ', '']
@@ -77,7 +77,7 @@ begin
     end if;
 
     _chunk_column = config operator(pg_catalog.->>) 'chunk_column';
-    if (chunk_document is false and _chunk_column = '') or (chunk_document is true and _chunk_column != '') then
+    if (chunk_document is false and _chunk_column is null) or (chunk_document is true and _chunk_column is not null) then
        raise exception 'either one of config.chunk_column or chunk_document argument should be set';
     end if;
 
