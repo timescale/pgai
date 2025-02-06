@@ -7,10 +7,14 @@
 
 <h3>Power your AI applications with PostgreSQL</h3>
 
-[![Discord](https://img.shields.io/badge/Join_us_on_Discord-black?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/KRdHVXAmkp)
-[![Try Timescale for free](https://img.shields.io/badge/Try_Timescale_for_free-black?style=for-the-badge&logo=timescale&logoColor=white)](https://tsdb.co/gh-pgai-signup)
+<div>
+  <a href="https://github.com/timescale/pgai/tree/main/docs"><strong>Docs</strong></a> ·
+  <a href="https://discord.gg/KRdHVXAmkp"><strong>Join the pgai Discord!</strong></a> ·
+  <a href="https://tsdb.co/gh-pgai-signup"><strong>Try timescale for free!</strong></a> ·
+  <a href="https://github.com/timescale/pgai/releases"><strong>Changelog</strong></a>
 </div>
-
+</div>
+<br/>
 Supercharge your PostgreSQL database with AI capabilities. Supports:  
 
 - Automatic creation and synchronization of vector embeddings for your data  
