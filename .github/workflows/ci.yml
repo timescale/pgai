@@ -10,11 +10,11 @@ concurrency:
 
 jobs:
   build-and-test-extension:
-    services:
-      ollama:
-        image: ollama/ollama:latest
-        ports:
-          - 11434:11434
+    # services:
+    #   ollama:
+    #     image: ollama/ollama:latest
+    #     ports:
+    #       - 11434:11434
 
     runs-on: ubuntu-latest
     strategy:
@@ -58,7 +58,7 @@ jobs:
         run: docker exec pgai-ext just check-requirements
 
       - name: Install extension
-        run: docker exec pgai-ext just install
+        run: docker exec pgai-ext just install-all
 
       - name: Run test server
         run: docker exec -d
@@ -86,7 +86,8 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
           VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
-          OLLAMA_HOST: http://localhost:11434
+          OLLAMA_HOST: "0"
+          #OLLAMA_HOST: http://localhost:11434
 
       - name: Stop and remove Docker container
         run: |
