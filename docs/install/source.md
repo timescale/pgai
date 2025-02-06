@@ -3,7 +3,7 @@
 > ⚠️ **Note:**
 >
 > For Windows users, we recommend using the [pgai Docker
-image](./install_docker.md) to run the pgai extension. These instructions have
+image](./docker.md) to run the pgai extension. These instructions have
 only been tested on macOS and Linux.
 
 

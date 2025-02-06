@@ -2,7 +2,7 @@
 # pgai Vectorizer API reference
 
 This page provides an API reference for Vectorizer functions. For an overview
-of Vectorizer and how it works, see the [Vectorizer Guide](./vectorizer.md).
+of Vectorizer and how it works, see the [Vectorizer Guide](/docs/vectorizer/overview.md).
 
 A vectorizer provides you with a powerful and automated way to generate and 
 manage LLM embeddings for your PostgreSQL data. Here's a summary of what you 
@@ -1375,4 +1375,4 @@ The number of items in the queue for the specified vectorizer
 [timescale-cloud]: https://console.cloud.timescale.com/
 [openai-use-env-var]: https://help.openai.com/en/articles/5112595-best-practices-for-api-key-safety#h_a1ab3ba7b2
 [openai-set-key]: https://help.openai.com/en/articles/5112595-best-practices-for-api-key-safety#h_a1ab3ba7b2
-[docker configuration]: https://github.com/timescale/pgai/blob/main/docs/vectorizer-worker.md#install-and-configure-vectorizer-worker
+[docker configuration]: https://github.com/timescale/pgai/blob/main/docs/vectorizer/worker.md#install-and-configure-vectorizer-worker

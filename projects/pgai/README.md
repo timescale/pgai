@@ -27,7 +27,7 @@ the foundation of most AI applications, pgai makes it easier to leverage your da
 
 **Leverage LLMs for data processing tasks:**
 * Retrieve LLM chat completions from models like Claude Sonnet 3.5, OpenAI GPT4o, Cohere Command, and Llama 3 (via Ollama). ([learn more](https://github.com/timescale/pgai/blob/main/README.md#usage-of-pgai))
-* Reason over your data and facilitate use cases like classification, summarization, and data enrichment on your existing relational data in PostgreSQL ([see an example](https://github.com/timescale/pgai/blob/main/docs/openai.md)).
+* Reason over your data and facilitate use cases like classification, summarization, and data enrichment on your existing relational data in PostgreSQL ([see an example](https://github.com/timescale/pgai/blob/main/docs/model_calling/openai.md)).
 
 **Learn more about pgai:** To learn more about the pgai extension and why we built it, read
 [pgai: Giving PostgreSQL Developers AI Engineering Superpowers](http://www.timescale.com/blog/pgai-giving-postgresql-developers-ai-engineering-superpowers).
@@ -40,14 +40,14 @@ Here's how to get started with pgai:
 
 For a quick start, try out automatic data embedding using pgai Vectorizer:
 
- - Try our cloud offering by creating a [free trial account](https://tsdb.co/gh-pgai-signup) and heading over to our pgai Vectorizer [documentation](https://github.com/timescale/pgai/blob/main/docs/vectorizer.md).
- - or check out our [quick start guide](https://github.com/timescale/pgai/blob/main/docs/vectorizer-quick-start.md) to get up and running in less than 10 minutes with a self-hosted Postgres instance.
+ - Try our cloud offering by creating a [free trial account](https://tsdb.co/gh-pgai-signup) and heading over to our pgai Vectorizer [documentation](https://github.com/timescale/pgai/blob/main/docs/vectorizer/overview.md).
+ - or check out our [quick start guide](https://github.com/timescale/pgai/blob/main/docs/vectorizer/quick-start.md) to get up and running in less than 10 minutes with a self-hosted Postgres instance.
 
 For other use cases, first [Install pgai](https://github.com/timescale/pgai/blob/main/README.md#installation) in Timescale Cloud, a pre-built Docker image, or from source. Then, choose your own adventure:
-  - Automate AI embedding with [pgai Vectorizer](https://github.com/timescale/pgai/blob/main/docs/vectorizer.md).
+  - Automate AI embedding with [pgai Vectorizer](https://github.com/timescale/pgai/blob/main/docs/vectorizer/overview.md).
   -  Use pgai to integrate AI from your provider. Some examples:
-     * [Ollama](https://github.com/timescale/pgai/blob/main/docs/ollama.md) - configure pgai for Ollama, then use the model to embed, chat complete and generate.
-     * [OpenAI](https://github.com/timescale/pgai/blob/main/docs/openai.md) - configure pgai for OpenAI, then use the model to tokenize, embed, chat complete and moderate. This page also includes advanced examples.
-     * [Anthropic](https://github.com/timescale/pgai/blob/main/docs/anthropic.md) - configure pgai for Anthropic, then use the model to generate content.
-     * [Cohere](https://github.com/timescale/pgai/blob/main/docs/cohere.md) - configure pgai for Cohere, then use the model to tokenize, embed, chat complete, classify, and rerank.
-  - Leverage LLMs for data processing tasks such as classification, summarization, and data enrichment ([see the OpenAI example](https://github.com/timescale/pgai/blob/main/docs/openai.md)).
+     * [Ollama](https://github.com/timescale/pgai/blob/main/docs/model_calling/ollama.md) - configure pgai for Ollama, then use the model to embed, chat complete and generate.
+     * [OpenAI](https://github.com/timescale/pgai/blob/main/docs/model_calling/openai.md) - configure pgai for OpenAI, then use the model to tokenize, embed, chat complete and moderate. This page also includes advanced examples.
+     * [Anthropic](https://github.com/timescale/pgai/blob/main/docs/model_calling/anthropic.md) - configure pgai for Anthropic, then use the model to generate content.
+     * [Cohere](https://github.com/timescale/pgai/blob/main/docs/model_calling/cohere.md) - configure pgai for Cohere, then use the model to tokenize, embed, chat complete, classify, and rerank.
+  - Leverage LLMs for data processing tasks such as classification, summarization, and data enrichment ([see the OpenAI example](https://github.com/timescale/pgai/blob/main/docs/model_calling/openai.md)).

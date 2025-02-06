@@ -55,7 +55,7 @@ alter extension ai update;
 
 ## Create the semantic catalog
 
-This function creates [vectorizers](https://github.com/timescale/pgai/blob/main/docs/vectorizer.md) for the tables that pgai uses to store descriptions for tables, columns, and queries. These vectorizers will automatically generate embeddings for the descriptions and update them if you edit the descriptions.
+This function creates [vectorizers](https://github.com/timescale/pgai/blob/main/docs/vectorizer/overview.md) for the tables that pgai uses to store descriptions for tables, columns, and queries. These vectorizers will automatically generate embeddings for the descriptions and update them if you edit the descriptions.
 
 For example:
 
@@ -252,5 +252,5 @@ The `text_to_sql` function uses the Completions API, and searching the semantic 
 * How many tables/columns can this support?   
   * There isn’t a known, hard limit. We search your database for tables relevant to the end user’s question and forward those schemas to the LLM.  
 * Can I self-host this? Or is it available on Timescale Cloud only?  
-  * Yes, you can self-host it, but you’d have to run the [vectorizer workers](https://github.com/timescale/pgai/blob/main/docs/vectorizer.md) as well.  
+  * Yes, you can self-host it, but you’d have to run the [vectorizer workers](https://github.com/timescale/pgai/blob/main/docs/vectorizer/worker.md) as well.  
   * If you’re using Timescale Cloud, we take care of the vectorizer workers for you.
