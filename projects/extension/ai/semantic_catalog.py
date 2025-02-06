@@ -29,7 +29,7 @@ def render_sample(plpy, relation: str, total: int = 5) -> str:
 def get_parsed_config(plpy, catalog_name: str, config: dict | None) -> dict:
     if config is None:
         plan = plpy.prepare(
-            f"select x.text_to_sql from ai.semantic_catalog x where x.catalog_name = $1",
+            "select x.text_to_sql from ai.semantic_catalog x where x.catalog_name = $1",
             ["text"],
         )
         result = plpy.execute(
@@ -124,7 +124,7 @@ def generate_description(
         messages = [{"role": "user", "content": message_content}]
 
         plan = plpy.prepare(
-            f"""
+            """
                 select ai.anthropic_generate(
                     $1
                     , $2
@@ -149,7 +149,7 @@ def generate_description(
             {"role": "user", "content": message_content},
         ]
         plan = plpy.prepare(
-            f"""
+            """
                 select ai.openai_chat_complete(
                     $1
                     , $2
@@ -179,7 +179,7 @@ def generate_description(
             plpy.debug(
                 f"set description for {relation} (existing={len(result) > 0}, overwrite={overwrite})"
             )
-            plan = plpy.prepare(f"select ai.set_description($1, $2)", ["text", "text"])
+            plan = plpy.prepare("select ai.set_description($1, $2)", ["text", "text"])
             plpy.execute(plan, [relation, description])
     yield relation, description
 
@@ -257,7 +257,7 @@ def generate_column_descriptions(
     if provider == "anthropic":
         model = parsed_config.get("model", "claude-3-5-sonnet-latest")
         plan = plpy.prepare(
-            f"""
+            """
                 SELECT ai.anthropic_generate(
                     $1
                     , $2
@@ -284,7 +284,7 @@ def generate_column_descriptions(
             {"role": "user", "content": message_content},
         ]
         plan = plpy.prepare(
-            f"""
+            """
                 select ai.openai_chat_complete(
                     $1
                     , $2
@@ -315,7 +315,7 @@ def generate_column_descriptions(
             existing_columns[r["objnames"][-1]] = True
 
         plan = plpy.prepare(
-            f"select ai.set_column_description($1, $2, $3)", ["text", "text", "text"]
+            "select ai.set_column_description($1, $2, $3)", ["text", "text", "text"]
         )
         for column in columns:
             exists = column["name"] in existing_columns
@@ -372,7 +372,7 @@ def generate_function_description(
         messages = [{"role": "user", "content": message_content}]
 
         plan = plpy.prepare(
-            f"""
+            """
                 select ai.anthropic_generate(
                     $1
                     , $2
@@ -397,7 +397,7 @@ def generate_function_description(
             {"role": "user", "content": message_content},
         ]
         plan = plpy.prepare(
-            f"""
+            """
                 select ai.openai_chat_complete(
                     $1
                     , $2
@@ -427,7 +427,7 @@ def generate_function_description(
             plpy.debug(
                 f"set description for {fn} (existing={len(result) > 0}, overwrite={overwrite})"
             )
-            plan = plpy.prepare(f"select ai.set_description($1, $2)", ["text", "text"])
+            plan = plpy.prepare("select ai.set_description($1, $2)", ["text", "text"])
             plpy.execute(plan, [fn, description])
 
     yield fn, description
