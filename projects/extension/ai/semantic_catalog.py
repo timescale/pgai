@@ -18,7 +18,7 @@ def render_sample(plpy, relation: str, total: int = 5) -> str:
         for v in r.values():
             if isinstance(v, str) or v is None:
                 values.append(plpy.quote_nullable(v))
-            if isinstance(v, bool):
+            elif isinstance(v, bool):
                 values.append("true" if v else "false")
             else:
                 values.append(str(v))
