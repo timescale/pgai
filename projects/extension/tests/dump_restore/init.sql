@@ -19,7 +19,7 @@ values
 select ai.create_vectorizer
 ( 'blog'::regclass
 , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
-, chunking=>ai.chunking_character_text_splitter('content', 128, 10)
+, chunking=>ai.chunking_character_text_splitter(128, 10)
 , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
 , scheduling=>ai.scheduling_none()
 , indexing=>ai.indexing_none()

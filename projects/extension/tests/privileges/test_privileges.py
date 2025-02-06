@@ -252,7 +252,7 @@ def test_create_vectorizer_privileges():
                     'blog'
                   , destination=>'base_vectorizer'
                   , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
-                  , chunking=>ai.chunking_character_text_splitter('content', 128, 10)
+                  , chunking=>ai.chunking_character_text_splitter(128, 10)
                   , scheduling=>ai.scheduling_none()
                   , indexing=>ai.indexing_none()
                 );
@@ -266,7 +266,7 @@ def test_create_vectorizer_privileges():
                     'blog'
                   , destination=>'member_vectorizer'
                   , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
-                  , chunking=>ai.chunking_character_text_splitter('content', 128, 10)
+                  , chunking=>ai.chunking_character_text_splitter(128, 10)
                   , scheduling=>ai.scheduling_none()
                   , indexing=>ai.indexing_none()
                 );
