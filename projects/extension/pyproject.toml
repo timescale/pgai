@@ -114,4 +114,10 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 [tool.uv]
 reinstall-package = ["pgai"]
 
+[tool.pytest.ini_options]
+addopts = [
+    # Print basic test output without full source code or traceback.
+    "--tb=short",
+]
+
 
