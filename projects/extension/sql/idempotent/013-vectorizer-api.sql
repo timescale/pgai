@@ -45,7 +45,6 @@ declare
     _vectorizer_id pg_catalog.int4;
     _sql pg_catalog.text;
     _job_id pg_catalog.int8;
-    _chunk_document pg_catalog.bool;
 begin
     -- make sure all the roles listed in grant_to exist
     if grant_to is not null then
@@ -68,11 +67,6 @@ begin
 
     if chunking is null then
         raise exception 'chunking configuration is required';
-    end if;
-
-    _chunk_document = false;
-    if loader is not null then
-       _chunk_document = true;
     end if;
 
     -- get source table name and schema name
@@ -144,7 +138,7 @@ begin
     perform ai._validate_embedding(embedding);
 
     -- validate the chunking config
-    perform ai._validate_chunking(chunking, _source_schema, _source_table, _chunk_document);
+    perform ai._validate_chunking(chunking);
 
     -- if ai.indexing_default, resolve the default
     if indexing operator(pg_catalog.->>) 'implementation' = 'default' then

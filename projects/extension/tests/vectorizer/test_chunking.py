@@ -16,36 +16,22 @@ def db_url(user: str) -> str:
 def test_chunking_character_text_splitter():
     tests = [
         (
-            "select ai.chunking_character_text_splitter('body')",
-            {
-                "separator": "\n\n",
-                "is_separator_regex": False,
-                "chunk_size": 800,
-                "chunk_column": "body",
-                "chunk_overlap": 400,
-                "implementation": "character_text_splitter",
-                "config_type": "chunking",
-            },
-        ),
-        (
-            "select ai.chunking_character_text_splitter('body', 128, 10)",
+            "select ai.chunking_character_text_splitter(128, 10)",
             {
                 "separator": "\n\n",
                 "is_separator_regex": False,
                 "chunk_size": 128,
-                "chunk_column": "body",
                 "chunk_overlap": 10,
                 "implementation": "character_text_splitter",
                 "config_type": "chunking",
             },
         ),
         (
-            "select ai.chunking_character_text_splitter('content', 256, 20, separator=>E'\n;')",
+            "select ai.chunking_character_text_splitter(256, 20, separator=>E'\n;')",
             {
                 "separator": "\n;",
                 "is_separator_regex": False,
                 "chunk_size": 256,
-                "chunk_column": "content",
                 "chunk_overlap": 20,
                 "implementation": "character_text_splitter",
                 "config_type": "chunking",
@@ -54,8 +40,7 @@ def test_chunking_character_text_splitter():
         (
             r"""
                 select ai.chunking_character_text_splitter
-                ( 'content'
-                , 256
+                ( 256
                 , 20
                 , separator=>'(\s+)'
                 , is_separator_regex=>true
@@ -65,14 +50,13 @@ def test_chunking_character_text_splitter():
                 "separator": r"(\s+)",
                 "is_separator_regex": True,
                 "chunk_size": 256,
-                "chunk_column": "content",
                 "chunk_overlap": 20,
                 "implementation": "character_text_splitter",
                 "config_type": "chunking",
             },
         ),
         (
-            # allowing null chunk_column for the use case of chunking a document
+            # default values of the chunking_character_text_splitter
             "select ai.chunking_character_text_splitter()",
             {
                 "separator": "\n\n",
@@ -97,36 +81,22 @@ def test_chunking_character_text_splitter():
 def test_chunking_recursive_character_text_splitter():
     tests = [
         (
-            "select ai.chunking_recursive_character_text_splitter('body')",
-            {
-                "separators": ["\n\n", "\n", ".", "?", "!", " ", ""],
-                "is_separator_regex": False,
-                "chunk_size": 800,
-                "chunk_column": "body",
-                "chunk_overlap": 400,
-                "implementation": "recursive_character_text_splitter",
-                "config_type": "chunking",
-            },
-        ),
-        (
-            "select ai.chunking_recursive_character_text_splitter('body', 128, 10)",
+            "select ai.chunking_recursive_character_text_splitter(128, 10)",
             {
                 "separators": ["\n\n", "\n", ".", "?", "!", " ", ""],
                 "is_separator_regex": False,
                 "chunk_size": 128,
-                "chunk_column": "body",
                 "chunk_overlap": 10,
                 "implementation": "recursive_character_text_splitter",
                 "config_type": "chunking",
             },
         ),
         (
-            "select ai.chunking_recursive_character_text_splitter('content', 256, 20, separators=>array[E'\n;', ' '])",
+            "select ai.chunking_recursive_character_text_splitter(256, 20, separators=>array[E'\n;', ' '])",
             {
                 "separators": ["\n;", " "],
                 "is_separator_regex": False,
                 "chunk_size": 256,
-                "chunk_column": "content",
                 "chunk_overlap": 20,
                 "implementation": "recursive_character_text_splitter",
                 "config_type": "chunking",
@@ -135,8 +105,7 @@ def test_chunking_recursive_character_text_splitter():
         (
             r"""
                 select ai.chunking_recursive_character_text_splitter
-                ( 'content'
-                , 256
+                ( 256
                 , 20
                 , separators=>array['(\s+)']
                 , is_separator_regex=>true
@@ -146,14 +115,13 @@ def test_chunking_recursive_character_text_splitter():
                 "separators": [r"(\s+)"],
                 "is_separator_regex": True,
                 "chunk_size": 256,
-                "chunk_column": "content",
                 "chunk_overlap": 20,
                 "implementation": "recursive_character_text_splitter",
                 "config_type": "chunking",
             },
         ),
         (
-            # allowing null chunk_column for the use case of chunking a document
+            # default values of the chunking_recursive_character_text_splitter
             "select ai.chunking_recursive_character_text_splitter()",
             {
                 "separators": ["\n\n", "\n", ".", "?", "!", " ", ""],
@@ -179,62 +147,20 @@ def test_validate_chunking():
     ok = [
         """
         select ai._validate_chunking
-        ( ai.chunking_character_text_splitter('body', 128, 10)
-        , 'public', 'thing'
-        )
+        ( ai.chunking_character_text_splitter( 128, 10) )
         """,
         """
         select ai._validate_chunking
-        ( ai.chunking_recursive_character_text_splitter('body', 128, 10)
-        , 'public', 'thing'
-        )
+        ( ai.chunking_recursive_character_text_splitter(128, 10) )
         """,
     ]
     bad = [
         (
             """
             select ai._validate_chunking
-            ( ai.chunking_character_text_splitter('content', 128, 10)
-            , 'public', 'thing'
-            )
-            """,
-            "chunk column in config does not exist in the table: content",
-        ),
-        (
-            """
-            select ai._validate_chunking
-            ( ai.chunking_recursive_character_text_splitter('content', 128, 10)
-            , 'public', 'thing'
-            )
-            """,
-            "chunk column in config does not exist in the table: content",
-        ),
-        (
-            """
-            select ai._validate_chunking
-            ( ai.scheduling_none()
-            , 'public', 'thing'
-            )
+            ( ai.scheduling_none() )
             """,
             "invalid config_type for chunking config",
-        ),
-        (
-            """
-            select ai._validate_chunking
-            ( ai.chunking_recursive_character_text_splitter('column_a')
-            , 'public', 'thing', chunk_document => True
-            )
-            """,
-            "either one of config.chunk_column or chunk_document argument should be set",
-        ),
-        (
-            """
-            select ai._validate_chunking
-            ( ai.chunking_recursive_character_text_splitter()
-            , 'public', 'thing'
-            )
-            """,
-            "either one of config.chunk_column or chunk_document argument should be set",
         ),
     ]
     with psycopg.connect(db_url("test"), autocommit=True) as con:
