@@ -71,6 +71,18 @@ def test_chunking_character_text_splitter():
                 "config_type": "chunking",
             },
         ),
+        (
+            # allowing null chunk_column for the use case of chunking a document
+            "select ai.chunking_character_text_splitter()",
+            {
+                "separator": "\n\n",
+                "is_separator_regex": False,
+                "chunk_size": 800,
+                "chunk_overlap": 400,
+                "implementation": "character_text_splitter",
+                "config_type": "chunking",
+            },
+        ),
     ]
     with psycopg.connect(db_url("test")) as con:
         with con.cursor() as cur:
@@ -140,6 +152,18 @@ def test_chunking_recursive_character_text_splitter():
                 "config_type": "chunking",
             },
         ),
+        (
+            # allowing null chunk_column for the use case of chunking a document
+            "select ai.chunking_recursive_character_text_splitter()",
+            {
+                "separators": ["\n\n", "\n", ".", "?", "!", " ", ""],
+                "is_separator_regex": False,
+                "chunk_size": 800,
+                "chunk_overlap": 400,
+                "implementation": "recursive_character_text_splitter",
+                "config_type": "chunking",
+            },
+        ),
     ]
     with psycopg.connect(db_url("test")) as con:
         with con.cursor() as cur:
@@ -193,6 +217,24 @@ def test_validate_chunking():
             )
             """,
             "invalid config_type for chunking config",
+        ),
+        (
+            """
+            select ai._validate_chunking
+            ( ai.chunking_recursive_character_text_splitter('column_a')
+            , 'public', 'thing', chunk_document => True
+            )
+            """,
+            "either one of config.chunk_column or chunk_document argument should be set",
+        ),
+        (
+            """
+            select ai._validate_chunking
+            ( ai.chunking_recursive_character_text_splitter()
+            , 'public', 'thing'
+            )
+            """,
+            "either one of config.chunk_column or chunk_document argument should be set",
         ),
     ]
     with psycopg.connect(db_url("test"), autocommit=True) as con:

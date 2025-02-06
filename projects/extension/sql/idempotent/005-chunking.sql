@@ -2,7 +2,7 @@
 -------------------------------------------------------------------------------
 -- chunking_character_text_splitter
 create or replace function ai.chunking_character_text_splitter
-( chunk_column pg_catalog.name
+( chunk_column pg_catalog.name default null
 , chunk_size pg_catalog.int4 default 800
 , chunk_overlap pg_catalog.int4 default 400
 , separator pg_catalog.text default E'\n\n'
@@ -26,7 +26,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- chunking_recursive_character_text_splitter
 create or replace function ai.chunking_recursive_character_text_splitter
-( chunk_column pg_catalog.name
+( chunk_column pg_catalog.name default null
 , chunk_size pg_catalog.int4 default 800
 , chunk_overlap pg_catalog.int4 default 400
 , separators pg_catalog.text[] default array[E'\n\n', E'\n', '.', '?', '!', ' ', '']
@@ -53,6 +53,7 @@ create or replace function ai._validate_chunking
 ( config pg_catalog.jsonb
 , source_schema pg_catalog.name
 , source_table pg_catalog.name
+, chunk_document pg_catalog.bool default false
 ) returns void
 as $func$
 declare
@@ -76,20 +77,27 @@ begin
     end if;
 
     _chunk_column = config operator(pg_catalog.->>) 'chunk_column';
+    if (chunk_document is false and _chunk_column is null) or (chunk_document is true and _chunk_column is not null) then
+       raise exception 'either one of config.chunk_column or chunk_document argument should be set';
+    end if;
 
-    select count(*) operator(pg_catalog.>) 0 into strict _found
-    from pg_catalog.pg_class k
-    inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
-    inner join pg_catalog.pg_attribute a on (k.oid operator(pg_catalog.=) a.attrelid)
-    inner join pg_catalog.pg_type y on (a.atttypid operator(pg_catalog.=) y.oid)
-    where n.nspname operator(pg_catalog.=) source_schema
-    and k.relname operator(pg_catalog.=) source_table
-    and a.attnum operator(pg_catalog.>) 0
-    and a.attname operator(pg_catalog.=) _chunk_column
-    and y.typname in ('text', 'varchar', 'char', 'bpchar')
-    ;
-    if not _found then
-        raise exception 'chunk column in config does not exist in the table: %', _chunk_column;
+    if chunk_document is false then
+        _chunk_column = config operator(pg_catalog.->>) 'chunk_column';
+
+        select count(*) operator(pg_catalog.>) 0 into strict _found
+        from pg_catalog.pg_class k
+        inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
+        inner join pg_catalog.pg_attribute a on (k.oid operator(pg_catalog.=) a.attrelid)
+        inner join pg_catalog.pg_type y on (a.atttypid operator(pg_catalog.=) y.oid)
+        where n.nspname operator(pg_catalog.=) source_schema
+        and k.relname operator(pg_catalog.=) source_table
+        and a.attnum operator(pg_catalog.>) 0
+        and a.attname operator(pg_catalog.=) _chunk_column
+        and y.typname in ('text', 'varchar', 'char', 'bpchar')
+        ;
+        if not _found then
+            raise exception 'chunk column in config does not exist in the table: %', _chunk_column;
+        end if;
     end if;
 end
 $func$ language plpgsql stable security invoker

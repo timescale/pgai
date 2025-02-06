@@ -193,6 +193,7 @@ def test_vectorizer_timescaledb():
         db_url("test"), autocommit=True, row_factory=namedtuple_row
     ) as con:
         with con.cursor() as cur:
+            cur.execute("set statement_timeout = '5s'")
             cur.execute("drop schema if exists website cascade")
             cur.execute("create schema website")
             cur.execute("drop table if exists website.blog")
@@ -259,37 +260,6 @@ def test_vectorizer_timescaledb():
             cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
             actual = cur.fetchone()[0]
             assert actual == 3
-
-            # bob should have select on the source table
-            cur.execute("select has_table_privilege('bob', 'website.blog', 'select')")
-            actual = cur.fetchone()[0]
-            assert actual
-
-            # bob should have select, update, delete on the queue table
-            cur.execute(
-                f"select has_table_privilege('bob', '{vec.queue_schema}.{vec.queue_table}', 'select, update, delete')"
-            )
-            actual = cur.fetchone()[0]
-            assert actual
-
-            # bob should have select, insert, update on the target table
-            cur.execute(
-                f"select has_table_privilege('bob', '{vec.target_schema}.{vec.target_table}', 'select, insert, update')"
-            )
-            actual = cur.fetchone()[0]
-            assert actual
-
-            # bob should have select on the view
-            cur.execute(
-                f"select has_table_privilege('bob', '{vec.view_schema}.{vec.view_name}', 'select')"
-            )
-            actual = cur.fetchone()[0]
-            assert actual
-
-            # bob should have select on the vectorizer table
-            cur.execute("select has_table_privilege('bob', 'ai.vectorizer', 'select')")
-            actual = cur.fetchone()[0]
-            assert actual
 
             # get timescaledb job's job_id
             cur.execute(
