@@ -102,6 +102,18 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- delete_description
+create or replace function ai.delete_description(relation pg_catalog.regclass) returns void
+as $func$
+    delete from ai.semantic_catalog_obj d
+    where d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass::pg_catalog.oid
+    and d.objid = relation::pg_catalog.oid
+    and objsubid = 0
+    ;
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp;
+
+-------------------------------------------------------------------------------
 -- set_column_description
 create or replace function ai.set_column_description
 ( relation pg_catalog.regclass
@@ -158,6 +170,47 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- delete_column_description
+create or replace function ai.delete_column_description
+( relation pg_catalog.regclass
+, column_name pg_catalog.name
+) returns void
+as $func$
+    with x as
+    (
+        select a.attnum
+        from pg_catalog.pg_class k
+        inner join pg_catalog.pg_attribute a on (k.oid operator(pg_catalog.=) a.attrelid)
+        where k.oid operator(pg_catalog.=) 'pg_catalog.pg_class'::pg_catalog.regclass::pg_catalog.oid
+        and k.relkind in ('r', 'f', 'p', 'v', 'm')
+        and a.attnum operator(pg_catalog.>) 0
+        and a.attname operator(pg_catalog.=) column_name
+        and not a.attisdropped
+    )
+    delete from ai.semantic_catalog_obj d
+    using x
+    where d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass::pg_catalog.oid
+    and d.objid = relation::pg_catalog.oid
+    and objsubid = x.attnum
+    ;
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp;
+
+-------------------------------------------------------------------------------
+-- delete_column_descriptions
+create or replace function ai.delete_column_descriptions
+( relation pg_catalog.regclass
+) returns void
+as $func$
+    delete from ai.semantic_catalog_obj d
+    where d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass::pg_catalog.oid
+    and d.objid = relation::pg_catalog.oid
+    and objsubid operator(pg_catalog.>) 0
+    ;
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp;
+
+-------------------------------------------------------------------------------
 -- set_function_description
 create or replace function ai.set_function_description
 ( fn regprocedure
@@ -198,3 +251,17 @@ $python$
 language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
+
+-------------------------------------------------------------------------------
+-- delete_function_description
+create or replace function ai.delete_function_description
+( fn regprocedure
+) returns void
+as $func$
+    delete from ai.semantic_catalog_obj d
+    where d.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass::pg_catalog.oid
+    and d.objid = fn::pg_catalog.oid
+    and objsubid operator(pg_catalog.>) 0
+    ;
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp;

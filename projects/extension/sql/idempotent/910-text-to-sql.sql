@@ -54,7 +54,7 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- _text_to_sql
+-- text_to_sql
 create function ai.text_to_sql
 ( question text
 , catalog_name text default 'default'

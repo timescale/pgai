@@ -254,6 +254,7 @@ This is just one example of [model calling capabilities](#model-calling). Model 
 
 ## Useful utilities
 * Load datasets from Hugging Face into your database with [ai.load_dataset](/docs/load_dataset_from_huggingface.md).
+* Use chunking algorithms to split text with [SQL functions](/docs/chunking.md).
 
 # Resources
 ## Why we built it
