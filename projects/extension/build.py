@@ -97,11 +97,7 @@ class Actions:
     @staticmethod
     def install_prior_py() -> None:
         """installs the extension's python package for prior versions"""
-        install_old_py_deps()
         for version in prior_versions():
-            if version in deprecated_versions():
-                # these are handled by install_old_py_deps()
-                continue
             if os.sep in version:
                 fatal(f"'{os.sep}' in version {version}. this is not supported")
             version_target_dir = python_install_dir().joinpath(version)
@@ -493,9 +489,6 @@ def versions() -> list[str]:
         "0.5.0",  # released
         "0.4.1",  # released
         "0.4.0",  # released
-        "0.3.0",  # deprecated
-        "0.2.0",  # deprecated
-        "0.1.0",  # deprecated
     ]
 
 
@@ -508,11 +501,7 @@ def prior_versions() -> list[str]:
 
 
 def deprecated_versions() -> set[str]:
-    return {
-        "0.3.0",  # deprecated
-        "0.2.0",  # deprecated
-        "0.1.0",  # deprecated
-    }
+    return set()
 
 
 def fatal(msg: str) -> None:
@@ -814,26 +803,6 @@ def python_install_dir() -> Path:
     return Path(
         "/usr/local/lib/pgai"
     ).resolve()  # CONTROLS WHERE THE PYTHON LIB AND DEPS ARE INSTALLED
-
-
-def install_old_py_deps() -> None:
-    # this is necessary for versions prior to 0.4.0
-    # we will deprecate these versions and then get rid of this function
-    old_reqs_file = ext_dir().joinpath("old_requirements.txt").resolve()
-    if old_reqs_file.is_file():
-        env = {k: v for k, v in os.environ.items()}
-        cmd = (
-            f"pip3 install -v --compile --break-system-packages -r {old_reqs_file}"
-            if shutil.which("uv") is None
-            else f"uv pip install -v --compile --system --break-system-packages -r {old_reqs_file}"
-        )
-        subprocess.run(
-            cmd,
-            shell=True,
-            check=True,
-            env=env,
-            cwd=str(ext_dir()),
-        )
 
 
 def build_init_py() -> None:
