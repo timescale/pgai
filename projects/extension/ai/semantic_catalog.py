@@ -16,8 +16,10 @@ def render_sample(plpy, relation: str, total: int = 5) -> str:
     for r in result:
         values = []
         for v in r.values():
-            if isinstance(v, str):
+            if isinstance(v, str) or v is None:
                 values.append(plpy.quote_nullable(v))
+            if isinstance(v, bool):
+                values.append("true" if v else "false")
             else:
                 values.append(str(v))
         ret_obj += f"""\n  insert into {ident} ({', '.join(plpy.quote_ident(key) for key in r.keys())}) values ({', '.join(values)});"""
