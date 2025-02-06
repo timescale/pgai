@@ -143,7 +143,7 @@ def generate_description(
         response = json.loads(result[0]["anthropic_generate"])
         description = response["content"][0]["input"]["description"]
     elif provider == "ollama":
-        pass
+        raise NotImplementedError("ollama provider not implemented")
     elif provider == "openai":
         model = parsed_config.get("model", "gpt-4o")
         messages = [
@@ -169,7 +169,7 @@ def generate_description(
             response["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"]
         )["description"]
     elif provider == "cohere":
-        pass
+        raise NotImplementedError("cohere provider not implemented")
     else:
         raise Exception(f"provider {provider} not found")
 
@@ -278,7 +278,7 @@ def generate_column_descriptions(
         ]
 
     elif provider == "ollama":
-        pass
+        raise NotImplementedError("ollama provider not implemented")
     elif provider == "openai":
         model = parsed_config.get("model", "gpt-4o")
         messages = [
@@ -304,7 +304,7 @@ def generate_column_descriptions(
             response["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"]
         )["columns"]
     elif provider == "cohere":
-        pass
+        raise NotImplementedError("cohere provider not implemented")
     else:
         raise Exception(f"provider {provider} not found")
 
@@ -391,7 +391,7 @@ def generate_function_description(
         response = json.loads(result[0]["anthropic_generate"])
         description = response["content"][0]["input"]["description"]
     elif provider == "ollama":
-        pass
+        raise NotImplementedError("ollama provider not implemented")
     elif provider == "openai":
         model = parsed_config.get("model", "gpt-4o")
         messages = [
@@ -417,7 +417,7 @@ def generate_function_description(
             response["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"]
         )["description"]
     elif provider == "cohere":
-        pass
+        raise NotImplementedError("cohere provider not implemented")
     else:
         raise Exception(f"provider {provider} not found")
 
