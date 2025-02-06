@@ -56,7 +56,7 @@ To make changes to pgai:
 
          ```bash
          just ext build
-         just ext install
+         just ext install-all
          ```
 
       1. Run the unit tests
@@ -194,8 +194,8 @@ The SQL is organized into:
 
   `just ext build` "compiles" the idempotent and incremental scripts into the final
   form that is installed into a postgres environment as an extension. A script
-  named `./projects/extension/sql/ai--<current-version>.sql` is built. For every prior version
-  (other than 0.1.0, 0.2.0, and 0.3.0), the file is copied to
+  named `./projects/extension/sql/ai--<current-version>.sql` is built. For every prior version,
+  the file is copied to
   `./projects/extension/sql/ai--<prior-version>--<current-version>.sql` to give postgres an upgrade
   path from prior versions. The `./projects/extension/sql/ai.control` is also ensured to have the
   correct version listed in it.
@@ -319,12 +319,7 @@ original code is defined. These changes have to be included in the gated files.
 While this may be somewhat awkward, it works, and it clearly delineates what 
 changes to existing stuff are required for a new feature.
 
-### Versions prior to 0.4.0
-
-Prior to pgai v0.4.0, Python dependencies were installed system-wide. Until pgai versions 0.1 - 0.3 are deprecated
-[old dependencies](./src/old_requirements.txt) are installed system-wide.
-
-### Release the extension
+## Release the extension
 
 1. Run `just ext clean-sql` in order to remove any prior generated dev sql.
 2. Edit the [build.py](projects/extension/build.py).
@@ -340,6 +335,11 @@ Prior to pgai v0.4.0, Python dependencies were installed system-wide. Until pgai
      ```
 6. Create a PR with all the modified files. Use a commit message such as `chore: release extension <YOUR_NEW_VERSION_HERE>`.
 7. Once the PR is merged, create a new [github release](https://github.com/timescale/pgai/releases) using a new tag following the format `extension-<version>`. Copy the release notes for this version into the GitHub release description.
+8. Prepare the repo for the next development cycle
+   - Add a new version (with the patch version incremented) to the top of the versions list in `build.py`, e.g. `0.8.1-dev`
+   - Run `just ext build-release` to re-generate the `sql/ai.control` and `ai/__init__.py` files
+   - Add and commit the `build.py`, `sql/ai.control`, and `ai/__init__.py` files
+   - Open a new PR with this commit
 8. Create a new PR on the following repositories replacing the value of the `PGAI_VERSION` variable located in the `Makefile` files with the new version:
    - [timescale/timescaledb-docker](https://github.com/timescale/timescaledb-docker/edit/main/Makefile)
    - [timescale/timescaledb-docker-ha](https://github.com/timescale/timescaledb-docker-ha/edit/master/Makefile)

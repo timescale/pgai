@@ -122,7 +122,6 @@ def fetch_upgrade_paths(dbname: str) -> list[UpgradePath]:
             select source, target, regexp_split_to_array(path, '--')
             from pg_catalog.pg_extension_update_paths('ai')
             where path is not null
-            and target not in ('0.1.0', '0.2.0', '0.3.0')
             """)
             paths: list[UpgradePath] = []
             for row in cur.fetchall():
@@ -183,7 +182,6 @@ def fetch_versions(dbname: str) -> list[str]:
                 select version, regexp_split_to_array(version, '[.-]') as parts
                 from pg_available_extension_versions
                 where name = 'ai'
-                and version not in ('0.1.0', '0.2.0', '0.3.0')
             ) v
             where parts[4] is null -- ignore versions with a prerelease tag
             order by parts[1], parts[2], parts[3], parts[4] nulls last
