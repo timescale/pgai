@@ -742,9 +742,9 @@ def build_idempotent_sql_file(input_file: Path) -> str:
         from pathlib import Path
         import sys
         import sysconfig
-        # Note: the "old" (pre-0.4.0) packages are installed as system-level python packages
-        # and take precedence over our extension-version specific packages.
-        # By removing the whole thing from the path we won't run into package conflicts.
+        # Note: we remove system-level python packages from the path to avoid
+        # them being loaded and taking precedence over our dependencies.
+        # This seems paranoid, but it was a real problem.
         if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
             sys.path.remove(sysconfig.get_path("purelib"))
         python_lib_dir = Path(python_lib_dir).joinpath("{this_version()}")
