@@ -30,15 +30,17 @@ order by b.id, c.seq
 
 ## chunk_text
 
-Splits text into chunks using a separator
+Splits text into chunks using a separator. 
+This uses the [CharacterTextSplitter](https://python.langchain.com/api_reference/text_splitters/character/langchain_text_splitters.character.CharacterTextSplitter.html) from the `langchain_text_splitters` Python package.
 
-| Name                | Type  | Default | Required | Description                                               |
-|---------------------|-------|---------|----------|-----------------------------------------------------------|
-| input               | text  | -       | ✔        | The text to split into chunks                             |
-| chunk_size          | int   | -       | ✖        | The target size of a chunk in characters                  |
-| chunk_overlap       | int   | -       | ✖        | The target amount of overlapping characters in each chunk |
-| separator           | text  | -       | ✖        | The text to split on                                      |
-| is_separator_regex  | text  | false   | ✖        | `true` if the separator represents a regular expression   |
+| Name                | Type  | Default  | Required | Description                                               |
+|---------------------|-------|----------|----------|-----------------------------------------------------------|
+| input               | text  | -        | ✔        | The text to split into chunks                             |
+| chunk_size          | int   | *4000    | ✖        | The target size of a chunk in characters                  |
+| chunk_overlap       | int   | *200     | ✖        | The target amount of overlapping characters in each chunk |
+| separator           | text  | *E'\n\n' | ✖        | The text to split on                                      |
+| is_separator_regex  | text  | false    | ✖        | `true` if the separator represents a regular expression   |
+*defaulted by the underlying Python implementation rather than in SQL
 
 ```sql
 select *
@@ -69,14 +71,16 @@ The query above will return the results below:
 ## chunk_text_recursively
 
 Recursively splits text into chunks using multiple separators in sequence.
+This uses the [RecursiveCharacterTextSplitter](https://python.langchain.com/api_reference/text_splitters/character/langchain_text_splitters.character.RecursiveCharacterTextSplitter.html) from the `langchain_text_splitters` Python package.
 
-| Name               | Type   | Default | Required | Description                                               |
-|--------------------|--------|---------|----------|-----------------------------------------------------------|
-| input              | text   | -       | ✔        | The text to split into chunks                             |
-| chunk_size         | int    | -       | ✖        | The target size of a chunk in characters                  |
-| chunk_overlap      | int    | -       | ✖        | The target amount of overlapping characters in each chunk |
-| separators         | text[] | -       | ✖        | An array of texts to split on                             |
-| is_separator_regex | text   | false   | ✖        | `true` if the separators represents regular expressions   |
+| Name               | Type   | Default                         | Required | Description                                               |
+|--------------------|--------|---------------------------------|----------|-----------------------------------------------------------|
+| input              | text   | -                               | ✔        | The text to split into chunks                             |
+| chunk_size         | int    | *4000                           | ✖        | The target size of a chunk in characters                  |
+| chunk_overlap      | int    | *200                            | ✖        | The target amount of overlapping characters in each chunk |
+| separators         | text[] | *array[E'\n\n', E'\n', ' ', ''] | ✖        | An array of texts to split on                             |
+| is_separator_regex | text   | false                           | ✖        | `true` if the separators represents regular expressions   |
+*defaulted by the underlying Python implementation rather than in SQL
 
 ```sql
 select *
