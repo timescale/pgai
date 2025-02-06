@@ -36,20 +36,29 @@ To install pgai from source on a PostgreSQL server:
 1. Clone the pgai repo at the latest tagged release:
 
     ```bash
-    git clone https://github.com/timescale/pgai.git --branch extension-0.6.0
+    git clone https://github.com/timescale/pgai.git --branch extension-0.8.0
     cd pgai
     ```
 
 1. Install the `pgai` PostgreSQL extension:
 
     ```bash
-    just ext install
+    sudo just ext install
     ```
+
+    Note: The install requires write access to system-owned paths to create the following files:
+      - pgai's Python dependencies (in `/usr/local/lib/pgai`)
+      - pgai's extension files (`ai.control` and `ai--*.sql`) (in Postgres' extension
+        directory, typically `/usr/share/postgresql/<pg version>/extension`, but configurable.
+        Use `pg_config --sharedir` to determine this path)
+    If you would prefer to not run the install command using `sudo`, it must be run as a user with
+    write access to the above paths.
+
     We use [just][just] to run project commands. If you don't have just you can
     install the extension with:
 
     ```bash
-    projects/extension/build.py install
+    sudo projects/extension/build.py install
     ```
 
 1. Connect to your database with a postgres client like [psql v16](https://docs.timescale.com/use-timescale/latest/integrations/query-admin/psql/)
