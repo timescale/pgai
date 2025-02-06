@@ -143,10 +143,10 @@ while fixing several important edge cases in table management and permissions.
 
 ## 0.4.0 (2024-10-23)
 
-This release adds the [Vectorizer](/docs/vectorizer.md) feature to the extension. Vectorizer is an 
+This release adds the [Vectorizer](/docs/vectorizer/overview.md) feature to the extension. Vectorizer is an 
 innovative SQL-level interface for automating the embedding process within
 the database. Vectorizer treats embeddings as a declarative, DDL-like feature, similar to 
-an index. For more details, check out the [documentation](/docs/vectorizer.md).
+an index. For more details, check out the [documentation](/docs/vectorizer/overview.md).
 
 ### New features and improvements
 
@@ -166,9 +166,7 @@ an index. For more details, check out the [documentation](/docs/vectorizer.md).
   `openai_list_models()` is now `ai.openai_list_models()`
 - The `pg_database_owner` and the database user running `CREATE EXTENSION` now get
   admin privileges over the extension. Other database users and roles need to
-  be granted privileges to use the extension. You do this using [functions](docs/privileges.md).
+  be granted privileges to use the extension. You do this using [functions](docs/security/privileges.md).
 - The parameter names to the openai*, ollama*, anthropic*, and cohere* functions
   were renamed to remove underscore prefixes and conflicts with reserved and
   non-reserved keywords.
-
-

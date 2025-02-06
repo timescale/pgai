@@ -13,7 +13,7 @@ pgai is organized as a monorepo containing two main components:
 
 2. **Python Library**: Located in [projects/pgai](./projects/pgai)
    - Available on [PyPI][pgai-pypi]
-   - Provides a high-level interface for interacting with the [vectorizer worker](docs/vectorizer-worker.md), and additionally integrations such as the [SQLAlchemy](docs/python-integration.md) one.
+   - Provides a high-level interface for interacting with the [vectorizer worker](docs/vectorizer/worker.md), and additionally integrations such as the [SQLAlchemy](/docs/vectorizer/python-integration.md) one.
    - Written in Python
    - Development guidelines are available in the [pgai directory](./projects/pgai/DEVELOPMENT.md)
 

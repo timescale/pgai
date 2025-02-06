@@ -30,7 +30,7 @@ All with the reliability, scalability, and ACID compliance of PostgreSQL.
 
 ### Docker
 
-See the [install via docker](/docs/install_docker.md) guide for docker compose files and detailed container instructions.
+See the [install via docker](/docs/install/docker.md) guide for docker compose files and detailed container instructions.
 
 ### Timescale Cloud
 
@@ -39,13 +39,13 @@ Try pgai on cloud by creating a [free trial account](https://tsdb.co/gh-pgai-sig
 
 ### Installing pgai into an existing PostgreSQL instance (Linux / MacOS)
 
-See the [install from source](/docs/install_from_source.md) guide for instructions on how to install pgai from source.                  
+See the [install from source](/docs/install/source.md) guide for instructions on how to install pgai from source.                  
 
 # Quick Start
 
 This section will walk you through the steps to get started with pgai and Ollama using docker and show you the major features of pgai. 
 
-Please note that using Ollama requires a large (>4GB) download of the docker image and model. If you don't want to download so much data, you may want to use the [OpenAI quick start](/docs/vectorizer-quick-start-openai.md) or [VoyageAI quick start](/docs/vectorizer-quick-start-voyage.md) instead.
+Please note that using Ollama requires a large (>4GB) download of the docker image and model. If you don't want to download so much data, you may want to use the [OpenAI quick start](/docs/vectorizer/quick-start-openai.md) or [VoyageAI quick start](/docs/vectorizer/quick-start-voyage.md) instead.
 
 ### Setup
 
@@ -92,7 +92,7 @@ Please note that using Ollama requires a large (>4GB) download of the docker ima
     SELECT ai.load_dataset('wikimedia/wikipedia', '20231101.en', table_name=>'wiki', batch_size=>5, max_batches=>1);
     ```
     
-    Related documentation: [load dataset from huggingface](/docs/load_dataset_from_huggingface.md).
+    Related documentation: [load dataset from huggingface](/docs/utils/load_dataset_from_huggingface.md).
     
     This table will contain the following columns: `id`, `url`, `title`, `text`. We'll create a primary key on the `id` column:
 
@@ -114,7 +114,7 @@ Please note that using Ollama requires a large (>4GB) download of the docker ima
     );
     ```
     
-     Related documentation: [vectorizer usage guide](/docs/vectorizer.md) and [vectorizer API reference](/docs/vectorizer-api-reference.md).
+     Related documentation: [vectorizer usage guide](/docs/vectorizer/overview.md) and [vectorizer API reference](/docs/vectorizer/api-reference.md).
     
     
 1. **Check the progress of the vectorizer embedding creation**
@@ -250,11 +250,11 @@ This is just one example of [model calling capabilities](#model-calling). Model 
 
 ## Leverage LLMs for data processing tasks
 * Retrieve LLM chat completions from models like Claude Sonnet 3.5, OpenAI GPT4o, Cohere Command, and Llama 3 (via Ollama). ([learn more](#usage-of-pgai))
-* Reason over your data and facilitate use cases like classification, summarization, and data enrichment on your existing relational data in PostgreSQL ([see an example](/docs/openai.md)).
+* Reason over your data and facilitate use cases like classification, summarization, and data enrichment on your existing relational data in PostgreSQL ([see an example](/docs/model_calling/openai.md)).
 
 ## Useful utilities
-* Load datasets from Hugging Face into your database with [ai.load_dataset](/docs/load_dataset_from_huggingface.md).
-* Use chunking algorithms to split text with [SQL functions](/docs/chunking.md).
+* Load datasets from Hugging Face into your database with [ai.load_dataset](/docs/utils/load_dataset_from_huggingface.md).
+* Use chunking algorithms to split text with [SQL functions](/docs/utils/chunking.md).
 
 # Resources
 ## Why we built it
@@ -263,8 +263,8 @@ This is just one example of [model calling capabilities](#model-calling). Model 
 
 ## Quick start guides
 - [The quick start with Ollama guide above](#quick-start)
-- [Quick start with OpenAI](/docs/vectorizer-quick-start-openai.md)
-- [Quick start with VoyageAI](/docs/vectorizer-quick-start-voyage.md)
+- [Quick start with OpenAI](/docs/vectorizer/quick-start-openai.md)
+- [Quick start with VoyageAI](/docs/vectorizer/quick-start-voyage.md)
 
 ## Tutorials about pgai vectorizer
 - [How to Automatically Create & Update Embeddings in PostgreSQL—With One SQL Query](https://www.timescale.com/blog/how-to-automatically-create-update-embeddings-in-postgresql/)
@@ -292,7 +292,7 @@ We welcome contributions to pgai! See the [Contributing](/CONTRIBUTING.md) page 
 The [pgvector](https://github.com/pgvector/pgvector) and
 [pgvectorscale](https://github.com/timescale/pgvectorscale) extensions allow you
 to store vector embeddings in your database and perform fast and efficient
-vector search.  The [pgai Vectorizer](/docs/vectorizer.md) builds on top of
+vector search.  The [pgai Vectorizer](/docs/vectorizer/overview.md) builds on top of
 these extensions to automatically create and synchronize embeddings for any
 text data in your database.
 
@@ -309,14 +309,14 @@ This newly created vectorizer will automatically track any changes to the
 data in the source table and update the destination embedding table
 with the new embeddings asynchronously.
 
-[Automate AI embedding with pgai Vectorizer](/docs/vectorizer.md) shows you how
+[Automate AI embedding with pgai Vectorizer](/docs/vectorizer/overview.md) shows you how
 to implement embeddings in your own data. On a self-hosted Postgres
-installation, you use a [Vectorizer Worker](/docs/vectorizer-worker.md) to
+installation, you use a [Vectorizer Worker](/docs/vectorizer/worker.md) to
 asynchronously processes your vectorizers. When you create Vectorizers in a
 Timescale Cloud database, embeddings are automatically created and synchronized
 in the background.
 
-Note: Timescale Cloud currently supports embedding natively with OpenAI. To use Ollama on the data in your Timescale Cloud service, set [scheduling => ai.scheduling_none()](/docs/vectorizer-api-reference.md#scheduling-configuration) in the configuration for your service, then [install the vectorizer worker locally](/docs/vectorizer-worker.md#install-and-configure-vectorizer-worker) and configure it to connect to your Timescale Cloud service.
+Note: Timescale Cloud currently supports embedding natively with OpenAI. To use Ollama on the data in your Timescale Cloud service, set [scheduling => ai.scheduling_none()](/docs/vectorizer/api-reference.md#scheduling-configuration) in the configuration for your service, then [install the vectorizer worker locally](/docs/vectorizer/worker.md#install-and-configure-vectorizer-worker) and configure it to connect to your Timescale Cloud service.
 
 ### Search your data using vector and semantic search
 
@@ -389,21 +389,21 @@ The following models are supported (click on the model to learn more):
 
 | **Model**                                            | **Tokenize** | **Embed** | **Chat Complete** | **Generate** | **Moderate** | **Classify** | **Rerank** |
 |------------------------------------------------------|:------------:|:---------:|:-----------------:|:------------:|:------------:|:------------:|:----------:|
-| **[Ollama](./docs/ollama.md)**                       |              |    ✔️     |        ✔️         |      ✔️      |              |              |            |
-| **[OpenAI](./docs/openai.md)**                       |     ✔️️      |    ✔️     |        ✔️         |              |      ✔️      |              |            |
-| **[Anthropic](./docs/anthropic.md)**                 |              |           |                   |      ✔️      |              |              |            |
-| **[Cohere](./docs/cohere.md)**                       |      ✔️      |    ✔️     |        ✔️         |              |              |      ✔️      |     ✔️     |
-| **[Voyage AI](./docs/voyageai.md)**                  |              |    ✔️     |                   |              |              |              |            |
-| **[Huggingface (with LiteLLM)](./docs/litellm.md)**  |              |    ✔️     |                   |              |              |              |            |
-| **[Mistral (with LiteLLM)](./docs/litellm.md)**      |              |    ✔️     |                   |              |              |              |            |
-| **[Azure OpenAI (with LiteLLM)](./docs/litellm.md)** |              |    ✔️     |                   |              |              |              |            |
-| **[AWS Bedrock (with LiteLLM)](./docs/litellm.md)**  |              |    ✔️     |                   |              |              |              |            |
-| **[Vertex AI (with LiteLLM)](./docs/litellm.md)**    |              |    ✔️     |                   |              |              |              |            |
+| **[Ollama](/docs/model_calling/ollama.md)**                       |              |    ✔️     |        ✔️         |      ✔️      |              |              |            |
+| **[OpenAI](/docs/model_calling/openai.md)**                       |     ✔️️      |    ✔️     |        ✔️         |              |      ✔️      |              |            |
+| **[Anthropic](/docs/model_calling/anthropic.md)**                 |              |           |                   |      ✔️      |              |              |            |
+| **[Cohere](/docs/model_calling/cohere.md)**                       |      ✔️      |    ✔️     |        ✔️         |              |              |      ✔️      |     ✔️     |
+| **[Voyage AI](/docs/model_calling/voyageai.md)**                  |              |    ✔️     |                   |              |              |              |            |
+| **[Huggingface (with LiteLLM)](/docs/model_calling/litellm.md)**  |              |    ✔️     |                   |              |              |              |            |
+| **[Mistral (with LiteLLM)](/docs/model_calling/litellm.md)**      |              |    ✔️     |                   |              |              |              |            |
+| **[Azure OpenAI (with LiteLLM)](/docs/model_calling/litellm.md)** |              |    ✔️     |                   |              |              |              |            |
+| **[AWS Bedrock (with LiteLLM)](/docs/model_calling/litellm.md)**  |              |    ✔️     |                   |              |              |              |            |
+| **[Vertex AI (with LiteLLM)](/docs/model_calling/litellm.md)**    |              |    ✔️     |                   |              |              |              |            |
 
 Some examples:
-- Learn how to [moderate](/docs/moderate.md) content directly in the database using triggers and background jobs. 
-- [load datasets directly from Hugging Face](/docs/load_dataset_from_huggingface.md) into your database.
-- Leverage LLMs for data processing tasks such as classification, summarization, and data enrichment ([see the OpenAI example](/docs/openai.md)).
+- Learn how to [moderate](/docs/model_calling/moderate.md) content directly in the database using triggers and background jobs. 
+- [load datasets directly from Hugging Face](/docs/utils/load_dataset_from_huggingface.md) into your database.
+- Leverage LLMs for data processing tasks such as classification, summarization, and data enrichment ([see the OpenAI example](/docs/model_calling/openai.md)).
 
 ## Get involved
 

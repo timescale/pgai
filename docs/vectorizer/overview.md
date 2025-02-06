@@ -27,8 +27,8 @@ Our system empowers you to:
 This page offers a comprehensive overview of Vectorizer features,
 demonstrating how it streamlines the process of working with vector embeddings
 in your database. To quickly try out embeddings using a pre-built Docker developer environment, see the 
-[Vectorizer quick start](/docs/vectorizer-quick-start.md). For a more detailed technical specification, see the
-[Vectorizer API reference](./vectorizer-api-reference.md).
+[Vectorizer quick start](/docs/vectorizer/quick-start.md). For a more detailed technical specification, see the
+[Vectorizer API reference](/docs/vectorizer/api-reference.md).
 
 Let's explore how the Vectorizer can transform your approach to unstructured,
 textual, data analysis, and semantic search:
@@ -82,7 +82,7 @@ Timescale Cloud or on a self-hosted Postgres server.
 
 - Self-hosted Postgres
 
-  Set an environment variable that is the [same as your API key name](./vectorizer-worker.md#install-and-configure-vectorizer-worker). 
+  Set an environment variable that is the [same as your API key name](./vectorizer/worker.md#install-and-configure-vectorizer-worker). 
   For example:
   ```bash
   export OPENAI_API_KEY="Your OpenAI API key"
@@ -117,7 +117,7 @@ SELECT ai.create_vectorizer(
 
 This example uses the `ollama-embed-text` embedding model hosted on a local
 Ollama instance. Vectorizer supports other embedding providers, for more details
-consult the [embedding configuration](./vectorizer-api-reference.md#embedding-configuration)
+consult the [embedding configuration](./vectorizer/api-reference.md#embedding-configuration)
 section of the vectorizer API reference.
 
 Additionally, if the `contents` field is lengthy, it is split into multiple chunks,
@@ -146,7 +146,7 @@ This approach ensures that each chunk retains important contextual information,
 improving the quality and relevance of the embeddings.
 
 On Timescale Cloud, vectorizers are created automatically and scheduled using TimescaleDB background jobs running
-every five minutes. If you are self-hosting, you need to [run the vectorizer-worker](./vectorizer-worker.md)
+every five minutes. If you are self-hosting, you need to [run the vectorizer-worker](./vectorizer/worker.md)
 manually to create and run the vectorizer.
 
 ## Query an embedding

@@ -12,7 +12,7 @@ Anthropic functions in pgai require an [Anthropic API key](https://docs.anthropi
 In production, we suggest setting the API key using an environment variable.
 During testing and development, it may be easiest to configure the key value
 as a [session level parameter]. For more options and details, consult the
-[Handling API keys](./handling-api-keys.md) document.
+[Handling API keys](/docs/security/handling-api-keys.md) document.
 
 [session level parameter]: https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-SHELL
 
@@ -284,4 +284,3 @@ summary    | The article discusses Timescale's compression feature for time-seri
 coherence  | 95
 persuasion | 0.8
 ```
-
