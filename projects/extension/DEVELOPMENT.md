@@ -194,8 +194,8 @@ The SQL is organized into:
 
   `just ext build` "compiles" the idempotent and incremental scripts into the final
   form that is installed into a postgres environment as an extension. A script
-  named `./projects/extension/sql/ai--<current-version>.sql` is built. For every prior version
-  (other than 0.1.0, 0.2.0, and 0.3.0), the file is copied to
+  named `./projects/extension/sql/ai--<current-version>.sql` is built. For every prior version,
+  the file is copied to
   `./projects/extension/sql/ai--<prior-version>--<current-version>.sql` to give postgres an upgrade
   path from prior versions. The `./projects/extension/sql/ai.control` is also ensured to have the
   correct version listed in it.
@@ -318,11 +318,6 @@ In the case of gated features, we are not able to make changes inline where the
 original code is defined. These changes have to be included in the gated files. 
 While this may be somewhat awkward, it works, and it clearly delineates what 
 changes to existing stuff are required for a new feature.
-
-### Versions prior to 0.4.0
-
-Prior to pgai v0.4.0, Python dependencies were installed system-wide. Until pgai versions 0.1 - 0.3 are deprecated
-[old dependencies](./src/old_requirements.txt) are installed system-wide.
 
 ## Release the extension
 
