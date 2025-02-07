@@ -178,7 +178,7 @@ def generate_description(
     else:
         raise Exception(f"provider {provider} not found")
 
-    sql = f"select ai.set_description({plpy.quote_literal(relation)}, {plpy.quote_literal(description)})"
+    sql = f"select ai.set_description({plpy.quote_literal(relation)}, {plpy.quote_literal(description)});"
     if save:
         plpy.debug(
             f"set description for {relation} (existing={len(result) > 0}, overwrite={overwrite})"
@@ -324,7 +324,7 @@ def generate_column_descriptions(
             plpy.debug(
                 f"set description for {column['name']} (existing={exists}, overwrite={overwrite})"
             )
-            sql = f"select ai.set_column_description({plpy.quote_literal(relation)}, {plpy.quote_literal(column['name'])}, {plpy.quote_literal(column['description'])})"
+            sql = f"select ai.set_column_description({plpy.quote_literal(relation)}, {plpy.quote_literal(column['name'])}, {plpy.quote_literal(column['description'])});"
             if save:
                 plpy.execute(sql)
             yield column["name"], column["description"], sql
@@ -434,7 +434,7 @@ def generate_function_description(
     plpy.debug(
         f"set description for {fn} (existing={len(result) > 0}, overwrite={overwrite})"
     )
-    sql = f"select ai.set_function_description({plpy.quote_literal(fn)}::regprocedure, {plpy.quote_literal(description)})"
+    sql = f"select ai.set_function_description({plpy.quote_literal(fn)}::regprocedure, {plpy.quote_literal(description)});"
     if save:
         plpy.execute(sql)
 

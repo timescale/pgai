@@ -224,6 +224,11 @@ The `text_to_sql` function uses the Completions API, and searching the semantic 
 | VoyageAI |  | ✅ | `VOYAGE_API_KEY` |
 | Cohere | ✅ |  | `COHERE_API_KEY` |
 
+
+## Check out the demo
+
+Check out [the demo](/examples/text_to_sql/README.md) of this feature.
+
 ## FAQ
 
 * As a developer, how would I track/log what questions my end users are asking?  
