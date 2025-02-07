@@ -80,7 +80,7 @@ begin
     _max_vector_dist = (_config->>'max_vector_dist')::float8;
     _obj_renderer = coalesce((_config->>'obj_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_obj(bigint, oid, oid)'::pg_catalog.regprocedure);
     _sql_renderer = coalesce((_config->>'sql_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_sql(bigint, text, text)'::pg_catalog.regprocedure);
-    _prompt_renderer = coalesce((_config->>'prompt_renderer')::pg_catalog.regprocedure, 'ai.text_to_sql_render_prompt(text, text, text)'::pg_catalog.regprocedure);
+    _prompt_renderer = coalesce((_config->>'prompt_renderer')::pg_catalog.regprocedure, 'ai.text_to_sql_render_prompt(text, text, text, text)'::pg_catalog.regprocedure);
     _model = coalesce(_config->>'model', 'claude-3-5-sonnet-latest');
     _host = config->>'host';
     _keep_alive = config->>'keep_alive';
@@ -214,7 +214,7 @@ begin
         -- render the user prompt
         raise debug 'rendering user prompt';
         select format
-        ( $sql$select %I.%I($1, $2, $3)$sql$
+        ( $sql$select %I.%I($1, $2, $3, $4)$sql$
         , n.nspname
         , f.proname
         )
@@ -223,7 +223,7 @@ begin
         inner join pg_namespace n on (f.pronamespace = n.oid)
         where f.oid = _prompt_renderer::oid
         ;
-        execute _sql using question, _prompt_obj, _prompt_sql into _prompt;
+        execute _sql using question, _prompt_obj, '', _prompt_sql into _prompt;
         raise debug '%', _prompt;
 
         -- call llm -----------------------------------------------------------
