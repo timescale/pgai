@@ -91,18 +91,25 @@ Please note that using Ollama requires a large (>4GB) download of the docker ima
 1. **Create a table with the data you want to embed from a huggingface dataset**
 
     We'll create a table named `wiki` from a few rows of the english-language `wikimedia/wikipedia` dataset.
+    
+    First, we'll create the table:
 
     ```sql
-    SELECT ai.load_dataset('wikimedia/wikipedia', '20231101.en', table_name=>'wiki', batch_size=>5, max_batches=>1);
+    CREATE TABLE wiki (
+        id      TEXT PRIMARY KEY,
+        url     TEXT,
+        title   TEXT,
+        text    TEXT
+    );
+    ```
+
+    Then, we'll load the data from the huggingface dataset:
+
+    ```sql
+    SELECT ai.load_dataset('wikimedia/wikipedia', '20231101.en', table_name=>'wiki', batch_size=>5, max_batches=>1, if_table_exists=>'append');
     ```
     
     Related documentation: [load dataset from huggingface](/docs/utils/load_dataset_from_huggingface.md).
-    
-    This table will contain the following columns: `id`, `url`, `title`, `text`. We'll create a primary key on the `id` column:
-
-    ```sql
-    ALTER TABLE wiki ADD PRIMARY KEY (id);
-    ```
 
 1. **Create a vectorizer for `wiki`**
 
@@ -126,13 +133,14 @@ Please note that using Ollama requires a large (>4GB) download of the docker ima
     ```sql
     select * from ai.vectorizer_status;
     ```
- 
-    The output will look like this:
-
-
+    <details>
+    <summary>Click to see the output</summary>
+    
     | id | source_table | target_table | view | pending_items |
     |----|--------------|--------------|------|---------------|
     | 1 | public.wiki | public.wiki_embeddings_store | public.wiki_embeddings | 10000 |
+    
+    </details>
     
     All the embeddings have been created when the `pending_items` column is 0. This may take a few minutes as the model is running locally and not on a GPU.
     
@@ -148,17 +156,28 @@ Please note that using Ollama requires a large (>4GB) download of the docker ima
     ORDER BY embedding <=> ai.ollama_embed('all-minilm', 'properties of light')
     LIMIT 1;
     ```
-    
+    <details>
+    <summary>Click to see the output</summary>
+
+    | title | chunk |
+    |-------|-------|
+    | Albedo |  Water reflects light very differently from typical terrestrial materials. The reflectivity of a water surface is calculated using the Fresnel equations.... |
+    </details>
+     
     This query selects from the `wiki_embeddings` view, which is created by the vectorizer and joins the embeddings with the original data in the `wiki` table to give us the ability to search using the embeddings but still be able to access (or filter on) all the data in the original table (e.g. the `title` column).
     
     Note the `ai.ollama_embed` function is used to call the `all-minilm` model. This is part of pgai's  [model calling capabilities](#model-calling).
 
-    The output will look like this:
+    
     
     | title | chunk |
     |-------|-------|
     | Albedo |  Water reflects light very differently from typical terrestrial materials. The reflectivity of a water surface is calculated using the Fresnel equations.... |
- 
+
+    | title | chunk |
+    |-------|-------|
+    | Albedo |  Water reflects light very differently from typical terrestrial materials. The reflectivity of a water surface is calculated using the Fresnel equations.... |
+    
  1. **Modify your data and have the vectorizer automatically update the embeddings**
  
     We'll add a row about pgai to the `wiki` table and have the vectorizer automatically update the embeddings.
@@ -176,73 +195,236 @@ Please note that using Ollama requires a large (>4GB) download of the docker ima
     ```
 ### Perform Retrieval Augmented Generation (RAG)
 
-**Use RAG to answer questions about pgai**
+In this section, we'll have the LLM answer questions about pgai based on the wiki entry we added by using RAG. The LLM was never trained on the pgai wiki entry, and so it needs data in the database to answer questions about pgai.
 
-We'll create a function that uses RAG to allow an LLM to answer questions about pgai based on the wiki entry we added.
+You can perform RAG purely from within the database using SQL or use a python script to interact with the database and perform RAG. We often find that using SQL is easier to create a quick prototype and get started but as the project matures people easily switch to using Python to have more control and make use of Python tooling. 
 
-RAG involves two steps:
-1. Perform a similarity search to find the most relevant chunks of data.
-2. Use the LLM to generate a response using the relevant chunks as context.
 
-```sql
-CREATE OR REPLACE FUNCTION generate_rag_response(query_text TEXT)
-RETURNS TEXT AS $$
-DECLARE
-    context_chunks TEXT;
-    response JSONB;
-BEGIN
-    -- Perform similarity search to find relevant wiki article
-    SELECT string_agg(title || ': ' || chunk, E'\n') INTO context_chunks
-    FROM
-    (
+<details>
+<summary>Click to perform RAG within SQL</summary>
+
+ 1. **Define a function to perform RAG**
+ 
+    We'll create a function that uses RAG to allow an LLM to answer questions about pgai based on the wiki entry we added.
+
+    RAG involves two steps:
+    1. Perform a similarity search to find the most relevant chunks of data.
+    2. Use the LLM to generate a response using the relevant chunks as context.
+    
+    ```sql
+    CREATE OR REPLACE FUNCTION generate_rag_response(query_text TEXT)
+    RETURNS TEXT AS $$
+    DECLARE
+        context_chunks TEXT;
+        response JSONB;
+    BEGIN
+        -- Perform similarity search to find relevant wiki article
+        SELECT string_agg(title || ': ' || chunk, E'\n') INTO context_chunks
+        FROM
+        (
+            SELECT title, chunk
+            FROM wiki_embeddings 
+            ORDER BY embedding <=> ai.ollama_embed('all-minilm', query_text)
+            LIMIT 3
+        ) AS relevant_posts;
+
+        raise notice 'Context provided to LLM: %', context_chunks;
+    
+        -- Generate a summary using tinyllama
+        select ai.ollama_generate('tinyllama', 
+        query_text || E'\nUse the following context to respond.\n' || context_chunks) INTO response;
+
+        RETURN response->>'response';
+    END;
+    $$ LANGUAGE plpgsql;
+    ```
+
+1. **Use the RAG function to answer questions about the wiki data**
+
+    ```sql
+    SELECT generate_rag_response('What can I use pgai for?') as response; 
+    ```
+
+    <details>
+    <summary>Click here to see the output</summary>
+
+    | response |
+    |-----------------------|
+    |   PGAI is a tool that makes it easier for developers to create AI applications by providing access to data in a PostgreSQL database using Semantic Search and answering RAG (Recommendation and Answer Generation) questions. This allows the LLM (Language Model) to answer questions about unseen data without being trained on your data, making it an important tool for building accurate and efficient AI applications. The context suggests that PGAI can be useful in a variety of industries or use cases where data access is critical, such as healthcare, finance, or customer service. |
+    </details>
+
+</details>
+
+<details>
+<summary>Click to perform RAG with Python</summary>
+
+1. **Install python dependencies**
+
+    ```bash
+    pip install psycopg pgvector ollama
+    ```
+
+1. **Run the Python script to perform RAG**
+
+    ```python 
+    import psycopg
+    from pgvector.psycopg import register_vector
+    from typing import Optional, List, NamedTuple
+    from ollama import Client
+    from dataclasses import dataclass
+
+    @dataclass
+    class ChunkData:
+        """Represents a chunk of text with its title and content."""
+        title: str
+        chunk: str
+
+    def create_db_connection() -> psycopg.Connection:
+        """Create and return a database connection."""
+        conn = psycopg.connect(
+            "postgres://postgres:postgres@localhost:5432/postgres"
+            # Modify connection string as needed for your setup
+        )
+        register_vector(conn)
+        return conn
+
+    def get_embedding(client: Client, text: str) -> list[float]:
+        """Get embeddings using Ollama's all-minilm model."""
+        response = client.embeddings(model='all-minilm', prompt=text)
+        return response['embedding']
+
+    def get_relevant_chunks(cur: psycopg.Cursor, embedding: list[float], limit: int = 1) -> List[ChunkData]:
+        """
+        Retrieve the most relevant chunks based on vector similarity.
+        
+        Args:
+            cur: Database cursor
+            embedding: Query embedding vector
+            limit: Number of chunks to retrieve
+        
+        Returns:
+            List of ChunkData objects containing relevant chunks
+        """
+        query = """
         SELECT title, chunk
         FROM wiki_embeddings 
-        ORDER BY embedding <=> ai.ollama_embed('all-minilm', query_text)
-        LIMIT 1
-    ) AS relevant_posts;
+        ORDER BY embedding <=> %s::vector
+        LIMIT %s
+        """
+        
+        cur.execute(query, (embedding, limit))
+        return [ChunkData(title=row[0], chunk=row[1]) for row in cur.fetchall()]
 
-    raise notice 'Context provided to LLM: %', context_chunks;
-    
-    -- Generate a summary using tinyllama
-    select ai.ollama_generate('tinyllama', 
-    query_text || E'\nUse the following context to respond.\n' || context_chunks) INTO response;
+    def format_context(chunks: List[ChunkData]) -> str:
+        """
+        Format the chunks into a single context string.
+        
+        Args:
+            chunks: List of ChunkData objects
+        
+        Returns:
+            Formatted context string
+        """
+        return "\n\n".join(f"{chunk.title}:\n{chunk.chunk}" for chunk in chunks)
 
-    RETURN response->>'response';
-END;
-$$ LANGUAGE plpgsql;
-```
+    def generate_rag_response(query_text: str) -> Optional[str]:
+        """
+        Generate a RAG response using pgai, Ollama embeddings, and database content.
+        
+        Args:
+            query_text: The question or query to answer
+        
+        Returns:
+            str: The generated response from the LLM
+        """
+        try:
+            # Initialize Ollama client
+            client = Client(host='http://localhost:11434')
+            
+            with create_db_connection() as conn:
+                with conn.cursor() as cur:
+                    # Get embeddings for the query using Ollama SDK
+                    query_embedding = get_embedding(client, query_text)
+                    
+                    # Get relevant chunks
+                    relevant_chunks = get_relevant_chunks(cur, query_embedding)
+                    
+                    # Format context
+                    context = format_context(relevant_chunks)
+                    
+                    # Print context for debugging (optional)
+                    print("Context provided to LLM:")
+                    print("------------------------")
+                    print(context)
+                    print("------------------------")
+                    
+                    # Construct prompt with context
+                    prompt = f"""Question: {query_text}
 
-Then, we can use the function to answer questions about the wiki data.
+    Please use the following context to provide an accurate response:
 
-```sql
-SELECT generate_rag_response('What can I use pgai for?') as response; 
-```
+    {context}
 
-The output will look like this:
+    Answer:"""
+                    
+                    # Generate response using Ollama SDK
+                    response = client.generate(
+                        model='tinyllama',
+                        prompt=prompt,
+                        stream=False
+                    )
+                    
+                    return response['response']
+                    
+        except Exception as e:
+            print(f"Error generating RAG response: {e}")
+            return None
 
-| response |
-|-----------------------|
-|   PGAI is a tool that makes it easier for developers to create AI applications by providing access to data in a PostgreSQL database using Semantic Search and answering RAG (Recommendation and Answer Generation) questions. This allows the LLM (Language Model) to answer questions about unseen data without being trained on your data, making it an important tool for building accurate and efficient AI applications. The context suggests that PGAI can be useful in a variety of industries or use cases where data access is critical, such as healthcare, finance, or customer service. |
+    def main():
+        # Example usage
+        questions = [
+            "What can I use pgai for?",
+        ]
+        
+        for question in questions:
+            print("\n" + "="*50)
+            print(f"Question: {question}")
+            print("-"*50)
+            
+            response = generate_rag_response(question)
+            if response:
+                print("\nResponse:")
+                print(response)
+            else:
+                print("Failed to generate response")
 
+    if __name__ == "__main__":
+        main()
+
+    ```
+</details>
 
 ### Generate a summary of the article in the database
-**Generate a summary of the article in the database**
+1. **Generate a summary of the article in the database**
+    
+    We'll generate a summary of the search results using the `ai.ollama_generate` function (this will take a few minutes).
 
-We'll generate a summary of the search results using the `ai.ollama_generate` function (this will take a few minutes).
+    ```sql
+    SELECT answer->>'response' as summary
+    FROM ai.ollama_generate('tinyllama', 
+    'Summarize the following and output the summary in a single sentence: '|| (SELECT text FROM wiki WHERE title like 'pgai%')) as answer;
+    ```
 
-```sql
-SELECT answer->>'response' as summary
-FROM ai.ollama_generate('tinyllama', 
-'Summarize the following and output the summary in a single sentence: '|| (SELECT text FROM wiki WHERE title like 'pgai%')) as answer;
-```
+    <details>
+    <summary>Click to see the output</summary>
 
-The output will look like this:
+    | summary |
+    |--------------------------------|
+    | Pgai is a tool that simplifies the process of making AI applications easier by providing easy access to data in PostgreSQL and enabling semantic search on the data for the Retrieval Augmented Generation (RAG) pipeline. This allows the AI system to answer questions about unseen data without being trained on it, simplifying the entire process. |
+    </details>
+    
 
-| summary |
-|--------------------------------|
-| Pgai is a tool that simplifies the process of making AI applications easier by providing easy access to data in PostgreSQL and enabling semantic search on the data for the Retrieval Augmented Generation (RAG) pipeline. This allows the AI system to answer questions about unseen data without being trained on it, simplifying the entire process. |
-
-This is just one example of [model calling capabilities](#model-calling). Model calling can be used for a variety of tasks, including classification, summarization, moderation, and other forms of data enrichment. 
+    This is just one example of [model calling capabilities](#model-calling). Model calling can be used for a variety of tasks, including classification, summarization, moderation, and other forms of data enrichment. 
     
 # Features 
 
