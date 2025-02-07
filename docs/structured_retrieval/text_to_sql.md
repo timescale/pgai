@@ -37,7 +37,7 @@ We recommend creating a fork of your database so you can safely experiment with 
 
 Next, install the pgai extension. If you already have it installed, update it to the latest version. Note: you’ll need a specific version that has the text to SQL capabilities. 
 
-```
+```sql
 /*
  * If it's your first time installing pgai
  */
@@ -59,11 +59,11 @@ This function creates [vectorizers](https://github.com/timescale/pgai/blob/main/
 
 For example:
 
-```
+```sql
 -- OpenAI embeddings and OpenAI o1 completions
 select ai.create_semantic_catalog(
   embedding=>ai.embedding_openai('text-embedding-3-small', 768)
-, text_to_sql=>ai.text_to_sql_openai(model=>'o1)
+, text_to_sql=>ai.text_to_sql_openai(model=>'o1')
 );
 
 -- OpenAI embeddings + Claude 3.5 Sonnet completions
@@ -99,7 +99,7 @@ You can mix and match. For example, you can use Ollama for embeddings and Anthro
 
 Write descriptions for tables, columns, and queries. pgai will give these descriptions to the LLM to help it create a more accurate query.
 
-```
+```sql
 /*
  * Tables or views
  */
@@ -155,7 +155,7 @@ where sql = 'old example';
 
 Wait for the descriptions to be embedded. You can monitor the queue with this query. These numbers should go to zero.
 
-```
+```sql
 select
   ai.vectorizer_queue_pending(k.obj_vectorizer_id) as obj_pending,
   ai.vectorizer_queue_pending(k.sql_vectorizer_id) as sql_pending
@@ -165,7 +165,7 @@ where k.catalog_name = 'default';
 
 Want to generate your descriptions using LLMs so you don’t have to write them manually?
 
-```
+```sql
 -- Generate a description for the `orders` table and print it
 select ai.generate_description('orders');
 
@@ -187,7 +187,7 @@ select ai.generate_function_description('myfunc'::regproc, save => true);
 
 Now you’re ready to use the `text_to_sql` function.
 
-```
+```sql
 select ai.text_to_sql('show me the average order cost by day in November');
 
 /*
@@ -208,7 +208,7 @@ order by 1
 
 Turn on debug messages to see what is happening behind the scenes (the prompts sent and the LLM’s responses).
 
-```
+```sql
 set client_min_messages to 'DEBUG1';
 ```
 
