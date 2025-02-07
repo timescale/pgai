@@ -173,7 +173,8 @@ def test_upgrades():
             Path(__file__).parent.absolute().joinpath(f"{path_name}-actual.snapshot")
         )
         assert actual == expected, f"snapshots do not match for {debug_path}"
-    
+
+
 def is_version_earlier_than(v1, v2):
     v1_parts = list(map(int, v1.split("-")[0].split(".")))
     v2_parts = list(map(int, v2.split("-")[0].split(".")))

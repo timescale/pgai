@@ -16,6 +16,11 @@ VECTORIZER_ROW = r"""
 {
     "id": 1,
     "config": {
+        "loading": {
+            "config_type": "loading",
+            "implementation": "row",
+            "column_name": "body"
+        },
         "chunking": {
             "separator": "\n\n",
             "chunk_size": 128,
@@ -226,6 +231,7 @@ def test_vectorizer_timescaledb():
             cur.execute("""
             select ai.create_vectorizer
             ( 'website.blog'::regclass
+            , loading => ai.loading_row('body')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
             , chunking=>ai.chunking_character_text_splitter(128, 10)
             , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
@@ -474,6 +480,7 @@ def test_drop_vectorizer():
             cur.execute("""
             select ai.create_vectorizer
             ( 'wiki.post'::regclass
+            , loading => ai.loading_row('content')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
             , chunking=>ai.chunking_character_text_splitter(128, 10)
             , scheduling=>ai.scheduling_timescaledb()
@@ -601,6 +608,7 @@ def test_drop_all_vectorizer():
             cur.execute("""
             select ai.create_vectorizer
             ( 'drop_me'::regclass
+            , loading => ai.loading_row('content')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
             , chunking=>ai.chunking_character_text_splitter(128, 10)
             , scheduling=>ai.scheduling_timescaledb()
@@ -730,6 +738,7 @@ def test_drop_source():
             cur.execute("""
             select ai.create_vectorizer
             ( 'public.blog_drop'::regclass
+            , loading => ai.loading_row('content')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
             , chunking=>ai.chunking_character_text_splitter(128, 10)
             , scheduling=>ai.scheduling_timescaledb()
@@ -863,6 +872,7 @@ def test_drop_source_no_row():
             cur.execute("""
             select ai.create_vectorizer
             ( 'public.drop_no_row'::regclass
+            , loading => ai.loading_row('content')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
             , chunking=>ai.chunking_character_text_splitter(128, 10)
             , scheduling=>ai.scheduling_timescaledb()
@@ -1164,6 +1174,7 @@ def test_diskann_index():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.note0'::regclass
+            , loading => ai.loading_row('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
             , chunking=>ai.chunking_character_text_splitter()
             , scheduling=>
@@ -1209,6 +1220,7 @@ def test_hnsw_index():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.note1'::regclass
+            , loading => ai.loading_row('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
             , chunking=>ai.chunking_character_text_splitter()
             , scheduling=>
@@ -1260,6 +1272,7 @@ def test_index_create_concurrency():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.note2'::regclass
+            , loading => ai.loading_row('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
             , chunking=>ai.chunking_character_text_splitter()
             , scheduling=>
@@ -1396,6 +1409,7 @@ def test_naming_collisions():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.note4'::regclass
+            , loading => ai.loading_row('text')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
             , chunking=>ai.chunking_character_text_splitter()
             , scheduling=>ai.scheduling_none()
@@ -1414,6 +1428,7 @@ def test_naming_collisions():
                 cur.execute("""
                 select ai.create_vectorizer
                 ( 'vec.note4'::regclass
+                , loading => ai.loading_row('note')
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
                 , chunking=>ai.chunking_character_text_splitter()
                 , scheduling=>ai.scheduling_none()
@@ -1432,6 +1447,7 @@ def test_naming_collisions():
                 cur.execute("""
                 select ai.create_vectorizer
                 ( 'vec.note4'::regclass
+                , loading => ai.loading_row('note')
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
                 , chunking=>ai.chunking_character_text_splitter()
                 , scheduling=>ai.scheduling_none()
@@ -1452,6 +1468,7 @@ def test_naming_collisions():
                 cur.execute("""
                 select ai.create_vectorizer
                 ( 'vec.note4'::regclass
+                , loading => ai.loading_row('note')
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
                 , chunking=>ai.chunking_character_text_splitter()
                 , scheduling=>ai.scheduling_none()
@@ -1472,6 +1489,7 @@ def test_naming_collisions():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.note4'::regclass
+            , loading => ai.loading_row('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
             , chunking=>ai.chunking_character_text_splitter()
             , scheduling=>ai.scheduling_none()
@@ -1507,6 +1525,7 @@ def test_naming_collisions():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.note4'::regclass
+            , loading => ai.loading_row('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
             , chunking=>ai.chunking_character_text_splitter()
             , scheduling=>ai.scheduling_none()
@@ -1558,6 +1577,7 @@ def test_none_index_scheduling():
                 cur.execute("""
                 select ai.create_vectorizer
                 ( 'vec.note3'::regclass
+                , loading => ai.loading_row('note')
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
                 , chunking=>ai.chunking_character_text_splitter()
                 , scheduling=> ai.scheduling_none()
@@ -1572,6 +1592,7 @@ def test_none_index_scheduling():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.note3'::regclass
+            , loading => ai.loading_row('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
             , chunking=>ai.chunking_character_text_splitter()
             , scheduling=> ai.scheduling_none()
@@ -1604,6 +1625,7 @@ def test_queue_pending():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.note5'::regclass
+            , loading => ai.loading_row('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
             , chunking=>ai.chunking_character_text_splitter()
             , scheduling=> ai.scheduling_none()
@@ -1655,6 +1677,7 @@ def test_grant_to_public():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.note6'::regclass
+            , loading => ai.loading_row('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
             , chunking=>ai.chunking_character_text_splitter()
             , scheduling=> ai.scheduling_none()
@@ -1729,6 +1752,7 @@ def test_create_vectorizer_privs():
                 cur.execute("""
                 select ai.create_vectorizer
                 ( 'priv_test'::regclass
+                , loading => ai.loading_row('foo')
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
                 , chunking=>ai.chunking_character_text_splitter()
                 , scheduling=>ai.scheduling_none()
@@ -1748,6 +1772,7 @@ def test_create_vectorizer_privs():
                 cur.execute("""
                 select ai.create_vectorizer
                 ( 'priv_test'::regclass
+                , loading => ai.loading_row('foo')
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
                 , chunking=>ai.chunking_character_text_splitter()
                 , scheduling=>ai.scheduling_none()
@@ -1762,6 +1787,7 @@ def test_create_vectorizer_privs():
             cur.execute("""
             select ai.create_vectorizer
             ( 'priv_test'::regclass
+            , loading => ai.loading_row('foo')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
             , chunking=>ai.chunking_character_text_splitter()
             , scheduling=>ai.scheduling_none()
@@ -1776,6 +1802,7 @@ def test_create_vectorizer_privs():
             cur.execute("""
             select ai.create_vectorizer
             ( 'priv_test'::regclass
+            , loading => ai.loading_row('foo')
             , destination=>'red_balloon'
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
             , chunking=>ai.chunking_character_text_splitter()
