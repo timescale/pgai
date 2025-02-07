@@ -1,6 +1,7 @@
 
 <p align="center">
-    <img height="200" src="docs/images/pgai_logo.png" alt="pgai"/>
+    <img height="200" src="docs/images/pgai_logo.png#gh-dark-mode-only" alt="pgai"/>
+    <img height="200" src="docs/images/pgai_white.png#gh-light-mode-only" alt="pgai"/>
 </p>
 
 <div align=center>
