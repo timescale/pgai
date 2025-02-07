@@ -80,7 +80,7 @@ def configure_vectorizer(
     connection: Connection,
     concurrency: int = 1,
     batch_size: int = 1,
-    chunking: str = "chunking_character_text_splitter('content')",
+    chunking: str = "chunking_character_text_splitter()",
     formatting: str = "formatting_python_template('$chunk')",
     embedding: str = "embedding_openai('text-embedding-ada-002', 1536)",
 ):
@@ -89,6 +89,7 @@ def configure_vectorizer(
         cur.execute(f"""
             SELECT ai.create_vectorizer(
                 '{source_table}'::regclass,
+                loading => ai.loading_row(column_name => 'content'),
                 embedding => ai.{embedding},
                 chunking => ai.{chunking},
                 formatting => ai.{formatting},
@@ -141,8 +142,11 @@ def run_vectorizer_worker(
     if extra_params:
         args.extend(extra_params)
 
-    return CliRunner().invoke(
+    result = CliRunner().invoke(
         vectorizer_worker,
         args,
         catch_exceptions=False,
     )
+    if result.exit_code != 0:
+        print(result.output)
+    return result

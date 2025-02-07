@@ -17,8 +17,9 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.create_vectorizer
 ( source pg_catalog.regclass
 , destination pg_catalog.name default null
+, loading pg_catalog.jsonb default null
 , embedding pg_catalog.jsonb default null
-, chunking pg_catalog.jsonb default null
+, chunking pg_catalog.jsonb default ai.chunking_recursive_character_text_splitter()
 , indexing pg_catalog.jsonb default ai.indexing_default()
 , formatting pg_catalog.jsonb default ai.formatting_python_template()
 , scheduling pg_catalog.jsonb default ai.scheduling_default()
@@ -31,7 +32,6 @@ create or replace function ai.create_vectorizer
 , queue_table pg_catalog.name default null
 , grant_to pg_catalog.name[] default ai.grant_to()
 , enqueue_existing pg_catalog.bool default true
-, loader pg_catalog.jsonb default null
 ) returns pg_catalog.int4
 as $func$
 declare
@@ -64,9 +64,9 @@ begin
     if embedding is null then
         raise exception 'embedding configuration is required';
     end if;
-
-    if chunking is null then
-        raise exception 'chunking configuration is required';
+    
+    if loading is null then
+        raise exception 'loading configuration is required';
     end if;
 
     -- get source table name and schema name
@@ -254,6 +254,7 @@ begin
     , queue_table
     , pg_catalog.jsonb_build_object
       ( 'version', '@extversion@'
+      , 'loading', loading
       , 'embedding', embedding
       , 'chunking', chunking
       , 'indexing', indexing

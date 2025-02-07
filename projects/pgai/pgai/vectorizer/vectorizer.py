@@ -26,6 +26,7 @@ from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .embeddings import ChunkEmbeddingError
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
+from .loading import RowLoading
 from .processing import ProcessingDefault
 
 logger = structlog.get_logger()
@@ -76,6 +77,7 @@ class Config:
     """
 
     version: str
+    loading: RowLoading
     embedding: OpenAI | Ollama | VoyageAI | LiteLLM
     processing: ProcessingDefault
     chunking: (
@@ -762,7 +764,8 @@ class Worker:
         documents: list[str] = []
         for item in items:
             pk = self._get_item_pk_values(item)
-            chunks = self.vectorizer.config.chunking.into_chunks(item)
+            payload = self.vectorizer.config.loading.load(item)
+            chunks = self.vectorizer.config.chunking.into_chunks(item, payload)
             for chunk_id, chunk in enumerate(chunks, 0):
                 formatted = self.vectorizer.config.formatting.format(chunk, item)
                 records_without_embeddings.append(pk + [chunk_id, formatted])
