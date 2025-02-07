@@ -89,9 +89,14 @@ def generate_description(
     """
     Generates a description of a table or view
     """
-    parsed_config = get_parsed_config(plpy, catalog_name, config)
+    result = plpy.execute(
+        f"select 1 from ai.semantic_catalog_obj x where x.objsubid = 0 and x.classid = 'pg_catalog.pg_class'::pg_catalog.regclass::pg_catalog.oid and x.objid = {plpy.quote_literal(relation)}::pg_catalog.regclass::pg_catalog.oid limit 1"
+    )
+    if len(result) == 1 and not overwrite:
+        yield from []
+        return
 
-    description = "None"
+    parsed_config = get_parsed_config(plpy, catalog_name, config)
 
     system_prompt = """
     You are a SQL expert generates natural language descriptions of tables and views in a database.
@@ -173,21 +178,14 @@ def generate_description(
     else:
         raise Exception(f"provider {provider} not found")
 
-    result = plpy.execute(
-        f"select 1 from ai.semantic_catalog_obj x where x.objsubid = 0 and x.classid = 'pg_catalog.pg_class'::pg_catalog.regclass::pg_catalog.oid and x.objid = {plpy.quote_literal(relation)}::pg_catalog.regclass::pg_catalog.oid"
-    )
-
     sql = f"select ai.set_description({plpy.quote_literal(relation)}, {plpy.quote_literal(description)})"
+    if save:
+        plpy.debug(
+            f"set description for {relation} (existing={len(result) > 0}, overwrite={overwrite})"
+        )
+        plpy.execute(sql)
 
-    if len(result) == 0 or overwrite:
-        if save:
-            plpy.debug(
-                f"set description for {relation} (existing={len(result) > 0}, overwrite={overwrite})"
-            )
-            plpy.execute(sql)
-        yield relation, description, sql
-    else:
-        yield from []
+    yield relation, description, sql
 
 
 def generate_column_descriptions(
@@ -343,6 +341,13 @@ def generate_function_description(
     save: bool,
     overwrite: bool,
 ) -> Generator[GeneratedDescription, None, None]:
+    result = plpy.execute(
+        f"select 1 from ai.semantic_catalog_obj x where x.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass::pg_catalog.oid and x.objid = {plpy.quote_literal(fn)}::regprocedure::pg_catalog.oid"
+    )
+    if len(result) == 1 and not overwrite:
+        yield from []
+        return
+
     parsed_config = get_parsed_config(plpy, catalog_name, config)
     description = "None"
     system_prompt = """
@@ -426,17 +431,11 @@ def generate_function_description(
     else:
         raise Exception(f"provider {provider} not found")
 
-    result = plpy.execute(
-        f"select 1 from ai.semantic_catalog_obj x where x.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass::pg_catalog.oid and x.objid = {plpy.quote_literal(fn)}::regprocedure::pg_catalog.oid"
+    plpy.debug(
+        f"set description for {fn} (existing={len(result) > 0}, overwrite={overwrite})"
     )
-    if len(result) == 0 or overwrite:
-        plpy.debug(
-            f"set description for {fn} (existing={len(result) > 0}, overwrite={overwrite})"
-        )
-        sql = f"select ai.set_description({plpy.quote_literal(fn)}, {plpy.quote_literal(description)})"
-        if save:
-            plpy.execute(sql)
+    sql = f"select ai.set_function_description({plpy.quote_literal(fn)}::regprocedure, {plpy.quote_literal(description)})"
+    if save:
+        plpy.execute(sql)
 
-        yield fn, description, sql
-    else:
-        yield from []
+    yield fn, description, sql
