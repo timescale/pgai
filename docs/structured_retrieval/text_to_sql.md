@@ -14,7 +14,7 @@ Whether you’re building a customer-facing chatbot or an internal tool, text to
 
 ## API keys
 
-Add your API key for your LLM/embedding providers (eg OpenAI, Anthropic, etc):
+Add your API key for your [LLM/embedding providers](#supported-providers):
 
 1. Visit [Timescale Console](https://console.cloud.timescale.com/)  
 2. Click on your service  
@@ -212,7 +212,7 @@ Turn on debug messages to see what is happening behind the scenes (the prompts s
 set client_min_messages to 'DEBUG1';
 ```
 
-## Supported providers {#supported-providers}
+## Supported providers
 
 The `text_to_sql` function uses the Completions API, and searching the semantic catalog uses the Embeddings API. You can use different providers for each component.
 
