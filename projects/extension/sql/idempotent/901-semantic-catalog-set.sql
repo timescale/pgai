@@ -81,6 +81,28 @@ $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp;
 
 -------------------------------------------------------------------------------
+-- generate_description
+create or replace function ai.generate_description
+( relation pg_catalog.regclass
+, catalog_name text default 'default'
+, config jsonb default null
+, save boolean default false
+, overwrite boolean default false
+) returns table
+( name text
+, description text
+, sql text
+)
+as $python$
+    #ADD-PYTHON-LIB-DIR
+    import ai.semantic_catalog
+    return ai.semantic_catalog.generate_description(plpy, relation, catalog_name, config, save, overwrite)
+$python$
+language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- delete_description
 create or replace function ai.delete_description(relation pg_catalog.regclass) returns void
 as $func$
@@ -126,6 +148,28 @@ begin
 end;
 $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp;
+
+-------------------------------------------------------------------------------
+-- generate_column_descriptions
+create or replace function ai.generate_column_descriptions
+( relation pg_catalog.regclass
+, catalog_name text default 'default'
+, config jsonb default null
+, save boolean default false
+, overwrite boolean default false
+) returns table
+( column_name text
+, description text
+, sql text
+)
+as $python$
+    #ADD-PYTHON-LIB-DIR
+    import ai.semantic_catalog
+    yield from ai.semantic_catalog.generate_column_descriptions(plpy, relation, catalog_name, config, save, overwrite)
+$python$
+language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
 
 -------------------------------------------------------------------------------
 -- delete_column_description
@@ -188,6 +232,28 @@ begin
 end;
 $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp;
+
+-------------------------------------------------------------------------------
+-- generate_function_description
+create or replace function ai.generate_function_description
+( fn regprocedure
+, catalog_name text default 'default'
+, config jsonb default null
+, save boolean default false
+, overwrite boolean default false
+) returns table
+( column_name text
+, description text
+, sql text
+)
+as $python$
+    #ADD-PYTHON-LIB-DIR
+    import ai.semantic_catalog
+    yield from ai.semantic_catalog.generate_function_description(plpy, fn, catalog_name, config, save, overwrite)
+$python$
+language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
 
 -------------------------------------------------------------------------------
 -- delete_function_description
