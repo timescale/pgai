@@ -91,6 +91,7 @@ create or replace function ai.generate_description
 ) returns table
 ( name text
 , description text
+, sql text
 )
 as $python$
     #ADD-PYTHON-LIB-DIR
@@ -159,6 +160,7 @@ create or replace function ai.generate_column_descriptions
 ) returns table
 ( column_name text
 , description text
+, sql text
 )
 as $python$
     #ADD-PYTHON-LIB-DIR
@@ -242,6 +244,7 @@ create or replace function ai.generate_function_description
 ) returns table
 ( column_name text
 , description text
+, sql text
 )
 as $python$
     #ADD-PYTHON-LIB-DIR

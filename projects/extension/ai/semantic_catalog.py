@@ -132,7 +132,7 @@ def generate_description(
                     , $2
                     , system_prompt => $3
                     , tools => $4
-                    , tool_choice => '{{"type": "tool", "name": "generate_description"}}'::jsonb
+                    , tool_choice => '{"type": "tool", "name": "generate_description"}'::jsonb
                 )
             """,
             ["text", "jsonb", "text", "jsonb"],
@@ -156,7 +156,7 @@ def generate_description(
                     $1
                     , $2
                     , tools => $3
-                    , tool_choice => '{{"type": "function", "function": {{"name": "generate_description"}}}}'
+                    , tool_choice => '{"type": "function", "function": {"name": "generate_description"}}'::jsonb
                 )
             """,
             ["text", "jsonb", "jsonb"],
@@ -173,17 +173,21 @@ def generate_description(
     else:
         raise Exception(f"provider {provider} not found")
 
-    if save:
-        result = plpy.execute(
-            f"select 1 from ai.semantic_catalog_obj x where x.objsubid = 0 and x.classid = 'pg_catalog.pg_class'::pg_catalog.regclass::pg_catalog.oid and x.objid = {plpy.quote_literal(relation)}::pg_catalog.regclass::pg_catalog.oid"
-        )
-        if len(result) == 0 or overwrite:
+    result = plpy.execute(
+        f"select 1 from ai.semantic_catalog_obj x where x.objsubid = 0 and x.classid = 'pg_catalog.pg_class'::pg_catalog.regclass::pg_catalog.oid and x.objid = {plpy.quote_literal(relation)}::pg_catalog.regclass::pg_catalog.oid"
+    )
+
+    sql = f"select ai.set_description({plpy.quote_literal(relation)}, {plpy.quote_literal(description)})"
+
+    if len(result) == 0 or overwrite:
+        if save:
             plpy.debug(
                 f"set description for {relation} (existing={len(result) > 0}, overwrite={overwrite})"
             )
-            plan = plpy.prepare("select ai.set_description($1, $2)", ["text", "text"])
-            plpy.execute(plan, [relation, description])
-    yield relation, description
+            plpy.execute(sql)
+        yield relation, description, sql
+    else:
+        yield from []
 
 
 def generate_column_descriptions(
@@ -265,7 +269,7 @@ def generate_column_descriptions(
                     , $2
                     , system_prompt => $3
                     , tools => $4
-                    , tool_choice => '{{"type": "tool", "name": "generate_description"}}'::jsonb
+                    , tool_choice => '{"type": "tool", "name": "generate_description"}'::jsonb
                 )
             """,
             ["text", "jsonb", "text", "jsonb"],
@@ -291,7 +295,7 @@ def generate_column_descriptions(
                     $1
                     , $2
                     , tools => $3
-                    , tool_choice => '{{"type": "function", "function": {{"name": "generate_description"}}}}'
+                    , tool_choice => '{"type": "function", "function": {"name": "generate_description"}}'::jsonb
                 )
             """,
             ["text", "jsonb", "jsonb"],
@@ -308,26 +312,27 @@ def generate_column_descriptions(
     else:
         raise Exception(f"provider {provider} not found")
 
-    if save:
-        result = plpy.execute(
-            f"select objnames from ai.semantic_catalog_obj x where x.objsubid > 0 and x.classid = 'pg_catalog.pg_class'::pg_catalog.regclass::pg_catalog.oid and x.objid = {plpy.quote_literal(relation)}::pg_catalog.regclass::pg_catalog.oid"
-        )
-        existing_columns = dict()
-        for r in result:
-            existing_columns[r["objnames"][-1]] = True
+    result = plpy.execute(
+        f"select objnames from ai.semantic_catalog_obj x where x.objsubid > 0 and x.classid = 'pg_catalog.pg_class'::pg_catalog.regclass::pg_catalog.oid and x.objid = {plpy.quote_literal(relation)}::pg_catalog.regclass::pg_catalog.oid"
+    )
+    existing_columns = dict()
+    for r in result:
+        existing_columns[r["objnames"][-1]] = True
 
-        plan = plpy.prepare(
-            "select ai.set_column_description($1, $2, $3)", ["text", "text", "text"]
-        )
-        for column in columns:
-            exists = column["name"] in existing_columns
-            if not exists or overwrite:
-                plpy.debug(
-                    f"set description for {column['name']} (existing={exists}, overwrite={overwrite})"
-                )
-                plpy.execute(plan, [relation, column["name"], column["description"]])
+    yielded = False
     for column in columns:
-        yield column["name"], column["description"]
+        exists = column["name"] in existing_columns
+        if not exists or overwrite:
+            plpy.debug(
+                f"set description for {column['name']} (existing={exists}, overwrite={overwrite})"
+            )
+            sql = f"select ai.set_column_description({plpy.quote_literal(relation)}, {plpy.quote_literal(column['name'])}, {plpy.quote_literal(column['description'])})"
+            if save:
+                plpy.execute(sql)
+            yield column["name"], column["description"], sql
+            yielded = True
+    if not yielded:
+        yield from []
 
 
 def generate_function_description(
@@ -380,7 +385,7 @@ def generate_function_description(
                     , $2
                     , system_prompt => $3
                     , tools => $4
-                    , tool_choice => '{{"type": "tool", "name": "generate_description"}}'::jsonb
+                    , tool_choice => '{"type": "tool", "name": "generate_description"}'::jsonb
                 )
             """,
             ["text", "jsonb", "text", "jsonb"],
@@ -404,7 +409,7 @@ def generate_function_description(
                     $1
                     , $2
                     , tools => $3
-                    , tool_choice => '{{"type": "function", "function": {{"name": "generate_description"}}}}'
+                    , tool_choice => '{"type": "function", "function": {"name": "generate_description"}}'::jsonb
                 )
             """,
             ["text", "jsonb", "jsonb"],
@@ -421,15 +426,17 @@ def generate_function_description(
     else:
         raise Exception(f"provider {provider} not found")
 
-    if save:
-        result = plpy.execute(
-            f"select 1 from ai.semantic_catalog_obj x where x.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass::pg_catalog.oid and x.objid = {plpy.quote_literal(fn)}::regprocedure::pg_catalog.oid"
+    result = plpy.execute(
+        f"select 1 from ai.semantic_catalog_obj x where x.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass::pg_catalog.oid and x.objid = {plpy.quote_literal(fn)}::regprocedure::pg_catalog.oid"
+    )
+    if len(result) == 0 or overwrite:
+        plpy.debug(
+            f"set description for {fn} (existing={len(result) > 0}, overwrite={overwrite})"
         )
-        if len(result) == 0 or overwrite:
-            plpy.debug(
-                f"set description for {fn} (existing={len(result) > 0}, overwrite={overwrite})"
-            )
-            plan = plpy.prepare("select ai.set_description($1, $2)", ["text", "text"])
-            plpy.execute(plan, [fn, description])
+        sql = f"select ai.set_description({plpy.quote_literal(fn)}, {plpy.quote_literal(description)})"
+        if save:
+            plpy.execute(sql)
 
-    yield fn, description
+        yield fn, description, sql
+    else:
+        yield from []
