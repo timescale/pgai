@@ -17,7 +17,10 @@ BEGIN
             -- 1. Add loading config
             -- 2. Remove chunk_column from chunking config
             _config := _vectorizer.config || jsonb_build_object(
-                'loading', ai.loading_row(_chunk_column),
+                'loading', json_object(
+                    'implementation': 'row',
+                    'config_type': 'loading',
+                    'column_name': _chunk_column),
                 'chunking', _chunking - 'chunk_column'
             );
             
