@@ -161,7 +161,7 @@ def generate_description(
                     $1
                     , $2
                     , tools => $3
-                    , tool_choice => '{"type": "function", "function": {"name": "generate_description"}}'::jsonb
+                    , tool_choice => '{"type": "function", "function": {"name": "generate_description"}}'
                 )
             """,
             ["text", "jsonb", "jsonb"],
@@ -293,7 +293,7 @@ def generate_column_descriptions(
                     $1
                     , $2
                     , tools => $3
-                    , tool_choice => '{"type": "function", "function": {"name": "generate_description"}}'::jsonb
+                    , tool_choice => '{"type": "function", "function": {"name": "generate_description"}}'
                 )
             """,
             ["text", "jsonb", "jsonb"],
@@ -414,7 +414,7 @@ def generate_function_description(
                     $1
                     , $2
                     , tools => $3
-                    , tool_choice => '{"type": "function", "function": {"name": "generate_description"}}'::jsonb
+                    , tool_choice => '{"type": "function", "function": {"name": "generate_description"}}'
                 )
             """,
             ["text", "jsonb", "jsonb"],
