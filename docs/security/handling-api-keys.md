@@ -8,12 +8,12 @@ recommendations for which option to use.
 API keys are sensitive values, so we provide several ways to specify them so
 they can be provided securely:
 
-**Recommended ways (most secure) **
+**Recommended ways (most secure)**
 
 1. If you are using Timescale Cloud, we recommend that you [configure an API key in Timescale Cloud](#configure-an-api-key-in-timescale-cloud).
 2. If you are self-hosting, you can [configure an API key through an environment variable available to the PostgresSQL process](#configure-an-api-key-through-an-environment-variable-available-to-the-postgres-process-self-hosted)
 
-** Other ways **
+**Other ways**
 1. You can [configure the api key for an interactive a psql session](#configure-an-api-key-for-an-interactive-psql-session).
 2. You can [provide the api key directly with the `api_key` function parameter](#provide-the-api-key-directly-with-the-api_key-function-parameter).
 
@@ -33,11 +33,11 @@ default is provider-dependent:
 
 1. Navigate to the "AI Model API Keys" tab under "Project settings"
 
-   ![Timescale Cloud project settings](./images/timescale_project_settings.png)
+   ![Timescale Cloud project settings](/docs/images/timescale_project_settings.png)
 
 1. Add a new AI Model API key, providing the name and API key
 
-   ![Timescale Cloud new AI model API key](./images/timescale_new_ai_model_api_key.png)
+   ![Timescale Cloud new AI model API key](/docs/images/timescale_new_ai_model_api_key.png)
 
 1. Use this API key name in calls to pgai functions, like so:
     ```sql
