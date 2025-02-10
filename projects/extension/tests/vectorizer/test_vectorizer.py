@@ -1409,7 +1409,7 @@ def test_naming_collisions():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.note4'::regclass
-            , loading => ai.loading_row('text')
+            , loading => ai.loading_row('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
             , chunking=>ai.chunking_character_text_splitter()
             , scheduling=>ai.scheduling_none()

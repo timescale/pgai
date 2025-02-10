@@ -42,6 +42,7 @@ CREATE EXTENSION
  function ai.litellm_embed(text,text[],text,text,jsonb)
  function ai.load_dataset_multi_txn(text,text,text,name,name,text,jsonb,integer,integer,integer,jsonb)
  function ai.load_dataset(text,text,text,name,name,text,jsonb,integer,integer,jsonb)
+ function ai.loading_document(text)
  function ai.loading_row(text)
  function ai.ollama_chat_complete(text,jsonb,text,text,jsonb,jsonb,jsonb)
  function ai.ollama_embed(text,text,text,text,jsonb)
@@ -78,6 +79,7 @@ CREATE EXTENSION
  function ai._validate_indexing_diskann(jsonb)
  function ai._validate_indexing_hnsw(jsonb)
  function ai._validate_indexing(jsonb)
+ function ai._validate_loading(jsonb,name,name)
  function ai._validate_processing(jsonb)
  function ai._validate_scheduling(jsonb)
  function ai._vectorizer_create_dependencies(integer)
@@ -107,7 +109,7 @@ CREATE EXTENSION
  table ai.vectorizer_errors
  view ai.secret_permissions
  view ai.vectorizer_status
-(103 rows)
+(105 rows)
 
                                     Table "ai._secret_permissions"
  Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
