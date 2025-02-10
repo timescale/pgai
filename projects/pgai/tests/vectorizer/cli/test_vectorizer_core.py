@@ -115,8 +115,9 @@ def test_vectorizer_picks_up_new_vectorizer(
     with con.cursor() as cur:
         cur.execute("CREATE TABLE test(id bigint primary key, contents text)")
         cur.execute("""SELECT ai.create_vectorizer('test'::regclass,
+            loading => ai.loading_row('contents'),
             embedding => ai.embedding_openai('text-embedding-3-small', 768),
-            chunking => ai.chunking_recursive_character_text_splitter('contents')
+            chunking => ai.chunking_recursive_character_text_splitter()
         );
         """)
     count = 0
@@ -145,7 +146,7 @@ def test_recursive_character_splitting(
         table_name,
         cli_db[1],
         batch_size=2,
-        chunking="chunking_recursive_character_text_splitter('content', 100, 20,"
+        chunking="chunking_recursive_character_text_splitter(100, 20,"
         " separators => array[E'\\n\\n', E'\\n', ' '])",
     )
 
@@ -229,7 +230,7 @@ def test_disabled_vectorizer_is_skipped(
         table_name,
         cli_db[1],
         batch_size=2,
-        chunking="chunking_recursive_character_text_splitter('content', 100, 20,"
+        chunking="chunking_recursive_character_text_splitter(100, 20,"
         " separators => array[E'\\n\\n', E'\\n', ' '])",
     )
     with connection.cursor(row_factory=dict_row) as cur:
@@ -277,7 +278,7 @@ def test_disabled_vectorizer_is_skipped_before_next_batch(
         table_name,
         cli_db[1],
         batch_size=1,
-        chunking="chunking_recursive_character_text_splitter('content', 100, 20,"
+        chunking="chunking_recursive_character_text_splitter(100, 20,"
         " separators => array[E'\\n\\n', E'\\n', ' '])",
     )
     with connection.cursor(row_factory=dict_row) as cur:
@@ -349,7 +350,7 @@ def test_disabled_vectorizer_is_backwards_compatible(
         table_name,
         cli_db[1],
         batch_size=2,
-        chunking="chunking_recursive_character_text_splitter('content', 100, 20,"
+        chunking="chunking_recursive_character_text_splitter(100, 20,"
         " separators => array[E'\\n\\n', E'\\n', ' '])",
     )
     features = Features("0.6.0")

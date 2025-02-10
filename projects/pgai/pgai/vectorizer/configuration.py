@@ -48,7 +48,6 @@ class ChunkingCharacterTextSplitterConfig(SQLArgumentMixin):
     arg_type: ClassVar[str] = "chunking"
     function_name: ClassVar[str] = "ai.chunking_character_text_splitter"
 
-    chunk_column: str
     chunk_size: int | None = None
     chunk_overlap: int | None = None
     separator: str | None = None
@@ -62,11 +61,23 @@ class ChunkingRecursiveCharacterTextSplitterConfig(SQLArgumentMixin):
     arg_type: ClassVar[str] = "chunking"
     function_name: ClassVar[str] = "ai.chunking_recursive_character_text_splitter"
 
-    chunk_column: str
     chunk_size: int | None = None
     chunk_overlap: int | None = None
     separators: list[str] | None = None
     is_separator_regex: bool | None = None
+
+
+@dataclass
+class EmbeddingLitellmConfig(SQLArgumentMixin):
+    """Configuration for ai.embedding_litellm function."""
+
+    arg_type: ClassVar[str] = "embedding"
+    function_name: ClassVar[str] = "ai.embedding_litellm"
+
+    model: str
+    dimensions: int
+    api_key_name: str | None = None
+    extra_options: dict[str, Any] | None = None
 
 
 @dataclass
@@ -94,6 +105,7 @@ class EmbeddingOpenaiConfig(SQLArgumentMixin):
     dimensions: int
     chat_user: str | None = None
     api_key_name: str | None = None
+    base_url: str | None = None
 
 
 @dataclass
@@ -164,6 +176,16 @@ class IndexingNoneConfig(SQLArgumentMixin):
 
     arg_type: ClassVar[str] = "indexing"
     function_name: ClassVar[str] = "ai.indexing_none"
+
+
+@dataclass
+class LoadingRowConfig(SQLArgumentMixin):
+    """Configuration for ai.loading_row function."""
+
+    arg_type: ClassVar[str] = "loading"
+    function_name: ClassVar[str] = "ai.loading_row"
+
+    column_name: str
 
 
 @dataclass

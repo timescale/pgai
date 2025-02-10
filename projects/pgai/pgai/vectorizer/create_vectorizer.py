@@ -8,6 +8,7 @@ from typing import Any
 from .configuration import (
     ChunkingCharacterTextSplitterConfig,
     ChunkingRecursiveCharacterTextSplitterConfig,
+    EmbeddingLitellmConfig,
     EmbeddingOllamaConfig,
     EmbeddingOpenaiConfig,
     EmbeddingVoyageaiConfig,
@@ -16,6 +17,7 @@ from .configuration import (
     IndexingDiskannConfig,
     IndexingHnswConfig,
     IndexingNoneConfig,
+    LoadingRowConfig,
     ProcessingDefaultConfig,
     SchedulingDefaultConfig,
     SchedulingNoneConfig,
@@ -30,8 +32,13 @@ class CreateVectorizer:
 
     source: str
     destination: str | None = None
+    loading: LoadingRowConfig | None = None
     embedding: (
-        EmbeddingOllamaConfig | EmbeddingOpenaiConfig | EmbeddingVoyageaiConfig | None
+        EmbeddingLitellmConfig
+        | EmbeddingOllamaConfig
+        | EmbeddingOpenaiConfig
+        | EmbeddingVoyageaiConfig
+        | None
     ) = None
     chunking: (
         ChunkingCharacterTextSplitterConfig

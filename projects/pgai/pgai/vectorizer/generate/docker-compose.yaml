@@ -1,7 +1,10 @@
 name: pgai
 services:
   db:
-    image: timescale/timescaledb-ha:pg17
+    build:
+      context: ../../../../extension
+      dockerfile: Dockerfile
+      target: pgai-test-db
     environment:
       POSTGRES_PASSWORD: postgres
     ports:

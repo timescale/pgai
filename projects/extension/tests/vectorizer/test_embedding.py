@@ -122,7 +122,7 @@ def test_validate_embedding():
     ]
     bad = [
         (
-            "select ai._validate_embedding(ai.chunking_character_text_splitter('content', 128, 10))",
+            "select ai._validate_embedding(ai.chunking_character_text_splitter(128, 10))",
             "invalid config_type for embedding config",
         ),
         (

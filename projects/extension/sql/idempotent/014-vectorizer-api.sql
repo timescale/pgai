@@ -17,8 +17,9 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.create_vectorizer
 ( source pg_catalog.regclass
 , destination pg_catalog.name default null
+, loading pg_catalog.jsonb default null
 , embedding pg_catalog.jsonb default null
-, chunking pg_catalog.jsonb default null
+, chunking pg_catalog.jsonb default ai.chunking_recursive_character_text_splitter()
 , indexing pg_catalog.jsonb default ai.indexing_default()
 , formatting pg_catalog.jsonb default ai.formatting_python_template()
 , scheduling pg_catalog.jsonb default ai.scheduling_default()
@@ -31,7 +32,6 @@ create or replace function ai.create_vectorizer
 , queue_table pg_catalog.name default null
 , grant_to pg_catalog.name[] default ai.grant_to()
 , enqueue_existing pg_catalog.bool default true
-, loader pg_catalog.jsonb default null
 ) returns pg_catalog.int4
 as $func$
 declare
@@ -45,7 +45,6 @@ declare
     _vectorizer_id pg_catalog.int4;
     _sql pg_catalog.text;
     _job_id pg_catalog.int8;
-    _chunk_document pg_catalog.bool;
 begin
     -- make sure all the roles listed in grant_to exist
     if grant_to is not null then
@@ -65,14 +64,9 @@ begin
     if embedding is null then
         raise exception 'embedding configuration is required';
     end if;
-
-    if chunking is null then
-        raise exception 'chunking configuration is required';
-    end if;
-
-    _chunk_document = false;
-    if loader is not null then
-       _chunk_document = true;
+    
+    if loading is null then
+        raise exception 'loading configuration is required';
     end if;
 
     -- get source table name and schema name
@@ -144,7 +138,7 @@ begin
     perform ai._validate_embedding(embedding);
 
     -- validate the chunking config
-    perform ai._validate_chunking(chunking, _source_schema, _source_table, _chunk_document);
+    perform ai._validate_chunking(chunking);
 
     -- if ai.indexing_default, resolve the default
     if indexing operator(pg_catalog.->>) 'implementation' = 'default' then
@@ -260,6 +254,7 @@ begin
     , queue_table
     , pg_catalog.jsonb_build_object
       ( 'version', '@extversion@'
+      , 'loading', loading
       , 'embedding', embedding
       , 'chunking', chunking
       , 'indexing', indexing

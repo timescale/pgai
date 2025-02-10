@@ -12,6 +12,8 @@ from pgai.vectorizer.generate.function_parser import (
 )
 
 VECTORIZER_FUNCTIONS = [
+    "loading_row",
+    "embedding_litellm",
     "embedding_openai",
     "embedding_ollama",
     "embedding_voyageai",

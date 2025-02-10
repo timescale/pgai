@@ -19,7 +19,7 @@ class Chunker(ABC):
     """
 
     @abstractmethod
-    def into_chunks(self, item: dict[str, Any]) -> list[str]:
+    def into_chunks(self, row: dict[str, Any], payload: str) -> list[str]:
         """
         Breaks the provided dictionary item into chunks of text.
 
@@ -54,7 +54,6 @@ class LangChainCharacterTextSplitter(BaseModel, Chunker):
     implementation: Literal["character_text_splitter"]
     separator: str
     chunk_size: int
-    chunk_column: str
     chunk_overlap: int
     is_separator_regex: bool
 
@@ -68,7 +67,7 @@ class LangChainCharacterTextSplitter(BaseModel, Chunker):
         )
 
     @override
-    def into_chunks(self, item: dict[str, Any]) -> list[str]:
+    def into_chunks(self, row: dict[str, Any], payload: str) -> list[str]:
         """
         Splits the text from the provided item into chunks using CharacterTextSplitter.
 
@@ -80,8 +79,7 @@ class LangChainCharacterTextSplitter(BaseModel, Chunker):
         Returns:
             list[str]: A list of chunked strings.
         """
-        text = item[self.chunk_column] or ""
-        return self._chunker.split_text(text)
+        return self._chunker.split_text(payload)
 
 
 class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
@@ -100,7 +98,6 @@ class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
     implementation: Literal["recursive_character_text_splitter"]
     separators: list[str]
     chunk_size: int
-    chunk_column: str
     chunk_overlap: int
     is_separator_regex: bool
 
@@ -114,7 +111,7 @@ class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
         )
 
     @override
-    def into_chunks(self, item: dict[str, Any]) -> list[str]:
+    def into_chunks(self, row: dict[str, Any], payload: str) -> list[str]:
         """
         Recursively splits the text from the provided item into chunks using
         RecursiveCharacterTextSplitter.
@@ -127,5 +124,4 @@ class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
         Returns:
             list[str]: A list of chunked strings.
         """
-        text = item[self.chunk_column] or ""
-        return self._chunker.split_text(text)
+        return self._chunker.split_text(payload)

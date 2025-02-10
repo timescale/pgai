@@ -1,6 +1,6 @@
-create extension if not exists ai cascade;
+create schema wiki;
 
-create table blog
+create table wiki.blog
 ( id int not null primary key generated always as identity
 , title text not null
 , published timestamptz
@@ -9,7 +9,7 @@ create table blog
 , tags jsonb
 );
 
-insert into blog (title, published, content, category, tags)
+insert into wiki.blog (title, published, content, category, tags)
 values
   ('how to cook a hot dog', '2024-01-06'::timestamptz, 'put it on a hot grill', 'easy', '["grill"]'::jsonb)
 , ('how to make a sandwich', '2023-01-06'::timestamptz, 'put a slice of meat between two pieces of bread', 'easy', '["no cook"]'::jsonb)
@@ -17,14 +17,13 @@ values
 ;
 
 select ai.create_vectorizer
-( 'blog'::regclass
-, loading=>ai.loading_row(column_name=>'content')
+( 'wiki.blog'::regclass
 , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
-, chunking=>ai.chunking_character_text_splitter(128, 10)
+, chunking=>ai.chunking_character_text_splitter('content',128, 10)
 , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
 , scheduling=>ai.scheduling_none()
 , indexing=>ai.indexing_none()
-, grant_to=>ai.grant_to('ethel')
+, grant_to=>ai.grant_to('vera')
 );
 
-select ai.grant_secret('top_secret_password', 'ethel')
+select ai.grant_secret('top_secret_password', 'vera')
