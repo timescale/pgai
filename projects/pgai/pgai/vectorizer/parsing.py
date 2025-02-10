@@ -1,9 +1,9 @@
 import io
 from typing import Any, Literal
 
-import filetype
-import pymupdf
-import pymupdf4llm
+import filetype  # type: ignore
+import pymupdf  # type: ignore
+import pymupdf4llm  # type: ignore
 from pydantic import BaseModel
 
 
