@@ -21,6 +21,10 @@ VECTORIZER_ROW = r"""
             "implementation": "row",
             "column_name": "body"
         },
+        "parsing": {
+            "config_type": "parsing",
+            "implementation": "auto"
+        },
         "chunking": {
             "separator": "\n\n",
             "chunk_size": 128,

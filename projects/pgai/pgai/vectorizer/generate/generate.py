@@ -13,6 +13,10 @@ from pgai.vectorizer.generate.function_parser import (
 
 VECTORIZER_FUNCTIONS = [
     "loading_row",
+    "loading_document",
+    "parsing_auto",
+    "parsing_none",
+    "parsing_pymupdf",
     "embedding_litellm",
     "embedding_openai",
     "embedding_ollama",
@@ -52,6 +56,7 @@ def generate_vectorizer_configs(
 ) -> None:
     """Generate all vectorizer configuration classes."""
     with psycopg.connect(conn_str) as conn:
+        conn.execute("Create extension if not exists ai cascade;")
         available_functions = list_vectorizer_functions(conn)
         functions = get_function_metadata(conn, available_functions)
         generate_config_classes(functions, output_file)

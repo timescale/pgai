@@ -15,12 +15,17 @@ BEGIN
         IF _chunk_column IS NOT NULL THEN
             -- Create new config:
             -- 1. Add loading config
-            -- 2. Remove chunk_column from chunking config
+            -- 2. Add parsing config
+            -- 3. Remove chunk_column from chunking config
             _config := _vectorizer.config operator(pg_catalog.||) jsonb_build_object(
                 'loading', json_object(
                     'implementation': 'row',
                     'config_type': 'loading',
                     'column_name': _chunk_column),
+                'parsing', json_object(
+                    'implementation': 'auto',
+                    'config_type': 'parsing'
+                ),
                 'chunking', _chunking operator(pg_catalog.-) 'chunk_column'
             );
             
