@@ -108,6 +108,7 @@ declare
     _message record;
     _tool_call record;
     _answer text;
+    _query_err jsonb;
 begin
     -- if a config was provided, use the settings available. defaults where missing
     -- if no config provided, use defaults for everything
@@ -117,8 +118,8 @@ begin
     _max_vector_dist = (_config->>'max_vector_dist')::float8;
     _obj_renderer = coalesce((_config->>'obj_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_obj(bigint, oid, oid)'::pg_catalog.regprocedure);
     _sql_renderer = coalesce((_config->>'sql_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_sql(bigint, text, text)'::pg_catalog.regprocedure);
-    _prompt_renderer = coalesce((_config->>'prompt_renderer')::pg_catalog.regprocedure, 'ai.text_to_sql_render_prompt(text, text, text, text)'::pg_catalog.regprocedure);
-    _model = coalesce(_config->>'model', 'claude-3-5-sonnet-latest');
+    _prompt_renderer = coalesce((_config->>'prompt_renderer')::pg_catalog.regprocedure, 'ai.text_to_sql_render_prompt(text, text, text, text, jsonb)'::pg_catalog.regprocedure);
+    _model = coalesce(_config->>'model', 'o3-mini');
     _api_key = _config operator(pg_catalog.->>) 'api_key';
     _api_key_name = _config operator(pg_catalog.->>) 'api_key_name';
     _base_url = _config operator(pg_catalog.->>) 'base_url';
@@ -142,8 +143,10 @@ begin
           )
         );
 
+    <<main_loop>>
     while _iter_remaining > 0 loop
         raise debug 'iteration: %', (_max_iter - _iter_remaining + 1);
+        _iter_remaining = _iter_remaining - 1;
         raise debug 'searching with % questions', jsonb_array_length(_questions);
 
         -- search -------------------------------------------------------------
@@ -269,7 +272,7 @@ begin
         -- render the user prompt
         raise debug 'rendering user prompt';
         select format
-        ( $sql$select %I.%I($1, $2, $3, $4)$sql$
+        ( $sql$select %I.%I($1, $2, $3, $4, $5)$sql$
         , n.nspname
         , f.proname
         )
@@ -278,7 +281,7 @@ begin
         inner join pg_namespace n on (f.pronamespace = n.oid)
         where f.oid = _prompt_renderer::oid
         ;
-        execute _sql using question, _prompt_obj, _samples_sql, _prompt_sql into _prompt;
+        execute _sql using question, _prompt_obj, _samples_sql, _prompt_sql, _query_err into _prompt;
         raise debug '%', _prompt;
 
         -- call llm -----------------------------------------------------------
@@ -443,17 +446,28 @@ begin
                         inner join jsonb_to_recordset(_ctx_sql) r(id bigint, sql text, description text)
                         on (i::int = r.id)
                         ;
-                        return jsonb_build_object
-                        ( 'sql_statement', _answer
-                        , 'relevant_database_objects', _ctx_obj
-                        , 'relevant_sql_examples', _ctx_sql
-                        , 'iterations', (_max_iter - _iter_remaining)
+                        -- see if the query is valid SQL by running explain
+                        raise debug 'getting a query plan to validate the query...';
+                        select ai._text_to_sql_explain(_answer) into strict _query_err;
+                        if (_query_err->>'failed')::bool then
+                            raise debug 'the query provided was NOT VALID. %', _query_err->>'error';
+                            _questions = _questions || jsonb_build_array(_query_err->'error');
+                            continue main_loop;
+                        end if
+                        ;
+                        -- return the answer
+                        return json_object
+                        ( 'sql_statement': _answer
+                        , 'query_plan': _query_err->'query_plan'
+                        , 'relevant_database_objects': _ctx_obj
+                        , 'relevant_sql_examples': _ctx_sql
+                        , 'iterations': (_max_iter - _iter_remaining)
+                        absent on null
                         );
                 end case
                 ;
             end loop;
         end loop;
-        _iter_remaining = _iter_remaining - 1;
     end loop;
     return null;
 end
