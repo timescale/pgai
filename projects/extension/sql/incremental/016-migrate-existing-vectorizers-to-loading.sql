@@ -26,7 +26,7 @@ BEGIN
             
             -- Update the vectorizer with new config
             UPDATE ai.vectorizer 
-            SET config operator(pg_catalog.=) _config
+            SET config = _config
             WHERE id operator(pg_catalog.=) _vectorizer.id;
         END IF;
     END LOOP;

@@ -20,7 +20,7 @@ CREATE EXTENSION
  function ai.cohere_rerank_simple(text,text,text[],text,text,integer,integer)
  function ai.cohere_rerank(text,text,text[],text,text,integer,integer)
  function ai.cohere_tokenize(text,text,text,text)
- function ai.create_vectorizer(regclass,name,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name,name,name,name,name[],boolean)
+ function ai.create_vectorizer(regclass,name,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name,name,name,name,name[],boolean)
  function ai.disable_vectorizer_schedule(integer)
  function ai.drop_vectorizer(integer,boolean)
  function ai.embedding_litellm(text,integer,text,jsonb)
@@ -64,6 +64,9 @@ CREATE EXTENSION
  function ai.openai_moderate(text,text,text,text,text,jsonb,jsonb,jsonb,double precision)
  function ai.openai_moderate_with_raw_response(text,text,text,text,text,jsonb,jsonb,jsonb,double precision)
  function ai.openai_tokenize(text,text)
+ function ai.parsing_auto()
+ function ai.parsing_none()
+ function ai.parsing_pymupdf()
  function ai.processing_default(integer,integer)
  function ai._resolve_indexing_default()
  function ai._resolve_scheduling_default()
@@ -123,7 +126,7 @@ CREATE EXTENSION
  type ai.vectorizer_status[]
  view ai.secret_permissions
  view ai.vectorizer_status
-(119 rows)
+(122 rows)
 
                                     Table "ai._secret_permissions"
  Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
