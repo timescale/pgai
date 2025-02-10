@@ -26,7 +26,8 @@ from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .embeddings import ChunkEmbeddingError
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
-from .loading import RowLoading
+from .loading import DocumentLoading, RowLoading
+from .parsing import ParsingAuto, ParsingNone, ParsingPyMuPDF
 from .processing import ProcessingDefault
 
 logger = structlog.get_logger()
@@ -77,13 +78,17 @@ class Config:
     """
 
     version: str
-    loading: RowLoading
+    loading: RowLoading | DocumentLoading
     embedding: OpenAI | Ollama | VoyageAI | LiteLLM
     processing: ProcessingDefault
     chunking: (
         LangChainCharacterTextSplitter | LangChainRecursiveCharacterTextSplitter
     ) = Field(..., discriminator="implementation")
     formatting: PythonTemplate | ChunkValue = Field(..., discriminator="implementation")
+    parsing: ParsingNone | ParsingAuto | ParsingPyMuPDF = Field(
+        default_factory=lambda: ParsingAuto(implementation="auto"),
+        discriminator="implementation",
+    )
 
 
 @dataclass
@@ -765,6 +770,7 @@ class Worker:
         for item in items:
             pk = self._get_item_pk_values(item)
             payload = self.vectorizer.config.loading.load(item)
+            payload = self.vectorizer.config.parsing.parse(item, payload)
             chunks = self.vectorizer.config.chunking.into_chunks(item, payload)
             for chunk_id, chunk in enumerate(chunks, 0):
                 formatted = self.vectorizer.config.formatting.format(chunk, item)

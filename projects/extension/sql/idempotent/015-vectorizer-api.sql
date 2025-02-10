@@ -18,6 +18,7 @@ create or replace function ai.create_vectorizer
 ( source pg_catalog.regclass
 , destination pg_catalog.name default null
 , loading pg_catalog.jsonb default null
+, parsing pg_catalog.jsonb default ai.parsing_auto()
 , embedding pg_catalog.jsonb default null
 , chunking pg_catalog.jsonb default ai.chunking_recursive_character_text_splitter()
 , indexing pg_catalog.jsonb default ai.indexing_default()
@@ -258,6 +259,7 @@ begin
     , pg_catalog.jsonb_build_object
       ( 'version', '@extversion@'
       , 'loading', loading
+      , 'parsing', parsing
       , 'embedding', embedding
       , 'chunking', chunking
       , 'indexing', indexing
