@@ -34,6 +34,7 @@ def test_loading_row():
                 for k, v in actual.items():
                     assert k in expected and v == expected[k]
 
+
 def test_loading_document():
     tests = [
         (

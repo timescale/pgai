@@ -107,23 +107,9 @@ CREATE EXTENSION
  table ai._secret_permissions
  table ai.vectorizer
  table ai.vectorizer_errors
- type ai.feature_flag
- type ai.feature_flag[]
- type ai.migration
- type ai.migration[]
- type ai._secret_permissions
- type ai._secret_permissions[]
- type ai.secret_permissions
- type ai.secret_permissions[]
- type ai.vectorizer
- type ai.vectorizer[]
- type ai.vectorizer_errors
- type ai.vectorizer_errors[]
- type ai.vectorizer_status
- type ai.vectorizer_status[]
  view ai.secret_permissions
  view ai.vectorizer_status
-(119 rows)
+(105 rows)
 
                                     Table "ai._secret_permissions"
  Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
