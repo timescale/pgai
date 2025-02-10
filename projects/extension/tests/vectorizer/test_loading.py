@@ -16,14 +16,32 @@ def db_url(user: str) -> str:
 def test_loading_row():
     tests = [
         (
-            "select ai.chunking_character_text_splitter(128, 10)",
+            "select ai.loading_row('content')",
             {
-                "separator": "\n\n",
-                "is_separator_regex": False,
-                "chunk_size": 128,
-                "chunk_overlap": 10,
-                "implementation": "character_text_splitter",
-                "config_type": "chunking",
+                "config_type": "loading",
+                "implementation": "row",
+                "column_name": "content",
+            },
+        ),
+    ]
+
+    with psycopg.connect(db_url("test")) as con:
+        with con.cursor() as cur:
+            for query, expected in tests:
+                cur.execute(query)
+                actual = cur.fetchone()[0]
+                assert actual.keys() == expected.keys()
+                for k, v in actual.items():
+                    assert k in expected and v == expected[k]
+
+def test_loading_document():
+    tests = [
+        (
+            "select ai.loading_document('s3_uri')",
+            {
+                "config_type": "loading",
+                "implementation": "document",
+                "column_name": "s3_uri",
             },
         ),
     ]
@@ -41,21 +59,35 @@ def test_loading_row():
 def test_validate_loading():
     ok = [
         """
-        select ai._validate_chunking
-        ( ai.chunking_character_text_splitter( 128, 10) )
+        select ai._validate_loading
+        ( ai.loading_row('body'), 'public', 'thing' )
         """,
         """
-        select ai._validate_chunking
-        ( ai.chunking_recursive_character_text_splitter(128, 10) )
+        select ai._validate_loading
+        ( ai.loading_document('body'), 'public', 'thing' )
         """,
     ]
     bad = [
         (
             """
-            select ai._validate_chunking
-            ( ai.scheduling_none() )
+            select ai._validate_loading
+            ( ai.loading_row(), 'public', 'thing' )
             """,
-            "invalid config_type for chunking config",
+            "function ai.loading_row() does not exist",
+        ),
+        (
+            """
+            select ai._validate_loading
+            ( ai.loading_document(), 'public', 'thing' )
+            """,
+            "function ai.loading_document() does not exist",
+        ),
+        (
+            """
+            select ai._validate_loading
+            ( ai.scheduling_none(), 'public', 'thing' )
+            """,
+            "invalid config_type for loading config",
         ),
     ]
     with psycopg.connect(db_url("test"), autocommit=True) as con:

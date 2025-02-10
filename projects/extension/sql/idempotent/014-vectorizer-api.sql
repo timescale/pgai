@@ -134,6 +134,9 @@ begin
         raise exception 'an object named %.% already exists. specify an alternate queue_table explicitly', queue_schema, queue_table;
     end if;
 
+    -- validate the loading config
+    perform ai._validate_loading(loading, _source_schema, _source_table);
+
     -- validate the embedding config
     perform ai._validate_embedding(embedding);
 

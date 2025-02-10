@@ -31,11 +31,16 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _validate_loading
 create or replace function ai._validate_loading
-( config pg_catalog.jsonb ) returns void
+( config pg_catalog.jsonb
+, source_schema pg_catalog.name
+, source_table pg_catalog.name
+) returns void
 as $func$
 declare
-_config_type pg_catalog.text;
+    _config_type pg_catalog.text;
     _implementation pg_catalog.text;
+    _column_name pg_catalog.text;
+    _found pg_catalog.bool;
 begin
     if pg_catalog.jsonb_typeof(config) operator(pg_catalog.!=) 'object' then
         raise exception 'loading config is not a jsonb object';
@@ -64,7 +69,7 @@ end if;
     where n.nspname operator(pg_catalog.=) source_schema
       and k.relname operator(pg_catalog.=) source_table
       and a.attnum operator(pg_catalog.>) 0
-      and a.attname operator(pg_catalog.=) _chunk_column
+      and a.attname operator(pg_catalog.=) _column_name
       and y.typname in ('text', 'varchar', 'char', 'bpchar')
     ;
     if not _found then
