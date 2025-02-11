@@ -1816,7 +1816,7 @@ def test_create_vectorizer_privs():
             );
             """)
 
-            
+
 def test_vectorizer_bytea():
     with psycopg.connect(
         db_url("test"), autocommit=True, row_factory=namedtuple_row
@@ -1860,7 +1860,7 @@ def test_vectorizer_bytea():
             assert vectorizer is not None
             assert vectorizer.config["loading"]["column_name"] == "content"
             assert vectorizer.config["parsing"]["implementation"] == "auto"
-            
+
 
 def test_vectorizer_document_loading_pymupdf():
     with psycopg.connect(
@@ -1922,7 +1922,7 @@ def test_vectorizer_bytea_parsing_none_fails():
             # Attempt to create vectorizer with parsing_none on bytea - should fail
             with pytest.raises(
                 psycopg.errors.RaiseException,
-                match=".*cannot use parsing_none with bytea columns.*"
+                match=".*cannot use parsing_none with bytea columns.*",
             ):
                 cur.execute("""
                 select ai.create_vectorizer
@@ -1958,7 +1958,7 @@ def test_vectorizer_document_loading_parsing_none_fails():
             # Attempt to create vectorizer with document loading and parsing_none - should fail
             with pytest.raises(
                 psycopg.errors.RaiseException,
-                match=".*cannot use parsing_none with document loading.*"
+                match=".*cannot use parsing_none with document loading.*",
             ):
                 cur.execute("""
                 select ai.create_vectorizer
@@ -1977,7 +1977,7 @@ def test_vectorizer_document_loading_parsing_none_fails():
 
 def test_vectorizer_text_pymupdf_fails():
     with psycopg.connect(
-            db_url("test"), autocommit=True, row_factory=namedtuple_row
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
     ) as con:
         with con.cursor() as cur:
             cur.execute("create extension if not exists ai cascade")
@@ -1985,13 +1985,18 @@ def test_vectorizer_text_pymupdf_fails():
             cur.execute("create schema if not exists vec")
 
             # Test each text type
-            text_types = ['text', 'varchar', 'char(10)', 'character varying']
+            text_types = ["text", "varchar", "char(10)", "character varying"]
 
             for text_type in text_types:
                 # Replace multiple special characters and spaces with underscores
-                sanitized_type = text_type.replace(' ', '_').replace('(', '_').replace(')', '').replace(',', '_')
+                sanitized_type = (
+                    text_type.replace(" ", "_")
+                    .replace("(", "_")
+                    .replace(")", "")
+                    .replace(",", "_")
+                )
                 # Remove any double underscores that might have been created
-                sanitized_type = '_'.join(filter(None, sanitized_type.split('_')))
+                sanitized_type = "_".join(filter(None, sanitized_type.split("_")))
                 table_name = f"vec.text_pymupdf_fail_{sanitized_type}"
                 cur.execute(f"drop table if exists {table_name}")
                 cur.execute(f"""
@@ -2003,8 +2008,8 @@ def test_vectorizer_text_pymupdf_fails():
 
                 # Attempt to create vectorizer with pymupdf on text column - should fail
                 with pytest.raises(
-                        psycopg.errors.RaiseException,
-                        match=".*cannot use parsing_pymupdf with text columns.*"
+                    psycopg.errors.RaiseException,
+                    match=".*cannot use parsing_pymupdf with text columns.*",
                 ):
                     cur.execute(f"""
                     select ai.create_vectorizer

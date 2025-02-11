@@ -334,7 +334,7 @@ def vectorizer_worker(
                 sys.exit(1)
         except Exception as e:
             # catch any exceptions, log them, and keep on going
-            log.error(f"unexpected error: {str(e)}", exc_info=True)
+            log.error(f"unexpected error: {str(e)}")
             for exception_line in traceback.format_exception(e):
                 for line in exception_line.rstrip().split("\n"):
                     log.debug(line)
