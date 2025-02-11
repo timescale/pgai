@@ -104,10 +104,15 @@ def test_simple_document_embedding_s3_no_credentials(
     vectorizer_id = configure_document_vectorizer(
         cli_db[1], base_path="s3://adol-docs-test"
     )
+
     if "AWS_ACCESS_KEY_ID" in os.environ:
         del os.environ["AWS_ACCESS_KEY_ID"]
     if "AWS_SECRET_ACCESS_KEY" in os.environ:
         del os.environ["AWS_SECRET_ACCESS_KEY"]
+
+    # This is necessary to prevent boto3 from using the default credentials file.
+    os.environ["AWS_SHARED_CREDENTIALS_FILE"] = "/dev/null"
+
     # No cassette because it should never get to an API call.
     result = run_vectorizer_worker(cli_db_url, vectorizer_id)
 
