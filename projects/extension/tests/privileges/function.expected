@@ -40,6 +40,10 @@
  f       | bob   | execute   | no      | ai     | _validate_loading(config jsonb, source_schema name, source_table name)
  f       | fred  | execute   | no      | ai     | _validate_loading(config jsonb, source_schema name, source_table name)
  f       | jill  | execute   | YES     | ai     | _validate_loading(config jsonb, source_schema name, source_table name)
+ f       | alice | execute   | YES     | ai     | _validate_parsing(config jsonb)
+ f       | bob   | execute   | no      | ai     | _validate_parsing(config jsonb)
+ f       | fred  | execute   | no      | ai     | _validate_parsing(config jsonb)
+ f       | jill  | execute   | YES     | ai     | _validate_parsing(config jsonb)
  f       | alice | execute   | YES     | ai     | _validate_processing(config jsonb)
  f       | bob   | execute   | no      | ai     | _validate_processing(config jsonb)
  f       | fred  | execute   | no      | ai     | _validate_processing(config jsonb)
@@ -400,5 +404,5 @@
  f       | bob   | execute   | no      | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text)
  f       | fred  | execute   | no      | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text)
  f       | jill  | execute   | YES     | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text)
-(400 rows)
+(404 rows)
 
