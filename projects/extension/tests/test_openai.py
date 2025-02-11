@@ -165,6 +165,87 @@ def test_openai_embed_with_raw_response(cur, openai_api_key):
     assert len(embedding) == 8192
 
 
+@pytest.mark.parametrize(
+    "model,max_tokens,stopped,error_str",
+    [
+        ("o1", 1000, False, None),  # OK.
+        ("o1", 100, True, None),  # Stopped generating because max_tokens was reached.
+        (
+            "o1",
+            1,
+            None,
+            "Could not finish the message because max_tokens was reached",
+        ),  # 400 status code is returned because not enough tokens for generation.
+        ("o1-mini", 1000, False, None),  # OK.
+        (
+            "o1-mini",
+            100,
+            True,
+            None,
+        ),  # Stopped generating because max_tokens was reached.
+        (
+            "o1-mini",
+            1,
+            True,
+            None,
+        ),  # For some reason, o1-mini does not return a 400 status code in this case.
+        ("o3-mini", 1000, False, None),  # OK.
+        (
+            "o3-mini",
+            100,
+            True,
+            None,
+        ),  # Stopped generating because max_tokens was reached.
+        (
+            "o3-mini",
+            1,
+            None,
+            "Could not finish the message because max_tokens was reached",
+        ),  # 400 status code is returned because not enough tokens for generation.
+    ],
+)
+def test_openai_chat_complete_with_tokens_limitation_on_reasoning_models(
+    cur, openai_api_key, model, max_tokens, stopped, error_str
+):
+    query = """
+        with x as
+        (
+          select ai.openai_chat_complete
+          ( %(model)s
+          , jsonb_build_array
+            ( jsonb_build_object('role', 'user', 'content', 'what is the typical weather like in Alabama in June')
+            )
+          , api_key=>%(api_key)s
+          , extra_headers=>'{"X-Custom-Header": "my-value"}'
+          , extra_query=>'{"debug": true}'
+          , timeout=>600::float8
+          , max_tokens=>%(max_tokens)s
+          ) as actual
+        )
+        select 
+            jsonb_extract_path_text(x.actual, 'choices', '0', 'message', 'content'), 
+            jsonb_extract_path_text(x.actual, 'choices', '0', 'finish_reason')
+        from x
+    """
+    params = {"model": model, "api_key": openai_api_key, "max_tokens": max_tokens}
+
+    if error_str:
+        with pytest.raises(psycopg.errors.ExternalRoutineException) as exception_raised:
+            cur.execute(query, params)
+        assert error_str in str(exception_raised.value)
+    else:
+        cur.execute(query, params)
+        actual = cur.fetchone()
+        content = actual[0]
+        finish_reason = actual[1]
+
+        if stopped:
+            assert finish_reason == "length"
+            assert len(content) == 0
+        else:
+            assert len(content) > 0
+
+
 def test_openai_embed_api_key_name(cur_with_external_functions_executor_url):
     cur_with_external_functions_executor_url.execute(
         """

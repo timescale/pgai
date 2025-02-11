@@ -384,6 +384,7 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
+    import re
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
     client = ai.openai.make_client(plpy, api_key_resolved, base_url)
     import json
@@ -397,7 +398,6 @@ as $python$
         logit_bias=ai.openai.str_arg_to_dict(logit_bias),
         logprobs=logprobs,
         top_logprobs=top_logprobs,
-        max_tokens=max_tokens,
         n=n,
         presence_penalty=presence_penalty,
         response_format=ai.openai.str_arg_to_dict(response_format),
@@ -412,6 +412,13 @@ as $python$
         extra_query=ai.openai.str_arg_to_dict(extra_query),
         extra_body=ai.openai.str_arg_to_dict(extra_body),
         timeout=timeout)
+
+    # starting from o1, all reasoning models (o*) deprecated the max_tokens parameter in favor of max_completion_tokens
+    # see https://platform.openai.com/docs/guides/reasoning#controlling-costs
+    if re.match(r"o\d+(-\w*)?", model):
+        kwargs["max_completion_tokens"] = max_tokens
+    else:
+        kwargs["max_tokens"] = max_tokens
 
     response = client.chat.completions.create(
       model=model
