@@ -72,9 +72,9 @@
         'paul_graham_essays'::regclass,
         destination => 'essays_openai_small_embeddings',
         embedding => ai.embedding_openai(
-        'text-embedding-3-small', 
-        1024, 
-        api_key_name => 'OPENAI_API_KEY'
+            'text-embedding-3-small', 
+            1024, 
+            api_key_name => 'OPENAI_API_KEY'
         ),
         chunking => ai.chunking_recursive_character_text_splitter('text', 512, 50)
     );
