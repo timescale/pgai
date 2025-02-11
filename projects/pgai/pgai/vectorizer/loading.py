@@ -3,7 +3,7 @@ from io import BytesIO
 from typing import Literal
 
 import smart_open  # type: ignore
-from filetype import filetype
+from filetype import filetype  # type: ignore
 from pydantic import BaseModel
 
 
@@ -15,7 +15,7 @@ class LoadedDocument:
 
 
 def guess_filetype(file_like: BytesIO, file_path: str | None = None) -> str | None:
-    guess = filetype.guess(file_like)
+    guess = filetype.guess(file_like)  # type: ignore
     file_like.seek(0)
     if guess is None:
         if file_path is None:
