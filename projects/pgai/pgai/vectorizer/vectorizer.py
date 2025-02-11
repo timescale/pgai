@@ -770,7 +770,9 @@ class Worker:
         for item in items:
             pk = self._get_item_pk_values(item)
             payload = self.vectorizer.config.loading.load(item)
-            payload = self.vectorizer.config.parsing.parse(item, payload)
+            payload = self.vectorizer.config.parsing.parse(
+                item, payload, self.vectorizer.config.loading.column_name
+            )
             chunks = self.vectorizer.config.chunking.into_chunks(item, payload)
             for chunk_id, chunk in enumerate(chunks, 0):
                 formatted = self.vectorizer.config.formatting.format(chunk, item)
