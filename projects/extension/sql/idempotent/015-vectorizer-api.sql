@@ -137,6 +137,13 @@ begin
 
     -- validate the loading config
     perform ai._validate_loading(loading, _source_schema, _source_table);
+            
+    perform ai._validate_parsing(jsonb_build_object(
+        'parsing', parsing,
+        'loading', loading,
+        'source_schema', _source_schema,
+        'source_table', _source_table
+    ));
 
     -- validate the embedding config
     perform ai._validate_embedding(embedding);
