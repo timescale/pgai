@@ -2053,6 +2053,7 @@ wheels = [
 
 [[package]]
 name = "pgai"
+version = "0.7.0"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },
