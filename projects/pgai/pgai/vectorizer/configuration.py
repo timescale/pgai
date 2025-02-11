@@ -179,6 +179,16 @@ class IndexingNoneConfig(SQLArgumentMixin):
 
 
 @dataclass
+class LoadingDocumentConfig(SQLArgumentMixin):
+    """Configuration for ai.loading_document function."""
+
+    arg_type: ClassVar[str] = "loading"
+    function_name: ClassVar[str] = "ai.loading_document"
+
+    column_name: str
+
+
+@dataclass
 class LoadingRowConfig(SQLArgumentMixin):
     """Configuration for ai.loading_row function."""
 
@@ -186,6 +196,30 @@ class LoadingRowConfig(SQLArgumentMixin):
     function_name: ClassVar[str] = "ai.loading_row"
 
     column_name: str
+
+
+@dataclass
+class ParsingAutoConfig(SQLArgumentMixin):
+    """Configuration for ai.parsing_auto function."""
+
+    arg_type: ClassVar[str] = "parsing"
+    function_name: ClassVar[str] = "ai.parsing_auto"
+
+
+@dataclass
+class ParsingNoneConfig(SQLArgumentMixin):
+    """Configuration for ai.parsing_none function."""
+
+    arg_type: ClassVar[str] = "parsing"
+    function_name: ClassVar[str] = "ai.parsing_none"
+
+
+@dataclass
+class ParsingPymupdfConfig(SQLArgumentMixin):
+    """Configuration for ai.parsing_pymupdf function."""
+
+    arg_type: ClassVar[str] = "parsing"
+    function_name: ClassVar[str] = "ai.parsing_pymupdf"
 
 
 @dataclass

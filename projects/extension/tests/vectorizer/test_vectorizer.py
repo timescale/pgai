@@ -21,6 +21,10 @@ VECTORIZER_ROW = r"""
             "implementation": "row",
             "column_name": "body"
         },
+        "parsing": {
+            "config_type": "parsing",
+            "implementation": "auto"
+        },
         "chunking": {
             "separator": "\n\n",
             "chunk_size": 128,
@@ -1811,3 +1815,212 @@ def test_create_vectorizer_privs():
             , grant_to=>null
             );
             """)
+
+
+def test_vectorizer_bytea():
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("create schema if not exists vec")
+            cur.execute("drop table if exists vec.doc_bytea")
+            cur.execute("""
+                create table vec.doc_bytea
+                ( id bigint not null primary key generated always as identity
+                , content bytea not null
+                )
+            """)
+
+            # Insert a sample PDF as bytea
+            cur.execute("""
+                insert into vec.doc_bytea(content)
+                values (decode('255044462D312E340A25', 'hex'))  -- Start of PDF file magic bytes
+            """)
+
+            # Create a vectorizer for the bytea column
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'vec.doc_bytea'::regclass
+            , loading => ai.loading_row('content')
+            , embedding => ai.embedding_openai('text-embedding-3-small', 3)
+            , chunking => ai.chunking_character_text_splitter()
+            , scheduling => ai.scheduling_none()
+            , indexing => ai.indexing_none()
+            , grant_to => null
+            , enqueue_existing => false
+            );
+            """)
+            vectorizer_id = cur.fetchone()[0]
+
+            # Verify vectorizer was created
+            cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
+            vectorizer = cur.fetchone()
+            assert vectorizer is not None
+            assert vectorizer.config["loading"]["column_name"] == "content"
+            assert vectorizer.config["parsing"]["implementation"] == "auto"
+
+
+def test_vectorizer_document_loading_pymupdf():
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("create schema if not exists vec")
+            cur.execute("drop table if exists vec.doc_url")
+            cur.execute("""
+                create table vec.doc_url
+                ( id bigint not null primary key generated always as identity
+                , url text not null
+                )
+            """)
+
+            # Create vectorizer with document loading and pymupdf - should work
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'vec.doc_url'::regclass
+            , loading => ai.loading_document('url')
+            , parsing => ai.parsing_pymupdf()
+            , embedding => ai.embedding_openai('text-embedding-3-small', 3)
+            , chunking => ai.chunking_character_text_splitter()
+            , scheduling => ai.scheduling_none()
+            , indexing => ai.indexing_none()
+            , grant_to => null
+            , enqueue_existing => false
+            );
+            """)
+            vectorizer_id = cur.fetchone()[0]
+
+            # Verify vectorizer was created with correct configuration
+            cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
+            vectorizer = cur.fetchone()
+            assert vectorizer is not None
+            assert vectorizer.config["loading"]["column_name"] == "url"
+            assert vectorizer.config["loading"]["implementation"] == "document"
+            assert vectorizer.config["parsing"]["implementation"] == "pymupdf"
+
+
+def test_vectorizer_bytea_parsing_none_fails():
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("create schema if not exists vec")
+            cur.execute("drop table if exists vec.doc_bytea_fail")
+            cur.execute("""
+                create table vec.doc_bytea_fail
+                ( id bigint not null primary key generated always as identity
+                , content bytea not null
+                )
+            """)
+
+            # Attempt to create vectorizer with parsing_none on bytea - should fail
+            with pytest.raises(
+                psycopg.errors.RaiseException,
+                match=".*cannot use parsing_none with bytea columns.*",
+            ):
+                cur.execute("""
+                select ai.create_vectorizer
+                ( 'vec.doc_bytea_fail'::regclass
+                , loading => ai.loading_row('content')
+                , parsing => ai.parsing_none()
+                , embedding => ai.embedding_openai('text-embedding-3-small', 3)
+                , chunking => ai.chunking_character_text_splitter()
+                , scheduling => ai.scheduling_none()
+                , indexing => ai.indexing_none()
+                , grant_to => null
+                , enqueue_existing => false
+                );
+                """)
+
+
+def test_vectorizer_document_loading_parsing_none_fails():
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("create schema if not exists vec")
+            cur.execute("drop table if exists vec.doc_url_fail")
+            cur.execute("""
+                create table vec.doc_url_fail
+                ( id bigint not null primary key generated always as identity
+                , url text not null
+                )
+            """)
+
+            # Attempt to create vectorizer with document loading and parsing_none - should fail
+            with pytest.raises(
+                psycopg.errors.RaiseException,
+                match=".*cannot use parsing_none with document loading.*",
+            ):
+                cur.execute("""
+                select ai.create_vectorizer
+                ( 'vec.doc_url_fail'::regclass
+                , loading => ai.loading_document('url')
+                , parsing => ai.parsing_none()
+                , embedding => ai.embedding_openai('text-embedding-3-small', 3)
+                , chunking => ai.chunking_character_text_splitter()
+                , scheduling => ai.scheduling_none()
+                , indexing => ai.indexing_none()
+                , grant_to => null
+                , enqueue_existing => false
+                );
+                """)
+
+
+def test_vectorizer_text_pymupdf_fails():
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("create schema if not exists vec")
+
+            # Test each text type
+            text_types = ["text", "varchar", "char(10)", "character varying"]
+
+            for text_type in text_types:
+                # Replace multiple special characters and spaces with underscores
+                sanitized_type = (
+                    text_type.replace(" ", "_")
+                    .replace("(", "_")
+                    .replace(")", "")
+                    .replace(",", "_")
+                )
+                # Remove any double underscores that might have been created
+                sanitized_type = "_".join(filter(None, sanitized_type.split("_")))
+                table_name = f"vec.text_pymupdf_fail_{sanitized_type}"
+                cur.execute(f"drop table if exists {table_name}")
+                cur.execute(f"""
+                    create table {table_name}
+                    ( id bigint not null primary key generated always as identity
+                    , content {text_type} not null
+                    )
+                """)
+
+                # Attempt to create vectorizer with pymupdf on text column - should fail
+                with pytest.raises(
+                    psycopg.errors.RaiseException,
+                    match=".*cannot use parsing_pymupdf with text columns.*",
+                ):
+                    cur.execute(f"""
+                    select ai.create_vectorizer
+                    ( '{table_name}'::regclass
+                    , loading => ai.loading_row('content')
+                    , parsing => ai.parsing_pymupdf()
+                    , embedding => ai.embedding_openai('text-embedding-3-small', 3)
+                    , chunking => ai.chunking_character_text_splitter()
+                    , scheduling => ai.scheduling_none()
+                    , indexing => ai.indexing_none()
+                    , grant_to => null
+                    , enqueue_existing => false
+                    );
+                    """)

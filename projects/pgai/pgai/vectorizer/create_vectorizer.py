@@ -17,7 +17,11 @@ from .configuration import (
     IndexingDiskannConfig,
     IndexingHnswConfig,
     IndexingNoneConfig,
+    LoadingDocumentConfig,
     LoadingRowConfig,
+    ParsingAutoConfig,
+    ParsingNoneConfig,
+    ParsingPymupdfConfig,
     ProcessingDefaultConfig,
     SchedulingDefaultConfig,
     SchedulingNoneConfig,
@@ -32,7 +36,8 @@ class CreateVectorizer:
 
     source: str
     destination: str | None = None
-    loading: LoadingRowConfig | None = None
+    loading: LoadingDocumentConfig | LoadingRowConfig | None = None
+    parsing: ParsingAutoConfig | ParsingNoneConfig | ParsingPymupdfConfig | None = None
     embedding: (
         EmbeddingLitellmConfig
         | EmbeddingOllamaConfig
