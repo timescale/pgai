@@ -15,6 +15,7 @@ docs = [
     "Sacred Texts of PostgreSQL.pdf",
     "sample_pdf.pdf",
     "sample_with_table.pdf",
+    "sample_txt.txt",
 ]
 
 
@@ -79,7 +80,7 @@ def test_simple_document_embedding_local(
 ):
     """Test that a document is successfully embedded"""
     connection = cli_db[1]
-    vectorizer_id = configure_document_vectorizer(cli_db[1], number_of_rows=3)
+    vectorizer_id = configure_document_vectorizer(cli_db[1], number_of_rows=len(docs))
 
     with vcr_.use_cassette("simple-docs.yaml"):
         result = run_vectorizer_worker(cli_db_url, vectorizer_id)
@@ -89,11 +90,22 @@ def test_simple_document_embedding_local(
 
     with connection.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT count(*) as count FROM documents_embedding_store;")
-        assert cur.fetchone()["count"] > 3  # type: ignore
+        assert cur.fetchone()["count"] > len(docs)  # type: ignore
         cur.execute("SELECT chunk FROM documents_embedding_store;")
         chunks = cur.fetchall()
         chunks_str = "\n".join([chunk["chunk"] for chunk in chunks])
+
+        # # Sacred Texts of PostgreSQL.pdf
         assert "And lo, there came forth PostgreSQL, blessed be its name" in chunks_str
+
+        # # sample_pdf.pdf
+        assert "Maecenas mauris lectus" in chunks_str
+
+        # sample_with_table.pdf
+        assert "This is an example of a data table." in chunks_str
+
+        # sample_txt.txt
+        assert "Fromage frais cheese and biscuits danish fontina" in chunks_str
 
 
 def test_simple_document_embedding_s3_no_credentials(
