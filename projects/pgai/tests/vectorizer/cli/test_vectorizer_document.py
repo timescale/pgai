@@ -16,6 +16,8 @@ docs = [
     "sample_pdf.pdf",
     "sample_with_table.pdf",
     "sample_txt.txt",
+    "basic-v3plus2.epub",
+    "test.md",
 ]
 
 
@@ -106,6 +108,12 @@ def test_simple_document_embedding_local(
 
         # sample_txt.txt
         assert "Fromage frais cheese and biscuits danish fontina" in chunks_str
+
+        # basic-v3plus2.epub
+        assert "Wants pawn term dare worsted ladle gull hoe lift" in chunks_str
+
+        # test.md
+        assert "Hello I am a test md document" in chunks_str
 
 
 def test_simple_document_embedding_s3_no_credentials(
