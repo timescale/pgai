@@ -25,3 +25,4 @@ drop function if exists ai.openai_chat_complete(
     text
 );
 drop function if exists ai.openai_moderate(text, text, text, text, text);
+drop function if exists ai.openai_chat_complete_simple(text, text, text);

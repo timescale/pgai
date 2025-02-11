@@ -49,7 +49,7 @@ def test_openai_list_models(cur, openai_api_key):
             api_key=>%s,
             extra_headers=>'{"X-Custom-Header": "my-value"}',
             extra_query=>'{"debug": true}',
-            timeout=>600::float8
+            timeout_seconds=>600::float8
         )
     """,
         (openai_api_key,),
@@ -65,7 +65,7 @@ def test_openai_list_models_with_raw_response(cur, openai_api_key):
             api_key=>%s,
             extra_headers=>'{"X-Custom-Header": "my-value"}',
             extra_query=>'{"debug": true}',
-            timeout=>600::float8
+            timeout_seconds=>600::float8
         )
     """,
         (openai_api_key,),
@@ -122,7 +122,7 @@ def test_openai_embed(cur, openai_api_key):
             , api_key=>%s
             , extra_headers=>'{"X-Custom-Header": "my-value"}'
             , extra_query=>'{"debug": true}'
-            , timeout=>600::float8
+            , timeout_seconds=>600::float8
             )
         )
     """,
@@ -141,7 +141,7 @@ def test_openai_embed_with_raw_response(cur, openai_api_key):
             , api_key=>%s
             , extra_headers=>'{"X-Custom-Header": "my-value"}'
             , extra_query=>'{"debug": true}'
-            , timeout=>600::float8
+            , timeout_seconds=>600::float8
             )
     """,
         (openai_api_key,),
@@ -285,7 +285,7 @@ def test_openai_embed_array_of_text_with_raw_response(cur, openai_api_key):
             , api_key=>%s
             , extra_headers=>'{"X-Custom-Header": "my-value"}'
             , extra_query=>'{"debug": true}'
-            , timeout=>600::float8
+            , timeout_seconds=>600::float8
             )
     """,
         (openai_api_key,),
@@ -392,7 +392,7 @@ def test_openai_chat_complete(cur, openai_api_key):
           , api_key=>%s
           , extra_headers=>'{"X-Custom-Header": "my-value"}'
           , extra_query=>'{"debug": true}'
-          , timeout=>600::float8
+          , timeout_seconds=>600::float8
           ) as actual
         )
         select jsonb_extract_path_text(x.actual, 'choices', '0', 'message', 'content') is not null
@@ -416,7 +416,7 @@ def test_openai_chat_complete_with_raw_response(cur, openai_api_key):
           , api_key=>%s
           , extra_headers=>'{"X-Custom-Header": "my-value"}'
           , extra_query=>'{"debug": true}'
-          , timeout=>600::float8
+          , timeout_seconds=>600::float8
           ) as actual
     """,
         (openai_api_key,),
@@ -507,7 +507,7 @@ def test_openai_moderate(cur, openai_api_key):
             , api_key=>%s
             , extra_headers=>'{"X-Custom-Header": "my-value"}'
             , extra_query=>'{"debug": true}'
-            , timeout=>600::float8
+            , timeout_seconds=>600::float8
             ) as actual
         )
         select jsonb_extract_path_text(x.actual, 'results', '0', 'flagged')::bool
@@ -528,7 +528,7 @@ def test_openai_moderate_with_raw_response(cur, openai_api_key):
         , api_key=>%s
         , extra_headers=>'{"X-Custom-Header": "my-value"}'
         , extra_query=>'{"debug": true}'
-        , timeout=>600::float8
+        , timeout_seconds=>600::float8
         ) as actual
     """,
         (openai_api_key,),
@@ -570,3 +570,63 @@ def test_openai_moderate_no_key(cur_with_api_key):
     """)
     actual = cur_with_api_key.fetchone()[0]
     assert actual is True
+
+
+def test_openai_client_config(cur):
+    cur.execute("""
+        select ai.openai_client_config(
+            timeout_seconds => 0.1,
+            max_retries => 1,
+            organization => 'my-org',
+            project => 'my-project',
+            default_headers => '{"X-Custom-Header": "my-value"}',
+            default_query => '{"debug": "true"}',
+            base_url => 'http://api.com'
+        )
+    """)
+    actual = cur.fetchone()[0]
+    assert actual == {
+        "base_url": "http://api.com",
+        "default_headers": {
+            "X-Custom-Header": "my-value",
+        },
+        "default_query": {
+            "debug": "true",
+        },
+        "max_retries": 1,
+        "organization": "my-org",
+        "project": "my-project",
+        "timeout": 0.1,
+    }
+
+
+def test_openai_client_config_timeout(cur_with_api_key):
+    with pytest.raises(psycopg.errors.ExternalRoutineException) as exc_info:
+        cur_with_api_key.execute("""
+            select ai.openai_embed(
+                'text-embedding-ada-002',
+                'the purple elephant sits on a red mushroom',
+                client_config => ai.openai_client_config(
+                    timeout_seconds => 0.1,
+                    max_retries => 1
+                )
+            )
+        """)
+        cur_with_api_key.fetchone()
+    assert "Request timed out" in str(exc_info.value)
+
+
+def test_openai_client_config_base_url(cur_with_api_key):
+    with pytest.raises(psycopg.errors.ExternalRoutineException) as exc_info:
+        cur_with_api_key.execute("""
+            select ai.openai_embed(
+                'text-embedding-ada-002',
+                'the purple elephant sits on a red mushroom',
+                client_config => ai.openai_client_config(
+                    max_retries => 1,
+                    base_url => 'http://not-an-api-asdf1234.com'
+                )
+            )
+        """)
+        cur_with_api_key.fetchone()
+    assert "openai.APIConnectionError: Connection error" in str(exc_info.value)
