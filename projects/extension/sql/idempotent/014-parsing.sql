@@ -41,12 +41,12 @@ create or replace function ai._validate_parsing
 ) returns void
 as $func$
 declare
-    _parsing_config pg_catalog.jsonb;
-    _loading_config pg_catalog.jsonb;
-    _config_type pg_catalog.text;
-    _implementation pg_catalog.text;
-    _loading_implementation pg_catalog.text;
     _column_type pg_catalog.text;
+    _config_type pg_catalog.text;
+    _loading_config pg_catalog.jsonb;
+    _loading_implementation pg_catalog.text;
+    _parsing_config pg_catalog.jsonb;
+    _parsing_implementation pg_catalog.text;
 begin
     -- Get the parsing and loading configs
     _parsing_config = config operator(pg_catalog.->) 'parsing';
@@ -64,10 +64,8 @@ begin
     end if;
 
     -- Get implementations
-    _implementation = _parsing_config operator(pg_catalog.->>) 'implementation';
-    _loading_implementation = _loading_config operator(pg_catalog.->>) 'implementation';
-
-    if _implementation is null then
+    _parsing_implementation = _parsing_config operator(pg_catalog.->>) 'implementation';
+    if _parsing_implementation is null then
         raise exception 'invalid parsing config implementation';
     end if;
 
@@ -75,25 +73,25 @@ begin
     select y.typname 
     into _column_type
     from pg_catalog.pg_class k
-    inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
-    inner join pg_catalog.pg_attribute a on (k.oid operator(pg_catalog.=) a.attrelid)
-    inner join pg_catalog.pg_type y on (a.atttypid operator(pg_catalog.=) y.oid)
+        inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
+        inner join pg_catalog.pg_attribute a on (k.oid operator(pg_catalog.=) a.attrelid)
+        inner join pg_catalog.pg_type y on (a.atttypid operator(pg_catalog.=) y.oid)
     where n.nspname operator(pg_catalog.=) (config operator(pg_catalog.->>) 'source_schema')
     and k.relname operator(pg_catalog.=) (config operator(pg_catalog.->>) 'source_table')
     and a.attnum operator(pg_catalog.>) 0
     and a.attname operator(pg_catalog.=) (_loading_config operator(pg_catalog.->>) 'column_name');
 
     -- Validate all combinations
-    if _implementation = 'none' and _column_type = 'bytea' then
+    if _parsing_implementation = 'none' and _column_type = 'bytea' then
         raise exception 'cannot use parsing_none with bytea columns';
     end if;
 
-    if _loading_implementation = 'document' and _implementation = 'none' then
+    _loading_implementation = _loading_config operator(pg_catalog.->>) 'implementation';
+    if _loading_implementation = 'document' and _parsing_implementation = 'none' then
         raise exception 'cannot use parsing_none with document loading';
     end if;
 
-    if _implementation = 'pymupdf' 
-       and _loading_implementation = 'row' 
+    if _parsing_implementation = 'pymupdf' and _loading_implementation = 'row'
        and _column_type in ('text', 'varchar', 'char', 'bpchar') then
         raise exception 'cannot use parsing_pymupdf with text columns';
     end if;

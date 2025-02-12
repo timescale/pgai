@@ -236,6 +236,7 @@ class VectorizerQueryBuilder:
                 WITH selected_rows AS (
                     SELECT {pk_fields}
                     FROM {queue_table}
+                    WHERE retry_after is null or retry_after < now()
                     LIMIT %s
                     FOR UPDATE SKIP LOCKED
                 ),
