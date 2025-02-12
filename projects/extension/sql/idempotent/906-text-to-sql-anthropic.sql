@@ -88,6 +88,7 @@ create function ai._text_to_sql_anthropic
 ( question text
 , catalog_name text default 'default'
 , config jsonb default null
+, search_path text default pg_catalog.current_setting('search_path', true)
 ) returns jsonb
 as $func$
 declare
@@ -409,7 +410,14 @@ begin
                             ;
                         when 'request_table_sample' then
                             raise debug 'tool use: request_table_sample: %', _message.input;
-                            select _samples || jsonb_build_object(_message.input->>'name', ai.render_sample((_message.input->>'name')::regclass, (_message.input->>'total')::int4))
+                            select _samples || jsonb_build_object
+                            ( _message.input->>'name'
+                            , ai.render_sample
+                              ( (_message.input->>'name')
+                              , (_message.input->>'total')::int4
+                              , search_path
+                              )
+                            )
                             into strict _samples
                             ;
                         when 'answer_user_question_with_sql_statement' then

@@ -292,15 +292,95 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- _resolve_class
+create or replace function ai._resolve_class
+( ambiguous pg_catalog.text
+, search_path pg_catalog.text default pg_catalog.current_setting('search_path')
+, out fully_qualified pg_catalog.text -- fully qualified and properly quoted if necessary
+, out schema pg_catalog.name -- not quoted
+, out object pg_catalog.name -- not quoted
+)
+as $func$
+declare
+    _parts pg_catalog.text[];
+begin
+    _parts = pg_catalog.parse_ident(ambiguous, false);
+    assert pg_catalog.array_length(_parts, 1) in (1, 2);
+    
+    -- if it's already schema qualified, just convert to regclass
+    if pg_catalog.array_length(_parts, 1) = 2 then
+        schema = _parts[1];
+        object = _parts[2];
+        fully_qualified = pg_catalog.concat_ws
+        ( '.'
+        , pg_catalog.quote_ident(schema)
+        , pg_catalog.quote_ident(object)
+        );
+        -- it's fully qualified, but does it exist?
+        if pg_catalog.to_regclass(fully_qualified) is null then
+            fully_qualified = null;
+            schema = null;
+            object = null;
+            return;
+        end if;
+        return;
+    end if;
+    
+    -- check each schema in the search_path in order to find the thing
+    object = _parts[1];
+    for schema in
+    (
+        select 
+          case when x.part = '"$user"' then pg_catalog."current_user"() 
+          else (pg_catalog.parse_ident(trim(x.part)))[1] -- remove double quotes if exists
+          end as schema
+        from pg_catalog.string_to_table(search_path, ',') x(part)
+        union
+        values -- implicit search_path
+          ('pg_catalog')
+        , ('pg_temp')
+    )
+    loop
+        fully_qualified = pg_catalog.concat_ws
+        ( '.'
+        , pg_catalog.quote_ident(schema)
+        , pg_catalog.quote_ident(object)
+        );
+        if pg_catalog.to_regclass(fully_qualified) is not null then
+            -- hooray! we found it!
+            return;
+        end if;
+    end loop;
+
+    -- we didn't find it :(
+    fully_qualified = null;
+    schema = null;
+    object = null;
+    return;
+end
+$func$ language plpgsql stable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- render_obj_sample
 create or replace function ai.render_sample
-( relation pg_catalog.regclass
-, total int default 5
+( relation pg_catalog.text
+, total pg_catalog.int4 default 5
+, search_path pg_catalog.text default pg_catalog.current_setting('search_path', true)
 ) returns text
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.semantic_catalog
-    return ai.semantic_catalog.render_sample(plpy, relation, total)
+
+    # make sure we have a fully-qualified reference to the table/view
+    plan = plpy.prepare("select fully_qualified from ai._resolve_class($1, $2)", ["text", "text"])
+    result = plpy.execute(plan, [relation, search_path], 1)
+    fully_qualified = result[0]["fully_qualified"]
+    if fully_qualified is None:
+        return None
+
+    return ai.semantic_catalog.render_sample(plpy, fully_qualified, total)
 $python$
 language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp

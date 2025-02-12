@@ -57,6 +57,7 @@ create function ai._text_to_sql_cohere
 ( question text
 , catalog_name text default 'default'
 , config jsonb default null
+, search_path text default pg_catalog.current_setting('search_path', true)
 ) returns jsonb
 as $func$
 declare
