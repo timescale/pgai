@@ -322,7 +322,7 @@ begin
                     "properties": {
                         "name": {
                             "type": "string",
-                            "description": "The name of the table or view to sample."
+                            "description": "The fully qualified `schema.name` of the table or view to sample."
                         },
                         "total": {
                             "type": "integer",
@@ -408,7 +408,7 @@ begin
                             into strict _questions
                             ;
                         when 'request_table_sample' then
-                            raise debug 'tool use: request_table_sample';
+                            raise debug 'tool use: request_table_sample: %', _message.input;
                             select _samples || jsonb_build_object(_message.input->>'name', ai.render_sample((_message.input->>'name')::regclass, (_message.input->>'total')::int4))
                             into strict _samples
                             ;
