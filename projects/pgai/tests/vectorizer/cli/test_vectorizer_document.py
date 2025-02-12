@@ -16,6 +16,8 @@ docs = [
     "sample_pdf.pdf",
     "sample_with_table.pdf",
     "sample_txt.txt",
+    "basic-v3plus2.epub",
+    "test.md",
 ]
 
 
@@ -107,6 +109,12 @@ def test_simple_document_embedding_local(
         # sample_txt.txt
         assert "Fromage frais cheese and biscuits danish fontina" in chunks_str
 
+        # basic-v3plus2.epub
+        assert "Wants pawn term dare worsted ladle gull hoe lift" in chunks_str
+
+        # test.md
+        assert "Hello I am a test md document" in chunks_str
+
 
 def test_simple_document_embedding_s3_no_credentials(
     cli_db: tuple[TestDatabase, Connection],
@@ -158,3 +166,69 @@ def test_simple_document_embedding_s3(
         chunks = cur.fetchall()
         chunks_str = "\n".join([chunk["chunk"] for chunk in chunks])
         assert "And lo, there came forth PostgreSQL, blessed be its name" in chunks_str
+
+
+def test_binary_document_embedding(
+    cli_db: tuple[TestDatabase, Connection],
+    cli_db_url: str,
+    vcr_: Any,
+):
+    """Test that a document stored as binary data is successfully embedded"""
+    connection = cli_db[1]
+
+    # Create a table with bytea column
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("""
+            CREATE TABLE binary_documents (
+                id INT NOT NULL PRIMARY KEY,
+                byte_content BYTEA NOT NULL
+            )
+        """)
+
+        # Read PDF files and insert as binary
+        base_path = Path(__file__).parent / "documents"
+        values: list[tuple[int, bytes]] = []
+        for i, doc in enumerate(docs, start=1):
+            if doc.endswith(".pdf"):  # Only process PDF files
+                file_path = base_path / doc
+                with open(file_path, "rb") as f:
+                    binary_content = f.read()
+                values.append((i, binary_content))
+
+        cur.executemany(
+            "INSERT INTO binary_documents (id, byte_content) VALUES (%s, %s)", values
+        )
+
+    # Configure vectorizer with binary loading
+    vectorizer_id = configure_vectorizer(
+        "binary_documents",
+        connection,
+        loading="ai.loading_row(column_name => 'byte_content')",
+        parsing="ai.parsing_auto()",
+        chunking="chunking_character_text_splitter()",
+        formatting="formatting_python_template('$chunk')",
+    )
+
+    with vcr_.use_cassette("binary-docs.yaml"):
+        result = run_vectorizer_worker(cli_db_url, vectorizer_id)
+
+    if result.exception:
+        print(result.stdout)
+
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT count(*) as count FROM binary_documents_embedding_store;")
+        count = cur.fetchone()["count"]  # type: ignore
+        assert count > 0  # We should have some chunks
+
+        cur.execute("SELECT chunk FROM binary_documents_embedding_store;")
+        chunks = cur.fetchall()
+        chunks_str = "\n".join([chunk["chunk"] for chunk in chunks])
+
+        # Verify content from PDFs was processed
+        assert (
+            "And lo, there came forth PostgreSQL, blessed be its name" in chunks_str
+        )  # From Sacred Texts
+        assert "Maecenas mauris lectus" in chunks_str  # From sample_pdf
+        assert (
+            "This is an example of a data table." in chunks_str
+        )  # From sample_with_table
