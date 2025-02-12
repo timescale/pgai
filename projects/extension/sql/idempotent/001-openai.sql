@@ -365,89 +365,7 @@ create or replace function ai.openai_chat_complete
 , logprobs boolean default null
 , top_logprobs int default null
 , max_tokens int default null
-, n int default null
-, presence_penalty float8 default null
-, response_format jsonb default null
-, seed int default null
-, stop text default null
-, temperature float8 default null
-, top_p float8 default null
-, tools jsonb default null
-, tool_choice text default null
-, openai_user text default null
-, extra_headers jsonb default null
-, extra_query jsonb default null
-, extra_body jsonb default null
-, timeout float8 default null
-) returns jsonb
-as $python$
-    #ADD-PYTHON-LIB-DIR
-    import ai.openai
-    import ai.secrets
-    import re
-    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
-    client = ai.openai.make_client(plpy, api_key_resolved, base_url)
-    import json
-
-    messages_1 = json.loads(messages)
-    if not isinstance(messages_1, list):
-      plpy.error("messages is not an array")
-
-    kwargs = ai.openai.create_kwargs(
-        frequency_penalty=frequency_penalty,
-        logit_bias=ai.openai.str_arg_to_dict(logit_bias),
-        logprobs=logprobs,
-        top_logprobs=top_logprobs,
-        n=n,
-        presence_penalty=presence_penalty,
-        response_format=ai.openai.str_arg_to_dict(response_format),
-        seed=seed,
-        stop=stop,
-        temperature=temperature,
-        top_p=top_p,
-        tools=ai.openai.str_arg_to_dict(tools),
-        tool_choice=tool_choice if tool_choice in {'auto', 'none', 'required'} else ai.openai.str_arg_to_dict(tool_choice),
-        user=openai_user,
-        extra_headers=ai.openai.str_arg_to_dict(extra_headers),
-        extra_query=ai.openai.str_arg_to_dict(extra_query),
-        extra_body=ai.openai.str_arg_to_dict(extra_body),
-        timeout=timeout)
-
-    # starting from o1, all reasoning models (o*) deprecated the max_tokens parameter in favor of max_completion_tokens
-    # see https://platform.openai.com/docs/guides/reasoning#controlling-costs
-    if re.match(r"o\d+(-\w*)?", model):
-        kwargs["max_completion_tokens"] = max_tokens
-    else:
-        kwargs["max_tokens"] = max_tokens
-
-    response = client.chat.completions.create(
-      model=model
-    , messages=messages_1
-    , stream=False
-    , **kwargs
-    )
-
-    return response.model_dump_json()
-$python$
-language plpython3u volatile parallel safe security invoker
-set search_path to pg_catalog, pg_temp
-;
-
--------------------------------------------------------------------------------
--- openai_chat_complete_with_raw_response
--- text generation / chat completion
--- https://platform.openai.com/docs/api-reference/chat/create
-create or replace function ai.openai_chat_complete_with_raw_response
-( model text
-, messages jsonb
-, api_key text default null
-, api_key_name text default null
-, base_url text default null
-, frequency_penalty float8 default null
-, logit_bias jsonb default null
-, logprobs boolean default null
-, top_logprobs int default null
-, max_tokens int default null
+, max_completion_tokens int default null
 , n int default null
 , presence_penalty float8 default null
 , response_format jsonb default null
@@ -481,6 +399,85 @@ as $python$
         logprobs=logprobs,
         top_logprobs=top_logprobs,
         max_tokens=max_tokens,
+        max_completion_tokens=max_completion_tokens,
+        n=n,
+        presence_penalty=presence_penalty,
+        response_format=ai.openai.str_arg_to_dict(response_format),
+        seed=seed,
+        stop=stop,
+        temperature=temperature,
+        top_p=top_p,
+        tools=ai.openai.str_arg_to_dict(tools),
+        tool_choice=tool_choice if tool_choice in {'auto', 'none', 'required'} else ai.openai.str_arg_to_dict(tool_choice),
+        user=openai_user,
+        extra_headers=ai.openai.str_arg_to_dict(extra_headers),
+        extra_query=ai.openai.str_arg_to_dict(extra_query),
+        extra_body=ai.openai.str_arg_to_dict(extra_body),
+        timeout=timeout)
+
+    response = client.chat.completions.create(
+      model=model
+    , messages=messages_1
+    , stream=False
+    , **kwargs
+    )
+
+    return response.model_dump_json()
+$python$
+language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- openai_chat_complete_with_raw_response
+-- text generation / chat completion
+-- https://platform.openai.com/docs/api-reference/chat/create
+create or replace function ai.openai_chat_complete_with_raw_response
+( model text
+, messages jsonb
+, api_key text default null
+, api_key_name text default null
+, base_url text default null
+, frequency_penalty float8 default null
+, logit_bias jsonb default null
+, logprobs boolean default null
+, top_logprobs int default null
+, max_tokens int default null
+, max_completion_tokens int default null
+, n int default null
+, presence_penalty float8 default null
+, response_format jsonb default null
+, seed int default null
+, stop text default null
+, temperature float8 default null
+, top_p float8 default null
+, tools jsonb default null
+, tool_choice text default null
+, openai_user text default null
+, extra_headers jsonb default null
+, extra_query jsonb default null
+, extra_body jsonb default null
+, timeout float8 default null
+) returns jsonb
+as $python$
+    #ADD-PYTHON-LIB-DIR
+    import ai.openai
+    import ai.secrets
+    api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
+    client = ai.openai.make_client(plpy, api_key_resolved, base_url)
+    import json
+
+    messages_1 = json.loads(messages)
+    if not isinstance(messages_1, list):
+      plpy.error("messages is not an array")
+
+    kwargs = ai.openai.create_kwargs(
+        frequency_penalty=frequency_penalty,
+        logit_bias=ai.openai.str_arg_to_dict(logit_bias),
+        logprobs=logprobs,
+        top_logprobs=top_logprobs,
+        max_tokens=max_tokens,
+        max_completion_tokens=max_completion_tokens,
         n=n,
         presence_penalty=presence_penalty,
         response_format=ai.openai.str_arg_to_dict(response_format),
