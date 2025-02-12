@@ -3,7 +3,7 @@
 -- ollama_list_models
 -- https://github.com/ollama/ollama/blob/main/docs/api.md#list-local-models
 --
-create or replace function ai.ollama_list_models(host text default null)
+create or replace function ai.ollama_list_models(host text default null, verbose boolean default false)
 returns table
 ( "name" text
 , model text
@@ -20,9 +20,11 @@ returns table
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.ollama
+    import ai.utils
     client = ai.ollama.make_client(plpy, host)
     import json
-    resp = client.list()
+    with ai.utils.VerboseRequestTrace(plpy, "ollama.list()", verbose):
+        resp = client.list()
     models = resp.get("models")
     if models is None:
         raise StopIteration
@@ -48,7 +50,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- ollama_ps
 -- https://github.com/ollama/ollama/blob/main/docs/api.md#list-running-models
-create or replace function ai.ollama_ps(host text default null)
+create or replace function ai.ollama_ps(host text default null, verbose boolean default false)
 returns table
 ( "name" text
 , model text
@@ -66,9 +68,11 @@ returns table
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.ollama
+    import ai.utils
     client = ai.ollama.make_client(plpy, host)
     import json
-    resp = client.ps()
+    with ai.utils.VerboseRequestTrace(plpy, "ollama.ps()", verbose):
+        resp = client.ps()
     models = resp.get("models")
     if models is None:
         raise StopIteration
@@ -101,16 +105,19 @@ create or replace function ai.ollama_embed
 , host text default null
 , keep_alive text default null
 , embedding_options jsonb default null
+, verbose boolean default false
 ) returns @extschema:vector@.vector
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.ollama
+    import ai.utils
     client = ai.ollama.make_client(plpy, host)
     embedding_options_1 = None
     if embedding_options is not None:
         import json
         embedding_options_1 = {k: v for k, v in json.loads(embedding_options).items()}
-    resp = client.embeddings(model, input_text, options=embedding_options_1, keep_alive=keep_alive)
+    with ai.utils.VerboseRequestTrace(plpy, "ollama.embeddings()", verbose):
+        resp = client.embeddings(model, input_text, options=embedding_options_1, keep_alive=keep_alive)
     return resp.get("embedding")
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -130,10 +137,12 @@ create or replace function ai.ollama_generate
 , system_prompt text default null
 , template text default null
 , context int[] default null
+, verbose boolean default false
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.ollama
+    import ai.utils
     client = ai.ollama.make_client(plpy, host)
 
     import json
@@ -161,7 +170,8 @@ as $python$
             images_1.append(base64.b64encode(image).decode('utf-8'))
         args["images"] = images_1
 
-    resp = client.generate(model, prompt, stream=False, **args)
+    with ai.utils.VerboseRequestTrace(plpy, "ollama.generate()", verbose):
+        resp = client.generate(model, prompt, stream=False, **args)
     return resp.model_dump_json()
 $python$
 language plpython3u volatile parallel safe security invoker
@@ -179,11 +189,13 @@ create or replace function ai.ollama_chat_complete
 , chat_options jsonb default null
 , tools jsonb default null
 , response_format jsonb default null
+, verbose boolean default false
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import json
     import ai.ollama
+    import ai.utils
     client = ai.ollama.make_client(plpy, host)
 
     import json
@@ -213,7 +225,8 @@ as $python$
             decoded = [base64.b64decode(image) for image in message["images"]]
             message["images"] = decoded
 
-    resp = client.chat(model, messages_1, stream=False, **args)
+    with ai.utils.VerboseRequestTrace(plpy, "ollama.chat()", verbose):
+        resp = client.chat(model, messages_1, stream=False, **args)
 
     return resp.model_dump_json()
 $python$

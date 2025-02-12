@@ -7,6 +7,7 @@ create or replace function ai.litellm_embed
 , api_key text default null
 , api_key_name text default null
 , extra_options jsonb default null
+, verbose boolean default false
 ) returns @extschema:vector@.vector
 as $python$
     #ADD-PYTHON-LIB-DIR
@@ -21,7 +22,11 @@ as $python$
         api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, "", SD)
     else:
         api_key_resolved = None
-    for tup in ai.litellm.embed(model, [input_text], api_key=api_key_resolved, **options):
+    
+    with ai.utils.VerboseRequestTrace(plpy, "litellm.embed()", verbose):
+        result = ai.litellm.embed(model, [input_text], api_key=api_key_resolved, **options)
+    
+    for tup in result:
         return tup[1]
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -37,6 +42,7 @@ create or replace function ai.litellm_embed
 , api_key text default null
 , api_key_name text default null
 , extra_options jsonb default null
+, verbose boolean default false
 ) returns table
 ( "index" int
 , embedding @extschema:vector@.vector
@@ -54,7 +60,11 @@ as $python$
         api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, "", SD)
     else:
         api_key_resolved = None
-    for tup in ai.litellm.embed(model, input_texts, api_key=api_key_resolved, **options):
+    
+    with ai.utils.VerboseRequestTrace(plpy, "litellm.embed()", verbose):
+        result = ai.litellm.embed(model, input_texts, api_key=api_key_resolved, **options)
+    
+    for tup in result:
         yield tup
 $python$
 language plpython3u immutable parallel safe security invoker
