@@ -365,6 +365,7 @@ create or replace function ai.openai_chat_complete
 , logprobs boolean default null
 , top_logprobs int default null
 , max_tokens int default null
+, max_completion_tokens int default null
 , n int default null
 , presence_penalty float8 default null
 , response_format jsonb default null
@@ -398,6 +399,7 @@ as $python$
         logprobs=logprobs,
         top_logprobs=top_logprobs,
         max_tokens=max_tokens,
+        max_completion_tokens=max_completion_tokens,
         n=n,
         presence_penalty=presence_penalty,
         response_format=ai.openai.str_arg_to_dict(response_format),
@@ -441,6 +443,7 @@ create or replace function ai.openai_chat_complete_with_raw_response
 , logprobs boolean default null
 , top_logprobs int default null
 , max_tokens int default null
+, max_completion_tokens int default null
 , n int default null
 , presence_penalty float8 default null
 , response_format jsonb default null
@@ -474,6 +477,7 @@ as $python$
         logprobs=logprobs,
         top_logprobs=top_logprobs,
         max_tokens=max_tokens,
+        max_completion_tokens=max_completion_tokens,
         n=n,
         presence_penalty=presence_penalty,
         response_format=ai.openai.str_arg_to_dict(response_format),
