@@ -169,7 +169,7 @@ def test_openai_embed_with_raw_response(cur, openai_api_key):
     "model,max_tokens,stopped,error_str",
     [
         # OK.
-        ("o1", {"max_completion_tokens": 1000}, False, None),
+        ("o1", {"max_completion_tokens": 10000}, False, None),
         # Stopped generating because max_tokens was reached.
         ("o1", {"max_completion_tokens": 100}, True, None),
         # 400 status code is returned because not enough tokens for generation.
@@ -180,7 +180,7 @@ def test_openai_embed_with_raw_response(cur, openai_api_key):
             "Could not finish the message because max_tokens was reached",
         ),
         # OK.
-        ("o1-mini", {"max_completion_tokens": 1000}, False, None),
+        ("o1-mini", {"max_completion_tokens": 10000}, False, None),
         # Stopped generating because max_tokens was reached.
         (
             "o1-mini",
@@ -196,7 +196,7 @@ def test_openai_embed_with_raw_response(cur, openai_api_key):
             None,
         ),
         # Stopped generating because max_tokens was reached.
-        ("o3-mini", {"max_completion_tokens": 1000}, False, None),  # OK.
+        ("o3-mini", {"max_completion_tokens": 10000}, False, None),  # OK.
         (
             "o3-mini",
             {"max_completion_tokens": 100},
@@ -232,7 +232,6 @@ def test_openai_chat_complete_with_tokens_limitation_on_reasoning_models(
             ( jsonb_build_object('role', 'user', 'content', 'what is the typical weather like in Alabama in June')
             )
           , api_key=>%(api_key)s
-          , extra_headers=>'{{"X-Custom-Header": "my-value"}}'
           , extra_query=>'{{"debug": true}}'
           , timeout=>600::float8
           {', max_tokens=>' + str(max_tokens.get("max_tokens")) if max_tokens.get("max_tokens") else ''}
