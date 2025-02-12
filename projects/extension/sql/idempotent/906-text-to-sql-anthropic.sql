@@ -3,7 +3,7 @@
 
 -------------------------------------------------------------------------------
 -- text_to_sql_render_prompt
-create function ai.text_to_sql_render_prompt
+create or replace function ai.text_to_sql_render_prompt
 ( question text
 , obj_prompt text
 , samples_sql text
@@ -14,7 +14,10 @@ as $func$
     ( E'\n'
     , $$Below are descriptions of database objects and examples of SQL statements that are meant to give context to a user's question.$$
     , $$Analyze the context provided. Identify the elements that are relevant to the user's question.$$
+    , $$Do not alias columns unless it is necessary.$$
+    , $$ALWAYS fully qualify references to database objects.$$
     , $$ONLY use database elements that have been described to you. If more context is needed, use the "request_more_context_by_question" tool to ask questions about the database model.$$
+    , $$Pay attention to implicit data formats. If needed, use the "request_table_sample" to observe what actual values look like.$$
     , $$If enough context has been provided to confidently address the question, use the "answer_user_question_with_sql_statement" tool to record your final answer in the form of a valid SQL statement.$$
     , E'\n'
     , coalesce(obj_prompt, '')

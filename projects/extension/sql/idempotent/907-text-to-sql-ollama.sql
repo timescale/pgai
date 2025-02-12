@@ -81,7 +81,7 @@ begin
     _obj_renderer = coalesce((_config->>'obj_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_obj(bigint, oid, oid)'::pg_catalog.regprocedure);
     _sql_renderer = coalesce((_config->>'sql_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_sql(bigint, text, text)'::pg_catalog.regprocedure);
     _prompt_renderer = coalesce((_config->>'prompt_renderer')::pg_catalog.regprocedure, 'ai.text_to_sql_render_prompt(text, text, text, text)'::pg_catalog.regprocedure);
-    _model = coalesce(_config->>'model', 'claude-3-5-sonnet-latest');
+    _model = coalesce(_config->>'model', 'qwen2.5-coder');
     _host = config->>'host';
     _keep_alive = config->>'keep_alive';
     _chat_options = config->'chat_options';
