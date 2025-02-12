@@ -118,7 +118,7 @@ begin
     _obj_renderer = coalesce((_config->>'obj_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_obj(bigint, oid, oid)'::pg_catalog.regprocedure);
     _sql_renderer = coalesce((_config->>'sql_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_sql(bigint, text, text)'::pg_catalog.regprocedure);
     _prompt_renderer = coalesce((_config->>'prompt_renderer')::pg_catalog.regprocedure, 'ai.text_to_sql_render_prompt(text, text, text, text)'::pg_catalog.regprocedure);
-    _model = coalesce(_config->>'model', 'claude-3-5-sonnet-latest');
+    _model = coalesce(_config->>'model', 'o3-mini');
     _api_key = _config operator(pg_catalog.->>) 'api_key';
     _api_key_name = _config operator(pg_catalog.->>) 'api_key_name';
     _base_url = _config operator(pg_catalog.->>) 'base_url';
@@ -144,6 +144,7 @@ begin
 
     while _iter_remaining > 0 loop
         raise debug 'iteration: %', (_max_iter - _iter_remaining + 1);
+        _iter_remaining = _iter_remaining - 1;
         raise debug 'searching with % questions', jsonb_array_length(_questions);
 
         -- search -------------------------------------------------------------
@@ -288,13 +289,13 @@ begin
                 "type": "function",
                 "function": {
                     "name": "request_more_context_by_question",
-                    "description": "If you do not have enough context to confidently answer the user's question, use this tool to ask for more context by providing a question to be used for semantic search.",
+                    "description": "Request additional database object descriptions by providing a focused question for semantic search. Use this when the current context is insufficient to generate a confident SQL query. Frame your question to target specific tables, relationships, or attributes needed.",
                     "parameters": {
                         "type": "object",
                         "properties" : {
                             "question": {
                                 "type": "string",
-                                "description": "A new natural language question relevant to the user's question that will be used to perform a semantic search to gather more context"
+                                "description": "A brief question (max 20 words) focused on a specific database structure or relationship. Avoid explaining reasoning or context."
                             }
                         },
                         "required": ["question"],
@@ -307,16 +308,19 @@ begin
                 "type": "function",
                 "function": {
                     "name": "request_table_sample",
-                    "description": "If you do not have enough context about a table to confidently answer the user's question, use this tool to ask for a sample of the table's data.",
+                    "description": "Request a sample of rows from a specified table or view to better understand its data patterns and content.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "name": {
                                 "type": "string",
-                                "description": "The fully qualified `schema.name` of the table or view to sample."
+                                "description": "The fully qualified `schema.name` of the table or view to sample. (e.g., 'schema_name.table_name')"
                             },
                             "total": {
                                 "type": "integer",
+                                "minimum": 1,
+                                "maximum": 100,
+                                "default": 10,
                                 "description": "The total number of rows to return in the sample, the max is 10."
                             }
                         },
@@ -328,23 +332,23 @@ begin
                 "type": "function",
                 "function": {
                     "name": "answer_user_question_with_sql_statement",
-                    "description": "If you have enough context to confidently answer the user's question, use this tool to provide the answer in the form of a valid PostgreSQL SQL statement.",
+                    "description": "Provide a SQL query that answers the user's question.",
                     "parameters": {
                         "type": "object",
                         "properties" : {
                             "sql_statement": {
                                 "type": "string",
-                                "description": "A valid SQL statement that addresses the user's question."
+                                "description": "A valid PostgreSQL SQL statement that addresses the user's question."
                             },
                             "relevant_database_object_ids": {
                                 "type": "array",
                                 "items": {"type": "integer"},
-                                "description": "Provide a list of the ids of the database examples which were relevant to the user's question and useful in providing the answer."
+                                "description": "IDs of database objects used in constructing the answer."
                             },
                             "relevant_sql_example_ids": {
                                 "type": "array",
                                 "items": {"type": "integer"},
-                                "description": "Provide a list of the ids of the SQL examples which were relevant to the user's question and useful in providing the answer."
+                                "description": "IDs of SQL examples referenced in constructing the answer."
                             }
                         },
                         "required": ["sql_statement", "relevant_database_object_ids", "relevant_sql_example_ids"],
@@ -365,7 +369,11 @@ begin
           , jsonb_build_object('role', 'user', 'content', _prompt)
           )
         , tools=>_tools
-        , tool_choice=>'required'
+        , tool_choice=>
+            case when _iter_remaining = 0 then
+            '{"type": "function", "function": {"name": "answer_user_question_with_sql_statement"}}'
+            else 'required'
+            end
         , api_key=>_api_key
         , api_key_name=>_api_key_name
         , base_url=>_base_url
@@ -453,7 +461,6 @@ begin
                 ;
             end loop;
         end loop;
-        _iter_remaining = _iter_remaining - 1;
     end loop;
     return null;
 end

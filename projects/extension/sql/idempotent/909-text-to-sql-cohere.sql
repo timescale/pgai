@@ -104,7 +104,7 @@ begin
     _obj_renderer = coalesce((_config->>'obj_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_obj(bigint, oid, oid)'::pg_catalog.regprocedure);
     _sql_renderer = coalesce((_config->>'sql_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_sql(bigint, text, text)'::pg_catalog.regprocedure);
     _prompt_renderer = coalesce((_config->>'prompt_renderer')::pg_catalog.regprocedure, 'ai.text_to_sql_render_prompt(text, text, text, text)'::pg_catalog.regprocedure);
-    _model = coalesce( _config->>'model', 'claude-3-5-sonnet-latest');
+    _model = coalesce( _config->>'model', 'command-r7b-12-2024');
     _api_key = _config operator(pg_catalog.->>) 'api_key';
     _api_key_name = _config operator(pg_catalog.->>) 'api_key_name';
     _max_tokens = (_config operator(pg_catalog.->>) 'max_tokens')::int4;

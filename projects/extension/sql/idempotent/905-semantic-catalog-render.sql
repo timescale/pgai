@@ -52,14 +52,18 @@ begin
         left outer join pg_catalog.pg_attribute f -- left outer b/c the table/view itself won't have a row in pg_attribute
         on (f.attrelid = _objid and f.attnum = coalesce(a.objsubid, b.objsubid))
     )
-    select string_agg
-    (
+    select concat
+    ( E'/*\n'
+    , string_agg
+      (
         format
-        ( '/* %s %s */'
+        ( '%s %s'
         , coalesce(x.attname, '')
         , x.description
         )
-    , E'\n' order by x.objsubid
+      , E'\n' order by x.objsubid
+      )
+    , E'\n*/'
     )
     into _description
     from x
