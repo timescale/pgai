@@ -6,6 +6,7 @@ create or replace function ai.cohere_list_models
 , api_key_name text default null
 , endpoint text default null
 , default_only bool default null
+, verbose boolean default false
 )
 returns table
 ( "name" text
@@ -19,6 +20,7 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
     client = ai.cohere.make_client(api_key_resolved)
 
@@ -29,7 +31,8 @@ as $python$
         args["default_only"] = default_only
     page_token = None
     while True:
-        resp = client.models.list(page_size=1000, page_token=page_token, **args)
+        with ai.utils.VerboseRequestTrace(plpy, "cohere.list_models()", verbose):
+            resp = client.models.list(page_size=1000, page_token=page_token, **args)
         for model in resp.models:
             yield (model.name, model.endpoints, model.finetuned, model.context_length, model.tokenizer_url, model.default_endpoints)
         page_token = resp.next_page_token
@@ -43,15 +46,17 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- cohere_tokenize
 -- https://docs.cohere.com/reference/tokenize
-create or replace function ai.cohere_tokenize(model text, text_input text, api_key text default null, api_key_name text default null) returns int[]
+create or replace function ai.cohere_tokenize(model text, text_input text, api_key text default null, api_key_name text default null, verbose boolean default false) returns int[]
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
     client = ai.cohere.make_client(api_key_resolved)
 
-    response = client.tokenize(text=text_input, model=model)
+    with ai.utils.VerboseRequestTrace(plpy, "cohere.tokenize()", verbose):
+        response = client.tokenize(text=text_input, model=model)
     return response.tokens
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -61,15 +66,17 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- cohere_detokenize
 -- https://docs.cohere.com/reference/detokenize
-create or replace function ai.cohere_detokenize(model text, tokens int[], api_key text default null, api_key_name text default null) returns text
+create or replace function ai.cohere_detokenize(model text, tokens int[], api_key text default null, api_key_name text default null, verbose boolean default false) returns text
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
     client = ai.cohere.make_client(api_key_resolved)
 
-    response = client.detokenize(tokens=tokens, model=model)
+    with ai.utils.VerboseRequestTrace(plpy, "cohere.detokenize()", verbose):
+        response = client.detokenize(tokens=tokens, model=model)
     return response.text
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -86,11 +93,13 @@ create or replace function ai.cohere_embed
 , api_key_name text default null
 , input_type text default null
 , truncate_long_inputs text default null
+, verbose boolean default false
 ) returns @extschema:vector@.vector
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
     client = ai.cohere.make_client(api_key_resolved)
 
@@ -99,7 +108,8 @@ as $python$
         args["input_type"] = input_type
     if truncate_long_inputs is not None:
         args["truncate"] = truncate_long_inputs
-    response = client.embed(texts=[input_text], model=model, embedding_types=["float"], **args)
+    with ai.utils.VerboseRequestTrace(plpy, "cohere.embed()", verbose):
+        response = client.embed(texts=[input_text], model=model, embedding_types=["float"], **args)
     return response.embeddings.float[0]
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -116,11 +126,13 @@ create or replace function ai.cohere_classify
 , api_key_name text default null
 , examples jsonb default null
 , truncate_long_inputs text default null
+, verbose boolean default false
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
     client = ai.cohere.make_client(api_key_resolved)
 
@@ -131,7 +143,8 @@ as $python$
     if truncate_long_inputs is not None:
         args["truncate"] = truncate_long_inputs
 
-    response = client.classify(inputs=inputs, model=model, **args)
+    with ai.utils.VerboseRequestTrace(plpy, "cohere.classify()", verbose):
+        response = client.classify(inputs=inputs, model=model, **args)
     return response.json()
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -148,6 +161,7 @@ create or replace function ai.cohere_classify_simple
 , api_key_name text default null
 , examples jsonb default null
 , truncate_long_inputs text default null
+, verbose boolean default false
 ) returns table
 ( input text
 , prediction text
@@ -157,6 +171,7 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
     client = ai.cohere.make_client(api_key_resolved)
 
@@ -166,7 +181,9 @@ as $python$
         args["examples"] = json.loads(examples)
     if truncate_long_inputs is not None:
         args["truncate"] = truncate_long_inputs
-    response = client.classify(inputs=inputs, model=model, **args)
+    
+    with ai.utils.VerboseRequestTrace(plpy, "cohere.classify()", verbose):
+        response = client.classify(inputs=inputs, model=model, **args)
     for x in response.classifications:
         yield x.input, x.prediction, x.confidence
 $python$
@@ -185,11 +202,13 @@ create or replace function ai.cohere_rerank
 , api_key_name text default null
 , top_n integer default null
 , max_tokens_per_doc int default null
+, verbose boolean default false
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
     client = ai.cohere.make_client(api_key_resolved)
 
@@ -198,8 +217,8 @@ as $python$
         args["top_n"] = top_n
     if max_tokens_per_doc is not None:
         args["max_tokens_per_doc"] = max_tokens_per_doc
-
-    response = client.rerank(model=model, query=query, documents=documents, **args)
+    with ai.utils.VerboseRequestTrace(plpy, "cohere.rerank()", verbose):
+        response = client.rerank(model=model, query=query, documents=documents, **args)
     return response.json()
 $python$ language plpython3u immutable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
@@ -216,6 +235,7 @@ create or replace function ai.cohere_rerank_simple
 , api_key_name text default null
 , top_n integer default null
 , max_tokens_per_doc int default null
+, verbose boolean default false
 ) returns table
 ( "index" int
 , "document" text
@@ -236,6 +256,7 @@ from pg_catalog.jsonb_to_recordset
     , api_key_name=>api_key_name
     , top_n=>top_n
     , max_tokens_per_doc=>max_tokens_per_doc
+    , verbose=>"verbose"
     ) operator(pg_catalog.->) 'results'
 ) x("index" int, relevance_score float8)
 inner join unnest(documents) with ordinality d (document, ord)
@@ -268,11 +289,13 @@ create or replace function ai.cohere_chat_complete
 , logprobs boolean default null
 , tool_choice text default null
 , strict_tools bool default null
+, verbose boolean default false
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.cohere
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.cohere.DEFAULT_KEY_NAME, SD)
     client = ai.cohere.make_client(api_key_resolved)
 
@@ -312,7 +335,8 @@ as $python$
     if strict_tools is not None:
         args["strict_tools"] = strict_tools
 
-    response = client.chat(model=model, messages=json.loads(messages), **args)
+    with ai.utils.VerboseRequestTrace(plpy, "cohere.chat_complete()", verbose):
+        response = client.chat(model=model, messages=json.loads(messages), **args)
     return response.json()
 $python$ language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
