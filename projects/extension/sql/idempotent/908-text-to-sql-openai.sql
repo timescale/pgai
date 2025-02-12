@@ -317,7 +317,7 @@ begin
                             },
                             "total": {
                                 "type": "integer",
-                                "description": "The total number of rows to return in the sample."
+                                "description": "The total number of rows to return in the sample, the max is 10."
                             }
                         },
                         "required": ["name", "total"]
@@ -425,7 +425,7 @@ begin
                         ;
                     when 'request_table_sample' then
                         raise debug 'tool use: request_table_sample';
-                        select _samples || jsonb_build_object(_tool_call.arguments->'name', ai.render_sample(_tool_call.arguments->'name', _tool_call.arguments->'total'))
+                        select _samples || jsonb_build_object(_tool_call.arguments->>'name', ai.render_sample((_tool_call.arguments->>'name')::regclass, (_tool_call.arguments->>'total')::int4))
                         into strict _samples
                         ;
                     when 'answer_user_question_with_sql_statement' then

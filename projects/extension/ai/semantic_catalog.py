@@ -9,8 +9,13 @@ class GeneratedDescription(TypedDict):
 
 
 def render_sample(plpy, relation: str, total: int = 5) -> str:
+    """
+    Given a table ore view name, return a sample of rows from it.
+    """
     ident = ".".join([plpy.quote_ident(part) for part in relation.split(".")])
-    result = plpy.execute(f"select * from {ident}", total)
+    # do not let LLM select 0 or less and no more than 10 rows, so as to not overwhelm
+    # context window.
+    result = plpy.execute(f"select * from {ident}", min(max(total, 1), 10))
 
     ret_obj = f"""<data id="{relation}">"""
     for r in result:
