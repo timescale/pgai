@@ -8,7 +8,7 @@ from backoff._typing import Details
 from .utils import get_guc_value
 
 GUC_VECTORIZER_URL = "ai.external_functions_executor_url"
-DEFAULT_VECTORIZER_URL = "http://localhost:8000"
+DEFAULT_VECTORIZER_URL = "http://0.0.0.0:8000"
 
 GUC_VECTORIZER_PATH = "ai.external_functions_executor_events_path"
 DEFAULT_VECTORIZER_PATH = "/api/v1/events"

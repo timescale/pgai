@@ -24,7 +24,7 @@ def test_reveal_secrets():
             False,
         ),
         (
-            "SET ai.external_functions_executor_url='http://localhost:8000'",
+            "SET ai.external_functions_executor_url='http://0.0.0.0:8000'",
             """
             select ai.reveal_secret('OPENAI_API_KEY')
             """,
@@ -41,7 +41,7 @@ def test_reveal_secrets():
         ),
         (
             # guc overrides secret
-            "SET ai.openai_api_key='test_guc'; SET ai.external_functions_executor_url='http://localhost:8000'",
+            "SET ai.openai_api_key='test_guc'; SET ai.external_functions_executor_url='http://0.0.0.0:8000'",
             """
             select ai.reveal_secret('OPENAI_API_KEY')
             """,
@@ -50,7 +50,7 @@ def test_reveal_secrets():
         ),
         (
             # guc with different name doesn't override
-            "SET ai.openai_api_key='test_guc'; SET ai.external_functions_executor_url='http://localhost:8000'",
+            "SET ai.openai_api_key='test_guc'; SET ai.external_functions_executor_url='http://0.0.0.0:8000'",
             """
             select ai.reveal_secret('OPENAI_API_KEY_2')
             """,
@@ -76,7 +76,7 @@ def test_reveal_secrets():
             False,
         ),
         (
-            "SET ai.external_functions_executor_url='http://localhost:8000'",
+            "SET ai.external_functions_executor_url='http://0.0.0.0:8000'",
             """
             select ai.reveal_secret('DOES_NOT_EXIST')
             """,
@@ -84,7 +84,7 @@ def test_reveal_secrets():
             False,
         ),
         (
-            "SET ai.external_functions_executor_url='http://localhost:8000'",
+            "SET ai.external_functions_executor_url='http://0.0.0.0:8000'",
             """
             select ai.reveal_secret('ERROR_SECRET')
             """,
@@ -113,7 +113,7 @@ def test_reveal_secret_cache():
         with con.cursor() as cur:
             # enable cache, and populate it
             cur.execute(
-                "SET ai.external_functions_executor_url='http://localhost:8000'"
+                "SET ai.external_functions_executor_url='http://0.0.0.0:8000'"
             )
             cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
             actual = cur.fetchone()[0]

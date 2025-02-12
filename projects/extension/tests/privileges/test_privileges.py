@@ -92,7 +92,7 @@ def test_secret_privileges():
     with psycopg.connect(db_url("jill", "privs")) as con:
         with con.cursor() as cur:
             cur.execute(
-                "SET ai.external_functions_executor_url='http://localhost:8000'"
+                "SET ai.external_functions_executor_url='http://0.0.0.0:8000'"
             )
             with pytest.raises(Exception, match="user does not have access"):
                 cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
@@ -119,7 +119,7 @@ def test_secret_privileges():
     with psycopg.connect(db_url("jill", "privs")) as con:
         with con.cursor() as cur:
             cur.execute(
-                "SET ai.external_functions_executor_url='http://localhost:8000'"
+                "SET ai.external_functions_executor_url='http://0.0.0.0:8000'"
             )
             with pytest.raises(Exception, match="user does not have access"):
                 cur.execute("select ai.reveal_secret('TEST_ENV_SECRET')")
@@ -128,7 +128,7 @@ def test_secret_privileges():
     with psycopg.connect(db_url("alice", "privs")) as con:
         with con.cursor() as cur:
             cur.execute(
-                "SET ai.external_functions_executor_url='http://localhost:8000'"
+                "SET ai.external_functions_executor_url='http://0.0.0.0:8000'"
             )
             cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
             cur.execute("select ai.reveal_secret('TEST_ENV_SECRET')")
@@ -140,7 +140,7 @@ def test_secret_privileges():
     with psycopg.connect(db_url("jill", "privs")) as con:
         with con.cursor() as cur:
             cur.execute(
-                "SET ai.external_functions_executor_url='http://localhost:8000'"
+                "SET ai.external_functions_executor_url='http://0.0.0.0:8000'"
             )
             with pytest.raises(Exception, match="user does not have access"):
                 cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
@@ -149,7 +149,7 @@ def test_secret_privileges():
     with psycopg.connect(db_url("alice", "privs")) as con:
         with con.cursor() as cur:
             cur.execute(
-                "SET ai.external_functions_executor_url='http://localhost:8000'"
+                "SET ai.external_functions_executor_url='http://0.0.0.0:8000'"
             )
             cur.execute("select ai.grant_secret('OPENAI_API_KEY', 'jill')")
             cur.execute("select ai.grant_secret('TEST_ENV_SECRET', 'jill')")
@@ -158,7 +158,7 @@ def test_secret_privileges():
     with psycopg.connect(db_url("jill", "privs")) as con:
         with con.cursor() as cur:
             cur.execute(
-                "SET ai.external_functions_executor_url='http://localhost:8000'"
+                "SET ai.external_functions_executor_url='http://0.0.0.0:8000'"
             )
             cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
             cur.execute("select ai.reveal_secret('TEST_ENV_SECRET')")
@@ -170,7 +170,7 @@ def test_secret_privileges():
     with psycopg.connect(db_url("fred", "privs")) as con:
         with con.cursor() as cur:
             cur.execute(
-                "SET ai.external_functions_executor_url='http://localhost:8000'"
+                "SET ai.external_functions_executor_url='http://0.0.0.0:8000'"
             )
             with pytest.raises(Exception, match="permission denied for function"):
                 cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
@@ -179,14 +179,14 @@ def test_secret_privileges():
     with psycopg.connect(db_url("alice", "privs")) as con:
         with con.cursor() as cur:
             cur.execute(
-                "SET ai.external_functions_executor_url='http://localhost:8000'"
+                "SET ai.external_functions_executor_url='http://0.0.0.0:8000'"
             )
             cur.execute("select ai.revoke_secret('OPENAI_API_KEY', 'jill')")
 
     with psycopg.connect(db_url("jill", "privs")) as con:
         with con.cursor() as cur:
             cur.execute(
-                "SET ai.external_functions_executor_url='http://localhost:8000'"
+                "SET ai.external_functions_executor_url='http://0.0.0.0:8000'"
             )
             with pytest.raises(Exception, match="user does not have access"):
                 cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
@@ -195,7 +195,7 @@ def test_secret_privileges():
     with psycopg.connect(db_url("alice", "privs")) as con:
         with con.cursor() as cur:
             cur.execute(
-                "SET ai.external_functions_executor_url='http://localhost:8000'"
+                "SET ai.external_functions_executor_url='http://0.0.0.0:8000'"
             )
             cur.execute("select ai.grant_secret('*', 'jill')")
 
@@ -203,7 +203,7 @@ def test_secret_privileges():
     with psycopg.connect(db_url("jill", "privs")) as con:
         with con.cursor() as cur:
             cur.execute(
-                "SET ai.external_functions_executor_url='http://localhost:8000'"
+                "SET ai.external_functions_executor_url='http://0.0.0.0:8000'"
             )
             cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
             cur.execute("select ai.reveal_secret('OPENAI_API_KEY_2')")
@@ -213,14 +213,14 @@ def test_secret_privileges():
     with psycopg.connect(db_url("alice", "privs")) as con:
         with con.cursor() as cur:
             cur.execute(
-                "SET ai.external_functions_executor_url='http://localhost:8000'"
+                "SET ai.external_functions_executor_url='http://0.0.0.0:8000'"
             )
             cur.execute("select ai.revoke_secret('*', 'jill')")
 
     with psycopg.connect(db_url("jill", "privs")) as con:
         with con.cursor() as cur:
             cur.execute(
-                "SET ai.external_functions_executor_url='http://localhost:8000'"
+                "SET ai.external_functions_executor_url='http://0.0.0.0:8000'"
             )
             with pytest.raises(Exception, match="user does not have access"):
                 cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
