@@ -51,8 +51,8 @@ jobs:
       - name: Lint SQL and Python
         run: docker exec pgai-ext just lint
 
-      # - name: Check Python Formatting
-        # run: docker exec pgai-ext just format-py
+      - name: Check Python Formatting
+        run: docker exec pgai-ext just format-py
       
       - name: Compare requirements file
         run: docker exec pgai-ext just check-requirements

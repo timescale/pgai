@@ -112,9 +112,7 @@ def test_reveal_secret_cache():
     with psycopg.connect(db_url("test")) as con:
         with con.cursor() as cur:
             # enable cache, and populate it
-            cur.execute(
-                "SET ai.external_functions_executor_url='http://0.0.0.0:8000'"
-            )
+            cur.execute("SET ai.external_functions_executor_url='http://0.0.0.0:8000'")
             cur.execute("select ai.reveal_secret('OPENAI_API_KEY')")
             actual = cur.fetchone()[0]
             assert actual == "test"
