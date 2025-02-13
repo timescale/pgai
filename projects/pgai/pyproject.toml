@@ -31,6 +31,7 @@ dependencies = [
     "smart-open>=7.1.0",
     "pymupdf4llm>=0.0.17",
     "filetype>=1.2.0",
+    "docling>=2.21.0",
 ]
 classifiers = [
     "License :: OSI Approved :: PostgreSQL License",
