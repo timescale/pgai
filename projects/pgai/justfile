@@ -51,6 +51,10 @@ type-check:
 format:
 	@uv run ruff format --diff ./
 
+# Fix code formatting issues
+format-fix:
+	@uv run ruff format ./
+
 # CI pipeline. Runs all recipes needed for ensuring the code is ready to be integrated. Triggered by GH Actions
 ci: install lint type-check format test build
 
