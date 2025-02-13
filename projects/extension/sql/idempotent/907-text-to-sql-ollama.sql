@@ -12,7 +12,7 @@ create or replace function ai.text_to_sql_ollama
 , max_vector_dist pg_catalog.float8 default null
 , obj_renderer pg_catalog.regprocedure default null
 , sql_renderer pg_catalog.regprocedure default null
-, prompt_renderer regprocedure default null
+, user_prompt text default null
 , system_prompt text default null
 ) returns pg_catalog.jsonb
 as $func$
@@ -27,7 +27,7 @@ as $func$
     , 'max_vector_dist': max_vector_dist
     , 'obj_renderer': obj_renderer
     , 'sql_renderer': sql_renderer
-    , 'prompt_renderer': prompt_renderer
+    , 'user_prompt': user_prompt
     , 'system_prompt': system_prompt
     absent on null
     )
@@ -52,7 +52,7 @@ declare
     _max_vector_dist float8;
     _obj_renderer regprocedure;
     _sql_renderer regprocedure;
-    _prompt_renderer regprocedure;
+    _prompt_header text;
     _model text;
     _host text;
     _keep_alive text;
@@ -80,7 +80,6 @@ begin
     _max_vector_dist = (_config->>'max_vector_dist')::float8;
     _obj_renderer = coalesce((_config->>'obj_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_obj(bigint, oid, oid)'::pg_catalog.regprocedure);
     _sql_renderer = coalesce((_config->>'sql_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_sql(bigint, text, text)'::pg_catalog.regprocedure);
-    _prompt_renderer = coalesce((_config->>'prompt_renderer')::pg_catalog.regprocedure, 'ai.text_to_sql_render_prompt(text, text, text, text)'::pg_catalog.regprocedure);
     _model = coalesce(_config->>'model', 'qwen2.5-coder');
     _host = config->>'host';
     _keep_alive = config->>'keep_alive';
@@ -93,7 +92,15 @@ begin
           , 'You have access to tools.'
           )
         );
-
+    _prompt_header = concat_ws
+        ( E'\n'
+        , $$Below are descriptions of database objects and examples of SQL statements that are meant to give context to a user's question.$$
+        , $$Analyze the context provided. Identify the elements that are relevant to the user's question.$$
+        , $$ONLY use database elements that have been described to you. If more context is needed, use the "request_more_context_by_question" tool to ask questions about the database model.$$
+        , $$If enough context has been provided to confidently address the question, use the "answer_user_question_with_sql_statement" tool to record your final answer in the form of a valid SQL statement.$$
+        , coalesce(_config operator(pg_catalog.->>) 'user_prompt', '')
+        );
+    
     while _iter_remaining > 0 loop
         raise debug 'iteration: %', (_max_iter - _iter_remaining + 1);
         raise debug 'searching with % questions', jsonb_array_length(_questions);
@@ -213,17 +220,14 @@ begin
 
         -- render the user prompt
         raise debug 'rendering user prompt';
-        select format
-        ( $sql$select %I.%I($1, $2, $3, $4)$sql$
-        , n.nspname
-        , f.proname
-        )
-        into strict _sql
-        from pg_proc f
-        inner join pg_namespace n on (f.pronamespace = n.oid)
-        where f.oid = _prompt_renderer::oid
-        ;
-        execute _sql using question, _prompt_obj, '', _prompt_sql into _prompt;
+        _prompt = concat_ws
+        ( E'\n'
+        , _prompt_header
+        , coalesce(_prompt_obj, '')
+        --, coalesce(_samples_sql, '') TODO: implement table sampling
+        , coalesce(_prompt_sql, '')
+        , concat('Q: ', question)
+        );
         raise debug '%', _prompt;
 
         -- call llm -----------------------------------------------------------
