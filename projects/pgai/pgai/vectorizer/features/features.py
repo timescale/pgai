@@ -17,3 +17,8 @@ class Features:
         table, and the `ai.vectorizer_status` view.
         """
         return self.ext_version > version.parse("0.7.0")
+
+    @cached_property
+    def worker_tracking(self) -> bool:
+        """If the worker tracking feature is supported by the extension."""
+        return self.ext_version > version.parse("0.8.0")

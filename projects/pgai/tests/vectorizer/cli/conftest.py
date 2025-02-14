@@ -135,6 +135,8 @@ def run_vectorizer_worker(
         "--once",
         "--concurrency",
         str(concurrency),
+        "--log-level",
+        "DEBUG",
     ]
     if vectorizer_id is not None:
         args.extend(["--vectorizer-id", str(vectorizer_id)])
