@@ -3,8 +3,14 @@ from typing import Any, Literal
 
 import pymupdf  # type: ignore
 import pymupdf4llm  # type: ignore
-from docling.datamodel.base_models import DocumentStream  # type: ignore
-from docling.document_converter import DocumentConverter
+from docling.datamodel.base_models import (
+    DocumentStream,  # type: ignore
+    InputFormat,
+)
+from docling.datamodel.pipeline_options import (
+    PdfPipelineOptions,
+)
+from docling.document_converter import DocumentConverter, PdfFormatOption
 from pydantic import BaseModel
 from typing_extensions import override
 
@@ -95,6 +101,15 @@ class ParsingDocling(BaseDocumentParsing):
 
     @override
     def parse_doc(self, row: dict[str, Any], payload: LoadedDocument) -> str:  # noqa: ARG002
+        converter = DocumentConverter(
+            format_options={
+                InputFormat.PDF: PdfFormatOption(
+                    # we do not want to do OCR (yet)
+                    pipeline_options=PdfPipelineOptions(do_ocr=False),  # pyright: ignore[reportCallIssue]
+                )
+            }
+        )
+
         source = DocumentStream(name=payload.file_path or "", stream=payload.content)
-        result = DocumentConverter().convert(source)
+        result = converter.convert(source)
         return result.document.export_to_markdown()
