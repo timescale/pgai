@@ -65,7 +65,7 @@ VECTORIZER_ROW = r"""
             "pknum": 2,
             "attnum": 3,
             "attname": "published",
-            "typname": "timestamptz"
+            "typname": "timestamp with time zone"
         }
     ],
     "view_name": "blog_embedding",
@@ -1815,3 +1815,67 @@ def test_create_vectorizer_privs():
             , grant_to=>null
             );
             """)
+
+
+def test_weird_primary_key():
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("create schema if not exists vec")
+            cur.execute("drop table if exists vec.weird_pk")
+            cur.execute("""
+                create table vec.weird_pk
+                ( a text[] not null
+                , b timestamptz not null
+                , c tstzrange not null
+                , d bit(4) not null
+                , note text not null
+                , primary key (a, b, c, d)
+                );
+            """)
+
+            # create a vectorizer for the table
+            # language=PostgreSQL
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'vec.weird_pk'::regclass
+            , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+            , chunking=>ai.chunking_character_text_splitter('note')
+            , scheduling=>ai.scheduling_none()
+            , indexing=>ai.indexing_none()
+            , grant_to=>null
+            , enqueue_existing=>false
+            );
+            """)
+            vectorizer_id = cur.fetchone()[0]
+
+            # insert 6 rows into source
+            # verifies that the trigger and queue work with these types
+            cur.execute("""
+                insert into vec.weird_pk (a, b, c, d, note)
+                select
+                  array['bob', 'fred', 'sue']
+                , d
+                , tstzrange(d, d + interval '1d', '[)')
+                , b'1010'
+                , 'i am a note'
+                from generate_series('2025-01-01'::timestamptz, '2025-01-06'::timestamptz, interval '1d') d
+            """)
+
+            cur.execute(
+                "select source_pk from ai.vectorizer where id = %s", (vectorizer_id,)
+            )
+            actual = cur.fetchone()[0]
+
+            for item in actual:
+                if item["attname"] == "a":
+                    assert item["typname"] == "text[]"
+                if item["attname"] == "b":
+                    assert item["typname"] == "timestamp with time zone"
+                if item["attname"] == "c":
+                    assert item["typname"] == "tstzrange"
+                if item["attname"] == "d":
+                    assert item["typname"] == "bit(4)"

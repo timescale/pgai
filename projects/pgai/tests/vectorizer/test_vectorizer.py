@@ -140,3 +140,83 @@ def test_vectorizer_internal():
         )
         actual = cur.fetchone()[0]  # type: ignore
         assert actual is True
+
+
+def test_vectorizer_weird_pk():
+    db = "vcli1"
+    create_database(db)
+    _db_url = db_url("postgres", db)
+    with (
+        psycopg.connect(_db_url, autocommit=True, row_factory=namedtuple_row) as con,
+        con.cursor() as cur,
+    ):
+        cur.execute("create extension if not exists ai cascade")
+        cur.execute("drop table if exists weird_pk")
+        cur.execute("""
+                create table weird_pk
+                ( a text[] not null
+                , b timestamptz not null
+                , c tstzrange not null
+                , d bit(4) not null
+                , note text not null
+                , primary key (a, b, c, d)
+                );
+            """)
+        # insert 6 rows into source
+        cur.execute("""
+                insert into vec.weird_pk (a, b, c, d, note)
+                select
+                  array['bob', 'fred', 'sue']
+                , d
+                , tstzrange(d, d + interval '1d', '[)')
+                , b'1010'
+                , 'i am a note'
+                from generate_series('2025-01-01'::timestamptz, '2025-01-06'::timestamptz, interval '1d') d
+            """)  # noqa
+        # create a vectorizer for the table
+        # language=PostgreSQL
+        cur.execute("""
+            select ai.create_vectorizer
+            ( 'weird_pk'::regclass
+            , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+            , chunking=>ai.chunking_character_text_splitter('note')
+            , scheduling=>ai.scheduling_none()
+            , indexing=>ai.indexing_none()
+            , grant_to=>null
+            , enqueue_existing=>true
+            );
+            """)
+        row = cur.fetchone()
+        if row is None:
+            raise ValueError("vectorizer_id is None")
+        vectorizer_id = row[0]
+        if not isinstance(vectorizer_id, int):
+            raise ValueError("vectorizer_id is not an integer")
+
+        cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
+        vectorizer_expected = cur.fetchone()
+
+        # test cli.get_vectorizer
+        vectorizer_actual = cli.get_vectorizer(_db_url, vectorizer_id)
+        assert vectorizer_actual is not None
+        assert vectorizer_expected.source_table == vectorizer_actual.source_table  # type: ignore
+
+        # run the vectorizer
+        pgai_version = cli.get_pgai_version(cur)
+        features = Features(pgai_version)
+        cli.run_vectorizer(_db_url, vectorizer_actual, 1, features)
+
+        # make sure the queue was emptied
+        cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
+        actual = cur.fetchone()[0]  # type: ignore
+        assert actual == 0
+
+        # make sure we got 6 rows out
+        cur.execute(
+            SQL("select count(*) from {target_schema}.{target_table}").format(
+                target_schema=Identifier(vectorizer_expected.target_schema),  # type: ignore
+                target_table=Identifier(vectorizer_expected.target_table),  # type: ignore
+            )
+        )
+        actual = cur.fetchone()[0]  # type: ignore
+        assert actual == 10

@@ -6,7 +6,7 @@ $func$
     select pg_catalog.jsonb_agg(x)
     from
     (
-        select e.attnum, e.pknum, a.attname, y.typname
+        select e.attnum, e.pknum, a.attname, pg_catalog.format_type(y.oid, a.atttypmod) as typname
         from pg_catalog.pg_constraint k
         cross join lateral pg_catalog.unnest(k.conkey) with ordinality e(attnum, pknum)
         inner join pg_catalog.pg_attribute a
