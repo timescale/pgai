@@ -31,10 +31,6 @@ install:
 uninstall:
 	@uv pip uninstall -y pgai
 
-# Downloads the models required by docling
-docling-models:
-    @uv run docling-tools models download
-
 # Run pytest test suite
 test:
 	@uv run pytest
@@ -56,7 +52,7 @@ format:
 	@uv run ruff format --diff ./
 
 # CI pipeline. Runs all recipes needed for ensuring the code is ready to be integrated. Triggered by GH Actions
-ci: install lint type-check format docling-models test build
+ci: install lint type-check format test build
 
 # Build Docker image with version tag
 docker-build:

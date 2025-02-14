@@ -1,4 +1,6 @@
+import os
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any, Literal
 
 import pymupdf  # type: ignore
@@ -101,6 +103,7 @@ class ParsingDocling(BaseDocumentParsing):
     """Document parsing implementation using Docling."""
 
     implementation: Literal["docling"]  # type: ignore[reportIncompatibleVariableOverride]
+    cache_dir: Path | str = Path.home().joinpath(".cache/docling/models")
 
     @override
     def parse_doc(self, row: dict[str, Any], payload: LoadedDocument) -> str:  # noqa: ARG002
@@ -108,7 +111,12 @@ class ParsingDocling(BaseDocumentParsing):
             format_options={
                 InputFormat.PDF: PdfFormatOption(
                     # we do not want to do OCR (yet)
-                    pipeline_options=PdfPipelineOptions(do_ocr=False),  # pyright: ignore[reportCallIssue]
+                    pipeline_options=PdfPipelineOptions(
+                        do_ocr=False,
+                        artifacts_path=self.cache_dir
+                        if os.path.isdir(self.cache_dir)
+                        else None,
+                    ),  # pyright: ignore[reportCallIssue]
                 )
             }
         )

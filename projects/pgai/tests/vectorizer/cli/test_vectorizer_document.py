@@ -165,6 +165,16 @@ def test_simple_document_embedding_s3(
         cli_db[1], base_path="s3://adol-docs-test"
     )
 
+    # required for accessing this S3 bucket in particular
+    os.environ["AWS_DEFAULT_REGION"] = "eu-central-1"
+
+    # This is necessary to prevent boto3 from pulling credentials
+    # from WS Instance Metadata Service when those are missing.
+    # Comment if you need to recreate the cassette.
+    os.environ["AWS_ACCESS_KEY_ID"] = "FAKE"
+    os.environ["AWS_SECRET_ACCESS_KEY"] = "FAKE"
+    os.environ["AWS_SHARED_CREDENTIALS_FILE"] = "/dev/null"
+
     with vcr_.use_cassette("simple-s3-docs.yaml"):
         result = run_vectorizer_worker(cli_db_url, vectorizer_id)
 
