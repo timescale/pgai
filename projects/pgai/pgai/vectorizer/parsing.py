@@ -34,7 +34,10 @@ class ParsingAuto(BaseModel):
 
     def parse(self, row: dict[str, Any], payload: str | LoadedDocument) -> str:
         if isinstance(payload, LoadedDocument):
-            # return ParsingPyMuPDF(implementation="pymupdf").parse(row, payload)
+            if payload.file_type == "epub":
+                # epub is not supported by docling, but by pymupdf
+                return ParsingPyMuPDF(implementation="pymupdf").parse(row, payload)
+
             return ParsingDocling(implementation="docling").parse(row, payload)
         else:
             return payload
