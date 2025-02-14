@@ -88,7 +88,8 @@ def test_simple_document_embedding_local(
     connection = cli_db[1]
     vectorizer_id = configure_document_vectorizer(cli_db[1], number_of_rows=len(docs))
 
-    with vcr_.use_cassette("simple-docs.yaml"):
+    # Ignoring huggingface.co because docling will download its models if not found
+    with vcr_.use_cassette("simple-docs.yaml", ignore_hosts=["huggingface.co"]):
         result = run_vectorizer_worker(cli_db_url, vectorizer_id)
 
     if result.exception:
