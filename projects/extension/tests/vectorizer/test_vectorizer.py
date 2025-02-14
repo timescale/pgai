@@ -361,6 +361,74 @@ def test_vectorizer_timescaledb():
             actual = cur.fetchone()[0]
             assert actual == 0
 
+            # Test DELETE trigger
+            cur.execute("""
+                delete from website.blog 
+                where title = 'how to make sandwich'
+            """)
+            # Verify row was deleted from target table
+            cur.execute("""
+                select count(*) from website.blog_embedding_store 
+                where title = 'how to make sandwich'
+            """)
+            assert cur.fetchone()[0] == 0
+
+            # Test regular UPDATE (no PK change)
+            cur.execute("""
+                update website.blog 
+                set body = 'updated body'
+                where title = 'how to make stir fry'
+            """)
+            # Verify this caused a queue insert
+            cur.execute("""
+                select count(*) from ai._vectorizer_q_1
+                where title = 'how to make stir fry'
+            """)
+            assert cur.fetchone()[0] == 1
+
+            # run the underlying function explicitly
+            # language=PostgreSQL
+            cur.execute(
+                "call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))",
+                (vectorizer_id,),
+            )
+
+            # check that the queue has 0 rows
+            cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual == 0
+
+            # Test UPDATE with PK change
+            cur.execute("""
+                update website.blog 
+                set title = 'how to make better stir fry'
+                where title = 'how to make stir fry'
+            """)
+            # Verify old PK was deleted from target
+            cur.execute("""
+                select count(*) from website.blog_embedding_store 
+                where title = 'how to make stir fry'
+            """)
+            assert cur.fetchone()[0] == 0
+            # Verify new PK was queued
+            cur.execute("""
+                select count(*) from ai._vectorizer_q_1
+                where title = 'how to make better stir fry'
+            """)
+            assert cur.fetchone()[0] == 1
+
+            # run the underlying function explicitly
+            # language=PostgreSQL
+            cur.execute(
+                "call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))",
+                (vectorizer_id,),
+            )
+
+            # check that the queue has 0 rows
+            cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual == 0
+
             # update a row into the source
             cur.execute("""
                 update website.blog set published = now()
