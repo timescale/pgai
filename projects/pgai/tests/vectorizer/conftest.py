@@ -20,6 +20,16 @@ from pgai.vectorizer.vectorizer import TIKTOKEN_CACHE_DIR
 
 DIMENSION_COUNT = 1536
 
+# Ignore requests to specific URLs globally, matching by their paths.
+# The match is not regex, but a simple string match.
+# Alternatively, you can use the ignore_hosts parameter in the vcr.use_cassette
+# for fully ignoring requests to specific hosts.
+VCR_IGNORE_HOST_PATHS: dict[str, list[str]] = {
+    "huggingface.co": [
+        "/api/models/ds4sd/docling-models",  # Docling downloads models
+    ],
+}
+
 
 @pytest.fixture(autouse=True)
 def __env_setup():  # type:ignore
@@ -47,6 +57,13 @@ def remove_set_cookie_header(response: dict[str, Any]):
     return response
 
 
+def filter_urls_before_record_request(request: Any):
+    """Ignore requests to URLs matching regex patterns globally."""
+    if paths := VCR_IGNORE_HOST_PATHS.get(request.host):
+        return None if any(path in request.path for path in paths) else request
+    return request
+
+
 @pytest.fixture(scope="session")
 def vcr_():
     cassette_library_dir = Path(__file__).parent.joinpath("cassettes")
@@ -58,6 +75,7 @@ def vcr_():
         filter_headers=["authorization", "api-key"],
         match_on=["method", "scheme", "host", "port", "path", "query", "body"],
         before_record_response=remove_set_cookie_header,
+        before_record_request=filter_urls_before_record_request,
     )
 
 
