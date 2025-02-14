@@ -124,6 +124,19 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
             if not isinstance(msg, str):
                 raise e
 
+            error_type: Any = body["type"]
+            if isinstance(error_type, str) and error_type == "max_tokens_per_request":
+                mid = len(documents) // 2
+
+                await logger.adebug(f"Halving chunks due to openai token limits, error was '{msg}'")
+
+                first_half_results = await self.embed(documents[: mid + 1])
+                second_half_results = await self.embed(documents[mid + 1:])
+
+                combined_results = first_half_results + second_half_results
+
+                return combined_results
+
             m = openai_token_length_regex.match(msg)
             if not m:
                 raise e
