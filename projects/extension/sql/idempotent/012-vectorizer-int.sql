@@ -126,7 +126,6 @@ begin
     , chunk text not null
     , embedding @extschema:vector@.vector(%L) storage main not null
     , unique (%s, chunk_seq)
-    , foreign key (%s) references %I.%I (%s) on delete cascade
     )
     $sql$
     , target_schema, target_table
@@ -145,9 +144,6 @@ begin
             x(attnum int, attname name, typname name)
       )
     , dimensions
-    , _pk_cols
-    , _pk_cols
-    , source_schema, source_table
     , _pk_cols
     ) into strict _sql
     ;
@@ -469,72 +465,105 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_create_source_trigger
 create or replace function ai._vectorizer_create_source_trigger
-( trigger_name pg_catalog.name
-, queue_schema pg_catalog.name
-, queue_table pg_catalog.name
-, source_schema pg_catalog.name
-, source_table pg_catalog.name
-, source_pk pg_catalog.jsonb
+( trigger_name pg_catalog.name     -- Name for the trigger
+, queue_schema pg_catalog.name     -- Schema containing the queue table
+, queue_table pg_catalog.name      -- Table that will store queued items
+, source_schema pg_catalog.name    -- Schema containing the watched table
+, source_table pg_catalog.name     -- Table being watched for changes
+, target_schema pg_catalog.name    -- Schema containing the target table for deletions
+, target_table pg_catalog.name     -- Table where corresponding rows should be deleted
+, source_pk pg_catalog.jsonb       -- JSON describing primary key columns to track
 ) returns void as
 $func$
 declare
     _sql pg_catalog.text;
+    _pk_columns pg_catalog.text;
+    _pk_values pg_catalog.text;
+    _pk_where_clause pg_catalog.text;
+    _pk_change_check pg_catalog.text;
+    _delete_statement pg_catalog.text;
 begin
-    -- create the trigger function
-    -- the trigger function is security definer
-    -- the owner of the source table is creating the trigger function
-    -- so the trigger function is run as the owner of the source table
-    -- who also owns the queue table
-    -- this means anyone with insert/update on the source is able
-    -- to enqueue rows in the queue table automatically
-    -- since the trigger function only does inserts, this should be safe
-    select pg_catalog.format
-    ( $sql$
-    create function %I.%I() returns trigger
-    as $plpgsql$
-    begin
-        insert into %I.%I (%s)
-        values (%s);
-        return null;
-    end;
-    $plpgsql$ language plpgsql volatile parallel safe security definer
-    set search_path to pg_catalog, pg_temp
-    $sql$
-    , queue_schema, trigger_name
-    , queue_schema, queue_table
-    , (
-        select pg_catalog.string_agg(pg_catalog.format('%I', x.attname), ', ' order by x.attnum)
-        from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name)
-      )
-    , (
-        select pg_catalog.string_agg(pg_catalog.format('new.%I', x.attname), ', ' order by x.attnum)
-        from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name)
-      )
-    ) into strict _sql
-    ;
+    -- Pre-calculate all the parts we need
+    select pg_catalog.string_agg(pg_catalog.format('%I', x.attname), ', ' order by x.attnum)
+    into strict _pk_columns
+    from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name);
+
+    select pg_catalog.string_agg(pg_catalog.format('new.%I', x.attname), ', ' order by x.attnum)
+    into strict _pk_values
+    from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name);
+
+    -- Create WHERE clause for DELETE using identifier quoting
+    _delete_statement := format('delete from %I.%I where ', target_schema, target_table) ||
+        (select string_agg(
+            quote_ident(attname) || ' = $1.' || quote_ident(attname),
+            ' and '
+        )
+        from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name));
+
+    -- Create PK change check expression
+    select string_agg(
+        'old.' || quote_ident(attname) || ' IS DISTINCT FROM new.' || quote_ident(attname),
+        ' OR '
+    )
+    into strict _pk_change_check
+    from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name);
+
+    -- Create the trigger function with direct string construction
+    _sql := format(
+        $sql$
+        create function %I.%I() returns trigger as
+        $plpgsql$
+        begin
+            if (TG_OP = 'DELETE') then
+                execute %L using old;
+                return old;
+            elsif (TG_OP = 'UPDATE') then
+                if %s then
+                    execute %L using old;
+                end if;
+                
+                insert into %I.%I (%s)
+                values (%s);
+                return new;
+            else  -- INSERT
+                insert into %I.%I (%s)
+                values (%s);
+                return new;
+            end if;
+        end;
+        $plpgsql$ language plpgsql volatile parallel safe security definer
+        set search_path to pg_catalog, pg_temp
+        $sql$,
+        queue_schema, trigger_name,         -- Function name (1,2)
+        _delete_statement,                  -- DELETE case (3)
+        _pk_change_check,                   -- UPDATE check condition (4)
+        _delete_statement,                  -- UPDATE delete statement (5)
+        queue_schema, queue_table,          -- Queue table for UPDATE (6,7)
+        _pk_columns, _pk_values,           -- Columns and values for UPDATE (8,9)
+        queue_schema, queue_table,          -- Queue table for INSERT (10,11)
+        _pk_columns, _pk_values            -- Columns and values for INSERT (12,13)
+    );
+    
     execute _sql;
 
-    -- revoke all on trigger function from public
-    select pg_catalog.format
-    ( $sql$
-    revoke all on function %I.%I() from public
-    $sql$
-    , queue_schema, trigger_name
-    ) into strict _sql
-    ;
+    -- Revoke public permissions
+    _sql := pg_catalog.format(
+        'revoke all on function %I.%I() from public',
+        queue_schema, trigger_name
+    );
     execute _sql;
 
-    -- create the trigger on the source table
-    select pg_catalog.format
-    ( $sql$
-    create trigger %I
-    after insert or update
-    on %I.%I
-    for each row execute function %I.%I();
-    $sql$
-    , trigger_name
-    , source_schema, source_table
-    , queue_schema, trigger_name
+    -- Create the trigger
+    select pg_catalog.format(
+        $sql$
+        create trigger %I
+        after insert or update or delete
+        on %I.%I
+        for each row execute function %I.%I()
+        $sql$,
+        trigger_name,
+        source_schema, source_table,
+        queue_schema, trigger_name
     ) into strict _sql
     ;
     execute _sql;

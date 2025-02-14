@@ -92,10 +92,8 @@ SOURCE_TABLE = """
  body      | text                     |           | not null |                              | extended |             |              | 
 Indexes:
     "blog_pkey" PRIMARY KEY, btree (title, published)
-Referenced by:
-    TABLE "website.blog_embedding_store" CONSTRAINT "blog_embedding_store_title_published_fkey" FOREIGN KEY (title, published) REFERENCES website.blog(title, published) ON DELETE CASCADE
 Triggers:
-    _vectorizer_src_trg_1 AFTER INSERT OR UPDATE ON website.blog FOR EACH ROW EXECUTE FUNCTION ai._vectorizer_src_trg_1()
+    _vectorizer_src_trg_1 AFTER INSERT OR DELETE OR UPDATE ON website.blog FOR EACH ROW EXECUTE FUNCTION ai._vectorizer_src_trg_1()
 Access method: heap
 """.strip()
 
@@ -122,8 +120,6 @@ TARGET_TABLE = """
 Indexes:
     "blog_embedding_store_pkey" PRIMARY KEY, btree (embedding_uuid)
     "blog_embedding_store_title_published_chunk_seq_key" UNIQUE CONSTRAINT, btree (title, published, chunk_seq)
-Foreign-key constraints:
-    "blog_embedding_store_title_published_fkey" FOREIGN KEY (title, published) REFERENCES website.blog(title, published) ON DELETE CASCADE
 Access method: heap
 """.strip()
 
