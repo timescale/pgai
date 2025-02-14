@@ -89,17 +89,41 @@ def test_process_vectorizer(
         f"items={num_items}-batch_size={batch_size}-"
         f"custom_base_url={openai_proxy_url is not None}.yaml"
     )
-    logging.getLogger("vcr").setLevel(logging.DEBUG)
+    # logging.getLogger("vcr").setLevel(logging.DEBUG)
 
     with vcr_.use_cassette(cassette):
         result = run_vectorizer_worker(cli_db_url, vectorizer_id, concurrency)
 
     assert not result.exception
     assert result.exit_code == 0
+    print(f"result: {result.stdout}")
 
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT count(*) as count FROM blog_embedding_store;")
         assert cur.fetchone()["count"] == num_items  # type: ignore
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT * FROM ai.vectorizer_worker_connection;")
+        row = cur.fetchone()
+        assert row["started"] is not None
+        assert row["last_heartbeat"] is not None
+        assert row["heartbeat_count"] >= 1
+        assert row["error_count"] == 0
+        assert row["last_error_at"] is None
+        assert row["last_error_message"] is None
+        assert row["success_count"] == num_items
+        worker_id = row["id"]
+        assert cur.fetchone() is None
+
+        cur.execute("SELECT * FROM ai.vectorizer_worker_progress;")
+        row = cur.fetchone()
+        assert row["last_success_at"] is not None
+        assert row["last_success_connection_id"] == worker_id
+        assert row["last_error_at"] is None
+        assert row["last_error_message"] is None
+        assert row["last_error_connection_id"] is None
+        assert row["success_count"] == num_items
+        assert cur.fetchone() is None
 
 
 @pytest.mark.postgres_params(load_openai_key=False)
@@ -128,6 +152,30 @@ def test_vectorizer_without_secrets_fails(
 
     assert result.exit_code == 1
     assert "ApiKeyNotFoundError" in result.output
+    print(f"result: {result.stdout}")
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT * FROM ai.vectorizer_worker_connection;")
+        row = cur.fetchone()
+        assert row["started"] is not None
+        assert row["last_heartbeat"] is not None
+        assert row["heartbeat_count"] >= 1
+        assert row["error_count"] == 1
+        assert row["success_count"] == 0
+        assert row["last_error_at"] is not None
+        assert row["last_error_message"] is not None
+        worker_id = row["id"]
+        assert cur.fetchone() is None
+
+        cur.execute("SELECT * FROM ai.vectorizer_worker_progress;")
+        row = cur.fetchone()
+        assert row["last_success_at"] is None
+        assert row["last_success_connection_id"] is None
+        assert row["last_error_at"] is not None
+        assert row["last_error_message"] is not None
+        assert row["last_error_connection_id"] == worker_id
+        assert row["success_count"] == 0
+        assert cur.fetchone() is None
 
 
 def test_document_exceeds_model_context_length(
