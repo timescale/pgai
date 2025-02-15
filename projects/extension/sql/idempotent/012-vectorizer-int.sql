@@ -461,7 +461,6 @@ $func$
 language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
-
 -------------------------------------------------------------------------------
 -- _vectorizer_create_source_trigger
 create or replace function ai._vectorizer_create_source_trigger
@@ -508,41 +507,40 @@ begin
     into strict _pk_change_check
     from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name);
 
-    -- Create the trigger function with direct string construction
-    _sql := format(
-        $sql$
-        create function %I.%I() returns trigger as
-        $plpgsql$
-        begin
-            if (TG_OP = 'DELETE') then
-                execute %L using old;
-                return old;
-            elsif (TG_OP = 'UPDATE') then
-                if %s then
-                    execute %L using old;
-                end if;
-                
-                insert into %I.%I (%s)
-                values (%s);
-                return new;
-            else  -- INSERT
-                insert into %I.%I (%s)
-                values (%s);
-                return new;
+    -- Create the trigger function
+    _sql := $create_func$
+    create function $QUEUE_SCHEMA$.$TRIGGER_NAME$() returns trigger as 
+    $trigger_func$
+    begin
+        if (TG_OP = 'DELETE') then
+            execute '$delete_statement$' using old;
+            return old;
+        elsif (TG_OP = 'UPDATE') then
+            if $pk_change_check$ then
+                execute '$delete_statement$' using old;
             end if;
-        end;
-        $plpgsql$ language plpgsql volatile parallel safe security definer
-        set search_path to pg_catalog, pg_temp
-        $sql$,
-        queue_schema, trigger_name,         -- Function name (1,2)
-        _delete_statement,                  -- DELETE case (3)
-        _pk_change_check,                   -- UPDATE check condition (4)
-        _delete_statement,                  -- UPDATE delete statement (5)
-        queue_schema, queue_table,          -- Queue table for UPDATE (6,7)
-        _pk_columns, _pk_values,           -- Columns and values for UPDATE (8,9)
-        queue_schema, queue_table,          -- Queue table for INSERT (10,11)
-        _pk_columns, _pk_values            -- Columns and values for INSERT (12,13)
-    );
+            
+            insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
+            values ($PK_VALUES$);
+            return new;
+        else  -- INSERT
+            insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
+            values ($PK_VALUES$);
+            return new;
+        end if;
+    end;
+    $trigger_func$ language plpgsql volatile parallel safe security definer
+    set search_path to pg_catalog, pg_temp
+    $create_func$;
+
+    -- Replace the placeholders with actual values
+    _sql := replace(_sql, '$QUEUE_SCHEMA$', quote_ident(queue_schema));
+    _sql := replace(_sql, '$TRIGGER_NAME$', quote_ident(trigger_name));
+    _sql := replace(_sql, '$delete_statement$', _delete_statement);
+    _sql := replace(_sql, '$pk_change_check$', _pk_change_check);
+    _sql := replace(_sql, '$QUEUE_TABLE$', quote_ident(queue_table));
+    _sql := replace(_sql, '$PK_COLUMNS$', _pk_columns);
+    _sql := replace(_sql, '$PK_VALUES$', _pk_values);
     
     execute _sql;
 
@@ -572,6 +570,68 @@ $func$
 language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
+
+do $upgrade_block$
+declare
+    _vec record;
+    _version text;
+    _new_version text := '0.9.0';  -- Version after upgrade
+begin
+    -- Find all vectorizers with version < 0.9.0
+    for _vec in (
+        select 
+            v.id,
+            v.source_schema,
+            v.source_table,
+            v.source_pk,
+            v.target_schema,
+            v.target_table,
+            v.trigger_name,
+            v.queue_schema,
+            v.queue_table,
+            v.config
+        from ai.vectorizer v
+        where (v.config->>'version')::text ~ '^0\.8\.'
+    )
+    loop
+        raise notice 'Upgrading trigger for vectorizer ID % from version %', _vec.id, _vec.config->>'version';
+        
+        -- Drop existing trigger
+        execute format(
+            'drop trigger if exists %I on %I.%I',
+            _vec.trigger_name,
+            _vec.source_schema,
+            _vec.source_table
+        );
+        
+        -- Drop existing trigger function
+        execute format(
+            'drop function if exists %I.%I()',
+            _vec.queue_schema,
+            _vec.trigger_name
+        );
+        
+        -- Create new trigger
+        perform ai._vectorizer_create_source_trigger(
+            _vec.trigger_name,
+            _vec.queue_schema,
+            _vec.queue_table,
+            _vec.source_schema,
+            _vec.source_table,
+            _vec.target_schema,
+            _vec.target_table,
+            _vec.source_pk
+        );
+
+        -- Update the version in the config
+        update ai.vectorizer 
+        set config = jsonb_set(config, '{version}', format('"%s"', _new_version)::jsonb)
+        where id = _vec.id;
+        
+        raise notice 'Successfully upgraded trigger for vectorizer ID % to version %', _vec.id, _new_version;
+    end loop;
+end;
+$upgrade_block$;
 
 -------------------------------------------------------------------------------
 -- _vectorizer_vector_index_exists
