@@ -13,23 +13,23 @@ Then you can create a vectorizer from python:
 
 ```python
 from pgai.vectorizer import CreateVectorizer
-from pgai.vectorizer.configuration import OpenAIConfig, CharacterTextSplitterConfig, PythonTemplateConfig
+from pgai.vectorizer.configuration import EmbeddingOpenaiConfig, ChunkingCharacterTextSplitterConfig, FormattingPythonTemplateConfig
 
 vectorizer_statement = CreateVectorizer(
     source="blog",
     target_table='blog_embeddings',
-    embedding=OpenAIConfig(
+    embedding=EmbeddingOpenaiConfig(
         model='text-embedding-3-small',
         dimensions=768
     ),
-    chunking=CharacterTextSplitterConfig(
+    chunking=ChunkingCharacterTextSplitterConfig(
         chunk_column='content',
         chunk_size=800,
         chunk_overlap=400,
         separator='.',
         is_separator_regex=False
     ),
-    formatting=PythonTemplateConfig(template='$title - $chunk')
+    formatting=FormattingPythonTemplateConfig(template='$title - $chunk')
 ).to_sql()
 ```
 
@@ -234,9 +234,9 @@ Then you can use the `create_vectorizer` operation to create a vectorizer for yo
 ```python
 from alembic import op
 from pgai.vectorizer.configuration import (
-    OpenAIConfig,
-    CharacterTextSplitterConfig,
-    PythonTemplateConfig
+    EmbeddingOpenaiConfig,
+    ChunkingCharacterTextSplitterConfig,
+    FormattingPythonTemplateConfig
 )
 
 
@@ -244,23 +244,23 @@ def upgrade() -> None:
     op.create_vectorizer(
         source="blog",
         target_table='blog_embeddings',
-        embedding=OpenAIConfig(
+        embedding=EmbeddingOpenaiConfig(
             model='text-embedding-3-small',
             dimensions=768
         ),
-        chunking=CharacterTextSplitterConfig(
+        chunking=ChunkingCharacterTextSplitterConfig(
             chunk_column='content',
             chunk_size=800,
             chunk_overlap=400,
             separator='.',
             is_separator_regex=False
         ),
-        formatting=PythonTemplateConfig(template='$title - $chunk')
+        formatting=FormattingPythonTemplateConfig(template='$title - $chunk')
     )
 
 
 def downgrade() -> None:
-    op.drop_vectorizer(target_table_name="blog_embeddings", drop_all=True)
+    op.drop_vectorizer(target_table="blog_embeddings", drop_all=True)
 ```
 
 The `create_vectorizer` operation supports all configuration options available in the [SQL API](vectorizer/api-reference.md).
