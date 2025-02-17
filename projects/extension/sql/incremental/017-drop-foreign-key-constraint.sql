@@ -50,3 +50,5 @@ BEGIN
     END LOOP;
 END;
 $block$;
+
+drop function if exists ai._vectorizer_create_source_trigger(name,name,name,name,name,jsonb);

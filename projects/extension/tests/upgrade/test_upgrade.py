@@ -140,6 +140,19 @@ def test_upgrades():
         create_extension("upgrade_target", path.target)
         assert check_version("upgrade_target") == path.target
         init("upgrade_target")
+        # Test that the trigger function exists
+        # After each case, add:
+        with psycopg.connect(db_url(user=USER, dbname="upgrade_target"), autocommit=True) as con:
+            with con.cursor() as cur:
+                # Check if function exists and get its properties
+                cur.execute("""
+                    SELECT n.nspname, p.proname, p.proowner::regrole, 
+                           p.proacl, p.prokind
+                    FROM pg_proc p
+                    JOIN pg_namespace n ON p.pronamespace = n.oid
+                    WHERE p.proname = '_vectorizer_src_trg_1'
+                """)
+                print(f"Function details in upgrade_target:", cur.fetchone())
         snapshot("upgrade_target", f"{path_name}-expected")
         # start at the first version in the path
         create_database("upgrade_path")
@@ -150,6 +163,19 @@ def test_upgrades():
         for version in path.path[1:]:
             update_extension("upgrade_path", version)
             assert check_version("upgrade_path") == version
+        # Test that the trigger function exists
+        # After each case, add:
+        with psycopg.connect(db_url(user=USER, dbname="upgrade_path"), autocommit=True) as con:
+            with con.cursor() as cur:
+                # Check if function exists and get its properties
+                cur.execute("""
+                    SELECT n.nspname, p.proname, p.proowner::regrole, 
+                           p.proacl, p.prokind
+                    FROM pg_proc p
+                    JOIN pg_namespace n ON p.pronamespace = n.oid
+                    WHERE p.proname = '_vectorizer_src_trg_1'
+                """)
+                print(f"Function details in upgrade_path:", cur.fetchone())
         snapshot("upgrade_path", f"{path_name}-actual")
         # compare the snapshots. they should match
         expected = (
