@@ -70,6 +70,19 @@ class ChunkingRecursiveCharacterTextSplitterConfig(SQLArgumentMixin):
 
 
 @dataclass
+class EmbeddingLitellmConfig(SQLArgumentMixin):
+    """Configuration for ai.embedding_litellm function."""
+
+    arg_type: ClassVar[str] = "embedding"
+    function_name: ClassVar[str] = "ai.embedding_litellm"
+
+    model: str
+    dimensions: int
+    api_key_name: str | None = None
+    extra_options: dict[str, Any] | None = None
+
+
+@dataclass
 class EmbeddingOllamaConfig(SQLArgumentMixin):
     """Configuration for ai.embedding_ollama function."""
 
@@ -94,6 +107,7 @@ class EmbeddingOpenaiConfig(SQLArgumentMixin):
     dimensions: int
     chat_user: str | None = None
     api_key_name: str | None = None
+    base_url: str | None = None
 
 
 @dataclass

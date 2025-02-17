@@ -15,6 +15,7 @@ VECTORIZER_FUNCTIONS = [
     "embedding_openai",
     "embedding_ollama",
     "embedding_voyageai",
+    "embedding_litellm",
     "chunking_character_text_splitter",
     "chunking_recursive_character_text_splitter",
     "formatting_python_template",
@@ -50,6 +51,7 @@ def generate_vectorizer_configs(
 ) -> None:
     """Generate all vectorizer configuration classes."""
     with psycopg.connect(conn_str) as conn:
+        conn.execute("Create extension if not exists ai cascade;")
         available_functions = list_vectorizer_functions(conn)
         functions = get_function_metadata(conn, available_functions)
         generate_config_classes(functions, output_file)
