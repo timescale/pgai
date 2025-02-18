@@ -7,6 +7,8 @@ as $func$
 declare
     _sql text;
 begin
+    -- TODO: lock the tables while we work?
+
     -- disable vectorizer triggers on the ai.semantic_catalog_obj table
     for _sql in
     (
