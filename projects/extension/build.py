@@ -170,7 +170,7 @@ class Actions:
             for d in version_target_dir.glob(
                 "pgai-*.dist-info"
             ):  # delete package info if exists
-                shutil.rmtree(d)
+                shutil.rmtree(d, ignore_errors=True)
             bin = "pip3" if shutil.which("uv") is None else "uv pip"
             cmd = f'{bin} install -v --no-deps --compile --target "{version_target_dir}" "{ext_dir()}"'
             subprocess.run(
