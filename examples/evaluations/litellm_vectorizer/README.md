@@ -1,10 +1,14 @@
 # Embedding Models Evaluation using pgai Vectorizer and LiteLLM
 
+This evaluation script show hows simple it is to evaluate different embedding models using pgai's Vectorizer integrated with LiteLLM. The dataset used in this evaluation is Paul Graham's essays, but the flexibility of the Vectorizer allows you to use any dataset both from HuggingFace and from your own files.The LiteLLM integration also allows for easy swapping and testing of different embedding models through one SQL interface. 
+
+The evaluation generates diverse question types (short, long, direct, implied, and unclear) for random text chunks and measures each model's ability to retrieve relevant context through vector similarity search. 
+
 ## Prerequisites:
 
 1. Docker and Docker Compose installed (compose.yaml is included)
 2. PostgreSQL with pgai extension running
-3. HuggingFace dataset: https://huggingface.co/datasets/sgoel9/paul_graham_essays?row=0
+3. HuggingFace dataset: https://huggingface.co/datasets/sgoel9/paul_graham_essays
 4. API Keys for:
    - Cohere (COHERE_API_KEY)
    - Mistral (MISTRAL_API_KEY)
@@ -35,10 +39,12 @@
     - services.db.environment.COHERE_API_KEY="..."
     - services.db.environment.MISTRAL_API_KEY="..."
     - services.db.environment.OPENAI_API_KEY="..."
-2. Start services: docker compose up -d
-3. Connect to your database: docker exec -it pgai-db-1 psql -U postgres -d postgres
+2. Start services: `docker compose up -d`
+3. Connect to your database: `docker exec -it pgai-db-1 psql -U postgres -d postgres`
 4. Enable pgai extension:
+   ```
    CREATE EXTENSION IF NOT EXISTS ai CASCADE;
+   ```
 5. Load Paul Graham's essays into the database:
    SELECT ai.load_dataset('sgoel9/paul_graham_essays');
 6. Create vectorizers in psql for each embedding model:

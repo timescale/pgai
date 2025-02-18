@@ -276,20 +276,20 @@ def main():
     Config.validate()
     evaluator = StepByStepEvaluator()
     
-    # Step 1: Get chunks from one of the vectorized tables.
-    chunks = evaluator.step1_get_chunks()
-    pd.DataFrame(chunks).to_csv('chunks.csv')
-    print(f"Number of chunks: {len(chunks)}")
-    print("Sample chunk:", chunks[0])
+    # # Step 1: Get chunks from one of the vectorized tables.
+    # chunks = evaluator.step1_get_chunks()
+    # pd.DataFrame(chunks).to_csv('chunks.csv')
+    # print(f"Number of chunks: {len(chunks)}")
+    # print("Sample chunk:", chunks[0])
 
-    chunks = pd.read_csv('chunks.csv', index_col=0).to_dict('records')
-    evaluator.chunks = chunks
-    print(f"Loaded {len(chunks)} chunks from chunks.csv")
-    print("Sample chunk:", chunks[0])
+    # chunks = pd.read_csv('chunks.csv', index_col=0).to_dict('records')
+    # evaluator.chunks = chunks
+    # print(f"Loaded {len(chunks)} chunks from chunks.csv")
+    # print("Sample chunk:", chunks[0])
 
-    # Step 2: Generate questions
-    questions = evaluator.step2_generate_questions()
-    pd.DataFrame(questions).to_csv('questions.csv')
+    # # Step 2: Generate questions
+    # questions = evaluator.step2_generate_questions()
+    # pd.DataFrame(questions).to_csv('questions.csv')
 
     # Step 3: Evaluate models
     results = evaluator.step3_evaluate_models()
