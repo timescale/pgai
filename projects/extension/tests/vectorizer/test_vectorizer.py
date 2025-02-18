@@ -359,7 +359,7 @@ def test_vectorizer_timescaledb():
 
             # check that using the GUCs work
             cur.execute(
-                "select set_config('ai.external_functions_executor_url', 'http://localhost:8000', false)"
+                "select set_config('ai.external_functions_executor_url', 'http://0.0.0.0:8000', false)"
             )
             cur.execute(
                 "select set_config('ai.external_functions_executor_events_path', '/api/v1/events', false)"

@@ -144,7 +144,7 @@ extracted from the "Target URI" field in the "Endpoint section". The Target URI 
 `https://your-resource-name.openai.azure.com/openai/deployments/your-deployment-name/embeddings?api-version=2023-05-15`.
 In this example, the base URL is: `https://your-resource-name.openai.azure.com` and the version is `2023-05-15`.
 
-![Azure AI Foundry console example](./images/azure_openai.png)
+![Azure AI Foundry console example](/docs/images/azure_openai.png)
 
 Obtain embeddings as follows, note that the base URL and version are configured through `extra_options`:
 

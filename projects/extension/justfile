@@ -44,6 +44,9 @@ build-install:
 install-sql:
 	@PG_BIN={{PG_BIN}} ./build.py install-sql
 
+install-sql-all:
+	@PG_BIN={{PG_BIN}} ./build.py install-sql all
+
 install-prior-py:
 	@./build.py install-prior-py
 

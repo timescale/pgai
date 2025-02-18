@@ -213,7 +213,7 @@ recipes in favor of the SQL-specific just recipes:
 
 1. **Build pgai**: run `just ext build` to compile idempotent and incremental scripts
    into `./projects/extension/sql/output/ai--*<current-version>.sql`.
-1. **Install pgai**: run `just ext install-sql` to install `./projects/extension/sql/output/ai--*.sql` and `./projects/extension/sql/output/ai*.control` into your local
+1. **Install pgai**: run `just ext install-sql-all` to install `./projects/extension/sql/output/ai--*.sql` and `./projects/extension/sql/output/ai*.control` into your local
    Postgres environment.
 
 ### Develop Python in the pgai extension

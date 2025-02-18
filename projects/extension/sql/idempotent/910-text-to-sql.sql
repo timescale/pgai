@@ -6,6 +6,7 @@ create function ai._text_to_sql
 ( question text
 , catalog_name text default 'default'
 , config jsonb default null
+, search_path text default pg_catalog.current_setting('search_path', true)
 ) returns jsonb
 as $func$
 declare
@@ -25,24 +26,28 @@ begin
             ( question
             , catalog_name
             , config
+            , search_path
             );
         when 'ollama' then
             _result = ai._text_to_sql_ollama
             ( question
             , catalog_name
             , config
+            , search_path
             );
         when 'openai' then
             _result = ai._text_to_sql_openai
             ( question
             , catalog_name
             , config
+            , search_path
             );
         when 'cohere' then
             _result = ai._text_to_sql_cohere
             ( question
             , catalog_name
             , config
+            , search_path
             );
         else
             raise exception 'text-to-sql provider % not recognized', config->>'provider';
@@ -59,6 +64,7 @@ create function ai.text_to_sql
 ( question text
 , catalog_name text default 'default'
 , config jsonb default null
+, search_path text default pg_catalog.current_setting('search_path', true)
 ) returns text
 as $func$
 declare
@@ -68,6 +74,7 @@ begin
     ( question
     , catalog_name
     , config
+    , search_path
     );
     if _result is not null then
         return _result->>'sql_statement';

@@ -168,16 +168,6 @@ Please note that using Ollama requires a large (>4GB) download of the docker ima
     This query selects from the `wiki_embeddings` view, which is created by the vectorizer and joins the embeddings with the original data in the `wiki` table to give us the ability to search using the embeddings but still be able to access (or filter on) all the data in the original table (e.g. the `title` column).
     
     Note the `ai.ollama_embed` function is used to call the `all-minilm` model. This is part of pgai's  [model calling capabilities](#model-calling).
-
-    
-    
-    | title | chunk |
-    |-------|-------|
-    | Albedo |  Water reflects light very differently from typical terrestrial materials. The reflectivity of a water surface is calculated using the Fresnel equations.... |
-
-    | title | chunk |
-    |-------|-------|
-    | Albedo |  Water reflects light very differently from typical terrestrial materials. The reflectivity of a water surface is calculated using the Fresnel equations.... |
     
  1. **Modify your data and have the vectorizer automatically update the embeddings**
  

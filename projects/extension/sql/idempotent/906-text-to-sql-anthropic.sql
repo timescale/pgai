@@ -1,33 +1,5 @@
 --FEATURE-FLAG: text_to_sql
 
-
--------------------------------------------------------------------------------
--- text_to_sql_render_prompt
-create function ai.text_to_sql_render_prompt
-( question text
-, obj_prompt text
-, samples_sql text
-, sql_prompt text
-) returns text
-as $func$
-    select concat_ws
-    ( E'\n'
-    , $$Below are descriptions of database objects and examples of SQL statements that are meant to give context to a user's question.$$
-    , $$Analyze the context provided. Identify the elements that are relevant to the user's question.$$
-    , $$If enough context has been provided to confidently address the question, use the "answer_user_question_with_sql_statement" tool to record your final answer in the form of a valid SQL statement.$$
-    , E'\n'
-    , coalesce(obj_prompt, '')
-    , E'\n'
-    , coalesce(samples_sql, '')
-    , E'\n'
-    , coalesce(sql_prompt, '')
-    , E'\n'
-    , concat('Q: ', question)
-    )
-$func$ language sql immutable security invoker
-set search_path to pg_catalog, pg_temp
-;
-
 -------------------------------------------------------------------------------
 -- text_to_sql_anthropic
 create or replace function ai.text_to_sql_anthropic
@@ -48,7 +20,7 @@ create or replace function ai.text_to_sql_anthropic
 , max_iter int2 default null
 , obj_renderer regprocedure default null
 , sql_renderer regprocedure default null
-, prompt_renderer regprocedure default null
+, user_prompt text default null
 , system_prompt text default null
 ) returns jsonb
 as $func$
@@ -72,7 +44,7 @@ as $func$
     , 'max_iter': max_iter
     , 'obj_renderer': obj_renderer
     , 'sql_renderer': sql_renderer
-    , 'prompt_renderer': prompt_renderer
+    , 'user_prompt': user_prompt
     , 'system_prompt': system_prompt
     absent on null
     )
@@ -80,13 +52,13 @@ $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
-
 -------------------------------------------------------------------------------
 -- _text_to_sql_anthropic
 create function ai._text_to_sql_anthropic
 ( question text
 , catalog_name text default 'default'
 , config jsonb default null
+, search_path text default pg_catalog.current_setting('search_path', true)
 ) returns jsonb
 as $func$
 declare
@@ -98,7 +70,6 @@ declare
     _max_vector_dist float8;
     _obj_renderer regprocedure;
     _sql_renderer regprocedure;
-    _prompt_renderer regprocedure;
     _model text;
     _max_tokens int4;
     _api_key text;
@@ -120,6 +91,7 @@ declare
     _prompt_sql text;
     _samples jsonb = '{}';
     _samples_sql text;
+    _prompt_header text;
     _prompt text;
     _system_prompt text;
     _tools jsonb;
@@ -135,7 +107,6 @@ begin
     _max_vector_dist = (_config->>'max_vector_dist')::float8;
     _obj_renderer = coalesce((_config->>'obj_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_obj(bigint, oid, oid)'::pg_catalog.regprocedure);
     _sql_renderer = coalesce((_config->>'sql_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_sql(bigint, text, text)'::pg_catalog.regprocedure);
-    _prompt_renderer = coalesce((_config->>'prompt_renderer')::pg_catalog.regprocedure, 'ai.text_to_sql_render_prompt(text, text, text, text)'::pg_catalog.regprocedure);
     _model = coalesce(_config->>'model', 'claude-3-5-sonnet-latest');
     _max_tokens = coalesce(_config operator(pg_catalog.->>) 'max_tokens', '1024')::int4;
     _api_key = _config operator(pg_catalog.->>) 'api_key';
@@ -155,6 +126,14 @@ begin
           , 'You are an expert at analyzing PostgreSQL database schemas and writing SQL statements to answer questions.'
           , 'You have access to tools.'
           )
+        );
+    _prompt_header = concat_ws
+        ( E'\n'
+        , $$Below are descriptions of database objects and examples of SQL statements that are meant to give context to a user's question.$$
+        , $$Analyze the context provided. Identify the elements that are relevant to the user's question.$$
+        , $$ONLY use database elements that have been described to you. If more context is needed, use the "request_more_context_by_question" tool to ask questions about the database model.$$
+        , $$If enough context has been provided to confidently address the question, use the "answer_user_question_with_sql_statement" tool to record your final answer in the form of a valid SQL statement.$$
+        , coalesce(_config operator(pg_catalog.->>) 'user_prompt', '')
         );
 
     while _iter_remaining > 0 loop
@@ -283,17 +262,14 @@ begin
 
         -- render the user prompt
         raise debug 'rendering user prompt';
-        select format
-        ( $sql$select %I.%I($1, $2, $3, $4)$sql$
-        , n.nspname
-        , f.proname
-        )
-        into strict _sql
-        from pg_proc f
-        inner join pg_namespace n on (f.pronamespace = n.oid)
-        where f.oid = _prompt_renderer::oid
-        ;
-        execute _sql using question, _prompt_obj, _samples_sql, _prompt_sql into _prompt;
+        _prompt = concat_ws
+        ( E'\n'
+        , _prompt_header
+        , coalesce(_prompt_obj, '')
+        , coalesce(_samples_sql, '')
+        , coalesce(_prompt_sql, '')
+        , concat('Q: ', question)
+        );
         raise debug '%', _prompt;
 
         -- call llm -----------------------------------------------------------
@@ -321,11 +297,11 @@ begin
                     "properties": {
                         "name": {
                             "type": "string",
-                            "description": "The name of the table or view to sample."
+                            "description": "The fully qualified `schema.name` of the table or view to sample."
                         },
                         "total": {
                             "type": "integer",
-                            "description": "The total number of rows to return in the sample."
+                            "description": "The total number of rows to return in the sample, the max is 10."
                         }
                     },
                     "required": ["name", "total"]
@@ -407,8 +383,15 @@ begin
                             into strict _questions
                             ;
                         when 'request_table_sample' then
-                            raise debug 'tool use: request_table_sample';
-                            select _samples || jsonb_build_object(_message.input->'name', ai.render_sample(_message.input->'name', _message.input->'total'))
+                            raise debug 'tool use: request_table_sample: %', _message.input;
+                            select _samples || jsonb_build_object
+                            ( _message.input->>'name'
+                            , ai.render_sample
+                              ( (_message.input->>'name')
+                              , (_message.input->>'total')::int4
+                              , search_path
+                              )
+                            )
                             into strict _samples
                             ;
                         when 'answer_user_question_with_sql_statement' then

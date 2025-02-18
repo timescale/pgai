@@ -8,11 +8,15 @@ class GeneratedDescription(TypedDict):
     description: str
 
 
-def render_sample(plpy, relation: str, total: int = 5) -> str:
-    ident = ".".join([plpy.quote_ident(part) for part in relation.split(".")])
-    result = plpy.execute(f"select * from {ident}", total)
+def render_sample(plpy, fq_relation: str, total: int = 5) -> str:
+    """
+    Given a table ore view name, return a sample of rows from it.
+    """
+    # do not let LLM select 0 or less and no more than 10 rows, so as to not overwhelm
+    # context window.
+    result = plpy.execute(f"select * from {fq_relation}", min(max(total, 1), 10))
 
-    ret_obj = f"""<data id="{relation}">"""
+    ret_obj = f"""<data id="{fq_relation}">"""
     for r in result:
         values = []
         for v in r.values():
@@ -22,9 +26,8 @@ def render_sample(plpy, relation: str, total: int = 5) -> str:
                 values.append("true" if v else "false")
             else:
                 values.append(str(v))
-        ret_obj += f"""\n  insert into {ident} ({', '.join(plpy.quote_ident(key) for key in r.keys())}) values ({', '.join(values)});"""
+        ret_obj += f"""\n  insert into {fq_relation} ({', '.join(plpy.quote_ident(key) for key in r.keys())}) values ({', '.join(values)});"""
     ret_obj += "\n</data>"
-
     return ret_obj
 
 
@@ -178,7 +181,7 @@ def generate_description(
     else:
         raise Exception(f"provider {provider} not found")
 
-    sql = f"select ai.set_description({plpy.quote_literal(relation)}, {plpy.quote_literal(description)})"
+    sql = f"select ai.set_description({plpy.quote_literal(relation)}, {plpy.quote_literal(description)});"
     if save:
         plpy.debug(
             f"set description for {relation} (existing={len(result) > 0}, overwrite={overwrite})"
@@ -324,7 +327,7 @@ def generate_column_descriptions(
             plpy.debug(
                 f"set description for {column['name']} (existing={exists}, overwrite={overwrite})"
             )
-            sql = f"select ai.set_column_description({plpy.quote_literal(relation)}, {plpy.quote_literal(column['name'])}, {plpy.quote_literal(column['description'])})"
+            sql = f"select ai.set_column_description({plpy.quote_literal(relation)}, {plpy.quote_literal(column['name'])}, {plpy.quote_literal(column['description'])});"
             if save:
                 plpy.execute(sql)
             yield column["name"], column["description"], sql
@@ -434,7 +437,7 @@ def generate_function_description(
     plpy.debug(
         f"set description for {fn} (existing={len(result) > 0}, overwrite={overwrite})"
     )
-    sql = f"select ai.set_function_description({plpy.quote_literal(fn)}::regprocedure, {plpy.quote_literal(description)})"
+    sql = f"select ai.set_function_description({plpy.quote_literal(fn)}::regprocedure, {plpy.quote_literal(description)});"
     if save:
         plpy.execute(sql)
 

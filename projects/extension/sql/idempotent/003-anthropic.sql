@@ -1,7 +1,7 @@
 -------------------------------------------------------------------------------
 -- anthropic_list_models
 -- https://docs.anthropic.com/en/api/models-list
-create or replace function ai.anthropic_list_models(api_key text default null, api_key_name text default null, base_url text default null)
+create or replace function ai.anthropic_list_models(api_key text default null, api_key_name text default null, base_url text default null, verbose boolean default false)
 returns table
 ( id text
 , name text
@@ -11,8 +11,14 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.anthropic
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.anthropic.DEFAULT_KEY_NAME, SD)
-    yield from ai.anthropic.list_models(api_key_resolved, base_url)
+    
+    with ai.utils.VerboseRequestTrace(plpy, "anthropic.list_models()", verbose):
+        result = ai.anthropic.list_models(api_key_resolved, base_url)
+    
+    for tup in result:
+        yield tup
 $python$
 language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
@@ -38,11 +44,13 @@ create or replace function ai.anthropic_generate
 , tools jsonb default null
 , top_k int default null
 , top_p float8 default null
+, verbose boolean default false
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.anthropic
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.anthropic.DEFAULT_KEY_NAME, SD)
     client = ai.anthropic.make_client(api_key=api_key_resolved, base_url=base_url, timeout=timeout, max_retries=max_retries)
 
@@ -67,7 +75,9 @@ as $python$
     if top_p is not None:
         args["top_p"] = top_p
 
-    message = client.messages.create(model=model, messages=messages_1, max_tokens=max_tokens, **args)
+    with ai.utils.VerboseRequestTrace(plpy, "anthropic.generate()", verbose):
+        message = client.messages.create(model=model, messages=messages_1, max_tokens=max_tokens, **args)
+    
     return message.to_json()
 $python$
 language plpython3u volatile parallel safe security invoker

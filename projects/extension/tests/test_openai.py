@@ -36,7 +36,7 @@ def cur_with_api_key(openai_api_key, cur) -> psycopg.Cursor:
 def cur_with_external_functions_executor_url(cur) -> psycopg.Cursor:
     with cur:
         cur.execute(
-            "select set_config('ai.external_functions_executor_url', 'http://localhost:8000', false) is not null",
+            "select set_config('ai.external_functions_executor_url', 'http://0.0.0.0:8000', false) is not null",
         )
         yield cur
 
@@ -163,6 +163,103 @@ def test_openai_embed_with_raw_response(cur, openai_api_key):
         },
     }
     assert len(embedding) == 8192
+
+
+@pytest.mark.parametrize(
+    "model,max_tokens,stopped,error_str",
+    [
+        # OK.
+        ("o1", {"max_completion_tokens": 10000}, False, None),
+        # Stopped generating because max_tokens was reached.
+        ("o1", {"max_completion_tokens": 100}, True, None),
+        # 400 status code is returned because not enough tokens for generation.
+        (
+            "o1",
+            {"max_completion_tokens": 1},
+            None,
+            "Could not finish the message because max_tokens was reached",
+        ),
+        # OK.
+        ("o1-mini", {"max_completion_tokens": 10000}, False, None),
+        # Stopped generating because max_tokens was reached.
+        (
+            "o1-mini",
+            {"max_completion_tokens": 100},
+            True,
+            None,
+        ),
+        # For some reason, o1-mini does not return a 400 status code in this case.
+        (
+            "o1-mini",
+            {"max_completion_tokens": 1},
+            True,
+            None,
+        ),
+        # Stopped generating because max_tokens was reached.
+        ("o3-mini", {"max_completion_tokens": 10000}, False, None),  # OK.
+        (
+            "o3-mini",
+            {"max_completion_tokens": 100},
+            True,
+            None,
+        ),
+        # 400 status code is returned because not enough tokens for generation.
+        (
+            "o3-mini",
+            {"max_completion_tokens": 1},
+            None,
+            "Could not finish the message because max_tokens was reached",
+        ),
+        # starting from o1, all reasoning models (o*) deprecated the max_tokens parameter in favor of max_completion_tokens
+        # see https://platform.openai.com/docs/guides/reasoning#controlling-costs
+        (
+            "o3-mini",
+            {"max_tokens": 1},
+            None,
+            "Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.",
+        ),
+    ],
+)
+def test_openai_chat_complete_with_tokens_limitation_on_reasoning_models(
+    cur, openai_api_key, model, max_tokens, stopped, error_str
+):
+    query = f"""
+        with x as
+        (
+          select ai.openai_chat_complete
+          ( %(model)s
+          , jsonb_build_array
+            ( jsonb_build_object('role', 'user', 'content', 'what is the typical weather like in Alabama in June')
+            )
+          , api_key=>%(api_key)s
+          , extra_query=>'{{"debug": true}}'
+          , timeout=>600::float8
+          {', max_tokens=>' + str(max_tokens.get("max_tokens")) if max_tokens.get("max_tokens") else ''}
+          {', max_completion_tokens=>' + str(max_tokens.get("max_completion_tokens")) if max_tokens.get("max_completion_tokens") else ''}
+          ) as actual
+        )
+        select 
+            jsonb_extract_path_text(x.actual, 'choices', '0', 'message', 'content'), 
+            jsonb_extract_path_text(x.actual, 'choices', '0', 'finish_reason')
+        from x
+    """
+    params = {"model": model, "api_key": openai_api_key}
+
+    if error_str:
+        with pytest.raises(psycopg.errors.ExternalRoutineException) as exception_raised:
+            cur.execute(query, params)
+        assert error_str in str(exception_raised.value)
+    else:
+        cur.execute(query, params)
+        actual = cur.fetchone()
+        content = actual[0]
+        finish_reason = actual[1]
+
+        if stopped:
+            assert finish_reason == "length"
+            # assert len(content) == 0 have experienced issues with this line. sometimes content is returned
+        else:
+            assert len(content) > 0
 
 
 def test_openai_embed_api_key_name(cur_with_external_functions_executor_url):

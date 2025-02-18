@@ -21,6 +21,7 @@ VECTORIZER_FUNCTIONS = [
     "embedding_openai",
     "embedding_ollama",
     "embedding_voyageai",
+    "embedding_litellm",
     "chunking_character_text_splitter",
     "chunking_recursive_character_text_splitter",
     "formatting_python_template",

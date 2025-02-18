@@ -24,7 +24,7 @@ create or replace function ai.text_to_sql_openai
 , max_vector_dist pg_catalog.float8 default null
 , obj_renderer pg_catalog.regprocedure default null
 , sql_renderer pg_catalog.regprocedure default null
-, prompt_renderer pg_catalog.regprocedure default null
+, user_prompt text default null
 , system_prompt text default null
 ) returns pg_catalog.jsonb
 as $func$
@@ -51,7 +51,7 @@ as $func$
     , 'max_vector_dist': max_vector_dist
     , 'obj_renderer': obj_renderer
     , 'sql_renderer': sql_renderer
-    , 'prompt_renderer': prompt_renderer
+    , 'user_prompt': user_prompt
     , 'system_prompt': system_prompt
     absent on null
     )
@@ -65,6 +65,7 @@ create function ai._text_to_sql_openai
 ( question text
 , catalog_name text default 'default'
 , config jsonb default null
+, search_path text default pg_catalog.current_setting('search_path', true)
 ) returns jsonb
 as $func$
 declare
@@ -76,7 +77,6 @@ declare
     _max_vector_dist float8;
     _obj_renderer regprocedure;
     _sql_renderer regprocedure;
-    _prompt_renderer regprocedure;
     _model text;
     _api_key text;
     _api_key_name text;
@@ -103,6 +103,7 @@ declare
     _samples_sql text;
     _prompt_obj text;
     _prompt_sql text;
+    _prompt_header text;
     _prompt text;
     _response jsonb;
     _message record;
@@ -117,8 +118,7 @@ begin
     _max_vector_dist = (_config->>'max_vector_dist')::float8;
     _obj_renderer = coalesce((_config->>'obj_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_obj(bigint, oid, oid)'::pg_catalog.regprocedure);
     _sql_renderer = coalesce((_config->>'sql_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_sql(bigint, text, text)'::pg_catalog.regprocedure);
-    _prompt_renderer = coalesce((_config->>'prompt_renderer')::pg_catalog.regprocedure, 'ai.text_to_sql_render_prompt(text, text, text, text)'::pg_catalog.regprocedure);
-    _model = coalesce(_config->>'model', 'claude-3-5-sonnet-latest');
+    _model = coalesce(_config->>'model', 'o3-mini');
     _api_key = _config operator(pg_catalog.->>) 'api_key';
     _api_key_name = _config operator(pg_catalog.->>) 'api_key_name';
     _base_url = _config operator(pg_catalog.->>) 'base_url';
@@ -141,9 +141,18 @@ begin
           , 'You have access to tools.'
           )
         );
+    _prompt_header = concat_ws
+        ( E'\n'
+        , $$Below are descriptions of database objects and examples of SQL statements that are meant to give context to a user's question.$$
+        , $$Analyze the context provided. Identify the elements that are relevant to the user's question.$$
+        , $$ONLY use database elements that have been described to you. If more context is needed, use the "request_more_context_by_question" tool to ask questions about the database model.$$
+        , $$If enough context has been provided to confidently address the question, use the "answer_user_question_with_sql_statement" tool to record your final answer in the form of a valid SQL statement.$$
+        , coalesce(_config operator(pg_catalog.->>) 'user_prompt', '')
+        );
 
     while _iter_remaining > 0 loop
         raise debug 'iteration: %', (_max_iter - _iter_remaining + 1);
+        _iter_remaining = _iter_remaining - 1;
         raise debug 'searching with % questions', jsonb_array_length(_questions);
 
         -- search -------------------------------------------------------------
@@ -268,17 +277,14 @@ begin
 
         -- render the user prompt
         raise debug 'rendering user prompt';
-        select format
-        ( $sql$select %I.%I($1, $2, $3, $4)$sql$
-        , n.nspname
-        , f.proname
-        )
-        into strict _sql
-        from pg_proc f
-        inner join pg_namespace n on (f.pronamespace = n.oid)
-        where f.oid = _prompt_renderer::oid
-        ;
-        execute _sql using question, _prompt_obj, _samples_sql, _prompt_sql into _prompt;
+        _prompt = concat_ws
+        ( E'\n'
+        , _prompt_header
+        , coalesce(_prompt_obj, '')
+        , coalesce(_samples_sql, '')
+        , coalesce(_prompt_sql, '')
+        , concat('Q: ', question)
+        );
         raise debug '%', _prompt;
 
         -- call llm -----------------------------------------------------------
@@ -288,13 +294,13 @@ begin
                 "type": "function",
                 "function": {
                     "name": "request_more_context_by_question",
-                    "description": "If you do not have enough context to confidently answer the user's question, use this tool to ask for more context by providing a question to be used for semantic search.",
+                    "description": "Request additional database object descriptions by providing a focused question for semantic search. Use this when the current context is insufficient to generate a confident SQL query. Frame your question to target specific tables, relationships, or attributes needed.",
                     "parameters": {
                         "type": "object",
                         "properties" : {
                             "question": {
                                 "type": "string",
-                                "description": "A new natural language question relevant to the user's question that will be used to perform a semantic search to gather more context"
+                                "description": "A brief question (max 20 words) focused on a specific database structure or relationship. Avoid explaining reasoning or context."
                             }
                         },
                         "required": ["question"],
@@ -307,17 +313,20 @@ begin
                 "type": "function",
                 "function": {
                     "name": "request_table_sample",
-                    "description": "If you do not have enough context about a table to confidently answer the user's question, use this tool to ask for a sample of the table's data.",
+                    "description": "Request a sample of rows from a specified table or view to better understand its data patterns and content.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "name": {
                                 "type": "string",
-                                "description": "The name of the table or view to sample."
+                                "description": "The fully qualified `schema.name` of the table or view to sample. (e.g., 'schema_name.table_name')"
                             },
                             "total": {
                                 "type": "integer",
-                                "description": "The total number of rows to return in the sample."
+                                "minimum": 1,
+                                "maximum": 100,
+                                "default": 10,
+                                "description": "The total number of rows to return in the sample, the max is 10."
                             }
                         },
                         "required": ["name", "total"]
@@ -328,23 +337,23 @@ begin
                 "type": "function",
                 "function": {
                     "name": "answer_user_question_with_sql_statement",
-                    "description": "If you have enough context to confidently answer the user's question, use this tool to provide the answer in the form of a valid PostgreSQL SQL statement.",
+                    "description": "Provide a SQL query that answers the user's question.",
                     "parameters": {
                         "type": "object",
                         "properties" : {
                             "sql_statement": {
                                 "type": "string",
-                                "description": "A valid SQL statement that addresses the user's question."
+                                "description": "A valid PostgreSQL SQL statement that addresses the user's question."
                             },
                             "relevant_database_object_ids": {
                                 "type": "array",
                                 "items": {"type": "integer"},
-                                "description": "Provide a list of the ids of the database examples which were relevant to the user's question and useful in providing the answer."
+                                "description": "IDs of database objects used in constructing the answer."
                             },
                             "relevant_sql_example_ids": {
                                 "type": "array",
                                 "items": {"type": "integer"},
-                                "description": "Provide a list of the ids of the SQL examples which were relevant to the user's question and useful in providing the answer."
+                                "description": "IDs of SQL examples referenced in constructing the answer."
                             }
                         },
                         "required": ["sql_statement", "relevant_database_object_ids", "relevant_sql_example_ids"],
@@ -365,7 +374,11 @@ begin
           , jsonb_build_object('role', 'user', 'content', _prompt)
           )
         , tools=>_tools
-        , tool_choice=>'required'
+        , tool_choice=>
+            case when _iter_remaining = 0 then
+            '{"type": "function", "function": {"name": "answer_user_question_with_sql_statement"}}'
+            else 'required'
+            end
         , api_key=>_api_key
         , api_key_name=>_api_key_name
         , base_url=>_base_url
@@ -424,8 +437,15 @@ begin
                         into strict _questions
                         ;
                     when 'request_table_sample' then
-                        raise debug 'tool use: request_table_sample';
-                        select _samples || jsonb_build_object(_tool_call.arguments->'name', ai.render_sample(_tool_call.arguments->'name', _tool_call.arguments->'total'))
+                        raise debug 'tool use: request_table_sample: %', _tool_call.arguments;
+                        select _samples || jsonb_build_object
+                        ( _tool_call.arguments->>'name'
+                        , ai.render_sample
+                          ( (_tool_call.arguments->>'name')
+                          , (_tool_call.arguments->>'total')::int4
+                          , search_path
+                          )
+                        )
                         into strict _samples
                         ;
                     when 'answer_user_question_with_sql_statement' then
@@ -453,7 +473,6 @@ begin
                 ;
             end loop;
         end loop;
-        _iter_remaining = _iter_remaining - 1;
     end loop;
     return null;
 end

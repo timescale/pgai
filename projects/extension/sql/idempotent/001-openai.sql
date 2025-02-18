@@ -42,6 +42,7 @@ create or replace function ai.openai_list_models
 , extra_headers jsonb default null
 , extra_query jsonb default null
 , timeout float8 default null
+, verbose boolean default false
 )
 returns table
 ( id text
@@ -52,14 +53,16 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
-    models = ai.openai.list_models(
-        plpy,
-        api_key_resolved,
-        base_url,
-        extra_headers,
-        extra_query,
-        timeout)
+    with ai.utils.VerboseRequestTrace(plpy, "openai.list_models()", verbose):
+        models = ai.openai.list_models(
+            plpy,
+            api_key_resolved,
+            base_url,
+            extra_headers,
+            extra_query,
+            timeout)
     for tup in models:
         yield tup
 $python$
@@ -79,12 +82,14 @@ create or replace function ai.openai_list_models_with_raw_response
 , extra_headers jsonb default null
 , extra_query jsonb default null
 , timeout float8 default null
+, verbose boolean default false
 )
 returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
+    import ai.utils
     from datetime import datetime, timezone
 
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
@@ -96,7 +101,8 @@ as $python$
         timeout=timeout,
     )
 
-    return client.models.with_raw_response.list(**kwargs).text
+    with ai.utils.VerboseRequestTrace(plpy, "openai.list_models()", verbose):
+        return client.models.with_raw_response.list(**kwargs).text
 $python$
 language plpython3u volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
@@ -118,23 +124,26 @@ create or replace function ai.openai_embed
 , extra_query jsonb default null
 , extra_body jsonb default null
 , timeout float8 default null
+, verbose boolean default false
 ) returns @extschema:vector@.vector
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
-    embeddings = ai.openai.embed(
-        plpy,
-        model,
-        input_text,
-        api_key_resolved,
-        base_url,
-        dimensions,
-        openai_user,
-        extra_headers,
-        extra_query,
-        extra_body,
+    with ai.utils.VerboseRequestTrace(plpy, "openai.embed()", verbose):
+        embeddings = ai.openai.embed(
+            plpy,
+            model,
+            input_text,
+            api_key_resolved,
+            base_url,
+            dimensions,
+            openai_user,
+            extra_headers,
+            extra_query,
+            extra_body,
         timeout)
     for tup in embeddings:
         return tup[1]
@@ -159,6 +168,7 @@ create or replace function ai.openai_embed
 , extra_query jsonb default null
 , extra_body jsonb default null
 , timeout float8 default null
+, verbose boolean default false
 ) returns table
 ( "index" int
 , embedding @extschema:vector@.vector
@@ -167,20 +177,21 @@ as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
-
-    embeddings = ai.openai.embed(
-        plpy,
-        model,
-        input_texts,
-        api_key_resolved,
-        base_url,
-        dimensions,
-        openai_user,
-        extra_headers,
-        extra_query,
-        extra_body,
-        timeout)
+    with ai.utils.VerboseRequestTrace(plpy, "openai.embed()", verbose):
+        embeddings = ai.openai.embed(
+            plpy,
+            model,
+            input_texts,
+            api_key_resolved,
+            base_url,
+            dimensions,
+            openai_user,
+            extra_headers,
+            extra_query,
+            extra_body,
+            timeout)
     for tup in embeddings:
         yield tup
 $python$
@@ -204,24 +215,26 @@ create or replace function ai.openai_embed
 , extra_query jsonb default null
 , extra_body jsonb default null
 , timeout float8 default null
+, verbose boolean default false
 ) returns @extschema:vector@.vector
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
-
-    embeddings = ai.openai.embed(
-        plpy,
-        model,
-        input_tokens,
-        api_key_resolved,
-        base_url,
-        dimensions,
-        openai_user,
-        extra_headers,
-        extra_query,
-        extra_body,
+    with ai.utils.VerboseRequestTrace(plpy, "openai.embed()", verbose):
+        embeddings = ai.openai.embed(
+            plpy,
+            model,
+            input_tokens,
+            api_key_resolved,
+            base_url,
+            dimensions,
+            openai_user,
+            extra_headers,
+            extra_query,
+            extra_body,
         timeout)
     for tup in embeddings:
         return tup[1]
@@ -247,24 +260,27 @@ create or replace function ai.openai_embed_with_raw_response
 , extra_query jsonb default null
 , extra_body jsonb default null
 , timeout float8 default null
+, verbose boolean default false
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
-    return ai.openai.embed_with_raw_response(
-        plpy,
-        model,
-        input_text,
-        api_key_resolved,
-        base_url,
-        dimensions,
-        openai_user,
-        extra_headers,
-        extra_query,
-        extra_body,
-        timeout)
+    with ai.utils.VerboseRequestTrace(plpy, "openai.embed()", verbose):
+        return ai.openai.embed_with_raw_response(
+            plpy,
+            model,
+            input_text,
+            api_key_resolved,
+            base_url,
+            dimensions,
+            openai_user,
+            extra_headers,
+            extra_query,
+            extra_body,
+            timeout)
 $python$
 language plpython3u immutable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
@@ -286,25 +302,27 @@ create or replace function ai.openai_embed_with_raw_response
 , extra_query jsonb default null
 , extra_body jsonb default null
 , timeout float8 default null
+, verbose boolean default false
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
-
-    return ai.openai.embed_with_raw_response(
-        plpy,
-        model,
-        input_texts,
-        api_key_resolved,
-        base_url,
-        dimensions,
-        openai_user,
-        extra_headers,
-        extra_query,
-        extra_body,
-        timeout)
+    with ai.utils.VerboseRequestTrace(plpy, "openai.embed()", verbose):
+        return ai.openai.embed_with_raw_response(
+            plpy,
+            model,
+            input_texts,
+            api_key_resolved,
+            base_url,
+            dimensions,
+            openai_user,
+            extra_headers,
+            extra_query,
+            extra_body,
+            timeout)
 $python$
 language plpython3u immutable parallel safe security invoker
 set search_path to pg_catalog, pg_temp
@@ -326,23 +344,25 @@ create or replace function ai.openai_embed_with_raw_response
 , extra_query jsonb default null
 , extra_body jsonb default null
 , timeout float8 default null
+, verbose boolean default false
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
-
-    return ai.openai.embed_with_raw_response(
-        plpy,
-        model,
-        input_tokens,
-        api_key_resolved,
-        base_url,
-        dimensions,
-        openai_user,
-        extra_headers,
-        extra_query,
+    with ai.utils.VerboseRequestTrace(plpy, "openai.embed()", verbose):
+        return ai.openai.embed_with_raw_response(
+            plpy,
+            model,
+            input_tokens,
+            api_key_resolved,
+            base_url,
+            dimensions,
+            openai_user,
+            extra_headers,
+            extra_query,
         extra_body,
         timeout)
 $python$
@@ -365,6 +385,7 @@ create or replace function ai.openai_chat_complete
 , logprobs boolean default null
 , top_logprobs int default null
 , max_tokens int default null
+, max_completion_tokens int default null
 , n int default null
 , presence_penalty float8 default null
 , response_format jsonb default null
@@ -379,11 +400,13 @@ create or replace function ai.openai_chat_complete
 , extra_query jsonb default null
 , extra_body jsonb default null
 , timeout float8 default null
+, verbose boolean default false
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
     client = ai.openai.make_client(plpy, api_key_resolved, base_url)
     import json
@@ -398,6 +421,7 @@ as $python$
         logprobs=logprobs,
         top_logprobs=top_logprobs,
         max_tokens=max_tokens,
+        max_completion_tokens=max_completion_tokens,
         n=n,
         presence_penalty=presence_penalty,
         response_format=ai.openai.str_arg_to_dict(response_format),
@@ -413,12 +437,13 @@ as $python$
         extra_body=ai.openai.str_arg_to_dict(extra_body),
         timeout=timeout)
 
-    response = client.chat.completions.create(
-      model=model
-    , messages=messages_1
-    , stream=False
-    , **kwargs
-    )
+    with ai.utils.VerboseRequestTrace(plpy, "openai.chat_complete()", verbose):
+        response = client.chat.completions.create(
+            model=model
+        , messages=messages_1
+        , stream=False
+        , **kwargs
+        )
 
     return response.model_dump_json()
 $python$
@@ -441,6 +466,7 @@ create or replace function ai.openai_chat_complete_with_raw_response
 , logprobs boolean default null
 , top_logprobs int default null
 , max_tokens int default null
+, max_completion_tokens int default null
 , n int default null
 , presence_penalty float8 default null
 , response_format jsonb default null
@@ -455,11 +481,13 @@ create or replace function ai.openai_chat_complete_with_raw_response
 , extra_query jsonb default null
 , extra_body jsonb default null
 , timeout float8 default null
+, verbose boolean default false
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
     client = ai.openai.make_client(plpy, api_key_resolved, base_url)
     import json
@@ -474,6 +502,7 @@ as $python$
         logprobs=logprobs,
         top_logprobs=top_logprobs,
         max_tokens=max_tokens,
+        max_completion_tokens=max_completion_tokens,
         n=n,
         presence_penalty=presence_penalty,
         response_format=ai.openai.str_arg_to_dict(response_format),
@@ -489,11 +518,12 @@ as $python$
         extra_body=ai.openai.str_arg_to_dict(extra_body),
         timeout=timeout)
 
-    response = client.chat.completions.with_raw_response.create(
-        model=model,
-        messages=messages_1,
-        stream=False,
-        **kwargs)
+    with ai.utils.VerboseRequestTrace(plpy, "openai.chat_complete()", verbose):
+        response = client.chat.completions.with_raw_response.create(
+            model=model,
+            messages=messages_1,
+            stream=False,
+            **kwargs)
 
     return response.text
 $python$
@@ -508,6 +538,7 @@ create or replace function ai.openai_chat_complete_simple
 ( message text
 , api_key text default null
 , api_key_name text default null
+, verbose boolean default false
 ) returns text
 as $$
 declare
@@ -518,7 +549,7 @@ begin
         pg_catalog.jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant'),
         pg_catalog.jsonb_build_object('role', 'user', 'content', message)
     );
-    return ai.openai_chat_complete(model, messages, api_key, api_key_name)
+    return ai.openai_chat_complete(model, messages, api_key, api_key_name, verbose=>"verbose")
         operator(pg_catalog.->)'choices'
         operator(pg_catalog.->)0
         operator(pg_catalog.->)'message'
@@ -542,11 +573,13 @@ create or replace function ai.openai_moderate
 , extra_query jsonb default null
 , extra_body jsonb default null
 , timeout float8 default null
+, verbose boolean default false
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
     client = ai.openai.make_client(plpy, api_key_resolved, base_url)
     kwargs = ai.openai.create_kwargs(
@@ -554,10 +587,11 @@ as $python$
         extra_query=ai.openai.str_arg_to_dict(extra_query),
         extra_body=ai.openai.str_arg_to_dict(extra_body),
         timeout=timeout)
-    moderation = client.moderations.create(
-        input=input_text,
-        model=model,
-        **kwargs)
+    with ai.utils.VerboseRequestTrace(plpy, "openai.moderations.create()", verbose):
+        moderation = client.moderations.create(
+            input=input_text,
+            model=model,
+            **kwargs)
     return moderation.model_dump_json()
 $python$
 language plpython3u immutable parallel safe security invoker
@@ -578,11 +612,13 @@ create or replace function ai.openai_moderate_with_raw_response
 , extra_query jsonb default null
 , extra_body jsonb default null
 , timeout float8 default null
+, verbose boolean default false
 ) returns jsonb
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.openai
     import ai.secrets
+    import ai.utils
     api_key_resolved = ai.secrets.get_secret(plpy, api_key, api_key_name, ai.openai.DEFAULT_KEY_NAME, SD)
     client = ai.openai.make_client(plpy, api_key_resolved, base_url)
     kwargs = ai.openai.create_kwargs(
@@ -590,10 +626,11 @@ as $python$
         extra_query=ai.openai.str_arg_to_dict(extra_query),
         extra_body=ai.openai.str_arg_to_dict(extra_body),
         timeout=timeout)
-    moderation = client.moderations.with_raw_response.create(
-        input=input_text,
-        model=model,
-        **kwargs)
+    with ai.utils.VerboseRequestTrace(plpy, "openai.moderations.create()", verbose):
+        moderation = client.moderations.with_raw_response.create(
+            input=input_text,
+            model=model,
+            **kwargs)
     return moderation.text
 $python$
 language plpython3u immutable parallel safe security invoker
