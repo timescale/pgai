@@ -171,7 +171,8 @@ Run this command to create the pgai extension with the pre-release text-to-sql f
 ```bash
 psql -U postgres -v ON_ERROR_STOP=1 -f - <<EOF
 
-drop extension if exists ai;
+drop extension if exists ai cascade;
+drop schema if exists ai cascade;
 select set_config('ai.enable_feature_flag_text_to_sql', 'true', false);
 create extension ai cascade;
 

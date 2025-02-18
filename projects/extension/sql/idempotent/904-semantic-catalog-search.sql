@@ -36,19 +36,15 @@ begin
       select o.*
       from
       (
-          select distinct e.objtype, e.objnames, e.objargs
+          select distinct e.id
           from
           (
-            select e.*
+            select e.id
             from %I.%I e
             inner join ai.semantic_catalog_obj o
-            on
-            (e.objtype operator(pg_catalog.=) o.objtype
-            and e.objnames operator(pg_catalog.=) o.objnames
-            and e.objargs operator(pg_catalog.=) o.objargs
-            )
-            where pg_catalog.has_schema_privilege(pg_catalog.current_user(), e.objnames[1], 'usage') and
-            case e.objtype
+            on (e.id operator(pg_catalog.=) o.id)
+            where pg_catalog.has_schema_privilege(pg_catalog.current_user(), o.objnames[1], 'usage') and
+            case o.objtype
                 when 'table' then pg_catalog.has_table_privilege(pg_catalog.current_user(), o.objid, 'select')
                 when 'view' then pg_catalog.has_table_privilege(pg_catalog.current_user(), o.objid, 'select')
                 when 'table column' then pg_catalog.has_column_privilege(pg_catalog.current_user(), o.objid, o.objsubid::pg_catalog.int2, 'select')
@@ -61,11 +57,7 @@ begin
           ) e
       ) e
       inner join ai.semantic_catalog_obj o
-      on
-      (   e.objtype operator(pg_catalog.=) o.objtype
-      and e.objnames operator(pg_catalog.=) o.objnames
-      and e.objargs operator(pg_catalog.=) o.objargs
-      )
+      on (e.id operator(pg_catalog.=) o.id)
     $sql$
     , v.target_schema, v.target_table
     , case when max_vector_dist is not null then 'and e.embedding operator(@extschema:vector@.<=>) $1 <= $2' else '' end
