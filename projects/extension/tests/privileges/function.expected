@@ -352,6 +352,10 @@
  f       | bob   | execute   | no      | ai     | parsing_auto()
  f       | fred  | execute   | no      | ai     | parsing_auto()
  f       | jill  | execute   | YES     | ai     | parsing_auto()
+ f       | alice | execute   | YES     | ai     | parsing_docling()
+ f       | bob   | execute   | no      | ai     | parsing_docling()
+ f       | fred  | execute   | no      | ai     | parsing_docling()
+ f       | jill  | execute   | YES     | ai     | parsing_docling()
  f       | alice | execute   | YES     | ai     | parsing_none()
  f       | bob   | execute   | no      | ai     | parsing_none()
  f       | fred  | execute   | no      | ai     | parsing_none()
@@ -404,5 +408,5 @@
  f       | bob   | execute   | no      | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text, "verbose" boolean)
  f       | fred  | execute   | no      | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text, "verbose" boolean)
  f       | jill  | execute   | YES     | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text, "verbose" boolean)
-(404 rows)
+(408 rows)
 
