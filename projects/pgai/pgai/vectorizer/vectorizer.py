@@ -724,11 +724,11 @@ class Worker:
         records: list[VectorizerErrorRecord],
     ):
         """
-        Inserts vectorizer errors into the errors table.
+        inserts vectorizer errors into the errors table.
 
-        Args:
-            conn (AsyncConnection): The database connection.
-            records (list[VectorizerErrorRecord]): The error records to be inserted.
+        args:
+            conn (asyncconnection): the database connection.
+            records (list[vectorizererrorrecord]): the error records to be inserted.
         """
         async with conn.cursor() as cursor:
             await cursor.executemany(self.queries.insert_errors_query, records)
