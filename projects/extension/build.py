@@ -314,7 +314,11 @@ class Actions:
     def test() -> None:
         """runs the tests in the docker container"""
         subprocess.run(
-            "uv run pytest", shell=True, check=True, env=os.environ, cwd=tests_dir()
+            "uv run --no-project pytest",
+            shell=True,
+            check=True,
+            env=os.environ,
+            cwd=tests_dir(),
         )
 
     @staticmethod
@@ -324,7 +328,7 @@ class Actions:
             cmd = "docker exec -it -w /pgai/tests/vectorizer pgai-ext fastapi dev server.py"
             subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
         else:
-            cmd = "uv run fastapi dev server.py"
+            cmd = "uv run --no-project fastapi dev server.py"
             subprocess.run(
                 cmd,
                 shell=True,
@@ -349,7 +353,10 @@ class Actions:
     def lint_py() -> None:
         """runs ruff linter against the python source files"""
         subprocess.run(
-            f"uv run ruff check {ext_dir()}", shell=True, check=True, env=os.environ
+            f"uv run --no-project ruff check {ext_dir()}",
+            shell=True,
+            check=True,
+            env=os.environ,
         )
 
     @staticmethod
@@ -362,7 +369,7 @@ class Actions:
     def format_py() -> None:
         """runs ruff to check formatting of the python source files"""
         subprocess.run(
-            f"uv run ruff format --diff {ext_dir()}",
+            f"uv run --no-project ruff format --diff {ext_dir()}",
             shell=True,
             check=True,
             env=os.environ,
@@ -372,7 +379,10 @@ class Actions:
     def reformat_py() -> None:
         """runs ruff to update the formatting of the python source files"""
         subprocess.run(
-            f"ruff format {ext_dir()}", shell=True, check=True, env=os.environ
+            f"uv run --no-project ruff format {ext_dir()}",
+            shell=True,
+            check=True,
+            env=os.environ,
         )
 
     @staticmethod
