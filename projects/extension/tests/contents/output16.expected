@@ -65,6 +65,7 @@ CREATE EXTENSION
  function ai.openai_moderate_with_raw_response(text,text,text,text,text,jsonb,jsonb,jsonb,double precision,boolean)
  function ai.openai_tokenize(text,text)
  function ai.parsing_auto()
+ function ai.parsing_docling()
  function ai.parsing_none()
  function ai.parsing_pymupdf()
  function ai.processing_default(integer,integer)
@@ -113,7 +114,7 @@ CREATE EXTENSION
  table ai.vectorizer_errors
  view ai.secret_permissions
  view ai.vectorizer_status
-(109 rows)
+(110 rows)
 
                                     Table "ai._secret_permissions"
  Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 

@@ -35,6 +35,18 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- parser_docling
+create or replace function ai.parsing_docling() returns pg_catalog.jsonb
+as $func$
+    select json_object
+    ( 'implementation': 'docling'
+    , 'config_type': 'parsing'
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- _validate_parsing
 create or replace function ai._validate_parsing
 ( config pg_catalog.jsonb  -- has to contain both loading and parsing config
@@ -91,9 +103,9 @@ begin
         raise exception 'cannot use parsing_none with document loading';
     end if;
 
-    if _parsing_implementation = 'pymupdf' and _loading_implementation = 'row'
+    if _parsing_implementation in ('pymupdf', 'docling') and _loading_implementation = 'row'
        and _column_type in ('text', 'varchar', 'char', 'bpchar') then
-        raise exception 'cannot use parsing_pymupdf with text columns';
+        raise exception 'cannot use parsing_% with text columns', _parsing_implementation;
     end if;
 
 end
