@@ -54,11 +54,9 @@ class PkAtt:
 
     Attributes:
         attname (str): The name of the attribute (column).
-        typname (str): The type of the attribute.
     """
 
     attname: str
-    typname: str
 
 
 @dataclass
@@ -298,12 +296,6 @@ class VectorizerQueryBuilder:
         )
 
     @cached_property
-    def copy_types(self) -> list[str]:
-        types = [a.typname for a in self.vectorizer.source_pk]
-        types.extend(["int4", "text", "vector"])
-        return types
-
-    @cached_property
     def copy_embeddings_query(self) -> sql.Composed:
         return sql.SQL(
             "COPY {} ({}, chunk_seq, chunk, embedding) FROM STDIN WITH (FORMAT BINARY)"
@@ -470,6 +462,7 @@ class Worker:
             lambda _loops, _res: True
         )
         self.features = features
+        self.copy_types: None | list[int] = None
 
     async def run(self) -> int:
         """
@@ -702,13 +695,29 @@ class Worker:
             conn (AsyncConnection): The database connection.
             records (list[EmbeddingRecord]): The embedding records to be copied.
         """
-        async with (
-            conn.cursor(binary=True) as cursor,
-            cursor.copy(self.queries.copy_embeddings_query) as copy,
-        ):
-            copy.set_types(self.queries.copy_types)
-            for record in records:
-                await copy.write_row(record)
+        async with conn.cursor(binary=True) as cursor:
+            if self.copy_types is None:
+                await cursor.execute(
+                    """
+                    select a.atttypid
+                    from pg_catalog.pg_class k
+                    inner join pg_catalog.pg_namespace n
+                        on (k.relnamespace operator(pg_catalog.=) n.oid)
+                    inner join pg_catalog.pg_attribute a
+                        on (k.oid operator(pg_catalog.=) a.attrelid)
+                    where n.nspname operator(pg_catalog.=) %s
+                    and k.relname operator(pg_catalog.=) %s
+                    and a.attname operator(pg_catalog.!=) 'embedding_uuid'
+                    and a.attnum operator(pg_catalog.>) 0
+                    order by a.attnum
+                """,
+                    (self.vectorizer.target_schema, self.vectorizer.target_table),
+                )
+                self.copy_types = [row[0] for row in await cursor.fetchall()]
+            async with cursor.copy(self.queries.copy_embeddings_query) as copy:
+                copy.set_types(self.copy_types)
+                for record in records:
+                    await copy.write_row(record)
 
     async def _insert_vectorizer_errors(
         self,
