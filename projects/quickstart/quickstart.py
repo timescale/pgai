@@ -299,10 +299,12 @@ def monitor_embeddings(answers, port, vectorizer_id):
 def main():
     docker_bin = shutil.which("docker")
     if docker_bin is None:
-        print("docker is not available, aborting")
+        print("docker is not available but is required for pgai vectorizer quickstart")
+        print("install docker https://docs.docker.com/desktop/ and try again")
         exit(1)
     if not has_docker_compose(docker_bin):
-        print("docker does not have compose subcommand, aborting")
+        print("docker does not have the compose subcommand, but it is required")
+        print("install docker compose https://docs.docker.com/compose/ and try again")
         exit(1)
 
     answers = questionary.prompt(questions)
