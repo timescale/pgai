@@ -36,10 +36,10 @@ begin
       select o.*
       from
       (
-          select distinct e.id
+          select distinct e.classid, e.objid
           from
           (
-            select e.id
+            select o.classid, o.objid
             from %I.%I e
             inner join ai.semantic_catalog_obj o
             on (e.id operator(pg_catalog.=) o.id)
@@ -53,11 +53,14 @@ begin
             end
             %s
             order by e.embedding operator(@extschema:vector@.<=>) $1
-            limit %L
+            limit %s
           ) e
       ) e
       inner join ai.semantic_catalog_obj o
-      on (e.id operator(pg_catalog.=) o.id)
+      on (e.classid operator(pg_catalog.=) o.classid
+      and e.objid operator(pg_catalog.=) o.objid
+      and o.objsubid = 0
+      )
     $sql$
     , v.target_schema, v.target_table
     , case when max_vector_dist is not null then 'and e.embedding operator(@extschema:vector@.<=>) $1 <= $2' else '' end

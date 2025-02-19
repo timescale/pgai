@@ -77,6 +77,7 @@ begin
     , search_path
     );
     if _result is not null then
+        raise debug '%', jsonb_pretty(_result);
         return _result->>'sql_statement';
     end if;
     return null;

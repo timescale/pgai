@@ -109,6 +109,11 @@ declare
     _message record;
     _tool_call record;
     _answer text;
+    _command_type text;
+    _answer_valid bool;
+    _err_msg text;
+    _query_plan jsonb;
+    _prompt_err text = '';
 begin
     -- if a config was provided, use the settings available. defaults where missing
     -- if no config provided, use defaults for everything
@@ -146,10 +151,13 @@ begin
         , $$Below are descriptions of database objects and examples of SQL statements that are meant to give context to a user's question.$$
         , $$Analyze the context provided. Identify the elements that are relevant to the user's question.$$
         , $$ONLY use database elements that have been described to you. If more context is needed, use the "request_more_context_by_question" tool to ask questions about the database model.$$
+        , $$Do not add aliases to columns unless it is required syntactically.$$
+        , $$Use the "request_table_sample" tool if you need examples of the data in a table.$$
         , $$If enough context has been provided to confidently address the question, use the "answer_user_question_with_sql_statement" tool to record your final answer in the form of a valid SQL statement.$$
         , coalesce(_config operator(pg_catalog.->>) 'user_prompt', '')
         );
 
+    <<main_loop>>
     while _iter_remaining > 0 loop
         raise debug 'iteration: %', (_max_iter - _iter_remaining + 1);
         _iter_remaining = _iter_remaining - 1;
@@ -275,6 +283,7 @@ begin
         , coalesce(_prompt_obj, '')
         , coalesce(_samples_sql, '')
         , coalesce(_prompt_sql, '')
+        , coalesce(_prompt_err, '')
         , concat('Q: ', question)
         );
         raise debug '%', _prompt;
@@ -337,6 +346,10 @@ begin
                                 "type": "string",
                                 "description": "A valid PostgreSQL SQL statement that addresses the user's question."
                             },
+                            "command_type": {
+                                "type": "string",
+                                "description": "Indicate the type of SQL command used in the sql_statement. (e.g. 'SELECT', 'INSERT', 'UPDATE', or 'DELETE')"
+                            },
                             "relevant_database_object_ids": {
                                 "type": "array",
                                 "items": {"type": "integer"},
@@ -348,7 +361,7 @@ begin
                                 "description": "IDs of SQL examples referenced in constructing the answer."
                             }
                         },
-                        "required": ["sql_statement", "relevant_database_object_ids", "relevant_sql_example_ids"],
+                        "required": ["sql_statement", "command_type", "relevant_database_object_ids", "relevant_sql_example_ids"],
                         "additionalProperties": false
                     },
                     "strict": true
@@ -442,7 +455,6 @@ begin
                         ;
                     when 'answer_user_question_with_sql_statement' then
                         raise debug 'tool use: answer_user_question_with_sql_statement: %', _tool_call.arguments;
-                        select _tool_call.arguments->>'sql_statement' into strict _answer;
                         -- throw out any obj that the LLM did NOT mark as relevant
                         select jsonb_agg(r) into _ctx_obj
                         from jsonb_array_elements_text(_tool_call.arguments->'relevant_database_object_ids') i
@@ -455,11 +467,41 @@ begin
                         inner join jsonb_to_recordset(_ctx_sql) r(id bigint, sql text, description text)
                         on (i::int = r.id)
                         ;
+                        -- get the sql statement
+                        select _tool_call.arguments->>'sql_statement' into strict _answer;
+                        -- validate the sql statement if we can
+                        select lower(_tool_call.arguments->>'command_type') into strict _command_type;
+                        if _command_type in ('select', 'insert', 'update', 'delete', 'merge', 'values') then
+                            select
+                              x.valid
+                            , x.err_msg
+                            , x.query_plan
+                            into
+                              _answer_valid
+                            , _err_msg
+                            , _query_plan
+                            from ai._text_to_sql_explain(_answer, search_path=>search_path) x
+                            ;
+                            if not _answer_valid then
+                                -- render invalid sql statements
+                                _prompt_err = concat_ws
+                                ( E'\n'
+                                , _prompt_err -- keep prior bad queries. append new ones
+                                , '<invalid-sql-statement>'
+                                , format(E'/* the following sql statement is not valid. error:\n%s\n*/', _err_msg)
+                                , _answer
+                                , '</invalid-sql-statement>'
+                                );
+                                continue main_loop;
+                            end if;
+                        end if;
                         return jsonb_build_object
                         ( 'sql_statement', _answer
+                        , 'command_type', _command_type
                         , 'relevant_database_objects', _ctx_obj
                         , 'relevant_sql_examples', _ctx_sql
                         , 'iterations', (_max_iter - _iter_remaining)
+                        , 'query plan', _query_plan
                         );
                 end case
                 ;
