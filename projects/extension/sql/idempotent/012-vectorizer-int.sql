@@ -6,13 +6,21 @@ $func$
     select pg_catalog.jsonb_agg(x)
     from
     (
-        select e.attnum, e.pknum, a.attname, y.typname
+        select
+          e.attnum
+        , e.pknum
+        , a.attname
+        , y.oid as typoid
+        , y.typnamespace
+        , y.typname
+        , pg_catalog.format_type(y.oid, a.atttypmod) as sqltype
         from pg_catalog.pg_constraint k
         cross join lateral pg_catalog.unnest(k.conkey) with ordinality e(attnum, pknum)
         inner join pg_catalog.pg_attribute a
             on (k.conrelid operator(pg_catalog.=) a.attrelid
                 and e.attnum operator(pg_catalog.=) a.attnum)
         inner join pg_catalog.pg_type y on (a.atttypid operator(pg_catalog.=) y.oid)
+        inner join pg_catalog.pg_namespace n on (y.typnamespace operator(pg_catalog.=) n.oid)
         where k.conrelid operator(pg_catalog.=) source_table
         and k.contype operator(pg_catalog.=) 'p'
     ) x
@@ -136,13 +144,13 @@ begin
             pg_catalog.format
             ( '%I %s not null'
             , x.attname
-            , x.typname
+            , x.sqltype
             )
             , E'\n, '
             order by x.attnum
         )
         from pg_catalog.jsonb_to_recordset(source_pk)
-            x(attnum int, attname name, typname name)
+            x(attnum int, attname name, sqltype text)
       )
     , dimensions
     , _pk_cols
@@ -413,12 +421,12 @@ begin
           pg_catalog.format
           ( '%I %s not null'
           , x.attname
-          , x.typname
+          , x.sqltype
           )
           , E'\n, '
           order by x.attnum
         )
-        from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name, typname name)
+        from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name, sqltype text)
       )
     ) into strict _sql
     ;

@@ -93,7 +93,24 @@ def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer:
         con.cursor(row_factory=dict_row) as cur,
     ):
         cur.execute(
-            "select pg_catalog.to_jsonb(v) as vectorizer from ai.vectorizer v where v.id = %s",  # noqa
+            """
+            select pg_catalog.to_jsonb(x)
+            as vectorizer
+            from
+            (
+                select
+                  v.*
+                , ai._vectorizer_source_pk
+                  ( pg_catalog.format
+                    ( '%I.%I'
+                    , v.source_schema
+                    , v.source_table
+                    )::pg_catalog.regclass
+                  ) as source_pk
+                from ai.vectorizer v
+                where v.id operator(pg_catalog.=) %s
+            ) x
+            """,  # noqa
             (vectorizer_id,),
         )
         row = cur.fetchone()

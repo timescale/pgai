@@ -54,20 +54,6 @@ VECTORIZER_ROW = r"""
             "schedule_interval": "00:05:00"
         }
     },
-    "source_pk": [
-        {
-            "pknum": 1,
-            "attnum": 2,
-            "attname": "title",
-            "typname": "text"
-        },
-        {
-            "pknum": 2,
-            "attnum": 3,
-            "attname": "published",
-            "typname": "timestamptz"
-        }
-    ],
     "view_name": "blog_embedding",
     "queue_table": "_vectorizer_q_1",
     "view_schema": "website",
@@ -1815,3 +1801,57 @@ def test_create_vectorizer_privs():
             , grant_to=>null
             );
             """)
+
+
+def test_weird_primary_key():
+    # test multi-column primary keys with "interesting" data types
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("create schema if not exists vec")
+            cur.execute("drop table if exists vec.weird")
+            cur.execute("""
+                create table vec.weird
+                ( a text[] not null
+                , b varchar(3) not null
+                , c timestamp with time zone not null
+                , d tstzrange not null
+                , note text not null
+                , primary key (a, b, c, d)
+                )
+            """)
+
+            # create a vectorizer for the table
+            # language=PostgreSQL
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'vec.weird'::regclass
+            , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+            , chunking=>ai.chunking_character_text_splitter('note')
+            , scheduling=> ai.scheduling_none()
+            , indexing=>ai.indexing_none()
+            , grant_to=>ai.grant_to('public')
+            , enqueue_existing=>false
+            );
+            """)
+            vectorizer_id = cur.fetchone()[0]
+
+            # insert 7 rows into the source and see if the trigger works
+            cur.execute("""
+                insert into vec.weird(a, b, c, d, note)
+                select
+                  array['larry', 'moe', 'curly']
+                , 'xyz'
+                , t
+                , tstzrange(t, t + interval '1d', '[)')
+                , 'if two witches watch two watches, which witch watches which watch'
+                from generate_series('2025-01-06'::timestamptz, '2025-01-12'::timestamptz, interval '1d') t
+                """)
+
+            # check that the queue has 7 rows
+            cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual == 7

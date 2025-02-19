@@ -15,11 +15,25 @@ DEFAULT_VECTORIZER_PATH = "/api/v1/events"
 
 
 def execute_vectorizer(plpy, vectorizer_id: int) -> None:
+    # look up the vectorizer and the source table's primary key info
     plan = plpy.prepare(
         """
-        select pg_catalog.to_jsonb(v) as vectorizer
-        from ai.vectorizer v
-        where v.id operator(pg_catalog.=) $1
+        select pg_catalog.to_jsonb(x)
+        as vectorizer
+        from
+        (
+            select
+              v.*
+            , ai._vectorizer_source_pk
+              ( pg_catalog.format
+                ( '%I.%I'
+                , v.source_schema
+                , v.source_table
+                )::pg_catalog.regclass
+              ) as source_pk
+            from ai.vectorizer v
+            where v.id operator(pg_catalog.=) $1
+        ) x
     """,
         ["int"],
     )

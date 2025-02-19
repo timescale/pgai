@@ -127,10 +127,11 @@ class Config(BaseModel):
 
 
 class PrimaryKeyColumn(BaseModel):
-    attnum: int
-    pknum: int
     attname: str
+    typoid: int
+    typnamespace: str
     typname: str
+    sqltype: str
 
 
 class Vectorizer(BaseModel):

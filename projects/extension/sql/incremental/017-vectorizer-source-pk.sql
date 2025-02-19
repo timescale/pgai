@@ -1,0 +1,1 @@
+alter table ai.vectorizer drop column source_pk;

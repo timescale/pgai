@@ -229,7 +229,6 @@ begin
     ( id
     , source_schema
     , source_table
-    , source_pk
     , target_schema
     , target_table
     , view_schema
@@ -243,7 +242,6 @@ begin
     ( _vectorizer_id
     , _source_schema
     , _source_table
-    , _source_pk
     , target_schema
     , target_table
     , view_schema
