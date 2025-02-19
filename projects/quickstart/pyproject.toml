@@ -17,3 +17,8 @@ dependencies = [
 [tool.uv.sources]
 questionary = { git = "https://github.com/JamesGuthrie/questionary", branch = "fix-select-dynamic-choice" }
 
+[dependency-groups]
+dev = [
+    "ruff>=0.9.6",
+]
+

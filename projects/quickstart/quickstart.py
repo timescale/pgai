@@ -16,7 +16,7 @@ env = Environment(
     loader=PackageLoader("quickstart"),
     autoescape=select_autoescape(),
     trim_blocks=True,
-    lstrip_blocks=True
+    lstrip_blocks=True,
 )
 
 OPENAI = "OpenAI"
@@ -27,23 +27,9 @@ OLLAMA = "Ollama"
 CUSTOM = "custom"
 
 LLM_MODELS = {
-    OPENAI: [
-        "gpt-4o",
-        "gpt-4o mini",
-        "o1",
-        "o1-mini",
-        CUSTOM
-    ],
-    COHERE: [
-        "command-r-plus",
-        "command-r",
-        "command-light",
-        CUSTOM
-    ],
-    OLLAMA: [
-        "TODO: Ollama models",
-        CUSTOM
-    ],
+    OPENAI: ["gpt-4o", "gpt-4o mini", "o1", "o1-mini", CUSTOM],
+    COHERE: ["command-r-plus", "command-r", "command-light", CUSTOM],
+    OLLAMA: ["TODO: Ollama models", CUSTOM],
 }
 
 EMBEDDING_MODELS = {
@@ -51,7 +37,7 @@ EMBEDDING_MODELS = {
         "text-embedding-3-large",
         "text-embedding-3-small",
         "text-embedding-ada-002",
-        CUSTOM
+        CUSTOM,
     ],
     # COHERE: [
     #     "embed-english-v3.0",
@@ -60,19 +46,14 @@ EMBEDDING_MODELS = {
     #     "embed-multilingual-light-v3.0",
     #     CUSTOM
     # ],
-    VOYAGE: [
-        "voyage-3-large",
-        "voyage-3",
-        "voyage-3-lite",
-        CUSTOM
-    ],
+    VOYAGE: ["voyage-3-large", "voyage-3", "voyage-3-lite", CUSTOM],
     OLLAMA: [
         "nomic-embed-text",
         "mxbai-embed-large",
         "snowflake-arctic-embed",
         "all-minilm",
-        CUSTOM
-    ]
+        CUSTOM,
+    ],
 }
 
 DIMENSIONS = {
@@ -106,74 +87,89 @@ API_KEY_NAME = {
     OLLAMA: None,
 }
 
+
 def when(*args, **kwargs):
     print(args)
     print(kwargs)
     return ["1", "2", "3"]
 
+
 questions = [
     {
-        'type': 'select',
-        'name': 'provider',
-        'message': "Which provider would you like to use?",
-        'choices': EMBEDDING_MODELS.keys(),
+        "type": "select",
+        "name": "provider",
+        "message": "Which provider would you like to use?",
+        "choices": EMBEDDING_MODELS.keys(),
     },
     {
-        'type': 'password',
-        'message': 'API key',
-        'name': 'api_key',
-        'when': lambda x: x['provider'] in [COHERE, VOYAGE, OPENAI],
+        "type": "password",
+        "message": "API key",
+        "name": "api_key",
+        "when": lambda x: x["provider"] in [COHERE, VOYAGE, OPENAI],
     },
     {
-        'type': 'select',
-        'message': 'Which model would you like to use?',
-        'name': 'model',
-        'choices': lambda x: EMBEDDING_MODELS[x['provider']],
+        "type": "select",
+        "message": "Which model would you like to use?",
+        "name": "model",
+        "choices": lambda x: EMBEDDING_MODELS[x["provider"]],
     },
     {
-        'type': 'text',
-        'message': 'Specify the custom model',
-        'name': 'custom_model',
-        'when': lambda x: x['model'] == CUSTOM,
+        "type": "text",
+        "message": "Specify the custom model",
+        "name": "custom_model",
+        "when": lambda x: x["model"] == CUSTOM,
     },
     {
-        'type': 'select',
-        'message': 'How would you like to load a dataset?',
-        'name': 'dataset',
-        'choices': ["huggingface", "new_table", "existing_table"],
+        "type": "select",
+        "message": "How would you like to load a dataset?",
+        "name": "dataset",
+        "choices": ["huggingface", "new_table", "existing_table"],
     },
     {
-        'type': 'select',
-        'message': 'Which huggingface dataset would you like to use?',
-        'name': 'huggingface_dataset',
-        'when': lambda x: x['dataset'] == "huggingface",
-        'choices': ["wikipedia", "other", "another other"],
-    }
+        "type": "select",
+        "message": "Which huggingface dataset would you like to use?",
+        "name": "huggingface_dataset",
+        "when": lambda x: x["dataset"] == "huggingface",
+        "choices": ["wikipedia", "other", "another other"],
+    },
 ]
 
 
 def has_docker_compose(docker_bin) -> bool:
     if subprocess.run([docker_bin, "help"], capture_output=True).returncode != 0:
         return False
-    if subprocess.run([docker_bin, "help", "compose"], capture_output=True).returncode != 0:
+    if (
+        subprocess.run([docker_bin, "help", "compose"], capture_output=True).returncode
+        != 0
+    ):
         return False
     return True
 
 
 def generate_docker_compose(answers):
     provider = answers["provider"]
-    api_key = answers.get('api_key', None)
+    api_key = answers.get("api_key", None)
     api_key_name = API_KEY_NAME[provider]
     use_ollama = provider == OLLAMA
     template = env.get_template("compose.yml.j2")
-    return template.render(provider=provider, api_key_name=api_key_name, api_key=api_key, use_ollama=use_ollama)
+    return template.render(
+        provider=provider,
+        api_key_name=api_key_name,
+        api_key=api_key,
+        use_ollama=use_ollama,
+    )
 
 
 def check_db_connectivity(docker_bin):
     count = 0
     success_count = 0
     while count < 5:
-        if subprocess.run([docker_bin, "compose", "exec", "db", "pg_isready"], capture_output=True).returncode == 0:
+        if (
+            subprocess.run(
+                [docker_bin, "compose", "exec", "db", "pg_isready"], capture_output=True
+            ).returncode
+            == 0
+        ):
             success_count += 1
         if success_count == 2:
             return True
@@ -186,7 +182,7 @@ def check_db_connectivity(docker_bin):
 def write_compose(answers):
     docker_compose = generate_docker_compose(answers)
     with yaspin(text="writing compose.yml") as sp:
-        with open('compose.yml', 'w', encoding="utf-8") as f:
+        with open("compose.yml", "w", encoding="utf-8") as f:
             f.write(docker_compose)
         sp.write("✔ wrote compose.yml")
 
@@ -194,13 +190,17 @@ def write_compose(answers):
 def start_containers(docker_bin):
     port = None
     with yaspin(text="starting containers") as sp:
-        result = subprocess.run([docker_bin, "compose", "up", "-d"], capture_output=True)
+        result = subprocess.run(
+            [docker_bin, "compose", "up", "-d"], capture_output=True
+        )
         if result.returncode == 0:
             sp.write("✔ started containers")
         else:
             sp.write("unable to start containers")
             return None
-        result = subprocess.run([docker_bin, "compose", "port", "db", "5432"], capture_output=True)
+        result = subprocess.run(
+            [docker_bin, "compose", "port", "db", "5432"], capture_output=True
+        )
         if result.returncode != 0:
             sp.write("unable to obtain db port")
             sp.write(result.stderr)
@@ -218,6 +218,7 @@ def start_containers(docker_bin):
 def execute_sql(port, sql, **kwargs):
     with psycopg.connect(f"postgres://postgres:postgres@{port}") as conn:
         return conn.execute(sql, kwargs)
+
 
 def fetchone_sql(port, sql, **kwargs):
     with psycopg.connect(f"postgres://postgres:postgres@{port}") as conn:
@@ -248,7 +249,7 @@ def setup_dataset(answers, port):
         """
     }
     with yaspin(text="loading dataset") as sp:
-        sql = sql_snippets[answers['huggingface_dataset']]
+        sql = sql_snippets[answers["huggingface_dataset"]]
         if sql is None:
             sp.write("unknown dataset")
             exit(1)
@@ -260,7 +261,7 @@ def setup_dataset(answers, port):
 
 
 def setup_vectorizer(answers, port) -> int:
-    source_table = "wikipedia" # TODO: hardcoded
+    source_table = "wikipedia"  # TODO: hardcoded
     embedding_function = EMBEDDING_FUNCTIONS[answers["provider"]]
     model = answers["model"]
     dims = DIMENSIONS[model]
