@@ -10,3 +10,6 @@ dependencies = [
   "yaspin",
   "psycopg[binary]",
 ]
+
+[tool.uv.sources]
+questionary = { git = "https://github.com/JamesGuthrie/questionary", branch = "fix-select-dynamic-choice" }
