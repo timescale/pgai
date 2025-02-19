@@ -165,7 +165,7 @@ def run_reverse_proxy(
     proxy_thread.start()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def openai_proxy_url(request: pytest.FixtureRequest):
     if not hasattr(request, "param") or request.param is None:
         # a valid url is required in order to start the openai proxy fixture
@@ -177,3 +177,4 @@ def openai_proxy_url(request: pytest.FixtureRequest):
     proxy_url = f"http://localhost:{port}"
     print(f"OpenAI API proxy running on {proxy_url}")
     return f"http://localhost:{port}"
+

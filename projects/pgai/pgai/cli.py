@@ -136,18 +136,21 @@ def run_vectorizer(
     db_url: str,
     vectorizer: Vectorizer,
     concurrency: int,
+    loading_retries: int,
     features: Features,
 ) -> None:
     async def run_workers(
-        db_url: str, vectorizer: Vectorizer, concurrency: int
+        db_url: str, vectorizer: Vectorizer, concurrency: int, loading_retries: int
     ) -> list[int]:
         tasks = [
-            asyncio.create_task(Worker(db_url, vectorizer, features).run())
+            asyncio.create_task(
+                Worker(db_url, vectorizer, features, loading_retries).run()
+            )
             for _ in range(concurrency)
         ]
         return await asyncio.gather(*tasks)
 
-    results = asyncio.run(run_workers(db_url, vectorizer, concurrency))
+    results = asyncio.run(run_workers(db_url, vectorizer, concurrency, loading_retries))
     items = sum(results)
     log.info("finished processing vectorizer", items=items, vectorizer_id=vectorizer.id)
 
@@ -247,6 +250,13 @@ def shutdown_handler(signum: int, _frame: Any):
     show_default=True,
     help="Exit immediately when an error occurs.",
 )
+@click.option(
+    "--loading-retries",
+    type=click.INT,
+    default=6,
+    show_default=True,
+    help="Number of retries for loading processing.",
+)
 def vectorizer_worker(
     db_url: str,
     vectorizer_ids: Sequence[int],
@@ -255,6 +265,7 @@ def vectorizer_worker(
     poll_interval: int,
     once: bool,
     exit_on_error: bool | None,
+    loading_retries: int,
 ) -> None:
     # gracefully handle being asked to shut down
     signal.signal(signal.SIGINT, shutdown_handler)
@@ -318,7 +329,9 @@ def vectorizer_worker(
                     try:
                         vectorizer = get_vectorizer(db_url, vectorizer_id)
                         log.info("running vectorizer", vectorizer_id=vectorizer_id)
-                        run_vectorizer(db_url, vectorizer, concurrency, features)
+                        run_vectorizer(
+                            db_url, vectorizer, concurrency, loading_retries, features
+                        )
                     except (VectorizerNotFoundError, ApiKeyNotFoundError) as e:
                         log.error(
                             f"error getting vectorizer: {type(e).__name__}: {str(e)} "

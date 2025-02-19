@@ -123,11 +123,12 @@ dev-dependencies = [
     "pytest==8.3.2",
     "python-dotenv==1.0.1",
     "vcrpy==7.0.0",
-    "pyright==1.1.385",
+    "pyright>=1.1.394",
     "psycopg[binary]==3.2.1",
     "testcontainers==4.8.1",
     "build==1.2.2.post1",
     "twine==5.1.1",
     "mitmproxy==10.3.0",
     "Jinja2>=3.1.5",
+    "fastapi>=0.115.8",
 ]
