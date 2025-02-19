@@ -5,11 +5,15 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "questionary",
   "jinja2",
-  "yaspin",
+  "openai",
+  "questionary",
   "psycopg[binary]",
+  "yaspin",
+  "voyageai>=0.3.2",
+  "cohere>=5.13.12",
 ]
 
 [tool.uv.sources]
 questionary = { git = "https://github.com/JamesGuthrie/questionary", branch = "fix-select-dynamic-choice" }
+

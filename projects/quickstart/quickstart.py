@@ -8,7 +8,9 @@ import time
 from textwrap import dedent, indent
 import psycopg
 from jinja2 import Environment, PackageLoader, select_autoescape
-
+import cohere
+import openai
+import voyageai
 
 env = Environment(
     loader=PackageLoader("quickstart"),
@@ -295,6 +297,34 @@ def monitor_embeddings(answers, port, vectorizer_id):
             time.sleep(1)
 
 
+def is_api_key_valid(provider, api_key):
+    if provider == OLLAMA:
+        return True
+    if provider == OPENAI:
+        client = openai.OpenAI(api_key=api_key)
+        try:
+            client.models.list()
+            return True
+        except openai.AuthenticationError:
+            return False
+    elif provider == VOYAGE:
+        client = voyageai.Client(api_key=api_key)
+        model = "voyage-3-lite"
+        try:
+            client.embed(["test"], model=model)
+            return True
+        except voyageai.error.AuthenticationError:
+            return False
+    elif provider == COHERE:
+        client = cohere.Client(api_key=api_key)
+        try:
+            client.models.list()
+            return True
+        except cohere.errors.unauthorized_error.UnauthorizedError:
+            return False
+    else:
+        raise RuntimeError(f"Unexpected provider {provider}")
+
 
 def main():
     docker_bin = shutil.which("docker")
@@ -308,6 +338,10 @@ def main():
         exit(1)
 
     answers = questionary.prompt(questions)
+    if not is_api_key_valid(answers["provider"], answers.get("api_key", None)):
+        # TODO: perform this validation earlier (punted because it's not trivial)
+        print("The provided API key is invalid")
+        exit(1)
     write_compose(answers)
     port = start_containers(docker_bin)
     if port is None:
