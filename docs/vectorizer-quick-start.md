@@ -115,7 +115,7 @@ Now we can create and run a vectorizer. A vectorizer is a pgai concept, it proce
         embedding <=>  ai.ollama_embed('nomic-embed-text', 'good food', host => 'http://ollama:11434') as distance
     FROM blog_contents_embeddings
     ORDER BY distance
-    LIMIT;
+    LIMIT 10;
     ```
 
 The results look like:
