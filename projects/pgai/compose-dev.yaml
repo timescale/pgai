@@ -1,0 +1,32 @@
+name: pgai
+services:
+  db:
+    build:
+      context: ../extension
+      dockerfile: Dockerfile
+      target: pgai-test-db
+    ports:
+      - "5432:5432"
+    volumes:
+      - data:/home/postgres/pgdata/data
+    environment:
+      POSTGRES_PASSWORD: postgres
+    env_file:
+      - path: ./.env
+        required: false
+      - path: ./db.env
+        required: false
+  vectorizer-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
+    env_file:
+      - path: ./.env
+        required: false
+      - path: ./worker.env
+        required: false
+    command: [ "--poll-interval", "5s", "--log-level", "DEBUG" ]
+volumes:
+  data:
