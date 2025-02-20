@@ -96,3 +96,101 @@ just pgai lint
 just pgai format
 just pgai type-check
 ```
+
+## Docker development environment
+
+The following lines provide instructions for setting up and running the `pgai` development environment using Docker Compose. The setup consists of two primary services:
+
+- **db**: A PostgreSQL database instance with persistent storage and the `pgai` extension preloaded. Built from source using the [extension's Dockerfile](../extension/Dockerfile).
+- **vectorizer-worker**: The vectorizer worker service that connects to the PostgreSQL database and performs vectorization tasks. Built from source using the [Dockerfile](./Dockerfile).
+
+Files involved in the setup:
+
+```
+├── compose-dev.yaml              # The actual Docker Compose file
+├── .env                          # Optional environment variables that applies to all services
+├── db.env                        # Database-specific environment variables
+├── worker.env                    # Vectorizer-worker-specific environment variables
+├── Dockerfile                    # Dockerfile for the vectorizer worker service
+└── ../extension/Dockerfile       # Dockerfile for the PostgreSQL database with the pgai extension preloaded
+```
+
+### Running the services
+To start the services, run:
+
+```sh
+docker compose -f compose-dev.yaml up -d
+```
+
+### Stopping the Services
+To stop the services, run:
+
+```sh
+docker compose -f compose-dev.yaml down
+```
+
+This will stop and remove the running containers but retain the named volume (`data`).
+
+### Accessing the Database
+You can connect to the database using `psql`:
+
+```shell
+docker compose -f compose-dev.yaml exec -it db psql -U postgres
+```
+
+Alternatively, you can connect using any other client by specifying the following connection uri: `postgresql://postgres:postgres@localhost`. e.g.:
+
+```sh
+psql 'postgresql://postgres:postgres@localhost'
+```
+
+> [!IMPORTANT]  
+> Even though the pgai extension is loaded, it is not installed by default. Read below.
+
+#### Installing the pgai extension
+To install the `pgai` extension, connect to the database and run:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS ai cascade;
+```
+
+Alternatively, you can run the following command from the host machine:
+
+```sh
+docker compose --file compose-dev.yaml exec -t db psql -U postgres -c "CREATE EXTENSION IF NOT EXISTS ai cascade;"
+```
+`
+### Viewing logs
+To see logs for all services:
+
+```sh
+docker compose -f compose-dev.yaml logs -f
+```
+
+To see logs for a specific service (e.g., `vectorizer-worker`):
+
+```sh
+docker compose -f compose-dev.yaml logs -f vectorizer-worker
+```
+
+### Environment variables
+You can define additional environment variables in the following `*.env` files:
+
+- `.env`: environment variables that applies to all services.
+- `db.env`: environment variables that apply to the `db` service.
+- `worker.env`: environment variables that apply to the `vectorizer-worker` service.
+
+### Cleaning up
+To remove all containers, networks, and volumes, run:
+
+```sh
+docker compose -f compose-dev.yaml down -v
+```
+
+Alternatively, if the containers are already stopped, you can run:
+
+```sh
+docker compose -f compose-dev.yaml rm -v
+```
+
+Both options will **delete** the persistent database volume (`data`).
