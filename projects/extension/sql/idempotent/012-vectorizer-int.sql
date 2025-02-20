@@ -598,6 +598,9 @@ declare
     _vec record;
     _version text;
     _new_version text := '0.9.0';  -- Version after upgrade   
+    _owner name;
+    _acl aclitem[];
+    _debug_acl aclitem[];
 begin
     -- Find all vectorizers with version < 0.9.0
     for _vec in (
@@ -615,15 +618,22 @@ begin
         from ai.vectorizer v
     )
     loop
-        raise notice 'Upgrading trigger for vectorizer ID % from version %', _vec.id, _vec.config->>'version';
-
-        -- Drop and recreate
-        execute format('drop function if exists ai.%I() cascade', _vec.trigger_name);
+        raise notice 'Upgrading trigger function for vectorizer ID %s from version %s', _vec.id, _vec.config->>'version';
         
         execute format(
-            'create function ai.%I() returns trigger as $trigger_def$ %s $trigger_def$ language plpgsql volatile parallel safe security definer',
+            'alter extension ai add function ai.%I()',
+            _vec.trigger_name
+        );
+
+        execute format(
+            'create or replace function ai.%I() returns trigger as $trigger_def$ %s $trigger_def$ language plpgsql volatile parallel safe security definer',
             _vec.trigger_name,
             ai._build_vectorizer_trigger_definition(_vec.queue_schema, _vec.queue_table, _vec.target_schema, _vec.target_table, _vec.source_pk)
+        );
+
+        execute format(
+            'drop trigger if exists %I on %I.%I',
+            _vec.trigger_name, _vec.source_schema, _vec.source_table
         );
 
         execute format(
@@ -631,12 +641,16 @@ begin
             _vec.trigger_name, _vec.source_schema, _vec.source_table, _vec.trigger_name
         );
 
-        -- Update the version in the config
+        execute format(
+            'alter extension ai drop function ai.%I()',
+            _vec.trigger_name
+        );
+
         update ai.vectorizer 
         set config = jsonb_set(config, '{version}', format('"%s"', _new_version)::jsonb)
         where id = _vec.id;
         
-        raise notice 'Successfully upgraded trigger for vectorizer ID % to version %', _vec.id, _new_version;
+        raise info 'Successfully upgraded trigger for vectorizer ID % to version %', _vec.id, _new_version;
     end loop;
 end;
 $upgrade_block$;
