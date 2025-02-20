@@ -158,8 +158,8 @@ You use the loading configuration functions in `pgai` to define the way data is 
 
 The loading functions are:
 
-- [ai.loading_row](#aïoading_row)
-- [ai.loading_document](#aïoloading_document)
+- [ai.loading_row](#ailoading_row)
+- [ai.loading_document](#ailoading_document)
 
 ### ai.loading_row
 
@@ -199,7 +199,7 @@ For S3, you can set the `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` environment
 ```sql
 SELECT ai.create_vectorizer(
     'my_table'::regclass,
-    loading => ai.loading_document('file_path'),
+    loading => ai.loading_document('file_uri_column_name'),
     -- other parameters...
 );
 ```
@@ -218,18 +218,20 @@ A JSON configuration object that you can use in [ai.create_vectorizer](#create-v
 
 ## Parsing configuration
 
-You use the parsing configuration functions in `pgai` to define the way data is parsed from the source table. This is useful if you want to load data that is not immediately text data and therefore needs to be parsed first.
+You use the parsing configuration functions in `pgai` to define the way data, after being loaded, is parsed. This is useful if you want to load data that is not immediately text and therefore needs to be parsed first. I.e. a PDF document.
 
 The parsing functions are:
 
-- [ai.parsing_auto](#aïoparsing_auto)
-- [ai.parsing_none](#aïoparsing_none)
-- [ai.parsing_pymupdf](#aïoparsing_pymupdf)
+- [ai.parsing_auto](#aiparsing_auto)
+- [ai.parsing_none](#aiparsing_none)
+- [ai.parsing_docling](#aiparsing_docling)
+- [ai.parsing_pymupdf](#aiparsing_pymupdf)
 
 ### ai.parsing_auto
 
-You use `ai.parsing_auto` to automatically parse the data from the source table with a fitting available parser.
-This parser will decide on the fly if it should use `ai.parsing_pymupdf` or `ai.parsing_none`.
+You use `ai.parsing_auto` to automatically parse the data with a fitting available parser.
+This special parser will decide on the fly which parser fits with each of the documents by guessing the file type. 
+If the type can not be guessed, the document will not be processed and an error will be appended to the vectorizer errors.
 
 #### Example usage
 
@@ -258,6 +260,9 @@ A JSON configuration object that you can use in [ai.create_vectorizer](#create-v
 
 You use `ai.parsing_none` to load the data as is from the source table.
 
+> [!NOTE]  
+> This is the default parser; adding this parser or skipping the `parsing` parameter does the same effect.
+
 #### Example usage
 
 ```sql
@@ -280,9 +285,35 @@ SELECT ai.create_vectorizer(
 
 A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
 
+### ai.parsing_docling
+
+You use `ai.parsing_docling` to parse the data provided by the loader using [docling](https://ds4sd.github.io/docling/).
+
+#### Example usage
+
+```sql
+SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    parsing => ai.parsing_docling(),
+    -- other parameters...
+);
+```
+
+#### Parameters
+
+`ai.parsing_docling` takes the following parameters:
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| None | - | - | - | - |
+
+#### Returns
+
+A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
+
 ### ai.parsing_pymupdf
 
-You use `ai.parsing_pymupdf` to parse the data from the source table using [pymupdf](https://pymupdf.readthedocs.io/en/latest/).
+You use `ai.parsing_pymupdf` to parse the data provided by the loader using [pymupdf](https://pymupdf.readthedocs.io/en/latest/).
 
 #### Example usage
 
@@ -305,7 +336,6 @@ SELECT ai.create_vectorizer(
 #### Returns
 
 A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
-
 
 ## Chunking configuration
 
