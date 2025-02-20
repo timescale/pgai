@@ -122,6 +122,8 @@ declare
     _include_entire_schema bool;
     _only_these_objects regclass[];
 begin
+    -- initialize variables ---------------------------------------------------
+
     -- if a config was provided, use the settings available. defaults where missing
     -- if no config provided, use defaults for everything
     _max_iter = coalesce((_config->>'max_iter')::int2, 10);
@@ -172,6 +174,11 @@ begin
         _only_these_objects = null;
     end if;
 
+    -- main loop --------------------------------------------------------------
+    
+    -- Each iteration of the main loop sends one message to the LLM and processes
+    -- the response. We do this until the LLM calls a tool to indicate that it has
+    -- a final answer OR we have run _max_iter iterations.
     <<main_loop>>
     for _iter in 1.._max_iter loop
         raise debug 'iteration: %', _iter;
@@ -336,7 +343,7 @@ begin
         );
         raise debug '%', _prompt;
 
-        -- call llm -----------------------------------------------------------
+        -- tool definitions ---------------------------------------------------
         _tools = $json$
         [
             {
@@ -417,7 +424,8 @@ begin
         ]
         $json$::jsonb
         ;
-
+        
+        -- call llm -----------------------------------------------------------
         raise debug 'calling llm';
         select ai.openai_chat_complete
         ( _model
@@ -449,6 +457,10 @@ begin
         ;
 
         -- process the response -----------------------------------------------
+        
+        -- With tool_choice set to either required or a specific tool, we will only
+        -- get one message per interaction, but I have coded this to handle multiple
+        -- anyway in case that changes
         raise debug 'received % messages', jsonb_array_length(_response->'choices');
         <<message_loop>>
         for _message in
@@ -469,6 +481,11 @@ begin
                 -- TODO: continue? raise exception? i dunno
             end if;
             
+            -- At the moment, it appears we cannot both force the LLM to use at least one tool
+            -- AND allow it to call multiple tools in the same interaction. Ideally, we could
+            -- force it to use one or more tools in each interaction. I have coded the loop 
+            -- below to be able to handle multiple tool calls even though we only get one at a
+            -- time right now
             <<tool_call_loop>>
             for _tool_call in
             (
@@ -520,8 +537,8 @@ begin
                         -- get the sql statement
                         select _tool_call.arguments->>'sql_statement' into strict _answer;
                         -- validate the sql statement if we can
-                        select lower(_tool_call.arguments->>'command_type') into strict _command_type;
-                        if _command_type in ('select', 'insert', 'update', 'delete', 'merge', 'values') then
+                        select upper(_tool_call.arguments->>'command_type') into strict _command_type;
+                        if _command_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE', 'MERGE', 'VALUES') then
                             select
                               x.valid
                             , x.err_msg
@@ -542,23 +559,31 @@ begin
                                 , _answer
                                 , '</invalid-sql-statement>'
                                 );
-                                continue main_loop;
+                                -- we got a bad sql statement. continue processing and give the LLM
+                                -- another try unless we've hit _max_iter iterations
+                                continue tool_call_loop;
                             end if;
                         end if;
-                        return jsonb_build_object
-                        ( 'sql_statement', _answer
-                        , 'command_type', _command_type
-                        , 'relevant_database_objects', _ctx_obj
-                        , 'relevant_sql_examples', _ctx_sql
-                        , 'iterations', (_max_iter - _iter_remaining)
-                        , 'query plan', _query_plan
-                        );
-                end case
-                ;
-            end loop;
-        end loop;
-    end loop;
-    return null;
+                        -- we got a valid sql statement, or we got a sql statement for which we cannot
+                        -- check the validity with EXPLAIN
+                        exit main_loop;
+                end case;
+            end loop tool_call_loop;
+        end loop message_loop;
+    end loop main_loop;
+    
+    -- return our results -----------------------------------------------------
+    -- some elements may be null
+    return jsonb_build_object
+    ( 'sql_statement', _answer
+    , 'command_type', _command_type
+    , 'relevant_database_objects', _ctx_obj
+    , 'relevant_sql_examples', _ctx_sql
+    , 'iterations', (_max_iter - _iter_remaining)
+    , 'query_plan', _query_plan
+    , 'est_cost', jsonb_extract_path(_query_plan, '0', 'Plan', 'Total Cost')
+    , 'est_rows', jsonb_extract_path(_query_plan, '0', 'Plan', 'Plan Rows')
+    );
 end
 $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
