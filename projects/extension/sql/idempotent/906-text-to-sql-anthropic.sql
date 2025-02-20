@@ -156,33 +156,25 @@ begin
         -- search obj
         if jsonb_array_length(_questions) > 0 then
             raise debug 'searching for database objects';
-            select jsonb_agg(x.obj)
+            select jsonb_agg(to_jsonb(x))
             into _ctx_obj
             from
             (
-                select jsonb_build_object
-                ( 'id', row_number() over (order by x.objid)
-                , 'classid', x.classid
-                , 'objid', x.objid
-                ) as obj
-                from
-                (
-                    -- search for relevant objects
-                    -- if a column matches, we want to render the whole table/view, so discard the objsubid
-                    -- semantic search
-                    select distinct x.classid, x.objid
-                    from unnest(_questions_embedded) q
-                    cross join lateral ai._search_semantic_catalog_obj
-                    ( q
-                    , catalog_name
-                    , _max_results
-                    , _max_vector_dist
-                    ) x
-                    union
-                    -- unroll objects previously marked as relevant
-                    select *
-                    from jsonb_to_recordset(_ctx_obj) r(classid oid, objid oid)
+                -- search for relevant objects
+                -- if a column matches, we want to render the whole table/view, so discard the objsubid
+                -- semantic search
+                select distinct x.id, x.classid, x.objid
+                from unnest(_questions_embedded) q
+                cross join lateral ai._search_semantic_catalog_obj
+                ( q
+                , catalog_name
+                , _max_results
+                , _max_vector_dist
                 ) x
+                union
+                -- unroll objects previously marked as relevant
+                select *
+                from jsonb_to_recordset(_ctx_obj) r(id int8, classid oid, objid oid)
             ) x
             ;
             raise debug 'search found % database objects', jsonb_array_length(_ctx_obj);

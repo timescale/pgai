@@ -1,0 +1,19 @@
+name: pgai 
+services:
+  db:
+    image: timescale/timescaledb-ha:pg17
+    environment:
+      POSTGRES_PASSWORD: postgres
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      COHERE_API_KEY: ${COHERE_API_KEY}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data:/var/lib/postgresql/data
+  vectorizer-worker:
+    image: timescale/pgai-vectorizer-worker:latest
+    environment:
+    command: [ "--poll-interval", "5s" ]
+  ollama:
+    image: ollama/ollama
