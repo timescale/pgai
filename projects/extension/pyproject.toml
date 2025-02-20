@@ -30,6 +30,7 @@ dev = [
     "fastapi-cli==0.0.5",
     "psycopg[binary]==3.2.1",
     "uv==0.5.20",
+    "pgspot>=0.9.0",
 ]
 
 [tool.setuptools.dynamic]

@@ -342,7 +342,7 @@ class Actions:
         """runs pgspot against the `ai--<this_version>.sql` file"""
         cmd = " ".join(
             [
-                "pgspot --ignore-lang=plpython3u",
+                "uv run --no-project pgspot --ignore-lang=plpython3u",
                 '--proc-without-search-path "ai._vectorizer_job(job_id integer,config pg_catalog.jsonb)"',
                 f"{output_sql_file()}",
             ]
@@ -350,40 +350,40 @@ class Actions:
         subprocess.run(cmd, shell=True, check=True, env=os.environ)
 
     @staticmethod
-    def lint_py() -> None:
+    def lint_py(fix: bool = False) -> None:
         """runs ruff linter against the python source files"""
         subprocess.run(
-            f"uv run --no-project ruff check {ext_dir()}",
+            f"uv run --no-project ruff check{' --fix' if fix else ''} {ext_dir()}",
             shell=True,
             check=True,
             env=os.environ,
         )
 
     @staticmethod
-    def lint() -> None:
+    def lint(fix: bool = False) -> None:
         """runs both sql and python linters"""
-        Actions.lint_py()
+        Actions.lint_py(fix)
         Actions.lint_sql()
 
     @staticmethod
-    def format_py() -> None:
+    def lint_fix() -> None:
+        """runs both sql and python linters and fix all auto-fixable issues"""
+        Actions.lint(fix=True)
+
+    @staticmethod
+    def format(fix: bool = False) -> None:
         """runs ruff to check formatting of the python source files"""
         subprocess.run(
-            f"uv run --no-project ruff format --diff {ext_dir()}",
+            f"uv run --no-project ruff format{' --diff' if not fix else ''} {ext_dir()}",
             shell=True,
             check=True,
             env=os.environ,
         )
 
     @staticmethod
-    def reformat_py() -> None:
-        """runs ruff to update the formatting of the python source files"""
-        subprocess.run(
-            f"uv run --no-project ruff format {ext_dir()}",
-            shell=True,
-            check=True,
-            env=os.environ,
-        )
+    def format_fix() -> None:
+        """runs ruff to check formatting of the python source files and fix all auto-fixable issues"""
+        Actions.format(fix=True)
 
     @staticmethod
     def check_requirements() -> None:

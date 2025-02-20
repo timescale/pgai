@@ -86,11 +86,17 @@ lint-py:
 lint:
 	@./build.py lint
 
-format-py:
-	@./build.py format-py
+lint-fix:
+    @./build.py lint-fix
 
-reformat-py:
-	@./build.py reformat-py
+format:
+	@./build.py format
+
+format-fix:
+	@./build.py format-fix
+
+# Run both linter and type-checking checks and fix all auto-fixable issues
+fix: lint-fix format-fix
 
 check-requirements:
     @./build.py check-requirements

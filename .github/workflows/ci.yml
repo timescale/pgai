@@ -52,7 +52,7 @@ jobs:
         run: docker exec pgai-ext just lint
 
       - name: Check Python Formatting
-        run: docker exec pgai-ext just format-py
+        run: docker exec pgai-ext just format
       
       - name: Compare requirements file
         run: docker exec pgai-ext just check-requirements
