@@ -69,6 +69,7 @@ def create_extension(dbname: str, version: str) -> None:
         with con.cursor() as cur:
             cur.execute(f"create extension ai version '{version}' cascade")
 
+
 def detailed_notice_handler(diag):
     print(f"""
     Severity: {diag.severity}
@@ -76,6 +77,7 @@ def detailed_notice_handler(diag):
     Detail:   {diag.message_detail}
     Hint:     {diag.message_hint}
     """)
+
 
 def update_extension(dbname: str, version: str) -> None:
     with psycopg.connect(db_url(user=USER, dbname=dbname), autocommit=True) as con:
