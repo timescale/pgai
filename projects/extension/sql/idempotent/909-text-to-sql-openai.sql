@@ -26,6 +26,8 @@ create or replace function ai.text_to_sql_openai
 , sql_renderer pg_catalog.regprocedure default null
 , user_prompt text default null
 , system_prompt text default null
+, include_entire_schema bool default null
+, only_these_objects regclass[] default null
 ) returns pg_catalog.jsonb
 as $func$
     select json_object
@@ -53,6 +55,8 @@ as $func$
     , 'sql_renderer': sql_renderer
     , 'user_prompt': user_prompt
     , 'system_prompt': system_prompt
+    , 'include_entire_schema': include_entire_schema
+    , 'only_these_objects': only_these_objects
     absent on null
     )
 $func$ language sql immutable security invoker
@@ -72,6 +76,7 @@ declare
     _config jsonb = config;
     _catalog_name text = catalog_name;
     _max_iter int2;
+    _iter int2;
     _iter_remaining int2;
     _max_results int8;
     _max_vector_dist float8;
@@ -114,6 +119,8 @@ declare
     _err_msg text;
     _query_plan jsonb;
     _prompt_err text = '';
+    _include_entire_schema bool;
+    _only_these_objects regclass[];
 begin
     -- if a config was provided, use the settings available. defaults where missing
     -- if no config provided, use defaults for everything
@@ -156,12 +163,19 @@ begin
         , $$If enough context has been provided to confidently address the question, use the "answer_user_question_with_sql_statement" tool to record your final answer in the form of a valid SQL statement.$$
         , coalesce(_config operator(pg_catalog.->>) 'user_prompt', '')
         );
+    _include_entire_schema = coalesce((_config->>'include_entire_schema')::bool, false);
+    
+    select array_agg(to_regclass(x)) filter (where to_regclass(x) is not null) into _only_these_objects
+    from jsonb_array_elements_text(_config->'only_these_objects') x
+    ;
+    if array_length(_only_these_objects, 1) = 0 then
+        _only_these_objects = null;
+    end if;
 
     <<main_loop>>
-    while _iter_remaining > 0 loop
-        raise debug 'iteration: %', (_max_iter - _iter_remaining + 1);
-        _iter_remaining = _iter_remaining - 1;
-        raise debug 'searching with % questions', jsonb_array_length(_questions);
+    for _iter in 1.._max_iter loop
+        raise debug 'iteration: %', _iter;
+        _iter_remaining = _max_iter - _iter;
 
         -- search -------------------------------------------------------------
 
@@ -177,31 +191,65 @@ begin
         end if;
 
         -- search obj
-        if jsonb_array_length(_questions) > 0 then
-            raise debug 'searching for database objects';
-            select jsonb_agg(to_jsonb(x))
-            into _ctx_obj
-            from
-            (
-                -- search for relevant objects
-                -- if a column matches, we want to render the whole table/view, so discard the objsubid
-                -- semantic search
-                select distinct x.id, x.classid, x.objid
-                from unnest(_questions_embedded) q
-                cross join lateral ai._search_semantic_catalog_obj
-                ( q
-                , catalog_name
-                , _max_results
-                , _max_vector_dist
+        case
+            when _include_entire_schema then
+                -- all the top-level objects
+                raise debug 'including entire schema';
+                select jsonb_agg
+                ( jsonb_build_object
+                  ( 'id', o.id
+                  , 'classid', o.classid
+                  , 'objid', o.objid
+                  )
+                  order by o.id
+                ) into _ctx_obj
+                from ai.semantic_catalog_obj o
+                where o.objsubid = 0 -- top level objects only
+                ;
+            when _only_these_objects is not null then
+                -- just the top-level objects specifically requested
+                raise debug 'including only % specific objects', array_length(_only_these_objects, 1);
+                select jsonb_agg
+                ( jsonb_build_object
+                  ( 'id', o.id
+                  , 'classid', o.classid
+                  , 'objid', o.objid
+                  )
+                  order by o.id
+                ) into _ctx_obj
+                from unnest(_only_these_objects) r
+                inner join ai.semantic_catalog_obj o 
+                on (o.objsubid = 0 -- top level objects only
+                and o.classid = 'pg_catalog.pg_class'::regclass::oid
+                and o.objid = r::oid
+                )
+                ;
+            when jsonb_array_length(_questions) > 0 then
+                -- semantic search for objects
+                raise debug 'searching for database objects';
+                select jsonb_agg(to_jsonb(x))
+                into _ctx_obj
+                from
+                (
+                    -- search for relevant objects
+                    -- if a column matches, we want to render the whole table/view, so discard the objsubid
+                    -- semantic search
+                    select distinct x.id, x.classid, x.objid
+                    from unnest(_questions_embedded) q
+                    cross join lateral ai._search_semantic_catalog_obj
+                    ( q
+                    , catalog_name
+                    , _max_results
+                    , _max_vector_dist
+                    ) x
+                    union
+                    -- unroll objects previously marked as relevant
+                    select *
+                    from jsonb_to_recordset(_ctx_obj) r(id int8, classid oid, objid oid)
                 ) x
-                union
-                -- unroll objects previously marked as relevant
-                select *
-                from jsonb_to_recordset(_ctx_obj) r(id int8, classid oid, objid oid)
-            ) x
-            ;
-            raise debug 'search found % database objects', jsonb_array_length(_ctx_obj);
-        end if;
+                ;
+                raise debug 'search found % database objects', jsonb_array_length(_ctx_obj);
+        end case;
 
         -- search sql
         if jsonb_array_length(_questions) > 0 then
@@ -324,14 +372,13 @@ begin
                             },
                             "total": {
                                 "type": "integer",
-                                "minimum": 1,
-                                "maximum": 100,
-                                "default": 10,
                                 "description": "The total number of rows to return in the sample, the max is 10."
                             }
                         },
-                        "required": ["name", "total"]
-                    }
+                        "required": ["name", "total"],
+                        "additionalProperties": false
+                    },
+                    "strict": true
                 }
             },
             {
@@ -403,6 +450,7 @@ begin
 
         -- process the response -----------------------------------------------
         raise debug 'received % messages', jsonb_array_length(_response->'choices');
+        <<message_loop>>
         for _message in
         (
             select
@@ -420,6 +468,8 @@ begin
                 raise debug '%', _message.refusal;
                 -- TODO: continue? raise exception? i dunno
             end if;
+            
+            <<tool_call_loop>>
             for _tool_call in
             (
                 select
