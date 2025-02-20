@@ -7,6 +7,7 @@ CREATE EXTENSION
  event trigger _vectorizer_handle_drops
  function ai.anthropic_generate(text,jsonb,integer,text,text,text,double precision,integer,text,text,text[],double precision,jsonb,jsonb,integer,double precision,boolean)
  function ai.anthropic_list_models(text,text,text,boolean)
+ function ai._build_vectorizer_trigger_definition(name,name,name,name,jsonb)
  function ai.chunking_character_text_splitter(name,integer,integer,text,boolean)
  function ai.chunking_recursive_character_text_splitter(name,integer,integer,text[],boolean)
  function ai.chunk_text_recursively(text,integer,integer,text[],boolean)
@@ -81,7 +82,7 @@ CREATE EXTENSION
  function ai._validate_scheduling(jsonb)
  function ai._vectorizer_create_dependencies(integer)
  function ai._vectorizer_create_queue_table(name,name,jsonb,name[])
- function ai._vectorizer_create_source_trigger(name,name,name,name,name,name,name,jsonb)
+ function ai._vectorizer_create_source_trigger(name,name,name,name,name,name,name,jsonb,name)
  function ai._vectorizer_create_target_table(name,name,jsonb,name,name,integer,name[])
  function ai._vectorizer_create_vector_index(name,name,jsonb)
  function ai._vectorizer_create_view(name,name,name,name,jsonb,name,name,name[])
@@ -120,7 +121,7 @@ CREATE EXTENSION
  type ai.vectorizer_status[]
  view ai.secret_permissions
  view ai.vectorizer_status
-(116 rows)
+(117 rows)
 
                                     Table "ai._secret_permissions"
  Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 

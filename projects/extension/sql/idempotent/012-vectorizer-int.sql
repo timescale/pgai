@@ -488,7 +488,7 @@ begin
     into strict _pk_values
     from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name);
 
-    -- Create WHERE clause for DELETE using identifier quoting
+    -- Create delete statement for deleted rows
     _delete_statement := format('delete from %I.%I where ', target_schema, target_table) operator(pg_catalog.||)
         (select string_agg(
             quote_ident(attname) operator(pg_catalog.||) ' = $1.' operator(pg_catalog.||) quote_ident(attname),
@@ -496,7 +496,7 @@ begin
         )
         from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name));
 
-    -- Create PK change check expression
+    -- Create the primary key change check expression
     select string_agg(
         'old.' operator(pg_catalog.||) quote_ident(attname) operator(pg_catalog.||) ' IS DISTINCT FROM new.' operator(pg_catalog.||) quote_ident(attname),
         ' OR '
@@ -518,7 +518,7 @@ begin
             insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
             values ($PK_VALUES$);
             return new;
-        else  -- INSERT
+        else
             insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
             values ($PK_VALUES$);
             return new;
@@ -598,12 +598,12 @@ do $upgrade_block$
 declare
     _vec record;
     _version text;
-    _new_version text := '0.9.0';  -- Version after upgrade   
+    _new_version text := '0.8.1';  -- Version after upgrade   
     _owner name;
     _acl aclitem[];
     _debug_acl aclitem[];
 begin
-    -- Find all vectorizers with version < 0.9.0
+    -- Find all vectorizers with version < 0.8.1
     for _vec in (
         select 
             v.id,
