@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from typing import Generic, TypeAlias, TypeVar
+import tiktoken
 
 import structlog
 from ddtrace import tracer
@@ -54,7 +55,9 @@ T = TypeVar("T", StringDocument, TokenDocument, Document)
 @dataclass
 class BatchApiCaller(Generic[T]):
     max_chunks_per_batch: int
+    max_tokens_per_batch: int
     api_callable: Callable[[list[T]], Awaitable[EmbeddingResponse]]
+    encoder: tiktoken.Encoding | None
 
     async def batch_chunks_and_embed(self, documents: list[T]) -> list[EmbeddingVector]:
         """
@@ -70,6 +73,19 @@ class BatchApiCaller(Generic[T]):
         response: list[list[float]] = []
         max_chunks_per_batch = self.max_chunks_per_batch
         num_of_batches = math.ceil(len(documents) / max_chunks_per_batch)
+
+        if self.max_tokens_per_batch and self.encoder is not None:
+            for i in range(0, len(documents), max_chunks_per_batch):
+                batch = documents[i : i + max_chunks_per_batch]
+                tokens_this_batch = 0
+                for chunk in batch:
+                    tokenized = self.encoder.encode_ordinary(chunk)
+                    tokens_this_batch += len(tokenized)
+
+                if tokens_this_batch > self.max_tokens_per_batch:
+                    num_of_batches += -1 + math.ceil(tokens_this_batch / self.max_tokens_per_batch)
+
+
         total_duration = 0.0
         embedding_stats = EmbeddingStats()
         with tracer.trace("embeddings.do"):
@@ -78,35 +94,43 @@ class BatchApiCaller(Generic[T]):
                 current_span.set_tag("batches.total", num_of_batches)
             for i in range(0, len(documents), max_chunks_per_batch):
                 batch_num = i // max_chunks_per_batch + 1
-                batch = documents[i : i + max_chunks_per_batch]
+                document_batch = documents[i : i + max_chunks_per_batch]
 
-                await logger.adebug(f"Batch {batch_num} of {num_of_batches}")
-                await logger.adebug(f"Chunks for this batch: {len(batch)}")
-                await logger.adebug(
-                    f"Request {batch_num} of {num_of_batches} initiated"
-                )
-                with tracer.trace("embeddings.do.embedder.create"):
-                    current_span = tracer.current_span()
-                    if current_span:
-                        current_span.set_tag("batch.id", batch_num)
-                        current_span.set_tag("batch.chunks.total", len(batch))
-                    start_time = time.perf_counter()
-                    response_ = await self.api_callable(batch)
-                    request_duration = time.perf_counter() - start_time
-                    if current_span:
-                        current_span.set_metric(
-                            "embeddings.embedder.create_request.time.seconds",
-                            request_duration,
-                        )
+                tokens_this_batch = 0
+                for chunk in document_batch:
+                    tokenized = self.encoder.encode_ordinary(chunk)
+                    tokens_this_batch += len(tokenized)
 
+                for j in range(0, tokens_this_batch, self.max_chunks_per_batch):
+                    batch = document_batch[j : j + self.max_chunks_per_batch]
+
+                    await logger.adebug(f"Batch {batch_num} of {num_of_batches}")
+                    await logger.adebug(f"Chunks for this batch: {len(batch)}")
                     await logger.adebug(
-                        f"Request {batch_num} of {num_of_batches} "
-                        f"ended after: {request_duration} seconds. "
-                        f"Tokens usage: {response_.usage}"
+                        f"Request {batch_num} of {num_of_batches} initiated"
                     )
-                    total_duration += request_duration
+                    with tracer.trace("embeddings.do.embedder.create"):
+                        current_span = tracer.current_span()
+                        if current_span:
+                            current_span.set_tag("batch.id", batch_num)
+                            current_span.set_tag("batch.chunks.total", len(batch))
+                        start_time = time.perf_counter()
+                        response_ = await self.api_callable(batch)
+                        request_duration = time.perf_counter() - start_time
+                        if current_span:
+                            current_span.set_metric(
+                                "embeddings.embedder.create_request.time.seconds",
+                                request_duration,
+                            )
 
-                    response += response_.embeddings
+                        await logger.adebug(
+                            f"Request {batch_num} of {num_of_batches} "
+                            f"ended after: {request_duration} seconds. "
+                            f"Tokens usage: {response_.usage}"
+                        )
+                        total_duration += request_duration
+
+                        response += response_.embeddings
 
             embedding_stats.add_request_time(total_duration, len(documents))
             await embedding_stats.print_stats()
