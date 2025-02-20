@@ -26,6 +26,8 @@ from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .embeddings import ChunkEmbeddingError
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
+from .loading import DocumentLoading, RowLoading
+from .parsing import ParsingAuto, ParsingNone, ParsingPyMuPDF
 from .processing import ProcessingDefault
 
 logger = structlog.get_logger()
@@ -74,12 +76,17 @@ class Config:
     """
 
     version: str
+    loading: RowLoading | DocumentLoading
     embedding: OpenAI | Ollama | VoyageAI | LiteLLM
     processing: ProcessingDefault
     chunking: (
         LangChainCharacterTextSplitter | LangChainRecursiveCharacterTextSplitter
     ) = Field(..., discriminator="implementation")
     formatting: PythonTemplate | ChunkValue = Field(..., discriminator="implementation")
+    parsing: ParsingNone | ParsingAuto | ParsingPyMuPDF = Field(
+        default_factory=lambda: ParsingAuto(implementation="auto"),
+        discriminator="implementation",
+    )
 
 
 @dataclass
@@ -227,6 +234,7 @@ class VectorizerQueryBuilder:
                 WITH selected_rows AS (
                     SELECT {pk_fields}
                     FROM {queue_table}
+                    WHERE retry_after is null or retry_after < now()
                     LIMIT %s
                     FOR UPDATE SKIP LOCKED
                 ),
@@ -725,11 +733,11 @@ class Worker:
         records: list[VectorizerErrorRecord],
     ):
         """
-        Inserts vectorizer errors into the errors table.
+        inserts vectorizer errors into the errors table.
 
-        Args:
-            conn (AsyncConnection): The database connection.
-            records (list[VectorizerErrorRecord]): The error records to be inserted.
+        args:
+            conn (asyncconnection): the database connection.
+            records (list[vectorizererrorrecord]): the error records to be inserted.
         """
         async with conn.cursor() as cursor:
             await cursor.executemany(self.queries.insert_errors_query, records)
@@ -769,7 +777,9 @@ class Worker:
         documents: list[str] = []
         for item in items:
             pk = self._get_item_pk_values(item)
-            chunks = self.vectorizer.config.chunking.into_chunks(item)
+            payload = self.vectorizer.config.loading.load(item)
+            payload = self.vectorizer.config.parsing.parse(item, payload)
+            chunks = self.vectorizer.config.chunking.into_chunks(item, payload)
             for chunk_id, chunk in enumerate(chunks, 0):
                 formatted = self.vectorizer.config.formatting.format(chunk, item)
                 records_without_embeddings.append(pk + [chunk_id, formatted])

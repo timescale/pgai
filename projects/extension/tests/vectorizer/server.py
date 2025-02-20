@@ -20,7 +20,6 @@ DB_URL = "postgres://postgres@127.0.0.1:5432/test"
 class ChunkingCharacterTextSplitter(BaseModel):
     implementation: Literal["character_text_splitter"]
     config_type: Literal["chunking"]
-    chunk_column: str
     chunk_size: int
     chunk_overlap: int
     separator: str | None
@@ -30,7 +29,6 @@ class ChunkingCharacterTextSplitter(BaseModel):
 class ChunkingRecursiveCharacterTextSplitter(BaseModel):
     implementation: Literal["recursive_character_text_splitter"]
     config_type: Literal["chunking"]
-    chunk_column: str
     chunk_size: int
     chunk_overlap: int
     separators: list[str] | None

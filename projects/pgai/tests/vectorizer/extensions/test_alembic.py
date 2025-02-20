@@ -30,6 +30,7 @@ from pgai.vectorizer.configuration import (
     EmbeddingVoyageaiConfig,
     FormattingPythonTemplateConfig,
     IndexingHnswConfig,
+    LoadingRowConfig,
     ProcessingDefaultConfig,
     SchedulingTimescaledbConfig,
 )
@@ -68,6 +69,7 @@ def test_openai_vectorizer(
 ):
     """Test OpenAI vectorizer configuration"""
     config = create_vectorizer_config_code(
+        loading=LoadingRowConfig("content"),
         embedding=EmbeddingOpenaiConfig(
             model="text-embedding-3-small",
             dimensions=768,
@@ -75,7 +77,6 @@ def test_openai_vectorizer(
             api_key_name="TEST_OPENAI_KEY",
         ),
         chunking=ChunkingCharacterTextSplitterConfig(
-            chunk_column="content",
             chunk_size=256,
             chunk_overlap=20,
             separator="\n",
@@ -108,6 +109,7 @@ def test_ollama_vectorizer(
 ):
     """Test Ollama vectorizer configuration"""
     config = create_vectorizer_config_code(
+        loading=LoadingRowConfig("content"),
         embedding=EmbeddingOllamaConfig(
             model="nomic-embed-text",
             dimensions=768,
@@ -115,7 +117,6 @@ def test_ollama_vectorizer(
             keep_alive="5m",
         ),
         chunking=ChunkingRecursiveCharacterTextSplitterConfig(
-            chunk_column="content",
             chunk_size=300,
             chunk_overlap=30,
             separators=["\n\n", "\n", "; "],
@@ -150,13 +151,12 @@ def test_voyage_vectorizer(
 ):
     """Test VoyageAI vectorizer configuration"""
     config = create_vectorizer_config_code(
+        loading=LoadingRowConfig("content"),
         embedding=EmbeddingVoyageaiConfig(
             model="voyage-ai-1",
             dimensions=256,
         ),
-        chunking=ChunkingRecursiveCharacterTextSplitterConfig(
-            chunk_column="content",
-        ),
+        chunking=ChunkingRecursiveCharacterTextSplitterConfig(),
         indexing=IndexingHnswConfig(
             min_rows=10000,
             opclass="vector_l1_ops",
@@ -198,13 +198,13 @@ def test_hnsw_vectorizer(
 ):
     """Test HNSW vectorizer configuration"""
     config = create_vectorizer_config_code(
+        loading=LoadingRowConfig("content"),
         embedding=EmbeddingOpenaiConfig(
             model="text-embedding-3-small",
             dimensions=768,
             api_key_name="TEST_OPENAI_KEY",
         ),
         chunking=ChunkingCharacterTextSplitterConfig(
-            chunk_column="content",
             chunk_size=200,
             chunk_overlap=25,
             separator=" ",

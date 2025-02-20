@@ -18,8 +18,9 @@ select ai.grant_ai_usage('jill');
 
 select ai.create_vectorizer
 ( 'wiki.post'::regclass
+, loading=>ai.loading_row(column_name=>'content')
 , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
-, chunking=>ai.chunking_character_text_splitter('content', 128, 10)
+, chunking=>ai.chunking_character_text_splitter(128, 10)
 , scheduling=>ai.scheduling_none()
 , indexing=>ai.indexing_none()
 , grant_to=>ai.grant_to('fred', 'jill')

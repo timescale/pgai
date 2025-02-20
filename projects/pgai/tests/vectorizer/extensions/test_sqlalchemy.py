@@ -39,10 +39,9 @@ def test_sqlalchemy(
             text("""
             SELECT ai.create_vectorizer(
                 'blog_posts'::regclass,
+                loading => ai.loading_row(column_name => 'content'),
                 embedding => ai.embedding_openai('text-embedding-3-small', 768),
-                chunking => ai.chunking_recursive_character_text_splitter('content',
-                50,
-                10)
+                chunking => ai.chunking_recursive_character_text_splitter(50, 10)
             );
         """)
         )

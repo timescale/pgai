@@ -13,17 +13,17 @@ Then you can create a vectorizer from python:
 
 ```python
 from pgai.vectorizer import CreateVectorizer
-from pgai.vectorizer.configuration import EmbeddingOpenaiConfig, ChunkingCharacterTextSplitterConfig, FormattingPythonTemplateConfig
+from pgai.vectorizer.configuration import EmbeddingOpenaiConfig, ChunkingCharacterTextSplitterConfig, FormattingPythonTemplateConfig, LoadingRowConfig
 
 vectorizer_statement = CreateVectorizer(
     source="blog",
     target_table='blog_embeddings',
+    loading=LoadingRowConfig(column_name='content'),
     embedding=EmbeddingOpenaiConfig(
         model='text-embedding-3-small',
         dimensions=768
     ),
     chunking=ChunkingCharacterTextSplitterConfig(
-        chunk_column='content',
         chunk_size=800,
         chunk_overlap=400,
         separator='.',
@@ -131,9 +131,9 @@ After defining your model, you need to create the vectorizer using pgai's SQL fu
 ```sql
 SELECT ai.create_vectorizer(
     'blog_posts'::regclass,
+    loading => ai.loading_row('content'),
     embedding => ai.embedding_openai('text-embedding-3-small', 768),
     chunking => ai.chunking_recursive_character_text_splitter(
-        'content',
         50,  -- chunk_size
         10   -- chunk_overlap
     )
@@ -236,7 +236,8 @@ from alembic import op
 from pgai.vectorizer.configuration import (
     EmbeddingOpenaiConfig,
     ChunkingCharacterTextSplitterConfig,
-    FormattingPythonTemplateConfig
+    FormattingPythonTemplateConfig,
+    LoadingRowConfig
 )
 
 
@@ -244,12 +245,12 @@ def upgrade() -> None:
     op.create_vectorizer(
         source="blog",
         target_table='blog_embeddings',
+        loading=LoadingRowConfig(column_name='content'),
         embedding=EmbeddingOpenaiConfig(
             model='text-embedding-3-small',
             dimensions=768
         ),
         chunking=ChunkingCharacterTextSplitterConfig(
-            chunk_column='content',
             chunk_size=800,
             chunk_overlap=400,
             separator='.',

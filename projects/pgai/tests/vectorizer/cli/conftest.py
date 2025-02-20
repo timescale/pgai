@@ -80,20 +80,25 @@ def configure_vectorizer(
     connection: Connection,
     concurrency: int = 1,
     batch_size: int = 1,
-    chunking: str = "chunking_character_text_splitter('content')",
+    chunking: str = "chunking_character_text_splitter()",
     formatting: str = "formatting_python_template('$chunk')",
     embedding: str = "embedding_openai('text-embedding-ada-002', 1536)",
+    loading: str | None = "ai.loading_row(column_name => 'content')",
+    parsing: str | None = None,
 ):
     with connection.cursor(row_factory=dict_row) as cur:
         # Create vectorizer
+        parsing = f", parsing => {parsing}" if parsing else ""
         cur.execute(f"""
             SELECT ai.create_vectorizer(
                 '{source_table}'::regclass,
+                loading => {loading},
                 embedding => ai.{embedding},
                 chunking => ai.{chunking},
                 formatting => ai.{formatting},
                 processing => ai.processing_default(batch_size => {batch_size},
                                                     concurrency => {concurrency})
+                {parsing}
             )
         """)  # type: ignore
         vectorizer_id: int = int(cur.fetchone()["create_vectorizer"])  # type: ignore
@@ -141,8 +146,11 @@ def run_vectorizer_worker(
     if extra_params:
         args.extend(extra_params)
 
-    return CliRunner().invoke(
+    result = CliRunner().invoke(
         vectorizer_worker,
         args,
         catch_exceptions=False,
     )
+    if result.exit_code != 0:
+        print(result.output)
+    return result

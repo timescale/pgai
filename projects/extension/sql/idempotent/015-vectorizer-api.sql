@@ -17,8 +17,10 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.create_vectorizer
 ( source pg_catalog.regclass
 , destination pg_catalog.name default null
+, loading pg_catalog.jsonb default null
+, parsing pg_catalog.jsonb default ai.parsing_auto()
 , embedding pg_catalog.jsonb default null
-, chunking pg_catalog.jsonb default null
+, chunking pg_catalog.jsonb default ai.chunking_recursive_character_text_splitter()
 , indexing pg_catalog.jsonb default ai.indexing_default()
 , formatting pg_catalog.jsonb default ai.formatting_python_template()
 , scheduling pg_catalog.jsonb default ai.scheduling_default()
@@ -63,9 +65,9 @@ begin
     if embedding is null then
         raise exception 'embedding configuration is required';
     end if;
-
-    if chunking is null then
-        raise exception 'chunking configuration is required';
+    
+    if loading is null then
+        raise exception 'loading configuration is required';
     end if;
 
     -- get source table name and schema name
@@ -133,11 +135,22 @@ begin
         raise exception 'an object named %.% already exists. specify an alternate queue_table explicitly', queue_schema, queue_table;
     end if;
 
+    -- validate the loading config
+    perform ai._validate_loading(loading, _source_schema, _source_table);
+
+    -- validate the parsing config
+    perform ai._validate_parsing(jsonb_build_object(
+        'parsing', parsing,
+        'loading', loading,
+        'source_schema', _source_schema,
+        'source_table', _source_table
+    ));
+
     -- validate the embedding config
     perform ai._validate_embedding(embedding);
 
     -- validate the chunking config
-    perform ai._validate_chunking(chunking, _source_schema, _source_table);
+    perform ai._validate_chunking(chunking);
 
     -- if ai.indexing_default, resolve the default
     if indexing operator(pg_catalog.->>) 'implementation' = 'default' then
@@ -253,6 +266,8 @@ begin
     , queue_table
     , pg_catalog.jsonb_build_object
       ( 'version', '@extversion@'
+      , 'loading', loading
+      , 'parsing', parsing
       , 'embedding', embedding
       , 'chunking', chunking
       , 'indexing', indexing
