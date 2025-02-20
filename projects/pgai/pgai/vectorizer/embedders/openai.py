@@ -87,7 +87,12 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
 
     @cached_property
     def _batcher(self) -> BatchApiCaller[Document]:
-        return BatchApiCaller(self._max_chunks_per_batch(), self.call_embed_api)
+        return BatchApiCaller(
+            self._max_chunks_per_batch(),
+            600_000, # See https://github.com/timescale/pgai/pull/482#issuecomment-2659799567
+            self.call_embed_api,
+            self._encoder,
+        )
 
     @override
     async def embed(
@@ -123,19 +128,6 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
             msg: Any = body["message"]
             if not isinstance(msg, str):
                 raise e
-
-            error_type: Any = body["type"]
-            if isinstance(error_type, str) and error_type == "max_tokens_per_request":
-                mid = len(documents) // 2
-
-                await logger.adebug(f"Halving chunks due to openai token limits, error was '{msg}'")
-
-                first_half_results = await self.embed(documents[: mid + 1])
-                second_half_results = await self.embed(documents[mid + 1:])
-
-                combined_results = first_half_results + second_half_results
-
-                return combined_results
 
             m = openai_token_length_regex.match(msg)
             if not m:
