@@ -316,7 +316,7 @@ def test_vectorizer_trigger_upgrade():
                 (vectorizer_id,),
             )
             version = cur.fetchone()[0]
-            assert version == "0.9.0"
+            assert version == "0.8.1"
 
             # Test trigger functionality
             # Insert a row
