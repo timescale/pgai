@@ -489,16 +489,16 @@ begin
     from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name);
 
     -- Create WHERE clause for DELETE using identifier quoting
-    _delete_statement := format('delete from %I.%I where ', target_schema, target_table) ||
+    _delete_statement := format('delete from %I.%I where ', target_schema, target_table) operator(pg_catalog.||)
         (select string_agg(
-            quote_ident(attname) || ' = $1.' || quote_ident(attname),
+            quote_ident(attname) operator(pg_catalog.||) ' = $1.' operator(pg_catalog.||) quote_ident(attname),
             ' and '
         )
         from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name));
 
     -- Create PK change check expression
     select string_agg(
-        'old.' || quote_ident(attname) || ' IS DISTINCT FROM new.' || quote_ident(attname),
+        'old.' operator(pg_catalog.||) quote_ident(attname) operator(pg_catalog.||) ' IS DISTINCT FROM new.' operator(pg_catalog.||) quote_ident(attname),
         ' OR '
     )
     into strict _pk_change_check
@@ -536,7 +536,8 @@ begin
 
     return _func_def;
 end;
-$func$ language plpgsql stable security invoker;
+$func$ language plpgsql stable security invoker
+set search_path to pg_catalog, pg_temp;
 -------------------------------------------------------------------------------
 -- _vectorizer_create_source_trigger
 create or replace function ai._vectorizer_create_source_trigger
