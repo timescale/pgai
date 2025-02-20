@@ -109,9 +109,9 @@ query like this:
 ```sql
 SELECT ai.create_vectorizer( 
    'blog'::regclass,
-    destination => 'blog_contents_embeddings',
-    embedding => ai.embedding_ollama('nomic-embed-text', 768),
-    chunking => ai.chunking_recursive_character_text_splitter('contents')
+   loading => ai.loading_row('contents'),
+   destination => 'blog_contents_embeddings',
+   embedding => ai.embedding_ollama('nomic-embed-text', 768)
 );
 ```
 
@@ -135,9 +135,9 @@ into each chunk:
 ```sql
 SELECT ai.create_vectorizer(   
     'blog'::regclass,
+    loading => ai.loading_row('contents'),
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_ollama('nomic-embed-text', 768),
-    chunking => ai.chunking_recursive_character_text_splitter('contents'),
     formatting => ai.formatting_python_template('$title: $chunk')
 );
 ```
@@ -223,9 +223,9 @@ accordingly:
 ```sql
 SELECT ai.create_vectorizer(
     'blog'::regclass,
+    loading => ai.loading_row('contents'),
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_ollama('nomic-embed-text', 768),
-    chunking => ai.chunking_recursive_character_text_splitter('contents', chunk_size => 700),
     formatting => ai.formatting_python_template('$title - by $author - $chunk')
 );
 ```
@@ -243,9 +243,9 @@ example uses a HNSW index:
 ```sql
 SELECT ai.create_vectorizer(
     'blog'::regclass,
+    loading => ai.loading_row('contents'),
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_ollama('nomic-embed-text', 768),
-    chunking => ai.chunking_recursive_character_text_splitter('contents', chunk_size => 700),
     formatting => ai.formatting_python_template('$title - by $author - $chunk'),
     indexing => ai.indexing_hnsw(min_rows => 100000, opclass => 'vector_l2_ops')
 );
