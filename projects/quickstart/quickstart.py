@@ -108,6 +108,7 @@ questions = [
         "name": "api_key",
         "when": lambda x: x["provider"] in [COHERE, VOYAGE, OPENAI]
         and os.getenv(API_KEY_NAME[x["provider"]]) is None,
+        "validate": lambda v: len(v) > 0,
     },
     {
         "type": "select",
