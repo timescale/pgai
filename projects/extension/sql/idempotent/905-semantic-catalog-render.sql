@@ -296,6 +296,38 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- render_semantic_catalog_obj_listing
+create or replace function ai.render_semantic_catalog_obj_listing(n pg_catalog.int8) returns text
+as $func$
+    select concat_ws
+    ( E'\n'
+    , 'Below is a list of commonly used database objects which may or may not be relevant.'
+    , '<commonly-used-database-objects>'
+    , string_agg(x.item, E'\n')
+    , E'</commonly-used-database-objects>\n'
+    )
+    from
+    (
+        select
+          case o.objtype
+            when 'table' then
+                format('%s. table: %I.%I', o.id, o.objnames[1], o.objnames[2])
+            when 'view' then
+                format('%s. view: %I.%I', o.id, o.objnames[1], o.objnames[2])
+            when 'function' then
+                format('%s. function: %s', o.id, o.objid::regprocedure)
+          end as item
+        from ai.semantic_catalog_obj o
+        where o.objsubid = 0
+        order by o.relevancy_rank desc
+        limit n
+    ) x
+    ;
+$func$ language sql stable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- _resolve_class
 create or replace function ai._resolve_class
 ( ambiguous pg_catalog.text

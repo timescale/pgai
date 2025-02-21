@@ -106,6 +106,7 @@ declare
     _sql text;
     _samples jsonb = '{}';
     _samples_sql text;
+    _prompt_obj_list text;
     _prompt_obj text;
     _prompt_sql text;
     _prompt_header text;
@@ -173,6 +174,9 @@ begin
     if array_length(_only_these_objects, 1) = 0 then
         _only_these_objects = null;
     end if;
+
+    -- get a list of commonly relevant database object names
+    _prompt_obj_list = ai.render_semantic_catalog_obj_listing(20);
 
     -- main loop --------------------------------------------------------------
     
@@ -256,6 +260,8 @@ begin
                 ) x
                 ;
                 raise debug 'search found % database objects', jsonb_array_length(_ctx_obj);
+            else
+                -- noop
         end case;
 
         -- search sql
@@ -335,6 +341,7 @@ begin
         _prompt = concat_ws
         ( E'\n'
         , _prompt_header
+        , coalesce(_prompt_obj_list, '')
         , coalesce(_prompt_obj, '')
         , coalesce(_samples_sql, '')
         , coalesce(_prompt_sql, '')
@@ -435,9 +442,10 @@ begin
           )
         , tools=>_tools
         , tool_choice=>
-            case when _iter_remaining = 0 then
-            '{"type": "function", "function": {"name": "answer_user_question_with_sql_statement"}}'
-            else 'required'
+            case when _iter_remaining = 0 then 
+                -- force the LLM to provide an answer if we are out of iterations
+                '{"type": "function", "function": {"name": "answer_user_question_with_sql_statement"}}'
+            else 'required' -- must use one tool
             end
         , api_key=>_api_key
         , api_key_name=>_api_key_name
@@ -477,8 +485,7 @@ begin
                 raise debug '%', _message.content;
             end if;
             if _message.refusal is not null then
-                raise debug '%', _message.refusal;
-                -- TODO: continue? raise exception? i dunno
+                raise exception 'LLM refused to cooperate: %', _message.refusal;
             end if;
             
             -- At the moment, it appears we cannot both force the LLM to use at least one tool
@@ -567,6 +574,8 @@ begin
                         -- we got a valid sql statement, or we got a sql statement for which we cannot
                         -- check the validity with EXPLAIN
                         exit main_loop;
+                    else
+                        raise warning 'invalid tool called for: %',  _tool_call.name;
                 end case;
             end loop tool_call_loop;
         end loop message_loop;
