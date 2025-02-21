@@ -405,6 +405,18 @@ def get_api_key(answers):
     return answers.get("api_key", None) or os.getenv(API_KEY_NAME[provider], None)
 
 
+def pull_images(docker_bin):
+    if subprocess.run([docker_bin, "compose", "pull"]).returncode != 0:
+        print("error while pulling docker images")
+        exit(1)
+
+
+def pull_ollama_model(docker_bin, model):
+    if subprocess.run([docker_bin, "compose", "exec", "-ti", "ollama", "ollama", "pull", model]).returncode != 0:
+        print("error while pulling ollama model")
+        exit(1)
+
+
 def main():
     docker_bin = shutil.which("docker")
     if docker_bin is None:
@@ -424,9 +436,12 @@ def main():
         print("The provided API key is invalid")
         exit(1)
     write_compose(provider, api_key)
+    pull_images(docker_bin)
     port = start_containers(docker_bin)
     if port is None:
         exit(1)
+    if provider == OLLAMA:
+        pull_ollama_model(docker_bin, answers["model"])
     create_extension(port)
     setup_dataset(answers, port)
     vectorizer_id = setup_vectorizer(answers, port)
