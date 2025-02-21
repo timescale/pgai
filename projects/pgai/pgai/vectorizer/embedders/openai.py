@@ -21,6 +21,7 @@ from ..embeddings import (
     StringDocument,
     Usage,
     logger,
+    Encoder,
 )
 
 TOKEN_CONTEXT_LENGTH_ERROR = "chunk exceeds model context length"
@@ -28,6 +29,22 @@ TOKEN_CONTEXT_LENGTH_ERROR = "chunk exceeds model context length"
 openai_token_length_regex = re.compile(
     r"This model's maximum context length is (\d+) tokens"
 )
+
+class TiktokenEncoder:
+    """Encoder implementation using OpenAI's tiktoken library"""
+    def __init__(self, model: str):
+        self.encoding = tiktoken.encoding_for_model(model)
+    
+    def encode(self, text: str) -> list[int]:
+        """Encode text into tokens using tiktoken
+
+        Args:
+            text: The text to encode
+
+        Returns:
+            A list of token integers
+        """
+        return self.encoding.encode_ordinary(text)
 
 
 class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
@@ -223,13 +240,5 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
         return encoded_documents
 
     @cached_property
-    def _encoder(self) -> tiktoken.Encoding | None:
-        try:
-            encoder = tiktoken.encoding_for_model(self.model)
-        except KeyError:
-            logger.warning(
-                f"Tokenizer for the model {self.model} not found. "
-                "Fallback to non-tokenized plain text"
-            )
-            return None
-        return encoder
+    def _encoder(self) -> Encoder | None:
+        return TiktokenEncoder(self.model)
