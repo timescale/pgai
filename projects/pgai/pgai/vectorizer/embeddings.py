@@ -3,8 +3,7 @@ import time
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from typing import Generic, TypeAlias, TypeVar
-import tiktoken
+from typing import Generic, TypeAlias, TypeVar, Any, Protocol
 
 import structlog
 from ddtrace import tracer
@@ -52,12 +51,19 @@ class EmbeddingResponse:
 T = TypeVar("T", StringDocument, TokenDocument, Document)
 
 
+class Encoder(Protocol):
+    """Protocol defining the interface for text encoders"""
+    def encode(self, text: str, **kwargs: Any) -> list[int]:
+        """Encode text into tokens"""
+        ...
+
+
 @dataclass
 class BatchApiCaller(Generic[T]):
     max_chunks_per_batch: int
     max_tokens_per_batch: int|None
     api_callable: Callable[[list[T]], Awaitable[EmbeddingResponse]]
-    encoder: tiktoken.Encoding | None
+    encoder: Encoder | None
 
     async def batch_chunks_and_embed(self, documents: list[T]) -> list[EmbeddingVector]:
         """
@@ -79,7 +85,7 @@ class BatchApiCaller(Generic[T]):
                 batch = documents[i : i + max_chunks_per_batch]
                 tokens_this_batch = 0
                 for chunk in batch:
-                    tokenized = self.encoder.encode_ordinary(chunk)
+                    tokenized = self.encoder.encode(chunk)
                     tokens_this_batch += len(tokenized)
 
                 if tokens_this_batch > self.max_tokens_per_batch:
@@ -98,7 +104,7 @@ class BatchApiCaller(Generic[T]):
 
                 tokens_this_batch = 0
                 for chunk in document_batch:
-                    tokenized = self.encoder.encode_ordinary(chunk)
+                    tokenized = self.encoder.encode(chunk)
                     tokens_this_batch += len(tokenized)
 
                 for j in range(0, tokens_this_batch, self.max_chunks_per_batch):
