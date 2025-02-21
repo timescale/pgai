@@ -5,13 +5,13 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "jinja2",
-  "openai",
-  "questionary",
-  "psycopg[binary]",
-  "yaspin",
-  "voyageai>=0.3.2",
-  "cohere>=5.13.12",
+  "jinja2 >= 3, < 4",
+  "openai >= 1, < 2",
+  "questionary >= 2, < 3",
+  "psycopg[binary] >= 3, <4",
+  "yaspin >= 3, < 4",
+  "voyageai >= 0.3, < 0.4",
+  "cohere >= 5, < 6",
 ]
 
 [tool.uv.sources]
