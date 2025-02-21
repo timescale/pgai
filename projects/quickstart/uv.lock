@@ -776,13 +776,13 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cohere", specifier = ">=5.13.12" },
-    { name = "jinja2" },
-    { name = "openai" },
-    { name = "psycopg", extras = ["binary"] },
+    { name = "cohere", specifier = ">=5,<6" },
+    { name = "jinja2", specifier = ">=3,<4" },
+    { name = "openai", specifier = ">=1,<2" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3,<4" },
     { name = "questionary", git = "https://github.com/JamesGuthrie/questionary?branch=fix-select-dynamic-choice" },
-    { name = "voyageai", specifier = ">=0.3.2" },
-    { name = "yaspin" },
+    { name = "voyageai", specifier = ">=0.3,<0.4" },
+    { name = "yaspin", specifier = ">=3,<4" },
 ]
 
 [package.metadata.requires-dev]
