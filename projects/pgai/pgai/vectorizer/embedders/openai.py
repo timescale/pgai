@@ -69,6 +69,11 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
     def _max_chunks_per_batch(self) -> int:
         return 2048
 
+    @override
+    def _max_tokens_per_batch(self) -> int|None:
+        # See https://github.com/timescale/pgai/pull/482#issuecomment-2659799567
+        return 600_000
+
     async def call_embed_api(self, documents: list[Document]) -> EmbeddingResponse:
         response = await self._embedder.create(
             input=cast(list[str] | Iterable[Iterable[int]], documents),
@@ -89,7 +94,7 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
     def _batcher(self) -> BatchApiCaller[Document]:
         return BatchApiCaller(
             self._max_chunks_per_batch(),
-            600_000, # See https://github.com/timescale/pgai/pull/482#issuecomment-2659799567
+            self._max_tokens_per_batch(),
             self.call_embed_api,
             self._encoder,
         )
