@@ -246,29 +246,41 @@ def setup_dataset(answers, port):
             , table_name => 'wikipedia'
             , batch_size => 100
             , max_batches => 1
-            , if_table_exists => 'drop'
             )
         """
     }
+    dataset = answers["huggingface_dataset"]
+    table = dataset
+    if dataset not in sql_snippets.keys():
+        print(f"unknown dataset '{dataset}'")
+        exit(1)
     with yaspin(text="loading dataset") as sp:
         sql = sql_snippets[answers["huggingface_dataset"]]
         if sql is None:
             sp.write("unknown dataset")
             exit(1)
+        if table in get_tables(port):
+            sp.write(f"table '{table}' already exists")
+            sp.text = f"dropping table '{table}'"
+            execute_sql(port, f"DROP TABLE {table} CASCADE")
+            sp.write(f"✔ table '{table}' dropped")
+
         sp.write(f"running query:\n{indent(dedent(sql), '    ')}")
         sp.text = "loading dataset"
         execute_sql(port, sql)
-        execute_sql(port, "alter table wikipedia add primary key (id)")
+        execute_sql(port, f"alter table {table} add primary key (id)")
         sp.write("✔ dataset loaded")
 
 
+def get_tables(port):
+    results = fetchall_sql(
+        port,
+        "SELECT relname from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r'",
+    )
+    return [r[0] for r in results]
+
+
 def setup_vectorizer(answers, port) -> int:
-    def get_tables():
-        results = fetchall_sql(
-            port,
-            "SELECT relname from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r'",
-        )
-        return [r[0] for r in results]
 
     column_sql = "SELECT attname FROM pg_attribute WHERE attrelid = format('%%I.%%I', 'public', %(table)s::text)::regclass AND attnum >=1 AND NOT attisdropped"
 
@@ -281,7 +293,7 @@ def setup_vectorizer(answers, port) -> int:
         results = fetchall_sql(port, column_sql, table=table)
         return [r[0] for r in results]
 
-    tables = get_tables()
+    tables = get_tables(port)
     if len(tables) == 0:
         print("no tables in public schema")
         exit(1)
