@@ -20,6 +20,10 @@ env = Environment(
     lstrip_blocks=True,
 )
 
+DB_DOCKER_IMAGE = "timescale/timescaledb-ha:pg17"
+VECTORIZER_WORKER_DOCKER_IMAGE = "timescale/pgai-vectorizer-worker:latest"
+OLLAMA_DOCKER_IMAGE = "ollama/ollama"
+
 OPENAI = "OpenAI"
 COHERE = "Cohere"
 VOYAGE = "Voyage AI"
@@ -143,9 +147,7 @@ def has_docker_compose(docker_bin) -> bool:
     return True
 
 
-def generate_docker_compose(answers):
-    provider = answers["provider"]
-    api_key = get_api_key(answers)
+def generate_docker_compose(provider, api_key):
     api_key_name = API_KEY_NAME[provider]
     use_ollama = provider == OLLAMA
     template = env.get_template("compose.yml.j2")
@@ -154,6 +156,9 @@ def generate_docker_compose(answers):
         api_key_name=api_key_name,
         api_key=api_key,
         use_ollama=use_ollama,
+        db_docker_image=DB_DOCKER_IMAGE,
+        vectorizer_worker_docker_image=VECTORIZER_WORKER_DOCKER_IMAGE,
+        ollama_docker_image=OLLAMA_DOCKER_IMAGE,
     )
 
 
@@ -176,8 +181,8 @@ def check_db_connectivity(docker_bin):
         return False
 
 
-def write_compose(answers):
-    docker_compose = generate_docker_compose(answers)
+def write_compose(provider, api_key):
+    docker_compose = generate_docker_compose(provider, api_key)
     with yaspin(text="writing compose.yml") as sp:
         with open("compose.yml", "w", encoding="utf-8") as f:
             f.write(docker_compose)
@@ -412,11 +417,13 @@ def main():
         exit(1)
 
     answers = questionary.prompt(questions)
-    if not is_api_key_valid(answers["provider"], get_api_key(answers)):
+    provider = answers["provider"]
+    api_key = get_api_key(answers)
+    if not is_api_key_valid(provider, api_key):
         # TODO: perform this validation earlier (punted because it's not trivial)
         print("The provided API key is invalid")
         exit(1)
-    write_compose(answers)
+    write_compose(provider, api_key)
     port = start_containers(docker_bin)
     if port is None:
         exit(1)
