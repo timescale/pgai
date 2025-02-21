@@ -35,8 +35,8 @@ LLM_MODELS = {
 
 EMBEDDING_MODELS = {
     OPENAI: [
-        "text-embedding-3-large",
         "text-embedding-3-small",
+        "text-embedding-3-large",
         "text-embedding-ada-002",
         CUSTOM,
     ],
@@ -87,12 +87,6 @@ API_KEY_NAME = {
     VOYAGE: "VOYAGE_API_KEY",
     OLLAMA: None,
 }
-
-
-def when(*args, **kwargs):
-    print(args)
-    print(kwargs)
-    return ["1", "2", "3"]
 
 
 questions = [
@@ -228,6 +222,11 @@ def fetchone_sql(port, sql, **kwargs):
         return conn.execute(sql, kwargs).fetchone()
 
 
+def fetchall_sql(port, sql, **kwargs):
+    with psycopg.connect(f"postgres://postgres:postgres@{port}") as conn:
+        return conn.execute(sql, kwargs).fetchall()
+
+
 def create_extension(port):
     with yaspin(text="creating extension") as sp:
         sql = "CREATE EXTENSION IF NOT EXISTS ai CASCADE;"
@@ -264,25 +263,77 @@ def setup_dataset(answers, port):
 
 
 def setup_vectorizer(answers, port) -> int:
-    source_table = "wikipedia"  # TODO: hardcoded
+    def get_tables():
+        results = fetchall_sql(
+            port,
+            "SELECT relname from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r'",
+        )
+        return [r[0] for r in results]
+
+    column_sql = "SELECT attname FROM pg_attribute WHERE attrelid = format('%%I.%%I', 'public', %(table)s::text)::regclass AND attnum >=1 AND NOT attisdropped"
+
+    def get_text_columns(table):
+        sql = column_sql + " AND atttypid = 'text'::regtype::oid"
+        results = fetchall_sql(port, sql, table=table)
+        return [r[0] for r in results]
+
+    def get_columns(table):
+        results = fetchall_sql(port, column_sql, table=table)
+        return [r[0] for r in results]
+
+    tables = get_tables()
+    if len(tables) == 0:
+        print("no tables in public schema")
+        exit(1)
+    elif len(tables) == 1:
+        table = tables[0]
+    else:
+        table = questionary.select(
+            "Select the table to vectorize", choices=tables
+        ).ask()
+
+    columns = get_text_columns(table)
+    if len(columns) == 0:
+        print(f"no columns of type 'text' in table 'public.{table}'")
+        exit(1)
+    if len(columns) == 1:
+        column = columns[0]
+    else:
+        column = questionary.select("Select the column to embed", choices=columns).ask()
+
+    configure_formatting = questionary.confirm(
+        "Would you like to configure formatting?"
+    ).ask()
+    if configure_formatting is True:
+        choices = get_columns(table)
+        choices.remove(column)
+        items = questionary.checkbox(
+            "Which columns would you like to add to the formatting?", choices=choices
+        ).ask()
+        items.append("chunk")
+        formatting = (
+            "\n        , formatting => ai.formatting_python_template('"
+            + " ".join([f"{i}: ${i}" for i in items])
+            + "')"
+        )
+    else:
+        formatting = None
+
     embedding_function = EMBEDDING_FUNCTIONS[answers["provider"]]
     model = answers["model"]
     dims = DIMENSIONS[model]
     function_args = f"'{model}', {dims}"
     sql = f"""
         select ai.create_vectorizer(
-          '{source_table}'
+          '{table}'
         , embedding => ai.{embedding_function}({function_args})
-        , formatting => ai.formatting_python_template('title: $title url: $url content: $chunk')
-        , chunking => ai.chunking_recursive_character_text_splitter('text')
+        , chunking => ai.chunking_recursive_character_text_splitter('{column}'){formatting if formatting is not None else ""}
         );
     """
-    vectorizer_id = None
     with yaspin(text="creating vectorizer") as sp:
-        sp.write(f"running query:\n \n{indent(dedent(sql), '    ')}")
+        sp.write(f"running query:\n{indent(dedent(sql), '    ')}")
         sp.text = "creating vectorizer"
         row = fetchone_sql(port, sql)
-        sp.write(row)
         vectorizer_id = int(row[0])
         sp.write("✔ vectorizer created")
     return vectorizer_id
