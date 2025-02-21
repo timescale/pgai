@@ -49,10 +49,10 @@ EMBEDDING_MODELS = {
     # ],
     VOYAGE: ["voyage-3-large", "voyage-3", "voyage-3-lite", CUSTOM],
     OLLAMA: [
+        "all-minilm",
         "nomic-embed-text",
         "mxbai-embed-large",
         "snowflake-arctic-embed",
-        "all-minilm",
         CUSTOM,
     ],
 }
