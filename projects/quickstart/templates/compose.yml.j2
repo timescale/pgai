@@ -19,7 +19,7 @@ services:
       {% if use_ollama is true %}
       OLLAMA_HOST: http://ollama:11434
       {% endif %}
-    command: [ "--poll-interval", "5s", "--log-level", "DEBUG" ]
+    command: [ "--poll-interval", "5s", "--log-level", "INFO", "--concurrency", "2" ]
   {% if use_ollama is true %}
   ollama:
     image: ollama/ollama
