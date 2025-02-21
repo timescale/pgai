@@ -3,6 +3,7 @@
 import questionary
 import shutil
 import subprocess
+import os
 from yaspin import yaspin
 import time
 from textwrap import dedent, indent
@@ -105,7 +106,8 @@ questions = [
         "type": "password",
         "message": "API key",
         "name": "api_key",
-        "when": lambda x: x["provider"] in [COHERE, VOYAGE, OPENAI],
+        "when": lambda x: x["provider"] in [COHERE, VOYAGE, OPENAI]
+        and os.getenv(API_KEY_NAME[x["provider"]]) is None,
     },
     {
         "type": "select",
@@ -148,7 +150,7 @@ def has_docker_compose(docker_bin) -> bool:
 
 def generate_docker_compose(answers):
     provider = answers["provider"]
-    api_key = answers.get("api_key", None)
+    api_key = get_api_key(answers)
     api_key_name = API_KEY_NAME[provider]
     use_ollama = provider == OLLAMA
     template = env.get_template("compose.yml.j2")
@@ -327,6 +329,13 @@ def is_api_key_valid(provider, api_key):
         raise RuntimeError(f"Unexpected provider {provider}")
 
 
+def get_api_key(answers):
+    provider = answers["provider"]
+    if provider == OLLAMA:
+        return None
+    return answers.get("api_key", None) or os.getenv(API_KEY_NAME[provider], None)
+
+
 def main():
     docker_bin = shutil.which("docker")
     if docker_bin is None:
@@ -339,7 +348,7 @@ def main():
         exit(1)
 
     answers = questionary.prompt(questions)
-    if not is_api_key_valid(answers["provider"], answers.get("api_key", None)):
+    if not is_api_key_valid(answers["provider"], get_api_key(answers)):
         # TODO: perform this validation earlier (punted because it's not trivial)
         print("The provided API key is invalid")
         exit(1)
