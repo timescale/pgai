@@ -55,7 +55,7 @@ T = TypeVar("T", StringDocument, TokenDocument, Document)
 @dataclass
 class BatchApiCaller(Generic[T]):
     max_chunks_per_batch: int
-    max_tokens_per_batch: int
+    max_tokens_per_batch: int|None
     api_callable: Callable[[list[T]], Awaitable[EmbeddingResponse]]
     encoder: tiktoken.Encoding | None
 
@@ -74,7 +74,7 @@ class BatchApiCaller(Generic[T]):
         max_chunks_per_batch = self.max_chunks_per_batch
         num_of_batches = math.ceil(len(documents) / max_chunks_per_batch)
 
-        if self.max_tokens_per_batch and self.encoder is not None:
+        if self.max_tokens_per_batch is not None and self.encoder is not None:
             for i in range(0, len(documents), max_chunks_per_batch):
                 batch = documents[i : i + max_chunks_per_batch]
                 tokens_this_batch = 0
@@ -182,6 +182,14 @@ class Embedder(ABC):
         The maximum number of chunks that can be embedded per API call
         :return: int: the max chunk count
         """
+
+    def _max_tokens_per_batch(self) -> int|None:
+        """
+        The maximum number of tokens a batch can contain. If the
+        batch contains more tokens than this, it will be split into multiple.
+        :return: int: the max token count
+        """
+        return None
 
     async def setup(self) -> None:  # noqa: B027 empty on purpose
         """
