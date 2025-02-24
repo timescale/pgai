@@ -177,4 +177,3 @@ def openai_proxy_url(request: pytest.FixtureRequest):
     proxy_url = f"http://localhost:{port}"
     print(f"OpenAI API proxy running on {proxy_url}")
     return f"http://localhost:{port}"
-
