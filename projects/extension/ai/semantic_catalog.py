@@ -16,18 +16,19 @@ def render_sample(plpy, fq_relation: str, total: int = 5) -> str:
     # context window.
     result = plpy.execute(f"select * from {fq_relation}", min(max(total, 1), 10))
 
-    ret_obj = f"""<data id="{fq_relation}">"""
-    for r in result:
+    ret_obj = f"""insert into {fq_relation} ({', '.join(plpy.quote_ident(key) for key in result.colnames())}) values"""
+    for i, row in enumerate(result):
+        ret_obj += "\n  " if i == 0 else "\n, "
         values = []
-        for v in r.values():
+        for v in row.values():
             if isinstance(v, str) or v is None:
                 values.append(plpy.quote_nullable(v))
             elif isinstance(v, bool):
                 values.append("true" if v else "false")
             else:
                 values.append(str(v))
-        ret_obj += f"""\n  insert into {fq_relation} ({', '.join(plpy.quote_ident(key) for key in r.keys())}) values ({', '.join(values)});"""
-    ret_obj += "\n</data>"
+        ret_obj += f"""({', '.join(values)})"""
+    ret_obj += "\n;"
     return ret_obj
 
 
@@ -110,7 +111,9 @@ def generate_description(
     Given the following table or view and some sample rows from it, generate a natural language description of it:
 
     {get_obj_description(plpy, relation)}
+    <sample-data id={relation}> 
     {render_sample(plpy, relation)}
+    </sample-data>
     """
     tools = [
         {
@@ -230,7 +233,9 @@ def generate_column_descriptions(
     Given the following table or view and some sample rows from it, generate a natural language description of all columns:
 
     {obj_description}
+    <sample-data id={relation}>
     {render_sample(plpy, relation)}
+    </sample-data>
     """
     messages = [{"role": "user", "content": message_content}]
     tools = [

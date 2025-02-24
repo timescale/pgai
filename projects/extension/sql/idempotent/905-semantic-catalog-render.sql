@@ -90,6 +90,7 @@ declare
     _indexes pg_catalog.text;
     _ddl text;
     _description text;
+    _sample_data text;
 begin
     -- get the descriptions (if any) of the table and the columns of the table
     select ai._render_semantic_catalog_attr_desc(id, _classid, _objid)
@@ -179,12 +180,20 @@ begin
     if _ddl is null then
         return '';
     end if;
+    
+    select ai._render_sample(pg_catalog.format('%I.%I', _nspname, _relname))
+    into _sample_data
+    ;
 
     return concat_ws
     ( E'\n'
     , format('<table id=%s>', id)
     , _ddl
     , coalesce(_description, '')
+    , case when _sample_data is not null then
+        E'-- sample data\n' || _sample_data
+      else ''
+      end
     , '</table>'
     );
 end
@@ -197,10 +206,11 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai._render_semantic_catalog_view(id bigint, classid oid, objid oid) returns text
 as $func$
 declare
-    _classid oid = _render_semantic_catalog_view.classid;
-    _objid oid = _render_semantic_catalog_view.objid;
-    _ddl text;
-    _description text;
+    _classid pg_catalog.oid = _render_semantic_catalog_view.classid;
+    _objid pg_catalog.oid = _render_semantic_catalog_view.objid;
+    _ddl pg_catalog.text;
+    _description pg_catalog.text;
+    _sample_data pg_catalog.text;
 begin
     -- get the descriptions (if any) of the view and the columns of the view
     select ai._render_semantic_catalog_attr_desc(id, _classid, _objid)
@@ -216,11 +226,22 @@ begin
         return '';
     end if;
 
+    select ai._render_sample(pg_catalog.format('%I.%I', n.nspname, k.relname))
+    into _sample_data
+    from pg_catalog.pg_class k
+    inner join pg_catalog.pg_namespace n on (k.relnamespace = n.oid)
+    where k.oid = _objid
+    ;
+
     return concat_ws
     ( E'\n'
     , format('<view id=%s>', id)
     , _ddl
     , coalesce(_description, '')
+    , case when _sample_data is not null then
+        E'-- sample data\n' || _sample_data
+      else ''
+      end
     , '</view>'
     );
 end
@@ -399,25 +420,40 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- render_obj_sample
-create or replace function ai.render_sample
-( relation pg_catalog.text
-, total pg_catalog.int4 default 5
-, search_path pg_catalog.text default pg_catalog.current_setting('search_path', true)
+-- _render_obj_sample
+create or replace function ai._render_sample
+( fully_qualified_relation pg_catalog.text
+, total pg_catalog.int4 default 3
 ) returns text
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.semantic_catalog
-
-    # make sure we have a fully-qualified reference to the table/view
-    plan = plpy.prepare("select fully_qualified from ai._resolve_class($1, $2)", ["text", "text"])
-    result = plpy.execute(plan, [relation, search_path], 1)
-    fully_qualified = result[0]["fully_qualified"]
-    if fully_qualified is None:
-        return None
-
-    return ai.semantic_catalog.render_sample(plpy, fully_qualified, total)
+    return ai.semantic_catalog.render_sample(plpy, fully_qualified_relation, total)
 $python$
 language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- render_obj_sample
+create or replace function ai.render_sample
+( relation pg_catalog.text
+, total pg_catalog.int4 default 3
+, search_path pg_catalog.text default pg_catalog.current_setting('search_path', true)
+) returns text
+as $func$
+declare
+    _fully_qualified pg_catalog.text;
+begin
+    select fully_qualified into _fully_qualified
+    from ai._resolve_class(relation, search_path)
+    ;
+    if _fully_qualified is null then
+        return null;
+    end if;
+    return ai._render_sample(_fully_qualified, total);
+end
+$func$
+language plpgsql volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;
