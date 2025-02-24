@@ -1,0 +1,105 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Range:
+      - !!binary |
+        Ynl0ZXM9MC0=
+      User-Agent:
+      - !!binary |
+        Qm90bzMvMS4zNi40IG1kL0JvdG9jb3JlIzEuMzYuNCB1YS8yLjAgb3MvbGludXgjNi4xMC4zLWFy
+        Y2gxLTIgbWQvYXJjaCN4ODZfNjQgbGFuZy9weXRob24jMy4xMC4xNSBtZC9weWltcGwjQ1B5dGhv
+        biBjZmcvcmV0cnktbW9kZSNsZWdhY3kgQm90b2NvcmUvMS4zNi40
+      X-Amz-Content-SHA256:
+      - !!binary |
+        ZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3
+        ODUyYjg1NQ==
+      X-Amz-Date:
+      - !!binary |
+        MjAyNTAyMTRUMTYwODM2Wg==
+      amz-sdk-invocation-id:
+      - !!binary |
+        ZTkyNjczYmQtMmI1ZS00NGE2LThmYWItNTA3ODRkZjUxYmNh
+      amz-sdk-request:
+      - !!binary |
+        YXR0ZW1wdD0x
+      x-amz-checksum-mode:
+      - !!binary |
+        RU5BQkxFRA==
+    method: GET
+    uri: https://adol-docs-test.s3.amazonaws.com/non_existing_doc.pdf
+  response:
+    body:
+      string: '<?xml version="1.0" encoding="UTF-8"?>
+
+        <Error><Code>AuthorizationHeaderMalformed</Code><Message>The authorization
+        header is malformed; the region ''us-east-1'' is wrong; expecting ''eu-central-1''</Message><Region>eu-central-1</Region><RequestId>AJ6V01M4PA60Z1FK</RequestId><HostId>w//t17rne7G2UknhoR9SbS/SQriz8PUUgdU5ZxTVWxKhtECQH+YMojV8bmo9tgNy4Sh71O1KzxKWK4+KEXX54mcdR4YwUDED</HostId></Error>'
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/xml
+      Date:
+      - Fri, 14 Feb 2025 16:08:35 GMT
+      Server:
+      - AmazonS3
+      Transfer-Encoding:
+      - chunked
+      x-amz-id-2:
+      - w//t17rne7G2UknhoR9SbS/SQriz8PUUgdU5ZxTVWxKhtECQH+YMojV8bmo9tgNy4Sh71O1KzxKWK4+KEXX54mcdR4YwUDED
+      x-amz-request-id:
+      - AJ6V01M4PA60Z1FK
+    status:
+      code: 400
+      message: Bad Request
+- request:
+    body: null
+    headers:
+      Range:
+      - !!binary |
+        Ynl0ZXM9MC0=
+      User-Agent:
+      - !!binary |
+        Qm90bzMvMS4zNi40IG1kL0JvdG9jb3JlIzEuMzYuNCB1YS8yLjAgb3MvbGludXgjNi4xMC4zLWFy
+        Y2gxLTIgbWQvYXJjaCN4ODZfNjQgbGFuZy9weXRob24jMy4xMC4xNSBtZC9weWltcGwjQ1B5dGhv
+        biBjZmcvcmV0cnktbW9kZSNsZWdhY3kgQm90b2NvcmUvMS4zNi40
+      X-Amz-Content-SHA256:
+      - !!binary |
+        ZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3
+        ODUyYjg1NQ==
+      X-Amz-Date:
+      - !!binary |
+        MjAyNTAyMTRUMTYwODM2Wg==
+      amz-sdk-invocation-id:
+      - !!binary |
+        ZTkyNjczYmQtMmI1ZS00NGE2LThmYWItNTA3ODRkZjUxYmNh
+      amz-sdk-request:
+      - !!binary |
+        dHRsPTIwMjUwMjE0VDE2MDkzNVo7IGF0dGVtcHQ9MjsgbWF4PTU=
+      x-amz-checksum-mode:
+      - !!binary |
+        RU5BQkxFRA==
+    method: GET
+    uri: https://adol-docs-test.s3.eu-central-1.amazonaws.com/non_existing_doc.pdf
+  response:
+    body:
+      string: '<?xml version="1.0" encoding="UTF-8"?>
+
+        <Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>non_existing_doc.pdf</Key><RequestId>AJ6ZHMJDF9KV2H88</RequestId><HostId>Yaglbw3KeaQX7Rebos+85vv/orMPLm4Xq9ZNoBzkOPbI84HKEGVstV0GsxoBmBfftcpO85BcAP7MrQg5TCd/R7lbaSJoM/t4AbI7rMBfnF8=</HostId></Error>'
+    headers:
+      Content-Type:
+      - application/xml
+      Date:
+      - Fri, 14 Feb 2025 16:08:35 GMT
+      Server:
+      - AmazonS3
+      Transfer-Encoding:
+      - chunked
+      x-amz-id-2:
+      - Yaglbw3KeaQX7Rebos+85vv/orMPLm4Xq9ZNoBzkOPbI84HKEGVstV0GsxoBmBfftcpO85BcAP7MrQg5TCd/R7lbaSJoM/t4AbI7rMBfnF8=
+      x-amz-request-id:
+      - AJ6ZHMJDF9KV2H88
+    status:
+      code: 404
+      message: Not Found
+version: 1

@@ -26,7 +26,7 @@ from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .embeddings import ChunkEmbeddingError
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
-from .loading import DocumentLoading, RowLoading
+from .loading import DocumentLoading, DocumentLoadingError, RowLoading
 from .parsing import ParsingAuto, ParsingNone, ParsingPyMuPDF
 from .processing import ProcessingDefault
 
@@ -362,6 +362,38 @@ class VectorizerQueryBuilder:
             self.vectorizer_table_ident,
         )
 
+    @cached_property
+    def requeue_or_remove_work_query(self) -> sql.Composed:
+        # this query provides a way to handle retries for different failure scenarios.
+        # if the retries are exhausted, the row is deleted from the queue table.
+        return sql.SQL("""
+            MERGE INTO {queue_table} AS target
+            USING (
+                SELECT
+                    id
+                FROM
+                    {queue_table}
+                WHERE
+                    id = {vectorizer_id}
+                AND retry_after is null or retry_after < now())
+                    AS source ON target.id = source.id
+            WHEN MATCHED
+                AND target.retries >= %(loading_retries)s THEN
+                    DELETE
+            WHEN MATCHED THEN
+                    UPDATE
+                        SET
+                            retries = target.retries + 1,
+                             retry_after = now() +
+                              (INTERVAL '3 minutes' * (target.retries + 1))
+            RETURNING target.retries < %(loading_retries)s AS is_retryable
+                        """).format(
+            queue_table=sql.Identifier(
+                self.vectorizer.queue_schema, self.vectorizer.queue_table
+            ),
+            vectorizer_id=self.vectorizer.id,
+        )
+
 
 class ProcessingStats:
     """
@@ -461,10 +493,12 @@ class Worker:
         db_url: str,
         vectorizer: Vectorizer,
         features: Features,
+        loading_retries: int,
         should_continue_processing_hook: None | Callable[[int, int], bool] = None,
     ):
         self.db_url = db_url
         self.vectorizer = vectorizer
+        self.loading_retries = loading_retries
         self.queries = VectorizerQueryBuilder(vectorizer)
         self._should_continue_processing_hook = should_continue_processing_hook or (
             lambda _loops, _res: True
@@ -497,8 +531,35 @@ class Worker:
                         return res
                     res += items_processed
                     loops += 1
+
             except EmbeddingProviderError as e:
+                err_details = dict[str, Any](
+                    {
+                        "provider": self.vectorizer.config.embedding.implementation,  # noqa
+                        "error_reason": str(e.__cause__),
+                    }
+                )
+
                 async with conn.transaction():
+                    if self.vectorizer.config.loading.implementation == "document":
+                        is_retryable = await self._requeue_or_remove_work(
+                            conn, self.loading_retries
+                        )
+                        err_details["is_retryable"] = is_retryable
+
+                    await self._insert_vectorizer_error(
+                        conn, (self.vectorizer.id, e.msg, Jsonb(err_details))
+                    )
+
+                if e.__cause__ is not None:
+                    raise e.__cause__  # noqa
+                raise e
+
+            except DocumentLoadingError as e:
+                async with conn.transaction():
+                    is_retryable = await self._requeue_or_remove_work(
+                        conn, self.loading_retries
+                    )
                     await self._insert_vectorizer_error(
                         conn,
                         (
@@ -506,18 +567,21 @@ class Worker:
                             e.msg,
                             Jsonb(
                                 {
-                                    "provider": self.vectorizer.config.embedding.implementation,  # noqa
+                                    "loader": self.vectorizer.config.loading.implementation,  # noqa
                                     "error_reason": str(e.__cause__),
+                                    "is_retryable": is_retryable,
                                 }
                             ),
                         ),
                     )
+
                 # This is to make the traceback not as verbose by removing
-                # the lines about our wrapper exception being casused by
+                # the lines about our wrapper exception being caused by
                 # the actual exception.
                 if e.__cause__ is not None:
                     raise e.__cause__  # noqa
                 raise e
+
             except Exception as e:
                 async with conn.transaction():
                     await self._insert_vectorizer_error(
@@ -777,7 +841,11 @@ class Worker:
         documents: list[str] = []
         for item in items:
             pk = self._get_item_pk_values(item)
-            payload = self.vectorizer.config.loading.load(item)
+            try:
+                payload = self.vectorizer.config.loading.load(item)
+            except Exception as e:
+                raise DocumentLoadingError() from e
+
             payload = self.vectorizer.config.parsing.parse(item, payload)
             chunks = self.vectorizer.config.chunking.into_chunks(item, payload)
             for chunk_id, chunk in enumerate(chunks, 0):
@@ -821,6 +889,25 @@ class Worker:
                 }
             ),
         )
+
+    async def _requeue_or_remove_work(
+        self, conn: AsyncConnection, loading_retries: int
+    ) -> bool:
+        """
+        Requeue the work items that failed to generate embeddings.
+
+        Args:
+            conn (AsyncConnection): The database connection.
+        """
+        async with conn.cursor() as cursor:
+            await cursor.execute(
+                self.queries.requeue_or_remove_work_query,
+                {"loading_retries": loading_retries},
+            )
+            row = await cursor.fetchone()
+            if row is None:
+                raise ValueError("is_retryable is None")
+            return row[0]
 
 
 TIKTOKEN_CACHE_DIR = os.path.join(

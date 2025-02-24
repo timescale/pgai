@@ -52,3 +52,19 @@ class DocumentLoading(BaseModel):
             file_path=row[self.column_name],
             file_type=guess_filetype(content, row[self.column_name]),
         )
+
+
+class LoadingError(Exception):
+    """
+    Raised when the loader fails.
+    """
+
+    msg = "loading failed"
+
+
+class DocumentLoadingError(LoadingError):
+    """
+    Raised when the document loader fails.
+    """
+
+    msg = "document loading failed"
