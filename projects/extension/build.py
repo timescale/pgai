@@ -134,6 +134,7 @@ class Actions:
             if version_target_dir.exists():
                 continue
             tmp_dir = Path(tempfile.gettempdir()).joinpath("pgai", version)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
             tmp_dir.mkdir(parents=True, exist_ok=True)
             branch = git_tag(version)
             subprocess.run(
