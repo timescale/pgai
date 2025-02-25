@@ -16,24 +16,35 @@ def db_url(user: str) -> str:
 def test_worker_tracking_connection():
     with psycopg.connect(db_url("test")) as con:
         with con.cursor() as cur:
-            row = cur.execute("select ai._worker_start('0.1.1', interval '2 second')").fetchone()
+            row = cur.execute(
+                "select ai._worker_start('0.1.1', interval '2 second')"
+            ).fetchone()
             worker_id = row[0]
-            
-            cur.execute("select ai._worker_heartbeat(%s, 0, null)", (worker_id,))
-            cur.execute("select id, version, heartbeat_count, error_count, last_error_at, last_error_message from ai.vectorizer_worker_connection where id = %s", (worker_id,))
-            row = cur.fetchone() 
+
+            cur.execute("select ai._worker_heartbeat(%s, 1, 0, null)", (worker_id,))
+            cur.execute(
+                "select id, version, heartbeat_count, error_count, last_error_at, last_error_message, success_count from ai.vectorizer_worker_connection where id = %s",
+                (worker_id,),
+            )
+            row = cur.fetchone()
             assert row[0] == worker_id
             assert row[1] == "0.1.1"
             assert row[2] == 1
             assert row[3] == 0
             assert row[4] is None
             assert row[5] is None
+            assert row[6] == 1
         con.commit()
-        
-        with con.cursor() as cur: 
-            cur.execute("select ai._worker_heartbeat(%s, 3, 'error 1')", (worker_id,))
-            cur.execute("select id, version, heartbeat_count, error_count, last_error_at, last_error_message, last_heartbeat from ai.vectorizer_worker_connection where id = %s", (worker_id,))
-            row = cur.fetchone() 
+
+        with con.cursor() as cur:
+            cur.execute(
+                "select ai._worker_heartbeat(%s, 0, 3, 'error 1')", (worker_id,)
+            )
+            cur.execute(
+                "select id, version, heartbeat_count, error_count, last_error_at, last_error_message, last_heartbeat, success_count from ai.vectorizer_worker_connection where id = %s",
+                (worker_id,),
+            )
+            row = cur.fetchone()
             assert row[0] == worker_id
             assert row[1] == "0.1.1"
             assert row[2] == 2
@@ -42,12 +53,16 @@ def test_worker_tracking_connection():
             last_error_at = row[4]
             assert row[5] == "error 1"
             assert row[6] == last_error_at
+            assert row[7] == 1
         con.commit()
-        
+
         with con.cursor() as cur:
-            cur.execute("select ai._worker_heartbeat(%s, 0, null)", (worker_id,))
-            cur.execute("select id, version, heartbeat_count, error_count, last_error_at, last_error_message, last_heartbeat from ai.vectorizer_worker_connection where id = %s", (worker_id,))
-            row = cur.fetchone() 
+            cur.execute("select ai._worker_heartbeat(%s,1, 0, null)", (worker_id,))
+            cur.execute(
+                "select id, version, heartbeat_count, error_count, last_error_at, last_error_message, last_heartbeat, success_count from ai.vectorizer_worker_connection where id = %s",
+                (worker_id,),
+            )
+            row = cur.fetchone()
             assert row[0] == worker_id
             assert row[1] == "0.1.1"
             assert row[2] == 3
@@ -55,12 +70,18 @@ def test_worker_tracking_connection():
             assert row[4] == last_error_at
             assert row[5] == "error 1"
             assert row[6] > last_error_at
+            assert row[7] == 2
         con.commit()
-        
+
         with con.cursor() as cur:
-            cur.execute("select ai._worker_heartbeat(%s, 1, 'error 2')", (worker_id,))
-            cur.execute("select id, version, heartbeat_count, error_count, last_error_at, last_error_message, last_heartbeat from ai.vectorizer_worker_connection where id = %s", (worker_id,))
-            row = cur.fetchone() 
+            cur.execute(
+                "select ai._worker_heartbeat(%s, 0, 1, 'error 2')", (worker_id,)
+            )
+            cur.execute(
+                "select id, version, heartbeat_count, error_count, last_error_at, last_error_message, last_heartbeat, success_count from ai.vectorizer_worker_connection where id = %s",
+                (worker_id,),
+            )
+            row = cur.fetchone()
             assert row[0] == worker_id
             assert row[1] == "0.1.1"
             assert row[2] == 4
@@ -68,6 +89,7 @@ def test_worker_tracking_connection():
             assert row[4] > last_error_at
             assert row[5] == "error 2"
             assert row[6] == row[4]
+            assert row[7] == 2
         con.commit()
 
 
@@ -85,7 +107,7 @@ def test_worker_tracking_progress():
                 , primary key (title, published)
                 )
             """)
-            
+
             cur.execute("""
             select ai.create_vectorizer
             ( 'blog'::regclass
@@ -95,12 +117,20 @@ def test_worker_tracking_progress():
             );
             """)
             vectorizer_id = cur.fetchone()[0]
-            
-            row = cur.execute("select ai._worker_start('0.1.1', interval '2 second')").fetchone()
+
+            row = cur.execute(
+                "select ai._worker_start('0.1.1', interval '2 second')"
+            ).fetchone()
             worker_id = row[0]
-            
-            cur.execute("select ai._worker_progress(%s, %s, null)", (worker_id, vectorizer_id))
-            cur.execute("select vectorizer_id, last_success_at, last_error_at, last_error_message, last_success_connection_id, last_error_connection_id from ai.vectorizer_worker_progress where vectorizer_id = %s", (vectorizer_id,))
+
+            cur.execute(
+                "select ai._worker_progress(%s, %s, 1, null)",
+                (worker_id, vectorizer_id),
+            )
+            cur.execute(
+                "select vectorizer_id, last_success_at, last_error_at, last_error_message, last_success_connection_id, last_error_connection_id, success_count, error_count from ai.vectorizer_worker_progress where vectorizer_id = %s",
+                (vectorizer_id,),
+            )
             row = cur.fetchone()
             assert row[0] == vectorizer_id
             assert row[1] is not None
@@ -108,9 +138,17 @@ def test_worker_tracking_progress():
             assert row[3] is None
             assert row[4] == worker_id
             assert row[5] is None
-            
-            cur.execute("select ai._worker_progress(%s, %s, 'error 1')", (worker_id, vectorizer_id))
-            cur.execute("select vectorizer_id, last_success_at, last_error_at, last_error_message, last_success_connection_id, last_error_connection_id from ai.vectorizer_worker_progress where vectorizer_id = %s", (vectorizer_id,))
+            assert row[6] == 1
+            assert row[7] == 0
+
+            cur.execute(
+                "select ai._worker_progress(%s, %s, 0, 'error 1')",
+                (worker_id, vectorizer_id),
+            )
+            cur.execute(
+                "select vectorizer_id, last_success_at, last_error_at, last_error_message, last_success_connection_id, last_error_connection_id, success_count, error_count from ai.vectorizer_worker_progress where vectorizer_id = %s",
+                (vectorizer_id,),
+            )
             row = cur.fetchone()
             assert row[0] == vectorizer_id
             assert row[1] is not None
@@ -119,11 +157,19 @@ def test_worker_tracking_progress():
             assert row[3] == "error 1"
             assert row[4] == worker_id
             assert row[5] == worker_id
+            assert row[6] == 1
+            assert row[7] == 1
         con.commit()
-        
+
         with con.cursor() as cur:
-            cur.execute("select ai._worker_progress(%s, %s, null)", (worker_id, vectorizer_id))
-            cur.execute("select vectorizer_id, last_success_at, last_error_at, last_error_message, last_success_connection_id, last_error_connection_id from ai.vectorizer_worker_progress where vectorizer_id = %s", (vectorizer_id,))
+            cur.execute(
+                "select ai._worker_progress(%s, %s, 1, null)",
+                (worker_id, vectorizer_id),
+            )
+            cur.execute(
+                "select vectorizer_id, last_success_at, last_error_at, last_error_message, last_success_connection_id, last_error_connection_id, success_count, error_count from ai.vectorizer_worker_progress where vectorizer_id = %s",
+                (vectorizer_id,),
+            )
             row = cur.fetchone()
             assert row[0] == vectorizer_id
             assert row[1] > last_error_at
@@ -131,4 +177,6 @@ def test_worker_tracking_progress():
             assert row[3] == "error 1"
             assert row[4] == worker_id
             assert row[5] == worker_id
+            assert row[6] == 2
+            assert row[7] == 1
         con.commit()
