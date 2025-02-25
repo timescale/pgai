@@ -200,6 +200,8 @@ begin
     , queue_table
     , _source_schema
     , _source_table
+    , target_schema
+    , target_table
     , _source_pk
     );
 

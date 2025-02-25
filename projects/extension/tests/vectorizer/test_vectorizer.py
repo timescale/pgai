@@ -92,10 +92,8 @@ SOURCE_TABLE = """
  body      | text                     |           | not null |                              | extended |             |              | 
 Indexes:
     "blog_pkey" PRIMARY KEY, btree (title, published)
-Referenced by:
-    TABLE "website.blog_embedding_store" CONSTRAINT "blog_embedding_store_title_published_fkey" FOREIGN KEY (title, published) REFERENCES website.blog(title, published) ON DELETE CASCADE
 Triggers:
-    _vectorizer_src_trg_1 AFTER INSERT OR UPDATE ON website.blog FOR EACH ROW EXECUTE FUNCTION ai._vectorizer_src_trg_1()
+    _vectorizer_src_trg_1 AFTER INSERT OR DELETE OR UPDATE ON website.blog FOR EACH ROW EXECUTE FUNCTION ai._vectorizer_src_trg_1()
 Access method: heap
 """.strip()
 
@@ -122,8 +120,6 @@ TARGET_TABLE = """
 Indexes:
     "blog_embedding_store_pkey" PRIMARY KEY, btree (embedding_uuid)
     "blog_embedding_store_title_published_chunk_seq_key" UNIQUE CONSTRAINT, btree (title, published, chunk_seq)
-Foreign-key constraints:
-    "blog_embedding_store_title_published_fkey" FOREIGN KEY (title, published) REFERENCES website.blog(title, published) ON DELETE CASCADE
 Access method: heap
 """.strip()
 
@@ -352,6 +348,74 @@ def test_vectorizer_timescaledb():
             )
             actual = cur.fetchone()[0]
             assert actual == 2
+
+            # run the underlying function explicitly
+            # language=PostgreSQL
+            cur.execute(
+                "call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))",
+                (vectorizer_id,),
+            )
+
+            # check that the queue has 0 rows
+            cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual == 0
+
+            # Test DELETE trigger
+            cur.execute("""
+                delete from website.blog 
+                where title = 'how to make sandwich'
+            """)
+            # Verify row was deleted from target table
+            cur.execute("""
+                select count(*) from website.blog_embedding_store 
+                where title = 'how to make sandwich'
+            """)
+            assert cur.fetchone()[0] == 0
+
+            # Test regular UPDATE (no PK change)
+            cur.execute("""
+                update website.blog 
+                set body = 'updated body'
+                where title = 'how to make stir fry'
+            """)
+            # Verify this caused a queue insert
+            cur.execute("""
+                select count(*) from ai._vectorizer_q_1
+                where title = 'how to make stir fry'
+            """)
+            assert cur.fetchone()[0] == 1
+
+            # run the underlying function explicitly
+            # language=PostgreSQL
+            cur.execute(
+                "call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))",
+                (vectorizer_id,),
+            )
+
+            # check that the queue has 0 rows
+            cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual == 0
+
+            # Test UPDATE with PK change
+            cur.execute("""
+                update website.blog 
+                set title = 'how to make better stir fry'
+                where title = 'how to make stir fry'
+            """)
+            # Verify old PK was deleted from target
+            cur.execute("""
+                select count(*) from website.blog_embedding_store 
+                where title = 'how to make stir fry'
+            """)
+            assert cur.fetchone()[0] == 0
+            # Verify new PK was queued
+            cur.execute("""
+                select count(*) from ai._vectorizer_q_1
+                where title = 'how to make better stir fry'
+            """)
+            assert cur.fetchone()[0] == 1
 
             # run the underlying function explicitly
             # language=PostgreSQL
