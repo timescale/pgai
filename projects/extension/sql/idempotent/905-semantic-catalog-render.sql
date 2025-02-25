@@ -52,21 +52,32 @@ begin
         left outer join pg_catalog.pg_attribute f -- left outer b/c the table/view itself won't have a row in pg_attribute
         on (f.attrelid = _objid and f.attnum = coalesce(a.objsubid, b.objsubid))
     )
-    select concat
-    ( E'/*\n'
-    , string_agg
+    select 
+      string_agg
       (
-        format
-        ( '%s %s'
-        , coalesce(x.attname, '')
-        , x.description
-        )
-      , E'\n' order by x.objsubid
+        case
+            when x.objsubid = 0 and k.relkind in ('r', 't', 'f', 'p', 'v', 'm') then
+                format
+                ( $sql$COMMENT ON %s %I.%I IS $$%s$$;$sql$
+                , case k.relkind 
+                    when 'f' then 'FOREIGN TABLE'
+                    when 'v' then 'VIEW' 
+                    when 'm' then 'MATERIALIZED VIEW'
+                    else 'TABLE'
+                  end
+                , n.nspname
+                , k.relname
+                , x.description
+                )
+            else
+                format($sql$COMMENT ON COLUMN %I.%I.%I IS $$%s$$;$sql$, n.nspname, k.relname, x.attname, x.description)
+        end
+      , E'\n' order by x.objsubid nulls first
       )
-    , E'\n*/'
-    )
     into _description
     from x
+    inner join pg_class k on (k.oid = _objid)
+    inner join pg_catalog.pg_namespace n on (k.relnamespace = n.oid)
     where x.description is not null -- shouldn't be the case but paranoia strikes deep
     ;
     return _description;
@@ -256,9 +267,34 @@ as $func$
 declare
     _classid oid = _render_semantic_catalog_func.classid;
     _objid oid = _render_semantic_catalog_func.objid;
+    _nspname name;
+    _proname name;
+    _prokind char;
+    _idargs text;
     _ddl text;
     _description text;
 begin
+
+    select
+      n.nspname
+    , p.proname
+    , case p.prokind
+        when 'f' then 'function'
+        when 'w' then 'function'
+        when 'p' then 'procedure'
+        when 'a' then 'aggregate'
+      end
+    into
+      _nspname
+    , _proname
+    , _prokind
+    from pg_catalog.pg_proc p
+    inner join pg_catalog.pg_namespace n on (p.pronamespace = n.oid)
+    where p.oid = _objid
+    ;
+    
+    select pg_get_function_identity_arguments(_objid) into _idargs;
+
     select x.description into _description
     from ai.semantic_catalog_obj x
     where x.classid = _classid
@@ -282,10 +318,23 @@ begin
 
     return concat_ws
     ( E'\n'
-    , format('<function id=%s>', id)
+    , format
+      ( '<%s id=%s>'
+      , _prokind
+      , id
+      )
     , _ddl
-    , coalesce(_description, '')
-    , '</function>'
+    , case when _description is null then '' else
+        format
+        ( $sql$COMMENT ON %s %I.%I(%s) IS $$%s$$;$sql$
+        , _prokind
+        , _nspname
+        , _proname
+        , _idargs
+        , _description
+        )
+      end
+    , format('</%s>', _prokind)
     );
 end
 $func$ language plpgsql stable security invoker
