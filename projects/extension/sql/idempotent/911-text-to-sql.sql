@@ -56,7 +56,7 @@ begin
     -- increment the relevancy rank of database objects that were relevant to this question
     if _result ? 'relevant_database_objects' and jsonb_typeof(_result->'relevant_database_objects') = 'array' then
         update ai.semantic_catalog_obj u 
-        set relevancy_rank = relevancy_rank + 1
+        set usage = usage + 1
         from
         (
             select (x->>'id')::int8 as id

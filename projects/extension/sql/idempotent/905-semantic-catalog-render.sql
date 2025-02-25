@@ -389,7 +389,7 @@ as $func$
           end as item
         from ai.semantic_catalog_obj o
         where o.objsubid = 0
-        order by o.relevancy_rank desc
+        order by o.usage desc
         limit n
     ) x
     ;
