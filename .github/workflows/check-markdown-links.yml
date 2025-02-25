@@ -13,6 +13,3 @@ jobs:
       - name: Link Checker
         id: lychee
         uses: lycheeverse/lychee-action@v2
-        with:
-          # Just in case we get false positives, the merge flow does not get blocked by this.
-          fail: false
