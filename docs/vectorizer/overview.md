@@ -120,6 +120,12 @@ Ollama instance. Vectorizer supports other embedding providers, for more details
 consult the [embedding configuration](/docs/vectorizer/api-reference.md#embedding-configuration)
 section of the vectorizer API reference.
 
+The `loading` parameter specifies the source of the data to generate embeddings from. E.g. from the `contents` column.
+Vectorizer supports other loaders, such as the
+`ai.loading_document`, which loads external documents from remote buckets like S3, etc.
+For more details, check the [loading configuration](/docs/vectorizer/api-reference.md#loading-configuration) section 
+of the vectorizer API reference.
+
 Additionally, if the `contents` field is lengthy, it is split into multiple chunks,
 resulting in several embeddings for a single blog post. Chunking helps
 ensure that each embedding is semantically coherent, typically representing a
