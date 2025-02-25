@@ -8,7 +8,7 @@ class GeneratedDescription(TypedDict):
     description: str
 
 
-def render_sample(plpy, fq_relation: str, total: int = 5) -> str:
+def render_sample(plpy, fq_relation: str, total: int = 3) -> str:
     """
     Given a table ore view name, return a sample of rows from it.
     """
@@ -16,7 +16,7 @@ def render_sample(plpy, fq_relation: str, total: int = 5) -> str:
     # context window.
     result = plpy.execute(f"select * from {fq_relation}", min(max(total, 1), 10))
 
-    ret_obj = f"""insert into {fq_relation} ({', '.join(plpy.quote_ident(key) for key in result.colnames())}) values"""
+    ret_obj = f"""INSERT INTO {fq_relation} ({', '.join(plpy.quote_ident(key) for key in result.colnames())}) VALUES"""
     for i, row in enumerate(result):
         ret_obj += "\n  " if i == 0 else "\n, "
         values = []
