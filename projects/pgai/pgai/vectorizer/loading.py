@@ -63,8 +63,13 @@ class LoadingError(Exception):
 
 
 class DocumentLoadingError(LoadingError):
+    pk_values: list[any]
     """
     Raised when the document loader fails.
     """
+
+    def __init__(self, *args, pk_values: list[any]):
+        super().__init__(*args)
+        self.pk_values = pk_values
 
     msg = "document loading failed"
