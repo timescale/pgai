@@ -21,6 +21,7 @@ from ..embeddings import (
     StringDocument,
     Usage,
     logger,
+    Encoder,
 )
 
 TOKEN_CONTEXT_LENGTH_ERROR = "chunk exceeds model context length"
@@ -28,6 +29,22 @@ TOKEN_CONTEXT_LENGTH_ERROR = "chunk exceeds model context length"
 openai_token_length_regex = re.compile(
     r"This model's maximum context length is (\d+) tokens"
 )
+
+class TiktokenEncoder:
+    """Encoder implementation using OpenAI's tiktoken library"""
+    def __init__(self, model: str):
+        self.encoding = tiktoken.encoding_for_model(model)
+    
+    def encode(self, text: str) -> list[int]:
+        """Encode text into tokens using tiktoken
+
+        Args:
+            text: The text to encode
+
+        Returns:
+            A list of token integers
+        """
+        return self.encoding.encode_ordinary(text)
 
 
 class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
@@ -69,6 +86,11 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
     def _max_chunks_per_batch(self) -> int:
         return 2048
 
+    @override
+    def _max_tokens_per_batch(self) -> int|None:
+        # See https://github.com/timescale/pgai/pull/482#issuecomment-2659799567
+        return 600_000
+
     async def call_embed_api(self, documents: list[Document]) -> EmbeddingResponse:
         response = await self._embedder.create(
             input=cast(list[str] | Iterable[Iterable[int]], documents),
@@ -87,7 +109,12 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
 
     @cached_property
     def _batcher(self) -> BatchApiCaller[Document]:
-        return BatchApiCaller(self._max_chunks_per_batch(), self.call_embed_api)
+        return BatchApiCaller(
+            self._max_chunks_per_batch(),
+            self._max_tokens_per_batch(),
+            self.call_embed_api,
+            self._encoder,
+        )
 
     @override
     async def embed(
@@ -213,13 +240,5 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
         return encoded_documents
 
     @cached_property
-    def _encoder(self) -> tiktoken.Encoding | None:
-        try:
-            encoder = tiktoken.encoding_for_model(self.model)
-        except KeyError:
-            logger.warning(
-                f"Tokenizer for the model {self.model} not found. "
-                "Fallback to non-tokenized plain text"
-            )
-            return None
-        return encoder
+    def _encoder(self) -> Encoder | None:
+        return TiktokenEncoder(self.model)
