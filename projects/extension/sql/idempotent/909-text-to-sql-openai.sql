@@ -562,7 +562,14 @@ begin
                                 ( E'\n'
                                 , _prompt_err -- keep prior bad queries. append new ones
                                 , '<invalid-sql-statement>'
-                                , format(E'/* the following sql statement is not valid. error:\n%s\n*/', _err_msg)
+                                , concat_ws
+                                  ( E'\n'
+                                  , '/*'
+                                  , '-- The following SQL statement is invalid. Fix this SQL or generate a new, valid SQL statement.'
+                                  , '-- ONLY use database elements that have been described to you unless they are built-in to Postgres.'
+                                  , _err_msg
+                                  , '*/'
+                                  )
                                 , _answer
                                 , '</invalid-sql-statement>'
                                 );
