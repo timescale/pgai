@@ -22,7 +22,9 @@ create or replace function ai.text_to_sql_anthropic
 , sql_renderer regprocedure default null
 , user_prompt text default null
 , system_prompt text default null
-) returns jsonb
+, include_entire_schema bool default null
+, only_these_objects regclass[] default null
+) returns pg_catalog.jsonb
 as $func$
     select json_object
     ( 'provider': 'anthropic'
@@ -46,6 +48,8 @@ as $func$
     , 'sql_renderer': sql_renderer
     , 'user_prompt': user_prompt
     , 'system_prompt': system_prompt
+    , 'include_entire_schema': include_entire_schema
+    , 'only_these_objects': only_these_objects
     absent on null
     )
 $func$ language sql immutable security invoker
@@ -65,6 +69,7 @@ declare
     _config jsonb = config;
     _catalog_name text = catalog_name;
     _max_iter int2;
+    _iter int2;
     _iter_remaining int2;
     _max_results int8;
     _max_vector_dist float8;
@@ -89,8 +94,8 @@ declare
     _sql text;
     _prompt_obj text;
     _prompt_sql text;
-    _samples jsonb = '{}';
     _samples_sql text;
+    _prompt_obj_list text;
     _prompt_header text;
     _prompt text;
     _system_prompt text;
@@ -98,7 +103,16 @@ declare
     _response jsonb;
     _message record;
     _answer text;
+    _command_type text;
+    _answer_valid bool;
+    _err_msg text;
+    _query_plan jsonb;
+    _prompt_err text = '';
+    _include_entire_schema bool;
+    _only_these_objects regclass[];
 begin
+    -- initialize variables ---------------------------------------------------
+
     -- if a config was provided, use the settings available. defaults where missing
     -- if no config provided, use defaults for everything
     _max_iter = coalesce((_config->>'max_iter')::int2, 10);
@@ -107,7 +121,7 @@ begin
     _max_vector_dist = (_config->>'max_vector_dist')::float8;
     _obj_renderer = coalesce((_config->>'obj_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_obj(bigint, oid, oid)'::pg_catalog.regprocedure);
     _sql_renderer = coalesce((_config->>'sql_renderer')::pg_catalog.regprocedure, 'ai.render_semantic_catalog_sql(bigint, text, text)'::pg_catalog.regprocedure);
-    _model = coalesce(_config->>'model', 'claude-3-5-sonnet-latest');
+    _model = coalesce(_config->>'model', 'claude-3-7-sonnet-latest');
     _max_tokens = coalesce(_config operator(pg_catalog.->>) 'max_tokens', '1024')::int4;
     _api_key = _config operator(pg_catalog.->>) 'api_key';
     _api_key_name = _config operator(pg_catalog.->>) 'api_key_name';
@@ -132,13 +146,31 @@ begin
         , $$Below are descriptions of database objects and examples of SQL statements that are meant to give context to a user's question.$$
         , $$Analyze the context provided. Identify the elements that are relevant to the user's question.$$
         , $$ONLY use database elements that have been described to you. If more context is needed, use the "request_more_context_by_question" tool to ask questions about the database model.$$
+        , $$Do not add aliases to columns unless it is required syntactically.$$
         , $$If enough context has been provided to confidently address the question, use the "answer_user_question_with_sql_statement" tool to record your final answer in the form of a valid SQL statement.$$
         , coalesce(_config operator(pg_catalog.->>) 'user_prompt', '')
         );
+    _include_entire_schema = coalesce((_config->>'include_entire_schema')::bool, false);
+    
+    select array_agg(to_regclass(x)) filter (where to_regclass(x) is not null) into _only_these_objects
+    from jsonb_array_elements_text(_config->'only_these_objects') x
+    ;
+    if array_length(_only_these_objects, 1) = 0 then
+        _only_these_objects = null;
+    end if;
 
-    while _iter_remaining > 0 loop
-        raise debug 'iteration: %', (_max_iter - _iter_remaining + 1);
-        raise debug 'searching with % questions', jsonb_array_length(_questions);
+    -- get a list of commonly relevant database object names
+    _prompt_obj_list = ai.render_semantic_catalog_obj_listing(20);
+    
+    -- main loop --------------------------------------------------------------
+    
+    -- Each iteration of the main loop sends one message to the LLM and processes
+    -- the response. We do this until the LLM calls a tool to indicate that it has
+    -- a final answer OR we have run _max_iter iterations.
+    <<main_loop>>
+    for _iter in 1.._max_iter loop
+        raise debug 'iteration: %', _iter;
+        _iter_remaining = _max_iter - _iter;
 
         -- search -------------------------------------------------------------
 
@@ -153,32 +185,69 @@ begin
             ;
         end if;
 
+
         -- search obj
-        if jsonb_array_length(_questions) > 0 then
-            raise debug 'searching for database objects';
-            select jsonb_agg(to_jsonb(x))
-            into _ctx_obj
-            from
-            (
-                -- search for relevant objects
-                -- if a column matches, we want to render the whole table/view, so discard the objsubid
-                -- semantic search
-                select distinct x.id, x.classid, x.objid
-                from unnest(_questions_embedded) q
-                cross join lateral ai._search_semantic_catalog_obj
-                ( q
-                , catalog_name
-                , _max_results
-                , _max_vector_dist
+        case
+            when _include_entire_schema then
+                -- all the top-level objects
+                raise debug 'including entire schema';
+                select jsonb_agg
+                ( jsonb_build_object
+                  ( 'id', o.id
+                  , 'classid', o.classid
+                  , 'objid', o.objid
+                  )
+                  order by o.id
+                ) into _ctx_obj
+                from ai.semantic_catalog_obj o
+                where o.objsubid = 0 -- top level objects only
+                ;
+            when _only_these_objects is not null then
+                -- just the top-level objects specifically requested
+                raise debug 'including only % specific objects', array_length(_only_these_objects, 1);
+                select jsonb_agg
+                ( jsonb_build_object
+                  ( 'id', o.id
+                  , 'classid', o.classid
+                  , 'objid', o.objid
+                  )
+                  order by o.id
+                ) into _ctx_obj
+                from unnest(_only_these_objects) r
+                inner join ai.semantic_catalog_obj o 
+                on (o.objsubid = 0 -- top level objects only
+                and o.classid = 'pg_catalog.pg_class'::regclass::oid
+                and o.objid = r::oid
+                )
+                ;
+            when jsonb_array_length(_questions) > 0 then
+                -- semantic search for objects
+                raise debug 'searching for database objects';
+                select jsonb_agg(to_jsonb(x))
+                into _ctx_obj
+                from
+                (
+                    -- search for relevant objects
+                    -- if a column matches, we want to render the whole table/view, so discard the objsubid
+                    -- semantic search
+                    select distinct x.id, x.classid, x.objid
+                    from unnest(_questions_embedded) q
+                    cross join lateral ai._search_semantic_catalog_obj
+                    ( q
+                    , catalog_name
+                    , _max_results
+                    , _max_vector_dist
+                    ) x
+                    union
+                    -- unroll objects previously marked as relevant
+                    select *
+                    from jsonb_to_recordset(_ctx_obj) r(id int8, classid oid, objid oid)
                 ) x
-                union
-                -- unroll objects previously marked as relevant
-                select *
-                from jsonb_to_recordset(_ctx_obj) r(id int8, classid oid, objid oid)
-            ) x
-            ;
-            raise debug 'search found % database objects', jsonb_array_length(_ctx_obj);
-        end if;
+                ;
+                raise debug 'search found % database objects', jsonb_array_length(_ctx_obj);
+            else
+                -- noop
+        end case;
 
         -- search sql
         if jsonb_array_length(_questions) > 0 then
@@ -228,13 +297,6 @@ begin
         ;
         execute _sql using _ctx_obj into _prompt_obj;
 
-        -- render samples
-        raise debug 'rendering table samples';
-        select string_agg(value, E'\n\n')
-        into strict _samples_sql
-        from jsonb_each_text(_samples)
-        ;
-
         -- render sql
         raise debug 'rendering sql examples';
         select format
@@ -260,6 +322,7 @@ begin
         , coalesce(_prompt_obj, '')
         , coalesce(_samples_sql, '')
         , coalesce(_prompt_sql, '')
+        , coalesce(_prompt_err, '')
         , concat('Q: ', question)
         );
         raise debug '%', _prompt;
@@ -269,70 +332,65 @@ begin
         [
             {
                 "name": "request_more_context_by_question",
-                "description": "If you do not have enough context to confidently answer the user's question, use this tool to ask for more context by providing a question to be used for semantic search.",
+                "description": "Request additional database object descriptions by providing a focused question for semantic search. Use this when the current context is insufficient to generate a confident SQL query. Frame your question to target specific tables, relationships, or attributes needed.",
                 "input_schema": {
                     "type": "object",
                     "properties" : {
                         "question": {
                             "type": "string",
-                            "description": "A new natural language question relevant to the user's question that will be used to perform a semantic search to gather more context"
+                            "description": "A brief question (max 20 words) focused on a specific database structure or relationship. Avoid explaining reasoning or context."
                         }
                     },
                     "required": ["question"]
                 }
             },
             {
-                "name": "request_table_sample",
-                "description": "If you do not have enough context about a table to confidently answer the user's question, use this tool to ask for a sample of the table's data.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "name": {
-                            "type": "string",
-                            "description": "The fully qualified `schema.name` of the table or view to sample."
-                        },
-                        "total": {
-                            "type": "integer",
-                            "description": "The total number of rows to return in the sample, the max is 10."
-                        }
-                    },
-                    "required": ["name", "total"]
-                }
-            },
-            {
                 "name": "answer_user_question_with_sql_statement",
-                "description": "If you have enough context to confidently answer the user's question, use this tool to provide the answer in the form of a valid PostgreSQL SQL statement.",
+                "description": "Provide a SQL query that answers the user's question.",
                 "input_schema": {
                     "type": "object",
                     "properties" : {
                         "sql_statement": {
                             "type": "string",
-                            "description": "A valid SQL statement that addresses the user's question."
+                            "description": "A valid PostgreSQL SQL statement that addresses the user's question."
+                        },
+                        "command_type": {
+                            "type": "string",
+                            "description": "Indicate the type of SQL command used in the sql_statement. (e.g. 'SELECT', 'INSERT', 'UPDATE', or 'DELETE')"
                         },
                         "relevant_database_object_ids": {
                             "type": "array",
                             "items": {"type": "integer"},
-                            "description": "Provide a list of the ids of the database examples which were relevant to the user's question and useful in providing the answer."
+                            "description": "IDs of database objects used in constructing the answer."
                         },
                         "relevant_sql_example_ids": {
                             "type": "array",
                             "items": {"type": "integer"},
-                            "description": "Provide a list of the ids of the SQL examples which were relevant to the user's question and useful in providing the answer."
+                            "description": "IDs of SQL examples referenced in constructing the answer."
                         }
                     },
-                    "required": ["sql_statement"]
+                    "required": ["sql_statement", "command_type", "relevant_database_object_ids", "relevant_sql_example_ids"]
                 }
             }
         ]
         $json$::jsonb
         ;
-
+        
+        -- call llm -----------------------------------------------------------
         raise debug 'calling llm';
         select ai.anthropic_generate
         ( _model
         , jsonb_build_array(jsonb_build_object('role', 'user', 'content', _prompt))
         , system_prompt=>_system_prompt
         , tools=>_tools
+        , tool_choice=>
+          (
+            case when _iter_remaining = 0 then
+                -- force the LLM to provide an answer if we are out of iterations
+                '{"type": "tool", "name": "answer_user_question_with_sql_statement"}'
+            else '{"type": "any"}' -- must use at least one tool
+            end
+          )::jsonb
         , max_tokens=>_max_tokens
         , api_key=>_api_key
         , api_key_name=>_api_key_name
@@ -348,9 +406,11 @@ begin
         ;
 
         -- process the response -----------------------------------------------
+        
         raise debug 'stop_reason: %', _response->>'stop_reason';
         raise debug 'received % messages', jsonb_array_length(_response->'content');
         raise debug '%', jsonb_pretty(_response->'content');
+        <<message_loop>>
         for _message in
         (
             select m.*
@@ -374,18 +434,6 @@ begin
                             select _questions || jsonb_build_array(_message.input->'question')
                             into strict _questions
                             ;
-                        when 'request_table_sample' then
-                            raise debug 'tool use: request_table_sample: %', _message.input;
-                            select _samples || jsonb_build_object
-                            ( _message.input->>'name'
-                            , ai.render_sample
-                              ( (_message.input->>'name')
-                              , (_message.input->>'total')::int4
-                              , search_path
-                              )
-                            )
-                            into strict _samples
-                            ;
                         when 'answer_user_question_with_sql_statement' then
                             raise debug 'tool use: answer_user_question_with_sql_statement';
                             select _message.input->>'sql_statement' into strict _answer;
@@ -405,25 +453,63 @@ begin
                                 on (i::int = r.id)
                                 ;
                             end if;
-                    end case
-                    ;
-            end case
-            ;
-            -- if we got our answer, return
-            if _answer is not null then
-                raise debug 'relevant database objects %', jsonb_pretty(_ctx_obj);
-                raise debug 'relevant sql examples %', jsonb_pretty(_ctx_sql);
-                return jsonb_build_object
-                ( 'sql_statement', _answer
-                , 'relevant_database_objects', _ctx_obj
-                , 'relevant_sql_examples', _ctx_sql
-                , 'iterations', (_max_iter - _iter_remaining)
-                );
-            end if;
-        end loop;
-        _iter_remaining = _iter_remaining - 1;
-    end loop;
-    return null;
+                            -- validate the sql statement if we can
+                            select upper(_message.input->>'command_type') into _command_type;
+                            if _command_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE', 'MERGE', 'VALUES') then
+                                select
+                                  x.valid
+                                , x.err_msg
+                                , x.query_plan
+                                into
+                                  _answer_valid
+                                , _err_msg
+                                , _query_plan
+                                from ai._text_to_sql_explain(_answer, search_path=>search_path) x
+                                ;
+                                if not _answer_valid then
+                                    -- render invalid sql statements
+                                    _prompt_err = concat_ws
+                                    ( E'\n'
+                                    , _prompt_err -- keep prior bad queries. append new ones
+                                    , '<invalid-sql-statement>'
+                                    , concat_ws
+                                      ( E'\n'
+                                      , '/*'
+                                      , '-- The following SQL statement is invalid. Fix this SQL or generate a new, valid SQL statement.'
+                                      , '-- ONLY use database elements that have been described to you unless they are built-in to Postgres.'
+                                      , _err_msg
+                                      , '*/'
+                                      )
+                                    , _answer
+                                    , '</invalid-sql-statement>'
+                                    );
+                                    -- we got a bad sql statement. continue processing and give the LLM
+                                    -- another try unless we've hit _max_iter iterations
+                                    continue message_loop;
+                                end if;
+                            end if;
+                            -- we got a valid sql statement, or we got a sql statement for which we cannot
+                            -- check the validity with EXPLAIN
+                            exit main_loop;
+                        else
+                            raise warning 'invalid tool called for: %', _message.name;
+                    end case;
+            end case;
+        end loop message_loop;
+    end loop main_loop;
+    
+    -- return our results -----------------------------------------------------
+    -- some elements may be null
+    return jsonb_build_object
+    ( 'sql_statement', _answer
+    , 'command_type', _command_type
+    , 'relevant_database_objects', _ctx_obj
+    , 'relevant_sql_examples', _ctx_sql
+    , 'iterations', (_max_iter - _iter_remaining)
+    , 'query_plan', _query_plan
+    , 'est_cost', jsonb_extract_path(_query_plan, '0', 'Plan', 'Total Cost')
+    , 'est_rows', jsonb_extract_path(_query_plan, '0', 'Plan', 'Plan Rows')
+    );
 end
 $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
