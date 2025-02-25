@@ -544,7 +544,7 @@ begin
                         -- get the sql statement
                         select _tool_call.arguments->>'sql_statement' into strict _answer;
                         -- validate the sql statement if we can
-                        select upper(_tool_call.arguments->>'command_type') into strict _command_type;
+                        select upper(_tool_call.arguments->>'command_type') into _command_type;
                         if _command_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE', 'MERGE', 'VALUES') then
                             select
                               x.valid
