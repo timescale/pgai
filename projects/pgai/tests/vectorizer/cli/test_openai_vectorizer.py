@@ -105,6 +105,7 @@ def test_process_vectorizer(
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT * FROM ai.vectorizer_worker_connection;")
         row = cur.fetchone()
+        assert row is not None
         assert row["started"] is not None
         assert row["last_heartbeat"] is not None
         assert row["heartbeat_count"] >= 1
@@ -117,6 +118,7 @@ def test_process_vectorizer(
 
         cur.execute("SELECT * FROM ai.vectorizer_worker_progress;")
         row = cur.fetchone()
+        assert row is not None
         assert row["last_success_at"] is not None
         assert row["last_success_connection_id"] == worker_id
         assert row["last_error_at"] is None
@@ -157,6 +159,7 @@ def test_vectorizer_without_secrets_fails(
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT * FROM ai.vectorizer_worker_connection;")
         row = cur.fetchone()
+        assert row is not None
         assert row["started"] is not None
         assert row["last_heartbeat"] is not None
         assert row["heartbeat_count"] >= 1
@@ -169,6 +172,7 @@ def test_vectorizer_without_secrets_fails(
 
         cur.execute("SELECT * FROM ai.vectorizer_worker_progress;")
         row = cur.fetchone()
+        assert row is not None
         assert row["last_success_at"] is None
         assert row["last_success_connection_id"] is None
         assert row["last_error_at"] is not None

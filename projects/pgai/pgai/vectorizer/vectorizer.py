@@ -479,7 +479,9 @@ class Worker:
         loops = 0
 
         async with await psycopg.AsyncConnection.connect(
-            self.db_url, autocommit=True
+            self.db_url,
+            autocommit=True,
+            application_name=f"pgai-worker[{self.vectorizer.id}]: {self.worker_tracking.get_short_worker_id()}",  # noqa: E501
         ) as conn:
             try:
                 await register_vector_async(conn)
