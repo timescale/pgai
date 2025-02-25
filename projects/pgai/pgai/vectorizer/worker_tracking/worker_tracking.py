@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+from uuid import UUID
 
 import psycopg
 import structlog
@@ -8,13 +9,14 @@ from ..features import Features
 
 log = structlog.get_logger()
 
+
 class WorkerTracking:
     def __init__(
         self, db_url: str, poll_interval: int, features: Features, version: str
     ):
         self.db_url = db_url
         self.poll_interval = poll_interval
-        self.worker_id = None
+        self.worker_id: UUID | None = None
         self.num_errors_since_last_heartbeat = 0
         self.error_message = None
         self.enabled = features.worker_tracking
@@ -36,7 +38,15 @@ class WorkerTracking:
                 (self.version, poll_interval_td),
             )
             res = await cur.fetchone()
+            if res is None:
+                raise Exception("Failed to start worker tracking")
             self.worker_id = res[0]
+
+        asyncio.create_task(self.heartbeat())
+
+    def get_short_worker_id(self) -> str:
+        # Return first segment of UUID (before first hyphen)
+        return str(self.worker_id).split("-")[0] if self.worker_id else ""
 
     async def _report_error(self, error_message: str) -> None:
         self.num_errors_since_last_heartbeat += 1
@@ -47,7 +57,9 @@ class WorkerTracking:
             return
 
         async with await psycopg.AsyncConnection.connect(
-            self.db_url, autocommit=True
+            self.db_url,
+            autocommit=True,
+            application_name=f"pgai-worker-heartbeat-force: {self.get_short_worker_id()}",  # noqa: E501
         ) as conn:
             await self._heartbeat(conn)
 
@@ -72,7 +84,9 @@ class WorkerTracking:
         while failures < 3:
             try:
                 async with await psycopg.AsyncConnection.connect(
-                    self.db_url, autocommit=True
+                    self.db_url,
+                    autocommit=True,
+                    application_name=f"pgai-worker-heartbeat: {self.get_short_worker_id()}",  # noqa: E501
                 ) as conn:
                     while True:
                         await self._heartbeat(conn)
@@ -112,7 +126,11 @@ class WorkerTracking:
             return
 
         async with (
-            await psycopg.AsyncConnection.connect(self.db_url, autocommit=True) as conn,
+            await psycopg.AsyncConnection.connect(
+                self.db_url,
+                autocommit=True,
+                application_name=f"pgai-worker-error-reporter: {self.get_short_worker_id()}",  # noqa: E501
+            ) as conn,
             conn.cursor() as cur,
             conn.transaction(),
         ):

@@ -100,12 +100,17 @@ CREATE EXTENSION
  function ai._vectorizer_vector_index_exists(name,name,jsonb)
  function ai.voyageai_embed(text,text,text,text,text,boolean)
  function ai.voyageai_embed(text,text[],text,text,text,boolean)
+ function ai._worker_heartbeat(uuid,integer,integer,text)
+ function ai._worker_progress(uuid,integer,integer,text)
+ function ai._worker_start(text,interval)
  sequence ai.vectorizer_id_seq
  table ai.feature_flag
  table ai.migration
  table ai._secret_permissions
  table ai.vectorizer
  table ai.vectorizer_errors
+ table ai.vectorizer_worker_connection
+ table ai.vectorizer_worker_progress
  type ai.feature_flag
  type ai.feature_flag[]
  type ai.migration
@@ -120,9 +125,13 @@ CREATE EXTENSION
  type ai.vectorizer_errors[]
  type ai.vectorizer_status
  type ai.vectorizer_status[]
+ type ai.vectorizer_worker_connection
+ type ai.vectorizer_worker_connection[]
+ type ai.vectorizer_worker_progress
+ type ai.vectorizer_worker_progress[]
  view ai.secret_permissions
  view ai.vectorizer_status
-(118 rows)
+(127 rows)
 
                                     Table "ai._secret_permissions"
  Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
@@ -207,6 +216,7 @@ Indexes:
     "vectorizer_target_schema_target_table_key" UNIQUE CONSTRAINT, btree (target_schema, target_table)
 Referenced by:
     TABLE "ai.vectorizer_errors" CONSTRAINT "vectorizer_errors_id_fkey" FOREIGN KEY (id) REFERENCES ai.vectorizer(id) ON DELETE CASCADE
+    TABLE "ai.vectorizer_worker_progress" CONSTRAINT "vectorizer_worker_progress_vectorizer_id_fkey" FOREIGN KEY (vectorizer_id) REFERENCES ai.vectorizer(id) ON DELETE CASCADE
 Access method: heap
 
                                                 Table "ai.vectorizer_errors"
@@ -269,3 +279,55 @@ View definition:
  target_table  | cstring | yes  | target_table  | plain   | 
 unique, btree, for table "ai.vectorizer"
 
+                                                         Table "ai.vectorizer_worker_connection"
+           Column            |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
+-----------------------------+--------------------------+-----------+----------+-------------------+----------+-------------+--------------+-------------
+ id                          | uuid                     |           | not null | gen_random_uuid() | plain    |             |              | 
+ version                     | text                     |           | not null |                   | extended |             |              | 
+ started                     | timestamp with time zone |           | not null | now()             | plain    |             |              | 
+ expected_heartbeat_interval | interval                 |           | not null |                   | plain    |             |              | 
+ last_heartbeat              | timestamp with time zone |           | not null | now()             | plain    |             |              | 
+ heartbeat_count             | integer                  |           | not null | 0                 | plain    |             |              | 
+ error_count                 | integer                  |           | not null | 0                 | plain    |             |              | 
+ success_count               | integer                  |           | not null | 0                 | plain    |             |              | 
+ last_error_at               | timestamp with time zone |           |          |                   | plain    |             |              | 
+ last_error_message          | text                     |           |          |                   | extended |             |              | 
+Indexes:
+    "vectorizer_worker_connection_pkey" PRIMARY KEY, btree (id)
+    "vectorizer_worker_connection_last_heartbeat_idx" btree (last_heartbeat)
+Access method: heap
+
+                 Index "ai.vectorizer_worker_connection_last_heartbeat_idx"
+     Column     |           Type           | Key? |   Definition   | Storage | Stats target 
+----------------+--------------------------+------+----------------+---------+--------------
+ last_heartbeat | timestamp with time zone | yes  | last_heartbeat | plain   | 
+btree, for table "ai.vectorizer_worker_connection"
+
+        Index "ai.vectorizer_worker_connection_pkey"
+ Column | Type | Key? | Definition | Storage | Stats target 
+--------+------+------+------------+---------+--------------
+ id     | uuid | yes  | id         | plain   | 
+primary key, btree, for table "ai.vectorizer_worker_connection"
+
+                                                    Table "ai.vectorizer_worker_progress"
+           Column           |           Type           | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
+----------------------------+--------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
+ vectorizer_id              | integer                  |           | not null |         | plain    |             |              | 
+ success_count              | integer                  |           | not null | 0       | plain    |             |              | 
+ error_count                | integer                  |           | not null | 0       | plain    |             |              | 
+ last_success_at            | timestamp with time zone |           |          |         | plain    |             |              | 
+ last_success_connection_id | uuid                     |           |          |         | plain    |             |              | 
+ last_error_at              | timestamp with time zone |           |          |         | plain    |             |              | 
+ last_error_message         | text                     |           |          |         | extended |             |              | 
+ last_error_connection_id   | uuid                     |           |          |         | plain    |             |              | 
+Indexes:
+    "vectorizer_worker_progress_pkey" PRIMARY KEY, btree (vectorizer_id)
+Foreign-key constraints:
+    "vectorizer_worker_progress_vectorizer_id_fkey" FOREIGN KEY (vectorizer_id) REFERENCES ai.vectorizer(id) ON DELETE CASCADE
+Access method: heap
+
+               Index "ai.vectorizer_worker_progress_pkey"
+    Column     |  Type   | Key? |  Definition   | Storage | Stats target 
+---------------+---------+------+---------------+---------+--------------
+ vectorizer_id | integer | yes  | vectorizer_id | plain   | 
+primary key, btree, for table "ai.vectorizer_worker_progress"

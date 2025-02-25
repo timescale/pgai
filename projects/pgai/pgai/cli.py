@@ -5,7 +5,6 @@ import os
 import random
 import signal
 import sys
-import time
 import traceback
 from collections.abc import Sequence
 from typing import Any
@@ -147,12 +146,14 @@ async def run_vectorizer(
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     # raise any exceptions, but only after all tasks have completed
+    items: int = 0
     for result in results:
-        if isinstance(result, Exception):
+        if isinstance(result, BaseException):
             await worker_tracking.save_vectorizer_error(vectorizer.id, str(result))
             raise result
+        else:
+            items += result
 
-    items = sum(results)
     log.info("finished processing vectorizer", items=items, vectorizer_id=vectorizer.id)
 
 
@@ -273,6 +274,21 @@ def vectorizer_worker(
     )
 
 
+async def handle_error(
+    error_message: str,
+    vectorizer_id: int | None,
+    worker_tracking: WorkerTracking | None,
+    exit_on_error: bool | None,
+) -> None:
+    log.error(error_message)
+    if worker_tracking is not None:
+        await worker_tracking.save_vectorizer_error(vectorizer_id, error_message)
+    if exit_on_error:
+        if worker_tracking is not None:
+            await worker_tracking.force_heartbeat()
+        sys.exit(1)
+
+
 async def async_run_vectorizer_worker(
     db_url: str,
     vectorizer_ids: Sequence[int],
@@ -312,24 +328,21 @@ async def async_run_vectorizer_worker(
                     con.cursor(row_factory=namedtuple_row) as cur,
                 ):
                     pgai_version = get_pgai_version(cur)
-                    can_connect = True
                     if pgai_version is None:
                         err_msg = "the pgai extension is not installed"
-                        log.error(err_msg)
-                        await worker_tracking.save_vectorizer_error(None, err_msg)
-                        if exit_on_error:
-                            await worker_tracking.force_heartbeat()
-                            sys.exit(1)
-                    else:
-                        features = Features(pgai_version)
+                        await handle_error(
+                            err_msg, None, worker_tracking, exit_on_error
+                        )
+                        break
+                    features = Features(pgai_version)
 
                     worker_tracking = WorkerTracking(
                         db_url, poll_interval, features, __version__
                     )
                     await worker_tracking.start()
-                    asyncio.create_task(worker_tracking.heartbeat())
+                    can_connect = True
 
-            if can_connect and pgai_version is not None and features is not None:
+            if can_connect and features is not None and worker_tracking is not None:
                 if not dynamic_mode and len(valid_vectorizer_ids) != len(
                     vectorizer_ids
                 ):
@@ -338,12 +351,13 @@ async def async_run_vectorizer_worker(
                         vectorizer_ids,
                     )
                     if len(valid_vectorizer_ids) != len(vectorizer_ids):
-                        log.error(
-                            f"invalid vectorizers, wanted: {list(vectorizer_ids)}, got: {valid_vectorizer_ids}"  # noqa: E501 (line too long)
+                        err_msg = f"invalid vectorizers, wanted: {list(vectorizer_ids)}, got: {valid_vectorizer_ids}"  # noqa: E501
+                        await handle_error(
+                            err_msg,
+                            None,
+                            worker_tracking,
+                            exit_on_error,
                         )
-                        if exit_on_error:
-                            await worker_tracking.force_heartbeat()
-                            sys.exit(1)
                 else:
                     valid_vectorizer_ids = get_vectorizer_ids(
                         db_url,
@@ -359,13 +373,10 @@ async def async_run_vectorizer_worker(
                         err_msg = (
                             f"error getting vectorizer: {type(e).__name__}: {str(e)}"
                         )
-                        log.error(err_msg)
-                        await worker_tracking.save_vectorizer_error(
-                            vectorizer_id, str(e)
+                        await handle_error(
+                            err_msg, vectorizer_id, worker_tracking, exit_on_error
                         )
-                        if exit_on_error:
-                            await worker_tracking.force_heartbeat()
-                            sys.exit(1)
+                        break
 
                     log.info("running vectorizer", vectorizer_id=vectorizer_id)
                     await run_vectorizer(
@@ -374,32 +385,23 @@ async def async_run_vectorizer_worker(
         except psycopg.OperationalError as e:
             if "connection failed" in str(e):
                 err_msg = f"unable to connect to database: {str(e)}"
-                log.error(err_msg)
-                await worker_tracking.save_vectorizer_error(None, err_msg)
             else:
                 err_msg = f"unexpected error: {str(e)}"
-                log.error(err_msg)
-                await worker_tracking.save_vectorizer_error(None, err_msg)
-            if exit_on_error:
-                await worker_tracking.force_heartbeat()
-                sys.exit(1)
+            await handle_error(err_msg, None, worker_tracking, exit_on_error)
         except Exception as e:
             # catch any exceptions, log them, and keep on going
-            err_msg = f"unexpected error: {str(e)}"
-            log.error(err_msg)
-            await worker_tracking.save_vectorizer_error(None, err_msg)
             for exception_line in traceback.format_exception(e):
                 for line in exception_line.rstrip().split("\n"):
                     log.debug(line)
-            if exit_on_error:
-                await worker_tracking.force_heartbeat()
-                sys.exit(1)
-
+            err_msg = f"unexpected error: {str(e)}"
+            await handle_error(err_msg, None, worker_tracking, exit_on_error)
         if once:
-            await worker_tracking.force_heartbeat()
+            if worker_tracking is not None:
+                await worker_tracking.force_heartbeat()
             return
+
         log.info(f"sleeping for {poll_interval_str} before polling for new work")
-        time.sleep(poll_interval)
+        await asyncio.sleep(poll_interval)
 
 
 @click.group()
