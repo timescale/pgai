@@ -289,14 +289,16 @@ def setup_dataset(dataset, port):
 def get_tables(port):
     results = fetchall_sql(
         port,
-        "SELECT relname from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r'",
+        "SELECT relname from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r' and relname not in (SELECT target_table FROM ai.vectorizer)",
     )
     return [r[0] for r in results]
 
 
 def setup_vectorizer(answers, port) -> int:
-
     column_sql = "SELECT attname FROM pg_attribute WHERE attrelid = format('%%I.%%I', 'public', %(table)s::text)::regclass AND attnum >=1 AND NOT attisdropped"
+    vectorizer_sql = (
+        "SELECT view_name FROM ai.vectorizer WHERE source_table = %(table)s::text"
+    )
 
     def get_text_columns(table):
         sql = column_sql + " AND atttypid = 'text'::regtype::oid"
@@ -305,6 +307,10 @@ def setup_vectorizer(answers, port) -> int:
 
     def get_columns(table):
         results = fetchall_sql(port, column_sql, table=table)
+        return [r[0] for r in results]
+
+    def get_existing_vectorizer_names(table, port) -> list[str]:
+        results = fetchall_sql(port, vectorizer_sql, table=table)
         return [r[0] for r in results]
 
     tables = get_tables(port)
@@ -317,6 +323,16 @@ def setup_vectorizer(answers, port) -> int:
         table = questionary.select(
             "Select the table to vectorize", choices=tables
         ).ask()
+
+    vectorizers = get_existing_vectorizer_names(table, port)
+    destination = None
+    if len(vectorizers) > 0:
+        print(f"The table '{table}' already has a vectorizer ({vectorizers})")
+        name = questionary.text(
+            "Provide a name for this vectorizer",
+            validate=lambda x: x not in vectorizers,
+        ).ask()
+        destination = f"\n        , destination => '{name}'"
 
     columns = get_text_columns(table)
     if len(columns) == 0:
@@ -349,17 +365,20 @@ def setup_vectorizer(answers, port) -> int:
     embedding_function = EMBEDDING_FUNCTIONS[provider]
     model = answers["model"]
     dims = DIMENSIONS[model]
-    api_key_name = None
     if provider == COHERE:
         function_args = f"'cohere/{model}', {dims}, api_key_name => 'COHERE_API_KEY'"
     else:
         function_args = f"'{model}', {dims}"
 
+    additional_bits = "".join(
+        [bit for bit in [formatting, destination] if bit is not None]
+    )
+
     sql = f"""
         select ai.create_vectorizer(
           '{table}'
         , embedding => ai.{embedding_function}({function_args})
-        , chunking => ai.chunking_recursive_character_text_splitter('{column}'){formatting if formatting is not None else ""}{api_key_name if api_key_name is not None else ""}
+        , chunking => ai.chunking_recursive_character_text_splitter('{column}'){additional_bits}
         );
     """
     with yaspin(text="creating vectorizer") as sp:
