@@ -29,14 +29,6 @@ COHERE = "Cohere"
 VOYAGE = "Voyage AI"
 OLLAMA = "Ollama"
 
-CUSTOM = "custom"
-
-LLM_MODELS = {
-    OPENAI: ["gpt-4o", "gpt-4o mini", "o1", "o1-mini", CUSTOM],
-    COHERE: ["command-r-plus", "command-r", "command-light", CUSTOM],
-    OLLAMA: ["TODO: Ollama models", CUSTOM],
-}
-
 EMBEDDING_MODELS = {
     OPENAI: [
         "text-embedding-3-small",
@@ -89,7 +81,6 @@ API_KEY_NAME = {
     OLLAMA: None,
 }
 
-
 questions = [
     {
         "type": "select",
@@ -110,12 +101,6 @@ questions = [
         "message": "Which model would you like to use?",
         "name": "model",
         "choices": lambda x: EMBEDDING_MODELS[x["provider"]],
-    },
-    {
-        "type": "text",
-        "message": "Specify the custom model",
-        "name": "custom_model",
-        "when": lambda x: x["model"] == CUSTOM,
     },
     {
         "type": "select",
