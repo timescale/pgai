@@ -37,13 +37,14 @@ To make changes to pgai:
    ```bash
    just ext docker-build
    ```
-1. Run the container:
+2. Run the container:
    ```bash
    just ext docker-run
    ```
-   The `projects/extension` directory is mounted to `/pgai` in the running container.
+   The root of the repo directory is mounted to `/pgai` in the running container.
+   The working directory is at `/pgai/projects/extension`.
 
-1. Work inside the container:
+4. Work inside the container:
    * **Docker shell**:
       1. Open get a shell session in the container:
 
@@ -89,7 +90,7 @@ To make changes to pgai:
          just ext psql-shell
          ```
 
-1. Stop and start the container:
+5. Stop and start the container:
 
    ```bash
    # Stop the container
@@ -97,7 +98,7 @@ To make changes to pgai:
    # Start the container
    just ext docker-start
 
-1. Delete the container:
+6. Delete the container:
 
    ```bash
    # When stopped, delete the container
@@ -135,19 +136,52 @@ To set up the tests:
 
    Providing these keys automatically enables the corresponding tests.
 
-## Dependency management in the pgai extension
+## Set up your environment
 
-The pgai extension uses `uv` for dependency management. Dependencies are listed
-in the [pyproject.toml](./projects/extension/pyproject.toml) file.
+We use [uv](https://docs.astral.sh/uv/getting-started/installation/) to manage dependencies and python versions. 
 uv is already installed in the development docker container. To use it in your
 local environment, follow uv's [installation instructions](https://github.com/astral-sh/uv#installation).
+
+Make sure your uv version is at least `0.5.x`.
+
+```bash
+uv --version
+```
+
+If not, upgrade it with this command.
+
+```bash
+uv self update
+```
+
+Change directory into the [projects/extension](/projects/extension) directory and create a
+virtual environment. Then, activate it.
+
+```bash
+cd projects/extension
+uv venv
+source .venv/bin/activate
+```
+
+Install the project's dependencies into the virtual environment.
+
+```bash
+uv sync --no-install-project
+```
+
+_NOTE:_ Inside the development container, the python dev/test dependencies are installed
+into a virtual environment at `/py/.venv/`.
+
+## Dependency management in the pgai extension
+
+Dependencies are listed in the [pyproject.toml](./projects/extension/pyproject.toml) file.
 
 1. The basic commands are:
    1. **Install dependencies**: `uv sync`
    2. **Add a new dependency**: `uv add <package-name>`
    3. **Remove a dependency**: `uv remove <package-name>`
 
-1. Locking dependencies:
+2. Locking dependencies:
    To allow for installation of the pgai extension without having uv available,
    we provide a `requirements-lock.txt` file in addition to the (canonical)
    `uv.lock` file. Setuptools uses the `requirements-lock.txt` file to install

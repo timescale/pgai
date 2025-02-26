@@ -33,7 +33,7 @@ uninstall:
 
 # Run pytest test suite
 test:
-	@uv run --no-project pytest
+	@uv run --no-project pytest -s
 
 # Run ruff linter checks
 lint:
