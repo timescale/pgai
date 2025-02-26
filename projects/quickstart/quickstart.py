@@ -137,6 +137,15 @@ questions = [
 ]
 
 
+def validate():
+    models = [model for models in EMBEDDING_MODELS.values() for model in models]
+    for model in models:
+        assert model in WIKIPEDIA_EMBEDDING_DURATION_SECONDS, (
+            f"no embedding duration for model '{model}'"
+        )
+        assert model in DIMENSIONS, f"no dimension for model '{model}'"
+
+
 def has_docker_compose(docker_bin) -> bool:
     if subprocess.run([docker_bin, "help"], capture_output=True).returncode != 0:
         return False
@@ -467,10 +476,10 @@ def main():
     if provider == OLLAMA:
         pull_ollama_model(docker_bin, answers["model"])
     create_extension(port)
-    setup_dataset(answers, port)
     vectorizer_id = setup_vectorizer(answers, port)
     monitor_embeddings(answers, port, vectorizer_id)
 
 
 if __name__ == "__main__":
+    validate()
     main()
