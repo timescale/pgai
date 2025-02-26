@@ -630,7 +630,7 @@ begin
             v.queue_table,
             v.config
         from ai.vectorizer v
-        where string_to_array((v.config->>'version'), '.')::int[] < string_to_array(_new_version, '.')::int[]
+        where string_to_array(regexp_replace((v.config->>'version'), '[-+].*$', ''), '.')::int[] < string_to_array(_new_version, '.')::int[]
     )
     loop
         raise notice 'Upgrading trigger function for vectorizer ID %s from version %s', _vec.id, _vec.config->>'version';
