@@ -100,12 +100,40 @@ API_KEY_NAME = {
     OLLAMA: None,
 }
 
+OLLAMA_SIZE_ARCH = {
+    "linux/amd64": "1.5GB",
+    "linux/arm64": "2.3GB",
+}
+
+OLLAMA_MODEL_SIZE = {
+    "all-minilm": "46MB",
+    "nomic-embed-text": "274MB",
+    "mxbai-embed-large": "670MB",
+    "snowflake-arctic-embed": "670MB",
+}
+
+def provider_title(provider: str) -> str:
+    if provider != OLLAMA:
+        return provider
+    arch = str(subprocess.run(
+                [shutil.which("docker"), "version", "--format", "{{.Server.Os}}/{{.Server.Arch}}"], capture_output=True, text=True
+            ).stdout).strip()
+    if arch not in OLLAMA_SIZE_ARCH:
+        print(arch)
+        return "Ollama"
+    return f"Ollama (requires {OLLAMA_SIZE_ARCH[arch]} download)"
+
+def model_title(model: str) -> str:
+    if model in OLLAMA_MODEL_SIZE:
+        return f"{model} ({OLLAMA_MODEL_SIZE[model]})"
+    return model
+
 questions = [
     {
         "type": "select",
         "name": "provider",
-        "message": "Which provider would you like to use?",
-        "choices": EMBEDDING_MODELS.keys(),
+        "message": "Which embedding model provider would you like to use?",
+        "choices": [questionary.Choice(title=provider_title(k), value=k) for k in EMBEDDING_MODELS.keys()],
     },
     {
         "type": "password",
@@ -119,19 +147,12 @@ questions = [
         "type": "select",
         "message": "Which model would you like to use?",
         "name": "model",
-        "choices": lambda x: EMBEDDING_MODELS[x["provider"]],
+        "choices": lambda x: [questionary.Choice(title=model_title(k), value=k) for k in EMBEDDING_MODELS[x["provider"]]],
     },
     {
         "type": "select",
-        "message": "How would you like to load a dataset?",
-        "name": "dataset",
-        "choices": ["huggingface", "new_table", "existing_table"],
-    },
-    {
-        "type": "select",
-        "message": "Which huggingface dataset would you like to use?",
+        "message": "Which dataset would you like to use?",
         "name": "huggingface_dataset",
-        "when": lambda x: x["dataset"] == "huggingface",
         "choices": ["wikipedia", "other", "another other"],
     },
 ]
@@ -313,12 +334,12 @@ def setup_vectorizer(answers, port) -> int:
         results = fetchall_sql(port, vectorizer_sql, table=table)
         return [r[0] for r in results]
 
+    print("The dataset is loaded")
+
     tables = get_tables(port)
     if len(tables) == 0:
         print("no tables in public schema")
         exit(1)
-    elif len(tables) == 1:
-        table = tables[0]
     else:
         table = questionary.select(
             "Select the table to vectorize", choices=tables
@@ -338,11 +359,17 @@ def setup_vectorizer(answers, port) -> int:
     if len(columns) == 0:
         print(f"no columns of type 'text' in table 'public.{table}'")
         exit(1)
-    if len(columns) == 1:
-        column = columns[0]
     else:
         column = questionary.select("Select the column to embed", choices=columns).ask()
 
+    print(
+        f"The vectorizer splits the content of the '{column}' columns into smaller pieces\n"
+        "or \"chunks\" when it is too large. This improves retrieval accuracy, but means \n"
+        "that important information (context) can be lost.\n"
+        "The vectorizer's \"formatting\" configuration allows you to add context from the\n"
+        "source row into the chunk, by e.g. inserting the title of the document into every\n"
+        "chunk."
+    )
     configure_formatting = questionary.confirm(
         "Would you like to configure formatting?"
     ).ask()
@@ -457,12 +484,14 @@ def get_api_key(answers):
 
 
 def pull_images(docker_bin):
+    print("pulling required docker images")
     if subprocess.run([docker_bin, "compose", "pull"]).returncode != 0:
         print("error while pulling docker images")
         exit(1)
 
 
 def pull_ollama_model(docker_bin, model):
+    print(f"pulling ollama model '{model}'")
     if (
         subprocess.run(
             [docker_bin, "compose", "exec", "-ti", "ollama", "ollama", "pull", model]
@@ -483,6 +512,18 @@ def main():
         print("docker does not have the compose subcommand, but it is required")
         print("install docker compose https://docs.docker.com/compose/ and try again")
         exit(1)
+
+    print("Welcome to the pgai vectorizer quickstart!")
+    print("The quickstart guides you through creating your first vectorizer")
+    print("This includes:")
+    print("- setting up a database")
+    print("- getting some data into your database")
+    print("- integrating with a vector embedding provider")
+    print("- configuring the vectorizer")
+    print("- creating vector embeddings of your sample data")
+    print()
+
+    questionary.press_any_key_to_continue().ask()
 
     answers = questionary.prompt(questions)
     provider = answers["provider"]
