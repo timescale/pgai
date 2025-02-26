@@ -190,9 +190,39 @@ A JSON configuration object that you can use in [ai.create_vectorizer](#create-v
 ### ai.loading_document
 
 You use `ai.loading_document` to load the data to embed from a file that is referenced in a column of the source table.
-This file path is internally passed to [smart_open](https://github.com/piskvorky/smart_open), so it supports any protocol that smart_open supports. E.g. S3, GCS, etc.
-You just need to ensure the vectorizer worker has the correct credentials to access the file.
-For S3, you can set the `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` environment variables.
+This file path is internally passed to [smart_open](https://github.com/piskvorky/smart_open), so it supports any protocol that smart_open supports, including:
+
+- Local files
+- Amazon S3
+- Google Cloud Storage
+- Azure Blob Storage
+- HTTP/HTTPS
+- SFTP
+- and [many more](https://github.com/piskvorky/smart_open/blob/master/help.txt)
+
+
+#### Environment configuration
+
+You just need to ensure the vectorizer worker has the correct credentials to access the file, such as in environment variables. Here are some common examples:
+
+1. **Amazon S3**:
+```bash
+export AWS_ACCESS_KEY_ID='your_access_key'
+export AWS_SECRET_ACCESS_KEY='your_secret_key'
+export AWS_REGION='your_region'  # optional
+```
+
+2. **Google Cloud Storage**:
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS='/path/to/credentials.json'
+```
+
+3. **Azure Blob Storage**:
+```bash
+export AZURE_STORAGE_CONNECTION_STRING='your_connection_string'
+```
+
+Make sure these environment variables are properly set in the environment where the PGAI vectorizer worker runs.
 
 #### Example usage
 
@@ -222,10 +252,10 @@ You use the parsing configuration functions in `pgai` to define the way data, af
 
 The parsing functions are:
 
-- [ai.parsing_auto](#aiparsing_auto)
-- [ai.parsing_none](#aiparsing_none)
-- [ai.parsing_docling](#aiparsing_docling)
-- [ai.parsing_pymupdf](#aiparsing_pymupdf)
+- [ai.parsing_auto](#aiparsing_auto): Automatically selects the appropriate parser based on file type.
+- [ai.parsing_none](#aiparsing_none): Converts various formats to Markdown. See [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) for supported formats.
+- [ai.parsing_docling](#aiparsing_docling): More powerful alternative to PyMuPDF. See [Docling](https://ds4sd.github.io/docling/supported_formats/) for supported formats.
+- [ai.parsing_pymupdf](#aiparsing_pymupdf): For cases where no parsing is needed.
 
 ### ai.parsing_auto
 
