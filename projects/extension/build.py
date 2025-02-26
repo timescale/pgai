@@ -9,6 +9,7 @@ import sys
 import tempfile
 import textwrap
 from collections import OrderedDict
+from functools import cache
 from pathlib import Path
 
 
@@ -326,7 +327,7 @@ class Actions:
     def test_server() -> None:
         """runs the test http server in the docker container"""
         if where_am_i() == "host":
-            cmd = "docker exec -it -w /pgai/tests/vectorizer pgai-ext fastapi dev server.py"
+            cmd = "docker exec -it -w /pgai/projects/extension/tests/vectorizer pgai-ext fastapi dev server.py"
             subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
         else:
             cmd = "uv run --no-project fastapi dev server.py"
@@ -450,8 +451,8 @@ class Actions:
             [
                 "docker run -d --name pgai-ext --hostname pgai-ext -e POSTGRES_HOST_AUTH_METHOD=trust",
                 networking,
-                f"--mount type=bind,src={ext_dir()},dst=/pgai",
-                "--mount type=volume,dst=/pgai/.venv",
+                f"--mount type=bind,src={ext_dir().parent.parent},dst=/pgai",
+                "-w /pgai/projects/extension",
                 "-e OPENAI_API_KEY",
                 "-e COHERE_API_KEY",
                 "-e MISTRAL_API_KEY",
@@ -504,18 +505,6 @@ class Actions:
             env=os.environ,
             text=True,
         )
-
-    @staticmethod
-    def run() -> None:
-        """builds+runs the dev container and installs the extension"""
-        Actions.docker_build()
-        Actions.docker_run()
-        cmd = "docker exec pgai-ext make build-install"
-        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
-        cmd = 'docker exec -u postgres pgai-ext psql -c "create extension ai cascade"'
-        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
-        cmd = "docker exec -it -d -w /pgai/tests pgai-ext fastapi dev server.py"
-        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
 
 
 def versions() -> list[str]:
@@ -733,6 +722,23 @@ def gate_sql(code: str, feature_flag: str) -> str:
     return template.format(code=code, guc=guc, feature_flag=feature_flag)
 
 
+@cache
+def git_sha() -> str:
+    # `git rev-parse HEAD` will not work in github actions
+    # because it is in a detached HEAD state
+    if "GITHUB_SHA" in os.environ:
+        return os.environ["GITHUB_SHA"]
+    proc = subprocess.run(
+        "git rev-parse HEAD",
+        check=True,
+        shell=True,
+        env=os.environ,
+        text=True,
+        capture_output=True,
+    )
+    return proc.stdout.strip()
+
+
 def build_incremental_sql_file(input_file: Path) -> str:
     template = sql_dir().joinpath("migration.sql").read_text()
     migration_name = input_file.name
@@ -778,6 +784,7 @@ def build_idempotent_sql_file(input_file: Path) -> str:
     inject = "".join(inject.splitlines(keepends=True)[1:-1])
     code = input_file.read_text()
     code = code.replace("@extversion@", this_version())
+    code = code.replace("@gitsha@", git_sha())
     code = code.replace(
         """    #ADD-PYTHON-LIB-DIR\n""", inject
     )  # leading 4 spaces is intentional
@@ -807,6 +814,7 @@ def build_feature_flags() -> str:
     return output
 
 
+@cache
 def postgres_bin_dir() -> Path:
     bin_dir = os.getenv("PG_BIN")
     if bin_dir is not None and Path(bin_dir).is_dir():
@@ -826,6 +834,7 @@ def pg_config() -> Path:
     return postgres_bin_dir() / "pg_config"
 
 
+@cache
 def extension_install_dir() -> Path:
     proc = subprocess.run(
         f"{pg_config()} --sharedir",

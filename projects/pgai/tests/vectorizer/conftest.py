@@ -1,5 +1,6 @@
 import asyncio
 import os
+import subprocess
 import threading
 from collections.abc import Callable, Generator, Mapping
 from pathlib import Path
@@ -61,15 +62,32 @@ def vcr_():
     )
 
 
+def git_sha() -> str:
+    # `git rev-parse HEAD` will not work in github actions
+    # because it is in a detached HEAD state
+    if "GITHUB_SHA" in os.environ:
+        return os.environ["GITHUB_SHA"]
+    proc = subprocess.run(
+        "git rev-parse HEAD",
+        check=True,
+        shell=True,
+        env=os.environ,
+        text=True,
+        capture_output=True,
+    )
+    return proc.stdout.strip()
+
+
 @pytest.fixture(scope="session")
 def postgres_container_manager() -> (
     Generator[Callable[[bool], PostgresContainer], None, None]
 ):
-    extension_dir = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../../extension/")
+    extension_dir = (
+        Path(__file__).parent.parent.parent.parent.joinpath("extension").resolve()
     )
+
     image = DockerImage(path=extension_dir, tag="pgai-test-db").build(  # type: ignore
-        target="pgai-test-db"
+        target="pgai-test-db", buildargs={"GITHUB_SHA": git_sha()}
     )
 
     containers: dict[str, PostgresContainer] = {}

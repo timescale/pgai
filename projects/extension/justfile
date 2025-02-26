@@ -116,10 +116,6 @@ docker-stop:
 docker-rm:
 	@./build.py docker-rm
 
-run:
-	@PG_MAJOR={{PG_MAJOR}} PG_BIN={{PG_BIN}} ./build.py run
-	@docker exec -it -u postgres pgai-ext /bin/bash -c "set -e; if [ -f .env ]; then set -a; source .env; set +a; fi; psql"
-
 # Launches a bash shell in the container
 docker-shell:
 	@docker exec -it -u root pgai-ext /bin/bash
