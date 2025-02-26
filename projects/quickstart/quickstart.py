@@ -251,7 +251,7 @@ def create_extension(port):
         sp.write("✔ extension created")
 
 
-def setup_dataset(answers, port):
+def setup_dataset(dataset, port):
     sql_snippets = {
         "wikipedia": f"""
             select ai.load_dataset(
@@ -264,13 +264,12 @@ def setup_dataset(answers, port):
             )
         """
     }
-    dataset = answers["huggingface_dataset"]
     table = dataset
     if dataset not in sql_snippets.keys():
         print(f"unknown dataset '{dataset}'")
         exit(1)
     with yaspin(text="loading dataset") as sp:
-        sql = sql_snippets[answers["huggingface_dataset"]]
+        sql = sql_snippets[dataset]
         if sql is None:
             sp.write("unknown dataset")
             exit(1)
@@ -476,6 +475,9 @@ def main():
     if provider == OLLAMA:
         pull_ollama_model(docker_bin, answers["model"])
     create_extension(port)
+    dataset = answers.get("huggingface_dataset", None)
+    if dataset is not None:
+        setup_dataset(dataset, port)
     vectorizer_id = setup_vectorizer(answers, port)
     monitor_embeddings(answers, port, vectorizer_id)
 
