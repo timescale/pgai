@@ -364,19 +364,19 @@ class VectorizerQueryBuilder:
 
     @cached_property
     def requeue_or_remove_work_query(self) -> sql.Composed:
-        # this query provides a way to handle retries for different failure scenarios.
-        # if the retries are exhausted, the row is deleted from the queue table.
         return sql.SQL("""
             MERGE INTO {queue_table} AS target
             USING (
                 SELECT
-                    id
+                    {pk_fields}
                 FROM
                     {queue_table}
                 WHERE
-                    id = {vectorizer_id}
-                AND retry_after is null or retry_after < now())
-                    AS source ON target.id = source.id
+                    ({pk_fields}) IN ({pk_values})
+                AND
+                    (retry_after is null or retry_after < now())
+            ) AS source
+            ON {merge_predicates}
             WHEN MATCHED
                 AND target.retries >= %(loading_retries)s THEN
                     DELETE
@@ -384,14 +384,25 @@ class VectorizerQueryBuilder:
                     UPDATE
                         SET
                             retries = target.retries + 1,
-                             retry_after = now() +
-                              (INTERVAL '3 minutes' * (target.retries + 1))
+                            retry_after = now() +
+                                (INTERVAL '3 minutes' * (target.retries + 1))
             RETURNING target.retries < %(loading_retries)s AS is_retryable
                         """).format(
+            pk_fields=self.pk_fields_sql,
             queue_table=sql.Identifier(
                 self.vectorizer.queue_schema, self.vectorizer.queue_table
             ),
-            vectorizer_id=self.vectorizer.id,
+            pk_values=sql.SQL(",").join(
+                sql.SQL("(%(pk{})s)").format(sql.Literal(i))
+                for i in range(len(self.pk_fields))
+            ),
+            merge_predicates=sql.SQL(" AND ").join(
+                sql.SQL("target.{} = source.{}").format(
+                    sql.Identifier(x.attname),
+                    sql.Identifier(x.attname),
+                )
+                for x in self.vectorizer.source_pk
+            ),
         )
 
 
@@ -533,22 +544,19 @@ class Worker:
                     loops += 1
 
             except EmbeddingProviderError as e:
-                err_details = dict[str, Any](
-                    {
-                        "provider": self.vectorizer.config.embedding.implementation,  # noqa
-                        "error_reason": str(e.__cause__),
-                    }
-                )
-
                 async with conn.transaction():
-                    if self.vectorizer.config.loading.implementation == "document":
-                        is_retryable = await self._requeue_or_remove_work(
-                            conn, self.loading_retries
-                        )
-                        err_details["is_retryable"] = is_retryable
-
                     await self._insert_vectorizer_error(
-                        conn, (self.vectorizer.id, e.msg, Jsonb(err_details))
+                        conn,
+                        (
+                            self.vectorizer.id,
+                            e.msg,
+                            Jsonb(
+                                {
+                                    "provider": self.vectorizer.config.embedding.implementation,  # noqa
+                                    "error_reason": str(e.__cause__),
+                                }
+                            ),
+                        ),
                     )
 
                 if e.__cause__ is not None:
@@ -558,7 +566,7 @@ class Worker:
             except DocumentLoadingError as e:
                 async with conn.transaction():
                     is_retryable = await self._requeue_or_remove_work(
-                        conn, self.loading_retries
+                        conn, self.loading_retries, e.pk_values
                     )
                     await self._insert_vectorizer_error(
                         conn,
@@ -840,17 +848,17 @@ class Worker:
         records_without_embeddings: list[EmbeddingRecord] = []
         documents: list[str] = []
         for item in items:
-            pk = self._get_item_pk_values(item)
+            pk_values = self._get_item_pk_values(item)
             try:
                 payload = self.vectorizer.config.loading.load(item)
             except Exception as e:
-                raise DocumentLoadingError() from e
+                raise DocumentLoadingError(pk_values=pk_values) from e
 
             payload = self.vectorizer.config.parsing.parse(item, payload)
             chunks = self.vectorizer.config.chunking.into_chunks(item, payload)
             for chunk_id, chunk in enumerate(chunks, 0):
                 formatted = self.vectorizer.config.formatting.format(chunk, item)
-                records_without_embeddings.append(pk + [chunk_id, formatted])
+                records_without_embeddings.append(pk_values + [chunk_id, formatted])
                 documents.append(formatted)
 
         try:
@@ -891,7 +899,10 @@ class Worker:
         )
 
     async def _requeue_or_remove_work(
-        self, conn: AsyncConnection, loading_retries: int
+        self,
+        conn: AsyncConnection,
+        loading_retries: int,
+        pk_values: list[Any],
     ) -> bool:
         """
         Requeue the work items that failed to generate embeddings.
@@ -899,10 +910,15 @@ class Worker:
         Args:
             conn (AsyncConnection): The database connection.
         """
+        params = {
+            "loading_retries": loading_retries,
+            **{f"pk{i}": value for i, value in enumerate(pk_values)},
+        }
+
         async with conn.cursor() as cursor:
             await cursor.execute(
                 self.queries.requeue_or_remove_work_query,
-                {"loading_retries": loading_retries},
+                params,
             )
             row = await cursor.fetchone()
             if row is None:

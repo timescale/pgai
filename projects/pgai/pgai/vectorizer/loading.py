@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from io import BytesIO
-from typing import Literal
+from typing import Any, Literal
 
 import smart_open  # type: ignore
 from filetype import filetype  # type: ignore
@@ -63,8 +63,13 @@ class LoadingError(Exception):
 
 
 class DocumentLoadingError(LoadingError):
+    pk_values: list[Any]
     """
     Raised when the document loader fails.
     """
+
+    def __init__(self, *args: str, pk_values: list[Any]):
+        super().__init__(*args)
+        self.pk_values = pk_values
 
     msg = "document loading failed"

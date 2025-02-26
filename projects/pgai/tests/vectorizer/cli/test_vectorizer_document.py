@@ -7,7 +7,6 @@ from psycopg import Connection
 from psycopg.rows import dict_row
 
 from pgai.vectorizer.loading import DocumentLoadingError
-from pgai.vectorizer.vectorizer import EmbeddingProviderError
 from tests.vectorizer.cli.conftest import (
     TestDatabase,
     configure_vectorizer,
@@ -309,48 +308,6 @@ def test_retries_on_not_present_document_embedding_s3(
         assert queue_item["retry_after"] > datetime.now(tz=timezone.utc)  # type: ignore
 
 
-def test_retries_on_network_error_document_embedding_s3(
-    cli_db: tuple[TestDatabase, Connection],
-    cli_db_url: str,
-    vcr_: Any,
-):
-    """Test that embedding documents are successfully retried"""
-    connection = cli_db[1]
-    vectorizer_id = configure_document_vectorizer(
-        cli_db[1],
-        base_path="s3://adol-docs-test",
-        documents=["sample_pdf.pdf"],
-        # URL of our gateway timeout local server
-        openai_proxy_url="http://localhost:8001",
-    )
-
-    with vcr_.use_cassette("doc_retries_provider_network_error.yaml"):
-        try:
-            run_vectorizer_worker(cli_db_url, vectorizer_id)
-        except EmbeddingProviderError as e:
-            assert e.msg == "embedding provider failed"
-
-    with connection.cursor(row_factory=dict_row) as cur:
-        cur.execute("SELECT count(*) FROM ai._vectorizer_q_1;")
-        assert cur.fetchone()["count"] == 1  # type: ignore
-        cur.execute("SELECT id, message, details FROM ai.vectorizer_errors")
-        records = cur.fetchall()
-        assert len(records) == 1
-        error = records[0]
-        assert error["id"] == vectorizer_id
-        assert error["message"] == "embedding provider failed"
-        assert error["details"] == {
-            "error_reason": "Connection error.",
-            "provider": "openai",
-            "is_retryable": True,
-        }
-
-        cur.execute("SELECT retries, retry_after FROM ai._vectorizer_q_1;")
-        queue_item = cur.fetchone()
-        assert queue_item["retries"] == 1  # type: ignore
-        assert queue_item["retry_after"] > datetime.now(tz=timezone.utc)  # type: ignore
-
-
 def test_no_more_retries_after_six_failures(
     cli_db: tuple[TestDatabase, Connection],
     cli_db_url: str,
@@ -411,18 +368,16 @@ def test_retries_should_do_nothing_if_retry_after_is_in_the_future(
     """Test that embedding documents are successfully retried"""
     connection = cli_db[1]
     vectorizer_id = configure_document_vectorizer(
-        cli_db[1],
-        base_path="s3://adol-docs-test",
-        documents=["sample_pdf.pdf"],
-        # URL of our gateway timeout local server
-        openai_proxy_url="http://localhost:8001",
+        cli_db[1], base_path="s3://adol-docs-test", documents=["non_existing_doc.pdf"]
     )
 
-    with vcr_.use_cassette("doc_retries_provider_network_error.yaml"):
+    with vcr_.use_cassette("doc_retries_s3_not_found.yaml"):
         try:
-            run_vectorizer_worker(cli_db_url, vectorizer_id)
-        except EmbeddingProviderError as e:
-            assert e.msg == "embedding provider failed"
+            run_vectorizer_worker(
+                cli_db_url, vectorizer_id, extra_params=["--loading-retries=6"]
+            )
+        except DocumentLoadingError as e:
+            assert e.msg == "document loading failed"
 
     with connection.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT count(*) FROM ai._vectorizer_q_1;")
@@ -432,28 +387,33 @@ def test_retries_should_do_nothing_if_retry_after_is_in_the_future(
         assert len(records) == 1
         error = records[0]
         assert error["id"] == vectorizer_id
-        assert error["message"] == "embedding provider failed"
+        assert error["message"] == "document loading failed"
         assert error["details"] == {
-            "error_reason": "Connection error.",
-            "provider": "openai",
+            "loader": "document",
+            "error_reason": "unable to access bucket: 'adol-docs-test'"
+            " key: 'non_existing_doc.pdf' version: None"
+            " error: An error occurred (NoSuchKey) when"
+            " calling the GetObject operation: The specified"
+            " key does not exist.",
             "is_retryable": True,
         }
 
         cur.execute(
-            "UPDATE ai._vectorizer_q_1" " SET retry_after=now() + interval '10 minute';"
+            "UPDATE ai._vectorizer_q_1 SET retry_after=now() + interval '10 minute';"
         )
         cur.execute("SELECT retries, retry_after FROM ai._vectorizer_q_1;")
         queue_item = cur.fetchone()
         assert queue_item["retries"] == 1  # type: ignore
         assert queue_item["retry_after"] > datetime.now(tz=timezone.utc)  # type: ignore
 
-    with vcr_.use_cassette("doc_retries_provider_network_error.yaml"):
+    with vcr_.use_cassette("doc_retries_s3_not_found.yaml"):
         try:
             run_vectorizer_worker(cli_db_url, vectorizer_id)
-        except EmbeddingProviderError as e:
-            assert e.msg == "embedding provider failed"
+        except DocumentLoadingError as e:
+            assert e.msg == "document loading failed"
 
-    # Retries shouldn't have changed, given that the retry_after field is in the future.
+    # Retries shouldn't have changed, given that
+    # the retry_after field is in the future.
     with connection.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT retries, retry_after FROM ai._vectorizer_q_1;")
         queue_item = cur.fetchone()
