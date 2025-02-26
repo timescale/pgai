@@ -466,6 +466,14 @@ begin
         ;
         execute _sql;
 
+        select pg_catalog.format
+        ( $sql$drop trigger if exists %I on %I.%I$sql$
+        , format('%s_truncate', _trigger.tgname)
+        , _vec.source_schema
+        , _vec.source_table
+        ) into _sql;
+        execute _sql;
+
         -- drop the function/procedure backing the trigger
         select pg_catalog.format
         ( $sql$drop %s %I.%I()$sql$
