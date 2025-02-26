@@ -50,6 +50,25 @@ EMBEDDING_MODELS = {
     ],
 }
 
+# Note: These durations were experimentally determined on the wikipedia
+# dataset, which consists of 4_191_464 characters in 6267 chunks.
+WIKIPEDIA_EMBEDDING_DURATION_SECONDS = {
+    "voyage-3-large": 90,
+    "voyage-3": 90,
+    "voyage-3-lite": 90,
+    "text-embedding-3-large": 50,
+    "text-embedding-3-small": 50,
+    "text-embedding-ada-002": 50,
+    "embed-english-v3.0": 30,
+    "embed-english-light-v3.0": 20,
+    "embed-multilingual-v3.0": 30,
+    "embed-multilingual-light-v3.0": 20,
+    "all-minilm": None,
+    "nomic-embed-text": None,
+    "mxbai-embed-large": None,
+    "snowflake-arctic-embed": None,
+}
+
 DIMENSIONS = {
     "text-embedding-3-large": 1536,
     "text-embedding-3-small": 1536,
@@ -345,12 +364,29 @@ def setup_vectorizer(answers, port) -> int:
 
 
 def monitor_embeddings(answers, port, vectorizer_id):
+    provider = answers["provider"]
+    model = answers["model"]
     sql = f"select ai.vectorizer_queue_pending({vectorizer_id}, exact_count => true);"
+    if provider == OLLAMA:
+        print(f"embedding source table, this could take a very long time")
+        duration_seconds = None
+    else:
+        duration_seconds = WIKIPEDIA_EMBEDDING_DURATION_SECONDS[model]
     with yaspin(text="embedding source table") as sp:
         while True:
             row = fetchone_sql(port, sql)
             count = int(row[0])
-            sp.text = f"embedding source table ({count} remaining)"
+            if duration_seconds is None:
+                remaining = ""
+            else:
+                duration_seconds -= 1
+                if duration_seconds < -10:
+                    remaining = ", taking longer than usual"
+                elif duration_seconds < 0:
+                    remaining = f", approx. {0}s"
+                else:
+                    remaining = f", approx. {duration_seconds:.0f}s"
+            sp.text = f"embedding source table ({count} rows remaining{remaining})"
             if count == 0:
                 sp.write("✔ source table embedded")
                 break
