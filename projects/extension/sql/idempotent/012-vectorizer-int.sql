@@ -464,7 +464,7 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- _build_vectorizer_trigger_definition
-create or replace function ai._build_vectorizer_trigger_definition
+create or replace function ai._vectorizer_build_trigger_definition
 ( queue_schema pg_catalog.name
 , queue_table pg_catalog.name
 , target_schema pg_catalog.name
@@ -489,16 +489,13 @@ begin
     from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name);
 
     -- Create delete statement for deleted rows
-    _delete_statement := format('delete from %I.%I where ', target_schema, target_table) operator(pg_catalog.||)
-        (select string_agg(
-            quote_ident(attname) operator(pg_catalog.||) ' = $1.' operator(pg_catalog.||) quote_ident(attname),
-            ' and '
-        )
-        from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name));
+    _delete_statement := format('delete from %I.%I where %s', target_schema, target_table,
+        (select string_agg(format('%I = old.%I', attname, attname), ' and ')
+        from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name)));
 
     -- Create the primary key change check expression
     select string_agg(
-        'old.' operator(pg_catalog.||) quote_ident(attname) operator(pg_catalog.||) ' IS DISTINCT FROM new.' operator(pg_catalog.||) quote_ident(attname),
+        format('old.%I IS DISTINCT FROM new.%I', attname, attname),
         ' OR '
     )
     into strict _pk_change_check
@@ -508,11 +505,10 @@ begin
     _func_def := $def$
     begin
         if (TG_OP = 'DELETE') then
-            execute '$DELETE_STATEMENT$' using old;
-            return old;
+            $DELETE_STATEMENT$;
         elsif (TG_OP = 'UPDATE') then
             if $PK_CHANGE_CHECK$ then
-                execute '$DELETE_STATEMENT$' using old;
+                $DELETE_STATEMENT$;
             end if;
             
             insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
@@ -538,6 +534,7 @@ begin
 end;
 $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp;
+
 -------------------------------------------------------------------------------
 -- _vectorizer_create_source_trigger
 create or replace function ai._vectorizer_create_source_trigger
@@ -554,17 +551,12 @@ create or replace function ai._vectorizer_create_source_trigger
 $func$
 declare
     _sql pg_catalog.text;
-    _pk_columns pg_catalog.text;
-    _pk_values pg_catalog.text;
-    _pk_where_clause pg_catalog.text;
-    _pk_change_check pg_catalog.text;
-    _delete_statement pg_catalog.text;
 begin
     
     execute format(
         'create or replace function ai.%I() returns trigger as $trigger_def$ %s $trigger_def$ language plpgsql volatile parallel safe security definer',
         trigger_name,
-        ai._build_vectorizer_trigger_definition(queue_schema, queue_table, target_schema, target_table, source_pk)
+        ai._vectorizer_build_trigger_definition(queue_schema, queue_table, target_schema, target_table, source_pk)
     );
 
     -- Revoke public permissions
@@ -597,11 +589,7 @@ set search_path to pg_catalog, pg_temp
 do $upgrade_block$
 declare
     _vec record;
-    _version text;
-    _new_version text := '0.8.1';  -- Version after upgrade   
-    _owner name;
-    _acl aclitem[];
-    _debug_acl aclitem[];
+    _new_version text := '0.8.1';
 begin
     -- Find all vectorizers with version < 0.8.1
     for _vec in (
@@ -617,7 +605,7 @@ begin
             v.queue_table,
             v.config
         from ai.vectorizer v
-        where string_to_array((v.config->>'version'), '.')::int[] < string_to_array('0.8.1', '.')::int[]
+        where string_to_array((v.config->>'version'), '.')::int[] < string_to_array(_new_version, '.')::int[]
     )
     loop
         raise notice 'Upgrading trigger function for vectorizer ID %s from version %s', _vec.id, _vec.config->>'version';
@@ -630,7 +618,7 @@ begin
         execute format(
             'create or replace function ai.%I() returns trigger as $trigger_def$ %s $trigger_def$ language plpgsql volatile parallel safe security definer',
             _vec.trigger_name,
-            ai._build_vectorizer_trigger_definition(_vec.queue_schema, _vec.queue_table, _vec.target_schema, _vec.target_table, _vec.source_pk)
+            ai._vectorizer_build_trigger_definition(_vec.queue_schema, _vec.queue_table, _vec.target_schema, _vec.target_table, _vec.source_pk)
         );
 
         execute format(
@@ -656,7 +644,6 @@ begin
     end loop;
 end;
 $upgrade_block$;
-
 
 -------------------------------------------------------------------------------
 -- _vectorizer_vector_index_exists
