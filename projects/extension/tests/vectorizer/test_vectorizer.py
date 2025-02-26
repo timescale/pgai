@@ -6,6 +6,8 @@ import psycopg
 import pytest
 from psycopg.rows import namedtuple_row
 
+from tests.conftest import detailed_notice_handler
+
 # skip tests in this module if disabled
 enable_vectorizer_tests = os.getenv("ENABLE_VECTORIZER_TESTS")
 if enable_vectorizer_tests == "0":
@@ -188,6 +190,7 @@ def test_vectorizer_timescaledb():
     with psycopg.connect(
         db_url("test"), autocommit=True, row_factory=namedtuple_row
     ) as con:
+        con.add_notice_handler(detailed_notice_handler)
         with con.cursor() as cur:
             cur.execute("drop schema if exists website cascade")
             cur.execute("create schema website")
@@ -398,6 +401,19 @@ def test_vectorizer_timescaledb():
             actual = cur.fetchone()[0]
             assert actual == 0
 
+            cur.execute("""
+                            INSERT INTO website.blog_embedding_store
+                            (title, published, chunk_seq, chunk, embedding)
+                            VALUES
+                            ('how to make stir fry', '2022-01-06'::timestamptz, 1, 'Chunk of content', array_fill(0.1::float8, ARRAY[768]))
+                        """)
+            
+            cur.execute("""
+                            select count(*) from website.blog_embedding_store 
+                            where title = 'how to make stir fry'
+                        """)
+            assert cur.fetchone()[0] == 1
+
             # Test UPDATE with PK change
             cur.execute("""
                 update website.blog 
@@ -511,6 +527,36 @@ def test_vectorizer_timescaledb():
             )
             actual = cur.fetchone()[0]
             assert actual is True
+
+            # Test TRUNCATE
+            # Insert some data into the target table
+            cur.execute("""
+                WITH vector_data AS (
+                    SELECT 
+                        array_fill(0.1::float8, ARRAY[768]) AS vec1,
+                        array_fill(0.2::float8, ARRAY[768]) AS vec2,
+                        array_fill(0.3::float8, ARRAY[768]) AS vec3
+                )
+                INSERT INTO website.blog_embedding_store
+                (title, published, chunk_seq, chunk, embedding)
+                VALUES
+                ('how to make better stir fry', NOW(), 1, 'First chunk of content', (SELECT vec1::vector FROM vector_data)),
+                ('how to make better stir fry', NOW(), 2, 'Second chunk of content', (SELECT vec2::vector FROM vector_data)),
+                ('how to make ramen', NOW(), 1, 'Simple ramen instructions', (SELECT vec3::vector FROM vector_data))
+            """)
+
+            # Verify we have data in the target table
+            cur.execute("SELECT COUNT(*) FROM website.blog_embedding_store")
+            count_before_truncate = cur.fetchone()[0]
+            assert count_before_truncate == 3, "Expected 3 rows in target table before truncate test"
+
+            # Perform TRUNCATE on source table
+            cur.execute("truncate table website.blog")
+
+            # Verify target table was also truncated
+            cur.execute("select count(*) from website.blog_embedding_store")
+            count_after_truncate = cur.fetchone()[0]
+            assert count_after_truncate == 0, "Target table should be empty after source table truncate"
 
     # does the source table look right?
     actual = psql_cmd(r"\d+ website.blog")

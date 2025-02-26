@@ -61,3 +61,12 @@ def set_up_test_db() -> None:
     with psycopg.connect("postgres://test@127.0.0.1:5432/test") as con:
         with con.cursor() as cur:
             cur.execute("create extension ai cascade")
+
+
+def detailed_notice_handler(diag):
+    print(f"""
+    Severity: {diag.severity}
+    Message:  {diag.message_primary}
+    Detail:   {diag.message_detail}
+    Hint:     {diag.message_hint}
+    """)

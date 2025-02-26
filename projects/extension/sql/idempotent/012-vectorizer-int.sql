@@ -461,7 +461,6 @@ $func$
 language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
-
 -------------------------------------------------------------------------------
 -- _build_vectorizer_trigger_definition
 create or replace function ai._vectorizer_build_trigger_definition
@@ -500,25 +499,33 @@ begin
     )
     into strict _pk_change_check
     from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name);
-
-    -- Build the complete function definition
     _func_def := $def$
     begin
-        if (TG_OP = 'DELETE') then
-            $DELETE_STATEMENT$;
-        elsif (TG_OP = 'UPDATE') then
-            if $PK_CHANGE_CHECK$ then
+        if (TG_LEVEL = 'ROW') then
+            if (TG_OP = 'DELETE') then
                 $DELETE_STATEMENT$;
+            elsif (TG_OP = 'UPDATE') then
+                if $PK_CHANGE_CHECK$ then
+                    $DELETE_STATEMENT$;
+                end if;
+                
+                insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
+                values ($PK_VALUES$);
+                return new;
+            else
+                insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
+                values ($PK_VALUES$);
+                return new;
             end if;
-            
-            insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
-            values ($PK_VALUES$);
-            return new;
-        else
-            insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
-            values ($PK_VALUES$);
-            return new;
+
+        elsif (TG_LEVEL = 'STATEMENT') then
+            if (TG_OP = 'TRUNCATE') then
+                execute format('truncate table %I.%I', '$TARGET_SCHEMA$', '$TARGET_TABLE$');
+            end if;
+            return null;
         end if;
+        
+        return null;
     end;
     $def$;
 
@@ -529,6 +536,8 @@ begin
     _func_def := replace(_func_def, '$QUEUE_TABLE$', quote_ident(queue_table));
     _func_def := replace(_func_def, '$PK_COLUMNS$', _pk_columns);
     _func_def := replace(_func_def, '$PK_VALUES$', _pk_values);
+    _func_def := replace(_func_def, '$TARGET_SCHEMA$', quote_ident(target_schema));
+    _func_def := replace(_func_def, '$TARGET_TABLE$', quote_ident(target_table));
 
     return _func_def;
 end;
@@ -566,13 +575,29 @@ begin
     );
     execute _sql;
 
-    -- Create the trigger
+    -- Create the row-level trigger
     select pg_catalog.format(
         $sql$
         create trigger %I
         after insert or update or delete
         on %I.%I
         for each row execute function %I.%I()
+        $sql$,
+        trigger_name,
+        source_schema, source_table,
+        queue_schema, trigger_name
+    ) into strict _sql
+    ;
+    execute _sql;
+    
+    -- Create the statement-level trigger for TRUNCATE
+    -- Note: Using the same trigger function but with a different event and level
+    select pg_catalog.format(
+        $sql$
+        create trigger %I_truncate
+        after truncate
+        on %I.%I
+        for each statement execute function %I.%I()
         $sql$,
         trigger_name,
         source_schema, source_table,
@@ -629,6 +654,11 @@ begin
         execute format(
             'create trigger %I after insert or update or delete on %I.%I for each row execute function ai.%I()',
             _vec.trigger_name, _vec.source_schema, _vec.source_table, _vec.trigger_name
+        );
+
+        execute format(
+            'create trigger %I after truncate on %I.%I for each statement execute function ai.%I()',
+            _truncate_trigger_name, _vec.source_schema, _vec.source_table, _vec.trigger_name
         );
 
         execute format(

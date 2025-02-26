@@ -6,6 +6,8 @@ from pathlib import Path
 import psycopg
 import pytest
 
+from tests.conftest import detailed_notice_handler
+
 # skip tests in this module if disabled
 enable_upgrade_tests = os.getenv("ENABLE_UPGRADE_TESTS")
 if enable_upgrade_tests == "0":
@@ -69,14 +71,6 @@ def create_extension(dbname: str, version: str) -> None:
         with con.cursor() as cur:
             cur.execute(f"create extension ai version '{version}' cascade")
 
-
-def detailed_notice_handler(diag):
-    print(f"""
-    Severity: {diag.severity}
-    Message:  {diag.message_primary}
-    Detail:   {diag.message_detail}
-    Hint:     {diag.message_hint}
-    """)
 
 
 def update_extension(dbname: str, version: str) -> None:
