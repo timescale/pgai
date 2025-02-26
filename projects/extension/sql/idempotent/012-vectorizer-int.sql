@@ -658,7 +658,7 @@ begin
 
         execute format(
             'create trigger %I after truncate on %I.%I for each statement execute function ai.%I()',
-            _truncate_trigger_name, _vec.source_schema, _vec.source_table, _vec.trigger_name
+            format('%s_truncate',_vec.trigger_name) , _vec.source_schema, _vec.source_table, _vec.trigger_name
         );
 
         execute format(

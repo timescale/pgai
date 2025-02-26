@@ -96,6 +96,7 @@ Indexes:
     "blog_pkey" PRIMARY KEY, btree (title, published)
 Triggers:
     _vectorizer_src_trg_1 AFTER INSERT OR DELETE OR UPDATE ON website.blog FOR EACH ROW EXECUTE FUNCTION ai._vectorizer_src_trg_1()
+    _vectorizer_src_trg_1_truncate AFTER TRUNCATE ON website.blog FOR EACH STATEMENT EXECUTE FUNCTION ai._vectorizer_src_trg_1()
 Access method: heap
 """.strip()
 

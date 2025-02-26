@@ -1,9 +1,5 @@
  prokind | user  | privilege | granted | schema |                                                                                                                                                                                                                                                                                      func                                                                                                                                                                                                                                                                                       
 ---------+-------+-----------+---------+--------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- f       | alice | execute   | YES     | ai     | _build_vectorizer_trigger_definition(queue_schema name, queue_table name, target_schema name, target_table name, source_pk jsonb)
- f       | bob   | execute   | no      | ai     | _build_vectorizer_trigger_definition(queue_schema name, queue_table name, target_schema name, target_table name, source_pk jsonb)
- f       | fred  | execute   | no      | ai     | _build_vectorizer_trigger_definition(queue_schema name, queue_table name, target_schema name, target_table name, source_pk jsonb)
- f       | jill  | execute   | YES     | ai     | _build_vectorizer_trigger_definition(queue_schema name, queue_table name, target_schema name, target_table name, source_pk jsonb)
  f       | alice | execute   | YES     | ai     | _resolve_indexing_default()
  f       | bob   | execute   | no      | ai     | _resolve_indexing_default()
  f       | fred  | execute   | no      | ai     | _resolve_indexing_default()
@@ -48,6 +44,10 @@
  f       | bob   | execute   | no      | ai     | _validate_scheduling(config jsonb)
  f       | fred  | execute   | no      | ai     | _validate_scheduling(config jsonb)
  f       | jill  | execute   | YES     | ai     | _validate_scheduling(config jsonb)
+ f       | alice | execute   | YES     | ai     | _vectorizer_build_trigger_definition(queue_schema name, queue_table name, target_schema name, target_table name, source_pk jsonb)
+ f       | bob   | execute   | no      | ai     | _vectorizer_build_trigger_definition(queue_schema name, queue_table name, target_schema name, target_table name, source_pk jsonb)
+ f       | fred  | execute   | no      | ai     | _vectorizer_build_trigger_definition(queue_schema name, queue_table name, target_schema name, target_table name, source_pk jsonb)
+ f       | jill  | execute   | YES     | ai     | _vectorizer_build_trigger_definition(queue_schema name, queue_table name, target_schema name, target_table name, source_pk jsonb)
  f       | alice | execute   | YES     | ai     | _vectorizer_create_dependencies(vectorizer_id integer)
  f       | bob   | execute   | no      | ai     | _vectorizer_create_dependencies(vectorizer_id integer)
  f       | fred  | execute   | no      | ai     | _vectorizer_create_dependencies(vectorizer_id integer)
