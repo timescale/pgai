@@ -463,7 +463,12 @@ def pull_images(docker_bin):
 
 
 def pull_ollama_model(docker_bin, model):
-    if subprocess.run([docker_bin, "compose", "exec", "-ti", "ollama", "ollama", "pull", model]).returncode != 0:
+    if (
+        subprocess.run(
+            [docker_bin, "compose", "exec", "-ti", "ollama", "ollama", "pull", model]
+        ).returncode
+        != 0
+    ):
         print("error while pulling ollama model")
         exit(1)
 
