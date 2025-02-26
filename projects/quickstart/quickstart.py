@@ -42,7 +42,6 @@ EMBEDDING_MODELS = {
         "text-embedding-3-small",
         "text-embedding-3-large",
         "text-embedding-ada-002",
-        CUSTOM,
     ],
     # COHERE: [
     #     "embed-english-v3.0",
@@ -51,13 +50,12 @@ EMBEDDING_MODELS = {
     #     "embed-multilingual-light-v3.0",
     #     CUSTOM
     # ],
-    VOYAGE: ["voyage-3-large", "voyage-3", "voyage-3-lite", CUSTOM],
+    VOYAGE: ["voyage-3-large", "voyage-3", "voyage-3-lite"],
     OLLAMA: [
         "all-minilm",
         "nomic-embed-text",
         "mxbai-embed-large",
         "snowflake-arctic-embed",
-        CUSTOM,
     ],
 }
 
