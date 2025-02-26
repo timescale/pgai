@@ -23,7 +23,7 @@ from .chunking import (
     LangChainRecursiveCharacterTextSplitter,
 )
 from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
-from .embeddings import ChunkEmbeddingError
+from .embeddings import ChunkEmbeddingError, ApiKeyMixin
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
 from .processing import ProcessingDefault
@@ -430,6 +430,59 @@ class ProcessingStats:
         )
 
 
+class VectorizerNotFoundError(Exception):
+    pass
+
+
+class ApiKeyNotFoundError(Exception):
+    pass
+
+
+def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer:
+    with (
+        psycopg.Connection.connect(db_url) as con,
+        con.cursor(row_factory=dict_row) as cur,
+    ):
+        cur.execute(
+            "select pg_catalog.to_jsonb(v) as vectorizer from ai.vectorizer v where v.id = %s",  # noqa
+            (vectorizer_id,),
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise VectorizerNotFoundError(f"vectorizer_id={vectorizer_id}")
+        vectorizer = row["vectorizer"]
+        embedding = vectorizer["config"]["embedding"]
+        vectorizer = Vectorizer(**vectorizer)
+        # The Ollama API doesn't need a key, so `api_key_name` may be unset
+        if "api_key_name" in embedding:
+            api_key_name = embedding["api_key_name"]
+            api_key = os.getenv(api_key_name, None)
+            if api_key is not None:
+                logger.debug(f"obtained secret '{api_key_name}' from environment")
+            else:
+                cur.execute(
+                    "select ai.reveal_secret(%s)",
+                    (api_key_name,),
+                )
+                row = cur.fetchone()
+                api_key = row["reveal_secret"] if row is not None else None
+                if api_key is not None:
+                    logger.debug(f"obtained secret '{api_key_name}' from database")
+            if not api_key:
+                raise ApiKeyNotFoundError(
+                    f"api_key_name={api_key_name} vectorizer_id={vectorizer_id}"
+                )
+            secrets: dict[str, str | None] = {api_key_name: api_key}
+            # The Ollama API doesn't need a key, so doesn't inherit `ApiKeyMixin`
+            if isinstance(vectorizer.config.embedding, ApiKeyMixin):
+                vectorizer.config.embedding.set_api_key(secrets)
+            else:
+                logger.error(
+                    f"cannot set secret value '{api_key_name}' for vectorizer with id: '{vectorizer.id}'"  # noqa
+                )
+        return vectorizer
+
+
 class Worker:
     """
     Responsible for processing items from the work queue and generating embeddings.
@@ -451,13 +504,13 @@ class Worker:
     def __init__(
         self,
         db_url: str,
-        vectorizer: Vectorizer,
+        vectorizer_id: int,
         features: Features,
         should_continue_processing_hook: None | Callable[[int, int], bool] = None,
     ):
         self.db_url = db_url
-        self.vectorizer = vectorizer
-        self.queries = VectorizerQueryBuilder(vectorizer)
+        self.vectorizer = get_vectorizer(db_url, vectorizer_id)
+        self.queries = VectorizerQueryBuilder(self.vectorizer)
         self._should_continue_processing_hook = should_continue_processing_hook or (
             lambda _loops, _res: True
         )
@@ -521,6 +574,8 @@ class Worker:
                         ),
                     )
                 raise e
+            finally:
+                await self.vectorizer.config.embedding.close()
 
     async def _should_continue_processing(
         self, conn: AsyncConnection, loops: int, res: int

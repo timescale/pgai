@@ -208,8 +208,8 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
 
             tokenized = encoder.encode_ordinary(document)
             total_tokens += len(tokenized)
-            await logger.adebug(f"Total tokens in batch: {total_tokens}")
             encoded_documents.append(tokenized)
+        await logger.adebug(f"Total tokens in batch: {total_tokens}")
         return encoded_documents
 
     @cached_property
@@ -223,3 +223,8 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
             )
             return None
         return encoder
+
+    @override
+    async def close(self):
+        await self._embedder._client.close()
+        del self._embedder

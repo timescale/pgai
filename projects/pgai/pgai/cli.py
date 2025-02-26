@@ -21,20 +21,12 @@ from pytimeparse import parse  # type: ignore
 from .__init__ import __version__
 from .vectorizer.embeddings import ApiKeyMixin
 from .vectorizer.features import Features
-from .vectorizer.vectorizer import Vectorizer, Worker
+from .vectorizer.vectorizer import Vectorizer, Worker, VectorizerNotFoundError, ApiKeyNotFoundError
 
 load_dotenv()
 
 structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
 log = structlog.get_logger()
-
-
-class VectorizerNotFoundError(Exception):
-    pass
-
-
-class ApiKeyNotFoundError(Exception):
-    pass
 
 
 def asbool(value: str | None):
@@ -87,69 +79,24 @@ def get_vectorizer_ids(
         return valid_vectorizer_ids
 
 
-def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer:
-    with (
-        psycopg.Connection.connect(db_url) as con,
-        con.cursor(row_factory=dict_row) as cur,
-    ):
-        cur.execute(
-            "select pg_catalog.to_jsonb(v) as vectorizer from ai.vectorizer v where v.id = %s",  # noqa
-            (vectorizer_id,),
-        )
-        row = cur.fetchone()
-        if row is None:
-            raise VectorizerNotFoundError(f"vectorizer_id={vectorizer_id}")
-        vectorizer = row["vectorizer"]
-        embedding = vectorizer["config"]["embedding"]
-        vectorizer = Vectorizer(**vectorizer)
-        # The Ollama API doesn't need a key, so `api_key_name` may be unset
-        if "api_key_name" in embedding:
-            api_key_name = embedding["api_key_name"]
-            api_key = os.getenv(api_key_name, None)
-            if api_key is not None:
-                log.debug(f"obtained secret '{api_key_name}' from environment")
-            else:
-                cur.execute(
-                    "select ai.reveal_secret(%s)",
-                    (api_key_name,),
-                )
-                row = cur.fetchone()
-                api_key = row["reveal_secret"] if row is not None else None
-                if api_key is not None:
-                    log.debug(f"obtained secret '{api_key_name}' from database")
-            if not api_key:
-                raise ApiKeyNotFoundError(
-                    f"api_key_name={api_key_name} vectorizer_id={vectorizer_id}"
-                )
-            secrets: dict[str, str | None] = {api_key_name: api_key}
-            # The Ollama API doesn't need a key, so doesn't inherit `ApiKeyMixin`
-            if isinstance(vectorizer.config.embedding, ApiKeyMixin):
-                vectorizer.config.embedding.set_api_key(secrets)
-            else:
-                log.error(
-                    f"cannot set secret value '{api_key_name}' for vectorizer with id: '{vectorizer.id}'"  # noqa
-                )
-        return vectorizer
-
-
 def run_vectorizer(
     db_url: str,
-    vectorizer: Vectorizer,
+    vectorizer_id: int,
     concurrency: int,
     features: Features,
 ) -> None:
     async def run_workers(
-        db_url: str, vectorizer: Vectorizer, concurrency: int
+        db_url: str, vectorizer_id: int, concurrency: int
     ) -> list[int]:
         tasks = [
-            asyncio.create_task(Worker(db_url, vectorizer, features).run())
+            asyncio.create_task(Worker(db_url, vectorizer_id, features).run())
             for _ in range(concurrency)
         ]
         return await asyncio.gather(*tasks)
 
-    results = asyncio.run(run_workers(db_url, vectorizer, concurrency))
+    results = asyncio.run(run_workers(db_url, vectorizer_id, concurrency))
     items = sum(results)
-    log.info("finished processing vectorizer", items=items, vectorizer_id=vectorizer.id)
+    log.info("finished processing vectorizer", items=items, vectorizer_id=vectorizer_id)
 
 
 class TimeDurationParamType(click.ParamType):
@@ -316,9 +263,8 @@ def vectorizer_worker(
 
                 for vectorizer_id in valid_vectorizer_ids:
                     try:
-                        vectorizer = get_vectorizer(db_url, vectorizer_id)
                         log.info("running vectorizer", vectorizer_id=vectorizer_id)
-                        run_vectorizer(db_url, vectorizer, concurrency, features)
+                        run_vectorizer(db_url, vectorizer_id, concurrency, features)
                     except (VectorizerNotFoundError, ApiKeyNotFoundError) as e:
                         log.error(
                             f"error getting vectorizer: {type(e).__name__}: {str(e)} "

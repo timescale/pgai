@@ -164,6 +164,9 @@ class Embedder(ABC):
         Setup the embedder
         """
 
+    async def close(self) -> None:  # noqa: B027 empty on purpose
+        """Close the embedder"""
+
 
 class BaseURLMixin:
     """
