@@ -407,7 +407,7 @@ def test_vectorizer_timescaledb():
                             VALUES
                             ('how to make stir fry', '2022-01-06'::timestamptz, 1, 'Chunk of content', array_fill(0.1::float8, ARRAY[768]))
                         """)
-            
+
             cur.execute("""
                             select count(*) from website.blog_embedding_store 
                             where title = 'how to make stir fry'
@@ -548,7 +548,9 @@ def test_vectorizer_timescaledb():
             # Verify we have data in the target table
             cur.execute("SELECT COUNT(*) FROM website.blog_embedding_store")
             count_before_truncate = cur.fetchone()[0]
-            assert count_before_truncate == 3, "Expected 3 rows in target table before truncate test"
+            assert (
+                count_before_truncate == 3
+            ), "Expected 3 rows in target table before truncate test"
 
             # Perform TRUNCATE on source table
             cur.execute("truncate table website.blog")
@@ -556,7 +558,9 @@ def test_vectorizer_timescaledb():
             # Verify target table was also truncated
             cur.execute("select count(*) from website.blog_embedding_store")
             count_after_truncate = cur.fetchone()[0]
-            assert count_after_truncate == 0, "Target table should be empty after source table truncate"
+            assert (
+                count_after_truncate == 0
+            ), "Target table should be empty after source table truncate"
 
     # does the source table look right?
     actual = psql_cmd(r"\d+ website.blog")

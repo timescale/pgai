@@ -72,7 +72,6 @@ def create_extension(dbname: str, version: str) -> None:
             cur.execute(f"create extension ai version '{version}' cascade")
 
 
-
 def update_extension(dbname: str, version: str) -> None:
     with psycopg.connect(db_url(user=USER, dbname=dbname), autocommit=True) as con:
         con.add_notice_handler(detailed_notice_handler)
