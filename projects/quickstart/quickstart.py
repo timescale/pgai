@@ -43,13 +43,12 @@ EMBEDDING_MODELS = {
         "text-embedding-3-large",
         "text-embedding-ada-002",
     ],
-    # COHERE: [
-    #     "embed-english-v3.0",
-    #     "embed-english-light-v3.0",
-    #     "embed-multilingual-v3.0",
-    #     "embed-multilingual-light-v3.0",
-    #     CUSTOM
-    # ],
+    COHERE: [
+        "embed-english-v3.0",
+        "embed-english-light-v3.0",
+        "embed-multilingual-v3.0",
+        "embed-multilingual-light-v3.0",
+    ],
     VOYAGE: ["voyage-3-large", "voyage-3", "voyage-3-lite"],
     OLLAMA: [
         "all-minilm",
@@ -334,15 +333,21 @@ def setup_vectorizer(answers, port) -> int:
     else:
         formatting = None
 
-    embedding_function = EMBEDDING_FUNCTIONS[answers["provider"]]
+    provider = answers["provider"]
+    embedding_function = EMBEDDING_FUNCTIONS[provider]
     model = answers["model"]
     dims = DIMENSIONS[model]
-    function_args = f"'{model}', {dims}"
+    api_key_name = None
+    if provider == COHERE:
+        function_args = f"'cohere/{model}', {dims}, api_key_name => 'COHERE_API_KEY'"
+    else:
+        function_args = f"'{model}', {dims}"
+
     sql = f"""
         select ai.create_vectorizer(
           '{table}'
         , embedding => ai.{embedding_function}({function_args})
-        , chunking => ai.chunking_recursive_character_text_splitter('{column}'){formatting if formatting is not None else ""}
+        , chunking => ai.chunking_recursive_character_text_splitter('{column}'){formatting if formatting is not None else ""}{api_key_name if api_key_name is not None else ""}
         );
     """
     with yaspin(text="creating vectorizer") as sp:
