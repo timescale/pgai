@@ -128,32 +128,32 @@ class Actions:
     def install_prior_py() -> None:
         """installs the extension's python package for prior versions"""
         for version in prior_versions():
-            if os.sep in version:
-                fatal(f"'{os.sep}' in version {version}. this is not supported")
             version_target_dir = python_install_dir().joinpath(version)
             if version_target_dir.exists():
                 continue
             tmp_dir = Path(tempfile.gettempdir()).joinpath("pgai", version)
             shutil.rmtree(tmp_dir, ignore_errors=True)
             tmp_dir.mkdir(parents=True, exist_ok=True)
-            branch = git_tag(version)
-            subprocess.run(
-                f"git clone https://github.com/timescale/pgai.git --branch {branch} {tmp_dir}",
-                shell=True,
-                check=True,
-                env=os.environ,
-            )
-            tmp_src_dir = tmp_dir.joinpath("projects", "extension").resolve()
-            bin = "pip3" if shutil.which("uv") is None else "uv pip"
-            cmd = f'{bin} install -v --compile --target "{version_target_dir}" "{tmp_src_dir}"'
-            subprocess.run(
-                cmd,
-                check=True,
-                shell=True,
-                env=os.environ,
-                cwd=str(tmp_src_dir),
-            )
-            shutil.rmtree(tmp_dir)
+            try:
+                branch = git_tag(version)
+                subprocess.run(
+                    f"git clone https://github.com/timescale/pgai.git --branch {branch} {tmp_dir}",
+                    shell=True,
+                    check=True,
+                    env=os.environ,
+                )
+                tmp_src_dir = tmp_dir.joinpath("projects", "extension").resolve()
+                bin = "pip3" if shutil.which("uv") is None else "uv pip"
+                cmd = f'{bin} install -v --compile --target "{version_target_dir}" "{tmp_src_dir}"'
+                subprocess.run(
+                    cmd,
+                    check=True,
+                    shell=True,
+                    env=os.environ,
+                    cwd=str(tmp_src_dir),
+                )
+            finally:
+                shutil.rmtree(tmp_dir)
 
     @staticmethod
     def install_py() -> None:
