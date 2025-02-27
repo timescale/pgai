@@ -103,7 +103,7 @@ def test_process_vectorizer(
         assert cur.fetchone()["count"] == num_items  # type: ignore
 
     with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute("SELECT * FROM ai.vectorizer_worker_connection;")
+        cur.execute("SELECT * FROM ai.vectorizer_worker_process;")
         row = cur.fetchone()
         assert row is not None
         assert row["started"] is not None
@@ -157,7 +157,7 @@ def test_vectorizer_without_secrets_fails(
     print(f"result: {result.stdout}")
 
     with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute("SELECT * FROM ai.vectorizer_worker_connection;")
+        cur.execute("SELECT * FROM ai.vectorizer_worker_process;")
         row = cur.fetchone()
         assert row is not None
         assert row["started"] is not None

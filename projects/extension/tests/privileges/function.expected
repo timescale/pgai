@@ -396,4 +396,4 @@
  f       | bob   | execute   | no      | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text, "verbose" boolean)
  f       | fred  | execute   | no      | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text, "verbose" boolean)
  f       | jill  | execute   | YES     | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text, "verbose" boolean)
-(390 rows)
+(393 rows)
