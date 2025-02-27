@@ -38,7 +38,7 @@ class ApiKeyNotFoundError(Exception):
 
 
 def asbool(value: str | None):
-    """Convert the given String to a boolean object.
+    """Convert the given String to a boolean object :).
 
     Accepted values are `True` and `1`.
     """
