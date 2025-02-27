@@ -165,10 +165,12 @@ The chunking functions are:
 
 - [ai.chunking_character_text_splitter](#aichunking_character_text_splitter)
 - [ai.chunking_recursive_character_text_splitter](#aichunking_recursive_character_text_splitter)
+- [ai.chunking_none](#aichunking_none)
 
-The key difference between these functions is that `chunking_recursive_character_text_splitter`
-allows for a more sophisticated splitting strategy, potentially preserving more
-semantic meaning in the chunks.
+The key differences between these functions are:
+- `chunking_character_text_splitter` uses a single separator to split text
+- `chunking_recursive_character_text_splitter` uses multiple separators in sequence, potentially preserving more semantic meaning 
+- `chunking_none` doesn't split text at all, treating each row as a single chunk
 
 ### ai.chunking_character_text_splitter
 
@@ -200,6 +202,37 @@ You use `ai.chunking_character_text_splitter` to:
 |chunk_overlap| int  | 400     |✖| The number of characters to overlap between chunks     |
 |separator| text | E'\n\n' |✖| The string or character used to split the text         |
 |is_separator_regex| bool | false   |✖| Set to `true` if `separator` is a regular expression. |
+
+#### Returns
+
+A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
+
+### ai.chunking_none
+
+You use `ai.chunking_none` to:
+- Skip text splitting altogether, treating each row as a single chunk
+- Process pre-chunked text data where no further chunking is needed
+- Avoid the overhead of chunking algorithms when you want to embed entire documents
+
+#### Example usage
+
+- Process the content of the `body` column without any splitting:
+
+  ```sql
+  SELECT ai.create_vectorizer(
+      'my_table'::regclass,
+      chunking => ai.chunking_none('body'),
+      -- other parameters...
+  );
+  ```
+
+#### Parameters
+
+`ai.chunking_none` takes the following parameters:
+
+|Name| Type | Default | Required | Description                                            |
+|-|------|---------|-|--------------------------------------------------------|
+|chunk_column| name | -       |✔| The name of the column containing the text to use as a chunk |
 
 #### Returns
 
