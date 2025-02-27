@@ -1,7 +1,8 @@
 name: CI
 
 on:
-  pull_request:
+  # pull_request_target means this workflow runs on the base branch, not the PR branch
+  pull_request_target:
     paths-ignore:
       - "**.md"
   workflow_dispatch:
