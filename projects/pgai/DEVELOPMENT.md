@@ -194,3 +194,13 @@ docker compose -f compose-dev.yaml rm -v
 ```
 
 Both options will **delete** the persistent database volume (`data`).
+
+## Making sure concurrency is working correctly
+
+Making sure concurrency is working correctly is a bit tricky and manual for now. An easy way to see if concurrency is working is to run the following command:
+
+```bash
+uv run pytest -k test_process_vectorizer\[4 -rP
+```
+
+This will run the openai test with concurrency and print the output to the console. Then you have to verify the logs look interleaved between the two workers.
