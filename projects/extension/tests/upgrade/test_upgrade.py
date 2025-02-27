@@ -1,7 +1,7 @@
 import os
 import subprocess
 from collections import namedtuple
-from pathlib import Path
+from pathlib import Path, PosixPath
 
 import psycopg
 import pytest
@@ -32,7 +32,17 @@ def where_am_i() -> str:
 
 
 def docker_dir() -> str:
-    return "/pgai/tests/upgrade"
+    # find the path from the repo root to this file
+    stack = []
+    p = Path(__file__).parent.absolute()
+    while p.name != "pgai":
+        stack.append(p.name)
+        p = p.parent
+    stack.append(p.name)
+    p = PosixPath("/")
+    while stack:
+        p = p.joinpath(stack.pop())
+    return str(p)
 
 
 def host_dir() -> Path:
