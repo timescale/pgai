@@ -648,7 +648,7 @@ begin
         execute format
         (
             $sql$
-            create function %I.%I() returns trigger 
+            create or replace function %I.%I() returns trigger 
             as $trigger_def$ 
             %s 
             $trigger_def$ language plpgsql volatile parallel safe security definer 
