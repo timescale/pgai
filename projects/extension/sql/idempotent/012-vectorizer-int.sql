@@ -554,7 +554,6 @@ create or replace function ai._vectorizer_create_source_trigger
 , target_schema pg_catalog.name    -- Schema containing the target table for deletions
 , target_table pg_catalog.name     -- Table where corresponding rows should be deleted
 , source_pk pg_catalog.jsonb       -- JSON describing primary key columns to track
-, original_owner pg_catalog.name default null   -- Role that should own the trigger
 ) returns void as
 $func$
 declare
@@ -646,9 +645,16 @@ begin
             _vec.queue_schema, _vec.trigger_name
         );
 
-        execute format(
-            'create or replace function %I.%I() returns trigger as $trigger_def$ %s $trigger_def$ language plpgsql volatile parallel safe security definer',
-            _vec.queue_schema, _vec.trigger_name,
+        execute format
+        (
+            $sql$
+            create function %I.%I() returns trigger 
+            as $trigger_def$ 
+            %s 
+            $trigger_def$ language plpgsql volatile parallel safe security definer 
+            set search_path to pg_catalog, pg_temp
+            $sql$
+            , _vec.queue_schema, _vec.trigger_name,
             ai._vectorizer_build_trigger_definition(_vec.queue_schema, _vec.queue_table, _vec.target_schema, _vec.target_table, _vec.source_pk)
         );
 
