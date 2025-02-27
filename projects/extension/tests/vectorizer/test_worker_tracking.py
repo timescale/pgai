@@ -23,7 +23,7 @@ def test_worker_tracking_connection():
 
             cur.execute("select ai._worker_heartbeat(%s, 1, 0, null)", (worker_id,))
             cur.execute(
-                "select id, version, heartbeat_count, error_count, last_error_at, last_error_message, success_count from ai.vectorizer_worker_connection where id = %s",
+                "select id, version, heartbeat_count, error_count, last_error_at, last_error_message, success_count from ai.vectorizer_worker_process where id = %s",
                 (worker_id,),
             )
             row = cur.fetchone()
@@ -41,7 +41,7 @@ def test_worker_tracking_connection():
                 "select ai._worker_heartbeat(%s, 0, 3, 'error 1')", (worker_id,)
             )
             cur.execute(
-                "select id, version, heartbeat_count, error_count, last_error_at, last_error_message, last_heartbeat, success_count from ai.vectorizer_worker_connection where id = %s",
+                "select id, version, heartbeat_count, error_count, last_error_at, last_error_message, last_heartbeat, success_count from ai.vectorizer_worker_process where id = %s",
                 (worker_id,),
             )
             row = cur.fetchone()
@@ -59,7 +59,7 @@ def test_worker_tracking_connection():
         with con.cursor() as cur:
             cur.execute("select ai._worker_heartbeat(%s,1, 0, null)", (worker_id,))
             cur.execute(
-                "select id, version, heartbeat_count, error_count, last_error_at, last_error_message, last_heartbeat, success_count from ai.vectorizer_worker_connection where id = %s",
+                "select id, version, heartbeat_count, error_count, last_error_at, last_error_message, last_heartbeat, success_count from ai.vectorizer_worker_process where id = %s",
                 (worker_id,),
             )
             row = cur.fetchone()
@@ -78,7 +78,7 @@ def test_worker_tracking_connection():
                 "select ai._worker_heartbeat(%s, 0, 1, 'error 2')", (worker_id,)
             )
             cur.execute(
-                "select id, version, heartbeat_count, error_count, last_error_at, last_error_message, last_heartbeat, success_count from ai.vectorizer_worker_connection where id = %s",
+                "select id, version, heartbeat_count, error_count, last_error_at, last_error_message, last_heartbeat, success_count from ai.vectorizer_worker_process where id = %s",
                 (worker_id,),
             )
             row = cur.fetchone()

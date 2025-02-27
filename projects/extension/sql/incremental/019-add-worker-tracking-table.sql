@@ -1,4 +1,4 @@
-CREATE TABLE ai.vectorizer_worker_connection(
+CREATE TABLE ai.vectorizer_worker_process(
         id uuid not null primary key default gen_random_uuid()
     ,   version text not null
     ,   started timestamptz not null default now()
@@ -11,7 +11,7 @@ CREATE TABLE ai.vectorizer_worker_connection(
     ,   last_error_message text null default null
 );
 
-create index on ai.vectorizer_worker_connection (last_heartbeat);
+create index on ai.vectorizer_worker_process (last_heartbeat);
 
 
 create table ai.vectorizer_worker_progress(
