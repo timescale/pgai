@@ -129,3 +129,35 @@ class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
         """
         text = item[self.chunk_column] or ""
         return self._chunker.split_text(text)
+
+
+class NoChunker(BaseModel, Chunker):
+    """
+    A chunker implementation that doesn't split text and returns it as a single chunk.
+    
+    This is useful when the data is already pre-chunked before inserting into the source table
+    or when you want to treat each row as a single chunk.
+
+    Attributes:
+        implementation (Literal): A literal value identifying the implementation.
+        chunk_column (str): The dictionary key corresponding to the text to use as a chunk.
+    """
+
+    implementation: Literal["none"]
+    chunk_column: str
+
+    @override
+    def into_chunks(self, item: dict[str, Any]) -> list[str]:
+        """
+        Returns the text as a single chunk without splitting.
+
+        Args:
+            item (dict[str, Any]): A dictionary representing a database row,
+                where keys are column names and values are the corresponding
+                data.
+
+        Returns:
+            list[str]: A list containing a single string.
+        """
+        text = item[self.chunk_column] or ""
+        return [text] if text else []

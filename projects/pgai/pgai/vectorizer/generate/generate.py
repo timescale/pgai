@@ -18,6 +18,7 @@ VECTORIZER_FUNCTIONS = [
     "embedding_litellm",
     "chunking_character_text_splitter",
     "chunking_recursive_character_text_splitter",
+    "chunking_none",
     "formatting_python_template",
     "indexing_diskann",
     "indexing_hnsw",

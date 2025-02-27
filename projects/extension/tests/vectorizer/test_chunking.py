@@ -151,6 +151,35 @@ def test_chunking_recursive_character_text_splitter():
                     assert k in expected and v == expected[k]
 
 
+def test_chunking_none():
+    tests = [
+        (
+            "select ai.chunking_none('body')",
+            {
+                "chunk_column": "body",
+                "implementation": "none",
+                "config_type": "chunking",
+            },
+        ),
+        (
+            "select ai.chunking_none('content')",
+            {
+                "chunk_column": "content",
+                "implementation": "none",
+                "config_type": "chunking",
+            },
+        ),
+    ]
+    with psycopg.connect(db_url("test")) as con:
+        with con.cursor() as cur:
+            for query, expected in tests:
+                cur.execute(query)
+                actual = cur.fetchone()[0]
+                assert actual.keys() == expected.keys()
+                for k, v in actual.items():
+                    assert k in expected and v == expected[k]
+
+
 def test_validate_chunking():
     ok = [
         """
@@ -162,6 +191,12 @@ def test_validate_chunking():
         """
         select ai._validate_chunking
         ( ai.chunking_recursive_character_text_splitter('body', 128, 10)
+        , 'public', 'thing'
+        )
+        """,
+        """
+        select ai._validate_chunking
+        ( ai.chunking_none('body')
         , 'public', 'thing'
         )
         """,

@@ -48,6 +48,22 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- chunking_none
+create or replace function ai.chunking_none
+( chunk_column pg_catalog.name
+) returns pg_catalog.jsonb
+as $func$
+    select json_object
+    ( 'implementation': 'none'
+    , 'config_type': 'chunking'
+    , 'chunk_column': chunk_column
+    absent on null
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- _validate_chunking
 create or replace function ai._validate_chunking
 ( config pg_catalog.jsonb
@@ -71,7 +87,7 @@ begin
     end if;
 
     _implementation = config operator(pg_catalog.->>) 'implementation';
-    if _implementation is null or _implementation not in ('character_text_splitter', 'recursive_character_text_splitter') then
+    if _implementation is null or _implementation not in ('character_text_splitter', 'recursive_character_text_splitter', 'none') then
         raise exception 'invalid chunking config implementation';
     end if;
 
