@@ -246,13 +246,13 @@ class VectorizerQueryBuilder:
                 deleted_rows AS (
                     DELETE FROM {queue_table} AS w
                     USING locked_items AS l
-                    WHERE locked = true
+                    WHERE l.locked = true
                     AND {delete_join_predicates}
                 )
                 SELECT {source_table}.*
                 FROM locked_items
                 LEFT JOIN {source_schema}.{source_table} USING ({pk_fields})
-                WHERE locked = true
+                WHERE locked_items.locked = true
                 ORDER BY {pk_fields}
                         """).format(
             pk_fields=self.pk_fields_sql,
