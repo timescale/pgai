@@ -1,7 +1,7 @@
 name: CI
 
 on:
-  pull_request:
+  pull_request_target:
     paths-ignore:
       - "**.md"
   workflow_dispatch:
@@ -13,7 +13,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  authorize:
+    environment:
+      ${{ github.event_name == 'pull_request_target' &&
+      github.event.pull_request.head.repo.full_name != github.repository &&
+      'external-contributors' || 'internal-contributors' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: true
   build-and-test-extension:
+    needs: authorize
     # services:
     #   ollama:
     #     image: ollama/ollama:latest
@@ -99,6 +108,7 @@ jobs:
           just ext docker-rm
 
   build-and-test-pgai:
+    needs: authorize
     services:
       ollama:
         image: ollama/ollama:latest
