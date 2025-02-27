@@ -176,9 +176,7 @@ begin
 
     -- create the target table
     perform ai._vectorizer_create_target_table
-    ( _source_schema
-    , _source_table
-    , _source_pk
+    ( _source_pk
     , target_schema
     , target_table
     , _dimensions

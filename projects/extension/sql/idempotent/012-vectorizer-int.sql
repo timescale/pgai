@@ -99,9 +99,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _vectorizer_create_target_table
 create or replace function ai._vectorizer_create_target_table
-( source_schema pg_catalog.name
-, source_table pg_catalog.name
-, source_pk pg_catalog.jsonb
+( source_pk pg_catalog.jsonb
 , target_schema pg_catalog.name
 , target_table pg_catalog.name
 , dimensions pg_catalog.int4
@@ -521,6 +519,7 @@ begin
         elsif (TG_LEVEL = 'STATEMENT') then
             if (TG_OP = 'TRUNCATE') then
                 execute format('truncate table %I.%I', '$TARGET_SCHEMA$', '$TARGET_TABLE$');
+                execute format('truncate table %I.%I', '$QUEUE_SCHEMA$', '$QUEUE_TABLE$');
             end if;
             return null;
         end if;
@@ -541,7 +540,7 @@ begin
 
     return _func_def;
 end;
-$func$ language plpgsql stable security invoker
+$func$ language plpgsql immutable security invoker
 set search_path to pg_catalog, pg_temp;
 
 -------------------------------------------------------------------------------
@@ -562,10 +561,17 @@ declare
     _sql pg_catalog.text;
 begin
     
-    execute format(
-        'create or replace function ai.%I() returns trigger as $trigger_def$ %s $trigger_def$ language plpgsql volatile parallel safe security definer',
-        trigger_name,
-        ai._vectorizer_build_trigger_definition(queue_schema, queue_table, target_schema, target_table, source_pk)
+    execute format
+    ( $sql$
+    create function %I.%I() returns trigger 
+    as $trigger_def$ 
+    %s
+    $trigger_def$ language plpgsql volatile parallel safe security definer 
+    set search_path to pg_catalog, pg_temp
+    $sql$
+    , queue_schema
+    , trigger_name
+    , ai._vectorizer_build_trigger_definition(queue_schema, queue_table, target_schema, target_table, source_pk)
     );
 
     -- Revoke public permissions
@@ -636,13 +642,13 @@ begin
         raise notice 'Upgrading trigger function for vectorizer ID %s from version %s', _vec.id, _vec.config->>'version';
         
         execute format(
-            'alter extension ai add function ai.%I()',
-            _vec.trigger_name
+            'alter extension ai add function %I.%I()',
+            _vec.queue_schema, _vec.trigger_name
         );
 
         execute format(
-            'create or replace function ai.%I() returns trigger as $trigger_def$ %s $trigger_def$ language plpgsql volatile parallel safe security definer',
-            _vec.trigger_name,
+            'create or replace function %I.%I() returns trigger as $trigger_def$ %s $trigger_def$ language plpgsql volatile parallel safe security definer',
+            _vec.queue_schema, _vec.trigger_name,
             ai._vectorizer_build_trigger_definition(_vec.queue_schema, _vec.queue_table, _vec.target_schema, _vec.target_table, _vec.source_pk)
         );
 
@@ -652,18 +658,18 @@ begin
         );
 
         execute format(
-            'create trigger %I after insert or update or delete on %I.%I for each row execute function ai.%I()',
-            _vec.trigger_name, _vec.source_schema, _vec.source_table, _vec.trigger_name
+            'create trigger %I after insert or update or delete on %I.%I for each row execute function %I.%I()',
+            _vec.trigger_name, _vec.source_schema, _vec.source_table, _vec.queue_schema, _vec.trigger_name
         );
 
         execute format(
-            'create trigger %I after truncate on %I.%I for each statement execute function ai.%I()',
-            format('%s_truncate',_vec.trigger_name) , _vec.source_schema, _vec.source_table, _vec.trigger_name
+            'create trigger %I after truncate on %I.%I for each statement execute function %I.%I()',
+            format('%s_truncate',_vec.trigger_name) , _vec.source_schema, _vec.source_table, _vec.queue_schema, _vec.trigger_name
         );
 
         execute format(
-            'alter extension ai drop function ai.%I()',
-            _vec.trigger_name
+            'alter extension ai drop function %I.%I()',
+            _vec.queue_schema, _vec.trigger_name
         );
 
         update ai.vectorizer 

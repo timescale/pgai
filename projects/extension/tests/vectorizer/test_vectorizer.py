@@ -553,6 +553,17 @@ def test_vectorizer_timescaledb():
                 count_before_truncate == 3
             ), "Expected 3 rows in target table before truncate test"
 
+            # insert into the source table
+            cur.execute("""
+                insert into website.blog(title, published, body)
+                values
+                  ('how to make a better sandwich', '2022-01-06'::timestamptz, 'boil water. cook ramen in the water')
+            """)
+            # check that the queue has rows
+            cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual > 0
+
             # Perform TRUNCATE on source table
             cur.execute("truncate table website.blog")
 
@@ -562,6 +573,11 @@ def test_vectorizer_timescaledb():
             assert (
                 count_after_truncate == 0
             ), "Target table should be empty after source table truncate"
+
+            # check that the queue has 0 rows
+            cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual == 0
 
     # does the source table look right?
     actual = psql_cmd(r"\d+ website.blog")

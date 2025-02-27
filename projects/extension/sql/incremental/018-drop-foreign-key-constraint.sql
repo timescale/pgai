@@ -51,4 +51,6 @@ BEGIN
 END;
 $block$;
 
+-- dropping in favour of new signatures
 drop function if exists ai._vectorizer_create_source_trigger(name,name,name,name,name,jsonb);
+drop function if exists ai._vectorizer_create_target_table(name,name,jsonb,name,name,integer,name[]);
