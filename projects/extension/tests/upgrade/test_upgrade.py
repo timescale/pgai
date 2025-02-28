@@ -6,6 +6,8 @@ from pathlib import Path
 import psycopg
 import pytest
 
+from tests.conftest import detailed_notice_handler
+
 # skip tests in this module if disabled
 enable_upgrade_tests = os.getenv("ENABLE_UPGRADE_TESTS")
 if enable_upgrade_tests == "0":
@@ -72,7 +74,9 @@ def create_extension(dbname: str, version: str) -> None:
 
 def update_extension(dbname: str, version: str) -> None:
     with psycopg.connect(db_url(user=USER, dbname=dbname), autocommit=True) as con:
+        con.add_notice_handler(detailed_notice_handler)
         with con.cursor() as cur:
+            cur.execute("SET client_min_messages TO 'debug';")
             cur.execute(f"alter extension ai update to '{version}'")
 
 
@@ -232,3 +236,119 @@ def test_production_version_upgrade_path():
         Path(__file__).parent.absolute().joinpath("upgrade1.snapshot").read_text()
     )
     assert upgrade0 == upgrade1
+
+
+def test_vectorizer_trigger_upgrade():
+    create_user(USER)
+    create_user(OTHER_USER)
+    create_database("trigger_upgrade")
+
+    # Create extension at 0.8.0
+    create_extension("trigger_upgrade", "0.8.0")
+    assert check_version("trigger_upgrade") == "0.8.0"
+
+    # Create a test table and vectorizer
+    with psycopg.connect(
+        db_url(user=USER, dbname="trigger_upgrade"), autocommit=True
+    ) as con:
+        with con.cursor() as cur:
+            # Create test table
+            cur.execute("""
+                CREATE TABLE public.upgrade_test (
+                    id int primary key,
+                    content text not null
+                )
+            """)
+
+            # Create vectorizer
+            cur.execute("""
+                SELECT ai.create_vectorizer(
+                    'public.upgrade_test'::regclass,
+                    embedding=>ai.embedding_openai('text-embedding-3-small', 768),
+                    chunking=>ai.chunking_character_text_splitter('content'),
+                    scheduling=>ai.scheduling_none()
+                )
+            """)
+            vectorizer_id = cur.fetchone()[0]
+
+            # Get the trigger function definition before upgrade
+            cur.execute(
+                """
+                SELECT p.prosrc 
+                FROM pg_proc p
+                JOIN pg_trigger t ON t.tgfoid = p.oid
+                JOIN pg_class c ON t.tgrelid = c.oid
+                JOIN ai.vectorizer v ON v.trigger_name = t.tgname
+                WHERE v.id = %s
+            """,
+                (vectorizer_id,),
+            )
+            old_trigger_def = cur.fetchone()[0]
+
+            # Verify old trigger doesn't handle PK changes
+            assert "IS DISTINCT FROM" not in old_trigger_def
+
+            # Upgrade to the new version
+            update_extension("trigger_upgrade", "0.8.1-dev")
+            assert check_version("trigger_upgrade") == "0.8.1-dev"
+
+            # Get the new trigger function definition
+            cur.execute(
+                """
+                SELECT p.prosrc 
+                FROM pg_proc p
+                JOIN pg_trigger t ON t.tgfoid = p.oid
+                JOIN pg_class c ON t.tgrelid = c.oid
+                JOIN ai.vectorizer v ON v.trigger_name = t.tgname
+                WHERE v.id = %s
+            """,
+                (vectorizer_id,),
+            )
+            new_trigger_def = cur.fetchone()[0]
+
+            # Verify new trigger has the PK change handling
+            assert "IS DISTINCT FROM" in new_trigger_def
+
+            # Check that the version in the config was updated
+            cur.execute(
+                """
+                SELECT config->>'version'
+                FROM ai.vectorizer
+                WHERE id = %s
+            """,
+                (vectorizer_id,),
+            )
+            version = cur.fetchone()[0]
+            assert version == "0.8.1"
+
+            # Test trigger functionality
+            # Insert a row
+            cur.execute("INSERT INTO public.upgrade_test VALUES (1, 'test content')")
+
+            # Verify row was queued
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT 1 
+                    FROM ai._vectorizer_q_1 
+                    WHERE id = 1
+                )
+            """)
+            assert cur.fetchone()[0]
+
+            # Update with PK change
+            cur.execute("UPDATE public.upgrade_test SET id = 2 WHERE id = 1")
+
+            # Verify old row was deleted from target and new PK was queued
+            cur.execute("""
+                SELECT NOT EXISTS (
+                    SELECT 1 
+                    FROM upgrade_test_embedding_store 
+                    WHERE id = 1
+                )
+                AND EXISTS (
+                    SELECT 1 
+                    FROM ai._vectorizer_q_1 
+                    WHERE id = 2
+                )
+            """)
+            assert cur.fetchone()[0]

@@ -65,12 +65,6 @@ USER root
 
 RUN pip install --break-system-packages uv==0.5.20
 
-# install pgspot
-RUN set -eux; \
-    git clone https://github.com/timescale/pgspot.git /build/pgspot; \
-    uv pip install --system --break-system-packages /build/pgspot; \
-    rm -rf /build/pgspot
-
 WORKDIR /pgai
 
 ## install our test python dependencies

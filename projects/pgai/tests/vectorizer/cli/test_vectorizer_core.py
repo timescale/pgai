@@ -222,6 +222,39 @@ Each type has its own unique applications and methodologies."""
             ), "Chunk sequences should be sequential starting from 0"
 
 
+def test_regression_source_table_has_locked_column(
+    cli_db: tuple[PostgresContainer, Connection],
+    cli_db_url: str,
+    vcr_: Any,
+):
+    """Test that worker succeeds on source table with column named 'locked'"""
+    _, connection = cli_db
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "CREATE TABLE test_locked (id bigint primary key, content text, locked bool)"  # noqa
+        )
+        cur.execute(
+            "INSERT INTO test_locked (id, content, locked) VALUES (1, 'hello world', false)"  # noqa
+        )
+
+    vectorizer_id = configure_vectorizer(
+        "test_locked",
+        cli_db[1],
+    )
+
+    # When running the worker
+    with vcr_.use_cassette("test_regression_source_table_has_locked_column.yaml"):
+        result = run_vectorizer_worker(cli_db_url, vectorizer_id)
+
+    assert result.exit_code == 0
+
+    # Then verify the chunks were created correctly
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT count(*) FROM test_locked_embedding_store")
+        results = cur.fetchall()
+        assert results[0]["count"] == 1
+
+
 def test_disabled_vectorizer_is_skipped(
     cli_db: tuple[PostgresContainer, Connection],
     cli_db_url: str,

@@ -110,5 +110,17 @@ def initialized_engine(
     drop_vectorizer_if_exists(1, engine)
     drop_vectorizer_if_exists(2, engine)
     with engine.connect() as conn:
-        conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
+        # alembic somehow seems to leave some connections open
+        # which leads to deadlocks, this cleans those up
+        conn.execute(
+            text("""
+                SELECT pg_terminate_backend(pid)
+                FROM pg_stat_activity
+                WHERE pid <> pg_backend_pid()
+                AND datname = current_database();
+            """)
+        )
+        conn.execute(text("DROP SCHEMA public cascade;"))
+        conn.commit()
+        conn.execute(text("CREATE SCHEMA public;"))
         conn.commit()

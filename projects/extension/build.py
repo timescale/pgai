@@ -128,31 +128,32 @@ class Actions:
     def install_prior_py() -> None:
         """installs the extension's python package for prior versions"""
         for version in prior_versions():
-            if os.sep in version:
-                fatal(f"'{os.sep}' in version {version}. this is not supported")
             version_target_dir = python_install_dir().joinpath(version)
             if version_target_dir.exists():
                 continue
             tmp_dir = Path(tempfile.gettempdir()).joinpath("pgai", version)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
             tmp_dir.mkdir(parents=True, exist_ok=True)
-            branch = git_tag(version)
-            subprocess.run(
-                f"git clone https://github.com/timescale/pgai.git --branch {branch} {tmp_dir}",
-                shell=True,
-                check=True,
-                env=os.environ,
-            )
-            tmp_src_dir = tmp_dir.joinpath("projects", "extension").resolve()
-            bin = "pip3" if shutil.which("uv") is None else "uv pip"
-            cmd = f'{bin} install -v --compile --target "{version_target_dir}" "{tmp_src_dir}"'
-            subprocess.run(
-                cmd,
-                check=True,
-                shell=True,
-                env=os.environ,
-                cwd=str(tmp_src_dir),
-            )
-            shutil.rmtree(tmp_dir)
+            try:
+                branch = git_tag(version)
+                subprocess.run(
+                    f"git clone https://github.com/timescale/pgai.git --branch {branch} {tmp_dir}",
+                    shell=True,
+                    check=True,
+                    env=os.environ,
+                )
+                tmp_src_dir = tmp_dir.joinpath("projects", "extension").resolve()
+                bin = "pip3" if shutil.which("uv") is None else "uv pip"
+                cmd = f'{bin} install -v --compile --target "{version_target_dir}" "{tmp_src_dir}"'
+                subprocess.run(
+                    cmd,
+                    check=True,
+                    shell=True,
+                    env=os.environ,
+                    cwd=str(tmp_src_dir),
+                )
+            finally:
+                shutil.rmtree(tmp_dir)
 
     @staticmethod
     def install_py() -> None:
@@ -342,7 +343,7 @@ class Actions:
         """runs pgspot against the `ai--<this_version>.sql` file"""
         cmd = " ".join(
             [
-                "pgspot --ignore-lang=plpython3u",
+                "uv run --no-project pgspot --ignore-lang=plpython3u",
                 '--proc-without-search-path "ai._vectorizer_job(job_id integer,config pg_catalog.jsonb)"',
                 f"{output_sql_file()}",
             ]
@@ -350,40 +351,40 @@ class Actions:
         subprocess.run(cmd, shell=True, check=True, env=os.environ)
 
     @staticmethod
-    def lint_py() -> None:
+    def lint_py(fix: bool = False) -> None:
         """runs ruff linter against the python source files"""
         subprocess.run(
-            f"uv run --no-project ruff check {ext_dir()}",
+            f"uv run --no-project ruff check{' --fix' if fix else ''} {ext_dir()}",
             shell=True,
             check=True,
             env=os.environ,
         )
 
     @staticmethod
-    def lint() -> None:
+    def lint(fix: bool = False) -> None:
         """runs both sql and python linters"""
-        Actions.lint_py()
+        Actions.lint_py(fix)
         Actions.lint_sql()
 
     @staticmethod
-    def format_py() -> None:
+    def lint_fix() -> None:
+        """runs both sql and python linters and fix all auto-fixable issues"""
+        Actions.lint(fix=True)
+
+    @staticmethod
+    def format(fix: bool = False) -> None:
         """runs ruff to check formatting of the python source files"""
         subprocess.run(
-            f"uv run --no-project ruff format --diff {ext_dir()}",
+            f"uv run --no-project ruff format{' --diff' if not fix else ''} {ext_dir()}",
             shell=True,
             check=True,
             env=os.environ,
         )
 
     @staticmethod
-    def reformat_py() -> None:
-        """runs ruff to update the formatting of the python source files"""
-        subprocess.run(
-            f"uv run --no-project ruff format {ext_dir()}",
-            shell=True,
-            check=True,
-            env=os.environ,
-        )
+    def format_fix() -> None:
+        """runs ruff to check formatting of the python source files and fix all auto-fixable issues"""
+        Actions.format(fix=True)
 
     @staticmethod
     def check_requirements() -> None:

@@ -189,9 +189,7 @@ begin
 
     -- create the target table
     perform ai._vectorizer_create_target_table
-    ( _source_schema
-    , _source_table
-    , _source_pk
+    ( _source_pk
     , target_schema
     , target_table
     , _dimensions
@@ -213,6 +211,8 @@ begin
     , queue_table
     , _source_schema
     , _source_table
+    , target_schema
+    , target_table
     , _source_pk
     );
 
@@ -477,6 +477,14 @@ begin
         , _vec.source_table
         ) into strict _sql
         ;
+        execute _sql;
+
+        select pg_catalog.format
+        ( $sql$drop trigger if exists %I on %I.%I$sql$
+        , format('%s_truncate', _trigger.tgname)
+        , _vec.source_schema
+        , _vec.source_table
+        ) into _sql;
         execute _sql;
 
         -- drop the function/procedure backing the trigger

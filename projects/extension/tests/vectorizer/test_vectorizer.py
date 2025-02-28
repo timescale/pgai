@@ -6,6 +6,8 @@ import psycopg
 import pytest
 from psycopg.rows import namedtuple_row
 
+from tests.conftest import detailed_notice_handler
+
 # skip tests in this module if disabled
 enable_vectorizer_tests = os.getenv("ENABLE_VECTORIZER_TESTS")
 if enable_vectorizer_tests == "0":
@@ -73,7 +75,7 @@ VECTORIZER_ROW = r"""
             "pknum": 2,
             "attnum": 3,
             "attname": "published",
-            "typname": "timestamptz"
+            "typname": "timestamp with time zone"
         }
     ],
     "view_name": "blog_embedding",
@@ -100,10 +102,9 @@ SOURCE_TABLE = """
  body      | text                     |           | not null |                              | extended |             |              | 
 Indexes:
     "blog_pkey" PRIMARY KEY, btree (title, published)
-Referenced by:
-    TABLE "website.blog_embedding_store" CONSTRAINT "blog_embedding_store_title_published_fkey" FOREIGN KEY (title, published) REFERENCES website.blog(title, published) ON DELETE CASCADE
 Triggers:
-    _vectorizer_src_trg_1 AFTER INSERT OR UPDATE ON website.blog FOR EACH ROW EXECUTE FUNCTION ai._vectorizer_src_trg_1()
+    _vectorizer_src_trg_1 AFTER INSERT OR DELETE OR UPDATE ON website.blog FOR EACH ROW EXECUTE FUNCTION ai._vectorizer_src_trg_1()
+    _vectorizer_src_trg_1_truncate AFTER TRUNCATE ON website.blog FOR EACH STATEMENT EXECUTE FUNCTION ai._vectorizer_src_trg_1()
 Access method: heap
 """.strip()
 
@@ -130,8 +131,6 @@ TARGET_TABLE = """
 Indexes:
     "blog_embedding_store_pkey" PRIMARY KEY, btree (embedding_uuid)
     "blog_embedding_store_title_published_chunk_seq_key" UNIQUE CONSTRAINT, btree (title, published, chunk_seq)
-Foreign-key constraints:
-    "blog_embedding_store_title_published_fkey" FOREIGN KEY (title, published) REFERENCES website.blog(title, published) ON DELETE CASCADE
 Access method: heap
 """.strip()
 
@@ -202,6 +201,7 @@ def test_vectorizer_timescaledb():
     with psycopg.connect(
         db_url("test"), autocommit=True, row_factory=namedtuple_row
     ) as con:
+        con.add_notice_handler(detailed_notice_handler)
         with con.cursor() as cur:
             cur.execute("set statement_timeout = '5s'")
             cur.execute("drop schema if exists website cascade")
@@ -346,6 +346,87 @@ def test_vectorizer_timescaledb():
             actual = cur.fetchone()[0]
             assert actual == 0
 
+            # Test DELETE trigger
+            cur.execute("""
+                delete from website.blog 
+                where title = 'how to make sandwich'
+            """)
+            # Verify row was deleted from target table
+            cur.execute("""
+                select count(*) from website.blog_embedding_store 
+                where title = 'how to make sandwich'
+            """)
+            assert cur.fetchone()[0] == 0
+
+            # Test regular UPDATE (no PK change)
+            cur.execute("""
+                update website.blog 
+                set body = 'updated body'
+                where title = 'how to make stir fry'
+            """)
+            # Verify this caused a queue insert
+            cur.execute("""
+                select count(*) from ai._vectorizer_q_1
+                where title = 'how to make stir fry'
+            """)
+            assert cur.fetchone()[0] == 1
+
+            # run the underlying function explicitly
+            # language=PostgreSQL
+            cur.execute(
+                "call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))",
+                (vectorizer_id,),
+            )
+
+            # check that the queue has 0 rows
+            cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual == 0
+
+            cur.execute("""
+                            INSERT INTO website.blog_embedding_store
+                            (title, published, chunk_seq, chunk, embedding)
+                            VALUES
+                            ('how to make stir fry', '2022-01-06'::timestamptz, 1, 'Chunk of content', array_fill(0.1::float8, ARRAY[768]))
+                        """)
+
+            cur.execute("""
+                            select count(*) from website.blog_embedding_store 
+                            where title = 'how to make stir fry'
+                        """)
+            assert cur.fetchone()[0] == 1
+
+            # Test UPDATE with PK change
+            cur.execute("""
+                update website.blog 
+                set title = 'how to make better stir fry'
+                where title = 'how to make stir fry'
+            """)
+            # Verify old PK was deleted from target
+            cur.execute("""
+                select count(*) from website.blog_embedding_store 
+                where title = 'how to make stir fry'
+            """)
+            assert cur.fetchone()[0] == 0
+            # Verify new PK was queued
+            cur.execute("""
+                select count(*) from ai._vectorizer_q_1
+                where title = 'how to make better stir fry'
+            """)
+            assert cur.fetchone()[0] == 1
+
+            # run the underlying function explicitly
+            # language=PostgreSQL
+            cur.execute(
+                "call ai._vectorizer_job(null, jsonb_build_object('vectorizer_id', %s))",
+                (vectorizer_id,),
+            )
+
+            # check that the queue has 0 rows
+            cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual == 0
+
             # update a row into the source
             cur.execute("""
                 update website.blog set published = now()
@@ -428,6 +509,56 @@ def test_vectorizer_timescaledb():
             )
             actual = cur.fetchone()[0]
             assert actual is True
+
+            # Test TRUNCATE
+            # Insert some data into the target table
+            cur.execute("""
+                WITH vector_data AS (
+                    SELECT 
+                        array_fill(0.1::float8, ARRAY[768]) AS vec1,
+                        array_fill(0.2::float8, ARRAY[768]) AS vec2,
+                        array_fill(0.3::float8, ARRAY[768]) AS vec3
+                )
+                INSERT INTO website.blog_embedding_store
+                (title, published, chunk_seq, chunk, embedding)
+                VALUES
+                ('how to make better stir fry', NOW(), 1, 'First chunk of content', (SELECT vec1::vector FROM vector_data)),
+                ('how to make better stir fry', NOW(), 2, 'Second chunk of content', (SELECT vec2::vector FROM vector_data)),
+                ('how to make ramen', NOW(), 1, 'Simple ramen instructions', (SELECT vec3::vector FROM vector_data))
+            """)
+
+            # Verify we have data in the target table
+            cur.execute("SELECT COUNT(*) FROM website.blog_embedding_store")
+            count_before_truncate = cur.fetchone()[0]
+            assert (
+                count_before_truncate == 3
+            ), "Expected 3 rows in target table before truncate test"
+
+            # insert into the source table
+            cur.execute("""
+                insert into website.blog(title, published, body)
+                values
+                  ('how to make a better sandwich', '2022-01-06'::timestamptz, 'boil water. cook ramen in the water')
+            """)
+            # check that the queue has rows
+            cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual > 0
+
+            # Perform TRUNCATE on source table
+            cur.execute("truncate table website.blog")
+
+            # Verify target table was also truncated
+            cur.execute("select count(*) from website.blog_embedding_store")
+            count_after_truncate = cur.fetchone()[0]
+            assert (
+                count_after_truncate == 0
+            ), "Target table should be empty after source table truncate"
+
+            # check that the queue has 0 rows
+            cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual == 0
 
     # does the source table look right?
     actual = psql_cmd(r"\d+ website.blog")
@@ -2026,3 +2157,68 @@ def test_vectorizer_text_pymupdf_fails():
                     , enqueue_existing => false
                     );
                     """)
+
+
+def test_weird_primary_key():
+    # Test multi-column primary keys with "interesting" data types.
+    # Using format_type() instead of pg_type.typname is important
+    # because format_type() supports these "interesting" types.
+    # "Interesting" data types include arrays, ones with multi-word
+    # names, domains, ones defined in "non-standard" schemas, etc.
+    # This test also ensures that multi-column primary keys are
+    # handled correctly in the creation of the queue, trigger,
+    # target, and view. We also test the usage of the trigger and
+    # queue in the context of this "weird" primary key
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("create schema if not exists vec")
+            cur.execute("drop domain if exists vec.code cascade")
+            cur.execute("create domain vec.code as varchar(3)")
+            cur.execute("drop table if exists vec.weird")
+            cur.execute("""
+                create table vec.weird
+                ( a text[] not null
+                , b vec.code not null
+                , c timestamp with time zone not null
+                , d tstzrange not null
+                , note text not null
+                , primary key (a, b, c, d)
+                )
+            """)
+
+            # create a vectorizer for the table
+            # language=PostgreSQL
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'vec.weird'::regclass
+            , loading=>ai.loading_row('note')
+            , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+            , chunking=>ai.chunking_character_text_splitter()
+            , scheduling=> ai.scheduling_none()
+            , indexing=>ai.indexing_none()
+            , grant_to=>ai.grant_to('public')
+            , enqueue_existing=>false
+            );
+            """)
+            vectorizer_id = cur.fetchone()[0]
+
+            # insert 7 rows into the source and see if the trigger works
+            cur.execute("""
+                insert into vec.weird(a, b, c, d, note)
+                select
+                  array['larry', 'moe', 'curly']
+                , 'xyz'
+                , t
+                , tstzrange(t, t + interval '1d', '[)')
+                , 'if two witches watch two watches, which witch watches which watch'
+                from generate_series('2025-01-06'::timestamptz, '2025-01-12'::timestamptz, interval '1d') t
+                """)
+
+            # check that the queue has 7 rows
+            cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
+            actual = cur.fetchone()[0]
+            assert actual == 7

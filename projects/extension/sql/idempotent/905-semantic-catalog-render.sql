@@ -52,21 +52,32 @@ begin
         left outer join pg_catalog.pg_attribute f -- left outer b/c the table/view itself won't have a row in pg_attribute
         on (f.attrelid = _objid and f.attnum = coalesce(a.objsubid, b.objsubid))
     )
-    select concat
-    ( E'/*\n'
-    , string_agg
+    select 
+      string_agg
       (
-        format
-        ( '%s %s'
-        , coalesce(x.attname, '')
-        , x.description
-        )
-      , E'\n' order by x.objsubid
+        case
+            when x.objsubid = 0 and k.relkind in ('r', 't', 'f', 'p', 'v', 'm') then
+                format
+                ( $sql$COMMENT ON %s %I.%I IS $$%s$$;$sql$
+                , case k.relkind 
+                    when 'f' then 'FOREIGN TABLE'
+                    when 'v' then 'VIEW' 
+                    when 'm' then 'MATERIALIZED VIEW'
+                    else 'TABLE'
+                  end
+                , n.nspname
+                , k.relname
+                , x.description
+                )
+            else
+                format($sql$COMMENT ON COLUMN %I.%I.%I IS $$%s$$;$sql$, n.nspname, k.relname, x.attname, x.description)
+        end
+      , E'\n' order by x.objsubid nulls first
       )
-    , E'\n*/'
-    )
     into _description
     from x
+    inner join pg_class k on (k.oid = _objid)
+    inner join pg_catalog.pg_namespace n on (k.relnamespace = n.oid)
     where x.description is not null -- shouldn't be the case but paranoia strikes deep
     ;
     return _description;
@@ -90,6 +101,7 @@ declare
     _indexes pg_catalog.text;
     _ddl text;
     _description text;
+    _sample_data text;
 begin
     -- get the descriptions (if any) of the table and the columns of the table
     select ai._render_semantic_catalog_attr_desc(id, _classid, _objid)
@@ -179,12 +191,20 @@ begin
     if _ddl is null then
         return '';
     end if;
+    
+    select ai._render_sample(pg_catalog.format('%I.%I', _nspname, _relname))
+    into _sample_data
+    ;
 
     return concat_ws
     ( E'\n'
     , format('<table id=%s>', id)
     , _ddl
     , coalesce(_description, '')
+    , case when _sample_data is not null then
+        E'-- sample data\n' || _sample_data
+      else ''
+      end
     , '</table>'
     );
 end
@@ -197,10 +217,11 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai._render_semantic_catalog_view(id bigint, classid oid, objid oid) returns text
 as $func$
 declare
-    _classid oid = _render_semantic_catalog_view.classid;
-    _objid oid = _render_semantic_catalog_view.objid;
-    _ddl text;
-    _description text;
+    _classid pg_catalog.oid = _render_semantic_catalog_view.classid;
+    _objid pg_catalog.oid = _render_semantic_catalog_view.objid;
+    _ddl pg_catalog.text;
+    _description pg_catalog.text;
+    _sample_data pg_catalog.text;
 begin
     -- get the descriptions (if any) of the view and the columns of the view
     select ai._render_semantic_catalog_attr_desc(id, _classid, _objid)
@@ -216,11 +237,22 @@ begin
         return '';
     end if;
 
+    select ai._render_sample(pg_catalog.format('%I.%I', n.nspname, k.relname))
+    into _sample_data
+    from pg_catalog.pg_class k
+    inner join pg_catalog.pg_namespace n on (k.relnamespace = n.oid)
+    where k.oid = _objid
+    ;
+
     return concat_ws
     ( E'\n'
     , format('<view id=%s>', id)
     , _ddl
     , coalesce(_description, '')
+    , case when _sample_data is not null then
+        E'-- sample data\n' || _sample_data
+      else ''
+      end
     , '</view>'
     );
 end
@@ -235,9 +267,34 @@ as $func$
 declare
     _classid oid = _render_semantic_catalog_func.classid;
     _objid oid = _render_semantic_catalog_func.objid;
+    _nspname name;
+    _proname name;
+    _prokind char;
+    _idargs text;
     _ddl text;
     _description text;
 begin
+
+    select
+      n.nspname
+    , p.proname
+    , case p.prokind
+        when 'f' then 'function'
+        when 'w' then 'function'
+        when 'p' then 'procedure'
+        when 'a' then 'aggregate'
+      end
+    into
+      _nspname
+    , _proname
+    , _prokind
+    from pg_catalog.pg_proc p
+    inner join pg_catalog.pg_namespace n on (p.pronamespace = n.oid)
+    where p.oid = _objid
+    ;
+    
+    select pg_get_function_identity_arguments(_objid) into _idargs;
+
     select x.description into _description
     from ai.semantic_catalog_obj x
     where x.classid = _classid
@@ -261,10 +318,23 @@ begin
 
     return concat_ws
     ( E'\n'
-    , format('<function id=%s>', id)
+    , format
+      ( '<%s id=%s>'
+      , _prokind
+      , id
+      )
     , _ddl
-    , coalesce(_description, '')
-    , '</function>'
+    , case when _description is null then '' else
+        format
+        ( $sql$COMMENT ON %s %I.%I(%s) IS $$%s$$;$sql$
+        , _prokind
+        , _nspname
+        , _proname
+        , _idargs
+        , _description
+        )
+      end
+    , format('</%s>', _prokind)
     );
 end
 $func$ language plpgsql stable security invoker
@@ -291,6 +361,38 @@ as $func$
         end
     from pg_catalog.pg_class k
     where k.oid = classid
+$func$ language sql stable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- render_semantic_catalog_obj_listing
+create or replace function ai.render_semantic_catalog_obj_listing(n pg_catalog.int8) returns text
+as $func$
+    select concat_ws
+    ( E'\n'
+    , 'Below is a list of commonly used database objects which may or may not be relevant.'
+    , '<commonly-used-database-objects>'
+    , string_agg(x.item, E'\n')
+    , E'</commonly-used-database-objects>\n'
+    )
+    from
+    (
+        select
+          case o.objtype
+            when 'table' then
+                format('%s. table: %I.%I', o.id, o.objnames[1], o.objnames[2])
+            when 'view' then
+                format('%s. view: %I.%I', o.id, o.objnames[1], o.objnames[2])
+            when 'function' then
+                format('%s. function: %s', o.id, o.objid::regprocedure)
+          end as item
+        from ai.semantic_catalog_obj o
+        where o.objsubid = 0
+        order by o.usage desc
+        limit n
+    ) x
+    ;
 $func$ language sql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -367,25 +469,40 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- render_obj_sample
-create or replace function ai.render_sample
-( relation pg_catalog.text
-, total pg_catalog.int4 default 5
-, search_path pg_catalog.text default pg_catalog.current_setting('search_path', true)
+-- _render_obj_sample
+create or replace function ai._render_sample
+( fully_qualified_relation pg_catalog.text
+, total pg_catalog.int4 default 3
 ) returns text
 as $python$
     #ADD-PYTHON-LIB-DIR
     import ai.semantic_catalog
-
-    # make sure we have a fully-qualified reference to the table/view
-    plan = plpy.prepare("select fully_qualified from ai._resolve_class($1, $2)", ["text", "text"])
-    result = plpy.execute(plan, [relation, search_path], 1)
-    fully_qualified = result[0]["fully_qualified"]
-    if fully_qualified is None:
-        return None
-
-    return ai.semantic_catalog.render_sample(plpy, fully_qualified, total)
+    return ai.semantic_catalog.render_sample(plpy, fully_qualified_relation, total)
 $python$
 language plpython3u volatile parallel safe security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- render_obj_sample
+create or replace function ai.render_sample
+( relation pg_catalog.text
+, total pg_catalog.int4 default 3
+, search_path pg_catalog.text default pg_catalog.current_setting('search_path', true)
+) returns text
+as $func$
+declare
+    _fully_qualified pg_catalog.text;
+begin
+    select fully_qualified into _fully_qualified
+    from ai._resolve_class(relation, search_path)
+    ;
+    if _fully_qualified is null then
+        return null;
+    end if;
+    return ai._render_sample(_fully_qualified, total);
+end
+$func$
+language plpgsql volatile parallel safe security invoker
 set search_path to pg_catalog, pg_temp
 ;

@@ -21,7 +21,7 @@ clean:
 # Build source distribution and wheel package
 build:
 	@uv build
-	@uv run twine check ./dist/*
+	@uv run --no-project twine check ./dist/*
 
 # Install the wheel package locally
 install:
@@ -33,23 +33,30 @@ uninstall:
 
 # Run pytest test suite
 test:
-	@uv run pytest
+	@uv run --no-project pytest
 
 # Run ruff linter checks
 lint:
-	@uv run ruff check ./
+	@uv run --no-project ruff check ./
 
 # Run ruff linter checks and fix all auto-fixable issues
 lint-fix:
-	@uv run ruff check ./ --fix
+	@uv run --no-project ruff check ./ --fix
 
 # Run pyright type checking
 type-check:
-	@uv run pyright ./
+	@uv run --no-project pyright ./
 
-# Show code formatting differences
+# Runs ruff to check formatting of the python source files
 format:
-	@uv run ruff format --diff ./
+	@uv run --no-project ruff format --diff ./
+
+# Runs ruff to check formatting of the python source files and fix all auto-fixable issues
+format-fix:
+	@uv run --no-project ruff format ./
+
+# Run both linter and type-checking checks and fix all auto-fixable issues
+fix: lint-fix format-fix
 
 # CI pipeline. Runs all recipes needed for ensuring the code is ready to be integrated. Triggered by GH Actions
 ci: install lint type-check format test build
