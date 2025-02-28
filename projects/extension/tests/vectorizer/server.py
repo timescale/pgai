@@ -108,6 +108,38 @@ class ProcessingDefault(BaseModel):
     concurrency: int | None = None
 
 
+class LoadingColumn(BaseModel):
+    implementation: Literal["row"]
+    config_type: Literal["loading"]
+    column_name: str
+
+
+class LoadingUri(BaseModel):
+    implementation: Literal["document"]
+    config_type: Literal["loading"]
+    column_name: str
+
+
+class ParsingAuto(BaseModel):
+    implementation: Literal["auto"]
+    config_type: Literal["parsing"]
+
+
+class ParsingNone(BaseModel):
+    implementation: Literal["none"]
+    config_type: Literal["parsing"]
+
+
+class ParsingPyMuPDF(BaseModel):
+    implementation: Literal["pymupdf"]
+    config_type: Literal["parsing"]
+
+
+class ParsingDocling(BaseModel):
+    implementation: Literal["docling"]
+    config_type: Literal["parsing"]
+
+
 class Config(BaseModel):
     version: str
     indexing: IndexingNone | IndexingDiskANN | IndexingHNSW = Field(
@@ -122,6 +154,8 @@ class Config(BaseModel):
         Field(..., discriminator="implementation")
     )
     processing: ProcessingDefault = Field(..., discriminator="implementation")
+    loading: LoadingColumn | LoadingUri = Field(..., discriminator="implementation")
+    parsing: ParsingAuto | ParsingNone | ParsingPyMuPDF | ParsingDocling = Field(..., discriminator="implementation")
 
 
 class PrimaryKeyColumn(BaseModel):

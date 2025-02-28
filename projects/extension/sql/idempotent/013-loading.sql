@@ -1,7 +1,7 @@
 -------------------------------------------------------------------------------
 -- loading_column
 create or replace function ai.loading_column
-( column_name pg_catalog.text)
+( column_name pg_catalog.name)
 returns pg_catalog.jsonb
 as $func$
     select json_object
@@ -16,7 +16,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- loading_uri
 create or replace function ai.loading_uri
-( column_name pg_catalog.text)
+( column_name pg_catalog.name)
 returns pg_catalog.jsonb
 as $func$
     select json_object
@@ -39,7 +39,7 @@ as $func$
 declare
     _config_type pg_catalog.text;
     _implementation pg_catalog.text;
-    _column_name pg_catalog.text;
+    _column_name pg_catalog.name;
     _found pg_catalog.bool;
 begin
     if pg_catalog.jsonb_typeof(config) operator(pg_catalog.!=) 'object' then

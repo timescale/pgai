@@ -56,7 +56,7 @@ create or replace function ai._validate_parsing
 ) returns void
 as $func$
 declare
-    _column_type pg_catalog.text;
+    _column_type pg_catalog.name;
     _config_type pg_catalog.text;
     _loading_implementation pg_catalog.text;
     _parsing_implementation pg_catalog.text;
