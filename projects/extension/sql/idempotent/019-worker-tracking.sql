@@ -36,10 +36,10 @@ BEGIN
 
     UPDATE ai.vectorizer_worker_progress SET 
         last_success_at = CASE WHEN error_message IS NULL THEN progress_timestamp ELSE last_success_at END
-      , last_success_connection_id = CASE WHEN error_message IS NULL THEN worker_id ELSE last_success_connection_id END
+      , last_success_process_id = CASE WHEN error_message IS NULL THEN worker_id ELSE last_success_process_id END
       , last_error_at = CASE WHEN error_message IS NULL THEN last_error_at ELSE progress_timestamp END
       , last_error_message = CASE WHEN error_message IS NULL THEN last_error_message ELSE error_message END
-      , last_error_connection_id = CASE WHEN error_message IS NULL THEN last_error_connection_id ELSE worker_id END
+      , last_error_process_id = CASE WHEN error_message IS NULL THEN last_error_process_id ELSE worker_id END
       , success_count = success_count + num_successes
       , error_count = error_count + CASE WHEN error_message IS NULL THEN 0 ELSE 1 END
     WHERE vectorizer_id = worker_vectorizer_id;

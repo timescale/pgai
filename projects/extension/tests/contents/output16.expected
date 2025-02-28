@@ -291,17 +291,17 @@ btree, for table "ai.vectorizer_worker_process"
  id     | uuid | yes  | id         | plain   | 
 primary key, btree, for table "ai.vectorizer_worker_process"
 
-                                                    Table "ai.vectorizer_worker_progress"
-           Column           |           Type           | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
-----------------------------+--------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
- vectorizer_id              | integer                  |           | not null |         | plain    |             |              | 
- success_count              | integer                  |           | not null | 0       | plain    |             |              | 
- error_count                | integer                  |           | not null | 0       | plain    |             |              | 
- last_success_at            | timestamp with time zone |           |          |         | plain    |             |              | 
- last_success_connection_id | uuid                     |           |          |         | plain    |             |              | 
- last_error_at              | timestamp with time zone |           |          |         | plain    |             |              | 
- last_error_message         | text                     |           |          |         | extended |             |              | 
- last_error_connection_id   | uuid                     |           |          |         | plain    |             |              | 
+                                                   Table "ai.vectorizer_worker_progress"
+         Column          |           Type           | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
+-------------------------+--------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
+ vectorizer_id           | integer                  |           | not null |         | plain    |             |              | 
+ success_count           | integer                  |           | not null | 0       | plain    |             |              | 
+ error_count             | integer                  |           | not null | 0       | plain    |             |              | 
+ last_success_at         | timestamp with time zone |           |          |         | plain    |             |              | 
+ last_success_process_id | uuid                     |           |          |         | plain    |             |              | 
+ last_error_at           | timestamp with time zone |           |          |         | plain    |             |              | 
+ last_error_message      | text                     |           |          |         | extended |             |              | 
+ last_error_process_id   | uuid                     |           |          |         | plain    |             |              | 
 Indexes:
     "vectorizer_worker_progress_pkey" PRIMARY KEY, btree (vectorizer_id)
 Foreign-key constraints:

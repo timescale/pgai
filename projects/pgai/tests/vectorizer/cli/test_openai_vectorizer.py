@@ -120,10 +120,10 @@ def test_process_vectorizer(
         row = cur.fetchone()
         assert row is not None
         assert row["last_success_at"] is not None
-        assert row["last_success_connection_id"] == worker_id
+        assert row["last_success_process_id"] == worker_id
         assert row["last_error_at"] is None
         assert row["last_error_message"] is None
-        assert row["last_error_connection_id"] is None
+        assert row["last_error_process_id"] is None
         assert row["success_count"] == num_items
         assert cur.fetchone() is None
 
@@ -174,10 +174,10 @@ def test_vectorizer_without_secrets_fails(
         row = cur.fetchone()
         assert row is not None
         assert row["last_success_at"] is None
-        assert row["last_success_connection_id"] is None
+        assert row["last_success_process_id"] is None
         assert row["last_error_at"] is not None
         assert row["last_error_message"] is not None
-        assert row["last_error_connection_id"] == worker_id
+        assert row["last_error_process_id"] == worker_id
         assert row["success_count"] == 0
         assert cur.fetchone() is None
 
