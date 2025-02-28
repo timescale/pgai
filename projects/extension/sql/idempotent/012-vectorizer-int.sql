@@ -405,10 +405,14 @@ declare
 begin
     -- create the table
     select pg_catalog.format
-    ( $sql$create table %I.%I(%s
-    , queued_at pg_catalog.timestamptz not null default now()
-    , retries pg_catalog.int4 default 0
-    , retry_after pg_catalog.timestamptz)$sql$
+    ( $sql$
+      create table %I.%I
+      ( %s
+      , queued_at pg_catalog.timestamptz not null default now()
+      , retries pg_catalog.int4 default 0
+      , retry_after pg_catalog.timestamptz
+      )
+      $sql$
     , queue_schema, queue_table
     , (
         select pg_catalog.string_agg
