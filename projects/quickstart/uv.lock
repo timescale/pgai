@@ -781,7 +781,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3,<4" },
     { name = "openai", specifier = ">=1,<2" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3,<4" },
-    { name = "questionary", git = "https://github.com/JamesGuthrie/questionary?branch=fix-select-dynamic-choice" },
+    { name = "questionary", specifier = ">=2,<3" },
     { name = "requests", specifier = ">=2,<3" },
     { name = "voyageai", specifier = ">=0.3,<0.4" },
     { name = "yaspin", specifier = ">=3,<4" },
@@ -1147,9 +1147,13 @@ wheels = [
 [[package]]
 name = "questionary"
 version = "2.1.0"
-source = { git = "https://github.com/JamesGuthrie/questionary?branch=fix-select-dynamic-choice#1f020f04b9d05598bcf5bbeb25f5ffea26e39e18" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "prompt-toolkit" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a8/b8/d16eb579277f3de9e56e5ad25280fab52fc5774117fb70362e8c2e016559/questionary-2.1.0.tar.gz", hash = "sha256:6302cdd645b19667d8f6e6634774e9538bfcd1aad9be287e743d96cacaf95587", size = 26775 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ad/3f/11dd4cd4f39e05128bfd20138faea57bec56f9ffba6185d276e3107ba5b2/questionary-2.1.0-py3-none-any.whl", hash = "sha256:44174d237b68bc828e4878c763a9ad6790ee61990e0ae72927694ead57bab8ec", size = 36747 },
 ]
 
 [[package]]
