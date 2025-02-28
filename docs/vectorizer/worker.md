@@ -5,7 +5,7 @@ When you install pgai on Timescale Cloud or another cloud installation, you use
 scheduling to control the times when vectorizers are run. A scheduled job detects whether work is to be done for the 
 vectorizers. If there is, the job runs the cloud function to embed the data.
 
-When you have [defined vectorizers](./vectorizer.md#define-a-vectorizer) on a self-hosted Postgres installation, you 
+When you have [defined vectorizers](/docs/vectorizer/overview.md#define-a-vectorizer) on a self-hosted Postgres installation, you 
 use vectorizer worker to asynchronously processes them. By default, when you run `pgai vectorizer worker`, it 
 loops over the vectorizers defined in your database and processes each vectorizer in turn.
 
@@ -258,4 +258,4 @@ the following environment variables.
 [docker]: https://docs.docker.com/get-docker/
 [psql]: https://www.timescale.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows/
 [openai-key]: https://platform.openai.com/api-keys
-[voyage-key]: https://dash.voyageai.com/api-keys
+[voyage-key]: https://docs.voyageai.com/docs/faq#how-do-i-get-the-voyage-api-key

@@ -22,4 +22,4 @@ Only use this e-mail address to report undisclosed security vulnerabilities in T
 
 Submit regular bug reports as [GitHub issues](https://github.com/timescale/pgai/issues), as _questions_ around security,
 compliance, or functionality through customer support or community channels such as 
-[Timescale Slack](https://slack.timescale.com/) and the [Forums](https://www.timescale.com/forums).
+[Timescale Slack](https://slack.timescale.com/) and the [Forums](https://www.timescale.com/forum/).

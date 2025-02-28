@@ -51,9 +51,6 @@ Vectorizer significantly simplifies the process of incorporating AI-powered
 semantic search and analysis capabilities into existing PostgreSQL databases.  
 Making it easier for you to leverage the power of LLMs in your data workflows.
 
-Vectorizers are available on [Timescale Cloud][timescale-cloud]. You can
-also run it yourself, please see the [Self Hosting Guide](TODO).
-
 Vectorizer offers the following APIs:
 
 **Create and configure vectorizers**
