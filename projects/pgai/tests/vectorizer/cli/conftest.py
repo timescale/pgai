@@ -83,7 +83,7 @@ def configure_vectorizer(
     chunking: str = "chunking_character_text_splitter()",
     formatting: str = "formatting_python_template('$chunk')",
     embedding: str = "embedding_openai('text-embedding-ada-002', 1536)",
-    loading: str | None = "ai.loading_row(column_name => 'content')",
+    loading: str | None = "ai.loading_column(column_name => 'content')",
     parsing: str | None = None,
 ):
     with connection.cursor(row_factory=dict_row) as cur:

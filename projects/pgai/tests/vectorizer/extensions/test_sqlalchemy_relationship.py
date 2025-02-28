@@ -35,7 +35,7 @@ def test_vectorizer_embedding_creation(
             text("""
                 SELECT ai.create_vectorizer(
                     'blog_posts'::regclass,
-                    loading => ai.loading_row(column_name => 'content'),
+                    loading => ai.loading_column(column_name => 'content'),
                     embedding =>
                     ai.embedding_openai('text-embedding-3-small', 768),
                     chunking =>
@@ -102,7 +102,7 @@ def test_select_parent(
             text("""
                 SELECT ai.create_vectorizer(
                     'blog_posts'::regclass,
-                    loading => ai.loading_row(column_name => 'content'),
+                    loading => ai.loading_column(column_name => 'content'),
                     embedding =>
                     ai.embedding_openai('text-embedding-3-small', 768),
                     chunking =>

@@ -100,7 +100,7 @@ create and manage all the necessary database objects and processes. For example:
 ```sql
 SELECT ai.create_vectorizer(
     'website.blog'::regclass,
-    loading => ai.loading_row('contents'),
+    loading => ai.loading_column('contents'),
     embedding => ai.embedding_ollama('nomic-embed-text', 768),
     chunking => ai.chunking_character_text_splitter(128, 10),
     formatting => ai.formatting_python_template('title: $title published: $published $chunk'),
@@ -128,7 +128,7 @@ in other management functions.
 | source           | regclass                                               | -                                 | ✔        | The source table that embeddings are generated for.                                                |
 | destination      | name                                                   | -                                 | ✖        | Set the name of the table embeddings are stored in, and the view with both the original data and the embeddings.<br>The view is named `<destination>`, the embedding table is named `<destination>_store`.<br>You set destination to avoid naming conflicts when you configure additional vectorizers for a source table.                              |
 | embedding        | [Embedding configuration](#embedding-configuration)    | -                                 | ✔        | Set how to embed the data.                                                                         |
-| loading          | [Loading configuration](#loading-configuration)      | -                                 | ✔        | Set the way to load the data from the source table, using functions like `ai.loading_row()`.      |
+| loading          | [Loading configuration](#loading-configuration)      | -                                 | ✔        | Set the way to load the data from the source table, using functions like `ai.loading_column()`.      |
 | parsing          | [Parsing configuration](#parsing-configuration)      | ai.parsing_auto()                                 | ✖        | Set the way to parse the data, using functions like `ai.parsing_auto()`.      |
 | chunking         | [Chunking configuration](#chunking-configuration)      | `ai.chunking_recursive_character_text_splitter()`           | ✖        | Set the way to split text data, using functions like `ai.chunking_character_text_splitter()`.      |
 | indexing         | [Indexing configuration](#indexing-configuration)      | `ai.indexing_default()`           | ✖        | Specify how to index the embeddings. For example, `ai.indexing_diskann()` or `ai.indexing_hnsw()`. |
@@ -155,26 +155,26 @@ You use the loading configuration functions in `pgai` to define the way data is 
 
 The loading functions are:
 
-- [ai.loading_row](#ailoading_row)
-- [ai.loading_document](#ailoading_document)
+- [ai.loading_column](#ailoading_column)
+- [ai.loading_uri](#ailoading_uri)
 
-### ai.loading_row
+### ai.loading_column
 
-You use `ai.loading_row` to load the data to embed directly from a column in the source table.
+You use `ai.loading_column` to load the data to embed directly from a column in the source table.
 
 #### Example usage
 
 ```sql
 SELECT ai.create_vectorizer(
     'my_table'::regclass,
-    loading => ai.loading_row('contents'),
+    loading => ai.loading_column('contents'),
     -- other parameters...
 );
 ```
 
 #### Parameters
 
-`ai.loading_row` takes the following parameters:
+`ai.loading_column` takes the following parameters:
 
 | Name | Type | Default | Required | Description |
 |------|------|---------|----------|-------------|
@@ -184,9 +184,9 @@ SELECT ai.create_vectorizer(
 
 A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
 
-### ai.loading_document
+### ai.loading_uri
 
-You use `ai.loading_document` to load the data to embed from a file that is referenced in a column of the source table.
+You use `ai.loading_uri` to load the data to embed from a file that is referenced in a column of the source table.
 This file path is internally passed to [smart_open](https://github.com/piskvorky/smart_open), so it supports any protocol that smart_open supports, including:
 
 - Local files
@@ -226,14 +226,14 @@ Make sure these environment variables are properly set in the environment where 
 ```sql
 SELECT ai.create_vectorizer(
     'my_table'::regclass,
-    loading => ai.loading_document('file_uri_column_name'),
+    loading => ai.loading_uri('file_uri_column_name'),
     -- other parameters...
 );
 ```
 
 #### Parameters
 
-`ai.loading_document` takes the following parameters:
+`ai.loading_uri` takes the following parameters:
 
 | Name | Type | Default | Required | Description |
 |------|------|---------|----------|-------------|
@@ -259,6 +259,11 @@ The parsing functions are:
 You use `ai.parsing_auto` to automatically parse the data with a fitting available parser.
 This special parser will decide on the fly which parser fits with each of the documents by guessing the file type. 
 If the type can not be guessed, the document will not be processed and an error will be appended to the vectorizer errors.
+
+The parser selection works by examining file extensions and content types:
+- For PDF files, images, Office documents (DOCX, XLSX, etc.): Uses docling
+- For EPUB and MOBI (e-book formats): Uses pymupdf
+- For text formats (TXT, MD, etc.): No parser is used (content is read directly)
 
 #### Example usage
 
@@ -316,6 +321,15 @@ A JSON configuration object that you can use in [ai.create_vectorizer](#create-v
 
 You use `ai.parsing_docling` to parse the data provided by the loader using [docling](https://ds4sd.github.io/docling/).
 
+Docling is a more robust and thorough document parsing library that:
+- Uses OCR capabilities to extract text from images
+- Can parse complex documents with tables and multi-column layouts
+- Supports Office formats (DOCX, XLSX, etc.)
+- Preserves document structure better than other parsers
+- Converts documents to markdown format
+
+Note that docling uses ML models for improved parsing, which makes it slower than simpler parsers like pymupdf.
+
 #### Example usage
 
 ```sql
@@ -341,6 +355,14 @@ A JSON configuration object that you can use in [ai.create_vectorizer](#create-v
 ### ai.parsing_pymupdf
 
 You use `ai.parsing_pymupdf` to parse the data provided by the loader using [pymupdf](https://pymupdf.readthedocs.io/en/latest/).
+
+PyMuPDF is a faster, simpler document parser that:
+- Processes PDF documents with basic structure preservation
+- Supports e-book formats like EPUB and MOBI
+- Is generally faster than docling for simpler documents
+- Works well for documents with straightforward layouts
+
+Choose pymupdf when processing speed is more important than perfect structure preservation.
 
 #### Example usage
 

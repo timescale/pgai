@@ -13,10 +13,10 @@ def db_url(user: str) -> str:
     return f"postgres://{user}@127.0.0.1:5432/test"
 
 
-def test_loading_row():
+def test_loading_column():
     tests = [
         (
-            "select ai.loading_row('content')",
+            "select ai.loading_column('content')",
             {
                 "config_type": "loading",
                 "implementation": "row",
@@ -35,10 +35,10 @@ def test_loading_row():
                     assert k in expected and v == expected[k]
 
 
-def test_loading_document():
+def test_loading_uri():
     tests = [
         (
-            "select ai.loading_document('s3_uri')",
+            "select ai.loading_uri('s3_uri')",
             {
                 "config_type": "loading",
                 "implementation": "document",
@@ -61,27 +61,27 @@ def test_validate_loading():
     ok = [
         """
         select ai._validate_loading
-        ( ai.loading_row('body'), 'public', 'thing' )
+        ( ai.loading_column('body'), 'public', 'thing' )
         """,
         """
         select ai._validate_loading
-        ( ai.loading_document('body'), 'public', 'thing' )
+        ( ai.loading_uri('body'), 'public', 'thing' )
         """,
     ]
     bad = [
         (
             """
             select ai._validate_loading
-            ( ai.loading_row(), 'public', 'thing' )
+            ( ai.loading_column(), 'public', 'thing' )
             """,
-            "function ai.loading_row() does not exist",
+            "function ai.loading_column() does not exist",
         ),
         (
             """
             select ai._validate_loading
-            ( ai.loading_document(), 'public', 'thing' )
+            ( ai.loading_uri(), 'public', 'thing' )
             """,
-            "function ai.loading_document() does not exist",
+            "function ai.loading_uri() does not exist",
         ),
         (
             """

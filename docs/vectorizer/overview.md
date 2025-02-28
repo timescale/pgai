@@ -109,7 +109,7 @@ query like this:
 ```sql
 SELECT ai.create_vectorizer( 
    'blog'::regclass,
-   loading => ai.loading_row('contents'),
+   loading => ai.loading_column('contents'),
    destination => 'blog_contents_embeddings',
    embedding => ai.embedding_ollama('nomic-embed-text', 768)
 );
@@ -141,7 +141,7 @@ into each chunk:
 ```sql
 SELECT ai.create_vectorizer(   
     'blog'::regclass,
-    loading => ai.loading_row('contents'),
+    loading => ai.loading_column('contents'),
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_ollama('nomic-embed-text', 768),
     formatting => ai.formatting_python_template('$title: $chunk')
@@ -229,7 +229,7 @@ accordingly:
 ```sql
 SELECT ai.create_vectorizer(
     'blog'::regclass,
-    loading => ai.loading_row('contents'),
+    loading => ai.loading_column('contents'),
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_ollama('nomic-embed-text', 768),
     formatting => ai.formatting_python_template('$title - by $author - $chunk')
@@ -249,7 +249,7 @@ example uses a HNSW index:
 ```sql
 SELECT ai.create_vectorizer(
     'blog'::regclass,
-    loading => ai.loading_row('contents'),
+    loading => ai.loading_column('contents'),
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_ollama('nomic-embed-text', 768),
     formatting => ai.formatting_python_template('$title - by $author - $chunk'),

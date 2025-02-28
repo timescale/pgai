@@ -12,11 +12,12 @@ from pgai.vectorizer.generate.function_parser import (
 )
 
 VECTORIZER_FUNCTIONS = [
-    "loading_row",
-    "loading_document",
+    "loading_column",
+    "loading_uri",
     "parsing_auto",
     "parsing_none",
     "parsing_pymupdf",
+    "parsing_docling",
     "embedding_litellm",
     "embedding_openai",
     "embedding_ollama",

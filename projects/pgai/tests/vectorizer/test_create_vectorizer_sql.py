@@ -6,7 +6,7 @@ from pgai.vectorizer.configuration import (
     ChunkingCharacterTextSplitterConfig,
     EmbeddingOpenaiConfig,
     IndexingHnswConfig,
-    LoadingRowConfig,
+    LoadingColumnConfig,
     ProcessingDefaultConfig,
     SchedulingTimescaledbConfig,
 )
@@ -37,7 +37,7 @@ def test_basic_vectorizer_configuration():
 def test_complex_vectorizer_configuration():
     config = CreateVectorizer(
         source="public.large_documents",
-        loading=LoadingRowConfig(column_name="content"),
+        loading=LoadingColumnConfig(column_name="content"),
         embedding=EmbeddingOpenaiConfig(
             model="text-embedding-ada-002", dimensions=1536
         ),
@@ -54,7 +54,7 @@ def test_complex_vectorizer_configuration():
 
     expected_sql = """SELECT ai.create_vectorizer(
     'public.large_documents'::regclass
-    ,loading=>ai.loading_row(column_name=>'content')
+    ,loading=>ai.loading_column(column_name=>'content')
     ,embedding=>ai.embedding_openai(model=>'text-embedding-ada-002',dimensions=>'1536')
     ,chunking=>ai.chunking_character_text_splitter(chunk_size=>'1000',chunk_overlap=>'100')
     ,indexing=>ai.indexing_hnsw(opclass=>'vector_l2_ops',m=>'16',ef_construction=>'100')

@@ -179,21 +179,21 @@ class IndexingNoneConfig(SQLArgumentMixin):
 
 
 @dataclass
-class LoadingDocumentConfig(SQLArgumentMixin):
-    """Configuration for ai.loading_document function."""
+class LoadingColumnConfig(SQLArgumentMixin):
+    """Configuration for ai.loading_column function."""
 
     arg_type: ClassVar[str] = "loading"
-    function_name: ClassVar[str] = "ai.loading_document"
+    function_name: ClassVar[str] = "ai.loading_column"
 
     column_name: str
 
 
 @dataclass
-class LoadingRowConfig(SQLArgumentMixin):
-    """Configuration for ai.loading_row function."""
+class LoadingUriConfig(SQLArgumentMixin):
+    """Configuration for ai.loading_uri function."""
 
     arg_type: ClassVar[str] = "loading"
-    function_name: ClassVar[str] = "ai.loading_row"
+    function_name: ClassVar[str] = "ai.loading_uri"
 
     column_name: str
 
@@ -204,6 +204,14 @@ class ParsingAutoConfig(SQLArgumentMixin):
 
     arg_type: ClassVar[str] = "parsing"
     function_name: ClassVar[str] = "ai.parsing_auto"
+
+
+@dataclass
+class ParsingDoclingConfig(SQLArgumentMixin):
+    """Configuration for ai.parsing_docling function."""
+
+    arg_type: ClassVar[str] = "parsing"
+    function_name: ClassVar[str] = "ai.parsing_docling"
 
 
 @dataclass

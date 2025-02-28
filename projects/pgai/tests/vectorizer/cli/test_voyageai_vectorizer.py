@@ -103,7 +103,7 @@ def test_voyageai_vectorizer_fails_when_api_key_is_not_set(
         cur.execute("CREATE TABLE blog(id bigint primary key, content text);")
         cur.execute("""SELECT ai.create_vectorizer(
                 'blog',
-                loading => ai.loading_row('content'),
+                loading => ai.loading_column('content'),
                 embedding => ai.embedding_voyageai(
                     'voyage-3-lite',
                     512
