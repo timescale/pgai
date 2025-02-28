@@ -227,7 +227,7 @@ Outputs:
 
 You can run this example of **tool_use** in your database to extract named
 entities from the given text input.
-The [extract_entities.sql](../examples/extract_entities.sql) is wrapping the
+The [extract_entities.sql](/examples/extract_entities.sql) is wrapping the
 function.
 
 ```sql
@@ -247,7 +247,7 @@ the named entities with their types.
 -[ RECORD 1 ]--+------------------------------------------------
 anonymize_text | :PERSON: works at :ORGANIZATION: in :LOCATION:.
 ```
-Through the same mechanism, the [summarize_article.sql](../examples/summarize_article.sql)
+Through the same mechanism, the [summarize_article.sql](/examples/summarize_article.sql)
 example shows how to extract structured json with the `summarize_article` tool.
 
 ```sql

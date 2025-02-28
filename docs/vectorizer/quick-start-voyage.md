@@ -1,7 +1,7 @@
 # Vectorizer quick start with VoyageAI
 
 This page shows you how to create a vectorizer and run a semantic search on the automatically embedded data on a self-hosted Postgres instance.
-To follow this tutorial you need to have a Voyage AI account API key. You can get one [here](https://voyageai.com/).
+To follow this tutorial you need to have a Voyage AI account API key. You can get one [here](https://www.voyageai.com/).
 
 ## Setup a local development environment
 

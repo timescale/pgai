@@ -86,7 +86,7 @@ just -l pgai
 
 ### Testing the pgai library
 
-Be sure to add unit tests to the [tests](./projects/pgai/tests) directory when
+Be sure to add unit tests to the [tests](/projects/pgai/tests) directory when
 you add or modify code. Use the following commands to check your work before
 submitting a PR.
 

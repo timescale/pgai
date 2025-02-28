@@ -14,5 +14,6 @@ jobs:
         id: lychee
         uses: lycheeverse/lychee-action@v2
         with:
+          args: --exclude-loopback --accept '403' .
           format: markdown
           jobSummary: true

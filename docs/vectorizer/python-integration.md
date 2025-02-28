@@ -1,7 +1,7 @@
 # Creating vectorizers from python
 
 To create a vectorizer from python you use the `CreateVectorizer` helper class from the `pgai.vectorizer` module.
-It accepts all the options listed in the [SQL API](vectorizer/api-reference.md) and exposes the `to_sql`
+It accepts all the options listed in the [SQL API](/docs/vectorizer/api-reference.md) and exposes the `to_sql`
 method to generate a SQL query which you can then run through the SQL library of your choice.
 
 First install the pgai library:
