@@ -256,9 +256,8 @@ The parsing functions are:
 
 ### ai.parsing_auto
 
-You use `ai.parsing_auto` to automatically parse the data with a fitting available parser.
-This special parser will decide on the fly which parser fits with each of the documents by guessing the file type. 
-If the type can not be guessed, the document will not be processed and an error will be appended to the vectorizer errors.
+You use `ai.parsing_auto` to automatically select an appropriate parser based on detected file types.
+Documents with unrecognizable formats won't be processed and will generate an error (in the `ai.vectorizer_errors` table.
 
 The parser selection works by examining file extensions and content types:
 - For PDF files, images, Office documents (DOCX, XLSX, etc.): Uses docling
