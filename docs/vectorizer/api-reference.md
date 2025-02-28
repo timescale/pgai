@@ -245,7 +245,7 @@ A JSON configuration object that you can use in [ai.create_vectorizer](#create-v
 
 ## Parsing configuration
 
-You use the parsing configuration functions in `pgai` to define the way data, after being loaded, is parsed. This is useful if you want to load data that is not immediately text and therefore needs to be parsed first. I.e. a PDF document.
+You use the parsing configuration functions in `pgai` to define how data is parsed after document loading. This is useful if for non-textual formats such as PDF documents.
 
 The parsing functions are:
 
