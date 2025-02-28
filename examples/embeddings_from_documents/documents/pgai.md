@@ -1,7 +1,7 @@
 
 <p align="center">
-    <img height="200" src="docs/images/pgai_logo.png#gh-dark-mode-only" alt="pgai"/>
-    <img height="200" src="docs/images/pgai_white.png#gh-light-mode-only" alt="pgai"/>
+    <img height="200" src="/docs/images/pgai_logo.png#gh-dark-mode-only" alt="pgai"/>
+    <img height="200" src="/docs/images/pgai_white.png#gh-light-mode-only" alt="pgai"/>
 </p>
 
 <div align=center>
@@ -588,8 +588,8 @@ pgai is still at an early stage. Now is a great time to help shape the direction
 we are currently deciding priorities. Have a look at the [list of features](https://github.com/timescale/pgai/issues) we're thinking of working on.
 Feel free to comment, expand the list, or hop on the Discussions forum.
 
-To get started, take a look at [how to contribute](./CONTRIBUTING.md)
-and [how to set up a dev/test environment](./DEVELOPMENT.md).
+To get started, take a look at [how to contribute](/CONTRIBUTING.md)
+and [how to set up a dev/test environment](/DEVELOPMENT.md).
 
 ## About Timescale
 
