@@ -147,12 +147,17 @@ async def run_vectorizer(
 
     # raise any exceptions, but only after all tasks have completed
     items: int = 0
+    exceptions: list[BaseException] = []
     for result in results:
         if isinstance(result, BaseException):
+            # report all exceptions
             await worker_tracking.save_vectorizer_error(vectorizer.id, str(result))
-            raise result
+            exceptions.append(result)
         else:
             items += result
+
+    if len(exceptions) > 0:
+        raise Exception(exceptions)
 
     log.info("finished processing vectorizer", items=items, vectorizer_id=vectorizer.id)
 
