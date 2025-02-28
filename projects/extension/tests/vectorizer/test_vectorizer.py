@@ -2195,7 +2195,7 @@ def test_weird_primary_key():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.weird'::regclass
-            , loading=>ai.loading_row('note')
+            , loading=>ai.loading_column('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
             , chunking=>ai.chunking_character_text_splitter()
             , scheduling=> ai.scheduling_none()
