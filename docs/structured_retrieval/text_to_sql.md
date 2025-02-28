@@ -55,7 +55,7 @@ alter extension ai update;
 
 ## Create the semantic catalog
 
-This function creates [vectorizers](https://github.com/timescale/pgai/blob/main/docs/vectorizer/overview.md) for the tables that pgai uses to store descriptions for tables, columns, and queries. These vectorizers will automatically generate embeddings for the descriptions and update them if you edit the descriptions.
+This function creates [vectorizers](/docs/vectorizer/overview.md) for the tables that pgai uses to store descriptions for tables, columns, and queries. These vectorizers will automatically generate embeddings for the descriptions and update them if you edit the descriptions.
 
 For example:
 

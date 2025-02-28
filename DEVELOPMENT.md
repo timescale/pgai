@@ -129,5 +129,5 @@ You can then play around with the latest and greatest changes.
 [discord-server]: https://discord.gg/KRdHVXAmkp
 [just-gh]: https://github.com/casey/just
 [just-docs]: https://github.com/casey/just?tab=readme-ov-file#installation
-[uv-website]: https://uv.astral.sh
+[uv-website]: https://docs.astral.sh/uv/
 [uv-docs]: https://docs.astral.sh/uv/getting-started/installation

@@ -166,7 +166,7 @@ an index. For more details, check out the [documentation](/docs/vectorizer/overv
   `openai_list_models()` is now `ai.openai_list_models()`
 - The `pg_database_owner` and the database user running `CREATE EXTENSION` now get
   admin privileges over the extension. Other database users and roles need to
-  be granted privileges to use the extension. You do this using [functions](docs/security/privileges.md).
+  be granted privileges to use the extension. You do this using [functions](/docs/security/privileges.md).
 - The parameter names to the openai*, ollama*, anthropic*, and cohere* functions
   were renamed to remove underscore prefixes and conflicts with reserved and
   non-reserved keywords.

@@ -107,7 +107,7 @@ To make changes to pgai:
 
 ## Controlling pgai extension tests
 
-The [projects/extension/tests](./projects/extension/tests) directory contains the unit tests.
+The [projects/extension/tests](/projects/extension/tests) directory contains the unit tests.
 
 To set up the tests:
 
@@ -131,14 +131,14 @@ To set up the tests:
    - **Cohere**:
       - `COHERE_API_KEY` - a [Cohere API Key](https://docs.cohere.com/docs/rate-limits) for Cohere unit testing.
    - **Voyage**:
-      - `VOYAGE_API_KEY` - a [Voyage API Key](https://voyageai.com) for Voyage unit testing.
+      - `VOYAGE_API_KEY` - a [Voyage API Key](https://www.voyageai.com/) for Voyage unit testing.
 
    Providing these keys automatically enables the corresponding tests.
 
 ## Dependency management in the pgai extension
 
 The pgai extension uses `uv` for dependency management. Dependencies are listed
-in the [pyproject.toml](./projects/extension/pyproject.toml) file.
+in the [pyproject.toml](/projects/extension/pyproject.toml) file.
 uv is already installed in the development docker container. To use it in your
 local environment, follow uv's [installation instructions](https://github.com/astral-sh/uv#installation).
 
@@ -157,7 +157,7 @@ local environment, follow uv's [installation instructions](https://github.com/as
 
 ## The pgai extension architecture
 
-pgai consists of [SQL](./projects/extension/sql) scripts and a [Python](./projects/extension/ai) package.
+pgai consists of [SQL](/projects/extension/sql) scripts and a [Python](/projects/extension/ai) package.
 
 * [Develop SQL in pgai](#develop-sql-in-pgai)
 * [Develop Python in pgai](#develop-python-in-pgai)
@@ -166,18 +166,18 @@ pgai consists of [SQL](./projects/extension/sql) scripts and a [Python](./projec
 
 ### Develop SQL in the pgai extension
 
-SQL code used by pgai is maintained in [./projects/extension/sql](./projects/extension/sql).
+SQL code used by pgai is maintained in [./projects/extension/sql](/projects/extension/sql).
 
 The SQL is organized into:
 
-* **Idempotent scripts**: maintained in [./projects/extension/sql/idempotent](./projects/extension/sql/idempotent).
+* **Idempotent scripts**: maintained in [./projects/extension/sql/idempotent](/projects/extension/sql/idempotent).
 
   Idempotent scripts consist of `CREATE OR REPLACE` style statements, usually as
   functions. They are executed in alphanumeric order every time you install or
   upgrade pgai. In general, it is safe to rename these scripts from one version to
   the next.
 
-* **Incremental scripts**: maintained in [./projects/extension/sql/incremental](./projects/extension/sql/incremental).
+* **Incremental scripts**: maintained in [./projects/extension/sql/incremental](/projects/extension/sql/incremental).
 
   Incremental files create tables and other stateful-structures that should not be
   dropped when you upgrade from one version to another. Each incremental script
@@ -187,8 +187,8 @@ The SQL is organized into:
 
   Incremental scripts are executed in alphanumeric order on file name. Once an incremental script is published
   in a release, you must not rename it. To facilitate migration, each incremental file is
-  [wrapped](./projects/extension/sql/migration.sql). Each migration id is tracked in the `migration` table. For more information,
-  see [./projects/extension/sql/head.sql](./projects/extension/sql/head.sql).
+  [wrapped](/projects/extension/sql/migration.sql). Each migration id is tracked in the `migration` table. For more information,
+  see [./projects/extension/sql/head.sql](/projects/extension/sql/head.sql).
 
 * **Built scripts**: `./projects/extension/sql/output/ai--*.sql`
 
@@ -209,7 +209,7 @@ recipes in favor of the SQL-specific just recipes:
 
 1. **Clean your environment**: run `just ext clean-sql` to delete `./projects/extension/sql/output/ai--*<current-version>.sql`.
 
-   The `<current-version>` is defined in `versions()` in [./projects/extension/build.py](./projects/extension/build.py).
+   The `<current-version>` is defined in `versions()` in [./projects/extension/build.py](/projects/extension/build.py).
 
 1. **Build pgai**: run `just ext build` to compile idempotent and incremental scripts
    into `./projects/extension/sql/output/ai--*<current-version>.sql`.
@@ -218,12 +218,12 @@ recipes in favor of the SQL-specific just recipes:
 
 ### Develop Python in the pgai extension
 
-Python code used by the pgai extension is maintained in [./projects/extension/ai](./projects/extension/ai).
+Python code used by the pgai extension is maintained in [./projects/extension/ai](/projects/extension/ai).
 
 Database functions
 written in [plpython3u](https://www.postgresql.org/docs/current/plpython.html)
 can import the modules in this package and any dependencies specified in
-[./projects/extension/pyproject.toml](./projects/extension/pyproject.toml).
+[./projects/extension/pyproject.toml](/projects/extension/pyproject.toml).
 Including the following line at the beginning of the database function body will
 allow you to import. The build process replaces this comment line with Python
 code that makes this possible. Note that the leading four spaces are required.
@@ -322,12 +322,12 @@ changes to existing stuff are required for a new feature.
 ## Release the extension
 
 1. Run `just ext clean-sql` in order to remove any prior generated dev sql.
-2. Edit the [build.py](projects/extension/build.py).
+2. Edit the [build.py](/projects/extension/build.py).
    - Set the version to be released as the first element of the array returned by `versions` function. I.e. `"0.7.0",  # released`.
-3. Run `just ext build-release`. This will generate, among other tasks, the final .sql files in `projects/extension/sql/output` and update the version in [__init__.py](projects/extension/ai/__init__.py).
+3. Run `just ext build-release`. This will generate, among other tasks, the final .sql files in `projects/extension/sql/output` and update the version in [__init__.py](/projects/extension/ai/__init__.py).
 4. As those files are git-ignored, you need to add those to the git index by forcing the addition. 
    - Run `git add -f projects/extension/sql/output/ai--*<YOUR_NEW_VERSION_HERE>.sql`.
-5. Craft the release notes for the new version of the extension. Those should be added into [projects/extension/RELEASE_NOTES.md](projects/extension/RELEASE_NOTES.md).
+5. Craft the release notes for the new version of the extension. Those should be added into [projects/extension/RELEASE_NOTES.md](/projects/extension/RELEASE_NOTES.md).
    - As we are not using release-please, those notes are not automatically generated. Instead, we need to manually add those.  
      You can use the output of the following command to craft the release notes:
      ```shell

@@ -7,7 +7,7 @@ Let's say you want to moderate comments using OpenAI. You can do it in two ways:
 
 ## Via trigger
 
-You can get the full example in the [trigger_moderate.sql](examples/trigger_moderate.sql) file.
+You can get the full example in the [trigger_moderate.sql](/examples/trigger_moderate.sql) file.
 
 First, let's create the extension and set the API key:
 
@@ -114,10 +114,7 @@ id |          body           |         created_at         |   status
 Background options will not be blocking your transactions, so it's a better option for
 moderating comments in a production environment and for a large number of comments.
 
-Check out [background_actions.md](background_actions.md) for more information on
-how to setup background actions to use open ai keys properly.
-
-You can get the full example in the [bg_worker_moderate.sql](examples/bg_worker_moderate.sql).
+You can get the full example in the [bg_worker_moderate.sql](/examples/bg_worker_moderate.sql).
 
 For the background action, instead of the trigger, we will create a procedure
 that will moderate the comments:
