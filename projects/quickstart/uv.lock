@@ -765,6 +765,7 @@ dependencies = [
     { name = "openai" },
     { name = "psycopg", extra = ["binary"] },
     { name = "questionary" },
+    { name = "requests" },
     { name = "voyageai" },
     { name = "yaspin" },
 ]
@@ -781,6 +782,7 @@ requires-dist = [
     { name = "openai", specifier = ">=1,<2" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3,<4" },
     { name = "questionary", git = "https://github.com/JamesGuthrie/questionary?branch=fix-select-dynamic-choice" },
+    { name = "requests", specifier = ">=2,<3" },
     { name = "voyageai", specifier = ">=0.3,<0.4" },
     { name = "yaspin", specifier = ">=3,<4" },
 ]

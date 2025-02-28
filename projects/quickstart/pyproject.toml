@@ -9,6 +9,7 @@ dependencies = [
   "openai >= 1, < 2",
   "questionary >= 2, < 3",
   "psycopg[binary] >= 3, <4",
+  "requests >= 2, <3",
   "yaspin >= 3, < 4",
   "voyageai >= 0.3, < 0.4",
   "cohere >= 5, < 6",

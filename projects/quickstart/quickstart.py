@@ -4,6 +4,7 @@ import questionary
 import shutil
 import subprocess
 import os
+
 from yaspin import yaspin
 import time
 from textwrap import dedent, indent
@@ -12,6 +13,9 @@ from jinja2 import Environment, PackageLoader, select_autoescape
 import cohere
 import openai
 import voyageai
+import atexit
+import platform
+import requests
 
 env = Environment(
     loader=PackageLoader("quickstart"),
@@ -112,50 +116,63 @@ OLLAMA_MODEL_SIZE = {
     "snowflake-arctic-embed": "670MB",
 }
 
+METADATA = {
+    "version": "0",  # NOTE: Increment this whenever the metadata structure changes materially
+}
+
+TELEMETRY = {
+    "program": "pgai-quickstart",
+    "version": "pre-release",  # XXX: replace this before merging
+    "success": False,
+    "duration": None,
+    "metadata": METADATA,
+    "os_family": os.name,
+    "os": platform.system(),
+    "arch": platform.machine(),
+}
+
+TELEMETRY_SUBMITTED = False
+
+PROGRAM_START = time.time()
+
+EXIT_CODE = None
+EXIT_REASON = None
+
+
+def exit_quickstart(code: int, reason: str):
+    global EXIT_CODE, EXIT_REASON
+    EXIT_CODE = code
+    EXIT_REASON = reason
+    if code > 0:
+        print(reason)
+    exit(code)
+
+
 def provider_title(provider: str) -> str:
     if provider != OLLAMA:
         return provider
-    arch = str(subprocess.run(
-                [shutil.which("docker"), "version", "--format", "{{.Server.Os}}/{{.Server.Arch}}"], capture_output=True, text=True
-            ).stdout).strip()
+    arch = str(
+        subprocess.run(
+            [
+                shutil.which("docker"),
+                "version",
+                "--format",
+                "{{.Server.Os}}/{{.Server.Arch}}",
+            ],
+            capture_output=True,
+            text=True,
+        ).stdout
+    ).strip()
     if arch not in OLLAMA_SIZE_ARCH:
         print(arch)
         return "Ollama"
     return f"Ollama (requires {OLLAMA_SIZE_ARCH[arch]} download)"
 
+
 def model_title(model: str) -> str:
     if model in OLLAMA_MODEL_SIZE:
         return f"{model} ({OLLAMA_MODEL_SIZE[model]})"
     return model
-
-questions = [
-    {
-        "type": "select",
-        "name": "provider",
-        "message": "Which embedding model provider would you like to use?",
-        "choices": [questionary.Choice(title=provider_title(k), value=k) for k in EMBEDDING_MODELS.keys()],
-    },
-    {
-        "type": "password",
-        "message": "API key",
-        "name": "api_key",
-        "when": lambda x: x["provider"] in [COHERE, VOYAGE, OPENAI]
-        and os.getenv(API_KEY_NAME[x["provider"]]) is None,
-        "validate": lambda v: len(v) > 0,
-    },
-    {
-        "type": "select",
-        "message": "Which model would you like to use?",
-        "name": "model",
-        "choices": lambda x: [questionary.Choice(title=model_title(k), value=k) for k in EMBEDDING_MODELS[x["provider"]]],
-    },
-    {
-        "type": "select",
-        "message": "Which dataset would you like to use?",
-        "name": "huggingface_dataset",
-        "choices": ["wikipedia", "other", "another other"],
-    },
-]
 
 
 def validate():
@@ -274,11 +291,11 @@ def create_extension(port):
 
 def setup_dataset(dataset, port):
     sql_snippets = {
-        "wikipedia": f"""
+        "wikipedia": """
             select ai.load_dataset(
               'wikipedia'
             , config_name => '20220301.en'
-            , kwargs=> '{{"trust_remote_code": true}}'::jsonb
+            , kwargs=> '{"trust_remote_code": true}'::jsonb
             , table_name => 'wikipedia'
             , batch_size => 100
             , max_batches => 1
@@ -287,13 +304,10 @@ def setup_dataset(dataset, port):
     }
     table = dataset
     if dataset not in sql_snippets.keys():
-        print(f"unknown dataset '{dataset}'")
-        exit(1)
+        exit_quickstart(1, f"unknown dataset '{dataset}'")
+    start = time.time()
     with yaspin(text="loading dataset") as sp:
         sql = sql_snippets[dataset]
-        if sql is None:
-            sp.write("unknown dataset")
-            exit(1)
         if table in get_tables(port):
             sp.write(f"table '{table}' already exists")
             sp.text = f"dropping table '{table}'"
@@ -305,6 +319,7 @@ def setup_dataset(dataset, port):
         execute_sql(port, sql)
         execute_sql(port, f"alter table {table} add primary key (id)")
         sp.write("✔ dataset loaded")
+    METADATA["dataset_loading_duration_seconds"] = time.time() - start
 
 
 def get_tables(port):
@@ -316,6 +331,9 @@ def get_tables(port):
 
 
 def setup_vectorizer(answers, port) -> int:
+    VECTORIZER_METADATA = {}
+    METADATA["vectorizer"] = VECTORIZER_METADATA
+
     column_sql = "SELECT attname FROM pg_attribute WHERE attrelid = format('%%I.%%I', 'public', %(table)s::text)::regclass AND attnum >=1 AND NOT attisdropped"
     vectorizer_sql = (
         "SELECT view_name FROM ai.vectorizer WHERE source_table = %(table)s::text"
@@ -337,13 +355,14 @@ def setup_vectorizer(answers, port) -> int:
     print("The dataset is loaded")
 
     tables = get_tables(port)
+    table = None
     if len(tables) == 0:
-        print("no tables in public schema")
-        exit(1)
+        exit_quickstart(1, "no tables in public schema")
     else:
         table = questionary.select(
             "Select the table to vectorize", choices=tables
-        ).ask()
+        ).unsafe_ask()
+    VECTORIZER_METADATA["table"] = table
 
     vectorizers = get_existing_vectorizer_names(table, port)
     destination = None
@@ -352,33 +371,39 @@ def setup_vectorizer(answers, port) -> int:
         name = questionary.text(
             "Provide a name for this vectorizer",
             validate=lambda x: x not in vectorizers,
-        ).ask()
+        ).unsafe_ask()
         destination = f"\n        , destination => '{name}'"
+        VECTORIZER_METADATA["destination"] = name
 
     columns = get_text_columns(table)
+    column = None
     if len(columns) == 0:
-        print(f"no columns of type 'text' in table 'public.{table}'")
-        exit(1)
+        exit_quickstart(1, f"no columns of type 'text' in table 'public.{table}'")
     else:
-        column = questionary.select("Select the column to embed", choices=columns).ask()
+        column = questionary.select(
+            "Select the column to embed", choices=columns
+        ).unsafe_ask()
+    VECTORIZER_METADATA["column"] = column
 
     print(
         f"The vectorizer splits the content of the '{column}' columns into smaller pieces\n"
-        "or \"chunks\" when it is too large. This improves retrieval accuracy, but means \n"
+        'or "chunks" when it is too large. This improves retrieval accuracy, but means \n'
         "that important information (context) can be lost.\n"
-        "The vectorizer's \"formatting\" configuration allows you to add context from the\n"
+        'The vectorizer\'s "formatting" configuration allows you to add context from the\n'
         "source row into the chunk, by e.g. inserting the title of the document into every\n"
         "chunk."
     )
     configure_formatting = questionary.confirm(
         "Would you like to configure formatting?"
-    ).ask()
+    ).unsafe_ask()
+    VECTORIZER_METADATA["configure_formatting"] = configure_formatting
     if configure_formatting is True:
         choices = get_columns(table)
         choices.remove(column)
         items = questionary.checkbox(
             "Which columns would you like to add to the formatting?", choices=choices
-        ).ask()
+        ).unsafe_ask()
+        VECTORIZER_METADATA["formatting_column_count"] = len(items)
         items.append("chunk")
         formatting = (
             "\n        , formatting => ai.formatting_python_template('"
@@ -418,14 +443,18 @@ def setup_vectorizer(answers, port) -> int:
 
 
 def monitor_embeddings(answers, port, vectorizer_id):
+    MONITOR_METADATA = {}
+    METADATA["monitor"] = MONITOR_METADATA
     provider = answers["provider"]
     model = answers["model"]
     sql = f"select ai.vectorizer_queue_pending({vectorizer_id}, exact_count => true);"
     if provider == OLLAMA:
-        print(f"embedding source table, this could take a very long time")
+        print("embedding source table, this could take a very long time")
         duration_seconds = None
     else:
         duration_seconds = WIKIPEDIA_EMBEDDING_DURATION_SECONDS[model]
+    MONITOR_METADATA["estimated_embedding_duration_seconds"] = duration_seconds
+    start = time.time()
     with yaspin(text="embedding source table") as sp:
         while True:
             row = fetchone_sql(port, sql)
@@ -445,6 +474,7 @@ def monitor_embeddings(answers, port, vectorizer_id):
                 sp.write("✔ source table embedded")
                 break
             time.sleep(1)
+    MONITOR_METADATA["actual_embedding_duration_seconds"] = time.time() - start
 
 
 def is_api_key_valid(provider, api_key):
@@ -486,32 +516,77 @@ def get_api_key(answers):
 def pull_images(docker_bin):
     print("pulling required docker images")
     if subprocess.run([docker_bin, "compose", "pull"]).returncode != 0:
-        print("error while pulling docker images")
-        exit(1)
+        exit_quickstart(1, "error while pulling docker images")
 
 
 def pull_ollama_model(docker_bin, model):
     print(f"pulling ollama model '{model}'")
+    start = time.time()
     if (
         subprocess.run(
             [docker_bin, "compose", "exec", "-ti", "ollama", "ollama", "pull", model]
         ).returncode
         != 0
     ):
-        print("error while pulling ollama model")
-        exit(1)
+        exit_quickstart(1, "error while pulling ollama model")
+    METADATA["ollama_model_pull_duration_seconds"] = time.time() - start
+
+
+def ask_initial_questions():
+    answers = {}
+    provider = questionary.select(
+        "Which embedding model provider would you like to use?",
+        choices=[
+            questionary.Choice(title=provider_title(k), value=k)
+            for k in EMBEDDING_MODELS.keys()
+        ],
+    ).unsafe_ask()
+    answers["provider"] = provider
+    METADATA["provider"] = provider
+    api_key = None
+    env_has_key = os.getenv(API_KEY_NAME[provider]) is not None
+    METADATA["api_key_source"] = "environment" if env_has_key else "user"
+    if provider in [COHERE, VOYAGE, OPENAI] and not env_has_key:
+        api_key = questionary.password(
+            "API Key", validate=lambda v: len(v) > 0
+        ).unsafe_ask()
+    answers["api_key"] = api_key
+
+    if not is_api_key_valid(provider, get_api_key(answers)):
+        # TODO: loop to get valid API key
+        error_msg = "The provided API key is invalid"
+        exit_quickstart(1, error_msg)
+
+    model = questionary.select(
+        "Which model would you like to use?",
+        choices=[
+            questionary.Choice(title=model_title(k), value=k)
+            for k in EMBEDDING_MODELS[provider]
+        ],
+    ).unsafe_ask()
+    answers["model"] = model
+    METADATA["model"] = model
+    dataset = questionary.select(
+        "Which dataset would you like to use?",
+        choices=["wikipedia", "other", "another other"],
+    ).unsafe_ask()
+    answers["dataset"] = dataset
+    METADATA["dataset"] = dataset
+    return answers
 
 
 def main():
     docker_bin = shutil.which("docker")
     if docker_bin is None:
-        print("docker is not available but is required for pgai vectorizer quickstart")
         print("install docker https://docs.docker.com/desktop/ and try again")
-        exit(1)
+        exit_quickstart(
+            1, "docker is not available but is required for pgai vectorizer quickstart"
+        )
     if not has_docker_compose(docker_bin):
-        print("docker does not have the compose subcommand, but it is required")
         print("install docker compose https://docs.docker.com/compose/ and try again")
-        exit(1)
+        exit_quickstart(
+            1, "docker does not have the compose subcommand, but it is required"
+        )
 
     print("Welcome to the pgai vectorizer quickstart!")
     print("The quickstart guides you through creating your first vectorizer")
@@ -523,30 +598,51 @@ def main():
     print("- creating vector embeddings of your sample data")
     print()
 
-    questionary.press_any_key_to_continue().ask()
+    questionary.press_any_key_to_continue().unsafe_ask()
 
-    answers = questionary.prompt(questions)
+    answers = ask_initial_questions()
     provider = answers["provider"]
+
     api_key = get_api_key(answers)
-    if not is_api_key_valid(provider, api_key):
-        # TODO: perform this validation earlier (punted because it's not trivial)
-        print("The provided API key is invalid")
-        exit(1)
     write_compose(provider, api_key)
     pull_images(docker_bin)
     port = start_containers(docker_bin)
     if port is None:
-        exit(1)
+        exit_quickstart(1, "container not started")
     if provider == OLLAMA:
         pull_ollama_model(docker_bin, answers["model"])
     create_extension(port)
-    dataset = answers.get("huggingface_dataset", None)
+    dataset = answers.get("dataset", None)
     if dataset is not None:
         setup_dataset(dataset, port)
     vectorizer_id = setup_vectorizer(answers, port)
     monitor_embeddings(answers, port, vectorizer_id)
 
 
+def telemetry():
+    if os.getenv("DO_NOT_TRACK", None) is not None:
+        # If DO_NOT_TRACK is set in any way, no telemetry
+        return
+    global TELEMETRY_SUBMITTED
+    if TELEMETRY_SUBMITTED:
+        # somewhat paranoid check that we don't accidentally submit telemetry twice
+        return
+    TELEMETRY["duration"] = time.time() - PROGRAM_START
+    TELEMETRY["success"] = EXIT_CODE is None
+    METADATA["error"] = EXIT_REASON
+
+    try:
+        TELEMETRY_SUBMITTED = True
+        requests.post("https://telemetry.timescale.com/v1/executions", json=TELEMETRY)
+    except BaseException:
+        # swallow any errors here
+        pass
+
+
 if __name__ == "__main__":
+    atexit.register(telemetry)
     validate()
-    main()
+    try:
+        main()
+    except BaseException as e:
+        exit_quickstart(1, str(e))
