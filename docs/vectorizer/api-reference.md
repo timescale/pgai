@@ -289,7 +289,7 @@ A JSON configuration object that you can use in [ai.create_vectorizer](#create-v
 
 ### ai.parsing_none
 
-You use `ai.parsing_none` to load the data as is from the source table.
+You use `ai.parsing_none` to load the data as-is from the source table.
 
 > [!NOTE]  
 > This is the default parser; adding this parser or skipping the `parsing` parameter does the same effect.
