@@ -224,7 +224,7 @@ def test_create_vectorizer_privileges():
                 create table blog(id bigint primary key, content text);
                 select ai.create_vectorizer(
                     'blog'
-                  , loading => ai.loading_row('content')
+                  , loading => ai.loading_column('content')
                   , destination=>'base_vectorizer'
                   , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
                   , chunking=>ai.chunking_character_text_splitter(128, 10)
@@ -239,7 +239,7 @@ def test_create_vectorizer_privileges():
             cur.execute("""
                   select ai.create_vectorizer(
                     'blog'
-                  , loading => ai.loading_row('content')
+                  , loading => ai.loading_column('content')
                   , destination=>'member_vectorizer'
                   , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
                   , chunking=>ai.chunking_character_text_splitter(128, 10)

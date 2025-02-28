@@ -60,7 +60,7 @@ Dataset Setup:
    -- Nomic embed-text
    SELECT ai.create_vectorizer(
       'pg_essays'::regclass,
-      loading => ai.loading_row('text'),
+      loading => ai.loading_column('text'),
       destination => 'essays_nomic_embeddings',
       embedding => ai.embedding_ollama('nomic-embed-text', 768),
       chunking => ai.chunking_recursive_character_text_splitter(512, 50)
@@ -69,7 +69,7 @@ Dataset Setup:
    -- OpenAI text-embedding-3-small
    SELECT ai.create_vectorizer(
       'pg_essays'::regclass,
-      loading => ai.loading_row('text'),
+      loading => ai.loading_column('text'),
       destination => 'essays_openai_small_embeddings',
       embedding => ai.embedding_openai('text-embedding-3-small', 768),
       chunking => ai.chunking_recursive_character_text_splitter(512, 50)
@@ -78,7 +78,7 @@ Dataset Setup:
    -- BGE Large (1024 dim)
    SELECT ai.create_vectorizer(
       'pg_essays'::regclass,
-      loading => ai.loading_row('text'),
+      loading => ai.loading_column('text'),
       destination => 'essays_bge_large_embeddings',
       embedding => ai.embedding_ollama('bge-large', 1024),
       chunking => ai.chunking_recursive_character_text_splitter(512, 50)
@@ -87,7 +87,7 @@ Dataset Setup:
    -- OpenAI text-embedding-3-large (1536 dim)
    SELECT ai.create_vectorizer(
       'pg_essays'::regclass,
-      loading => ai.loading_row('text'),
+      loading => ai.loading_column('text'),
       destination => 'essays_openai_large_embeddings', 
       embedding => ai.embedding_openai('text-embedding-3-large', 1536),
       chunking => ai.chunking_recursive_character_text_splitter(512, 50)

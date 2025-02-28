@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
--- loading_row
-create or replace function ai.loading_row
+-- loading_column
+create or replace function ai.loading_column
 ( column_name pg_catalog.text)
 returns pg_catalog.jsonb
 as $func$
@@ -14,8 +14,8 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- loading_document
-create or replace function ai.loading_document
+-- loading_uri
+create or replace function ai.loading_uri
 ( column_name pg_catalog.text)
 returns pg_catalog.jsonb
 as $func$

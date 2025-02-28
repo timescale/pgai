@@ -42,7 +42,7 @@ def test_vectorizer_composite_key(
             text("""
                 SELECT ai.create_vectorizer(
                     'authors'::regclass,
-                    loading => ai.loading_row(column_name => 'bio'),
+                    loading => ai.loading_column(column_name => 'bio'),
                     embedding => ai.embedding_openai('text-embedding-3-small', 768),
                     chunking =>
                     ai.chunking_recursive_character_text_splitter(50, 10)

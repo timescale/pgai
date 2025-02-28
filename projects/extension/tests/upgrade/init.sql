@@ -18,7 +18,7 @@ values
 
 select ai.create_vectorizer
 ( 'wiki.blog'::regclass
-, loading => ai.loading_row('content')
+, loading => ai.loading_column('content')
 , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
 , chunking=>ai.chunking_character_text_splitter(128, 10)
 , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')

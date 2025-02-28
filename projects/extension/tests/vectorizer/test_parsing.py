@@ -59,42 +59,34 @@ def test_validate_parsing():
     ok = [
         """
         select ai._validate_parsing(
-            jsonb_build_object(
-             'parsing', ai.parsing_auto(),
-             'loading', ai.loading_row('body'),
-             'source_schema', 'public',
-             'source_table', 'thing'
-            )
+            ai.parsing_auto(),
+            ai.loading_column('body'),
+            'public',
+            'thing'
         )
         """,
         """
         select ai._validate_parsing(
-            jsonb_build_object(
-             'parsing', ai.parsing_auto(),
-             'loading', ai.loading_row('document'),
-             'source_schema', 'public',
-             'source_table', 'thing'
-            )
+            ai.parsing_auto(),
+            ai.loading_column('document'),
+            'public',
+            'thing'
         )
         """,
         """
         select ai._validate_parsing(
-            jsonb_build_object(
-             'parsing', ai.parsing_docling(),
-             'loading', ai.loading_row('document'),
-             'source_schema', 'public',
-             'source_table', 'thing'
-            )
+            ai.parsing_docling(),
+            ai.loading_column('document'),
+            'public',
+            'thing'
         )
         """,
         """
         select ai._validate_parsing(
-            jsonb_build_object(
-             'parsing', ai.parsing_pymupdf(),
-             'loading', ai.loading_row('document'),
-             'source_schema', 'public',
-             'source_table', 'thing'
-            )
+            ai.parsing_pymupdf(),
+            ai.loading_column('document'),
+            'public',
+            'thing'
         )
         """,
     ]
@@ -102,12 +94,10 @@ def test_validate_parsing():
         (
             """
             select ai._validate_parsing(
-                jsonb_build_object(
-                 'parsing', ai.parsing_docling(),
-                 'loading', ai.loading_row('body'),
-                 'source_schema', 'public',
-                 'source_table', 'thing'
-                )
+                ai.parsing_docling(),
+                ai.loading_column('body'),
+                'public',
+                'thing'
             )
             """,
             "cannot use parsing_docling with text columns",
@@ -115,12 +105,10 @@ def test_validate_parsing():
         (
             """
             select ai._validate_parsing(
-                jsonb_build_object(
-                 'parsing', ai.parsing_pymupdf(),
-                 'loading', ai.loading_row('body'),
-                 'source_schema', 'public',
-                 'source_table', 'thing'
-                )
+                ai.parsing_pymupdf(),
+                ai.loading_column('body'),
+                'public',
+                'thing'
             )
             """,
             "cannot use parsing_pymupdf with text columns",
@@ -128,12 +116,10 @@ def test_validate_parsing():
         (
             """
             select ai._validate_parsing(
-                jsonb_build_object(
-                 'parsing', ai.parsing_none(),
-                 'loading', ai.loading_row('document'),
-                 'source_schema', 'public',
-                 'source_table', 'thing'
-                )
+                ai.parsing_none(),
+                ai.loading_column('document'),
+                'public',
+                'thing'
             )
             """,
             "cannot use parsing_none with bytea columns",
@@ -141,12 +127,10 @@ def test_validate_parsing():
         (
             """
             select ai._validate_parsing(
-                jsonb_build_object(
-                 'parsing', ai.parsing_none(),
-                 'loading', ai.loading_document('body'),
-                 'source_schema', 'public',
-                 'source_table', 'thing'
-                )
+                ai.parsing_none(),
+                ai.loading_uri('body'),
+                'public',
+                'thing'
             )
             """,
             "cannot use parsing_none with document loading",

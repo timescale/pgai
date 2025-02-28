@@ -119,7 +119,7 @@ def test_vectorizer_picks_up_new_vectorizer(
     with con.cursor() as cur:
         cur.execute("CREATE TABLE test(id bigint primary key, contents text)")
         cur.execute("""SELECT ai.create_vectorizer('test'::regclass,
-            loading => ai.loading_row('contents'),
+            loading => ai.loading_column('contents'),
             embedding => ai.embedding_openai('text-embedding-3-small', 768),
             chunking => ai.chunking_recursive_character_text_splitter()
         );

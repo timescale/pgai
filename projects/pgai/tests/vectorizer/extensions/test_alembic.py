@@ -30,7 +30,7 @@ from pgai.vectorizer.configuration import (
     EmbeddingVoyageaiConfig,
     FormattingPythonTemplateConfig,
     IndexingHnswConfig,
-    LoadingRowConfig,
+    LoadingColumnConfig,
     ProcessingDefaultConfig,
     SchedulingTimescaledbConfig,
 )
@@ -69,7 +69,7 @@ def test_openai_vectorizer(
 ):
     """Test OpenAI vectorizer configuration"""
     config = create_vectorizer_config_code(
-        loading=LoadingRowConfig("content"),
+        loading=LoadingColumnConfig("content"),
         embedding=EmbeddingOpenaiConfig(
             model="text-embedding-3-small",
             dimensions=768,
@@ -109,7 +109,7 @@ def test_ollama_vectorizer(
 ):
     """Test Ollama vectorizer configuration"""
     config = create_vectorizer_config_code(
-        loading=LoadingRowConfig("content"),
+        loading=LoadingColumnConfig("content"),
         embedding=EmbeddingOllamaConfig(
             model="nomic-embed-text",
             dimensions=768,
@@ -151,7 +151,7 @@ def test_voyage_vectorizer(
 ):
     """Test VoyageAI vectorizer configuration"""
     config = create_vectorizer_config_code(
-        loading=LoadingRowConfig("content"),
+        loading=LoadingColumnConfig("content"),
         embedding=EmbeddingVoyageaiConfig(
             model="voyage-ai-1",
             dimensions=256,
@@ -198,7 +198,7 @@ def test_hnsw_vectorizer(
 ):
     """Test HNSW vectorizer configuration"""
     config = create_vectorizer_config_code(
-        loading=LoadingRowConfig("content"),
+        loading=LoadingColumnConfig("content"),
         embedding=EmbeddingOpenaiConfig(
             model="text-embedding-3-small",
             dimensions=768,

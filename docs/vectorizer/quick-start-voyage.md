@@ -87,7 +87,7 @@ Now you can create and run a vectorizer. A vectorizer is a pgai concept, it proc
     ```sql
     SELECT ai.create_vectorizer(
        'blog'::regclass,
-       loading => ai.loading_row('contents'),
+       loading => ai.loading_column('contents'),
        destination => 'blog_contents_embeddings',
        embedding => ai.embedding_voyageai(
                'voyage-3-lite',

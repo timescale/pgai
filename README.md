@@ -120,7 +120,7 @@ Please note that using Ollama requires a large (>4GB) download of the docker ima
     ```sql
     SELECT ai.create_vectorizer(
          'wiki'::regclass,
-         loading => ai.loading_row('text'),
+         loading => ai.loading_column('text'),
          destination => 'wiki_embeddings',
          embedding => ai.embedding_ollama('all-minilm', 384)
     );
@@ -478,7 +478,7 @@ With one line of code, you can define a vectorizer that creates embeddings for d
 SELECT ai.create_vectorizer(
     <table_name>::regclass,
     destination => <embedding_table_name>,
-    loading => ai.loading_row(<column_name>),
+    loading => ai.loading_column(<column_name>),
     embedding => ai.embedding_ollama(<model_name>, <dimensions>)
 );
 ```

@@ -57,7 +57,7 @@ def configure_document_vectorizer(
     concurrency: int = 1,
     batch_size: int = 1,
     base_path: Path | str = Path(__file__).parent / "documents",
-    loading: str = "ai.loading_document(column_name => 'url')",
+    loading: str = "ai.loading_uri(column_name => 'url')",
     parsing: str = "ai.parsing_auto()",
     chunking: str = "chunking_recursive_character_text_splitter(chunk_size => 700,"
     # ' | ' is a separator for the md table extracted from lego_sets.pdf
@@ -235,7 +235,7 @@ def test_binary_document_embedding(
     vectorizer_id = configure_vectorizer(
         "binary_documents",
         connection,
-        loading="ai.loading_row(column_name => 'byte_content')",
+        loading="ai.loading_column(column_name => 'byte_content')",
         parsing="ai.parsing_auto()",
         chunking="chunking_character_text_splitter()",
         formatting="formatting_python_template('$chunk')",
