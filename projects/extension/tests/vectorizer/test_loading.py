@@ -88,21 +88,21 @@ def test_validate_loading():
             select ai._validate_loading
             ( ai.loading_column('column_does_not_exist'), 'public', 'thing' )
             """,
-            "column_name in config does not exist in the table: column_does_not_exist"
+            "column_name in config does not exist in the table: column_does_not_exist",
         ),
         (
             """
             select ai._validate_loading
             ( ai.loading_column('weight'), 'public', 'thing' )
             """,
-            "column_name in config does not exist in the table: weight"
+            "column_name in config does not exist in the table: weight",
         ),
         (
             """
             select ai._validate_loading
             ( ai.loading_uri('weight'), 'public', 'thing' )
             """,
-            "column_name in config does not exist in the table: weight"
+            "column_name in config does not exist in the table: weight",
         ),
         (
             """

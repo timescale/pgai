@@ -155,7 +155,9 @@ class Config(BaseModel):
     )
     processing: ProcessingDefault = Field(..., discriminator="implementation")
     loading: LoadingColumn | LoadingUri = Field(..., discriminator="implementation")
-    parsing: ParsingAuto | ParsingNone | ParsingPyMuPDF | ParsingDocling = Field(..., discriminator="implementation")
+    parsing: ParsingAuto | ParsingNone | ParsingPyMuPDF | ParsingDocling = Field(
+        ..., discriminator="implementation"
+    )
 
 
 class PrimaryKeyColumn(BaseModel):
