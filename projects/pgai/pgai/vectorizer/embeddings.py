@@ -1,4 +1,3 @@
-import math
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Sequence
@@ -51,40 +50,87 @@ class EmbeddingResponse:
 T = TypeVar("T", StringDocument, TokenDocument, Document)
 
 
+class BatchingError(BaseException):
+    pass
+
+
+def batch_indices(
+    documents: list[T], max_chunks_per_batch: int, max_tokens_per_batch: int | None
+) -> list[tuple[int, int]]:
+    """
+    Given a list of documents, determines how to batch them, adhering to configured
+    'max_chunks_per_batch' and 'max_tokens_per_batch'.
+
+    Returns a list of tuples indicating the document indexes to include in the batch
+    """
+    batches: list[list[int]] = []
+    batch: list[int] = []
+    token_count = 0
+    for idx, chunk in enumerate(documents):
+        chunk_tokens = len(chunk)
+        if max_tokens_per_batch is not None and chunk_tokens > max_tokens_per_batch:
+            raise BatchingError(
+                f"chunk length {chunk_tokens} greater than max_tokens_per_batch {max_tokens_per_batch}"  # noqa
+            )
+        max_tokens_reached = (
+            max_tokens_per_batch is not None
+            and token_count + chunk_tokens > max_tokens_per_batch
+        )
+        max_chunks_reached = len(batch) + 1 > max_chunks_per_batch
+        if max_tokens_reached or max_chunks_reached:
+            batches.append(batch)
+            batch = []
+            token_count = 0
+        batch.append(idx)
+        token_count += chunk_tokens
+    if batch:
+        batches.append(batch)
+    return [(idxs[0], idxs[-1] + 1) for idxs in batches]
+
+
 @dataclass
 class BatchApiCaller(Generic[T]):
     max_chunks_per_batch: int
+    max_tokens_per_batch: int | None
     api_callable: Callable[[list[T]], Awaitable[EmbeddingResponse]]
 
-    async def batch_chunks_and_embed(self, documents: list[T]) -> list[EmbeddingVector]:
+    async def batch_chunks_and_embed(
+        self, documents: list[T], is_tokenized: bool = False
+    ) -> list[EmbeddingVector]:
         """
         Performs the actual embedding of encoded documents by sending requests
         to the embedding API.
 
         Args:
             documents (list[T]): A list of documents.
+            is_tokenized (bool): If the documents have already been tokenized.
 
         Returns:
             list[EmbeddingVector]: A list of embedding vectors for each document.
         """
         response: list[list[float]] = []
         max_chunks_per_batch = self.max_chunks_per_batch
-        num_of_batches = math.ceil(len(documents) / max_chunks_per_batch)
+        max_tokens_per_batch = self.max_tokens_per_batch if is_tokenized else None
+        batches = batch_indices(
+            documents,
+            max_chunks_per_batch=max_chunks_per_batch,
+            max_tokens_per_batch=max_tokens_per_batch,
+        )
+        num_batches = len(batches)
+
         total_duration = 0.0
         embedding_stats = EmbeddingStats()
         with tracer.trace("embeddings.do"):
             current_span = tracer.current_span()
             if current_span:
-                current_span.set_tag("batches.total", num_of_batches)
-            for i in range(0, len(documents), max_chunks_per_batch):
-                batch_num = i // max_chunks_per_batch + 1
-                batch = documents[i : i + max_chunks_per_batch]
+                current_span.set_tag("batches.total", num_batches)
+            for i, (start, end) in enumerate(batches):
+                batch_num = i
+                batch = documents[start:end]
 
-                await logger.adebug(f"Batch {batch_num} of {num_of_batches}")
+                await logger.adebug(f"Batch {batch_num} of {num_batches}")
                 await logger.adebug(f"Chunks for this batch: {len(batch)}")
-                await logger.adebug(
-                    f"Request {batch_num} of {num_of_batches} initiated"
-                )
+                await logger.adebug(f"Request {batch_num} of {num_batches} initiated")
                 with tracer.trace("embeddings.do.embedder.create"):
                     current_span = tracer.current_span()
                     if current_span:
@@ -100,7 +146,7 @@ class BatchApiCaller(Generic[T]):
                         )
 
                     await logger.adebug(
-                        f"Request {batch_num} of {num_of_batches} "
+                        f"Request {batch_num} of {num_batches} "
                         f"ended after: {request_duration} seconds. "
                         f"Tokens usage: {response_.usage}"
                     )
@@ -158,6 +204,13 @@ class Embedder(ABC):
         The maximum number of chunks that can be embedded per API call
         :return: int: the max chunk count
         """
+
+    def _max_tokens_per_batch(self) -> int | None:
+        """
+        The maximum number of tokens that can be embedded per API call
+        :return: int: the max token count
+        """
+        return None
 
     async def setup(self) -> None:  # noqa: B027 empty on purpose
         """
