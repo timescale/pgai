@@ -81,9 +81,27 @@ def extract_metadata_from_file(file_path: str) -> Dict[str, Any]:
     if not title:
         title = os.path.basename(file_path).replace('.md', '').replace('-', ' ').title()
     
+    # Get a better representation of the content for analysis
+    # Extract all headings to understand document structure
+    headings = re.findall(r'^(#{1,6})\s+(.*?)$', content, re.MULTILINE)
+    headings_text = "\n".join([f"{h[0]} {h[1]}" for h in headings])
+    
+    # Extract first paragraph from each section (after each heading)
+    first_paragraphs = []
+    sections = re.split(r'^#{1,6}\s+.*?$', content, flags=re.MULTILINE)
+    for section in sections[1:]:  # Skip the content before the first heading
+        # Find the first paragraph in this section
+        paragraph_match = re.search(r'^\s*(.+?)(?:\n\s*\n|\n#|$)', section, re.DOTALL)
+        if paragraph_match:
+            first_paragraphs.append(paragraph_match.group(1).strip())
+    
+    # Combine headings and first paragraph of each section for better context
+    summary = f"{headings_text}\n\n" + "\n\n".join(first_paragraphs)
+    
     return {
         "title": title,
-        "content": content[:2000],  # limit content to first 2000 chars
+        "content": content[:2000],  # First 2000 chars for reference
+        "summary": summary[:2000],   # Summary of structure and key points
         "filename": os.path.basename(file_path),
         "path": file_path,
         "rel_path": os.path.relpath(file_path, REPO_ROOT),
@@ -117,7 +135,7 @@ Information about the file:
 - Title: {metadata['title']}
 - Directory: {metadata['directory']}
 - Related files in same directory: {', '.join(related_files[:5]) + ('...' if len(related_files) > 5 else '') if related_files else 'None'}
-- Beginning of content: {metadata['content'][:1000]}...
+- Document structure and key points: {metadata.get('summary', metadata['content'][:1000])}...
 
 Part 1: Write a concise one-line description (maximum 100 characters) of what this documentation page covers.
 If this file is describing the use of a specific AI provider (OpenAI, Ollama, Voyage, etc.), mention that explicitly.
@@ -226,6 +244,27 @@ def generate_example_description(file_path: str) -> str:
         content = get_file_content(file_path)
         related_files = get_related_files(file_path)
         
+        # For SQL files, analyze contents better
+        file_analysis = ""
+        
+        # Extract comments from SQL files for better understanding
+        if filename.endswith(".sql"):
+            # Get comments (both single-line and multi-line)
+            line_comments = re.findall(r'--\s*(.*?)$', content, re.MULTILINE)
+            block_comments = re.findall(r'/\*\s*(.*?)\s*\*/', content, re.DOTALL)
+            
+            comments = []
+            comments.extend(line_comments)
+            comments.extend(block_comments)
+            comments = [c.strip() for c in comments if c.strip()]
+            
+            if comments:
+                file_analysis = "SQL Comments:\n" + "\n".join(comments[:10])
+            else:
+                file_analysis = content[:1500]
+        else:
+            file_analysis = content[:1500]
+        
         prompt = f"""You're analyzing an example file from the pgai PostgreSQL extension codebase.
 
 Information about the file:
@@ -233,11 +272,14 @@ Information about the file:
 - File type: {os.path.splitext(filename)[1]}
 - Directory: {os.path.basename(os.path.dirname(file_path))}
 - Related files in same directory: {', '.join(related_files[:5]) + ('...' if len(related_files) > 5 else '') if related_files else 'None'}
-- Beginning of content: {content[:1000]}...
 
-Write a concise one-line description (maximum 150 characters) explaining what this example demonstrates.
-Focus on functionality, not implementation details.
-If the example uses a specific AI provider (OpenAI, Anthropic, Ollama, etc.), mention that explicitly.
+Key file content:
+{file_analysis}
+
+Write a concise one-line description (maximum 100 characters) explaining what this example demonstrates.
+Focus on the core functionality.
+Be specific about what this example does, not generic.
+Make the description clear and simple.
 End with a period and make sure your description is a complete sentence.
 """
         response = client.messages.create(
