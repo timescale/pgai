@@ -1,0 +1,65 @@
+# pgai
+
+> Supercharge your PostgreSQL database with AI capabilities. Supports automatic creation and synchronization of vector embeddings, seamless vector and semantic search, Retrieval Augmented Generation (RAG) directly in SQL, and ability to call leading LLMs like OpenAI, Ollama, Cohere, and more via SQL.
+
+pgai is a PostgreSQL extension that provides AI capabilities within your database. It consists of two main components:
+
+1. The core PostgreSQL extension which allows you to call various LLM models directly from SQL for tasks like generating content, vector search, and RAG applications.
+
+2. The pgai Vectorizer system which automatically creates and synchronizes vector embeddings for your data using a worker process that runs alongside your database.
+
+The project is maintained by Timescale, a PostgreSQL database company.
+
+## Installation
+
+- [Install pgai with Docker](docs/install/docker.md): Detailed instructions for installing the pgai extension using Docker containers
+- [Install the pgai extension from source](docs/install/source.md): Instructions for installing the pgai extension from source on macOS and Linux
+
+## Core pgai Extension
+
+- [Use pgai with Anthropic](docs/model_calling/anthropic.md): Describes how to use the pgai extension with the Anthropic AI provider to list models and generate responses.
+- [Use pgai with Cohere](docs/model_calling/cohere.md): Describes how to use the Cohere AI provider with the pgai extension for PostgreSQL
+- [Delayed embed](docs/model_calling/delayed_embed.md): Describes how to use the pgai extension to run background actions for delayed vector embedding processing, with security considerations.
+- [Moderate](docs/model_calling/moderate.md): Describes how to moderate comments using OpenAI in a PostgreSQL extension called pgai
+- [Use pgai with Ollama](docs/model_calling/ollama.md): Describes how to use the pgai extension with the Ollama AI platform to list models, generate embeddings, and complete chat requests.
+- [Use pgai with OpenAI](docs/model_calling/openai.md): Describes how to use the pgai extension with the OpenAI AI provider for tasks like text generation, embedding, and moderation.
+- [Use pgai with Voyage AI](docs/model_calling/voyageai.md): Describes how to use the pgai extension with the Voyage AI API to generate embeddings.
+- [Handling API keys](docs/security/handling-api-keys.md): Describes how to configure API keys for the pgai extension, which integrates with OpenAI APIs
+- [Privileges](docs/security/privileges.md): Describes the security privileges and access control for the pgai extension
+- [Text to SQL](docs/structured_retrieval/text_to_sql.md): Describes how to use the Text to SQL feature of the pgai PostgreSQL extension, which uses LLMs to generate SQL queries.
+- [Chunk text with SQL functions](docs/utils/chunking.md): Describes SQL functions to split text into smaller chunks using character-based and recursive text splitting.
+- [Load dataset from Hugging Face](docs/utils/load_dataset_from_huggingface.md): Describes how to load datasets from Hugging Face's datasets library directly into a PostgreSQL database using the pgai extension.
+
+## pgai Vectorizer
+
+The pgai Vectorizer is a system that automatically creates and synchronizes vector embeddings for your data. It requires a worker process that runs alongside your database.
+
+- [Use pgai with LiteLLM](docs/model_calling/litellm.md): Describes how to use the pgai extension with the LiteLLM AI model provider
+- [Vectorizer quick start](docs/vectorizer-quick-start.md): Quickstart guide for setting up and using the Ollama-based pgai Vectorizer to create embeddings and enable semantic search
+- [Adding a Vectorizer embedding integration](docs/vectorizer/adding-embedding-integration.md): Describes how to add a new vectorizer embedding integration to the pgai extension
+- [pgai Vectorizer API reference](docs/vectorizer/api-reference.md): Detailed API reference for the pgai Vectorizer, including configuration options for embedding, chunking, indexing, and scheduling.
+- [Automate AI embedding with pgai Vectorizer](docs/vectorizer/overview.md): Automate AI embedding with the pgai Vectorizer, supporting OpenAI, Ollama, and Voyage AI providers
+- [Creating vectorizers from python](docs/vectorizer/python-integration.md): Documentation on creating vectorizers from Python and integrating pgai's Vectorizer with SQLAlchemy
+- [Quick Start Ollama](docs/vectorizer/quick-start-ollama.md): Quick start guide for using the Ollama AI provider with the pgai Vectorizer
+- [Vectorizer quick start](docs/vectorizer/quick-start-openai.md): Quickly set up a local pgai development environment and create a vectorizer to generate embeddings from your Postgres data.
+- [Vectorizer quick start with VoyageAI](docs/vectorizer/quick-start-voyage.md): Quickly set up a local development environment and create a Voyage AI-powered vectorizer for semantic search on Postgres
+- [Vectorizer quick start](docs/vectorizer/quick-start.md): Quickstart guide for setting up a local development environment and creating a pgai Vectorizer for automatic embedding creation.
+- [Run vectorizers using pgai vectorizer worker](docs/vectorizer/worker.md): Documentation on running the pgai vectorizer worker to generate vector embeddings
+
+## Optional
+
+- [Anonymize Entities](examples/anonymize_entities.sql): The `anonymize_entities.sql` example demonstrates how to anonymize named entities extracted from text using the pgai PostgreSQL extension.
+- [Bg Worker Moderate](examples/bg_worker_moderate.sql): This example demonstrates how to use the OpenAI moderation API to check and moderate comments in a PostgreSQL database.
+- [Delayed Embed](examples/delayed_embed.sql): This example demonstrates how to populate a PostgreSQL table column with text embeddings generated using the pgAI and VectorScale extensions.
+- [Discord Bot Documentation](examples/discord_bot/README.md): Documentation for the discord bot example.
+- [Litellm Vectorizer Documentation](examples/evaluations/litellm_vectorizer/README.md): Documentation for the litellm vectorizer example.
+- [Ollama Vectorizer Documentation](examples/evaluations/ollama_vectorizer/README.md): Documentation for the ollama vectorizer example.
+- [Voyage Vectorizer Documentation](examples/evaluations/voyage_vectorizer/README.md): Documentation for the voyage vectorizer example.
+- [Extract Entities](examples/extract_entities.sql): This example demonstrates how to extract and replace named entities in text with their corresponding entity types using the pgai PostgreSQL extension.
+- [Best Embedding Model Rag App](examples/finding_best_open_source_embedding_model/best_embedding_model_rag_app.ipynb): This example demonstrates how to evaluate and select the best open-source embedding model for a Retrieval-Augmented Generation (RAG) application using Ollama and the pgai PostgreSQL extension.
+- [Rag Report Demo Why Some Customers Donot Like Pizza](examples/rag_report_demo_why_some_customers_donot_like_pizza.sql): This example demonstrates how the pgai extension can generate a report analyzing why some customers do not like pizza based on customer comments.
+- [Summarize Article](examples/summarize_article.sql): This example demonstrates how to use the pgai extension to call the Anthropic API, extract a summary from the response, and return the summary information.
+- [Text To Sql Documentation](examples/text_to_sql/README.md): Documentation for the text to sql example.
+- [Gen Desc](examples/text_to_sql/gen_desc.sql): The `gen_desc.sql` file demonstrates the generation of textual descriptions for tables in the `postgres_air` schema using the pgai extension.
+- [Gen Embed](examples/text_to_sql/gen_embed.sql): This example demonstrates how to generate text embeddings for object and SQL descriptions using the pgai PostgreSQL extension.
+- [Trigger Moderate](examples/trigger_moderate.sql): This example demonstrates a SQL trigger for moderating content in a PostgreSQL database.
