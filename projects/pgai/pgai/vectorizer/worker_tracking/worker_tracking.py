@@ -95,7 +95,8 @@ class WorkerTracking:
                         await asyncio.sleep(self.poll_interval)
             except psycopg.OperationalError as e:
                 failures += 1
-                log.error("heartbeat failed", error=e)
+                log.error("heartbeat failed", error=e, count=failures)
+        log.error("heartbeat exiting due to too many failures", count=failures)
 
     async def save_vectorizer_success(
         self,
