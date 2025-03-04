@@ -68,7 +68,7 @@ def test_validate_parsing():
         """
         select ai._validate_parsing(
             ai.parsing_auto(),
-            ai.loading_column('document'),
+            ai.loading_column('column'),
             'public',
             'thing'
         )
@@ -76,7 +76,7 @@ def test_validate_parsing():
         """
         select ai._validate_parsing(
             ai.parsing_docling(),
-            ai.loading_column('document'),
+            ai.loading_column('column'),
             'public',
             'thing'
         )
@@ -84,7 +84,7 @@ def test_validate_parsing():
         """
         select ai._validate_parsing(
             ai.parsing_pymupdf(),
-            ai.loading_column('document'),
+            ai.loading_column('column'),
             'public',
             'thing'
         )
@@ -117,7 +117,7 @@ def test_validate_parsing():
             """
             select ai._validate_parsing(
                 ai.parsing_none(),
-                ai.loading_column('document'),
+                ai.loading_column('column'),
                 'public',
                 'thing'
             )

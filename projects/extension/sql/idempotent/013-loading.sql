@@ -5,7 +5,7 @@ create or replace function ai.loading_column
 returns pg_catalog.jsonb
 as $func$
     select json_object
-    ( 'implementation': 'row'
+    ( 'implementation': 'column'
     , 'config_type': 'loading'
     , 'column_name': column_name
     )
@@ -20,7 +20,7 @@ create or replace function ai.loading_uri
 returns pg_catalog.jsonb
 as $func$
     select json_object
-    ( 'implementation': 'document'
+    ( 'implementation': 'uri'
     , 'config_type': 'loading'
     , 'column_name': column_name
     )
@@ -52,7 +52,7 @@ end if;
 end if;
 
     _implementation = config operator(pg_catalog.->>) 'implementation';
-    if _implementation is null or _implementation not in ('row', 'document') then
+    if _implementation is null or _implementation not in ('column', 'uri') then
         raise exception 'invalid loading config implementation';
 end if;
 

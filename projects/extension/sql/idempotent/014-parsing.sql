@@ -74,7 +74,7 @@ begin
 
     -- Get implementations
     _parsing_implementation = parsing operator(pg_catalog.->>) 'implementation';
-    if _parsing_implementation is null then
+    if _parsing_implementation not in ('auto', 'none', 'pymupdf', 'docling') then
         raise exception 'invalid parsing config implementation';
     end if;
 
@@ -103,6 +103,8 @@ begin
     if _parsing_implementation in ('pymupdf', 'docling') and _loading_implementation = 'row'
        and _column_type in ('text', 'varchar', 'char', 'bpchar') then
         raise exception 'cannot use parsing_% with text columns', _parsing_implementation;
+       and _column_type != 'bytea' then
+        raise exception 'parsing_% must be used with a bytea column', _parsing_implementation;
     end if;
 
 end
