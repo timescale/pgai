@@ -62,25 +62,34 @@ end if;
         raise exception 'invalid loading config, missing column_name';
 end if;
 
-    select count(*) operator(pg_catalog.>) 0, y.typname 
-    into strict _found, _column_type
-    from pg_catalog.pg_class k
-        inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
-        inner join pg_catalog.pg_attribute a on (k.oid operator(pg_catalog.=) a.attrelid)
-        inner join pg_catalog.pg_type y on (a.atttypid operator(pg_catalog.=) y.oid)
-    where n.nspname operator(pg_catalog.=) source_schema
-        and k.relname operator(pg_catalog.=) source_table
-        and a.attnum operator(pg_catalog.>) 0
-        and a.attname operator(pg_catalog.=) _column_name
-        and y.typname in ('text', 'varchar', 'char', 'bpchar', 'bytea');
+    select exists, type from (
+         select
+             CASE WHEN y.typname IS NULL THEN false ELSE true END as exists, y.typname as type
+         from pg_catalog.pg_class k
+             inner join pg_catalog.pg_namespace n ON (k.relnamespace operator(pg_catalog.=) n.oid)
+             inner join pg_catalog.pg_attribute a ON (k.oid operator(pg_catalog.=) a.attrelid)
+             inner join pg_catalog.pg_type y ON (a.atttypid operator(pg_catalog.=) y.oid)
+         where n.nspname operator(pg_catalog.=) source_schema
+           and k.relname operator(pg_catalog.=) source_table
+           and a.attnum operator(pg_catalog.>) 0
+           and a.attname operator(pg_catalog.=) _column_name
+           and y.typname in ('text', 'varchar', 'char', 'bpchar', 'bytea')
+
+         union all
+
+         select false as exists, null as type
+
+         limit 1
+        ) subquery
+    into strict _found, _column_type;
 
     if not _found then
             raise exception 'column_name in config does not exist in the table: %', _column_name;
     end if;
 
     if _implementation = 'uri' and _column_type not in ('text', 'varchar', 'char', 'bpchar') then
-        raise exception 'the type of the column `%` in config is not compatible with `uri` loading
-         implementation (type should be either text, varchar, char, bpchar, or bytea)', _column_name;
+        raise exception 'the type of the column `%` in config is not compatible with `uri` loading '
+       'implementation (type should be either text, varchar, char, bpchar, or bytea)', _column_name;
     end if;
 end
 $func$ language plpgsql stable security invoker

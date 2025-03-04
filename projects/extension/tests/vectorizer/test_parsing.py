@@ -100,7 +100,7 @@ def test_validate_parsing():
                 'thing'
             )
             """,
-            "cannot use parsing_docling with text columns",
+            "parsing_docling must be used with a bytea column",
         ),
         (
             """
@@ -111,7 +111,7 @@ def test_validate_parsing():
                 'thing'
             )
             """,
-            "cannot use parsing_pymupdf with text columns",
+            "parsing_pymupdf must be used with a bytea column",
         ),
         (
             """
