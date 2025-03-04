@@ -59,10 +59,18 @@ def test_loading_uri():
 
 def test_validate_loading():
     ok = [
+        # loading raw text data from a text column
         """
         select ai._validate_loading
         ( ai.loading_column('body'), 'public', 'thing' )
         """,
+        # loading a document from a bytea column
+        """
+        select ai._validate_loading
+        ( ai.loading_column('document'), 'public', 'thing' )
+        """,
+        # loading a document from a uri stored in any text column 
+        # (we do not validate the uri, smart-open does on runtime)
         """
         select ai._validate_loading
         ( ai.loading_uri('body'), 'public', 'thing' )
@@ -107,6 +115,13 @@ def test_validate_loading():
         (
             """
             select ai._validate_loading
+            ( ai.loading_uri('document'), 'public', 'thing' )
+            """,
+            "the type of the column `document` in config is not compatible with `uri` loading implementation (type should be either text, varchar, char, bpchar, or bytea)",
+        ),
+        (
+            """
+            select ai._validate_loading
             ( ai.scheduling_none(), 'public', 'thing' )
             """,
             "invalid config_type for loading config",
@@ -116,7 +131,7 @@ def test_validate_loading():
         with con.cursor() as cur:
             cur.execute("drop table if exists public.thing;")
             cur.execute(
-                "create table public.thing (id int, color text, weight float, body text)"
+                "create table public.thing (id int, color text, weight float, body text,document bytea)"
             )
             for query in ok:
                 cur.execute(query)

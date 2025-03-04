@@ -41,6 +41,7 @@ declare
     _implementation pg_catalog.text;
     _column_name pg_catalog.name;
     _found pg_catalog.bool;
+    _column_type pg_catalog.text;
 begin
     if pg_catalog.jsonb_typeof(config) operator(pg_catalog.!=) 'object' then
         raise exception 'loading config is not a jsonb object';
@@ -61,7 +62,8 @@ end if;
         raise exception 'invalid loading config, missing column_name';
 end if;
 
-    select count(*) operator(pg_catalog.>) 0 into strict _found
+    select count(*) operator(pg_catalog.>) 0, y.typname 
+    into strict _found, _column_type
     from pg_catalog.pg_class k
         inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
         inner join pg_catalog.pg_attribute a on (k.oid operator(pg_catalog.=) a.attrelid)
@@ -74,6 +76,11 @@ end if;
 
     if not _found then
             raise exception 'column_name in config does not exist in the table: %', _column_name;
+    end if;
+
+    if _implementation = 'uri' and _column_type not in ('text', 'varchar', 'char', 'bpchar') then
+        raise exception 'the type of the column `%` in config is not compatible with `uri` loading
+         implementation (type should be either text, varchar, char, bpchar, or bytea)', _column_name;
     end if;
 end
 $func$ language plpgsql stable security invoker
