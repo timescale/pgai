@@ -2032,7 +2032,7 @@ def test_vectorizer_document_loading_pymupdf():
             vectorizer = cur.fetchone()
             assert vectorizer is not None
             assert vectorizer.config["loading"]["column_name"] == "url"
-            assert vectorizer.config["loading"]["implementation"] == "document"
+            assert vectorizer.config["loading"]["implementation"] == "uri"
             assert vectorizer.config["parsing"]["implementation"] == "pymupdf"
 
 
@@ -2142,7 +2142,7 @@ def test_vectorizer_text_pymupdf_fails():
                 # Attempt to create vectorizer with pymupdf on text column - should fail
                 with pytest.raises(
                     psycopg.errors.RaiseException,
-                    match=".*cannot use parsing_pymupdf with text columns.*",
+                    match="parsing_pymupdf must be used with a bytea column.*",
                 ):
                     cur.execute(f"""
                     select ai.create_vectorizer

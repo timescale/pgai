@@ -96,7 +96,7 @@ begin
     end if;
 
     _loading_implementation = loading operator(pg_catalog.->>) 'implementation';
-    if _loading_implementation = 'document' and _parsing_implementation = 'none' then
+    if _loading_implementation = 'uri' and _parsing_implementation = 'none' then
         raise exception 'cannot use parsing_none with document loading';
     end if;
 
