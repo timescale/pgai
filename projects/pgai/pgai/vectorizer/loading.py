@@ -25,7 +25,7 @@ def guess_filetype(file_like: BytesIO, file_path: str | None = None) -> str | No
 
 
 class RowLoading(BaseModel):
-    implementation: Literal["row"]
+    implementation: Literal["column"]
     column_name: str
 
     def load(self, row: dict[str, str]) -> str | LoadedDocument:
@@ -39,8 +39,8 @@ class RowLoading(BaseModel):
         return content
 
 
-class DocumentLoading(BaseModel):
-    implementation: Literal["document"]
+class UriLoading(BaseModel):
+    implementation: Literal["uri"]
     column_name: str
 
     def load(self, row: dict[str, str]) -> LoadedDocument:
@@ -62,14 +62,14 @@ class LoadingError(Exception):
     msg = "loading failed"
 
 
-class DocumentLoadingError(LoadingError):
+class UriLoadingError(LoadingError):
     pk_values: list[Any]
     """
-    Raised when the document loader fails.
+    Raised when the URI loader fails.
     """
 
     def __init__(self, *args: str, pk_values: list[Any]):
         super().__init__(*args)
         self.pk_values = pk_values
 
-    msg = "document loading failed"
+    msg = "URI loading failed"

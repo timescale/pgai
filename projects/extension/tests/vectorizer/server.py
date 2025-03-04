@@ -109,7 +109,7 @@ class ProcessingDefault(BaseModel):
 
 
 class LoadingColumn(BaseModel):
-    implementation: Literal["row"]
+    implementation: Literal["column"]
     config_type: Literal["loading"]
     column_name: str
 

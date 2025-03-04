@@ -26,7 +26,7 @@ from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .embeddings import ChunkEmbeddingError
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
-from .loading import DocumentLoading, DocumentLoadingError, RowLoading
+from .loading import RowLoading, UriLoading, UriLoadingError
 from .parsing import ParsingAuto, ParsingNone, ParsingPyMuPDF
 from .processing import ProcessingDefault
 
@@ -76,7 +76,7 @@ class Config:
     """
 
     version: str
-    loading: RowLoading | DocumentLoading
+    loading: RowLoading | UriLoading
     embedding: OpenAI | Ollama | VoyageAI | LiteLLM
     processing: ProcessingDefault
     chunking: (
@@ -214,7 +214,7 @@ class VectorizerQueryBuilder:
 
         > ... the system retrieves a specified number of entries from the work
         queue, determined by the batch queue size parameter. A FOR UPDATE lock
-        is taken to ensure that concurrently executing scripts don’t try
+        is taken to ensure that concurrently executing scripts don't try
         processing the same queue items. The SKIP LOCKED directive ensures that
         if any entry is currently being handled by another script, the system
         will skip it instead of waiting, avoiding unnecessary delays.
@@ -563,7 +563,7 @@ class Worker:
                     raise e.__cause__  # noqa
                 raise e
 
-            except DocumentLoadingError as e:
+            except UriLoadingError as e:
                 async with conn.transaction():
                     is_retryable = await self._requeue_or_remove_work(
                         conn, self.loading_retries, e.pk_values
@@ -852,7 +852,7 @@ class Worker:
             try:
                 payload = self.vectorizer.config.loading.load(item)
             except Exception as e:
-                raise DocumentLoadingError(pk_values=pk_values) from e
+                raise UriLoadingError(pk_values=pk_values) from e
 
             payload = self.vectorizer.config.parsing.parse(item, payload)
             chunks = self.vectorizer.config.chunking.into_chunks(item, payload)

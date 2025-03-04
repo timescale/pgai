@@ -142,7 +142,7 @@ QUEUE_TABLE = """
  title       | text                     |           | not null |         | extended |             |              | 
  published   | timestamp with time zone |           | not null |         | plain    |             |              | 
  queued_at   | timestamp with time zone |           | not null | now()   | plain    |             |              | 
- retries     | integer                  |           |          | 0       | plain    |             |              | 
+ retries     | integer                  |           | not null | 0       | plain    |             |              | 
  retry_after | timestamp with time zone |           |          |         | plain    |             |              | 
 Indexes:
     "_vectorizer_q_1_title_published_idx" btree (title, published)

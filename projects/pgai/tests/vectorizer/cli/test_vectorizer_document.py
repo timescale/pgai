@@ -6,7 +6,7 @@ from typing import Any
 from psycopg import Connection
 from psycopg.rows import dict_row
 
-from pgai.vectorizer.loading import DocumentLoadingError
+from pgai.vectorizer.loading import UriLoadingError
 from tests.vectorizer.cli.conftest import (
     TestDatabase,
     configure_vectorizer,
@@ -280,8 +280,8 @@ def test_retries_on_not_present_document_embedding_s3(
     with vcr_.use_cassette("doc_retries_s3_not_found.yaml"):
         try:
             run_vectorizer_worker(cli_db_url, vectorizer_id)
-        except DocumentLoadingError as e:
-            assert e.msg == "document loading failed"
+        except UriLoadingError as e:
+            assert e.msg == "URI loading failed"
 
     with connection.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT count(*) FROM ai._vectorizer_q_1;")
@@ -291,9 +291,9 @@ def test_retries_on_not_present_document_embedding_s3(
         assert len(records) == 1
         error = records[0]
         assert error["id"] == vectorizer_id
-        assert error["message"] == "document loading failed"
+        assert error["message"] == "URI loading failed"
         assert error["details"] == {
-            "loader": "document",
+            "loader": "uri",
             "error_reason": "unable to access bucket: 'adol-docs-test'"
             " key: 'non_existing_doc.pdf' version: None"
             " error: An error occurred (NoSuchKey) when"
@@ -334,8 +334,8 @@ def test_no_more_retries_after_six_failures(
             run_vectorizer_worker(
                 cli_db_url, vectorizer_id, extra_params=["--loading-retries=6"]
             )
-        except DocumentLoadingError as e:
-            assert e.msg == "document loading failed"
+        except UriLoadingError as e:
+            assert e.msg == "URI loading failed"
 
     with connection.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT count(*) FROM ai._vectorizer_q_1;")
@@ -345,9 +345,9 @@ def test_no_more_retries_after_six_failures(
         assert len(records) == 1
         error = records[0]
         assert error["id"] == vectorizer_id
-        assert error["message"] == "document loading failed"
+        assert error["message"] == "URI loading failed"
         assert error["details"] == {
-            "loader": "document",
+            "loader": "uri",
             "error_reason": "unable to access bucket: 'adol-docs-test'"
             " key: 'non_existing_doc.pdf' version: None"
             " error: An error occurred (NoSuchKey) when"
@@ -376,8 +376,8 @@ def test_retries_should_do_nothing_if_retry_after_is_in_the_future(
             run_vectorizer_worker(
                 cli_db_url, vectorizer_id, extra_params=["--loading-retries=6"]
             )
-        except DocumentLoadingError as e:
-            assert e.msg == "document loading failed"
+        except UriLoadingError as e:
+            assert e.msg == "URI loading failed"
 
     with connection.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT count(*) FROM ai._vectorizer_q_1;")
@@ -387,9 +387,9 @@ def test_retries_should_do_nothing_if_retry_after_is_in_the_future(
         assert len(records) == 1
         error = records[0]
         assert error["id"] == vectorizer_id
-        assert error["message"] == "document loading failed"
+        assert error["message"] == "URI loading failed"
         assert error["details"] == {
-            "loader": "document",
+            "loader": "uri",
             "error_reason": "unable to access bucket: 'adol-docs-test'"
             " key: 'non_existing_doc.pdf' version: None"
             " error: An error occurred (NoSuchKey) when"
@@ -409,8 +409,8 @@ def test_retries_should_do_nothing_if_retry_after_is_in_the_future(
     with vcr_.use_cassette("doc_retries_s3_not_found.yaml"):
         try:
             run_vectorizer_worker(cli_db_url, vectorizer_id)
-        except DocumentLoadingError as e:
-            assert e.msg == "document loading failed"
+        except UriLoadingError as e:
+            assert e.msg == "URI loading failed"
 
     # Retries shouldn't have changed, given that
     # the retry_after field is in the future.

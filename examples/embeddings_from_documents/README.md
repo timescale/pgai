@@ -27,7 +27,7 @@ CREATE TABLE documentation (
 
 - `id`: Unique identifier for each document
 - `title`: Document title
-- `file_uri`: URI of the document file. Refer to the [ai.loading_document function documentation](/docs/vectorizer/api-reference.md#ailoading_document) for supported URIs.
+- `file_uri`: URI of the document file. Refer to the [ai.loading_uri function documentation](/docs/vectorizer/api-reference.md#ailoading_uri) for supported URIs.
 
 ## Step 2: Populate the table
 
@@ -42,13 +42,13 @@ INSERT INTO documentation (title, file_uri) VALUES
 ```
 
 > [!TIP]
-> Feel free to add any other document. Additionally, you can load documents from remote storages such as Amazon S3. See [ai.loading_document](/docs/vectorizer/api-reference.md#ailoading_document) for more details.
+> Feel free to add any other document. Additionally, you can load documents from remote storages such as Amazon S3. See [ai.loading_uri](/docs/vectorizer/api-reference.md#ailoading_uri) for more details.
 
 ## Step 3: Configure and create the vectorizer
 
 The vectorizer configuration consists of several components. Four are the ones we are interested in this case:
 
-1. **Loading**: Specifies how to load data. In our case, documents. Refer to the [ai.loading_document function](/docs/vectorizer/api-reference.md#ailoading_document) for more details. 
+1. **Loading**: Specifies how to load data. In our case, documents. Refer to the [ai.loading_uri function](/docs/vectorizer/api-reference.md#ailoading_uri) for more details. 
 2. **Parsing**: Determines the data format conversion. Refer to the [ai.parsing_auto function](/docs/vectorizer/api-reference.md#aiparsing_auto) for more details.
 3. **Chunking**: Defines text splitting strategy. Refer to the [ai.chunking_recursive_character_text_splitter function](/docs/vectorizer/api-reference.md#aichunking_recursive_character_text_splitter) for more details.
 4. **Embedding**: Configures the embedding model. Refer to the [ai.embedding_openai function](/docs/vectorizer/api-reference.md#aiembedding_openai) for more details or [explore other available models](/docs/README.md#pgai-model-calling).
@@ -56,7 +56,7 @@ The vectorizer configuration consists of several components. Four are the ones w
 ```sql
 SELECT ai.create_vectorizer(
     'documentation'::regclass,
-    loading => ai.loading_document(column_name => 'file_uri'),
+    loading => ai.loading_uri(column_name => 'file_uri'),
     parsing => ai.parsing_auto(),
     chunking => ai.chunking_recursive_character_text_splitter(
         chunk_size => 700,
@@ -130,11 +130,11 @@ PGAI automatically handles embedding updates:
 1. **File Access**: 
    - Verify PostgreSQL has read permissions for the document files.
    - Ensure file paths are correct and accessible.
-   - When using a remote file storage, check you configured the correct credentials. See [/docs](/docs/vectorizer/api-reference.md#ailoading_document) for more details about how to configure your credentials.
+   - When using a remote file storage, check you configured the correct credentials. See [/docs](/docs/vectorizer/api-reference.md#ailoading_uri) for more details about how to configure your credentials.
 
 2. **Parser Selection**:
    - If auto-parsing fails, try specific parsers.
-   - Verify [file formats compatibility](/docs/vectorizer/api-reference.md#ailoading_document).
+   - Verify [file formats compatibility](/docs/vectorizer/api-reference.md#ailoading_uri).
 
 ## Next steps and ideas
 
