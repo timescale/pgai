@@ -11,7 +11,7 @@ they can be provided securely:
 **Recommended ways (most secure)**
 
 1. If you are using Timescale Cloud, we recommend that you [configure an API key in Timescale Cloud](#configure-an-api-key-in-timescale-cloud).
-2. If you are self-hosting, you can [configure an API key through an environment variable available to the PostgresSQL process](#configure-an-api-key-through-an-environment-variable-available-to-the-postgres-process-self-hosted)
+2. If you are self-hosting, you can [configure an API key through an environment variable available to the PostgreSQL process](#configure-an-api-key-through-an-environment-variable-available-to-the-postgres-process-self-hosted)
 
 **Other ways**
 1. You can [configure the api key for an interactive a psql session](#configure-an-api-key-for-an-interactive-psql-session).

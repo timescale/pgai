@@ -53,7 +53,11 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
 
     @cached_property
     def _batcher(self) -> BatchApiCaller[StringDocument]:
-        return BatchApiCaller(self._max_chunks_per_batch(), self.call_embed_api)
+        return BatchApiCaller(
+            self._max_chunks_per_batch(),
+            self._max_tokens_per_batch(),
+            self.call_embed_api,
+        )
 
     @override
     def _max_chunks_per_batch(self) -> int:

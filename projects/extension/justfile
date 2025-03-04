@@ -13,7 +13,7 @@ ci: docker-build docker-run
   trap "python3 build.py docker-stop; python3 build.py docker-rm" EXIT
   docker exec pgai-ext just build
   docker exec pgai-ext just lint
-  docker exec pgai-ext just format-py
+  docker exec pgai-ext just format
   docker exec pgai-ext just install-all
   docker exec -d pgai-ext just test-server
   docker exec pgai-ext just test
@@ -130,7 +130,7 @@ psql-shell:
 
 # Runs tests that rely on snapshots against PG 17 and 16 and updates the
 # expected files with the generated actual files.
-update-snapshots: docker-rm docker-build docker-run
+update-snapshots: build-sql docker-rm docker-build docker-run
     #!/usr/bin/env bash
     set -uo pipefail
     docker exec pgai-ext just install-py install-sql

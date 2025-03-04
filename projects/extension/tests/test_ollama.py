@@ -143,7 +143,7 @@ def test_ollama_embed_via_openai(cur, ollama_host):
             ( 'llama3.2:1b'
             , 'the purple elephant sits on a red mushroom'
             , api_key=>'this is a garbage api key'
-            , base_url=>concat(%s::text, '/v1/')
+            , client_config => ai.openai_client_config(base_url=>concat(%s::text, '/v1/'))
             )
         )
     """,

@@ -69,6 +69,10 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
     def _max_chunks_per_batch(self) -> int:
         return 2048
 
+    @override
+    def _max_tokens_per_batch(self) -> int:
+        return 600_000
+
     async def call_embed_api(self, documents: list[Document]) -> EmbeddingResponse:
         response = await self._embedder.create(
             input=cast(list[str] | Iterable[Iterable[int]], documents),
@@ -87,7 +91,11 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
 
     @cached_property
     def _batcher(self) -> BatchApiCaller[Document]:
-        return BatchApiCaller(self._max_chunks_per_batch(), self.call_embed_api)
+        return BatchApiCaller(
+            self._max_chunks_per_batch(),
+            self._max_tokens_per_batch(),
+            self.call_embed_api,
+        )
 
     @override
     async def embed(
@@ -112,8 +120,11 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
         """
         encoded_documents = await self._encode(documents)
         await logger.adebug(f"Chunks produced: {len(documents)}")
+        is_tokenized = self._encoder is not None
         try:
-            return await self._batcher.batch_chunks_and_embed(encoded_documents)
+            return await self._batcher.batch_chunks_and_embed(
+                encoded_documents, is_tokenized
+            )
         except openai.BadRequestError as e:
             body = e.body
             if not isinstance(body, dict):

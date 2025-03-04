@@ -9,10 +9,17 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref }}
   cancel-in-progress: true
 
 jobs:
+  # see https://datachain.ai/blog/testing-external-contributions-using-github-actions-secrets 
+  # the point of this is to forbid external contributors from running ci without explicit
+  # approval from the maintainers (via the environment external-contributors)
+  # this allows tests to be run with secrets on forks after the maintainers have approved the run
+  #
+  # note: you may think the "run ci with approval setting" in github is enough, 
+  #       but it doesn't work for pull_request_target
   authorize:
     environment:
       ${{ github.event_name == 'pull_request_target' &&
@@ -38,6 +45,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # in a pull_request_target event, the ref is the `main` branch not the PR branch
+          # so we need to tell checkout to use the head.ref instead.
           ref: ${{ github.event.pull_request.head.ref || github.ref }}
 
       - uses: taiki-e/install-action@just
@@ -121,6 +130,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # in a pull_request_target event, the ref is the `main` branch not the PR branch
+          # so we need to tell checkout to use the head.ref instead.
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
       - uses: taiki-e/install-action@just
