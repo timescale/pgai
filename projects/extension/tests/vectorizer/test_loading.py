@@ -69,7 +69,7 @@ def test_validate_loading():
         select ai._validate_loading
         ( ai.loading_column('document'), 'public', 'thing' )
         """,
-        # loading a document from a uri stored in any text column 
+        # loading a document from a uri stored in any text column
         # (we do not validate the uri, smart-open does on runtime)
         """
         select ai._validate_loading

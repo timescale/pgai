@@ -117,7 +117,7 @@ def test_validate_parsing():
             """
             select ai._validate_parsing(
                 ai.parsing_none(),
-                ai.loading_column('column'),
+                ai.loading_column('document'),
                 'public',
                 'thing'
             )
