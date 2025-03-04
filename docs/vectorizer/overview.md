@@ -122,7 +122,7 @@ section of the vectorizer API reference.
 
 The `loading` parameter specifies the source of the data to generate embeddings from. E.g. from the `contents` column.
 Vectorizer supports other loaders, such as the
-`ai.loading_document`, which loads external documents from remote buckets like S3, etc.
+`ai.loading_uri`, which loads external documents from local or remote buckets like S3, etc.
 For more details, check the [loading configuration](/docs/vectorizer/api-reference.md#loading-configuration) section 
 of the vectorizer API reference.
 

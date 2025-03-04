@@ -2072,40 +2072,46 @@ def test_vectorizer_bytea_parsing_none_fails():
                 """)
 
 
-def test_vectorizer_document_loading_parsing_none_fails():
+def test_vectorizer_uri_loading_parsing_none_is_allowed():
     with psycopg.connect(
         db_url("test"), autocommit=True, row_factory=namedtuple_row
     ) as con:
         with con.cursor() as cur:
             cur.execute("create extension if not exists ai cascade")
-            cur.execute("create extension if not exists timescaledb")
             cur.execute("create schema if not exists vec")
-            cur.execute("drop table if exists vec.doc_url_fail")
+            cur.execute("drop table if exists vec.doc_url")
             cur.execute("""
-                create table vec.doc_url_fail
+                create table vec.doc_url
                 ( id bigint not null primary key generated always as identity
                 , url text not null
                 )
             """)
 
-            # Attempt to create vectorizer with document loading and parsing_none - should fail
-            with pytest.raises(
-                psycopg.errors.RaiseException,
-                match=".*cannot use parsing_none with document loading.*",
-            ):
-                cur.execute("""
-                select ai.create_vectorizer
-                ( 'vec.doc_url_fail'::regclass
-                , loading => ai.loading_uri('url')
-                , parsing => ai.parsing_none()
-                , embedding => ai.embedding_openai('text-embedding-3-small', 3)
-                , chunking => ai.chunking_character_text_splitter()
-                , scheduling => ai.scheduling_none()
-                , indexing => ai.indexing_none()
-                , grant_to => null
-                , enqueue_existing => false
-                );
-                """)
+            # Vectorizer with uri loading and parsing_none should be allowed since
+            # the user might want to load a raw text file (not requiring any parsing)
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'vec.doc_url'::regclass
+            , loading => ai.loading_uri('url')
+            , parsing => ai.parsing_none()
+            , embedding => ai.embedding_openai('text-embedding-3-small', 3)
+            , chunking => ai.chunking_character_text_splitter()
+            , scheduling => ai.scheduling_none()
+            , indexing => ai.indexing_none()
+            , grant_to => null
+            , enqueue_existing => false
+            );
+            """)
+
+            vectorizer_id = cur.fetchone()[0]
+
+            # Verify vectorizer was created with correct configuration
+            cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
+            vectorizer = cur.fetchone()
+            assert vectorizer is not None
+            assert vectorizer.config["loading"]["column_name"] == "url"
+            assert vectorizer.config["loading"]["implementation"] == "uri"
+            assert vectorizer.config["parsing"]["implementation"] == "none"
 
 
 def test_vectorizer_text_pymupdf_fails():

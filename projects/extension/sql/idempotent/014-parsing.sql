@@ -73,6 +73,9 @@ begin
     end if;
 
     -- Get implementations
+    _loading_implementation = loading operator(pg_catalog.->>) 'implementation';
+    -- Skip validation of loading implementation since it's done in _validate_loading
+
     _parsing_implementation = parsing operator(pg_catalog.->>) 'implementation';
     if _parsing_implementation not in ('auto', 'none', 'pymupdf', 'docling') then
         raise exception 'invalid parsing config implementation';
@@ -93,11 +96,6 @@ begin
     -- Validate all combinations
     if _parsing_implementation = 'none' and _column_type = 'bytea' then
         raise exception 'cannot use parsing_none with bytea columns';
-    end if;
-
-    _loading_implementation = loading operator(pg_catalog.->>) 'implementation';
-    if _loading_implementation = 'uri' and _parsing_implementation = 'none' then
-        raise exception 'cannot use parsing_none with document loading';
     end if;
 
     if _loading_implementation = 'column' and _parsing_implementation in ('pymupdf', 'docling')

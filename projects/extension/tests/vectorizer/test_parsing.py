@@ -124,17 +124,6 @@ def test_validate_parsing():
             """,
             "cannot use parsing_none with bytea columns",
         ),
-        (
-            """
-            select ai._validate_parsing(
-                ai.parsing_none(),
-                ai.loading_uri('body'),
-                'public',
-                'thing'
-            )
-            """,
-            "cannot use parsing_none with document loading",
-        ),
     ]
     with psycopg.connect(db_url("test"), autocommit=True) as con:
         with con.cursor() as cur:
