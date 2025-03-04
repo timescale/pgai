@@ -135,7 +135,7 @@ update-snapshots: build-sql docker-rm docker-build docker-run
     set -uo pipefail
     docker exec pgai-ext just install-py install-sql
     docker exec pgai-ext uv run pytest tests/contents/test_contents.py
-    rm tests/contents/output17.expected
+    rm -f tests/contents/output17.expected
     mv tests/contents/output17.actual tests/contents/output17.expected
     docker exec pgai-ext uv run pytest tests/privileges/test_privileges.py
     for f in tests/privileges/*.actual; do
@@ -149,6 +149,6 @@ update-snapshots: build-sql docker-rm docker-build docker-run
     PG_MAJOR=16 just docker-build docker-run
     docker exec pgai-ext just install-py install-sql
     docker exec pgai-ext uv run pytest tests/contents/test_contents.py
-    rm tests/contents/output16.expected
+    rm -f tests/contents/output16.expected
     mv tests/contents/output16.actual tests/contents/output16.expected
     just docker-rm

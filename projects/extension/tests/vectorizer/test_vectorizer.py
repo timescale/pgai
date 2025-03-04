@@ -20,7 +20,7 @@ VECTORIZER_ROW = r"""
     "config": {
         "loading": {
             "config_type": "loading",
-            "implementation": "row",
+            "implementation": "column",
             "column_name": "body"
         },
         "parsing": {

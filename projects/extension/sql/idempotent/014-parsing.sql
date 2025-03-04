@@ -100,9 +100,7 @@ begin
         raise exception 'cannot use parsing_none with document loading';
     end if;
 
-    if _parsing_implementation in ('pymupdf', 'docling') and _loading_implementation = 'row'
-       and _column_type in ('text', 'varchar', 'char', 'bpchar') then
-        raise exception 'cannot use parsing_% with text columns', _parsing_implementation;
+    if _loading_implementation = 'column' and _parsing_implementation in ('pymupdf', 'docling')
        and _column_type != 'bytea' then
         raise exception 'parsing_% must be used with a bytea column', _parsing_implementation;
     end if;

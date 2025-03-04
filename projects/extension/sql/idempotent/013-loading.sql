@@ -79,5 +79,3 @@ end
 $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
-
-

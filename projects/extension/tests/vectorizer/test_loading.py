@@ -19,7 +19,7 @@ def test_loading_column():
             "select ai.loading_column('content')",
             {
                 "config_type": "loading",
-                "implementation": "row",
+                "implementation": "column",
                 "column_name": "content",
             },
         ),
