@@ -19,7 +19,7 @@ BEGIN
             -- 3. Remove chunk_column from chunking config
             _config := _vectorizer.config operator(pg_catalog.||) jsonb_build_object(
                 'loading', json_object(
-                    'implementation': 'row',
+                    'implementation': 'column',
                     'config_type': 'loading',
                     'column_name': _chunk_column),
                 'parsing', json_object(

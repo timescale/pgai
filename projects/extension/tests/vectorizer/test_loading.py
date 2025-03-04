@@ -41,7 +41,7 @@ def test_loading_uri():
             "select ai.loading_uri('s3_uri')",
             {
                 "config_type": "loading",
-                "implementation": "document",
+                "implementation": "uri",
                 "column_name": "s3_uri",
             },
         ),
