@@ -47,7 +47,7 @@ def configure_openai_vectorizer(
     "num_items,concurrency,batch_size,openai_proxy_url",
     [
         (1, 1, 1, None),
-        (1, 1, 1, "8000"),
+        (1, 1, 1, 8000),
         (4, 2, 2, None),
     ],
     indirect=["openai_proxy_url"],
