@@ -7,8 +7,8 @@ CREATE EXTENSION
  event trigger _vectorizer_handle_drops
  function ai.anthropic_generate(text,jsonb,integer,text,text,text,double precision,integer,text,text,text[],double precision,jsonb,jsonb,integer,double precision,boolean)
  function ai.anthropic_list_models(text,text,text,boolean)
- function ai.chunking_character_text_splitter(integer,integer,text,boolean)
- function ai.chunking_recursive_character_text_splitter(integer,integer,text[],boolean)
+ function ai.chunking_character_text_splitter(name,integer,integer,text,boolean)
+ function ai.chunking_recursive_character_text_splitter(name,integer,integer,text[],boolean)
  function ai.chunk_text_recursively(text,integer,integer,text[],boolean)
  function ai.chunk_text(text,integer,integer,text,boolean)
  function ai.cohere_chat_complete(text,jsonb,text,text,jsonb,jsonb,jsonb,jsonb,text,integer,text[],double precision,integer,double precision,double precision,integer,double precision,boolean,text,boolean,boolean)
@@ -20,7 +20,7 @@ CREATE EXTENSION
  function ai.cohere_rerank_simple(text,text,text[],text,text,integer,integer,boolean)
  function ai.cohere_rerank(text,text,text[],text,text,integer,integer,boolean)
  function ai.cohere_tokenize(text,text,text,text,boolean)
- function ai.create_vectorizer(regclass,name,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name,name,name,name,name[],boolean)
+ function ai.create_vectorizer(regclass,name,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name,name,name,name,name[],boolean)
  function ai.disable_vectorizer_schedule(integer)
  function ai.drop_vectorizer(integer,boolean)
  function ai.embedding_litellm(text,integer,text,jsonb)
@@ -42,8 +42,6 @@ CREATE EXTENSION
  function ai.litellm_embed(text,text[],text,text,jsonb,boolean)
  function ai.load_dataset_multi_txn(text,text,text,name,name,text,jsonb,integer,integer,integer,jsonb)
  function ai.load_dataset(text,text,text,name,name,text,jsonb,integer,integer,jsonb)
- function ai.loading_column(name)
- function ai.loading_uri(name)
  function ai.ollama_chat_complete(text,jsonb,text,text,jsonb,jsonb,jsonb,boolean)
  function ai.ollama_embed(text,text,text,text,jsonb,boolean)
  function ai.ollama_generate(text,text,text,bytea[],text,jsonb,text,text,integer[],boolean)
@@ -65,10 +63,6 @@ CREATE EXTENSION
  function ai.openai_moderate(text,text,text,text,jsonb,jsonb,jsonb,boolean,jsonb)
  function ai.openai_moderate_with_raw_response(text,text,text,text,jsonb,jsonb,jsonb,boolean,jsonb)
  function ai.openai_tokenize(text,text)
- function ai.parsing_auto()
- function ai.parsing_docling()
- function ai.parsing_none()
- function ai.parsing_pymupdf()
  function ai.processing_default(integer,integer)
  function ai._resolve_indexing_default()
  function ai._resolve_scheduling_default()
@@ -77,15 +71,13 @@ CREATE EXTENSION
  function ai.scheduling_default()
  function ai.scheduling_none()
  function ai.scheduling_timescaledb(interval,timestamp with time zone,boolean,text)
- function ai._validate_chunking(jsonb)
+ function ai._validate_chunking(jsonb,name,name)
  function ai._validate_embedding(jsonb)
  function ai._validate_formatting(jsonb,name,name)
  function ai._validate_formatting_python_template(jsonb,name,name)
  function ai._validate_indexing_diskann(jsonb)
  function ai._validate_indexing_hnsw(jsonb)
  function ai._validate_indexing(jsonb)
- function ai._validate_loading(jsonb,name,name)
- function ai._validate_parsing(jsonb,jsonb,name,name)
  function ai._validate_processing(jsonb)
  function ai._validate_scheduling(jsonb)
  function ai._vectorizer_build_trigger_definition(name,name,name,name,jsonb)
@@ -116,7 +108,7 @@ CREATE EXTENSION
  table ai.vectorizer_errors
  view ai.secret_permissions
  view ai.vectorizer_status
-(112 rows)
+(104 rows)
 
                                     Table "ai._secret_permissions"
  Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
