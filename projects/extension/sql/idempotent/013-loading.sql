@@ -71,7 +71,8 @@ end if;
         and k.relname operator(pg_catalog.=) source_table
         and a.attnum operator(pg_catalog.>) 0
         and a.attname operator(pg_catalog.=) _column_name
-        and y.typname in ('text', 'varchar', 'char', 'bpchar', 'bytea');
+        and y.typname in ('text', 'varchar', 'char', 'bpchar', 'bytea')
+        and not a.attisdropped;
 
     if _column_type is null then
             raise exception 'column_name in config does not exist in the table: %', _column_name;
