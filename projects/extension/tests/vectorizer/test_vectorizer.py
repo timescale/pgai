@@ -2003,9 +2003,9 @@ def test_vectorizer_document_loading_pymupdf():
             cur.execute("create extension if not exists ai cascade")
             cur.execute("create extension if not exists timescaledb")
             cur.execute("create schema if not exists vec")
-            cur.execute("drop table if exists vec.doc_url")
+            cur.execute("drop table if exists vec.doc_url_pymupdf")
             cur.execute("""
-                create table vec.doc_url
+                create table vec.doc_url_pymupdf
                 ( id bigint not null primary key generated always as identity
                 , url text not null
                 )
@@ -2014,7 +2014,7 @@ def test_vectorizer_document_loading_pymupdf():
             # Create vectorizer with document loading and pymupdf - should work
             cur.execute("""
             select ai.create_vectorizer
-            ( 'vec.doc_url'::regclass
+            ( 'vec.doc_url_pymupdf'::regclass
             , loading => ai.loading_uri('url')
             , parsing => ai.parsing_pymupdf()
             , embedding => ai.embedding_openai('text-embedding-3-small', 3)
@@ -2079,9 +2079,9 @@ def test_vectorizer_uri_loading_parsing_none_is_allowed():
         with con.cursor() as cur:
             cur.execute("create extension if not exists ai cascade")
             cur.execute("create schema if not exists vec")
-            cur.execute("drop table if exists vec.doc_url")
+            cur.execute("drop table if exists vec.doc_url_parsing_none")
             cur.execute("""
-                create table vec.doc_url
+                create table vec.doc_url_parsing_none
                 ( id bigint not null primary key generated always as identity
                 , url text not null
                 )
@@ -2091,7 +2091,7 @@ def test_vectorizer_uri_loading_parsing_none_is_allowed():
             # the user might want to load a raw text file (not requiring any parsing)
             cur.execute("""
             select ai.create_vectorizer
-            ( 'vec.doc_url'::regclass
+            ( 'vec.doc_url_parsing_none'::regclass
             , loading => ai.loading_uri('url')
             , parsing => ai.parsing_none()
             , embedding => ai.embedding_openai('text-embedding-3-small', 3)
