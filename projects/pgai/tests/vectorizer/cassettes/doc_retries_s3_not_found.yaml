@@ -7,19 +7,19 @@ interactions:
         Ynl0ZXM9MC0=
       User-Agent:
       - !!binary |
-        Qm90bzMvMS4zNi40IG1kL0JvdG9jb3JlIzEuMzYuNCB1YS8yLjAgb3MvbGludXgjNi4xMC4zLWFy
-        Y2gxLTIgbWQvYXJjaCN4ODZfNjQgbGFuZy9weXRob24jMy4xMC4xNSBtZC9weWltcGwjQ1B5dGhv
-        biBjZmcvcmV0cnktbW9kZSNsZWdhY3kgQm90b2NvcmUvMS4zNi40
+        Qm90bzMvMS4zNi40IG1kL0JvdG9jb3JlIzEuMzYuNCB1YS8yLjAgb3MvbWFjb3MjMjMuNi4wIG1k
+        L2FyY2gjYXJtNjQgbGFuZy9weXRob24jMy4xMC4xNSBtZC9weWltcGwjQ1B5dGhvbiBjZmcvcmV0
+        cnktbW9kZSNsZWdhY3kgQm90b2NvcmUvMS4zNi40
       X-Amz-Content-SHA256:
       - !!binary |
         ZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3
         ODUyYjg1NQ==
       X-Amz-Date:
       - !!binary |
-        MjAyNTAyMTRUMTYwODM2Wg==
+        MjAyNTAzMDVUMTE0MzE2Wg==
       amz-sdk-invocation-id:
       - !!binary |
-        ZTkyNjczYmQtMmI1ZS00NGE2LThmYWItNTA3ODRkZjUxYmNh
+        YzY5ZDIyOGMtMTI4MS00ZGU2LWFkZjktOTQ3YjczYjZlYWM2
       amz-sdk-request:
       - !!binary |
         YXR0ZW1wdD0x
@@ -27,79 +27,26 @@ interactions:
       - !!binary |
         RU5BQkxFRA==
     method: GET
-    uri: https://adol-docs-test.s3.amazonaws.com/non_existing_doc.pdf
+    uri: http://localhost:32882/localstack-test-bucket/non_existing_doc.pdf
   response:
     body:
-      string: '<?xml version="1.0" encoding="UTF-8"?>
+      string: '<?xml version=''1.0'' encoding=''utf-8''?>
 
-        <Error><Code>AuthorizationHeaderMalformed</Code><Message>The authorization
-        header is malformed; the region ''us-east-1'' is wrong; expecting ''eu-central-1''</Message><Region>eu-central-1</Region><RequestId>AJ6V01M4PA60Z1FK</RequestId><HostId>w//t17rne7G2UknhoR9SbS/SQriz8PUUgdU5ZxTVWxKhtECQH+YMojV8bmo9tgNy4Sh71O1KzxKWK4+KEXX54mcdR4YwUDED</HostId></Error>'
+        <Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><RequestId>204ec6cd-66f5-4952-9e67-cfb89429331e</RequestId><Key>non_existing_doc.pdf</Key></Error>'
     headers:
-      Connection:
-      - close
+      Content-Length:
+      - '218'
       Content-Type:
       - application/xml
       Date:
-      - Fri, 14 Feb 2025 16:08:35 GMT
+      - Wed, 05 Mar 2025 11:43:16 GMT
       Server:
-      - AmazonS3
-      Transfer-Encoding:
-      - chunked
+      - TwistedWeb/24.3.0
       x-amz-id-2:
-      - w//t17rne7G2UknhoR9SbS/SQriz8PUUgdU5ZxTVWxKhtECQH+YMojV8bmo9tgNy4Sh71O1KzxKWK4+KEXX54mcdR4YwUDED
+      - s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=
       x-amz-request-id:
-      - AJ6V01M4PA60Z1FK
-    status:
-      code: 400
-      message: Bad Request
-- request:
-    body: null
-    headers:
-      Range:
-      - !!binary |
-        Ynl0ZXM9MC0=
-      User-Agent:
-      - !!binary |
-        Qm90bzMvMS4zNi40IG1kL0JvdG9jb3JlIzEuMzYuNCB1YS8yLjAgb3MvbGludXgjNi4xMC4zLWFy
-        Y2gxLTIgbWQvYXJjaCN4ODZfNjQgbGFuZy9weXRob24jMy4xMC4xNSBtZC9weWltcGwjQ1B5dGhv
-        biBjZmcvcmV0cnktbW9kZSNsZWdhY3kgQm90b2NvcmUvMS4zNi40
-      X-Amz-Content-SHA256:
-      - !!binary |
-        ZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3
-        ODUyYjg1NQ==
-      X-Amz-Date:
-      - !!binary |
-        MjAyNTAyMTRUMTYwODM2Wg==
-      amz-sdk-invocation-id:
-      - !!binary |
-        ZTkyNjczYmQtMmI1ZS00NGE2LThmYWItNTA3ODRkZjUxYmNh
-      amz-sdk-request:
-      - !!binary |
-        dHRsPTIwMjUwMjE0VDE2MDkzNVo7IGF0dGVtcHQ9MjsgbWF4PTU=
-      x-amz-checksum-mode:
-      - !!binary |
-        RU5BQkxFRA==
-    method: GET
-    uri: https://adol-docs-test.s3.eu-central-1.amazonaws.com/non_existing_doc.pdf
-  response:
-    body:
-      string: '<?xml version="1.0" encoding="UTF-8"?>
-
-        <Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>non_existing_doc.pdf</Key><RequestId>AJ6ZHMJDF9KV2H88</RequestId><HostId>Yaglbw3KeaQX7Rebos+85vv/orMPLm4Xq9ZNoBzkOPbI84HKEGVstV0GsxoBmBfftcpO85BcAP7MrQg5TCd/R7lbaSJoM/t4AbI7rMBfnF8=</HostId></Error>'
-    headers:
-      Content-Type:
-      - application/xml
-      Date:
-      - Fri, 14 Feb 2025 16:08:35 GMT
-      Server:
-      - AmazonS3
-      Transfer-Encoding:
-      - chunked
-      x-amz-id-2:
-      - Yaglbw3KeaQX7Rebos+85vv/orMPLm4Xq9ZNoBzkOPbI84HKEGVstV0GsxoBmBfftcpO85BcAP7MrQg5TCd/R7lbaSJoM/t4AbI7rMBfnF8=
-      x-amz-request-id:
-      - AJ6ZHMJDF9KV2H88
+      - 204ec6cd-66f5-4952-9e67-cfb89429331e
     status:
       code: 404
-      message: Not Found
+      message: NOT FOUND
 version: 1

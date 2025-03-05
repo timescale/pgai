@@ -1,10 +1,13 @@
 import os
+from collections.abc import Generator
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import pytest
 from psycopg import Connection
 from psycopg.rows import dict_row
+from testcontainers.localstack import LocalStackContainer
 
 from pgai.vectorizer.loading import UriLoadingError
 from tests.vectorizer.cli.conftest import (
@@ -22,6 +25,37 @@ docs = [
     "test.md",
     "lego_sets.pdf",
 ]
+
+
+@pytest.fixture(scope="session")
+def s3_bucket() -> Generator[str, None, None]:
+    region = "eu-central-1"
+    localstack = LocalStackContainer(
+        image="localstack/localstack:4", region_name=region
+    ).with_services("s3")
+    # hardcoding port so vcr cassettes are always matching the uri
+    localstack.ports[localstack.edge_port] = 32882
+    localstack.start()
+
+    # Set environment variables for any lib that uses boto3 (such as smart-open)
+    os.environ["AWS_ENDPOINT_URL"] = localstack.get_url()
+    os.environ["AWS_SHARED_CREDENTIALS_FILE"] = "/dev/null"
+    os.environ["AWS_ACCESS_KEY_ID"] = "testcontainers-localstack"
+    os.environ["AWS_SECRET_ACCESS_KEY"] = "testcontainers-localstack"
+
+    s3_test_bucket_name = "localstack-test-bucket"
+    s3 = localstack.get_client("s3")
+    s3.create_bucket(
+        Bucket=s3_test_bucket_name,
+        CreateBucketConfiguration={"LocationConstraint": region},
+    )
+    for doc in docs:
+        s3.upload_file(
+            Path(__file__).parent / "documents" / doc, s3_test_bucket_name, doc
+        )
+
+    yield s3_test_bucket_name
+    localstack.stop()
 
 
 def setup_documents_table(
@@ -141,12 +175,13 @@ def test_simple_document_embedding_local(
 
 
 def test_simple_document_embedding_s3_no_credentials(
+    s3_bucket: str,
     cli_db: tuple[TestDatabase, Connection],
     cli_db_url: str,
 ):
     """Test that embedding fails when no credentials are available"""
     vectorizer_id = configure_document_vectorizer(
-        cli_db[1], base_path="s3://adol-docs-test"
+        cli_db[1], base_path=f"s3://{s3_bucket}"
     )
 
     if "AWS_ACCESS_KEY_ID" in os.environ:
@@ -165,6 +200,7 @@ def test_simple_document_embedding_s3_no_credentials(
 
 
 def test_simple_document_embedding_s3(
+    s3_bucket: str,
     cli_db: tuple[TestDatabase, Connection],
     cli_db_url: str,
     vcr_: Any,
@@ -172,17 +208,17 @@ def test_simple_document_embedding_s3(
     """Test that a document is successfully embedded"""
     connection = cli_db[1]
     vectorizer_id = configure_document_vectorizer(
-        cli_db[1], base_path="s3://adol-docs-test"
+        cli_db[1], base_path=f"s3://{s3_bucket}"
     )
 
     # required for accessing this S3 bucket in particular
-    os.environ["AWS_DEFAULT_REGION"] = "eu-central-1"
+    # os.environ["AWS_DEFAULT_REGION"] = "eu-central-1"
 
     # This is necessary to prevent boto3 from pulling credentials
     # from WS Instance Metadata Service when those are missing.
     # Comment if you need to recreate the cassette.
-    os.environ["AWS_ACCESS_KEY_ID"] = "FAKE"
-    os.environ["AWS_SECRET_ACCESS_KEY"] = "FAKE"
+    # os.environ["AWS_ACCESS_KEY_ID"] = "FAKE"
+    # os.environ["AWS_SECRET_ACCESS_KEY"] = "FAKE"
     os.environ["AWS_SHARED_CREDENTIALS_FILE"] = "/dev/null"
 
     with vcr_.use_cassette("simple-s3-docs.yaml"):
@@ -267,6 +303,7 @@ def test_binary_document_embedding(
 
 
 def test_retries_on_not_present_document_embedding_s3(
+    s3_bucket: str,
     cli_db: tuple[TestDatabase, Connection],
     cli_db_url: str,
     vcr_: Any,
@@ -274,7 +311,7 @@ def test_retries_on_not_present_document_embedding_s3(
     """Test that embedding documents are successfully retried"""
     connection = cli_db[1]
     vectorizer_id = configure_document_vectorizer(
-        cli_db[1], base_path="s3://adol-docs-test", documents=["non_existing_doc.pdf"]
+        cli_db[1], base_path=f"s3://{s3_bucket}", documents=["non_existing_doc.pdf"]
     )
 
     with vcr_.use_cassette("doc_retries_s3_not_found.yaml"):
@@ -294,7 +331,7 @@ def test_retries_on_not_present_document_embedding_s3(
         assert error["message"] == "URI loading failed"
         assert error["details"] == {
             "loader": "uri",
-            "error_reason": "unable to access bucket: 'adol-docs-test'"
+            "error_reason": f"unable to access bucket: '{s3_bucket}'"
             " key: 'non_existing_doc.pdf' version: None"
             " error: An error occurred (NoSuchKey) when"
             " calling the GetObject operation: The specified"
@@ -311,6 +348,7 @@ def test_retries_on_not_present_document_embedding_s3(
 
 
 def test_no_more_retries_after_six_failures(
+    s3_bucket: str,
     cli_db: tuple[TestDatabase, Connection],
     cli_db_url: str,
     vcr_: Any,
@@ -318,7 +356,7 @@ def test_no_more_retries_after_six_failures(
     """Test that embedding documents are successfully retried"""
     connection = cli_db[1]
     vectorizer_id = configure_document_vectorizer(
-        cli_db[1], base_path="s3://adol-docs-test", documents=["non_existing_doc.pdf"]
+        cli_db[1], base_path=f"s3://{s3_bucket}", documents=["non_existing_doc.pdf"]
     )
 
     with connection.cursor(row_factory=dict_row) as cur:
@@ -350,7 +388,7 @@ def test_no_more_retries_after_six_failures(
         assert error["message"] == "URI loading failed"
         assert error["details"] == {
             "loader": "uri",
-            "error_reason": "unable to access bucket: 'adol-docs-test'"
+            "error_reason": f"unable to access bucket: '{s3_bucket}'"
             " key: 'non_existing_doc.pdf' version: None"
             " error: An error occurred (NoSuchKey) when"
             " calling the GetObject operation: The specified"
@@ -363,6 +401,7 @@ def test_no_more_retries_after_six_failures(
 
 
 def test_retries_should_do_nothing_if_retry_after_is_in_the_future(
+    s3_bucket: str,
     cli_db: tuple[TestDatabase, Connection],
     cli_db_url: str,
     vcr_: Any,
@@ -370,7 +409,7 @@ def test_retries_should_do_nothing_if_retry_after_is_in_the_future(
     """Test that embedding documents are successfully retried"""
     connection = cli_db[1]
     vectorizer_id = configure_document_vectorizer(
-        cli_db[1], base_path="s3://adol-docs-test", documents=["non_existing_doc.pdf"]
+        cli_db[1], base_path=f"s3://{s3_bucket}", documents=["non_existing_doc.pdf"]
     )
 
     with vcr_.use_cassette("doc_retries_s3_not_found.yaml"):
@@ -390,7 +429,7 @@ def test_retries_should_do_nothing_if_retry_after_is_in_the_future(
         assert error["message"] == "URI loading failed"
         assert error["details"] == {
             "loader": "uri",
-            "error_reason": "unable to access bucket: 'adol-docs-test'"
+            "error_reason": f"unable to access bucket: '{s3_bucket}'"
             " key: 'non_existing_doc.pdf' version: None"
             " error: An error occurred (NoSuchKey) when"
             " calling the GetObject operation: The specified"
