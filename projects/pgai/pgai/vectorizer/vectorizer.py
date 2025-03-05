@@ -234,7 +234,7 @@ class VectorizerQueryBuilder:
                 WITH selected_rows AS (
                     SELECT {pk_fields}
                     FROM {queue_table}
-                    WHERE retry_after is null or retry_after < now()
+                    WHERE loading_retry_after is null or loading_retry_after < now()
                     LIMIT %s
                     FOR UPDATE SKIP LOCKED
                 ),
@@ -374,19 +374,19 @@ class VectorizerQueryBuilder:
                 WHERE
                     ({pk_fields}) IN ({pk_values})
                 AND
-                    (retry_after is null or retry_after < now())
+                    (loading_retry_after is null or loading_retry_after < now())
             ) AS source
             ON {merge_predicates}
             WHEN MATCHED
-                AND target.retries >= %(loading_retries)s THEN
+                AND target.loading_retries >= %(loading_retries)s THEN
                     DELETE
             WHEN MATCHED THEN
                     UPDATE
                         SET
-                            retries = target.retries + 1,
-                            retry_after = now() +
-                                (INTERVAL '3 minutes' * (target.retries + 1))
-            RETURNING target.retries < %(loading_retries)s AS is_retryable
+                            loading_retries = target.loading_retries + 1,
+                            loading_retry_after = now() +
+                                (INTERVAL '3 minutes' * (target.loading_retries + 1))
+            RETURNING target.loading_retries < %(loading_retries)s AS is_retryable
                         """).format(
             pk_fields=self.pk_fields_sql,
             queue_table=sql.Identifier(
@@ -504,12 +504,10 @@ class Worker:
         db_url: str,
         vectorizer: Vectorizer,
         features: Features,
-        loading_retries: int,
         should_continue_processing_hook: None | Callable[[int, int], bool] = None,
     ):
         self.db_url = db_url
         self.vectorizer = vectorizer
-        self.loading_retries = loading_retries
         self.queries = VectorizerQueryBuilder(vectorizer)
         self._should_continue_processing_hook = should_continue_processing_hook or (
             lambda _loops, _res: True
@@ -566,7 +564,7 @@ class Worker:
             except UriLoadingError as e:
                 async with conn.transaction():
                     is_retryable = await self._requeue_or_remove_work(
-                        conn, self.loading_retries, e.pk_values
+                        conn, self.vectorizer.config.loading.retries, e.pk_values
                     )
                     await self._insert_vectorizer_error(
                         conn,

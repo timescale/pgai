@@ -21,6 +21,7 @@ VECTORIZER_ROW = r"""
         "loading": {
             "config_type": "loading",
             "implementation": "column",
+            "retries": 6,
             "column_name": "body"
         },
         "parsing": {
@@ -136,14 +137,13 @@ Access method: heap
 
 
 QUEUE_TABLE = """
-                                                  Table "ai._vectorizer_q_1"
-   Column    |           Type           | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
--------------+--------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
- title       | text                     |           | not null |         | extended |             |              | 
- published   | timestamp with time zone |           | not null |         | plain    |             |              | 
- queued_at   | timestamp with time zone |           | not null | now()   | plain    |             |              | 
- retries     | integer                  |           | not null | 0       | plain    |             |              | 
- retry_after | timestamp with time zone |           |          |         | plain    |             |              | 
+                                                      Table "ai._vectorizer_q_1"
+       Column        |           Type           | Collation | Nullable | Default | Storage | Compression | Stats target | Description 
+---------------------+--------------------------+-----------+----------+---------+---------+-------------+--------------+-------------
+ id                  | integer                  |           | not null |         | plain   |             |              | 
+ queued_at           | timestamp with time zone |           | not null | now()   | plain   |             |              | 
+ loading_retries     | integer                  |           | not null | 0       | plain   |             |              | 
+ loading_retry_after | timestamp with time zone |           |          |         | plain   |             |              | 
 Indexes:
     "_vectorizer_q_1_title_published_idx" btree (title, published)
 Access method: heap

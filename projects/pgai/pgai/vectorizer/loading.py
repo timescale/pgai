@@ -27,6 +27,7 @@ def guess_filetype(file_like: BytesIO, file_path: str | None = None) -> str | No
 class RowLoading(BaseModel):
     implementation: Literal["column"]
     column_name: str
+    retries: int = 6
 
     def load(self, row: dict[str, str]) -> str | LoadedDocument:
         content = row[self.column_name] or ""
@@ -42,6 +43,7 @@ class RowLoading(BaseModel):
 class UriLoading(BaseModel):
     implementation: Literal["uri"]
     column_name: str
+    retries: int = 6
 
     def load(self, row: dict[str, str]) -> LoadedDocument:
         content = BytesIO(

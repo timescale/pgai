@@ -111,7 +111,7 @@ def test_vectorizer_internal():
 
         # run the vectorizer
         features = Features(pgai_version)
-        cli.run_vectorizer(_db_url, vectorizer_actual, 1, 6, features)
+        cli.run_vectorizer(_db_url, vectorizer_actual, 1, features)
 
         # make sure the queue was emptied
         cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
@@ -217,7 +217,7 @@ def test_vectorizer_weird_pk():
 
         # run the vectorizer
         features = Features(pgai_version)
-        cli.run_vectorizer(_db_url, vectorizer_actual, 1, 6, features)
+        cli.run_vectorizer(_db_url, vectorizer_actual, 1, features)
 
         # make sure the queue was emptied
         cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))

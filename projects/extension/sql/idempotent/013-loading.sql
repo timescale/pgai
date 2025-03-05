@@ -1,13 +1,15 @@
 -------------------------------------------------------------------------------
 -- loading_column
 create or replace function ai.loading_column
-( column_name pg_catalog.name)
+( column_name pg_catalog.name
+, retries pg_catalog.int4 default 6)
 returns pg_catalog.jsonb
 as $func$
     select json_object
     ( 'implementation': 'column'
     , 'config_type': 'loading'
     , 'column_name': column_name
+    , 'retries': retries
     )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
@@ -16,13 +18,15 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- loading_uri
 create or replace function ai.loading_uri
-( column_name pg_catalog.name)
+( column_name pg_catalog.name
+, retries pg_catalog.int4 default 6)
 returns pg_catalog.jsonb
 as $func$
     select json_object
     ( 'implementation': 'uri'
     , 'config_type': 'loading'
     , 'column_name': column_name
+    , 'retries': retries
     )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
@@ -60,6 +64,10 @@ end if;
     _column_name = config operator(pg_catalog.->>) 'column_name';
      if _column_name is null then
         raise exception 'invalid loading config, missing column_name';
+end if;
+    
+    if (config operator(pg_catalog.->>) 'retries')::int < 0 then
+        raise exception 'invalid loading config, retries must be a non-negative integer';
 end if;
 
     select y.typname into _column_type

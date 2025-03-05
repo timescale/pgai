@@ -11,8 +11,8 @@ begin
 
         select pg_catalog.format
                ( $sql$alter table %I.%I
-                 add column if not exists retries pg_catalog.int4 not null default 0
-                 , add column if not exists retry_after pg_catalog.timestamptz default null$sql$
+                 add column if not exists loading_retries pg_catalog.int4 not null default 0
+                 , add column if not exists loading_retry_after pg_catalog.timestamptz default null$sql$
                  , _rec.queue_schema
                  , _rec.queue_table
                ) into strict _sql;

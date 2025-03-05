@@ -343,7 +343,7 @@ def test_disabled_vectorizer_is_skipped_before_next_batch(
     ):
         results = asyncio.run(
             Worker(
-                cli_db_url, vectorizer, features, 6, should_continue_processing_hook
+                cli_db_url, vectorizer, features, should_continue_processing_hook
             ).run()
         )
     # Then it successfully exits after the first batch.
@@ -412,7 +412,7 @@ def test_disabled_vectorizer_is_backwards_compatible(
 
     # When the vectorizer is executed.
     with vcr_.use_cassette("test_disabled_vectorizer_is_backwards_compatible.yaml"):
-        results = asyncio.run(Worker(cli_db_url, vectorizer, features, 6).run())
+        results = asyncio.run(Worker(cli_db_url, vectorizer, features).run())
 
     # Then the disable is ignored and the vectorizer successfully exits after
     # processing the batches.

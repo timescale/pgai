@@ -302,10 +302,12 @@ def test_retries_on_not_present_document_embedding_s3(
             "is_retryable": True,
         }
 
-        cur.execute("SELECT retries, retry_after FROM ai._vectorizer_q_1;")
+        cur.execute(
+            "SELECT loading_retries, loading_retry_after" " FROM ai._vectorizer_q_1;"
+        )
         queue_item = cur.fetchone()
-        assert queue_item["retries"] == 1  # type: ignore
-        assert queue_item["retry_after"] > datetime.now(tz=timezone.utc)  # type: ignore
+        assert queue_item["loading_retries"] == 1  # type: ignore
+        assert queue_item["loading_retry_after"] > datetime.now(tz=timezone.utc)  # type: ignore
 
 
 def test_no_more_retries_after_six_failures(
@@ -322,18 +324,18 @@ def test_no_more_retries_after_six_failures(
     with connection.cursor(row_factory=dict_row) as cur:
         cur.execute(
             "UPDATE ai._vectorizer_q_1"
-            " SET retries=6, retry_after=now() - interval '1 minute';"
+            " SET loading_retries=6, loading_retry_after=now() - interval '1 minute';"
         )
-        cur.execute("SELECT retries, retry_after FROM ai._vectorizer_q_1;")
+        cur.execute(
+            "SELECT loading_retries, loading_retry_after " "FROM ai._vectorizer_q_1;"
+        )
         queue_item = cur.fetchone()
-        assert queue_item["retries"] == 6  # type: ignore
-        assert queue_item["retry_after"] < datetime.now(tz=timezone.utc)  # type: ignore
+        assert queue_item["loading_retries"] == 6  # type: ignore
+        assert queue_item["loading_retry_after"] < datetime.now(tz=timezone.utc)  # type: ignore
 
     with vcr_.use_cassette("doc_retries_s3_not_found.yaml"):
         try:
-            run_vectorizer_worker(
-                cli_db_url, vectorizer_id, extra_params=["--loading-retries=6"]
-            )
+            run_vectorizer_worker(cli_db_url, vectorizer_id)
         except UriLoadingError as e:
             assert e.msg == "URI loading failed"
 
@@ -373,9 +375,7 @@ def test_retries_should_do_nothing_if_retry_after_is_in_the_future(
 
     with vcr_.use_cassette("doc_retries_s3_not_found.yaml"):
         try:
-            run_vectorizer_worker(
-                cli_db_url, vectorizer_id, extra_params=["--loading-retries=6"]
-            )
+            run_vectorizer_worker(cli_db_url, vectorizer_id)
         except UriLoadingError as e:
             assert e.msg == "URI loading failed"
 
@@ -399,12 +399,15 @@ def test_retries_should_do_nothing_if_retry_after_is_in_the_future(
         }
 
         cur.execute(
-            "UPDATE ai._vectorizer_q_1 SET retry_after=now() + interval '10 minute';"
+            "UPDATE ai._vectorizer_q_1 "
+            "SET loading_retry_after=now() + interval '10 minute';"
         )
-        cur.execute("SELECT retries, retry_after FROM ai._vectorizer_q_1;")
+        cur.execute(
+            "SELECT loading_retries, loading_retry_after " "FROM ai._vectorizer_q_1;"
+        )
         queue_item = cur.fetchone()
-        assert queue_item["retries"] == 1  # type: ignore
-        assert queue_item["retry_after"] > datetime.now(tz=timezone.utc)  # type: ignore
+        assert queue_item["loading_retries"] == 1  # type: ignore
+        assert queue_item["loading_retry_after"] > datetime.now(tz=timezone.utc)  # type: ignore
 
     with vcr_.use_cassette("doc_retries_s3_not_found.yaml"):
         try:
@@ -412,10 +415,12 @@ def test_retries_should_do_nothing_if_retry_after_is_in_the_future(
         except UriLoadingError as e:
             assert e.msg == "URI loading failed"
 
-    # Retries shouldn't have changed, given that
-    # the retry_after field is in the future.
+    # loading_retries shouldn't have changed, given that
+    # the loading_retry_after field is in the future.
     with connection.cursor(row_factory=dict_row) as cur:
-        cur.execute("SELECT retries, retry_after FROM ai._vectorizer_q_1;")
+        cur.execute(
+            "SELECT loading_retries, loading_retry_after " "FROM ai._vectorizer_q_1;"
+        )
         queue_item = cur.fetchone()
-        assert queue_item["retries"] == 1  # type: ignore
-        assert queue_item["retry_after"] > datetime.now(tz=timezone.utc)  # type: ignore
+        assert queue_item["loading_retries"] == 1  # type: ignore
+        assert queue_item["loading_retry_after"] > datetime.now(tz=timezone.utc)  # type: ignore

@@ -403,8 +403,8 @@ begin
       create table %I.%I
       ( %s
       , queued_at pg_catalog.timestamptz not null default now()
-      , retries pg_catalog.int4 not null default 0
-      , retry_after pg_catalog.timestamptz
+      , loading_retries pg_catalog.int4 not null default 0
+      , loading_retry_after pg_catalog.timestamptz
       )
       $sql$
     , queue_schema, queue_table

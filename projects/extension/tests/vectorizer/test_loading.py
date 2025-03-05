@@ -21,6 +21,16 @@ def test_loading_column():
                 "config_type": "loading",
                 "implementation": "column",
                 "column_name": "content",
+                "retries": 6,
+            },
+        ),
+        (
+            "select ai.loading_column('content', 10)",
+            {
+                "config_type": "loading",
+                "implementation": "column",
+                "column_name": "content",
+                "retries": 10,
             },
         ),
     ]
@@ -43,6 +53,16 @@ def test_loading_uri():
                 "config_type": "loading",
                 "implementation": "uri",
                 "column_name": "s3_uri",
+                "retries": 6,
+            },
+        ),
+        (
+            "select ai.loading_uri('s3_uri', 3)",
+            {
+                "config_type": "loading",
+                "implementation": "uri",
+                "column_name": "s3_uri",
+                "retries": 3,
             },
         ),
     ]
@@ -125,6 +145,13 @@ def test_validate_loading():
             ( ai.scheduling_none(), 'public', 'thing' )
             """,
             "invalid config_type for loading config",
+        ),
+        (
+            """
+            select ai._validate_loading
+            ( ai.loading_column('body', -1), 'public', 'thing' )
+            """,
+            "invalid loading config, retries must be a non-negative integer",
         ),
     ]
     with psycopg.connect(db_url("test"), autocommit=True) as con:

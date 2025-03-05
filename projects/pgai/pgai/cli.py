@@ -136,21 +136,20 @@ def run_vectorizer(
     db_url: str,
     vectorizer: Vectorizer,
     concurrency: int,
-    loading_retries: int,
     features: Features,
 ) -> None:
     async def run_workers(
-        db_url: str, vectorizer: Vectorizer, concurrency: int, loading_retries: int
+        db_url: str,
+        vectorizer: Vectorizer,
+        concurrency: int,
     ) -> list[int]:
         tasks = [
-            asyncio.create_task(
-                Worker(db_url, vectorizer, features, loading_retries).run()
-            )
+            asyncio.create_task(Worker(db_url, vectorizer, features).run())
             for _ in range(concurrency)
         ]
         return await asyncio.gather(*tasks)
 
-    results = asyncio.run(run_workers(db_url, vectorizer, concurrency, loading_retries))
+    results = asyncio.run(run_workers(db_url, vectorizer, concurrency))
     items = sum(results)
     log.info("finished processing vectorizer", items=items, vectorizer_id=vectorizer.id)
 
@@ -233,7 +232,10 @@ def shutdown_handler(signum: int, _frame: Any):
     type=TimeDurationParamType(),
     default="5m",
     show_default=True,
-    help="The interval, in duration string or integer (seconds), to wait before checking for new work after processing all available work in the queue.",  # noqa
+    help="The interval, in duration string or integer (seconds), "
+    "to wait before checking for new work after processing "
+    "all available work in the queue.",
+    # noqa
 )
 @click.option(
     "--once",
@@ -250,13 +252,6 @@ def shutdown_handler(signum: int, _frame: Any):
     show_default=True,
     help="Exit immediately when an error occurs.",
 )
-@click.option(
-    "--loading-retries",
-    type=click.INT,
-    default=6,
-    show_default=True,
-    help="Number of retries for loading processing.",
-)
 def vectorizer_worker(
     db_url: str,
     vectorizer_ids: Sequence[int],
@@ -265,7 +260,6 @@ def vectorizer_worker(
     poll_interval: int,
     once: bool,
     exit_on_error: bool | None,
-    loading_retries: int,
 ) -> None:
     # gracefully handle being asked to shut down
     signal.signal(signal.SIGINT, shutdown_handler)
@@ -313,7 +307,9 @@ def vectorizer_worker(
                     )
                     if len(valid_vectorizer_ids) != len(vectorizer_ids):
                         log.error(
-                            f"invalid vectorizers, wanted: {list(vectorizer_ids)}, got: {valid_vectorizer_ids}"  # noqa: E501 (line too long)
+                            f"invalid vectorizers, wanted: {list(vectorizer_ids)},"
+                            f" got: {valid_vectorizer_ids}"
+                            # noqa: E501 (line too long)
                         )
                         if exit_on_error:
                             sys.exit(1)
@@ -329,9 +325,7 @@ def vectorizer_worker(
                     try:
                         vectorizer = get_vectorizer(db_url, vectorizer_id)
                         log.info("running vectorizer", vectorizer_id=vectorizer_id)
-                        run_vectorizer(
-                            db_url, vectorizer, concurrency, loading_retries, features
-                        )
+                        run_vectorizer(db_url, vectorizer, concurrency, features)
                     except (VectorizerNotFoundError, ApiKeyNotFoundError) as e:
                         log.error(
                             f"error getting vectorizer: {type(e).__name__}: {str(e)} "

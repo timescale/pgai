@@ -21,7 +21,9 @@ BEGIN
                 'loading', json_object(
                     'implementation': 'column',
                     'config_type': 'loading',
-                    'column_name': _chunk_column),
+                    'column_name': _chunk_column,
+                    'retries': 6
+           ),
                 'parsing', json_object(
                     'implementation': 'auto',
                     'config_type': 'parsing'
