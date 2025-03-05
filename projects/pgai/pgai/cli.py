@@ -139,7 +139,9 @@ def run_vectorizer(
     features: Features,
 ) -> None:
     async def run_workers(
-        db_url: str, vectorizer: Vectorizer, concurrency: int
+        db_url: str,
+        vectorizer: Vectorizer,
+        concurrency: int,
     ) -> list[int]:
         tasks = [
             asyncio.create_task(Worker(db_url, vectorizer, features).run())
@@ -230,7 +232,10 @@ def shutdown_handler(signum: int, _frame: Any):
     type=TimeDurationParamType(),
     default="5m",
     show_default=True,
-    help="The interval, in duration string or integer (seconds), to wait before checking for new work after processing all available work in the queue.",  # noqa
+    help="The interval, in duration string or integer (seconds), "
+    "to wait before checking for new work after processing "
+    "all available work in the queue.",
+    # noqa
 )
 @click.option(
     "--once",
@@ -302,7 +307,9 @@ def vectorizer_worker(
                     )
                     if len(valid_vectorizer_ids) != len(vectorizer_ids):
                         log.error(
-                            f"invalid vectorizers, wanted: {list(vectorizer_ids)}, got: {valid_vectorizer_ids}"  # noqa: E501 (line too long)
+                            f"invalid vectorizers, wanted: {list(vectorizer_ids)},"
+                            f" got: {valid_vectorizer_ids}"
+                            # noqa: E501 (line too long)
                         )
                         if exit_on_error:
                             sys.exit(1)

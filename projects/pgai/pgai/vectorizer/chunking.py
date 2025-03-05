@@ -19,7 +19,7 @@ class Chunker(ABC):
     """
 
     @abstractmethod
-    def into_chunks(self, item: dict[str, Any]) -> list[str]:
+    def into_chunks(self, row: dict[str, Any], payload: str) -> list[str]:
         """
         Breaks the provided dictionary item into chunks of text.
 
@@ -44,8 +44,6 @@ class LangChainCharacterTextSplitter(BaseModel, Chunker):
         implementation (Literal): A literal value identifying the implementation.
         separator (str): The string used to split the text into chunks.
         chunk_size (int): The maximum size of each chunk.
-        chunk_column (str): The dictionary key corresponding to the text that
-            needs to be chunked.
         chunk_overlap (int): The number of characters that overlap between chunks.
         is_separator_regex (bool): Indicates whether the separator is a regular
             expression.
@@ -54,7 +52,6 @@ class LangChainCharacterTextSplitter(BaseModel, Chunker):
     implementation: Literal["character_text_splitter"]
     separator: str
     chunk_size: int
-    chunk_column: str
     chunk_overlap: int
     is_separator_regex: bool
 
@@ -68,7 +65,7 @@ class LangChainCharacterTextSplitter(BaseModel, Chunker):
         )
 
     @override
-    def into_chunks(self, item: dict[str, Any]) -> list[str]:
+    def into_chunks(self, row: dict[str, Any], payload: str) -> list[str]:
         """
         Splits the text from the provided item into chunks using CharacterTextSplitter.
 
@@ -80,27 +77,28 @@ class LangChainCharacterTextSplitter(BaseModel, Chunker):
         Returns:
             list[str]: A list of chunked strings.
         """
-        text = item[self.chunk_column] or ""
-        return self._chunker.split_text(text)
+        return self._chunker.split_text(payload)
 
 
 class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
     """
-    Splits the text from the provided item into chunks using CharacterTextSplitter.
+    A chunker implementation using LangChain's CharacterTextSplitter.
 
-    Args:
-        item (dict[str, Any]): A dictionary representing a database row,
-            where keys are column names and values are the corresponding
-            data.
+    This class chunks text based on a separator, chunk size, and chunk overlap,
+    using the CharacterTextSplitter from the LangChain library.
 
-    Returns:
-        list[str]: A list of chunked strings.
+    Attributes:
+        implementation (Literal): A literal value identifying the implementation.
+        separators (list[str]): A list of strings used to split the text into chunks.
+        chunk_size (int): The maximum size of each chunk.
+        chunk_overlap (int): The number of characters that overlap between chunks.
+        is_separator_regex (bool): Indicates whether the separator is a regular
+            expression.
     """
 
     implementation: Literal["recursive_character_text_splitter"]
     separators: list[str]
     chunk_size: int
-    chunk_column: str
     chunk_overlap: int
     is_separator_regex: bool
 
@@ -114,7 +112,7 @@ class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
         )
 
     @override
-    def into_chunks(self, item: dict[str, Any]) -> list[str]:
+    def into_chunks(self, row: dict[str, Any], payload: str) -> list[str]:
         """
         Recursively splits the text from the provided item into chunks using
         RecursiveCharacterTextSplitter.
@@ -127,5 +125,4 @@ class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
         Returns:
             list[str]: A list of chunked strings.
         """
-        text = item[self.chunk_column] or ""
-        return self._chunker.split_text(text)
+        return self._chunker.split_text(payload)

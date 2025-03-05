@@ -1,0 +1,233 @@
+<p><p></p></p>
+<div align=center>
+
+# pgvectorscale
+
+<h3>pgvectorscale builds on pgvector with higher performance embedding search and cost-efficient storage for AI applications. </h3>
+
+<a href="https://discord.gg/KRdHVXAmkp"><img src="https://img.shields.io/badge/Join_us_on_Discord-black?style=for-the-badge&amp;logo=discord&amp;logoColor=white" alt="Discord"></a>
+<a href="https://tsdb.co/gh-pgvector-signup"><img src="https://img.shields.io/badge/Try_Timescale_for_free-black?style=for-the-badge&amp;logo=timescale&amp;logoColor=white" alt="Try Timescale for free"></a>
+</div>
+
+<p>pgvectorscale complements <a href="https://github.com/pgvector/pgvector/blob/master/README.md">pgvector</a>, the open-source vector data extension for PostgreSQL, and introduces the following key innovations for pgvector data:</p>
+<ul>
+<li>A new index type called StreamingDiskANN, inspired by the <a href="https://github.com/microsoft/DiskANN">DiskANN</a> algorithm, based on research from Microsoft.</li>
+<li>Statistical Binary Quantization: developed by Timescale researchers, This compression method improves on standard Binary Quantization.</li>
+</ul>
+<p>On a benchmark dataset of 50 million Cohere embeddings with 768 dimensions
+each, PostgreSQL with <code>pgvector</code> and <code>pgvectorscale</code> achieves <strong>28x lower p95
+latency</strong> and <strong>16x higher query throughput</strong> compared to Pinecone&#39;s storage
+optimized (s1) index for approximate nearest neighbor queries at 99% recall,
+all at 75% less cost when self-hosted on AWS EC2.</p>
+<div align=center>
+
+<img src="https://assets.timescale.com/docs/images/benchmark-comparison-pgvectorscale-pinecone.png" alt="Benchmarks">
+
+</div>
+
+<p>To learn more about the performance impact of pgvectorscale, and details about benchmark methodology and results, see the <a href="http://www.timescale.com/blog/pgvector-vs-pinecone">pgvector vs Pinecone comparison blog post</a>.</p>
+<p>In contrast to pgvector, which is written in C, pgvectorscale is developed in <a href="https://www.rust-lang.org/">Rust</a> using the <a href="https://github.com/pgcentralfoundation/pgrx">PGRX framework</a>,
+offering the PostgreSQL community a new avenue for contributing to vector support.</p>
+<p><strong>Application developers or DBAs</strong> can use pgvectorscale with their PostgreSQL databases.</p>
+<ul>
+<li><a href="#installation">Install pgvectorscale</a></li>
+<li><a href="#get-started-with-pgvectorscale">Get started using pgvectorscale</a></li>
+</ul>
+<p>If you <strong>want to contribute</strong> to this extension, see how to <a href="/DEVELOPMENT.md">build pgvectorscale from source in a developer environment</a>.</p>
+<p>For production vector workloads, get <strong>private beta access to vector-optimized databases</strong> with pgvector and pgvectorscale on Timescale. <a href="https://timescale.typeform.com/to/H7lQ10eQ">Sign up here for priority access</a>.</p>
+<h2 id="installation">Installation</h2>
+<p>The fastest ways to run PostgreSQL with pgvectorscale are:</p>
+<ul>
+<li><a href="#using-a-pre-built-docker-container">Using a pre-built Docker container</a></li>
+<li><a href="#installing-from-source">Installing from source</a></li>
+<li><a href="#enable-pgai-in-a-timescale-cloud-service">Enable pgvectorscale in a Timescale Cloud service</a></li>
+</ul>
+<h3 id="using-a-pre-built-docker-container">Using a pre-built Docker container</h3>
+<ol>
+<li><p><a href="https://docs.timescale.com/self-hosted/latest/install/installation-docker/">Run the TimescaleDB Docker image</a>.</p>
+</li>
+<li><p>Connect to your database:</p>
+<pre><code class="lang-bash">psql -d "postgres://<span class="hljs-tag">&lt;<span class="hljs-name">username</span>&gt;</span>:<span class="hljs-tag">&lt;<span class="hljs-name">password</span>&gt;</span>@<span class="hljs-tag">&lt;<span class="hljs-name">host</span>&gt;</span>:<span class="hljs-tag">&lt;<span class="hljs-name">port</span>&gt;</span>/<span class="hljs-tag">&lt;<span class="hljs-name">database-name</span>&gt;</span>"
+</code></pre>
+</li>
+<li><p>Create the pgvectorscale extension:</p>
+<pre><code class="lang-sql"> <span class="hljs-keyword">CREATE</span> EXTENSION <span class="hljs-keyword">IF</span> <span class="hljs-keyword">NOT</span> <span class="hljs-keyword">EXISTS</span> vectorscale <span class="hljs-keyword">CASCADE</span>;
+</code></pre>
+<p>The <code>CASCADE</code> automatically installs <code>pgvector</code>.</p>
+</li>
+</ol>
+<h3 id="installing-from-source">Installing from source</h3>
+<p>You can install pgvectorscale from source and install it in an existing PostgreSQL server</p>
+<ol>
+<li><p>Compile and install the extension</p>
+<pre><code class="lang-bash"> # install prerequisites
+ ## rust
+ curl --proto <span class="hljs-string">'=https'</span> --tlsv1.<span class="hljs-number">2</span> -sSf http<span class="hljs-variable">s:</span>//<span class="hljs-keyword">sh</span>.rustup.rs | <span class="hljs-keyword">sh</span>
+ ## cargo-pgrx with the same <span class="hljs-keyword">version</span> <span class="hljs-keyword">as</span> pgrx
+ cargo install --locked cargo-pgrx --<span class="hljs-keyword">version</span> $(cargo metadata --format-<span class="hljs-keyword">version</span> <span class="hljs-number">1</span> | jq -r <span class="hljs-string">'.packages[] | select(.name == "pgrx") | .version'</span>)
+ cargo pgrx init --pg17 pg_config
+
+ #download, build <span class="hljs-built_in">and</span> install pgvectorscale
+ <span class="hljs-keyword">cd</span> /tmp
+ git clone --branch <span class="hljs-symbol">&lt;version&gt;</span> http<span class="hljs-variable">s:</span>//github.<span class="hljs-keyword">com</span>/timescale/pgvectorscale
+ <span class="hljs-keyword">cd</span> pgvectorscale/pgvectorscale
+ cargo pgrx install --release
+</code></pre>
+<p> You can also take a look at our <a href="/DEVELOPMENT.md">documentation for extension developers</a> for more complete instructions.</p>
+</li>
+<li><p>Connect to your database:</p>
+<pre><code class="lang-bash">psql -d "postgres://<span class="hljs-tag">&lt;<span class="hljs-name">username</span>&gt;</span>:<span class="hljs-tag">&lt;<span class="hljs-name">password</span>&gt;</span>@<span class="hljs-tag">&lt;<span class="hljs-name">host</span>&gt;</span>:<span class="hljs-tag">&lt;<span class="hljs-name">port</span>&gt;</span>/<span class="hljs-tag">&lt;<span class="hljs-name">database-name</span>&gt;</span>"
+</code></pre>
+</li>
+<li><p>Ensure the pgvector extension is available:</p>
+<pre><code class="lang-sql"><span class="hljs-keyword">SELECT</span> * <span class="hljs-keyword">FROM</span> pg_available_extensions <span class="hljs-keyword">WHERE</span> <span class="hljs-keyword">name</span> = <span class="hljs-string">'vector'</span>;
+</code></pre>
+<p>If pgvector is not available, install it using the <a href="https://github.com/pgvector/pgvector?tab=readme-ov-file#installation">pgvector installation
+instructions</a>.</p>
+</li>
+</ol>
+<ol>
+<li><p>Create the pgvectorscale extension:</p>
+<pre><code class="lang-sql"> <span class="hljs-keyword">CREATE</span> EXTENSION <span class="hljs-keyword">IF</span> <span class="hljs-keyword">NOT</span> <span class="hljs-keyword">EXISTS</span> vectorscale <span class="hljs-keyword">CASCADE</span>;
+</code></pre>
+<p>The <code>CASCADE</code> automatically installs <code>pgvector</code>.</p>
+</li>
+</ol>
+<h3 id="enable-pgvectorscale-in-a-timescale-cloud-service">Enable pgvectorscale in a Timescale Cloud service</h3>
+<p>Note: the instructions below are for Timescale&#39;s standard compute instance. For production vector workloads, we’re offering <strong>private beta access to vector-optimized databases</strong> with pgvector and pgvectorscale on Timescale. <a href="https://timescale.typeform.com/to/H7lQ10eQ">Sign up here for priority access</a>.</p>
+<p>To enable pgvectorscale:</p>
+<ol>
+<li><p>Create a new <a href="https://console.cloud.timescale.com/signup?utm_campaign=vectorlaunch">Timescale Service</a>.</p>
+<p>If you want to use an existing service, pgvectorscale is added as an available extension on the first maintenance window
+after the pgvectorscale release date.</p>
+</li>
+<li><p>Connect to your Timescale service:</p>
+<pre><code class="lang-bash">psql -d "postgres://<span class="hljs-tag">&lt;<span class="hljs-name">username</span>&gt;</span>:<span class="hljs-tag">&lt;<span class="hljs-name">password</span>&gt;</span>@<span class="hljs-tag">&lt;<span class="hljs-name">host</span>&gt;</span>:<span class="hljs-tag">&lt;<span class="hljs-name">port</span>&gt;</span>/<span class="hljs-tag">&lt;<span class="hljs-name">database-name</span>&gt;</span>"
+</code></pre>
+</li>
+<li><p>Create the pgvectorscale extension:</p>
+<pre><code class="lang-postgresql"> <span class="hljs-keyword">CREATE</span> EXTENSION <span class="hljs-keyword">IF</span> <span class="hljs-keyword">NOT</span> <span class="hljs-keyword">EXISTS</span> vectorscale <span class="hljs-keyword">CASCADE</span>;
+</code></pre>
+<p>The <code>CASCADE</code> automatically installs <code>pgvector</code>.</p>
+</li>
+</ol>
+<h2 id="get-started-with-pgvectorscale">Get started with pgvectorscale</h2>
+<ol>
+<li><p>Create a table with an embedding column. For example:</p>
+<pre><code class="lang-postgresql"> <span class="hljs-keyword">CREATE</span> <span class="hljs-keyword">TABLE</span> <span class="hljs-keyword">IF</span> <span class="hljs-keyword">NOT</span> <span class="hljs-keyword">EXISTS</span> document_embedding  (
+     <span class="hljs-keyword">id</span> <span class="hljs-built_in">BIGINT</span> PRIMARY <span class="hljs-keyword">KEY</span> <span class="hljs-keyword">GENERATED</span> <span class="hljs-keyword">BY</span> <span class="hljs-keyword">DEFAULT</span> <span class="hljs-keyword">AS</span> <span class="hljs-keyword">IDENTITY</span>,
+     metadata JSONB,
+     <span class="hljs-keyword">contents</span> <span class="hljs-built_in">TEXT</span>,
+     embedding VECTOR(<span class="hljs-number">1536</span>)
+ )
+</code></pre>
+</li>
+<li><p>Populate the table.</p>
+<p>For more information, see the <a href="https://github.com/pgvector/pgvector/blob/master/README.md#storing">pgvector instructions</a> and <a href="https://github.com/pgvector/pgvector/blob/master/README.md#languages">list of clients</a>.</p>
+</li>
+<li>Create a StreamingDiskANN index on the embedding column:<pre><code class="lang-postgresql"> <span class="hljs-keyword">CREATE</span> <span class="hljs-keyword">INDEX</span> document_embedding_idx <span class="hljs-keyword">ON</span> document_embedding
+ <span class="hljs-keyword">USING</span> diskann (embedding vector_cosine_ops);
+</code></pre>
+</li>
+<li><p>Find the 10 closest embeddings using the index.</p>
+<pre><code class="lang-postgresql"> <span class="hljs-keyword">SELECT</span> *
+ <span class="hljs-keyword">FROM</span> document_embedding
+ <span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> embedding &lt;=&gt; $<span class="hljs-number">1</span>
+ <span class="hljs-keyword">LIMIT</span> <span class="hljs-number">10</span>
+</code></pre>
+<p> Note: pgvectorscale currently supports: cosine distance (<code>&lt;=&gt;</code>) queries, for indices created with <code>vector_cosine_ops</code>; L2 distance (<code>&lt;-&gt;</code>) queries, for indices created with <code>vector_l2_ops</code>; and inner product (<code>&lt;#&gt;</code>) queries, for indices created with <code>vector_ip_ops</code>.  This is the same syntax used by <code>pgvector</code>.  If you would like additional distance types,
+ <a href="https://github.com/timescale/pgvectorscale/issues">create an issue</a>.  (Note: inner product indices are not compatible with plain storage.)</p>
+</li>
+</ol>
+<h2 id="tuning">Tuning</h2>
+<p>The StreamingDiskANN index comes with <strong>smart defaults</strong> but also the ability to customize its behavior. There are two types of parameters: index build-time parameters that are specified when an index is created and query-time parameters that can be tuned when querying an index.</p>
+<p>We suggest setting the index build-time paramers for major changes to index operations while query-time parameters can be used to tune the accuracy/performance tradeoff for individual queries.</p>
+<p> We expect most people to tune the query-time parameters (if any) and leave the index build time parameters set to default.</p>
+<h3 id="streamingdiskann-index-build-time-parameters">StreamingDiskANN index build-time parameters</h3>
+<p>These parameters can be set when an index is created.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter name</th>
+<th>Description</th>
+<th>Default value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>storage_layout</code></td>
+<td><code>memory_optimized</code> which uses SBQ to compress vector data or <code>plain</code> which stores data uncompressed</td>
+<td>memory_optimized</td>
+</tr>
+<tr>
+<td><code>num_neighbors</code></td>
+<td>Sets the maximum number of neighbors per node. Higher values increase accuracy but make the graph traversal slower.</td>
+<td>50</td>
+</tr>
+<tr>
+<td><code>search_list_size</code></td>
+<td>This is the S parameter used in the greedy search algorithm used during construction. Higher values improve graph quality at the cost of slower index builds.</td>
+<td>100</td>
+</tr>
+<tr>
+<td><code>max_alpha</code></td>
+<td>Is the alpha parameter in the algorithm. Higher values improve graph quality at the cost of slower index builds.</td>
+<td>1.2</td>
+</tr>
+<tr>
+<td><code>num_dimensions</code></td>
+<td>The number of dimensions to index. By default, all dimensions are indexed. But you can also index less dimensions to make use of <a href="https://huggingface.co/blog/matryoshka">Matryoshka embeddings</a></td>
+<td>0 (all dimensions)</td>
+</tr>
+<tr>
+<td><code>num_bits_per_dimension</code></td>
+<td>Number of bits used to encode each dimension when using SBQ</td>
+<td>2 for less than 900 dimensions, 1 otherwise</td>
+</tr>
+</tbody>
+</table>
+<p>An example of how to set the <code>num_neighbors</code> parameter is:</p>
+<pre><code class="lang-sql"><span class="hljs-keyword">CREATE</span> <span class="hljs-keyword">INDEX</span> document_embedding_idx <span class="hljs-keyword">ON</span> document_embedding
+<span class="hljs-keyword">USING</span> diskann (embedding) <span class="hljs-keyword">WITH</span>(num_neighbors=<span class="hljs-number">50</span>);
+</code></pre>
+<h4 id="streamingdiskann-query-time-parameters">StreamingDiskANN query-time parameters</h4>
+<p>You can also set two parameters to control the accuracy vs. query speed trade-off at query time. We suggest adjusting <code>diskann.query_rescore</code> to fine-tune accuracy.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter name</th>
+<th>Description</th>
+<th>Default value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>diskann.query_search_list_size</code></td>
+<td>The number of additional candidates considered during the graph search.</td>
+<td>100</td>
+</tr>
+<tr>
+<td><code>diskann.query_rescore</code></td>
+<td>The number of elements rescored (0 to disable rescoring)</td>
+<td>50</td>
+</tr>
+</tbody>
+</table>
+<p>You can set the value by using <code>SET</code> before executing a query. For example:</p>
+<pre><code class="lang-sql"><span class="hljs-keyword">SET</span> diskann.query_rescore <span class="hljs-comment">= 400</span>;
+</code></pre>
+<p>Note the <a href="https://www.postgresql.org/docs/current/sql-set.html">SET command</a> applies to the entire session (database connection) from the point of execution. You can use a transaction-local variant using <code>LOCAL</code> which will
+be reset after the end of the transaction:</p>
+<pre><code class="lang-sql"><span class="hljs-keyword">BEGIN</span>;
+<span class="hljs-keyword">SET</span> <span class="hljs-keyword">LOCAL</span> diskann.query_search_list_size= <span class="hljs-number">10</span>;
+<span class="hljs-keyword">SELECT</span> * <span class="hljs-keyword">FROM</span> document_embedding <span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> embedding &lt;=&gt; $<span class="hljs-number">1</span> <span class="hljs-keyword">LIMIT</span> <span class="hljs-number">10</span>
+<span class="hljs-keyword">COMMIT</span>;
+</code></pre>
+<h2 id="get-involved">Get involved</h2>
+<p>pgvectorscale is still at an early stage. Now is a great time to help shape the
+direction of this project; we are currently deciding priorities. Have a look at the
+list of features we&#39;re thinking of working on. Feel free to comment, expand
+the list, or hop on the Discussions forum.</p>
+<h2 id="about-timescale">About Timescale</h2>
+<p>Timescale is a PostgreSQL cloud company. To learn more visit the <a href="https://www.timescale.com">timescale.com</a>.</p>
+<p><a href="https://console.cloud.timescale.com/signup?utm_campaign=vectorlaunch">Timescale Cloud</a> is a high-performance, developer focused, cloud platform that provides PostgreSQL services for the most demanding AI, time-series, analytics, and event workloads. Timescale Cloud is ideal for production applications and provides high availability, streaming backups, upgrades over time, roles and permissions, and great security.</p>
