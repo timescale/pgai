@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from psycopg import Connection
 from psycopg.rows import dict_row
-from testcontainers.localstack import LocalStackContainer
+from testcontainers.localstack import LocalStackContainer  # type: ignore
 
 from pgai.vectorizer.loading import UriLoadingError
 from tests.vectorizer.cli.conftest import (
@@ -32,9 +32,9 @@ def s3_bucket() -> Generator[str, None, None]:
     region = "eu-central-1"
     localstack = LocalStackContainer(
         image="localstack/localstack:4", region_name=region
-    ).with_services("s3")
+    ).with_services("s3")  # type: ignore
     # hardcoding port so vcr cassettes are always matching the uri
-    localstack.ports[localstack.edge_port] = 32882
+    localstack.ports[localstack.edge_port] = 32882  # type: ignore
     localstack.start()
 
     # Set environment variables for any lib that uses boto3 (such as smart-open)
@@ -44,14 +44,17 @@ def s3_bucket() -> Generator[str, None, None]:
     os.environ["AWS_SECRET_ACCESS_KEY"] = "testcontainers-localstack"
 
     s3_test_bucket_name = "localstack-test-bucket"
-    s3 = localstack.get_client("s3")
-    s3.create_bucket(
+    s3 = localstack.get_client("s3")  # type: ignore
+
+    s3.create_bucket(  # type: ignore
         Bucket=s3_test_bucket_name,
         CreateBucketConfiguration={"LocationConstraint": region},
     )
     for doc in docs:
-        s3.upload_file(
-            Path(__file__).parent / "documents" / doc, s3_test_bucket_name, doc
+        s3.upload_file(  # type: ignore
+            Path(__file__).parent / "documents" / doc,
+            s3_test_bucket_name,
+            doc,
         )
 
     yield s3_test_bucket_name
