@@ -99,11 +99,14 @@ class ParsingPyMuPDF(BaseDocumentParsing):
             return pymupdf4llm.to_markdown(pdf_document)  # type: ignore
 
 
+DOCLING_CACHE_DIR = Path.home().joinpath(".cache/docling/models")
+
+
 class ParsingDocling(BaseDocumentParsing):
     """Document parsing implementation using Docling."""
 
     implementation: Literal["docling"]  # type: ignore[reportIncompatibleVariableOverride]
-    cache_dir: Path | str = Path.home().joinpath(".cache/docling/models")
+    cache_dir: Path | str = DOCLING_CACHE_DIR
 
     @override
     def parse_doc(self, row: dict[str, Any], payload: LoadedDocument) -> str:  # noqa: ARG002
