@@ -451,7 +451,6 @@ class Actions:
                 "docker run -d --name pgai-ext --hostname pgai-ext -e POSTGRES_HOST_AUTH_METHOD=trust",
                 networking,
                 f"--mount type=bind,src={ext_dir()},dst=/pgai",
-                "--mount type=volume,dst=/pgai/.venv",
                 "-e OPENAI_API_KEY",
                 "-e COHERE_API_KEY",
                 "-e MISTRAL_API_KEY",
