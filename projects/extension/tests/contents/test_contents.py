@@ -1,6 +1,6 @@
 import os
 import subprocess
-from pathlib import Path
+from pathlib import Path, PosixPath
 
 import psycopg
 import pytest
@@ -22,7 +22,9 @@ def where_am_i() -> str:
 
 
 def docker_dir() -> str:
-    return "/pgai/tests/contents"
+    return str(
+        PosixPath("/").joinpath("pgai", "projects", "extension", "tests", "contents")
+    )
 
 
 def host_dir() -> Path:
