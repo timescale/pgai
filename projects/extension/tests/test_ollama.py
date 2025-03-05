@@ -1,5 +1,6 @@
 import os
 import time
+from pathlib import PosixPath
 
 import psycopg
 import pytest
@@ -15,6 +16,14 @@ def where_am_i() -> str:
     if "WHERE_AM_I" in os.environ and os.environ["WHERE_AM_I"] == "docker":
         return "docker"
     return "host"
+
+
+def docker_image() -> str:
+    return str(
+        PosixPath("/").joinpath(
+            "pgai", "projects", "extension", "tests", "postgresql-vs-pinecone.jpg"
+        )
+    )
 
 
 def wait_for_model_download(host: str, model: str, timeout: int = 300) -> None:
@@ -190,11 +199,11 @@ def test_ollama_generate_no_host(cur_with_ollama_host):
 
 
 def test_ollama_image(cur_with_ollama_host):
-    cur_with_ollama_host.execute("""
+    cur_with_ollama_host.execute(f"""
         select ai.ollama_generate
         ( 'smollm:135m'
         , 'Please describe this image.'
-        , images=> array[pg_read_binary_file('/pgai/tests/postgresql-vs-pinecone.jpg')]
+        , images=> array[pg_read_binary_file('{docker_image()}')]
         , system_prompt=>'you are a helpful assistant'
         , embedding_options=> jsonb_build_object
           ( 'seed', 42
@@ -257,14 +266,14 @@ def test_ollama_chat_complete_no_host(cur_with_ollama_host):
 
 
 def test_ollama_chat_complete_image(cur_with_ollama_host):
-    cur_with_ollama_host.execute("""
+    cur_with_ollama_host.execute(f"""
         select ai.ollama_chat_complete
         ( 'smollm:135m'
         , jsonb_build_array
           ( jsonb_build_object
             ( 'role', 'user'
             , 'content', 'describe this image'
-            , 'images', jsonb_build_array(encode(pg_read_binary_file('/pgai/tests/postgresql-vs-pinecone.jpg'), 'base64'))
+            , 'images', jsonb_build_array(encode(pg_read_binary_file('{docker_image()}'), 'base64'))
             )
           )
         , chat_options=> jsonb_build_object

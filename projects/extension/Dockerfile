@@ -65,9 +65,9 @@ USER root
 
 RUN pip install --break-system-packages uv==0.6.3
 
-WORKDIR /pgai
-
 # install only our python dependencies for dev/test
 COPY pyproject.toml uv.lock /py/
 RUN uv sync --directory /py --no-install-project --only-dev --frozen
 ENV PATH="/py/.venv/bin:$PATH"
+
+WORKDIR /pgai/projects/extension

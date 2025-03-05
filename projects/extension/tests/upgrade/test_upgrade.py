@@ -1,7 +1,7 @@
 import os
 import subprocess
 from collections import namedtuple
-from pathlib import Path
+from pathlib import Path, PosixPath
 
 import psycopg
 import pytest
@@ -32,7 +32,9 @@ def where_am_i() -> str:
 
 
 def docker_dir() -> str:
-    return "/pgai/tests/upgrade"
+    return str(
+        PosixPath("/").joinpath("pgai", "projects", "extension", "tests", "upgrade")
+    )
 
 
 def host_dir() -> Path:
