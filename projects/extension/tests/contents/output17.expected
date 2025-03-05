@@ -98,6 +98,7 @@ CREATE EXTENSION
  function ai._vectorizer_should_create_vector_index(ai.vectorizer)
  function ai._vectorizer_source_pk(regclass)
  function ai._vectorizer_vector_index_exists(name,name,jsonb)
+ function ai.version()
  function ai.voyageai_embed(text,text,text,text,text,boolean)
  function ai.voyageai_embed(text,text[],text,text,text,boolean)
  sequence ai.vectorizer_id_seq

@@ -70,7 +70,9 @@ jobs:
         run: just ext docker-run
 
       - name: Build
-        run: docker exec pgai-ext just build
+        run: docker exec -e GITHUB_SHA pgai-ext just build
+        env:
+          GITHUB_SHA: ${{ github.sha }}
 
       - name: Lint SQL and Python
         run: docker exec pgai-ext just lint
@@ -152,3 +154,4 @@ jobs:
         run: just pgai ci
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_SHA: ${{ github.sha }}
