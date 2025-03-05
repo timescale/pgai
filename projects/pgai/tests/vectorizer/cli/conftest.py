@@ -141,8 +141,23 @@ def run_vectorizer_worker(
     if extra_params:
         args.extend(extra_params)
 
-    return CliRunner().invoke(
+    # Enable debugging
+    import os
+    os.environ["PGAI_VECTORIZER_DEBUG"] = "1"
+    os.environ["PGAI_VECTORIZER_VERBOSE"] = "1"
+    
+    result = CliRunner().invoke(
         vectorizer_worker,
         args,
         catch_exceptions=False,
     )
+    
+    # Print out errors for debugging
+    if result.exception:
+        print(f"Error in vectorizer worker: {result.exception}")
+        print(f"Exit code: {result.exit_code}")
+        print(f"Output: {result.output}")
+        if hasattr(result.exception, '__cause__'):
+            print(f"Cause: {result.exception.__cause__}")
+    
+    return result

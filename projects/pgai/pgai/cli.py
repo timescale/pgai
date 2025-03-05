@@ -120,14 +120,19 @@ def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer:
                 raise ApiKeyNotFoundError(
                     f"api_key_name={api_key_name} vectorizer_id={vectorizer_id}"
                 )
-            secrets: dict[str, str | None] = {api_key_name: api_key}
-            # The Ollama API doesn't need a key, so doesn't inherit `ApiKeyMixin`
-            if vectorizer.config.embedding.implementation != "ollama":
+            
+            # With the new decorator system, we store the API key in the config
+            # rather than calling set_api_key directly
+            impl = vectorizer.config.embedding.implementation
+            if hasattr(vectorizer.config.embedding, "set_api_key"):
+                # Legacy support for old Embedder classes
+                secrets: dict[str, str | None] = {api_key_name: api_key}
                 vectorizer.config.embedding.set_api_key(secrets)
             else:
-                log.error(
-                    f"cannot set secret value '{api_key_name}' for vectorizer with id: '{vectorizer.id}'"  # noqa
-                )
+                # New decorator system - store API key in the model config
+                # We'll use the API key name as the key in the config
+                # The _generate_embeddings method in vectorizer.py will handle extracting it
+                setattr(vectorizer.config.embedding, "api_key", api_key)
         return vectorizer
 
 

@@ -36,6 +36,7 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
 
     model: str
     input_type: Literal["document"] | Literal["query"] | None = None
+    api_key: str | None = None
 
     @override
     async def embed(self, documents: list[str]) -> Sequence[EmbeddingVector]:
@@ -61,7 +62,10 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
         return 128
 
     async def call_embed_api(self, documents: list[str]) -> EmbeddingResponse:
-        response = await voyageai.AsyncClient(api_key=self._api_key).embed(
+        # First try the direct api_key attribute (for decorator pattern)
+        api_key = self.api_key
+
+        response = await voyageai.AsyncClient(api_key=api_key).embed(
             documents,
             model=self.model,
             input_type=self.input_type,

@@ -46,6 +46,7 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
     model: str
     dimensions: int | None = None
     user: str | None = None
+    api_key: str | None = None
 
     @cached_property
     def _openai_dimensions(self) -> int | openai.NotGiven:
@@ -61,8 +62,11 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
 
     @cached_property
     def _embedder(self) -> resources.AsyncEmbeddings:
+        # First try the direct api_key attribute (for decorator pattern)
+        api_key = self.api_key
+
         return openai.AsyncOpenAI(
-            base_url=self.base_url, api_key=self._api_key, max_retries=3
+            base_url=self.base_url, api_key=api_key, max_retries=3
         ).embeddings
 
     @override

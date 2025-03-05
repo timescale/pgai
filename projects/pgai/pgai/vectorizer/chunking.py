@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
+from collections.abc import Awaitable, Callable
 from functools import cached_property
-from typing import Any, Literal
+from typing import Any, Literal, overload
 
 from langchain_text_splitters import (
     CharacterTextSplitter,
@@ -129,3 +130,87 @@ class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
         """
         text = item[self.chunk_column] or ""
         return self._chunker.split_text(text)
+
+
+# Type definition for chunking functions
+ChunkerFunc = Callable[
+    [dict[str, Any], dict[str, Any]], list[str] | Awaitable[list[str]]
+]
+
+# Global registry for chunking functions
+registered_chunkers: dict[str, ChunkerFunc] = dict()
+
+
+@overload
+def chunker(func: ChunkerFunc) -> ChunkerFunc: ...
+
+
+@overload
+def chunker(
+    *, name: str | None = None
+) -> Callable[[ChunkerFunc], ChunkerFunc]: ...
+
+
+def chunker(
+    func: ChunkerFunc | None = None,
+    *,  # enforce keyword-only arguments
+    name: str | None = None,
+) -> ChunkerFunc | Callable[[ChunkerFunc], ChunkerFunc]:
+    """
+    Decorator to register chunking functions in the global registry.
+    
+    A chunking function takes a source row and configuration and returns a list of chunks.
+    
+    Example:
+    ```python
+    @chunker(name="my_custom_chunker")
+    def my_chunking_function(item: dict[str, Any], config: dict[str, Any]) -> list[str]:
+        text = item[config["chunk_column"]]
+        # Custom chunking logic
+        return chunks
+    ```
+    """
+
+    def decorator(f: ChunkerFunc) -> ChunkerFunc:
+        registration_name = name if name is not None else f.__name__
+        registered_chunkers[registration_name] = f
+        return f
+
+    if func is not None:
+        return decorator(func)
+
+    return decorator
+
+
+@chunker(name="character_text_splitter")
+def character_text_splitter(
+    item: dict[str, Any], config: dict[str, Any]
+) -> list[str]:
+    """
+    Default implementation of character text splitter using the decorator pattern.
+    """
+    chunker = CharacterTextSplitter(
+        separator=config["separator"],
+        chunk_size=config["chunk_size"],
+        chunk_overlap=config["chunk_overlap"],
+        is_separator_regex=config.get("is_separator_regex", False),
+    )
+    text = item[config["chunk_column"]] or ""
+    return chunker.split_text(text)
+
+
+@chunker(name="recursive_character_text_splitter")
+def recursive_character_text_splitter(
+    item: dict[str, Any], config: dict[str, Any]
+) -> list[str]:
+    """
+    Default implementation of recursive character text splitter using the decorator pattern.
+    """
+    chunker = RecursiveCharacterTextSplitter(
+        separators=config["separators"],
+        chunk_size=config["chunk_size"],
+        chunk_overlap=config["chunk_overlap"],
+        is_separator_regex=config.get("is_separator_regex", False),
+    )
+    text = item[config["chunk_column"]] or ""
+    return chunker.split_text(text)

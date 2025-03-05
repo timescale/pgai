@@ -321,9 +321,8 @@ def test_disabled_vectorizer_is_skipped_before_next_batch(
         row = cur.fetchone()
     assert row is not None
     vectorizer = Vectorizer(**row["vectorizer"])
-    vectorizer.config.embedding.set_api_key(  # type: ignore
-        {"OPENAI_API_KEY": "empty"}
-    )
+    # Set API key directly for the new decorator pattern
+    setattr(vectorizer.config.embedding, "api_key", "empty")
 
     features = Features("100.0.0")
 
@@ -401,9 +400,8 @@ def test_disabled_vectorizer_is_backwards_compatible(
         row = cur.fetchone()
     assert row is not None
     vectorizer = Vectorizer(**row["vectorizer"])
-    vectorizer.config.embedding.set_api_key(  # type: ignore
-        {"OPENAI_API_KEY": "empty"}
-    )
+    # Set API key directly for the new decorator pattern
+    setattr(vectorizer.config.embedding, "api_key", "empty")
 
     # When the vectorizer is executed.
     with vcr_.use_cassette("test_disabled_vectorizer_is_backwards_compatible.yaml"):

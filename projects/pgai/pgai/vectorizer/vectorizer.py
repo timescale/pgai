@@ -21,12 +21,13 @@ from pydantic.fields import Field
 from .chunking import (
     LangChainCharacterTextSplitter,
     LangChainRecursiveCharacterTextSplitter,
+    registered_chunkers,
 )
 from .embedders import *
 from .embeddings import ChunkEmbeddingError, EmbeddingConfig, registered_embeddings
 from .features import Features
-from .formatting import ChunkValue, PythonTemplate
-from .processing import ProcessingDefault
+from .formatting import ChunkValue, PythonTemplate, registered_formatters
+from .processing import ProcessingDefault, registered_processors
 
 logger = structlog.get_logger()
 
@@ -480,7 +481,7 @@ class Worker:
         ) as conn:
             try:
                 await register_vector_async(conn)
-                await self.vectorizer.config.embedding.setup()
+                # Each registered embedding function should handle its own setup
                 while True:
                     if not await self._should_continue_processing(conn, loops, res):
                         return res
@@ -661,7 +662,7 @@ class Worker:
         """
 
         await self._delete_embeddings(conn, items)
-        records, errors = await self._generate_embeddings(items)
+        records, errors = await self._generate_embeddings(conn, items)
         # await self._insert_embeddings(conn, records)
         await self._copy_embeddings(conn, records)
         if errors:
@@ -753,12 +754,13 @@ class Worker:
         return [item[pk] for pk in self.queries.pk_attnames]
 
     async def _generate_embeddings(
-        self, items: list[SourceRow]
+        self, conn: AsyncConnection, items: list[SourceRow]
     ) -> tuple[list[EmbeddingRecord], list[VectorizerErrorRecord]]:
         """
         Generates the embeddings for the given items.
 
         Args:
+            conn (AsyncConnection): The database connection.
             items (list[SourceRow]): The items to generate embeddings for.
 
         Returns:
@@ -769,18 +771,62 @@ class Worker:
         documents: list[str] = []
         for item in items:
             pk = self._get_item_pk_values(item)
-            chunks = self.vectorizer.config.chunking.into_chunks(item)
+            
+            # Get the chunking implementation and config
+            chunking_impl = self.vectorizer.config.chunking.implementation
+            chunking_config = self.vectorizer.config.chunking.model_dump(exclude={"implementation"})
+            
+            # Use the registered chunker function
+            chunker_func = registered_chunkers[chunking_impl]
+            chunks_result = chunker_func(item, chunking_config)
+            # Handle both sync and async chunker functions
+            chunks = chunks_result if not asyncio.iscoroutine(chunks_result) else await chunks_result
+            
             for chunk_id, chunk in enumerate(chunks, 0):
-                formatted = self.vectorizer.config.formatting.format(chunk, item)
+                # Get the formatting implementation and config
+                formatting_impl = self.vectorizer.config.formatting.implementation
+                formatting_config = self.vectorizer.config.formatting.model_dump(exclude={"implementation"})
+                
+                # Use the registered formatter function
+                formatter_func = registered_formatters[formatting_impl]
+                format_result = formatter_func(chunk, item, formatting_config)
+                # Handle both sync and async formatter functions
+                formatted = format_result if not asyncio.iscoroutine(format_result) else await format_result
+                
                 records_without_embeddings.append(pk + [chunk_id, formatted])
                 documents.append(formatted)
 
         try:
-            embeddings = await registered_embeddings[
-                self.vectorizer.config.embedding.implementation
-            ](
+            # Get the embedding configuration
+            embedding_impl = self.vectorizer.config.embedding.implementation
+            embedding_config = self.vectorizer.config.embedding.model_dump(exclude={"implementation"})
+            
+            # Handle API key if specified
+            api_key_name = embedding_config.get("api_key_name")
+            if api_key_name:
+                # First try to get from environment
+                import os
+                api_key = os.environ.get(api_key_name)
+                
+                if api_key is None:
+                    # If not in environment, try to load from database
+                    async with conn.cursor() as cursor:
+                        await cursor.execute(
+                            "SELECT ai.reveal_secret(%s)",
+                            (api_key_name,)
+                        )
+                        result = await cursor.fetchone()
+                        if not result or result[0] is None:
+                            raise ValueError(f"API key '{api_key_name}' not found")
+                        api_key = result[0]
+                
+                # Add the API key to the config for the embedding function
+                embedding_config["api_key"] = api_key
+            
+            # Use the embedding decorator pattern with the updated config
+            embeddings = await registered_embeddings[embedding_impl](
                 documents,
-                self.vectorizer.config.embedding.model_dump(exclude={"implementation"}),
+                embedding_config,
             )
         except Exception as e:
             raise EmbeddingProviderError() from e
