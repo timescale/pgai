@@ -326,7 +326,7 @@ class Actions:
     def test_server() -> None:
         """runs the test http server in the docker container"""
         if where_am_i() == "host":
-            cmd = "docker exec -it -w /pgai/tests/vectorizer pgai-ext fastapi dev server.py"
+            cmd = "docker exec -it -w /pgai/projects/extension/tests/vectorizer pgai-ext fastapi dev server.py"
             subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
         else:
             cmd = "uv run --no-project fastapi dev server.py"
@@ -450,7 +450,8 @@ class Actions:
             [
                 "docker run -d --name pgai-ext --hostname pgai-ext -e POSTGRES_HOST_AUTH_METHOD=trust",
                 networking,
-                f"--mount type=bind,src={ext_dir()},dst=/pgai",
+                f"--mount type=bind,src={ext_dir().parent.parent},dst=/pgai",
+                "-w /pgai/projects/extension",
                 "-e OPENAI_API_KEY",
                 "-e COHERE_API_KEY",
                 "-e MISTRAL_API_KEY",

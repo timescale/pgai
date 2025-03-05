@@ -41,7 +41,8 @@ To make changes to pgai:
    ```bash
    just ext docker-run
    ```
-   The `projects/extension` directory is mounted to `/pgai` in the running container.
+   The root of the repo directory is mounted to `/pgai` in the running container.
+   The working directory is at `/pgai/projects/extension`.
 
 1. Work inside the container:
    * **Docker shell**:
@@ -121,7 +122,7 @@ To set up the tests:
     ENABLE_SECRETS_TESTS=1
     ```
 
-2. Some tests require extra environment variables to be added to the .env file
+1. Some tests require extra environment variables to be added to the .env file
    - **OpenAI**:
       - `OPENAI_API_KEY` - an [OpenAI API Key](https://platform.openai.com/api-keys) for OpenAI unit testing.
    - **Ollama**:
@@ -135,12 +136,43 @@ To set up the tests:
 
    Providing these keys automatically enables the corresponding tests.
 
+## Set up your environment
+The pgai extension uses `uv` for dependency management. Dependencies are listed
+in the [pyproject.toml](/projects/extension/pyproject.toml) file. uv is already installed in the development
+docker container. To use it in your local environment, follow uv's
+[installation instructions](https://github.com/astral-sh/uv#installation).
+Make sure your uv version is at least `0.5.x`.
+```bash
+uv --version
+```
+
+If not, upgrade it with this command.
+
+```bash
+uv self update
+```
+
+Change directory into the [projects/extension](/projects/extension) directory and create a
+virtual environment. Then, activate it.
+
+```bash
+cd projects/extension
+uv venv
+source .venv/bin/activate
+```
+
+Install the project's dependencies into the virtual environment.
+
+```bash
+uv sync --no-install-project
+```
+
+_NOTE:_ Inside the development container, the python dev/test dependencies are installed
+into a virtual environment at `/py/.venv/`.
+
 ## Dependency management in the pgai extension
 
-The pgai extension uses `uv` for dependency management. Dependencies are listed
-in the [pyproject.toml](/projects/extension/pyproject.toml) file.
-uv is already installed in the development docker container. To use it in your
-local environment, follow uv's [installation instructions](https://github.com/astral-sh/uv#installation).
+Dependencies are listed in the [pyproject.toml](/projects/extension/pyproject.toml) file.
 
 1. The basic commands are:
    1. **Install dependencies**: `uv sync`
