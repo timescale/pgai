@@ -1,6 +1,21 @@
 
 # Pgai extension release notes
 
+## 0.9.0 (2025-03-06)
+
+### New features and improvements
+- [BREAKING] Add openai client config arguments ([#426](https://github.com/timescale/pgai/pull/426))
+- Add support for openai extra request parameteres ([#420](https://github.com/timescale/pgai/pull/420))
+- Add verbose flag to model calls ([#475](https://github.com/timescale/pgai/pull/475))
+- Add chunking functions to the extension ([#418](https://github.com/timescale/pgai/pull/418))
+- Add raw response variants for openai function ([#422](https://github.com/timescale/pgai/pull/422))
+
+### Fixes
+
+- Remove foreign key to embedding table and make the trigger handle deletes instead. This allows updating primary keys on the source table, in the case of not using surrogate keys. ([#485](https://github.com/timescale/pgai/pull/485))
+- Use format_type to get primary key data types to support more types. ([#497](https://github.com/timescale/pgai/pull/497))
+- Allow reasoning models (o1, o3) to work with chat completion ([#416](https://github.com/timescale/pgai/pull/416))
+
 ## 0.8.0 (2025-02-04)
 
 ### New features and improvements
