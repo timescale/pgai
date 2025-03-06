@@ -200,23 +200,12 @@ This file path is internally passed to [smart_open](https://github.com/piskvorky
 
 #### Environment configuration
 
-You just need to ensure the vectorizer worker has the correct credentials to access the file, such as in environment variables. Here are some common examples:
+You just need to ensure the vectorizer worker has the correct credentials to access the file, such as in environment variables. Here is an example for AWS S3:
 
-1. **Amazon S3**:
 ```bash
 export AWS_ACCESS_KEY_ID='your_access_key'
 export AWS_SECRET_ACCESS_KEY='your_secret_key'
 export AWS_REGION='your_region'  # optional
-```
-
-2. **Google Cloud Storage**:
-```bash
-export GOOGLE_APPLICATION_CREDENTIALS='/path/to/credentials.json'
-```
-
-3. **Azure Blob Storage**:
-```bash
-export AZURE_STORAGE_CONNECTION_STRING='your_connection_string'
 ```
 
 Make sure these environment variables are properly set in the environment where the PGAI vectorizer worker runs.
