@@ -431,3 +431,50 @@ def test_disabled_vectorizer_is_backwards_compatible(
         )
         row = cur.fetchone()
         assert row is not None and row["pending_items"] == 0
+
+
+def test_regression_vectorizer_uuid_pk_with_error(
+    cli_db: tuple[PostgresContainer, Connection],
+    cli_db_url: str,
+    vcr_: Any,
+):
+    """Validate that we correctly handle a uuid in PK when there's an error chunking"""
+    _, connection = cli_db
+
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("drop table if exists uuid_table")
+        cur.execute("""
+                create table uuid_table
+                ( id uuid not null
+                , content text not null
+                , primary key (id)
+                )
+            """)
+        cur.execute("""
+                insert into uuid_table (id, content)
+                VALUES (
+                  gen_random_uuid()
+                , repeat('if two witches watch two watches, which witch watches which watch', 1000)
+                )
+            """)  # noqa
+
+    vectorizer_id = configure_vectorizer(
+        "uuid_table",
+        cli_db[1],
+    )
+
+    # When running the worker
+    with vcr_.use_cassette("test_regression_vectorizer_uuid_pk_with_error.yaml"):
+        result = run_vectorizer_worker(cli_db_url, vectorizer_id)
+
+    if result.exit_code != 0:
+        assert result.output == ""
+
+    # Then verify the chunks were created correctly
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT count(*) FROM uuid_table_embedding_store")
+        results = cur.fetchall()
+        assert results[0]["count"] == 0
+        cur.execute("SELECT count(*) FROM ai.vectorizer_errors")
+        results = cur.fetchall()
+        assert results[0]["count"] == 1
