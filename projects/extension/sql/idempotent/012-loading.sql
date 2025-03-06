@@ -66,7 +66,7 @@ end if;
         raise exception 'invalid loading config, missing column_name';
 end if;
     
-    if (config operator(pg_catalog.->>) 'retries')::int < 0 then
+    if (config operator(pg_catalog.->>) 'retries') is null or (config operator(pg_catalog.->>) 'retries')::int < 0 then
         raise exception 'invalid loading config, retries must be a non-negative integer';
 end if;
 

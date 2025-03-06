@@ -115,7 +115,7 @@ class LoadingColumn(BaseModel):
 
 
 class LoadingUri(BaseModel):
-    implementation: Literal["document"]
+    implementation: Literal["uri"]
     config_type: Literal["loading"]
     column_name: str
 

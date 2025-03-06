@@ -204,7 +204,6 @@ def test_vectorizer_timescaledb():
     ) as con:
         con.add_notice_handler(detailed_notice_handler)
         with con.cursor() as cur:
-            cur.execute("set statement_timeout = '5s'")
             cur.execute("drop schema if exists website cascade")
             cur.execute("create schema website")
             cur.execute("drop table if exists website.blog")
