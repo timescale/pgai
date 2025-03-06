@@ -340,8 +340,7 @@ changes to existing stuff are required for a new feature.
    - Run `just ext build-release` to re-generate the `sql/ai.control` and `ai/__init__.py` files
    - Add and commit the `build.py`, `sql/ai.control`, and `ai/__init__.py` files
    - Open a new PR with this commit
-8. Create a new PR on the following repositories replacing the value of the `PGAI_VERSION` variable located in the `Makefile` files with the new version:
-   - [timescale/timescaledb-docker](https://github.com/timescale/timescaledb-docker/edit/main/Makefile)
+8. Create a new PR on the following repository replacing the value of the `PGAI_VERSION` variable located in the `Makefile` files with the new version:
    - [timescale/timescaledb-docker-ha](https://github.com/timescale/timescaledb-docker-ha/edit/master/Makefile)
 
 [conventional-commits]: https://www.conventionalcommits.org/en/v1.0.0/
