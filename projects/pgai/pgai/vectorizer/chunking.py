@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
 from functools import cached_property
-from typing import Any, Literal, overload
+from typing import Any, Literal, Type, TypeVar, overload
 
 from langchain_text_splitters import (
     CharacterTextSplitter,
@@ -132,13 +132,17 @@ class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
         return self._chunker.split_text(text)
 
 
+# Type variable for Pydantic config models
+C = TypeVar('C', bound=BaseModel)
+
 # Type definition for chunking functions
 ChunkerFunc = Callable[
     [dict[str, Any], dict[str, Any]], list[str] | Awaitable[list[str]]
 ]
 
-# Global registry for chunking functions
+# Global registry for chunking functions and their config models
 registered_chunkers: dict[str, ChunkerFunc] = dict()
+chunker_config_models: dict[str, Type[BaseModel]] = dict()
 
 
 @overload
@@ -147,7 +151,7 @@ def chunker(func: ChunkerFunc) -> ChunkerFunc: ...
 
 @overload
 def chunker(
-    *, name: str | None = None
+    *, name: str | None = None, config_model: Type[C] | None = None
 ) -> Callable[[ChunkerFunc], ChunkerFunc]: ...
 
 
@@ -155,6 +159,7 @@ def chunker(
     func: ChunkerFunc | None = None,
     *,  # enforce keyword-only arguments
     name: str | None = None,
+    config_model: Type[BaseModel] | None = None,
 ) -> ChunkerFunc | Callable[[ChunkerFunc], ChunkerFunc]:
     """
     Decorator to register chunking functions in the global registry.
@@ -163,7 +168,12 @@ def chunker(
     
     Example:
     ```python
-    @chunker(name="my_custom_chunker")
+    class MyChunkerConfig(ChunkerConfig):
+        chunk_column: str
+        chunk_size: int = 1000
+        chunk_overlap: int = 200
+    
+    @chunker(name="my_custom_chunker", config_model=MyChunkerConfig)
     def my_chunking_function(item: dict[str, Any], config: dict[str, Any]) -> list[str]:
         text = item[config["chunk_column"]]
         # Custom chunking logic
@@ -174,6 +184,11 @@ def chunker(
     def decorator(f: ChunkerFunc) -> ChunkerFunc:
         registration_name = name if name is not None else f.__name__
         registered_chunkers[registration_name] = f
+        
+        # Store the config model if provided
+        if config_model is not None:
+            chunker_config_models[registration_name] = config_model
+            
         return f
 
     if func is not None:
@@ -182,7 +197,15 @@ def chunker(
     return decorator
 
 
-@chunker(name="character_text_splitter")
+class CharacterTextSplitterConfig(BaseModel):
+    """Configuration for character text splitter"""
+    separator: str
+    chunk_size: int
+    chunk_column: str
+    chunk_overlap: int = 0
+    is_separator_regex: bool = False
+
+@chunker(name="character_text_splitter", config_model=CharacterTextSplitterConfig)
 def character_text_splitter(
     item: dict[str, Any], config: dict[str, Any]
 ) -> list[str]:
@@ -199,7 +222,15 @@ def character_text_splitter(
     return chunker.split_text(text)
 
 
-@chunker(name="recursive_character_text_splitter")
+class RecursiveCharacterTextSplitterConfig(BaseModel):
+    """Configuration for recursive character text splitter"""
+    separators: list[str]
+    chunk_size: int
+    chunk_column: str
+    chunk_overlap: int = 0
+    is_separator_regex: bool = False
+
+@chunker(name="recursive_character_text_splitter", config_model=RecursiveCharacterTextSplitterConfig)
 def recursive_character_text_splitter(
     item: dict[str, Any], config: dict[str, Any]
 ) -> list[str]:

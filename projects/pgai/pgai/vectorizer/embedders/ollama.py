@@ -8,6 +8,7 @@ from ollama import ShowResponse
 from pydantic import BaseModel
 from typing_extensions import TypedDict, override
 
+from ..embedding import embedding
 from ..embeddings import (
     BaseURLMixin,
     BatchApiCaller,
@@ -17,7 +18,6 @@ from ..embeddings import (
     EmbeddingVector,
     StringDocument,
     Usage,
-    embedding,
     logger,
 )
 
@@ -156,7 +156,15 @@ class Ollama(BaseModel, BaseURLMixin, Embedder):
         return min(model_context_length, num_ctx)
 
 
-@embedding(name="ollama")
+class OllamaConfig(BaseModel):
+    """Configuration for Ollama embeddings"""
+    model: str
+    options: dict[str, Any] | None = None
+    keep_alive: str | None = None
+    base_url: str | None = None
+
+
+@embedding(name="ollama", config_model=OllamaConfig)
 async def ollama_embedding(
     documents: list[str], config: dict[str, Any]
 ) -> Sequence[list[float] | ChunkEmbeddingError]:

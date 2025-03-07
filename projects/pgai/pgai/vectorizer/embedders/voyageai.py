@@ -7,6 +7,7 @@ import voyageai.error
 from pydantic import BaseModel
 from typing_extensions import override
 
+from ..embedding import embedding
 from ..embeddings import (
     ApiKeyMixin,
     BatchApiCaller,
@@ -16,9 +17,15 @@ from ..embeddings import (
     EmbeddingVector,
     StringDocument,
     Usage,
-    embedding,
     logger,
 )
+
+class VoyageAIConfig(BaseModel):
+    """Configuration for VoyageAI embeddings"""
+    model: str
+    input_type: Literal["document"] | Literal["query"] | None = None
+    api_key_name: str | None = None
+    api_key: str | None = None
 
 
 class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
@@ -77,7 +84,7 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
         return EmbeddingResponse(embeddings=response.embeddings, usage=usage)
 
 
-@embedding(name="voyageai")
+@embedding(name="voyageai", config_model=VoyageAIConfig)
 async def voyage_embedding(
     documents: list[str], config: dict[str, Any]
 ) -> Sequence[list[float] | ChunkEmbeddingError]:

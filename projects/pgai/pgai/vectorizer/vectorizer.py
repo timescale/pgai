@@ -18,15 +18,12 @@ from psycopg.types.json import Jsonb
 from pydantic.dataclasses import dataclass
 from pydantic.fields import Field
 
-from .chunking import (
-    LangChainCharacterTextSplitter,
-    LangChainRecursiveCharacterTextSplitter,
-    registered_chunkers,
-)
+from .chunking import registered_chunkers, chunker_config_models
+from .embedding import embedding_config_models
 from .embedders import *
-from .embeddings import ChunkEmbeddingError, EmbeddingConfig, registered_embeddings
+from .embeddings import ChunkEmbeddingError, registered_embeddings
 from .features import Features
-from .formatting import ChunkValue, PythonTemplate, registered_formatters
+from .formatting import registered_formatters, formatter_config_models 
 from .processing import ProcessingDefault, registered_processors
 
 logger = structlog.get_logger()
@@ -68,19 +65,17 @@ class Config:
 
     Attributes:
         version: The version of the configuration.
-        embedding: The embedding's provider configuration.
+        embedding: The embedding's provider configuration (dictionary form).
         processing: Processing settings such as batch size and concurrency.
-        chunking: The chunking strategy.
-        formatting: Formatting strategy to apply to the chunks.
+        chunking: The chunking strategy (dictionary form).
+        formatting: Formatting strategy to apply to the chunks (dictionary form).
     """
 
     version: str
-    embedding: EmbeddingConfig
+    embedding: dict[str, Any]  # Contains implementation key and arbitrary params
     processing: ProcessingDefault
-    chunking: (
-        LangChainCharacterTextSplitter | LangChainRecursiveCharacterTextSplitter
-    ) = Field(..., discriminator="implementation")
-    formatting: PythonTemplate | ChunkValue = Field(..., discriminator="implementation")
+    chunking: dict[str, Any]  # Contains implementation key and arbitrary params
+    formatting: dict[str, Any]  # Contains implementation key and arbitrary params
 
 
 @dataclass
@@ -773,8 +768,15 @@ class Worker:
             pk = self._get_item_pk_values(item)
             
             # Get the chunking implementation and config
-            chunking_impl = self.vectorizer.config.chunking.implementation
-            chunking_config = self.vectorizer.config.chunking.model_dump(exclude={"implementation"})
+            chunking_impl = self.vectorizer.config.chunking["implementation"]
+            chunking_config = dict(self.vectorizer.config.chunking)
+            # Remove implementation key for passing to the chunker function
+            if "implementation" in chunking_config:
+                del chunking_config["implementation"]
+            
+            # Validate config if there's a registered config model
+            if chunking_impl in chunker_config_models:
+                chunking_config = chunker_config_models[chunking_impl].model_validate(chunking_config).model_dump()
             
             # Use the registered chunker function
             chunker_func = registered_chunkers[chunking_impl]
@@ -784,8 +786,15 @@ class Worker:
             
             for chunk_id, chunk in enumerate(chunks, 0):
                 # Get the formatting implementation and config
-                formatting_impl = self.vectorizer.config.formatting.implementation
-                formatting_config = self.vectorizer.config.formatting.model_dump(exclude={"implementation"})
+                formatting_impl = self.vectorizer.config.formatting["implementation"]
+                formatting_config = dict(self.vectorizer.config.formatting)
+                # Remove implementation key for passing to the formatter function
+                if "implementation" in formatting_config:
+                    del formatting_config["implementation"]
+                
+                # Validate config if there's a registered config model
+                if formatting_impl in formatter_config_models:
+                    formatting_config = formatter_config_models[formatting_impl].model_validate(formatting_config).model_dump()
                 
                 # Use the registered formatter function
                 formatter_func = registered_formatters[formatting_impl]
@@ -797,9 +806,16 @@ class Worker:
                 documents.append(formatted)
 
         try:
-            # Get the embedding configuration
-            embedding_impl = self.vectorizer.config.embedding.implementation
-            embedding_config = self.vectorizer.config.embedding.model_dump(exclude={"implementation"})
+            # Get the embedding implementation and config
+            embedding_impl = self.vectorizer.config.embedding["implementation"]
+            embedding_config = dict(self.vectorizer.config.embedding)
+            # Remove implementation key for passing to the embedding function
+            if "implementation" in embedding_config:
+                del embedding_config["implementation"]
+            
+            # Validate config if there's a registered config model
+            if embedding_impl in embedding_config_models:
+                embedding_config = embedding_config_models[embedding_impl].model_validate(embedding_config).model_dump()
             
             # Handle API key if specified
             api_key_name = embedding_config.get("api_key_name")

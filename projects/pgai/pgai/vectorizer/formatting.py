@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
 from functools import cached_property
 from string import Template
-from typing import Any, Literal, overload
+from typing import Any, Literal, Type, TypeVar, overload
 
 from pydantic import BaseModel
 from typing_extensions import override
@@ -82,13 +82,17 @@ class PythonTemplate(BaseModel, Formatter):
         return Template(self.template)
 
 
+# Type variable for Pydantic config models
+F = TypeVar('F', bound=BaseModel)
+
 # Type definition for formatting functions
 FormatterFunc = Callable[
     [str, dict[str, Any], dict[str, Any]], str | Awaitable[str]
 ]
 
-# Global registry for formatting functions
+# Global registry for formatting functions and their config models
 registered_formatters: dict[str, FormatterFunc] = dict()
+formatter_config_models: dict[str, Type[BaseModel]] = dict()
 
 
 @overload
@@ -97,7 +101,7 @@ def formatter(func: FormatterFunc) -> FormatterFunc: ...
 
 @overload
 def formatter(
-    *, name: str | None = None
+    *, name: str | None = None, config_model: Type[F] | None = None
 ) -> Callable[[FormatterFunc], FormatterFunc]: ...
 
 
@@ -105,6 +109,7 @@ def formatter(
     func: FormatterFunc | None = None,
     *,  # enforce keyword-only arguments
     name: str | None = None,
+    config_model: Type[BaseModel] | None = None,
 ) -> FormatterFunc | Callable[[FormatterFunc], FormatterFunc]:
     """
     Decorator to register formatting functions in the global registry.
@@ -113,7 +118,10 @@ def formatter(
     
     Example:
     ```python
-    @formatter(name="my_custom_formatter")
+    class MyFormatterConfig(FormatterConfig):
+        template: str = "Title: ${title}\n\n${chunk}"
+    
+    @formatter(name="my_custom_formatter", config_model=MyFormatterConfig)
     def my_formatting_function(
         chunk: str, item: dict[str, Any], config: dict[str, Any]
     ) -> str:
@@ -125,6 +133,11 @@ def formatter(
     def decorator(f: FormatterFunc) -> FormatterFunc:
         registration_name = name if name is not None else f.__name__
         registered_formatters[registration_name] = f
+        
+        # Store the config model if provided
+        if config_model is not None:
+            formatter_config_models[registration_name] = config_model
+            
         return f
 
     if func is not None:
@@ -133,7 +146,11 @@ def formatter(
     return decorator
 
 
-@formatter(name="chunk_value")
+class ChunkValueConfig(BaseModel):
+    """Configuration for chunk value formatter (no parameters needed)"""
+    pass
+
+@formatter(name="chunk_value", config_model=ChunkValueConfig)
 def chunk_value_formatter(
     chunk: str, item: dict[str, Any], config: dict[str, Any]
 ) -> str:
@@ -144,7 +161,11 @@ def chunk_value_formatter(
     return chunk
 
 
-@formatter(name="python_template")
+class PythonTemplateConfig(BaseModel):
+    """Configuration for Python template formatter"""
+    template: str
+
+@formatter(name="python_template", config_model=PythonTemplateConfig)
 def python_template_formatter(
     chunk: str, item: dict[str, Any], config: dict[str, Any]
 ) -> str:

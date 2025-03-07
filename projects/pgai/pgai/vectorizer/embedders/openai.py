@@ -9,6 +9,7 @@ from openai import resources
 from pydantic import BaseModel
 from typing_extensions import override
 
+from ..embedding import embedding
 from ..embeddings import (
     ApiKeyMixin,
     BaseURLMixin,
@@ -20,7 +21,6 @@ from ..embeddings import (
     EmbeddingVector,
     StringDocument,
     Usage,
-    embedding,
     logger,
 )
 
@@ -229,7 +229,17 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
         return encoder
 
 
-@embedding(name="openai")
+class OpenAIConfig(BaseModel):
+    """Configuration for OpenAI embeddings"""
+    model: str
+    dimensions: int | None = None
+    user: str | None = None
+    api_key_name: str | None = None
+    api_key: str | None = None
+    base_url: str | None = None
+
+
+@embedding(name="openai", config_model=OpenAIConfig)
 async def openai_embedding(
     documents: list[str], config: dict[str, Any]
 ) -> Sequence[list[float] | ChunkEmbeddingError]:
