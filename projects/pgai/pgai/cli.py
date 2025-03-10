@@ -1,6 +1,5 @@
 import asyncio
 import datetime
-import json
 import logging
 import os
 import random
@@ -9,9 +8,7 @@ import sys
 import time
 import traceback
 from collections.abc import Sequence
-from functools import partial
 from typing import Any
-from uuid import UUID
 
 import click
 import psycopg
@@ -19,9 +16,7 @@ import structlog
 from ddtrace import tracer
 from dotenv import load_dotenv
 from psycopg.rows import dict_row, namedtuple_row
-from psycopg.types.json import set_json_dumps
 from pytimeparse import parse  # type: ignore
-from typing_extensions import override
 
 from .__init__ import __version__
 from .vectorizer.embeddings import ApiKeyMixin
@@ -181,16 +176,6 @@ class TimeDurationParamType(click.ParamType):
             )
 
 
-class UUIDEncoder(json.JSONEncoder):
-    """A JSON encoder which can dump UUID."""
-
-    @override
-    def default(self, o: Any):
-        if isinstance(o, UUID):
-            return str(o)
-        return json.JSONEncoder.default(self, o)
-
-
 def get_log_level(level: str) -> int:
     level_upper = level.upper()
     # We are targeting python 3.10 that's why we need to use getLevelName which
@@ -283,8 +268,6 @@ def vectorizer_worker(
 
     dynamic_mode = len(vectorizer_ids) == 0
     valid_vectorizer_ids = []
-
-    set_json_dumps(partial(json.dumps, cls=UUIDEncoder))
 
     can_connect = False
     pgai_version = None
