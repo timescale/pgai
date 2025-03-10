@@ -234,15 +234,16 @@ class VectorizerQueryBuilder:
                 WITH selected_rows AS (
                     SELECT {pk_fields}
                     FROM {queue_table}
-                    WHERE loading_retry_after is null or loading_retry_after < now()
-                    LIMIT %s
+                    WHERE (loading_retry_after is null or loading_retry_after < now())
+                    AND loading_retries <= %(loading_retries)s
+                    LIMIT %(batch_size)s
                     FOR UPDATE SKIP LOCKED
                 ),
                 locked_items AS (
                     SELECT
                         {pk_fields},
                         pg_try_advisory_xact_lock(
-                            %s,
+                            %(queue_table_oid)s,
                             hashtext(concat_ws('|', {lock_fields}))
                         ) AS locked
                     FROM (
@@ -379,7 +380,10 @@ class VectorizerQueryBuilder:
             ON {merge_predicates}
             WHEN MATCHED
                 AND target.loading_retries >= %(loading_retries)s THEN
-                    DELETE
+                    UPDATE
+                        SET
+                            loading_retries = target.loading_retries + 1,
+                            loading_retry_after = null
             WHEN MATCHED THEN
                     UPDATE
                         SET
@@ -646,7 +650,7 @@ class Worker:
         processing_stats = ProcessingStats()
         start_time = time.perf_counter()
         async with conn.transaction():
-            items = await self._fetch_work(conn)
+            items = await self._fetch_work(conn, self.vectorizer.config.loading.retries)
 
             current_span = tracer.current_span()
             if current_span:
@@ -672,7 +676,9 @@ class Worker:
 
             return len(items)
 
-    async def _fetch_work(self, conn: AsyncConnection) -> list[SourceRow]:
+    async def _fetch_work(
+        self, conn: AsyncConnection, loading_retries: int
+    ) -> list[SourceRow]:
         """
         Fetches a batch of tasks from the work queue table. Safe for concurrent use.
 
@@ -689,10 +695,11 @@ class Worker:
         async with conn.cursor(row_factory=dict_row) as cursor:
             await cursor.execute(
                 self.queries.fetch_work_query,
-                (
-                    self.vectorizer.config.processing.batch_size,
-                    queue_table_oid,
-                ),
+                {
+                    "batch_size": self.vectorizer.config.processing.batch_size,
+                    "queue_table_oid": queue_table_oid,
+                    "loading_retries": loading_retries,
+                },
             )
             return await cursor.fetchall()
 

@@ -350,7 +350,7 @@ def test_retries_on_not_present_document_embedding_s3(
         assert queue_item["loading_retry_after"] > datetime.now(tz=timezone.utc)  # type: ignore
 
 
-def test_no_more_retries_after_six_failures(
+def test_there_will_be_no_more_retries_after_the_sixth_failure(
     s3_bucket: str,
     cli_db: tuple[TestDatabase, Connection],
     cli_db_url: str,
@@ -367,12 +367,6 @@ def test_no_more_retries_after_six_failures(
             "UPDATE ai._vectorizer_q_1"
             " SET loading_retries=6, loading_retry_after=now() - interval '1 minute';"
         )
-        cur.execute(
-            "SELECT loading_retries, loading_retry_after " "FROM ai._vectorizer_q_1;"
-        )
-        queue_item = cur.fetchone()
-        assert queue_item["loading_retries"] == 6  # type: ignore
-        assert queue_item["loading_retry_after"] < datetime.now(tz=timezone.utc)  # type: ignore
 
     with vcr_.use_cassette("doc_retries_s3_not_found.yaml"):
         try:
@@ -381,8 +375,6 @@ def test_no_more_retries_after_six_failures(
             assert e.msg == "URI loading failed"
 
     with connection.cursor(row_factory=dict_row) as cur:
-        cur.execute("SELECT count(*) FROM ai._vectorizer_q_1;")
-        assert cur.fetchone()["count"] == 0  # type: ignore
         cur.execute("SELECT id, message, details FROM ai.vectorizer_errors")
         records = cur.fetchall()
         assert len(records) == 1
@@ -399,8 +391,12 @@ def test_no_more_retries_after_six_failures(
             "is_retryable": False,
         }
 
-        cur.execute("SELECT count(*) FROM ai._vectorizer_q_1;")
-        assert cur.fetchone()["count"] == 0  # type: ignore
+        cur.execute(
+            "SELECT loading_retries, loading_retry_after" " FROM ai._vectorizer_q_1;"
+        )
+        queue_item = cur.fetchone()
+        assert queue_item["loading_retries"] == 7  # type: ignore
+        assert queue_item["loading_retry_after"] is None  # type: ignore
 
 
 def test_retries_should_do_nothing_if_retry_after_is_in_the_future(
