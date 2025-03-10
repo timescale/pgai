@@ -30,7 +30,9 @@ def test_worker_no_tasks(cli_db_url: str):
 def test_vectorizer_exits_with_error_when_no_ai_extension(
     postgres_container: PostgresContainer,
 ):
-    result = run_vectorizer_worker(postgres_container.get_connection_url())
+    result = run_vectorizer_worker(
+        postgres_container.get_connection_url(), exception_expected=True
+    )
 
     assert result.exit_code == 1
     assert "the pgai extension is not installed" in result.output.lower()
@@ -39,7 +41,7 @@ def test_vectorizer_exits_with_error_when_no_ai_extension(
 def test_vectorizer_exits_with_error_when_vectorizers_specified_but_missing(
     cli_db_url: str,
 ):
-    result = run_vectorizer_worker(cli_db_url, vectorizer_id=0)
+    result = run_vectorizer_worker(cli_db_url, vectorizer_id=0, exception_expected=True)
     assert result.exit_code != 0
     assert "invalid vectorizers, wanted: [0], got: []" in result.output
 
@@ -322,7 +324,7 @@ def test_disabled_vectorizer_is_skipped_before_next_batch(
     assert row is not None
     vectorizer = Vectorizer(**row["vectorizer"])
     # Set API key directly for the new decorator pattern
-    setattr(vectorizer.config.embedding, "api_key", "empty")
+    vectorizer.config.embedding.api_key = "empty"
 
     features = Features("100.0.0")
 
@@ -401,7 +403,7 @@ def test_disabled_vectorizer_is_backwards_compatible(
     assert row is not None
     vectorizer = Vectorizer(**row["vectorizer"])
     # Set API key directly for the new decorator pattern
-    setattr(vectorizer.config.embedding, "api_key", "empty")
+    vectorizer.config.embedding.api_key = "empty"
 
     # When the vectorizer is executed.
     with vcr_.use_cassette("test_disabled_vectorizer_is_backwards_compatible.yaml"):

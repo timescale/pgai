@@ -15,16 +15,19 @@ from pgvector.psycopg import register_vector_async  # type: ignore
 from psycopg import AsyncConnection, sql
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
+from pydantic import BaseModel, ConfigDict
 from pydantic.dataclasses import dataclass
-from pydantic.fields import Field
 
-from .chunking import registered_chunkers, chunker_config_models
-from .embedding import embedding_config_models
+from .chunking import chunker_config_models, registered_chunkers
 from .embedders import *
-from .embeddings import ChunkEmbeddingError, registered_embeddings
+from .embedding import (
+    ChunkEmbeddingError,
+    embedding_config_models,
+    registered_embeddings,
+)
 from .features import Features
-from .formatting import registered_formatters, formatter_config_models 
-from .processing import ProcessingDefault, registered_processors
+from .formatting import formatter_config_models, registered_formatters
+from .processing import ProcessingDefault
 
 logger = structlog.get_logger()
 
@@ -57,6 +60,11 @@ class PkAtt:
     attname: str
 
 
+class PipelineConfig(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    implementation: str
+
+
 @dataclass
 class Config:
     """
@@ -72,10 +80,10 @@ class Config:
     """
 
     version: str
-    embedding: dict[str, Any]  # Contains implementation key and arbitrary params
+    embedding: PipelineConfig
     processing: ProcessingDefault
-    chunking: dict[str, Any]  # Contains implementation key and arbitrary params
-    formatting: dict[str, Any]  # Contains implementation key and arbitrary params
+    chunking: PipelineConfig
+    formatting: PipelineConfig
 
 
 @dataclass
@@ -766,79 +774,99 @@ class Worker:
         documents: list[str] = []
         for item in items:
             pk = self._get_item_pk_values(item)
-            
+
             # Get the chunking implementation and config
-            chunking_impl = self.vectorizer.config.chunking["implementation"]
+            chunking_impl = self.vectorizer.config.chunking.implementation
             chunking_config = dict(self.vectorizer.config.chunking)
             # Remove implementation key for passing to the chunker function
             if "implementation" in chunking_config:
                 del chunking_config["implementation"]
-            
+
             # Validate config if there's a registered config model
             if chunking_impl in chunker_config_models:
-                chunking_config = chunker_config_models[chunking_impl].model_validate(chunking_config).model_dump()
-            
+                chunking_config = (
+                    chunker_config_models[chunking_impl]
+                    .model_validate(chunking_config)
+                    .model_dump()
+                )
+
             # Use the registered chunker function
             chunker_func = registered_chunkers[chunking_impl]
             chunks_result = chunker_func(item, chunking_config)
             # Handle both sync and async chunker functions
-            chunks = chunks_result if not asyncio.iscoroutine(chunks_result) else await chunks_result
-            
+            chunks = (
+                chunks_result
+                if not asyncio.iscoroutine(chunks_result)
+                else await chunks_result
+            )
+
             for chunk_id, chunk in enumerate(chunks, 0):
                 # Get the formatting implementation and config
-                formatting_impl = self.vectorizer.config.formatting["implementation"]
+                formatting_impl = self.vectorizer.config.formatting.implementation
                 formatting_config = dict(self.vectorizer.config.formatting)
                 # Remove implementation key for passing to the formatter function
                 if "implementation" in formatting_config:
                     del formatting_config["implementation"]
-                
+
                 # Validate config if there's a registered config model
                 if formatting_impl in formatter_config_models:
-                    formatting_config = formatter_config_models[formatting_impl].model_validate(formatting_config).model_dump()
-                
+                    formatting_config = (
+                        formatter_config_models[formatting_impl]
+                        .model_validate(formatting_config)
+                        .model_dump()
+                    )
+
                 # Use the registered formatter function
                 formatter_func = registered_formatters[formatting_impl]
                 format_result = formatter_func(chunk, item, formatting_config)
                 # Handle both sync and async formatter functions
-                formatted = format_result if not asyncio.iscoroutine(format_result) else await format_result
-                
+                formatted = (
+                    format_result
+                    if not asyncio.iscoroutine(format_result)
+                    else await format_result
+                )
+
                 records_without_embeddings.append(pk + [chunk_id, formatted])
                 documents.append(formatted)
 
         try:
             # Get the embedding implementation and config
-            embedding_impl = self.vectorizer.config.embedding["implementation"]
+            embedding_impl = self.vectorizer.config.embedding.implementation
             embedding_config = dict(self.vectorizer.config.embedding)
             # Remove implementation key for passing to the embedding function
             if "implementation" in embedding_config:
                 del embedding_config["implementation"]
-            
+
             # Validate config if there's a registered config model
             if embedding_impl in embedding_config_models:
-                embedding_config = embedding_config_models[embedding_impl].model_validate(embedding_config).model_dump()
-            
+                embedding_config = (
+                    embedding_config_models[embedding_impl]
+                    .model_validate(embedding_config)
+                    .model_dump()
+                )
+
             # Handle API key if specified
             api_key_name = embedding_config.get("api_key_name")
             if api_key_name:
                 # First try to get from environment
                 import os
+
                 api_key = os.environ.get(api_key_name)
-                
+
                 if api_key is None:
                     # If not in environment, try to load from database
                     async with conn.cursor() as cursor:
                         await cursor.execute(
-                            "SELECT ai.reveal_secret(%s)",
-                            (api_key_name,)
+                            "SELECT ai.reveal_secret(%s)", (api_key_name,)
                         )
                         result = await cursor.fetchone()
                         if not result or result[0] is None:
                             raise ValueError(f"API key '{api_key_name}' not found")
                         api_key = result[0]
-                
+
                 # Add the API key to the config for the embedding function
                 embedding_config["api_key"] = api_key
-            
+
             # Use the embedding decorator pattern with the updated config
             embeddings = await registered_embeddings[embedding_impl](
                 documents,

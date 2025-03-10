@@ -124,7 +124,7 @@ def test_vectorizer_without_secrets_fails(
     cassette = "openai-character_text_splitter-chunk_value-items=1-batch_size=1.yaml"
     logging.getLogger("vcr").setLevel(logging.DEBUG)
     with vcr_.use_cassette(cassette):
-        result = run_vectorizer_worker(cli_db_url, vectorizer_id)
+        result = run_vectorizer_worker(cli_db_url, vectorizer_id, exception_expected=True)
 
     assert result.exit_code == 1
     assert "ApiKeyNotFoundError" in result.output
@@ -206,7 +206,7 @@ def test_invalid_api_key_error(
     # When running the worker and getting an invalid api key response
     with vcr_.use_cassette("test_invalid_api_key_error.yaml"):
         try:
-            run_vectorizer_worker(cli_db_url, vectorizer_id)
+            run_vectorizer_worker(cli_db_url, vectorizer_id, exception_expected=True)
         except openai.AuthenticationError as e:
             assert e.code == 401
 
@@ -253,7 +253,7 @@ def test_invalid_function_arguments(
 
     # When running the worker
     try:
-        run_vectorizer_worker(cli_db_url, vectorizer_id)
+        run_vectorizer_worker(cli_db_url, vectorizer_id, exception_expected=True)
     except ValueError as e:
         assert str(e) == "dimensions must be 1536 for text-embedding-ada-002"
 

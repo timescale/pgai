@@ -9,8 +9,7 @@ from openai import resources
 from pydantic import BaseModel
 from typing_extensions import override
 
-from ..embedding import embedding
-from ..embeddings import (
+from ..embedding import (
     ApiKeyMixin,
     BaseURLMixin,
     BatchApiCaller,
@@ -21,6 +20,7 @@ from ..embeddings import (
     EmbeddingVector,
     StringDocument,
     Usage,
+    embedding,
     logger,
 )
 
@@ -231,6 +231,7 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
 
 class OpenAIConfig(BaseModel):
     """Configuration for OpenAI embeddings"""
+
     model: str
     dimensions: int | None = None
     user: str | None = None

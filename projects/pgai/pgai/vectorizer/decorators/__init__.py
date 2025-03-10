@@ -1,7 +1,7 @@
 """
 Vectorizer decorator module for pgai.
 
-This module provides decorators for registering custom functions 
+This module provides decorators for registering custom functions
 for each step of the vectorization process.
 """
 
@@ -14,15 +14,12 @@ __all__ = [
     # Chunking
     "chunker",
     "registered_chunkers",
-    
     # Embedding
     "embedding",
     "registered_embeddings",
-    
     # Formatting
-    "formatter", 
+    "formatter",
     "registered_formatters",
-    
     # Processing
     "processor",
     "registered_processors",

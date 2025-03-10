@@ -1,19 +1,20 @@
 """
 Example of a custom RAG pipeline using decorators.
 
-This example demonstrates how to use the pgai vectorizer decorators 
+This example demonstrates how to use the pgai vectorizer decorators
 to create a fully customized RAG pipeline.
 """
 
 import asyncio
-from typing import Any, Dict, List, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import openai
+
 from pgai.vectorizer.decorators import (
     chunker,
     embedding,
     formatter,
-    processor,
     registered_chunkers,
     registered_embeddings,
     registered_formatters,
@@ -26,18 +27,18 @@ from pgai.vectorizer.embeddings import ChunkEmbeddingError
 async def llm_based_chunker(item: dict[str, Any], config: dict[str, Any]) -> list[str]:
     """
     Custom chunking function that uses an LLM to intelligently chunk text.
-    
+
     Args:
         item: The source document/row
         config: Configuration parameters
-    
+
     Returns:
         A list of text chunks
     """
     text = item[config["text_column"]]
     if not text:
         return []
-    
+
     # In a real implementation, you would call an LLM to determine logical breaking points
     # For this example, we'll use a simple approach
     prompt = f"""
@@ -46,7 +47,7 @@ async def llm_based_chunker(item: dict[str, Any], config: dict[str, Any]) -> lis
     
     {text[:1000]}  # Truncated for the example
     """
-    
+
     # Simulate LLM call
     # In real code: response = await call_llm_api(prompt, config)
     chunks = [
@@ -54,7 +55,7 @@ async def llm_based_chunker(item: dict[str, Any], config: dict[str, Any]) -> lis
         "The second chunk continues with important details...",
         "Finally, the third chunk concludes the text...",
     ]
-    
+
     return chunks
 
 
@@ -64,12 +65,12 @@ async def llm_metadata_enricher(
 ) -> str:
     """
     Custom formatter that uses an LLM to enrich chunks with metadata.
-    
+
     Args:
         chunk: The text chunk to format
         item: The source document/row
         config: Configuration parameters
-    
+
     Returns:
         A formatted string with metadata
     """
@@ -80,7 +81,7 @@ async def llm_metadata_enricher(
     
     {chunk}
     """
-    
+
     # Simulate LLM call
     # In real code: metadata = await call_llm_api(metadata_prompt, config)
     metadata = """
@@ -88,7 +89,7 @@ async def llm_metadata_enricher(
     Q2: What evidence supports the key argument?
     Q3: How does this relate to the broader context?
     """
-    
+
     # Combine the original chunk with the generated metadata
     formatted_text = f"""
     # Original Content
@@ -97,7 +98,7 @@ async def llm_metadata_enricher(
     # Metadata
     {metadata}
     """
-    
+
     return formatted_text
 
 
@@ -107,26 +108,26 @@ async def context_aware_embedding(
 ) -> Sequence[list[float] | ChunkEmbeddingError]:
     """
     Custom embedding function that considers neighboring chunks for context.
-    
+
     Args:
         documents: List of text documents to embed
         config: Configuration parameters
-    
+
     Returns:
         A sequence of embedding vectors or errors
     """
     # This is just an example - in reality, you might want to use
     # a sliding window approach or other techniques to incorporate
     # context from neighboring chunks
-    
+
     # For simplicity, we'll use OpenAI's embeddings API directly
     # but you could use any embedding model or approach
-    
+
     client = openai.AsyncOpenAI(
         api_key=config["api_key"],
         base_url=config.get("base_url"),
     )
-    
+
     results = []
     for doc in documents:
         try:
@@ -144,11 +145,12 @@ async def context_aware_embedding(
                 error_details=str(e),
             )
             results.append(error)
-    
+
     return results
 
 
 # Example usage in a hypothetical application:
+
 
 async def main():
     # Register custom functions with descriptive names
@@ -156,14 +158,14 @@ async def main():
     print(f"Registered formatters: {list(registered_formatters.keys())}")
     print(f"Registered embeddings: {list(registered_embeddings.keys())}")
     print(f"Registered processors: {list(registered_processors.keys())}")
-    
+
     # You could then create a vectorizer in SQL, and reference these custom functions
     # or build your own custom pipeline in Python
 
 
 if __name__ == "__main__":
     asyncio.run(main())
-    
+
 # In SQL, you would create a vectorizer like:
 """
 SELECT ai.create_vectorizer(

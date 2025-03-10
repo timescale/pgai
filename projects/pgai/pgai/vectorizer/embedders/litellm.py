@@ -8,8 +8,7 @@ from litellm import InMemoryCache  # type: ignore
 from pydantic import BaseModel
 from typing_extensions import override
 
-from ..embedding import embedding
-from ..embeddings import (
+from ..embedding import (
     ApiKeyMixin,
     BatchApiCaller,
     ChunkEmbeddingError,
@@ -18,6 +17,7 @@ from ..embeddings import (
     EmbeddingVector,
     StringDocument,
     Usage,
+    embedding,
     logger,
 )
 
@@ -137,6 +137,7 @@ class LiteLLM(ApiKeyMixin, BaseModel, Embedder):
 
 class LiteLLMConfig(BaseModel):
     """Configuration for LiteLLM embeddings"""
+
     model: str
     extra_options: dict[str, Any] = {}
     api_key_name: str | None = None

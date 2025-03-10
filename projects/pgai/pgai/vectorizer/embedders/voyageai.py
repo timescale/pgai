@@ -7,8 +7,7 @@ import voyageai.error
 from pydantic import BaseModel
 from typing_extensions import override
 
-from ..embedding import embedding
-from ..embeddings import (
+from ..embedding import (
     ApiKeyMixin,
     BatchApiCaller,
     ChunkEmbeddingError,
@@ -17,11 +16,14 @@ from ..embeddings import (
     EmbeddingVector,
     StringDocument,
     Usage,
+    embedding,
     logger,
 )
 
+
 class VoyageAIConfig(BaseModel):
     """Configuration for VoyageAI embeddings"""
+
     model: str
     input_type: Literal["document"] | Literal["query"] | None = None
     api_key_name: str | None = None

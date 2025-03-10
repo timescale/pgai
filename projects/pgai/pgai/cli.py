@@ -120,7 +120,7 @@ def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer:
                 raise ApiKeyNotFoundError(
                     f"api_key_name={api_key_name} vectorizer_id={vectorizer_id}"
                 )
-            
+
             # With the new decorator system, we store the API key in the config
             # rather than calling set_api_key directly
             impl = vectorizer.config.embedding.implementation
@@ -132,7 +132,7 @@ def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer:
                 # New decorator system - store API key in the model config
                 # We'll use the API key name as the key in the config
                 # The _generate_embeddings method in vectorizer.py will handle extracting it
-                setattr(vectorizer.config.embedding, "api_key", api_key)
+                vectorizer.config.embedding.api_key = api_key
         return vectorizer
 
 
@@ -335,7 +335,7 @@ def vectorizer_worker(
             else:
                 log.error(f"unexpected error: {str(e)}", exc_info=True)
             if exit_on_error:
-                sys.exit(1)
+                raise SystemExit(1) from e
         except Exception as e:
             # catch any exceptions, log them, and keep on going
             log.error(f"unexpected error: {str(e)}")
@@ -343,7 +343,7 @@ def vectorizer_worker(
                 for line in exception_line.rstrip().split("\n"):
                     log.debug(line)
             if exit_on_error:
-                sys.exit(1)
+                raise SystemExit(1) from e
 
         if once:
             return

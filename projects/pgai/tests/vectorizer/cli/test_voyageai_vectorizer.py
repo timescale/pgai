@@ -111,7 +111,7 @@ def test_voyageai_vectorizer_fails_when_api_key_is_not_set(
         )""")  # noqa
         cur.execute("INSERT INTO blog (id, content) VALUES(1, repeat('1', 100000))")
 
-    result = run_vectorizer_worker(cli_db_url)
+    result = run_vectorizer_worker(cli_db_url, exception_expected=True)
 
     assert result.exit_code == 1
     assert "ApiKeyNotFoundError" in result.output
