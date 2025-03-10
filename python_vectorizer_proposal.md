@@ -1,53 +1,262 @@
 # pgai Python API Description
 
-## Core Components
+If you want to customize the vectorizer behaviour, you can use the pgai python library to define your own vectorizer implementations.
+The pgai vectorizer follows this simple pipeline:
 
-```python
-from pgai import Pgai, SourceRow, EmbeddingRow, EmbeddingError, ChunkEmbeddingError
-from typing import List, Dict, Any, Sequence, Union, Callable, Awaitable, Optional, TypeVar, Generic
-from pydantic import BaseModel
-import asyncio
+1. Chunk: Split the input text into chunks
+2. Format: Format each chunk with additional context
+3. Embed: Generate embeddings for each chunk
 
-# Initialize the pgai application
-pgai = Pgai(
-    db_url="postgres://postgres:postgres@localhost:5432/postgres",
-    poll_interval="5s",
-    concurrency=3
-)
+You can replace each of these steps with custom implementations or define a completely new custom vectorizer from scratch if the general pipeline doesn't fit your use case.
+
+## Installation
+
+```bash
+pip install pgai
 ```
 
-## Configuration Models
+## Quick Start
 
-Pydantic models for type-safe configuration:
+### Implement a custom embedding function
+```python
+from pgai import Pgai
+# Initialize the pgai application
+pgai = Pgai()
+
+@pgai.embedding("my_embedding")
+def my_embedding(documents: list[str], config: dict[str, Any]) -> list[list[float]]:
+    # Implementation
+    return [[0.1, 0.2, 0.3] for _ in documents]
+
+pgai.cli()
+```
+
+This example would allow you to configure the vectorizer with your custom embedding function as such:
+
+```sql
+ai.create_vectorizer(
+    -- other config
+    embedding => '{"implementation": "my_embedding"}'
+);
+```
+
+You can follow the same pattern to define custom chunking and formatting functions.
+The `pgai.cli()` function will start the vectorizer worker as usual.
+
+
+### Implement a custom vectorizer
+
+If you want to completely define a custom vectorizer from scratch, it works very similarly but notice that you have to define the full pipeline:
 
 ```python
+@pgai.vectorizer("my_vectorizer")
+def my_vectorizer(rows: list[dict[str, Any]], config: dict[str, Any]) -> list[list[EmbeddingRecord | VectorizerErrorRecord]]:
+    # Implementation
+    return [
+        [EmbeddingRecord(
+            primary_key=row["id"],
+            chunk_seq=0,
+            chunk=row['content'],
+            embedding=[0.1, 0.2, 0.3]
+        )] for row in rows]
+
+pgai.cli()
+```
+
+This would allow you to configure the vectorizer with your custom vectorizer function as such:
+
+```sql
+ai.create_vectorizer(
+    -- other config
+    vectorizer => '{"implementation": "my_vectorizer"}'
+);
+```
+
+Note that this completely replaces the default vectorizer pipeline, so you have to implement the full pipeline in your custom vectorizer, and cannot use the existing chunking, formatting, and embedding functions.
+
+If you want to use these in your custom vectorizer implementation, the functions are located in the `pgai.vectorizer` module and can be imported as such:
+
+```python
+from pgai.vectorizer.embedders import openai_embedding
+from pgai.vectorizer.chunkers import recursive_text_splitter
+from pgai.vectorizer.formatters import python_template_formatter
+```
+
+The configuration however will have to be passed explicitly to these functions, as they are not automatically resolved from the vectorizer configuration since you are overwriting that part.
+
+## Advanced Usage
+### Configuration Models
+
+#### Embedding Configuration
+It is possible and highly recommended to use Pydantic models for type-safe configuration. This is e.g. how our internal configuration models look like:
+
+```python
+class OpenAI(BaseModel):
+    model: str
+    dimensions: int | None = None
+    user: str | None = None
+    api_key: str | None = None
+```
+
+The embedding function is then defined as such:
+
+```python
+@pgai.embedding(name="openai", config_model=OpenAI)
+def openai_embedding(documents: list[str], config: OpenAI) -> list[list[float]]:
+    ...
+```
+
+The `api_key` field is a special field: if `api_key_name` is present in the configured embedding config the default vectorizer implementation will automatically fetch the API key from the database and inject it into the configuration or load the API key from the environment variable if it is not present in the database.
+
+Other fields are validated directly from the database config to the config object. Note that if your database configuration does not match the Pydantic model, the vectorizer will fail to start.
+
+With this configuration a user can define the vectorizer in SQL as such:
+
+```sql
+ai.create_vectorizer(
+    -- other config
+    embedding => '{"implementation": "openai", "model": "gpt-3", "dimensions": 768, "api_key_name": "OPENAI_API_KEY"}'
+);
+```
+In fact this is exactly the json the `ai.embedding_openai` function will create.
+
+
+#### Vectorizer Configuration
+For the vectorizer configuration, we follow the same pattern. But it probably makes sense to work with nested pydantic models to structure the configuration. Here is an extremely simplified version of our internal configuration model:
+
+```python
+class RecursiveCharacterTextSplitterConfig(BaseModel):
+    separators: list[str]
+    
+class PythonTemplateConfig(BaseModel):
+    template: str
+
+class OpenAIConfig(BaseModel):
+    model: str
+
 class VoyageAIConfig(BaseModel):
     model: str
-    dimensions: int
-    api_key_name: str = "VOYAGE_API_KEY"
-    input_type: Optional[str] = "document"
-
-
-class RecursiveCharacterTextSplitterConfig(BaseModel):
-    chunk_column: str
-    chunk_size: int = 800
-    chunk_overlap: int = 400
-    separators: List[str] = ["\n\n", "\n", ".", "?", "!", " ", ""]
-    is_separator_regex: bool = False
-
-
-class PythonTemplateConfig(BaseModel):
-    template: str = "$chunk"
 
 class VectorizerConfig(BaseModel):
-    """Configuration for a vectorizer"""
-    name: str
-    source_table: str
-    destination: Optional[str] = None
-    batch_size: int = 100
+    chunking: RecursiveCharacterTextSplitterConfig
+    formatting: PythonTemplateConfig
+    embedding: OpenAIConfig | VoyageAIConfig
 ```
 
-## Decorator Registration System
+The vectorizer function is then defined as such:
+
+```python
+@pgai.vectorizer("default", config_model=VectorizerConfig)
+def default_vectorizer(rows: list[dict[str, Any]], config: VectorizerConfig) -> list[list[EmbeddingRecord | VectorizerErrorRecord]]:
+    ...
+```
+
+The user can then define the vectorizer in SQL as such:
+
+```sql
+ai.create_vectorizer(
+    -- other config
+    vectorizer => '{"chunking": {"separators": ["."]},' ||
+                    '"formatting": {"template": "This is a chunk: $chunk"},' ||
+                    ' "embedding": {"implementation": "openai", "model": "gpt-3"}}'
+);
+```
+
+# Extended pgai Python API with Cloud Deployment Support
+
+## Overview
+
+The extended pgai Python API would maintain the same decorator-based approach for defining custom vectorizers, embeddings, chunkers, and formatters, but would add a deployment mechanism that allows users to push their custom implementations to Timescale Cloud without having to manage infrastructure themselves.
+
+## Deployment Workflow
+
+1. **Local Development**: Developers create and test their custom vectorizer implementations locally using the pgai Python API
+2. **Deployment**: When ready, developers run `pgai vectorizer deploy` which packages and uploads their code to their Timescale Cloud database
+3. **Cloud Execution**: Timescale Cloud automatically builds a container with the custom code and runs it to process vectorizers
+
+## Project Structure
+
+A typical project would look like this:
+
+```
+my-vectorizer-project/
+├── vectorizer.py         # Main file with custom implementations
+├── requirements.txt      # Python dependencies
+└── additional_modules/   # Any additional Python modules needed
+```
+
+The `vectorizer.py` would be the entry point containing the Pgai instance and all custom implementations:
+
+```python
+from pgai import Pgai
+import my_custom_module  # Local module
+
+# Initialize pgai
+pgai = Pgai()
+
+@pgai.embedding("my_custom_embedding")
+def my_custom_embedding(documents, config):
+    # Custom implementation
+    return [[0.1, 0.2, 0.3] for _ in documents]
+
+# Register CLI command
+pgai.cli()
+```
+
+## Deployment Command
+
+The `pgai vectorizer deploy` command would:
+
+1. Detect the `vectorizer.py` file in the current directory
+2. Parse any custom implementations registered with the Pgai instance
+3. Package the code, along with `requirements.txt`
+4. Upload this package to the connected Timescale Cloud database
+5. Trigger a build process in Timescale Cloud
+
+Example usage:
+
+```bash
+# Connect to database once
+pgai configure --db-url postgresql://user:pass@hostname:port/dbname
+
+# Deploy the current project
+pgai vectorizer deploy
+```
+
+## Database Storage
+
+When deployed, the code would be stored in a dedicated system table in the database:
+
+```sql
+CREATE TABLE ai.vectorizer_custom_code (
+    id SERIAL PRIMARY KEY,
+    code_hash TEXT NOT NULL,
+    code_bundle BYTEA NOT NULL,  -- ZIP file with code and requirements.txt
+    requirements TEXT,           -- Contents of requirements.txt
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    deployed_at TIMESTAMP WITH TIME ZONE,
+    status TEXT,                 -- e.g., 'pending', 'deployed', 'failed'
+    error_message TEXT
+);
+```
+
+A trigger on this table would notify Timescale Cloud to build a new container with the uploaded code.
+
+## Container Build Process
+
+When new code is uploaded, Timescale Cloud would:
+
+1. Extract the code bundle
+2. Create a Docker image with the required dependencies
+3. Store it as the custom vectorizer container for this database
+4. Update the status in the `ai.vectorizer_custom_code` table
+5. And run it instead of our default vectorizer worker for this database
+
+
+# From here on its fully AI generated and not accurate needs cleanup
+
+
+## Full Decorator Registration System
 
 ### Embedding Decorator
 
