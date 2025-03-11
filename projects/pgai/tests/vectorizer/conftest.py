@@ -17,6 +17,7 @@ from mitmproxy.tools.dump import DumpMaster
 from testcontainers.core.image import DockerImage  # type:ignore
 from testcontainers.postgres import PostgresContainer  # type:ignore
 
+from pgai.vectorizer.parsing import DOCLING_CACHE_DIR
 from pgai.vectorizer.vectorizer import TIKTOKEN_CACHE_DIR
 
 DIMENSION_COUNT = 1536
@@ -30,7 +31,7 @@ def download_docling_models():
     # Models are downloaded to: ~/.cache/huggingface/hub/models--ds4sd--docling-models
     docling.utils.model_downloader.download_models(
         progress=True,
-        output_dir=Path.home().joinpath(".cache/docling/models"),
+        output_dir=DOCLING_CACHE_DIR,
     )
 
 
