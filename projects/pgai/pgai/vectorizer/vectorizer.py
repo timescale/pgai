@@ -94,13 +94,18 @@ class Config:
     @model_validator(mode="before")
     @classmethod
     def migrate_config_to_new_version(cls, data: Any) -> Any:
-        if isinstance(data, ArgsKwargs):
-            return apply_migrations(data.kwargs)
-        if not isinstance(data, dict):
-            # TODO log warning as this is unexpected
+        if not data:
             return data
+        if isinstance(data, ArgsKwargs) and data.kwargs is not None:
+            return apply_migrations(data.kwargs)
+        if isinstance(data, dict) and all(isinstance(key, str) for key in data):  # type: ignore[reportUnknownVariableType]
+            return apply_migrations(data)  # type: ignore[arg-type]
 
-        return apply_migrations(data)
+        logger.warning(
+            "Vectorizer Config migration can't be considered. "
+            "Raw data type is unknown"
+        )
+        return data  # type: ignore[reportUnknownVariableType]
 
 
 @dataclass

@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic.dataclasses import dataclass
 
 from pgai.vectorizer.migrations import register_migration
@@ -87,25 +89,25 @@ def test_multiple_migrations():
         version: str
 
     # register some migrations
-    def migration_func_1_2(old_conf: SimpleConfig) -> dict:
+    def migration_func_1_2(old_conf: SimpleConfig) -> dict[str, Any]:
         assert old_conf.version == "0.0.1"
         return {"version": "0.0.2"}
 
-    def migration_func_2_0_9(old_conf: SimpleConfig) -> dict:
+    def migration_func_2_0_9(old_conf: SimpleConfig) -> dict[str, Any]:
         assert old_conf.version == "0.0.2"
         return config_0_9_0
 
     register_migration("0.0.2", SimpleConfig, "1 to 2")(migration_func_1_2)
     register_migration("0.9.0", SimpleConfig, "2 to 0.9.0")(migration_func_2_0_9)
 
-    migrated_config = Config(version="0.0.1")
-    expected_config = Config(**config_0_10_0)
+    migrated_config = Config(version="0.0.1")  # pyright: ignore [reportCallIssue]
+    expected_config = Config(**config_0_10_0)  # pyright: ignore [reportArgumentType]
 
     assert migrated_config == expected_config
 
 
 def test_migrate_config_from_ext_version_0_9_to_0_10():
-    migrated_config = Config(**config_0_9_0)
-    expected_config = Config(**config_0_10_0)
+    migrated_config = Config(**config_0_9_0)  # pyright: ignore [reportArgumentType]
+    expected_config = Config(**config_0_10_0)  # pyright: ignore [reportArgumentType]
 
     assert migrated_config == expected_config

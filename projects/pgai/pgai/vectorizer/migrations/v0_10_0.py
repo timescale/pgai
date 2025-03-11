@@ -1,8 +1,10 @@
 from typing import Any, Literal
 
-from pydantic.dataclasses import Field, dataclass
+from pydantic import BaseModel
+from pydantic.dataclasses import dataclass
+from pydantic.fields import Field
+from typing_extensions import override
 
-from pgai.vectorizer.chunking import BaseModel as ChunkingBaseModel
 from pgai.vectorizer.chunking import (
     Chunker,
     LangChainCharacterTextSplitter,
@@ -17,7 +19,7 @@ from pgai.vectorizer.processing import ProcessingDefault
 from . import register_migration
 
 
-class LangChainCharacterTextSplitter_0_9(ChunkingBaseModel, Chunker):
+class LangChainCharacterTextSplitter_0_9(BaseModel, Chunker):
     implementation: Literal["character_text_splitter"]
     separator: str
     chunk_size: int
@@ -25,11 +27,12 @@ class LangChainCharacterTextSplitter_0_9(ChunkingBaseModel, Chunker):
     chunk_overlap: int
     is_separator_regex: bool
 
+    @override
     def into_chunks(self, row: dict[str, Any], payload: str) -> list[str]:
-        pass
+        return []  # noop
 
 
-class LangChainRecursiveCharacterTextSplitter_0_9(ChunkingBaseModel, Chunker):
+class LangChainRecursiveCharacterTextSplitter_0_9(BaseModel, Chunker):
     implementation: Literal["recursive_character_text_splitter"]
     separators: list[str]
     chunk_size: int
@@ -37,8 +40,9 @@ class LangChainRecursiveCharacterTextSplitter_0_9(ChunkingBaseModel, Chunker):
     chunk_overlap: int
     is_separator_regex: bool
 
+    @override
     def into_chunks(self, row: dict[str, Any], payload: str) -> list[str]:
-        pass
+        return []  # noop
 
 
 @dataclass
@@ -58,7 +62,7 @@ class Config_0_9:
     "Migrate from no loading config to column_config, add "
     "parsing none, use proper chunking config",
 )
-def migrate_to_0_10_0(old_conf: Config_0_9) -> dict:
+def migrate_to_0_10_0(old_conf: Config_0_9) -> dict[str, Any]:
     # use the data as is from the previous version so we modify whatever is needed
     result = old_conf.__dict__.copy()
 
@@ -70,7 +74,7 @@ def migrate_to_0_10_0(old_conf: Config_0_9) -> dict:
         case "character_text_splitter":
             result["chunking"] = LangChainCharacterTextSplitter(
                 implementation="character_text_splitter",
-                separator=old_conf.chunking.separator,
+                separator=old_conf.chunking.separator,  # type: ignore[reportUnknownVariableType]
                 chunk_size=old_conf.chunking.chunk_size,
                 chunk_overlap=old_conf.chunking.chunk_overlap,
                 is_separator_regex=old_conf.chunking.is_separator_regex,
@@ -78,7 +82,7 @@ def migrate_to_0_10_0(old_conf: Config_0_9) -> dict:
         case "recursive_character_text_splitter":
             result["chunking"] = LangChainRecursiveCharacterTextSplitter(
                 implementation="recursive_character_text_splitter",
-                separators=old_conf.chunking.separators,
+                separators=old_conf.chunking.separators,  # type: ignore[reportUnknownVariableType]
                 chunk_size=old_conf.chunking.chunk_size,
                 chunk_overlap=old_conf.chunking.chunk_overlap,
                 is_separator_regex=old_conf.chunking.is_separator_regex,

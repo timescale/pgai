@@ -3,30 +3,38 @@ import pkgutil
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 import semver
 
+# config generic type
+C = TypeVar("C")
+MigrationFunc = Callable[[C], dict[str, Any]]
+
 
 @dataclass
-class Migration:
+class Migration(Generic[C]):
     version: str  # target version
-    source_config_class: type  # config dataclass for the source version
-    apply: Callable[[dict[str, Any]], dict[str, Any]]  # migration function
+    source_config_class: type[C]  # config dataclass for the source version
+    apply: MigrationFunc[C]
     description: str = ""
 
 
 # registry to hold all migrations
-migrations: list[Migration] = []
+migrations: list[Migration[Any]] = []
+
+MigrationDecorator = Callable[[MigrationFunc[C]], MigrationFunc[C]]
 
 
-def register_migration(version: str, source_config_class: type, description: str = ""):
+def register_migration(
+    version: str, source_config_class: type[C], description: str = ""
+) -> MigrationDecorator[C]:
     """
     Decorator to register a migration function with
     optional config class validation
     """
 
-    def decorator(func):
+    def decorator(func: MigrationFunc[C]) -> MigrationFunc[C]:
         migrations.append(
             Migration(
                 version=version,
