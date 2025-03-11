@@ -22,6 +22,7 @@ class WorkerTracking:
         self.enabled = features.worker_tracking
         self.version = version
         self.num_successes_since_last_heartbeat = 0
+        self.heartbeat_task: asyncio.Task[None] | None = None
 
     async def start(self) -> None:
         if not self.enabled:
@@ -42,7 +43,7 @@ class WorkerTracking:
                 raise Exception("Failed to start worker tracking")
             self.worker_id = res[0]
 
-        asyncio.create_task(self.heartbeat())
+        self.heartbeat_task = asyncio.create_task(self.heartbeat())
 
     def get_short_worker_id(self) -> str:
         # Return first segment of UUID (before first hyphen)
@@ -55,6 +56,10 @@ class WorkerTracking:
     async def force_heartbeat(self) -> None:
         if not self.enabled:
             return
+
+        if self.heartbeat_task is not None:
+            self.heartbeat_task.cancel()
+            self.heartbeat_task = None
 
         async with await psycopg.AsyncConnection.connect(
             self.db_url,
