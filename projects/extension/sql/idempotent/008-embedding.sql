@@ -1,4 +1,4 @@
-
+-- STANDALONE
 -------------------------------------------------------------------------------
 -- embedding_openai
 create or replace function ai.embedding_openai

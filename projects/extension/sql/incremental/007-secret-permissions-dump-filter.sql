@@ -1,4 +1,4 @@
-
+-- NOSTANDALONE
 do language plpgsql $block$
 declare
     _filter text;

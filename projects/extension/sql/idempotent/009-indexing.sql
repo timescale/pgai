@@ -1,4 +1,4 @@
-
+-- STANDALONE
 -------------------------------------------------------------------------------
 -- indexing_none
 create or replace function ai.indexing_none() returns pg_catalog.jsonb

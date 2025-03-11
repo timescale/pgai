@@ -1,4 +1,4 @@
-
+-- STANDALONE
 -------------------------------------------------------------------------------
 -- _vectorizer_source_pk
 create or replace function ai._vectorizer_source_pk(source_table pg_catalog.regclass) returns pg_catalog.jsonb as
@@ -122,7 +122,7 @@ begin
     , %s
     , chunk_seq int not null
     , chunk text not null
-    , embedding @extschema:vector@.vector(%L) storage main not null
+    , embedding %I.vector(%L) storage main not null
     , unique (%s, chunk_seq)
     )
     $sql$
@@ -141,6 +141,7 @@ begin
         from pg_catalog.jsonb_to_recordset(source_pk)
             x(attnum int, attname name, typname name)
       )
+    , (select extnamespace::regnamespace::text from pg_extension where extname = 'vector')
     , dimensions
     , _pk_cols
     ) into strict _sql
@@ -1060,57 +1061,3 @@ $func$
 language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
-
--------------------------------------------------------------------------------
--- _vectorizer_handle_drops
-create or replace function ai._vectorizer_handle_drops()
-returns event_trigger as
-$func$
-declare
-    _id int;
-begin
-    -- this function is security definer
-    -- fully-qualify everything and be careful of security holes
-    for _id in
-    (
-        select distinct v.id
-        from pg_catalog.pg_event_trigger_dropped_objects() d
-        inner join ai.vectorizer v
-        on ((d.schema_name, d.object_name) in
-            ( (v.source_schema, v.source_table)
-            , (v.target_schema, v.target_table)
-            , (v.queue_schema, v.queue_table)
-            )
-        )
-        where pg_catalog.lower(d.object_type) operator(pg_catalog.=) 'table'
-    )
-    loop
-        -- this may cause recursive invocations of this event trigger
-        -- however it does not cause a problem
-        raise notice 'associated table for vectorizer % dropped. dropping vectorizer', _id;
-        perform ai.drop_vectorizer(_id);
-    end loop;
-end;
-$func$
-language plpgsql volatile security definer -- definer on purpose!
-set search_path to pg_catalog, pg_temp
-;
-
--- install the event trigger if not exists
-do language plpgsql $block$
-begin
-    -- if the event trigger already exists, noop
-    perform
-    from pg_catalog.pg_event_trigger g
-    where g.evtname operator(pg_catalog.=) '_vectorizer_handle_drops'
-    and g.evtfoid operator(pg_catalog.=) pg_catalog.to_regproc('ai._vectorizer_handle_drops')
-    ;
-    if found then
-        return;
-    end if;
-
-    create event trigger _vectorizer_handle_drops
-    on sql_drop
-    execute function ai._vectorizer_handle_drops();
-end
-$block$;

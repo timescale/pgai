@@ -1,4 +1,4 @@
-
+-- STANDALONE
 -------------------------------------------------------------------------------
 -- formatting_python_template
 create or replace function ai.formatting_python_template(template pg_catalog.text default '$chunk') returns pg_catalog.jsonb

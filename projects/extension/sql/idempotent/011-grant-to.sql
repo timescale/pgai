@@ -1,3 +1,4 @@
+-- STANDALONE
 -------------------------------------------------------------------------------
 -- grant_to
 create or replace function ai.grant_to(variadic grantees pg_catalog.name[]) returns pg_catalog.name[]

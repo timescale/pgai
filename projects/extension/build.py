@@ -280,6 +280,55 @@ class Actions:
             shutil.copyfile(osf, dest)
 
     @staticmethod
+    def build_standalone_sql() -> None:
+        """constructs the sql files for the extensionless"""
+        check_versions()
+        check_incremental_sql_files(incremental_sql_files())
+        check_idempotent_sql_files(idempotent_sql_files())
+        build_control_file()
+        hr = "".rjust(80, "-")  # "horizontal rule"
+        osf = output_sql_dir() / f"standalone-{this_version()}.sql"
+        osf.unlink(missing_ok=True)
+        with osf.open("w") as wf:
+            wf.write(f"{hr}\n-- ai {this_version()}\n\n")
+            wf.write(sql_dir().joinpath("head-standalone.sql").read_text())
+            if is_prerelease(this_version()):
+                wf.write("\n\n")
+                wf.write(build_feature_flags())
+            wf.write("\n\n")
+            for inc_file in incremental_sql_files():
+                if sql_file_number(inc_file) >= 900 and not is_prerelease(
+                    this_version()
+                ):
+                    # don't include pre-release code in non-prerelease versions
+                    continue
+                code = build_standalone_incremental_sql_file(inc_file)
+                wf.write(code)
+                wf.write("\n\n")
+            for idm_file in idempotent_sql_files():
+                nbr = sql_file_number(idm_file)
+                if nbr != 999 and nbr >= 900 and not is_prerelease(this_version()):
+                    # don't include pre-release code in non-prerelease versions
+                    continue
+                wf.write(f"{hr}\n-- {idm_file.name}\n")
+                wf.write(build_standalone_idempotent_sql_file(idm_file))
+                wf.write("\n\n")
+            wf.flush()
+            wf.close()
+        for prior_version in prior_versions():
+            if prior_version in deprecated_versions():
+                # we don't allow upgrades from these versions. they are deprecated
+                continue
+            if is_prerelease(prior_version):
+                # we don't allow upgrades from prerelease versions
+                continue
+            dest = output_sql_dir().joinpath(
+                f"ai--{prior_version}--{this_version()}.sql"
+            )
+            dest.unlink(missing_ok=True)
+            shutil.copyfile(osf, dest)
+
+    @staticmethod
     def clean() -> None:
         """removes python build artifacts from the src dir"""
         Actions.clean_sql()
@@ -751,6 +800,27 @@ def build_incremental_sql_file(input_file: Path) -> str:
     return code
 
 
+def build_standalone_incremental_sql_file(input_file: Path) -> str:
+    template = sql_dir().joinpath("migration.sql").read_text()
+    migration_name = input_file.name
+    migration_body = input_file.read_text()
+    if migration_body.startswith("-- NOSTANDALONE"):
+        migration_body = " -- SKIPPED"
+    migration_body = re.sub("^perform pg_catalog.pg_extension_config_dump.*$", "", migration_body, flags=re.MULTILINE)
+    # migration_body = re.sub("set local", "set", migration_body, flags=re.MULTILINE|re.IGNORECASE)
+    version = this_version()
+    migration_body = migration_body.replace("@extversion@", version)
+    code = template.format(
+        migration_name=migration_name,
+        migration_body=migration_body,
+        version=version,
+    )
+    feature_flag = parse_feature_flag(input_file)
+    if feature_flag:
+        code = gate_sql(code, feature_flag)
+    return code
+
+
 def build_idempotent_sql_file(input_file: Path) -> str:
     inject = f"""
     if "ai.version" not in GD:
@@ -778,6 +848,45 @@ def build_idempotent_sql_file(input_file: Path) -> str:
     # remove first and last (blank) lines
     inject = "".join(inject.splitlines(keepends=True)[1:-1])
     code = input_file.read_text()
+    code = code.replace("@extversion@", this_version())
+    code = code.replace(
+        """    #ADD-PYTHON-LIB-DIR\n""", inject
+    )  # leading 4 spaces is intentional
+    feature_flag = parse_feature_flag(input_file)
+    if feature_flag:
+        code = gate_sql(code, feature_flag)
+    return code
+
+
+def build_standalone_idempotent_sql_file(input_file: Path) -> str:
+    inject = f"""
+    if "ai.version" not in GD:
+        r = plpy.execute("select coalesce(pg_catalog.current_setting('ai.python_lib_dir', true), '{python_install_dir()}') as python_lib_dir")
+        python_lib_dir = r[0]["python_lib_dir"]
+        from pathlib import Path
+        import sys
+        import sysconfig
+        # Note: we remove system-level python packages from the path to avoid
+        # them being loaded and taking precedence over our dependencies.
+        # This seems paranoid, but it was a real problem.
+        if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
+            sys.path.remove(sysconfig.get_path("purelib"))
+        python_lib_dir = Path(python_lib_dir).joinpath("{this_version()}")
+        import site
+        site.addsitedir(str(python_lib_dir))
+        from ai import __version__ as ai_version
+        assert("{this_version()}" == ai_version)
+        GD["ai.version"] = "{this_version()}"
+    else:
+        if GD["ai.version"] != "{this_version()}":
+            plpy.fatal("the pgai extension version has changed. start a new session")
+    """
+    # keep leading indentation
+    # remove first and last (blank) lines
+    inject = "".join(inject.splitlines(keepends=True)[1:-1])
+    code = input_file.read_text()
+    if not code.startswith("-- STANDALONE"):
+        return ""
     code = code.replace("@extversion@", this_version())
     code = code.replace(
         """    #ADD-PYTHON-LIB-DIR\n""", inject

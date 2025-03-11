@@ -1,4 +1,4 @@
-
+-- STANDALONE
 -------------------------------------------------------------------------------
 -- scheduling_none
 create or replace function ai.scheduling_none() returns pg_catalog.jsonb

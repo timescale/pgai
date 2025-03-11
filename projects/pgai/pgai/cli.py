@@ -286,9 +286,11 @@ def vectorizer_worker(
                     pgai_version = get_pgai_version(cur)
                     can_connect = True
                     if pgai_version is None:
-                        log.error("the pgai extension is not installed")
-                        if exit_on_error:
-                            sys.exit(1)
+                        pgai_version = '0.9.0'
+                        # log.error("the pgai extension is not installed")
+                        # if exit_on_error:
+                        #     sys.exit(1)
+                        features = Features(pgai_version)
                     else:
                         features = Features(pgai_version)
 
