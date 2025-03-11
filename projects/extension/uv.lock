@@ -1547,6 +1547,7 @@ dev = [
     { name = "psycopg", extra = ["binary"] },
     { name = "pytest" },
     { name = "python-dotenv" },
+    { name = "requests" },
     { name = "ruff" },
     { name = "uv" },
 ]
@@ -1574,6 +1575,7 @@ dev = [
     { name = "psycopg", extras = ["binary"], specifier = "==3.2.1" },
     { name = "pytest", specifier = "==8.3.2" },
     { name = "python-dotenv", specifier = "==1.0.1" },
+    { name = "requests", specifier = "==2.32.3" },
     { name = "ruff", specifier = "==0.6.9" },
     { name = "uv", specifier = "==0.5.20" },
 ]

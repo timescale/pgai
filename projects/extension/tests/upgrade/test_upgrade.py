@@ -1,7 +1,7 @@
 import os
 import subprocess
 from collections import namedtuple
-from pathlib import Path
+from pathlib import Path, PosixPath
 
 import psycopg
 import pytest
@@ -32,7 +32,9 @@ def where_am_i() -> str:
 
 
 def docker_dir() -> str:
-    return "/pgai/tests/upgrade"
+    return str(
+        PosixPath("/").joinpath("pgai", "projects", "extension", "tests", "upgrade")
+    )
 
 
 def host_dir() -> Path:
@@ -289,8 +291,8 @@ def test_vectorizer_trigger_upgrade():
             assert "IS DISTINCT FROM" not in old_trigger_def
 
             # Upgrade to the new version
-            update_extension("trigger_upgrade", "0.8.1-dev")
-            assert check_version("trigger_upgrade") == "0.8.1-dev"
+            update_extension("trigger_upgrade", "0.9.0")
+            assert check_version("trigger_upgrade") == "0.9.0"
 
             # Get the new trigger function definition
             cur.execute(

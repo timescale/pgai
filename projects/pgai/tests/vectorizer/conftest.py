@@ -79,8 +79,8 @@ def vcr_():
 def postgres_container_manager() -> (
     Generator[Callable[[bool], PostgresContainer], None, None]
 ):
-    extension_dir = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../../extension/")
+    extension_dir = (
+        Path(__file__).parent.parent.parent.parent.joinpath("extension").resolve()
     )
     image = DockerImage(path=extension_dir, tag="pgai-test-db").build(  # type: ignore
         target="pgai-test-db"
