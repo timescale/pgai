@@ -26,7 +26,10 @@ class WorkerTracking:
 
     async def start(self) -> None:
         if not self.enabled:
+            log.debug("worker tracking disabled", version=self.version)
             return
+
+        log.debug("starting worker tracking", version=self.version)
 
         async with (
             await psycopg.AsyncConnection.connect(self.db_url, autocommit=True) as conn,
@@ -84,6 +87,13 @@ class WorkerTracking:
     async def heartbeat(self) -> None:
         if not self.enabled:
             return
+
+        log.debug(
+            "starting heartbeat loop",
+            version=self.version,
+            poll_interval=self.poll_interval,
+            worker_id=self.worker_id,
+        )
 
         failures = 0
         while failures < 3:

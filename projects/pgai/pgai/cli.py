@@ -291,6 +291,7 @@ async def handle_error(
     if exit_on_error:
         if worker_tracking is not None:
             await worker_tracking.force_heartbeat()
+        log.info("exiting due to error")
         sys.exit(1)
 
 
@@ -403,6 +404,7 @@ async def async_run_vectorizer_worker(
         if once:
             if worker_tracking is not None:
                 await worker_tracking.force_heartbeat()
+            log.info("once mode, exiting...")
             return
 
         log.info(f"sleeping for {poll_interval_str} before polling for new work")
