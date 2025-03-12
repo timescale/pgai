@@ -292,6 +292,8 @@ class VectorizerQueryBuilder:
     @cached_property
     def fetch_work_query_with_retries(self) -> sql.Composed:
         """
+        Note that this is an updated version of the original query that includes
+        the loading_retries column.
         Generates the SQL query to fetch work items from the queue table.
 
         The query is safe to run concurrently from multiple workers. It handles
@@ -773,13 +775,22 @@ class Worker:
         """
         queue_table_oid = await self._get_queue_table_oid(conn)
         async with conn.cursor(row_factory=dict_row) as cursor:
-            await cursor.execute(
-                self.queries.fetch_work_query_with_retries,
-                (
-                    self.vectorizer.config.processing.batch_size,
-                    queue_table_oid,
-                ),
-            )
+            if self.features.loading_retries:
+                await cursor.execute(
+                    self.queries.fetch_work_query_with_retries,
+                    (
+                        self.vectorizer.config.processing.batch_size,
+                        queue_table_oid,
+                    ),
+                )
+            else:
+                await cursor.execute(
+                    self.queries.fetch_work_query,
+                    (
+                        self.vectorizer.config.processing.batch_size,
+                        queue_table_oid,
+                    ),
+                )
             return await cursor.fetchall()
 
     async def _get_queue_table_oid(self, conn: AsyncConnection) -> int:
@@ -826,7 +837,8 @@ class Worker:
 
         await self._delete_embeddings(conn, items)
         records, errors = await self._generate_embeddings(items)
-        await self.handle_loading_retries(conn)
+        if self.features.loading_retries:
+            await self.handle_loading_retries(conn)
         await self._copy_embeddings(conn, records)
         if errors:
             await self._insert_vectorizer_errors(conn, errors)
@@ -936,8 +948,8 @@ class Worker:
             try:
                 payload = self.vectorizer.config.loading.load(item)
             except Exception as e:
-                loading_error = LoadingError(e=e)
-                self.pending_retries.append((item, loading_error))
+                if self.features.loading_retries:
+                    self.pending_retries.append((item, (LoadingError(e=e))))
                 continue
 
             payload = self.vectorizer.config.parsing.parse(item, payload)
