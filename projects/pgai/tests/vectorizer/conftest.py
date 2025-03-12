@@ -24,14 +24,18 @@ DIMENSION_COUNT = 1536
 
 @pytest.fixture(scope="session", autouse=True)
 def download_docling_models():
-    print("Attempting to downloading docling models")
     # pre-fetch all models required by docling
     # this is done to avoid downloading the models during the tests.
     # Models are downloaded to: ~/.cache/huggingface/hub/models--ds4sd--docling-models
-    docling.utils.model_downloader.download_models(
-        progress=True,
-        output_dir=Path.home().joinpath(".cache/docling/models"),
-    )
+    docling_models_dir = ".cache/docling/models"
+    if not any(Path.home().joinpath(f"{docling_models_dir}").iterdir()):
+        print("Attempting to downloading docling models")
+        docling.utils.model_downloader.download_models(
+            progress=True,
+            output_dir=Path.home().joinpath(docling_models_dir),
+        )
+    else:
+        print("Models already downloaded, skipping download.")
 
 
 @pytest.fixture(autouse=True)
