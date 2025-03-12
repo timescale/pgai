@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
 
 import semver
+import structlog
+
+logger = structlog.get_logger()
 
 # config generic type
 C = TypeVar("C")
@@ -31,7 +34,7 @@ def register_migration(
 ) -> MigrationDecorator[C]:
     """
     Decorator to register a migration function with
-    optional config class validation
+    config class validation
     """
 
     def decorator(func: MigrationFunc[C]) -> MigrationFunc[C]:
@@ -72,7 +75,10 @@ def apply_migrations(data: dict[str, Any]) -> dict[str, Any]:
     # determine starting version
     current_version = data.get("version")
     if current_version is None:
-        # TODO log warning, no version found. This should not happen.
+        logger.warning(
+            "Vectorizer Config migration can't be considered. "
+            "Raw data does not contain a version field."
+        )
         return data
 
     current = semver.VersionInfo.parse(current_version)
@@ -91,8 +97,11 @@ def apply_migrations(data: dict[str, Any]) -> dict[str, Any]:
 
     # migrations are applied sequentially
     for migration in applicable_migrations:
-        version_str = migration.version
-        print(f"Applying migration to version {version_str}: {migration.description}")
+        logger.info(
+            f"Applying Vectorizer Config migration "
+            f"from version {current_version} "
+            f"to version {migration.version}: {migration.description}"
+        )
 
         # instantiate config class for this version so we can validate the input
         config_instance = migration.source_config_class(**result)
@@ -101,7 +110,8 @@ def apply_migrations(data: dict[str, Any]) -> dict[str, Any]:
 
         # updating the version after each successful migration so we
         # don't re-apply migrations
-        result["version"] = version_str
+        current_version = migration.version
+        result["version"] = migration.version
 
     return result
 
