@@ -115,7 +115,7 @@ SELECT ai.create_vectorizer(
 );
 ```
 
-This example uses the `ollama-embed-text` embedding model hosted on a local
+This example uses the `nomic-embed-text` embedding model hosted on a local
 Ollama instance. Vectorizer supports other embedding providers, for more details
 consult the [embedding configuration](/docs/vectorizer/api-reference.md#embedding-configuration)
 section of the vectorizer API reference.

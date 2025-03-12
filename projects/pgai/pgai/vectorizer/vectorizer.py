@@ -1,11 +1,13 @@
 import asyncio
+import json
 import os
 import threading
 import time
 from collections.abc import Callable
-from functools import cached_property
+from functools import cached_property, partial
 from itertools import repeat
 from typing import Any, TypeAlias
+from uuid import UUID
 
 import numpy as np
 import psycopg
@@ -14,11 +16,12 @@ from ddtrace import tracer
 from pgvector.psycopg import register_vector_async  # type: ignore
 from psycopg import AsyncConnection, sql
 from psycopg.rows import dict_row
-from psycopg.types.json import Jsonb
+from psycopg.types.json import Jsonb, set_json_dumps
 from pydantic import model_validator
 from pydantic.dataclasses import dataclass
 from pydantic.fields import Field
 from pydantic_core._pydantic_core import ArgsKwargs
+from typing_extensions import override
 
 from .chunking import (
     LangChainCharacterTextSplitter,
@@ -504,6 +507,16 @@ class ProcessingStats:
         )
 
 
+class UUIDEncoder(json.JSONEncoder):
+    """A JSON encoder which can dump UUID."""
+
+    @override
+    def default(self, o: Any):
+        if isinstance(o, UUID):
+            return str(o)
+        return json.JSONEncoder.default(self, o)
+
+
 class Worker:
     """
     Responsible for processing items from the work queue and generating embeddings.
@@ -553,6 +566,7 @@ class Worker:
             self.db_url, autocommit=True
         ) as conn:
             try:
+                set_json_dumps(partial(json.dumps, cls=UUIDEncoder), context=conn)
                 await register_vector_async(conn)
                 await self.vectorizer.config.embedding.setup()
                 while True:

@@ -17,6 +17,7 @@ from mitmproxy.tools.dump import DumpMaster
 from testcontainers.core.image import DockerImage  # type:ignore
 from testcontainers.postgres import PostgresContainer  # type:ignore
 
+from pgai.vectorizer.parsing import DOCLING_CACHE_DIR
 from pgai.vectorizer.vectorizer import TIKTOKEN_CACHE_DIR
 
 DIMENSION_COUNT = 1536
@@ -30,7 +31,7 @@ def download_docling_models():
     # Models are downloaded to: ~/.cache/huggingface/hub/models--ds4sd--docling-models
     docling.utils.model_downloader.download_models(
         progress=True,
-        output_dir=Path.home().joinpath(".cache/docling/models"),
+        output_dir=DOCLING_CACHE_DIR,
     )
 
 
@@ -78,8 +79,8 @@ def vcr_():
 def postgres_container_manager() -> (
     Generator[Callable[[bool], PostgresContainer], None, None]
 ):
-    extension_dir = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../../extension/")
+    extension_dir = (
+        Path(__file__).parent.parent.parent.parent.joinpath("extension").resolve()
     )
     image = DockerImage(path=extension_dir, tag="pgai-test-db").build(  # type: ignore
         target="pgai-test-db"
