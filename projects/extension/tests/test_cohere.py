@@ -1,4 +1,5 @@
 import os
+from time import sleep
 
 import psycopg
 import pytest
@@ -363,20 +364,26 @@ def test_cohere_rerank_simple(cur_with_api_key):
 
 
 def test_cohere_chat_complete(cur_with_api_key):
-    cur_with_api_key.execute("""
-        select ai.cohere_chat_complete
-        ( 'command-r-plus'
-        , jsonb_build_array
-          ( jsonb_build_object
-            ( 'role', 'user'
-            , 'content', 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
-            )
-          )
-        , seed=>42
-        , temperature=>0.0
-        )->'message'->'content'->0->>'text'
-    """)
-    actual = cur_with_api_key.fetchone()[0]
-    assert (
-        actual == "As much wood as a woodchuck would, if a woodchuck could chuck wood."
-    )
+    actual = None
+    expected = """According to a tongue-twister that originated in the United States, a woodchuck would chuck "as much wood as a woodchuck would, if a woodchuck could chuck wood." This phrase is meant to be difficult to say quickly and is often used to challenge someone\'s ability to speak clearly and accurately.\n\nThe amount of wood a woodchuck could actually chuck is unclear and somewhat subjective, as it depends on several factors such as the size of the woodchuck, the method of chucking, and the duration of said chucking. Woodchucks, also known as groundhogs, are capable of moving and stacking wood, but the notion of them chucking wood is more of a humorous idea than a practical reality."""
+    # apparently cohere doesn't always use the seed that we tell it to, so give it a few chances
+    for _ in range(5):
+        cur_with_api_key.execute("""
+            select ai.cohere_chat_complete
+            ( 'command-r'
+            , jsonb_build_array
+              ( jsonb_build_object
+                ( 'role', 'user'
+                , 'content', 'How much wood would a woodchuck chuck if a woodchuck could chuck wood?'
+                )
+              )
+            , seed=>42
+            , temperature=>0.0
+            )->'message'->'content'->0->>'text'
+        """)
+        actual = cur_with_api_key.fetchone()[0]
+        if actual == expected:
+            return
+        else:
+            sleep(0.1)
+    assert actual == expected
