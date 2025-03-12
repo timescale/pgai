@@ -290,7 +290,7 @@ async def handle_error(
         await worker_tracking.save_vectorizer_error(vectorizer_id, error_message)
     if exit_on_error:
         if worker_tracking is not None:
-            await worker_tracking.force_heartbeat()
+            await worker_tracking.force_last_heartbeat_and_stop()
         log.info("exiting due to error")
         sys.exit(1)
 
@@ -403,7 +403,7 @@ async def async_run_vectorizer_worker(
             await handle_error(err_msg, None, worker_tracking, exit_on_error)
         if once:
             if worker_tracking is not None:
-                await worker_tracking.force_heartbeat()
+                await worker_tracking.force_last_heartbeat_and_stop()
             log.info("once mode, exiting...")
             return
 

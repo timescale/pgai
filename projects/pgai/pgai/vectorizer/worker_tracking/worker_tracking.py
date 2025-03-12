@@ -56,7 +56,7 @@ class WorkerTracking:
         self.num_errors_since_last_heartbeat += 1
         self.error_message = error_message
 
-    async def force_heartbeat(self) -> None:
+    async def force_last_heartbeat_and_stop(self) -> None:
         if not self.enabled:
             return
 
