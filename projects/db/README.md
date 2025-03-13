@@ -14,4 +14,14 @@
 - had to get rid of _vectorizer_create_dependencies
 -> no way to enforce CASCADE requirement on source drops
 
+# todo
+
+- should we `uv sync` in the dev container in /db?
+
  
+# dev notes
+- ./build.py docker-start
+- ./build.py docker-shell
+
+## inside the container
+- uv run pgai install 

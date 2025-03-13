@@ -156,7 +156,7 @@ class Actions:
     def test_server() -> None:
         """runs the test http server in the docker container"""
         if where_am_i() == "host":
-            cmd = "docker exec -it -w /pgai/projects/extension/tests/vectorizer pgai-ext fastapi dev server.py"
+            cmd = "docker exec -it -w /pgai/projects/extension/tests/vectorizer pgai-db fastapi dev server.py"
             subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
         else:
             cmd = "uv run --no-project fastapi dev server.py"
@@ -190,7 +190,7 @@ class Actions:
     def docker_build() -> None:
         """builds the dev docker image"""
         subprocess.run(
-            f"""docker build --build-arg PG_MAJOR={pg_major()} -t pgai-ext .""",
+            f"""docker build --build-arg PG_MAJOR={pg_major()} -t pgai-db .""",
             shell=True,
             check=True,
             env=os.environ,
@@ -208,10 +208,10 @@ class Actions:
         )
         cmd = " ".join(
             [
-                "docker run -d --name pgai-ext --hostname pgai-ext -e POSTGRES_HOST_AUTH_METHOD=trust",
+                "docker run -d --name pgai-db --hostname pgai-db -e POSTGRES_HOST_AUTH_METHOD=trust",
                 networking,
                 f"--mount type=bind,src={ext_dir().parent.parent},dst=/pgai",
-                "-w /pgai/projects/extension",
+                "-w /pgai/projects/pgai",
                 "-e OPENAI_API_KEY",
                 "-e COHERE_API_KEY",
                 "-e MISTRAL_API_KEY",
@@ -225,7 +225,7 @@ class Actions:
                 "-e AWS_SECRET_ACCESS_KEY",
                 "-e VERTEX_CREDENTIALS",
                 "-e TEST_ENV_SECRET=super_secret",
-                "pgai-ext",
+                "pgai-db",
                 "-c shared_preload_libraries='timescaledb, pgextwlist'",
                 "-c extwlist.extensions='ai,vector'",
             ]
@@ -236,7 +236,7 @@ class Actions:
     def docker_start() -> None:
         """starts the container"""
         subprocess.run(
-            """docker start pgai-ext""",
+            """docker start pgai-db""",
             shell=True,
             check=True,
             env=os.environ,
@@ -247,7 +247,19 @@ class Actions:
     def docker_stop() -> None:
         """stops the container"""
         subprocess.run(
-            """docker stop pgai-ext""",
+            """docker stop pgai-db""",
+            shell=True,
+            check=True,
+            env=os.environ,
+            text=True,
+        )
+        
+
+    @staticmethod
+    def docker_shell() -> None:
+        """launches a bash shell in the container"""
+        subprocess.run(
+            """docker exec -it -u root pgai-db /bin/bash""",
             shell=True,
             check=True,
             env=os.environ,
@@ -258,7 +270,7 @@ class Actions:
     def docker_rm() -> None:
         """deletes the dev container"""
         subprocess.run(
-            """docker rm --force --volumes pgai-ext""",
+            """docker rm --force --volumes pgai-db""",
             shell=True,
             check=True,
             env=os.environ,
@@ -270,13 +282,12 @@ class Actions:
         """builds+runs the dev container and installs the extension"""
         Actions.docker_build()
         Actions.docker_run()
-        cmd = "docker exec pgai-ext make build-install"
+        cmd = "docker exec pgai-db make build-install"
         subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
-        cmd = 'docker exec -u postgres pgai-ext psql -c "create extension ai cascade"'
+        cmd = 'docker exec -u postgres pgai-db psql -c "create extension ai cascade"'
         subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
-        cmd = "docker exec -it -d -w /pgai/tests pgai-ext fastapi dev server.py"
+        cmd = "docker exec -it -d -w /pgai/tests pgai-db fastapi dev server.py"
         subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
-
 
 def versions() -> list[str]:
     # ADD NEW VERSIONS TO THE FRONT OF THIS LIST! STAY SORTED PLEASE

@@ -5,6 +5,10 @@ set local search_path = pg_catalog, pg_temp;
 make sure that the user doing the install/upgrade is the same user who owns the
 migration table. abort the upgrade if different.
 */
+
+CREATE SCHEMA IF NOT EXISTS ai;
+
+
 do $bootstrap_app$
 declare
     _current_user_id oid = null;
@@ -35,6 +39,9 @@ begin
     end if;
 end;
 $bootstrap_app$;
+
+--make sure there is only one install at a time
+LOCK TABLE ai.migration_app;
 
 -- records any feature flags that were enabled when installing
 -- a prerelease version of the extension
