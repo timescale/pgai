@@ -46,6 +46,7 @@ declare
     _vectorizer_id pg_catalog.int4;
     _sql pg_catalog.text;
     _job_id pg_catalog.int8;
+    _queue_failed_table pg_catalog.name;
 begin
     -- make sure all the roles listed in grant_to exist
     if grant_to is not null then
@@ -89,7 +90,7 @@ begin
     end if;
 
     if not _is_owner then
-        raise exception 'only a superuser or the owner of the source table may create a vectorizer on it';
+s        raise exception 'only a superuser or the owner of the source table may create a vectorizer on it';
     end if;
 
     select (embedding operator(pg_catalog.->) 'dimensions')::pg_catalog.int4 into _dimensions;
@@ -119,6 +120,7 @@ begin
     _trigger_name = pg_catalog.concat('_vectorizer_src_trg_', _vectorizer_id);
     queue_schema = coalesce(queue_schema, 'ai');
     queue_table = coalesce(queue_table, pg_catalog.concat('_vectorizer_q_', _vectorizer_id));
+    _queue_failed_table = pg_catalog.concat('_vectorizer_q_failed_', _vectorizer_id);
 
     -- make sure view name is available
     if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
@@ -204,6 +206,14 @@ begin
     , grant_to
     );
 
+    -- create queue table
+    perform ai._vectorizer_create_queue_failed_table
+    ( queue_schema
+    , _queue_failed_table
+    , _source_pk
+    , grant_to
+    );
+
     -- create trigger on source table to populate queue
     perform ai._vectorizer_create_source_trigger
     ( _trigger_name
@@ -250,6 +260,7 @@ begin
     , trigger_name
     , queue_schema
     , queue_table
+    , queue_failed_table
     , config
     )
     values
@@ -264,6 +275,7 @@ begin
     , _trigger_name
     , queue_schema
     , queue_table
+    , _queue_failed_table
     , pg_catalog.jsonb_build_object
       ( 'version', '@extversion@'
       , 'loading', loading
