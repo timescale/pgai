@@ -74,6 +74,11 @@ def create_extension(dbname: str, version: str) -> None:
             cur.execute(f"create extension ai version '{version}' cascade")
 
 
+def drop_extension(dbname: str) -> None:
+    with psycopg.connect(db_url(user=USER, dbname=dbname), autocommit=True) as con:
+        with con.cursor() as cur:
+            cur.execute(f"drop extension ai cascade")
+
 def update_extension(dbname: str, version: str) -> None:
     with psycopg.connect(db_url(user=USER, dbname=dbname), autocommit=True) as con:
         con.add_notice_handler(detailed_notice_handler)
@@ -91,13 +96,13 @@ def check_version(
             return cur.fetchone()[0]
 
 
-def init(dbname: str) -> None:
+def init(dbname: str, suffix: str = "") -> None:
     cmd = " ".join(
         [
             "psql",
             f'''-d "{db_url(USER, dbname)}"''',
             "-v ON_ERROR_STOP=1",
-            f"-f {docker_dir()}/init.sql",
+            f"-f {docker_dir()}/init{suffix}.sql",
         ]
     )
     if where_am_i() != "docker":
@@ -105,7 +110,7 @@ def init(dbname: str) -> None:
     subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
 
 
-def snapshot(dbname: str, name: str) -> None:
+def snapshot(dbname: str, name: str, suffix: str = "") -> None:
     cmd = " ".join(
         [
             "psql",
@@ -113,7 +118,7 @@ def snapshot(dbname: str, name: str) -> None:
             "-v ON_ERROR_STOP=1",
             "-X",
             f"-o {docker_dir()}/{name}.snapshot",
-            f"-f {docker_dir()}/snapshot.sql",
+            f"-f {docker_dir()}/snapshot{suffix}.sql",
         ]
     )
     if where_am_i() != "docker":
@@ -176,6 +181,50 @@ def test_upgrades():
         )
         assert actual == expected, f"snapshots do not match for {debug_path}"
 
+
+def test_unpackaged_upgrade():
+    create_user(USER)
+    create_user(OTHER_USER)
+    create_database("upgrade_target")
+   
+    from pgai.install import install
+    install(db_url( USER, "upgrade_target"))
+     
+    init("upgrade_target", "_vectorizer_only")
+    snapshot("upgrade_target", f"unpackaged-expected", "_vectorizer_only")
+    
+    create_database("upgrade_path")
+    create_extension("upgrade_path", "0.9.0")
+    assert check_version("upgrade_path") == "0.9.0"
+    
+    init("upgrade_path", "_vectorizer_only")
+    update_extension("upgrade_path", "0.9.1-dev")
+    assert check_version("upgrade_path") == "0.9.1-dev"
+
+    drop_extension("upgrade_path")
+
+    snapshot("upgrade_path", f"unpackaged-actual", "_vectorizer_only")
+    
+    
+    # compare the snapshots. they should match
+    expected = (
+        Path(__file__)
+        .parent.absolute()
+        .joinpath(f"unpacked-expected.snapshot")
+        .read_text()
+    )
+    actual = (
+        Path(__file__)
+        .parent.absolute()
+        .joinpath(f"unpacked-actual.snapshot")
+        .read_text()
+    )
+
+    debug_path = (
+        Path(__file__).parent.absolute().joinpath(f"unpackaged-actual.snapshot")
+    )
+    
+    assert actual == expected, f"snapshots do not match for {debug_path}"
 
 def fetch_versions(dbname: str) -> list[str]:
     with psycopg.connect(db_url(user=USER, dbname=dbname), autocommit=True) as con:

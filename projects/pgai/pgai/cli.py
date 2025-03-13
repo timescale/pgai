@@ -438,4 +438,4 @@ cli.add_command(vectorizer)
     show_default=True,
 )
 def install(db_url: str) -> None:
-    asyncio.run(install_pgai(db_url))
+    install_pgai(db_url)

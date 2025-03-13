@@ -14,6 +14,12 @@
 - had to get rid of _vectorizer_create_dependencies
 -> no way to enforce CASCADE requirement on source drops
 
+
+- weirdness with python package naming
+- we have two packages:
+    - projects/extension (named pgai but imports as ai) - we should rename this to something else?
+    - projects/pgai (named pgai and imports as pgai) - (I think this is the one in PIP)
+
 # todo
 
 - should we `uv sync` in the dev container in /db?
@@ -25,3 +31,8 @@
 
 ## inside the container
 - uv run pgai install 
+
+
+### testing
+- in the pgai directory, run `VIRTAUL_ENV=/py/.venv/ uv pip install --editable .`
+- in the extension directory, run `just build && just install-all && uv run --no-project pytest -k unpackaged`
