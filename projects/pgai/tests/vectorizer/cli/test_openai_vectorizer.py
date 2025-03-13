@@ -44,11 +44,14 @@ def configure_openai_vectorizer(
 
 
 @pytest.mark.parametrize(
-    "num_items,concurrency,batch_size,openai_proxy_url",
+    "num_items,concurrency,batch_size,openai_proxy_url,secrets_from_db",
     [
-        (1, 1, 1, None),
-        (1, 1, 1, 8000),
-        (4, 2, 2, None),
+        (1, 1, 1, None, False),
+        (1, 1, 1, 8000, False),
+        (4, 2, 2, None, False),
+        (1, 1, 1, None, True),
+        (1, 1, 1, 8000, True),
+        (4, 2, 2, None, True),
     ],
     indirect=["openai_proxy_url"],
 )
@@ -60,6 +63,7 @@ def test_process_vectorizer(
     concurrency: int,
     batch_size: int,
     openai_proxy_url: str | None,
+    secrets_from_db: bool,
 ):
     """Test successful processing of vectorizer tasks"""
     _, conn = cli_db
@@ -79,9 +83,13 @@ def test_process_vectorizer(
             array_fill(0, ARRAY[1536])::vector)
         """)
 
-    # Ensuring no OPENAI_API_KEY env set for the worker
-    # to test loading secret from db
-    del os.environ["OPENAI_API_KEY"]
+
+    if secrets_from_db:
+        # create extension to test loading secret from db
+        conn.execute("""CREATE EXTENSION IF NOT EXISTS ai CASCADE""")
+        # Ensuring no OPENAI_API_KEY env set for the worker
+        # to test loading secret from db
+        del os.environ["OPENAI_API_KEY"]
 
     # When running the worker with cassette matching original test params
     cassette = (
@@ -94,9 +102,9 @@ def test_process_vectorizer(
     with vcr_.use_cassette(cassette):
         result = run_vectorizer_worker(cli_db_url, vectorizer_id, concurrency)
 
+    print(f"result: {result.stdout}")
     assert not result.exception
     assert result.exit_code == 0
-    print(f"result: {result.stdout}")
 
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT count(*) as count FROM blog_embedding_store;")

@@ -1,0 +1,89 @@
+export PROJECT_JUSTFILE := "1" # Note: used in build.py
+PG_MAJOR := env("PG_MAJOR", "17")
+PG_BIN := env("PG_BIN", "/usr/lib/postgresql/" + PG_MAJOR + "/bin")
+
+# Show list of recipes
+default:
+    @just --list
+
+ci: docker-build docker-run
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pwd
+  trap "python3 build.py docker-stop; python3 build.py docker-rm" EXIT
+  docker exec pgai-ext just build
+  docker exec pgai-ext just lint
+  docker exec pgai-ext just format
+  docker exec pgai-ext just install-all
+  docker exec -d pgai-ext just test-server
+  docker exec pgai-ext just test
+  build.py docker-stop
+  build.py docker-rm
+
+clean:
+	@./build.py clean
+
+clean-sql:
+	@./build.py clean-sql
+
+clean-py:
+	@./build.py clean-py
+
+build:
+	@PG_BIN={{PG_BIN}} ./build.py build-sql
+
+build-sql:
+	@./build.py build-sql
+
+test-server:
+	@./build.py test-server
+
+test:
+	@./build.py test
+
+lint-sql:
+	@./build.py lint-sql
+
+lint-py:
+	@./build.py lint-py
+
+lint:
+	@./build.py lint
+
+lint-fix:
+    @./build.py lint-fix
+
+format:
+	@./build.py format
+
+format-fix:
+	@./build.py format-fix
+
+# Run both linter and type-checking checks and fix all auto-fixable issues
+fix: lint-fix format-fix
+
+check-requirements:
+    @./build.py check-requirements
+
+docker-build:
+	@PG_MAJOR={{PG_MAJOR}} ./build.py docker-build
+
+docker-run:
+	@./build.py docker-run
+
+docker-start:
+	@./build.py docker-start
+
+docker-stop:
+	@./build.py docker-stop
+
+docker-rm:
+	@./build.py docker-rm
+
+# Launches a bash shell in the container
+docker-shell:
+	@docker exec -it -u root pgai-db /bin/bash
+
+# Launches a psql shell in the container
+psql-shell:
+	@docker exec -it -u postgres pgai-db /bin/bash -c "set -e; if [ -f .env ]; then set -a; source .env; set +a; fi; psql"

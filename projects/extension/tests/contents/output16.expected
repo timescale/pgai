@@ -4,11 +4,8 @@ CREATE EXTENSION
                                                                                                                    Objects in extension "ai"
                                                                                                                       Object description                                                                                                                       
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- event trigger _vectorizer_handle_drops
  function ai.anthropic_generate(text,jsonb,integer,text,text,text,double precision,integer,text,text,text[],double precision,jsonb,jsonb,integer,double precision,boolean)
  function ai.anthropic_list_models(text,text,text,boolean)
- function ai.chunking_character_text_splitter(integer,integer,text,boolean)
- function ai.chunking_recursive_character_text_splitter(integer,integer,text[],boolean)
  function ai.chunk_text_recursively(text,integer,integer,text[],boolean)
  function ai.chunk_text(text,integer,integer,text,boolean)
  function ai.cohere_chat_complete(text,jsonb,text,text,jsonb,jsonb,jsonb,jsonb,text,integer,text[],double precision,integer,double precision,double precision,integer,double precision,boolean,text,boolean,boolean)
@@ -20,24 +17,9 @@ CREATE EXTENSION
  function ai.cohere_rerank_simple(text,text,text[],text,text,integer,integer,boolean)
  function ai.cohere_rerank(text,text,text[],text,text,integer,integer,boolean)
  function ai.cohere_tokenize(text,text,text,text,boolean)
- function ai.create_vectorizer(regclass,name,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name,name,name,name,name[],boolean)
- function ai.disable_vectorizer_schedule(integer)
- function ai.drop_vectorizer(integer,boolean)
- function ai.embedding_litellm(text,integer,text,jsonb)
- function ai.embedding_ollama(text,integer,text,jsonb,text)
- function ai.embedding_openai(text,integer,text,text,text)
- function ai.embedding_voyageai(text,integer,text,text)
- function ai.enable_vectorizer_schedule(integer)
  function ai.execute_vectorizer(integer)
- function ai.formatting_python_template(text)
  function ai.grant_ai_usage(name,boolean)
  function ai.grant_secret(text,text)
- function ai.grant_to()
- function ai.grant_to(name[])
- function ai.indexing_default()
- function ai.indexing_diskann(integer,text,integer,integer,double precision,integer,integer,boolean)
- function ai.indexing_hnsw(integer,text,integer,integer,boolean)
- function ai.indexing_none()
  function ai.litellm_embed(text,text,text,text,jsonb,boolean)
  function ai.litellm_embed(text,text[],text,text,jsonb,boolean)
  function ai.load_dataset_multi_txn(text,text,text,name,name,text,jsonb,integer,integer,integer,jsonb)
@@ -65,64 +47,15 @@ CREATE EXTENSION
  function ai.openai_moderate(text,text,text,text,jsonb,jsonb,jsonb,boolean,jsonb)
  function ai.openai_moderate_with_raw_response(text,text,text,text,jsonb,jsonb,jsonb,boolean,jsonb)
  function ai.openai_tokenize(text,text)
- function ai.parsing_auto()
- function ai.parsing_docling()
- function ai.parsing_none()
- function ai.parsing_pymupdf()
- function ai.processing_default(integer,integer)
- function ai._resolve_indexing_default()
- function ai._resolve_scheduling_default()
  function ai.reveal_secret(text,boolean)
  function ai.revoke_secret(text,text)
- function ai.scheduling_default()
- function ai.scheduling_none()
- function ai.scheduling_timescaledb(interval,timestamp with time zone,boolean,text)
- function ai._validate_chunking(jsonb)
- function ai._validate_embedding(jsonb)
- function ai._validate_formatting(jsonb,name,name)
- function ai._validate_formatting_python_template(jsonb,name,name)
- function ai._validate_indexing_diskann(jsonb)
- function ai._validate_indexing_hnsw(jsonb)
- function ai._validate_indexing(jsonb)
- function ai._validate_loading(jsonb,name,name)
- function ai._validate_parsing(jsonb,jsonb,name,name)
- function ai._validate_processing(jsonb)
- function ai._validate_scheduling(jsonb)
- function ai._vectorizer_build_trigger_definition(name,name,name,name,jsonb)
- function ai._vectorizer_create_dependencies(integer)
- function ai._vectorizer_create_queue_failed_table(name,name,jsonb,name[])
- function ai._vectorizer_create_queue_table(name,name,jsonb,name[])
- function ai._vectorizer_create_source_trigger(name,name,name,name,name,name,name,jsonb)
- function ai._vectorizer_create_target_table(jsonb,name,name,integer,name[])
- function ai._vectorizer_create_vector_index(name,name,jsonb)
- function ai._vectorizer_create_view(name,name,name,name,jsonb,name,name,name[])
- function ai.vectorizer_embed(integer,text,text)
- function ai.vectorizer_embed(jsonb,text,text)
- function ai._vectorizer_grant_to_source(name,name,name[])
- function ai._vectorizer_grant_to_vectorizer(name[])
- function ai._vectorizer_handle_drops()
- function ai._vectorizer_job(integer,jsonb)
- function ai.vectorizer_queue_pending(integer,boolean)
- function ai._vectorizer_schedule_job(integer,jsonb)
- function ai._vectorizer_should_create_vector_index(ai.vectorizer)
- function ai._vectorizer_source_pk(regclass)
- function ai._vectorizer_vector_index_exists(name,name,jsonb)
  function ai.voyageai_embed(text,text,text,text,text,boolean)
  function ai.voyageai_embed(text,text[],text,text,text,boolean)
- function ai._worker_heartbeat(uuid,integer,integer,text)
- function ai._worker_progress(uuid,integer,integer,text)
- function ai._worker_start(text,interval)
- sequence ai.vectorizer_id_seq
  table ai.feature_flag
  table ai.migration
  table ai._secret_permissions
- table ai.vectorizer
- table ai.vectorizer_errors
- table ai.vectorizer_worker_process
- table ai.vectorizer_worker_progress
  view ai.secret_permissions
- view ai.vectorizer_status
-(118 rows)
+(49 rows)
 
                                     Table "ai._secret_permissions"
  Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
@@ -185,142 +118,3 @@ View definition:
     role
    FROM ai._secret_permissions
   WHERE to_regrole(role) IS NOT NULL AND pg_has_role(CURRENT_USER, role::name, 'member'::text);
-
-                                                            Table "ai.vectorizer"
-       Column       |  Type   | Collation | Nullable |             Default              | Storage  | Compression | Stats target | Description 
---------------------+---------+-----------+----------+----------------------------------+----------+-------------+--------------+-------------
- id                 | integer |           | not null | generated by default as identity | plain    |             |              | 
- source_schema      | name    |           | not null |                                  | plain    |             |              | 
- source_table       | name    |           | not null |                                  | plain    |             |              | 
- source_pk          | jsonb   |           | not null |                                  | extended |             |              | 
- target_schema      | name    |           | not null |                                  | plain    |             |              | 
- target_table       | name    |           | not null |                                  | plain    |             |              | 
- view_schema        | name    |           | not null |                                  | plain    |             |              | 
- view_name          | name    |           | not null |                                  | plain    |             |              | 
- trigger_name       | name    |           | not null |                                  | plain    |             |              | 
- queue_schema       | name    |           |          |                                  | plain    |             |              | 
- queue_table        | name    |           |          |                                  | plain    |             |              | 
- config             | jsonb   |           | not null |                                  | extended |             |              | 
- disabled           | boolean |           | not null | false                            | plain    |             |              | 
- queue_failed_table | name    |           |          |                                  | plain    |             |              | 
-Indexes:
-    "vectorizer_pkey" PRIMARY KEY, btree (id)
-    "vectorizer_target_schema_target_table_key" UNIQUE CONSTRAINT, btree (target_schema, target_table)
-Referenced by:
-    TABLE "ai.vectorizer_errors" CONSTRAINT "vectorizer_errors_id_fkey" FOREIGN KEY (id) REFERENCES ai.vectorizer(id) ON DELETE CASCADE
-    TABLE "ai.vectorizer_worker_progress" CONSTRAINT "vectorizer_worker_progress_vectorizer_id_fkey" FOREIGN KEY (vectorizer_id) REFERENCES ai.vectorizer(id) ON DELETE CASCADE
-Access method: heap
-
-                                                Table "ai.vectorizer_errors"
-  Column  |           Type           | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
-----------+--------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
- id       | integer                  |           | not null |         | plain    |             |              | 
- message  | text                     |           |          |         | extended |             |              | 
- details  | jsonb                    |           |          |         | extended |             |              | 
- recorded | timestamp with time zone |           | not null | now()   | plain    |             |              | 
-Indexes:
-    "vectorizer_errors_id_recorded_idx" btree (id, recorded)
-Foreign-key constraints:
-    "vectorizer_errors_id_fkey" FOREIGN KEY (id) REFERENCES ai.vectorizer(id) ON DELETE CASCADE
-Access method: heap
-
-                   Index "ai.vectorizer_errors_id_recorded_idx"
-  Column  |           Type           | Key? | Definition | Storage | Stats target 
-----------+--------------------------+------+------------+---------+--------------
- id       | integer                  | yes  | id         | plain   | 
- recorded | timestamp with time zone | yes  | recorded   | plain   | 
-btree, for table "ai.vectorizer_errors"
-
-                   Sequence "ai.vectorizer_id_seq"
-  Type   | Start | Minimum |  Maximum   | Increment | Cycles? | Cache 
----------+-------+---------+------------+-----------+---------+-------
- integer |     1 |       1 | 2147483647 |         1 | no      |     1
-Sequence for identity column: ai.vectorizer.id
-
-                  Index "ai.vectorizer_pkey"
- Column |  Type   | Key? | Definition | Storage | Stats target 
---------+---------+------+------------+---------+--------------
- id     | integer | yes  | id         | plain   | 
-primary key, btree, for table "ai.vectorizer"
-
-                            View "ai.vectorizer_status"
-    Column     |  Type   | Collation | Nullable | Default | Storage  | Description 
----------------+---------+-----------+----------+---------+----------+-------------
- id            | integer |           |          |         | plain    | 
- source_table  | text    | C         |          |         | extended | 
- target_table  | text    | C         |          |         | extended | 
- view          | text    | C         |          |         | extended | 
- pending_items | bigint  |           |          |         | plain    | 
- disabled      | boolean |           |          |         | plain    | 
-View definition:
- SELECT id,
-    format('%I.%I'::text, source_schema, source_table) AS source_table,
-    format('%I.%I'::text, target_schema, target_table) AS target_table,
-    format('%I.%I'::text, view_schema, view_name) AS view,
-        CASE
-            WHEN queue_table IS NOT NULL AND has_table_privilege(CURRENT_USER, format('%I.%I'::text, queue_schema, queue_table), 'select'::text) THEN ai.vectorizer_queue_pending(id)
-            ELSE NULL::bigint
-        END AS pending_items,
-    disabled
-   FROM ai.vectorizer v;
-
-          Index "ai.vectorizer_target_schema_target_table_key"
-    Column     |  Type   | Key? |  Definition   | Storage | Stats target 
----------------+---------+------+---------------+---------+--------------
- target_schema | cstring | yes  | target_schema | plain   | 
- target_table  | cstring | yes  | target_table  | plain   | 
-unique, btree, for table "ai.vectorizer"
-
-                                                          Table "ai.vectorizer_worker_process"
-           Column            |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
------------------------------+--------------------------+-----------+----------+-------------------+----------+-------------+--------------+-------------
- id                          | uuid                     |           | not null | gen_random_uuid() | plain    |             |              | 
- version                     | text                     |           | not null |                   | extended |             |              | 
- started                     | timestamp with time zone |           | not null | now()             | plain    |             |              | 
- expected_heartbeat_interval | interval                 |           | not null |                   | plain    |             |              | 
- last_heartbeat              | timestamp with time zone |           | not null | now()             | plain    |             |              | 
- heartbeat_count             | integer                  |           | not null | 0                 | plain    |             |              | 
- error_count                 | integer                  |           | not null | 0                 | plain    |             |              | 
- success_count               | integer                  |           | not null | 0                 | plain    |             |              | 
- last_error_at               | timestamp with time zone |           |          |                   | plain    |             |              | 
- last_error_message          | text                     |           |          |                   | extended |             |              | 
-Indexes:
-    "vectorizer_worker_process_pkey" PRIMARY KEY, btree (id)
-    "vectorizer_worker_process_last_heartbeat_idx" btree (last_heartbeat)
-Access method: heap
-
-                  Index "ai.vectorizer_worker_process_last_heartbeat_idx"
-     Column     |           Type           | Key? |   Definition   | Storage | Stats target 
-----------------+--------------------------+------+----------------+---------+--------------
- last_heartbeat | timestamp with time zone | yes  | last_heartbeat | plain   | 
-btree, for table "ai.vectorizer_worker_process"
-
-         Index "ai.vectorizer_worker_process_pkey"
- Column | Type | Key? | Definition | Storage | Stats target 
---------+------+------+------------+---------+--------------
- id     | uuid | yes  | id         | plain   | 
-primary key, btree, for table "ai.vectorizer_worker_process"
-
-                                                   Table "ai.vectorizer_worker_progress"
-         Column          |           Type           | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
--------------------------+--------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
- vectorizer_id           | integer                  |           | not null |         | plain    |             |              | 
- success_count           | integer                  |           | not null | 0       | plain    |             |              | 
- error_count             | integer                  |           | not null | 0       | plain    |             |              | 
- last_success_at         | timestamp with time zone |           |          |         | plain    |             |              | 
- last_success_process_id | uuid                     |           |          |         | plain    |             |              | 
- last_error_at           | timestamp with time zone |           |          |         | plain    |             |              | 
- last_error_message      | text                     |           |          |         | extended |             |              | 
- last_error_process_id   | uuid                     |           |          |         | plain    |             |              | 
-Indexes:
-    "vectorizer_worker_progress_pkey" PRIMARY KEY, btree (vectorizer_id)
-Foreign-key constraints:
-    "vectorizer_worker_progress_vectorizer_id_fkey" FOREIGN KEY (vectorizer_id) REFERENCES ai.vectorizer(id) ON DELETE CASCADE
-Access method: heap
-
-               Index "ai.vectorizer_worker_progress_pkey"
-    Column     |  Type   | Key? |  Definition   | Storage | Stats target 
----------------+---------+------+---------------+---------+--------------
- vectorizer_id | integer | yes  | vectorizer_id | plain   | 
-primary key, btree, for table "ai.vectorizer_worker_progress"
-

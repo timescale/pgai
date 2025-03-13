@@ -90,6 +90,7 @@ def test_sqlalchemy(
         # Test 4: Semantic search functionality
         from sqlalchemy import func
 
+        session.execute(text("CREATE EXTENSION IF NOT EXISTS ai CASCADE;"))
         # Search for content similar to "artificial intelligence"
         similar_embeddings = (
             session.query(BlogPost.content_embeddings)
@@ -105,6 +106,7 @@ def test_sqlalchemy(
             .limit(2)
             .all()
         )
+        session.execute(text("DROP EXTENSION IF EXISTS ai;"))
 
         assert len(similar_embeddings) > 0
         # The ML post should be most similar to "artificial intelligence"

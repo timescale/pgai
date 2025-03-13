@@ -144,14 +144,6 @@ def after_dst() -> None:
     subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
 
 
-def count_vectorizers() -> int:
-    with psycopg.connect(db_url(user=USER, dbname="dst"), autocommit=True) as con:
-        with con.cursor() as cur:
-            cur.execute("select count(*) from ai.vectorizer")
-            count: int = cur.fetchone()[0]
-            return count
-
-
 def test_dump_restore():
     create_user(USER)
     create_user("ethel")
@@ -166,4 +158,3 @@ def test_dump_restore():
     dst = read_file(str(host_dir().joinpath("dst.snapshot")))
     assert dst == src
     after_dst()  # make sure we can USE the restored db
-    assert count_vectorizers() == 2

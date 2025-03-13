@@ -69,5 +69,6 @@ RUN pip install --break-system-packages uv==0.6.3
 COPY pyproject.toml uv.lock /py/
 RUN uv sync --directory /py --no-install-project --only-dev --frozen
 ENV PATH="/py/.venv/bin:$PATH"
+ENV VIRTUAL_ENV=/py/.venv
 
 WORKDIR /pgai/projects/extension

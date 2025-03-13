@@ -137,3 +137,6 @@ dev-dependencies = [
     "Jinja2>=3.1.5",
     "fastapi>=0.115.8",
 ]
+
+[tool.hatch.build.targets.wheel.shared-data]
+"pgai/data" = "data"

@@ -74,6 +74,12 @@ def create_extension(dbname: str, version: str) -> None:
             cur.execute(f"create extension ai version '{version}' cascade")
 
 
+def drop_extension(dbname: str) -> None:
+    with psycopg.connect(db_url(user=USER, dbname=dbname), autocommit=True) as con:
+        with con.cursor() as cur:
+            cur.execute("drop extension ai cascade")
+
+
 def update_extension(dbname: str, version: str) -> None:
     with psycopg.connect(db_url(user=USER, dbname=dbname), autocommit=True) as con:
         con.add_notice_handler(detailed_notice_handler)
@@ -105,7 +111,7 @@ def init_db_script(dbname: str, script: str) -> None:
     subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
 
 
-def snapshot(dbname: str, name: str) -> None:
+def snapshot(dbname: str, name: str, suffix: str = "") -> None:
     cmd = " ".join(
         [
             "psql",
@@ -113,7 +119,7 @@ def snapshot(dbname: str, name: str) -> None:
             "-v ON_ERROR_STOP=1",
             "-X",
             f"-o {docker_dir()}/{name}.snapshot",
-            f"-f {docker_dir()}/snapshot.sql",
+            f"-f {docker_dir()}/snapshot{suffix}.sql",
         ]
     )
     if where_am_i() != "docker":
@@ -186,6 +192,68 @@ def is_version_earlier_or_equal_than(v1, v2):
     v1_parts = list(map(int, v1.split("-")[0].split(".")))
     v2_parts = list(map(int, v2.split("-")[0].split(".")))
     return v1_parts <= v2_parts
+
+
+def test_unpackaged_upgrade():
+    """Test upgrading from extension to pgai library for all released versions.
+
+    This test verifies that the vectorizer functionality can correctly transition
+    from being managed by the extension to being managed by the pgai library,
+    regardless of which version of the extension was previously installed.
+    """
+    create_user(USER)
+    create_user(OTHER_USER)
+
+    # All released versions that should be tested
+    released_versions = ["0.9.0", "0.8.0", "0.7.0", "0.6.0", "0.5.0", "0.4.1", "0.4.0"]
+
+    # Setup target to compare against (clean install via pgai library)
+    create_database("upgrade_target")
+    import pgai
+
+    pgai.install(db_url(USER, "upgrade_target"))
+    init_db_script("upgrade_target", "init_vectorizer_only.sql")
+    snapshot("upgrade_target", "unpackaged-expected", "_vectorizer_only")
+    expected_path = (
+        Path(__file__).parent.absolute().joinpath("unpackaged-expected.snapshot")
+    )
+    expected = expected_path.read_text()
+
+    # Test upgrading from each released version
+    for version in released_versions:
+        print(f"\nTesting upgrade from extension version {version} to pgai library...")
+
+        test_db = f"upgrade_from_{version.replace('.', '_')}"
+        create_database(test_db)
+
+        # Install the old extension version
+        create_extension(test_db, version)
+        assert check_version(test_db) == version
+        init_db_script(test_db, "init_vectorizer_only.sql")
+
+        # Upgrade to the development version
+        update_extension(test_db, "0.9.1-dev")
+        assert check_version(test_db) == "0.9.1-dev"
+
+        # Drop the extension and install using pgai library
+        drop_extension(test_db)
+        pgai.install(db_url(USER, test_db))
+
+        # Snapshot and compare
+        snapshot(test_db, f"unpackaged-actual-from-{version}", "_vectorizer_only")
+        actual_path = (
+            Path(__file__)
+            .parent.absolute()
+            .joinpath(f"unpackaged-actual-from-{version}.snapshot")
+        )
+        actual = actual_path.read_text()
+
+        # Direct comparison of snapshots
+        assert (
+            actual == expected
+        ), f"Snapshots do not match for upgrade from {version} at {expected_path} {actual_path}"
+
+        print(f"Successfully upgraded from extension version {version} to pgai library")
 
 
 def fetch_versions(dbname: str) -> list[str]:

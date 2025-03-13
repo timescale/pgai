@@ -6,6 +6,7 @@ import pytest
 from alembic.config import Config
 from sqlalchemy import Engine, create_engine, text
 from testcontainers.postgres import PostgresContainer  # type: ignore
+import pgai
 
 # Get the path to the fixtures directory relative to this file
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -75,18 +76,6 @@ def alembic_config(alembic_dir: Path, postgres_container: PostgresContainer) -> 
 
     return config
 
-
-def drop_vectorizer_if_exists(id: int, engine: Engine):
-    with engine.connect() as conn:
-        vectorizer_exists = conn.execute(
-            text(f"SELECT EXISTS (SELECT 1 FROM ai.vectorizer WHERE id = {id})")
-        ).scalar()
-
-        if vectorizer_exists:
-            conn.execute(text(f"SELECT ai.drop_vectorizer({id}, drop_all=>true);"))
-        conn.commit()
-
-
 @pytest.fixture
 def initialized_engine(
     postgres_container: PostgresContainer,
@@ -100,15 +89,15 @@ def initialized_engine(
         Engine: Configured SQLAlchemy engine
     """
     engine = create_engine(postgres_container.get_connection_url(driver="psycopg"))
+    
     with engine.connect() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb;"))
-        conn.execute(text("CREATE EXTENSION IF NOT EXISTS ai CASCADE;"))
         conn.commit()
-
+        
+    pgai.install(postgres_container.get_connection_url())
+    
     yield engine
 
-    drop_vectorizer_if_exists(1, engine)
-    drop_vectorizer_if_exists(2, engine)
     with engine.connect() as conn:
         # alembic somehow seems to leave some connections open
         # which leads to deadlocks, this cleans those up
@@ -123,4 +112,6 @@ def initialized_engine(
         conn.execute(text("DROP SCHEMA public cascade;"))
         conn.commit()
         conn.execute(text("CREATE SCHEMA public;"))
+        conn.commit()
+        conn.execute(text("DROP SCHEMA ai cascade;"))
         conn.commit()

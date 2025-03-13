@@ -7,7 +7,7 @@ import signal
 import sys
 import traceback
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Literal
 
 import click
 import docling.utils.model_downloader
@@ -24,6 +24,7 @@ from .vectorizer.features import Features
 from .vectorizer.parsing import DOCLING_CACHE_DIR
 from .vectorizer.vectorizer import Vectorizer
 from .vectorizer.worker_tracking import WorkerTracking
+from .install import install as install_pgai
 
 load_dotenv()
 
@@ -60,11 +61,35 @@ def get_bool_env(name: str | None) -> bool:
 tracer.enabled = get_bool_env("DD_TRACE_ENABLED")
 
 
-def get_pgai_version(cur: psycopg.Cursor) -> str | None:
+class Version:
+    def __init__(self, ext_version: str | None, app_version: str | None):
+        self.ext_version = ext_version
+        self.app_version = app_version
+
+    def __str__(self):
+        return f"ext_version: {self.ext_version}, app_version: {self.app_version}"
+
+def get_pgai_version(cur: psycopg.Cursor) -> Version | None:
     cur.execute("select extversion from pg_catalog.pg_extension where extname = 'ai'")
     row = cur.fetchone()
-    return row[0] if row is not None else None
-
+    ext_version = row[0] if row is not None else None
+    
+    # todo: think this through more, expecially for Feature Flags
+    app_version = None
+    cur.execute("""
+        SELECT EXISTS (
+            SELECT 1 
+            FROM information_schema.tables 
+            WHERE table_schema = 'ai' 
+            AND table_name = 'app_version'
+        )
+    """)
+    table_exists = cur.fetchone()[0]
+    if table_exists:
+        cur.execute("select version from ai.app_version where name = 'ai'")
+        row = cur.fetchone()
+        app_version = row[0] if row is not None else None
+    return Version(ext_version, app_version)
 
 def get_vectorizer_ids(
     db_url: str, vectorizer_ids: Sequence[int] | None = None
@@ -89,7 +114,7 @@ def get_vectorizer_ids(
         return valid_vectorizer_ids
 
 
-def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer:
+def get_vectorizer(db_url: str, vectorizer_id: int, features: Features) -> Vectorizer:
     with (
         psycopg.Connection.connect(db_url) as con,
         con.cursor(row_factory=dict_row) as cur,
@@ -110,7 +135,7 @@ def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer:
             api_key = os.getenv(api_key_name, None)
             if api_key is not None:
                 log.debug(f"obtained secret '{api_key_name}' from environment")
-            else:
+            elif features.db_reveal_secrets:
                 cur.execute(
                     "select ai.reveal_secret(%s)",
                     (api_key_name,),
@@ -317,8 +342,14 @@ async def async_run_vectorizer_worker(
                     con.cursor(row_factory=namedtuple_row) as cur,
                 ):
                     pgai_version = get_pgai_version(cur)
-                    if pgai_version is None:
-                        err_msg = "the pgai extension is not installed"
+                    if (
+                        pgai_version is None or 
+                        (
+                            pgai_version.ext_version is None and 
+                            pgai_version.app_version is None
+                        )
+                    ):
+                        err_msg = "pgai is not installed in the database"
                         await handle_error(
                             err_msg, None, worker_tracking, exit_on_error
                         )
@@ -356,7 +387,7 @@ async def async_run_vectorizer_worker(
 
                 for vectorizer_id in valid_vectorizer_ids:
                     try:
-                        vectorizer = get_vectorizer(db_url, vectorizer_id)
+                        vectorizer = get_vectorizer(db_url, vectorizer_id, features)
                     except (VectorizerNotFoundError, ApiKeyNotFoundError) as e:
                         err_msg = (
                             f"error getting vectorizer: {type(e).__name__}: {str(e)}"
@@ -411,3 +442,16 @@ def cli():
 vectorizer.add_command(vectorizer_worker)
 vectorizer.add_command(download_models)
 cli.add_command(vectorizer)
+
+
+
+@cli.command()
+@click.option(
+    "-d",
+    "--db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+)
+def install(db_url: str) -> None:
+    install_pgai(db_url)

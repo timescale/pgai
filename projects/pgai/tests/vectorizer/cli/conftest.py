@@ -32,9 +32,9 @@ class TestDatabase:
                 conn.execute(
                     f"CREATE EXTENSION IF NOT EXISTS ai"  # type: ignore
                     f"   WITH VERSION '{extension_version}' CASCADE"
-                )
-            else:
-                conn.execute("CREATE EXTENSION IF NOT EXISTS ai CASCADE")
+                ) 
+            import pgai
+            pgai.install(url)
             conn.execute(
                 sql.SQL("CREATE DATABASE {0}").format(sql.Identifier(self.dbname))
             )

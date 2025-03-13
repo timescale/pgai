@@ -54,7 +54,8 @@ def test_vectorizer_embedding_creation(
 
     with vcr_.use_cassette("test_vectorizer_large_mbedding_creation.yaml"):
         # Run vectorizer worker
-        run_vectorizer_worker(db_url, 1)
+        result = run_vectorizer_worker(db_url, 1)
+        assert result.exit_code == 0
 
     # Verify embeddings were created
     with Session(initialized_engine) as session:
