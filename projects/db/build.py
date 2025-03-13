@@ -127,6 +127,7 @@ class Actions:
                 wf.write("\n\n")
             wf.flush()
             wf.close()
+        shutil.copyfile(osf, lib_sql_file())
 
     @staticmethod
     def clean() -> None:
@@ -342,6 +343,14 @@ def pg_major() -> str | None:
 def ext_dir() -> Path:
     return Path(__file__).resolve().parent
 
+def lib_dir() -> Path:
+    return ext_dir().parent / "pgai"
+
+def lib_data_dir() -> Path:
+    return lib_dir() / "pgai" / "data"
+
+def lib_sql_file() -> Path:
+    return lib_data_dir() / "ai.sql"
 
 def sql_dir() -> Path:
     return ext_dir() / "sql"

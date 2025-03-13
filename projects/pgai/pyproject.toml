@@ -127,3 +127,6 @@ dev-dependencies = [
     "mitmproxy==10.3.0",
     "Jinja2>=3.1.5",
 ]
+
+[tool.hatch.build.targets.wheel.shared-data]
+"pgai/data" = "data"

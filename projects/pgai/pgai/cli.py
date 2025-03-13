@@ -22,6 +22,7 @@ from .vectorizer.embeddings import ApiKeyMixin
 from .vectorizer.features import Features
 from .vectorizer.vectorizer import Vectorizer, Worker
 from .vectorizer.worker_tracking import WorkerTracking
+from .install import install as install_pgai
 
 load_dotenv()
 
@@ -425,3 +426,16 @@ def cli():
 
 vectorizer.add_command(vectorizer_worker)
 cli.add_command(vectorizer)
+
+
+
+@cli.command()
+@click.option(
+    "-d",
+    "--db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+)
+def install(db_url: str) -> None:
+    asyncio.run(install_pgai(db_url))
