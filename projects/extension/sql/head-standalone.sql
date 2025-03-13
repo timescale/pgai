@@ -1,4 +1,5 @@
 create extension if not exists vector;
+-- TODO: transaction
 -- TODO: security
 create schema if not exists ai;
 
