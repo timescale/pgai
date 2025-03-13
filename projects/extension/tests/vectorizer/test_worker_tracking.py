@@ -128,11 +128,12 @@ def test_worker_tracking_progress():
 
             cur.execute("""
             select ai.create_vectorizer
-            ( 'blog'::regclass
-            , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
-            , chunking=>ai.chunking_character_text_splitter('body', 128, 10)
-            , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
-            ) as vectorizer_id;
+                ( 'blog'::regclass
+                , loading => ai.loading_column('body')
+                , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+                , chunking=>ai.chunking_character_text_splitter(128, 10)
+                , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
+                ) as vectorizer_id;
             """)
             vectorizer_id = cur.fetchone()["vectorizer_id"]
 
