@@ -31,7 +31,7 @@ from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .embeddings import ChunkEmbeddingError
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
-from .loading import ColumnLoading, UriLoading, UriLoadingError
+from .loading import ColumnLoading, UriLoading, LoadingError
 from .migrations import apply_migrations
 from .parsing import ParsingAuto, ParsingNone, ParsingPyMuPDF
 from .processing import ProcessingDefault
@@ -234,7 +234,7 @@ class VectorizerQueryBuilder:
 
         > ... the system retrieves a specified number of entries from the work
         queue, determined by the batch queue size parameter. A FOR UPDATE lock
-        is taken to ensure that concurrently executing scripts don't try
+        is taken to ensure that concurrently executing scripts don’t try
         processing the same queue items. The SKIP LOCKED directive ensures that
         if any entry is currently being handled by another script, the system
         will skip it instead of waiting, avoiding unnecessary delays.
@@ -254,16 +254,14 @@ class VectorizerQueryBuilder:
                 WITH selected_rows AS (
                     SELECT {pk_fields}
                     FROM {queue_table}
-                    WHERE (loading_retry_after is null or loading_retry_after < now())
-                    AND loading_retries <= %(loading_retries)s
-                    LIMIT %(batch_size)s
+                    LIMIT %s
                     FOR UPDATE SKIP LOCKED
                 ),
                 locked_items AS (
                     SELECT
                         {pk_fields},
                         pg_try_advisory_xact_lock(
-                            %(queue_table_oid)s,
+                            %s,
                             hashtext(concat_ws('|', {lock_fields}))
                         ) AS locked
                     FROM (
@@ -285,6 +283,102 @@ class VectorizerQueryBuilder:
                 ORDER BY {pk_fields}
                         """).format(
             pk_fields=self.pk_fields_sql,
+            queue_table=sql.Identifier(
+                self.vectorizer.queue_schema, self.vectorizer.queue_table
+            ),
+            lock_fields=sql.SQL(" ,").join(
+                [
+                    xs
+                    for x in self.vectorizer.source_pk
+                    for xs in [
+                        sql.Literal(x.attname),
+                        sql.Identifier(x.attname),
+                    ]
+                ]
+            ),
+            delete_join_predicates=sql.SQL(" AND ").join(
+                [
+                    sql.SQL("w.{} = l.{}").format(
+                        sql.Identifier(x.attname),
+                        sql.Identifier(x.attname),
+                    )
+                    for x in self.vectorizer.source_pk
+                ]
+            ),
+            source_schema=sql.Identifier(self.vectorizer.source_schema),
+            source_table=sql.Identifier(self.vectorizer.source_table),
+        )
+
+    @cached_property
+    def fetch_work_query_with_retries(self) -> sql.Composed:
+        """
+        Note that this is an updated version of the original query that includes
+        the loading_retries column.
+        Generates the SQL query to fetch work items from the queue table.
+
+        The query is safe to run concurrently from multiple workers. It handles
+        duplicate work items by allowing only one instance of the duplicates to
+        be proccessed at a time.
+
+        For a thorough explanation of the query, see:
+
+        https://www.timescale.com/blog/how-we-designed-a-resilient-vector-embedding-creation-system-for-postgresql-data/#process-the-work-queue
+
+        The main takeaways are:
+
+        > ... the system retrieves a specified number of entries from the work
+        queue, determined by the batch queue size parameter. A FOR UPDATE lock
+        is taken to ensure that concurrently executing scripts don't try
+        processing the same queue items. The SKIP LOCKED directive ensures that
+        if any entry is currently being handled by another script, the system
+        will skip it instead of waiting, avoiding unnecessary delays.
+
+        > Due to the possibility of duplicate entries for the same blog_id
+        within the work-queue table, simply locking said table is insufficient
+        ... A Postgres advisory lock, prefixed with the table identifier to
+        avoid potential overlaps with other such locks, is employed. The try
+        variant, analogous to the earlier application of SKIP LOCKED, ensures
+        the system avoids waiting on locks. The inclusion of the ORDER BY
+        blog_id clause helps prevent potential deadlocks...
+
+        The only difference, between the blog and this query, is that we handle
+        composite primary keys.
+        """
+        return sql.SQL("""
+                WITH selected_rows AS (
+                    SELECT {pk_fields}, {loading_retries}
+                    FROM {queue_table}
+                    WHERE loading_retry_after is null or loading_retry_after < now()
+                    LIMIT %s
+                    FOR UPDATE SKIP LOCKED
+                ),
+                locked_items AS (
+                    SELECT
+                        {pk_fields}, {loading_retries},
+                        pg_try_advisory_xact_lock(
+                            %s,
+                            hashtext(concat_ws('|', {lock_fields}))
+                        ) AS locked
+                    FROM (
+                        SELECT DISTINCT {pk_fields}, {loading_retries}
+                        FROM selected_rows
+                        ORDER BY {pk_fields}
+                    ) as ids
+                ),
+                deleted_rows AS (
+                    DELETE FROM {queue_table} AS w
+                    USING locked_items AS l
+                    WHERE l.locked = true
+                    AND {delete_join_predicates}
+                )
+                SELECT {source_table}.*, {loading_retries}
+                FROM locked_items
+                LEFT JOIN {source_schema}.{source_table} USING ({pk_fields})
+                WHERE locked_items.locked = true
+                ORDER BY {pk_fields}
+                        """).format(
+            pk_fields=self.pk_fields_sql,
+            loading_retries=sql.Identifier("loading_retries"),
             queue_table=sql.Identifier(
                 self.vectorizer.queue_schema, self.vectorizer.queue_table
             ),
@@ -400,10 +494,7 @@ class VectorizerQueryBuilder:
             ON {merge_predicates}
             WHEN MATCHED
                 AND target.loading_retries >= %(loading_retries)s THEN
-                    UPDATE
-                        SET
-                            loading_retries = target.loading_retries + 1,
-                            loading_retry_after = null
+                    DELETE
             WHEN MATCHED THEN
                     UPDATE
                         SET
@@ -426,6 +517,25 @@ class VectorizerQueryBuilder:
                     sql.Identifier(x.attname),
                 )
                 for x in self.vectorizer.source_pk
+            ),
+        )
+
+    @cached_property
+    def reinsert_work_to_retry_query(self) -> sql.Composed:
+        return sql.SQL("""
+            INSERT INTO {queue_table}
+                ({pk_fields}, loading_retries, loading_retry_after)
+            VALUES
+                ({pk_values}, (%(current_retries)s+1),
+                now() + INTERVAL '3 minutes'* (%(current_retries)s + 1))
+                        """).format(
+            pk_fields=self.pk_fields_sql,
+            queue_table=sql.Identifier(
+                self.vectorizer.queue_schema, self.vectorizer.queue_table
+            ),
+            pk_values=sql.SQL(",").join(
+                sql.SQL("(%(pk{})s)").format(sql.Literal(i))
+                for i in range(len(self.pk_fields))
             ),
         )
 
@@ -550,6 +660,7 @@ class Worker:
         self.features = features
         self.copy_types: None | list[int] = None
         self.worker_tracking = worker_tracking
+        self.pending_retries: list[tuple[SourceRow, LoadingError]] = []
 
     async def run(self) -> int:
         """
@@ -602,32 +713,6 @@ class Worker:
                     raise e.__cause__  # noqa
                 raise e
 
-            except UriLoadingError as e:
-                async with conn.transaction():
-                    is_retryable = await self._requeue_or_remove_work(
-                        conn, self.vectorizer.config.loading.retries, e.pk_values
-                    )
-                    await self._insert_vectorizer_error(
-                        conn,
-                        (
-                            self.vectorizer.id,
-                            e.msg,
-                            Jsonb(
-                                {
-                                    "loader": self.vectorizer.config.loading.implementation,  # noqa
-                                    "error_reason": str(e.__cause__),
-                                    "is_retryable": is_retryable,
-                                }
-                            ),
-                        ),
-                    )
-
-                # This is to make the traceback not as verbose by removing
-                # the lines about our wrapper exception being caused by
-                # the actual exception.
-                if e.__cause__ is not None:
-                    raise e.__cause__  # noqa
-                raise e
             except Exception as e:
                 async with conn.transaction():
                     await self._insert_vectorizer_error(
@@ -729,14 +814,22 @@ class Worker:
         """
         queue_table_oid = await self._get_queue_table_oid(conn)
         async with conn.cursor(row_factory=dict_row) as cursor:
-            await cursor.execute(
-                self.queries.fetch_work_query,
-                {
-                    "batch_size": self.vectorizer.config.processing.batch_size,
-                    "queue_table_oid": queue_table_oid,
-                    "loading_retries": loading_retries,
-                },
-            )
+            if self.features.loading_retries:
+                await cursor.execute(
+                    self.queries.fetch_work_query_with_retries,
+                    (
+                        self.vectorizer.config.processing.batch_size,
+                        queue_table_oid,
+                    ),
+                )
+            else:
+                await cursor.execute(
+                    self.queries.fetch_work_query,
+                    (
+                        self.vectorizer.config.processing.batch_size,
+                        queue_table_oid,
+                    ),
+                )
             return await cursor.fetchall()
 
     async def _get_queue_table_oid(self, conn: AsyncConnection) -> int:
@@ -783,7 +876,8 @@ class Worker:
 
         await self._delete_embeddings(conn, items)
         records, errors = await self._generate_embeddings(items)
-        # await self._insert_embeddings(conn, records)
+        if self.features.loading_retries:
+            await self.handle_loading_retries(conn)
         await self._copy_embeddings(conn, records)
         if errors:
             await self._insert_vectorizer_errors(conn, errors)
@@ -893,7 +987,9 @@ class Worker:
             try:
                 payload = self.vectorizer.config.loading.load(item)
             except Exception as e:
-                raise UriLoadingError(pk_values=pk_values) from e
+                if self.features.loading_retries:
+                    self.pending_retries.append((item, (LoadingError(e=e))))
+                continue
 
             payload = self.vectorizer.config.parsing.parse(item, payload)
             chunks = self.vectorizer.config.chunking.into_chunks(item, payload)
@@ -939,32 +1035,55 @@ class Worker:
             ),
         )
 
-    async def _requeue_or_remove_work(
-        self,
-        conn: AsyncConnection,
-        loading_retries: int,
-        pk_values: list[Any],
+    async def handle_loading_retries(self, conn: AsyncConnection):
+        if self.pending_retries:
+            for item, e in self.pending_retries:
+                is_retryable = await self._reinsert_work_to_retry(
+                    conn, self.vectorizer.config.loading.retries, item
+                )
+                await self._insert_vectorizer_error(
+                    conn,
+                    (
+                        self.vectorizer.id,
+                        e.msg,
+                        Jsonb(
+                            {
+                                "loader": self.vectorizer.config.loading.implementation,  # noqa
+                                "error_reason": str(e.__cause__),
+                                "is_retryable": is_retryable,
+                            }
+                        ),
+                    ),
+                )
+
+        self.pending_retries = []
+
+    async def _reinsert_work_to_retry(
+        self, conn: AsyncConnection, max_loading_retries: int, item: SourceRow
     ) -> bool:
         """
         Requeue the work items that failed to generate embeddings.
-
-        Args:
-            conn (AsyncConnection): The database connection.
         """
+
+        current_retries = item.get("loading_retries", 0)
+        if current_retries >= max_loading_retries:
+            return False
+
         params = {
-            "loading_retries": loading_retries,
-            **{f"pk{i}": value for i, value in enumerate(pk_values)},
+            "loading_retries": max_loading_retries,
+            "current_retries": current_retries,
+            **{
+                f"pk{i}": value
+                for i, value in enumerate(self._get_item_pk_values(item))
+            },
         }
 
         async with conn.cursor() as cursor:
             await cursor.execute(
-                self.queries.requeue_or_remove_work_query,
+                self.queries.reinsert_work_to_retry_query,
                 params,
             )
-            row = await cursor.fetchone()
-            if row is None:
-                raise ValueError("is_retryable is None")
-            return row[0]
+            return True
 
 
 TIKTOKEN_CACHE_DIR = os.path.join(
