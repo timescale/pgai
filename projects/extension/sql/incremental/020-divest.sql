@@ -1,7 +1,34 @@
+--todo: guard by vectorizer table part of the extension
+
+create table ai.migration_app
+( "name" text not null primary key
+, applied_at_version text not null
+, applied_at timestamptz not null default pg_catalog.clock_timestamp()
+, body text not null
+);
+
+
+insert into ai.migration_app (name, applied_at_version, applied_at, body)
+select "name", 'unpackaged', now(), body
+from ai.migration
+where name in (
+    '001-vectorizer.sql'
+    , '003-vec-storage.sql'
+    , '005-vectorizer-queue-pending.sql'
+    , '006-drop-vectorizer.sql'
+    , '009-drop-truncate-from-vectorizer-config.sql'
+    , '012-add-vectorizer-disabled-column.sql'
+    , '017-upgrade-source-pk.sql'
+    , '018-drop-foreign-key-constraint.sql'
+    );
+
+
+drop function if exists ai._vectorizer_create_dependencies(integer);
+drop function if exists ai._vectorizer_handle_drops() cascade;
 
 -------------------------------------------------------------------------------
 -- schema
-alter extension ai drop schema ai;
+--alter extension ai drop schema ai;
 alter schema ai owner to pg_database_owner;
 
 -------------------------------------------------------------------------------
@@ -50,23 +77,25 @@ begin
         raise notice '%', _sql;
         execute _sql;
         
-        select format
-        ( $sql$alter %s %I.%I owner to pg_database_owner$sql$
-        , case _rec.relkind
-            when 'r' then 'table'
-            when 'S' then 'sequence'
-            when 'v' then 'view'
-          end
-        , _rec.nspname
-        , _rec.relname
-        ) into strict _sql
-        ;
-        raise notice '%', _sql;
-        execute _sql;
+        if _rec.relname != 'vectorizer_id_seq' THEN
+            select format
+            ( $sql$alter %s %I.%I owner to pg_database_owner$sql$
+            , case _rec.relkind
+                when 'r' then 'table'
+                when 'S' then 'sequence'
+                when 'v' then 'view'
+            end
+            , _rec.nspname
+            , _rec.relname
+            ) into strict _sql
+            ;
+            raise notice '%', _sql;
+            execute _sql;
+        end if;
     end loop;
 end;
 $block$;
-;
+
 
 
 -------------------------------------------------------------------------------
@@ -92,7 +121,7 @@ begin
         (
             select format
             ( $sql$%s %I.%I(%s)$sql$
-            , p.prokind
+            , case when p.prokind = 'f' then 'function' else 'procedure' end
             , n.nspname
             , p.proname
             , pg_catalog.pg_get_function_identity_arguments(p.oid)
@@ -152,6 +181,7 @@ begin
         , 'function ai.chunk_text(input text, chunk_size integer, chunk_overlap integer, separator text, is_separator_regex boolean)'
         , 'function ai.chunk_text_recursively(input text, chunk_size integer, chunk_overlap integer, separators text[], is_separator_regex boolean)'
         , 'function ai.grant_ai_usage(to_user name, admin boolean)'
+        , 'function ai.execute_vectorizer(vectorizer_id integer)'
         )
     )
     loop
@@ -173,4 +203,3 @@ begin
     end loop;
 end;
 $block$;
-;

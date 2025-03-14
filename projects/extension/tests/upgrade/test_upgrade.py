@@ -188,7 +188,7 @@ def test_unpackaged_upgrade():
     create_database("upgrade_target")
    
     from pgai.install import install
-    install(db_url( USER, "upgrade_target"))
+    install(db_url(USER, "upgrade_target"))
      
     init("upgrade_target", "_vectorizer_only")
     snapshot("upgrade_target", f"unpackaged-expected", "_vectorizer_only")
@@ -203,6 +203,8 @@ def test_unpackaged_upgrade():
 
     drop_extension("upgrade_path")
 
+    #this install upgrades the library
+    install(db_url(USER, "upgrade_path"))
     snapshot("upgrade_path", f"unpackaged-actual", "_vectorizer_only")
     
     
@@ -210,13 +212,13 @@ def test_unpackaged_upgrade():
     expected = (
         Path(__file__)
         .parent.absolute()
-        .joinpath(f"unpacked-expected.snapshot")
+        .joinpath(f"unpackaged-expected.snapshot")
         .read_text()
     )
     actual = (
         Path(__file__)
         .parent.absolute()
-        .joinpath(f"unpacked-actual.snapshot")
+        .joinpath(f"unpackaged-actual.snapshot")
         .read_text()
     )
 

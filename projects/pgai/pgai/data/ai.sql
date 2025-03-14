@@ -16,8 +16,9 @@ do $bootstrap_app$
 declare
     _current_user_id oid = null;
     _migration_table_owner_id oid = null;
+    _database_owner_id oid = null;
 begin
-    select pg_catalog.to_regrole('@extowner@')::oid
+    select pg_catalog.to_regrole(current_user)::oid
     into strict _current_user_id;
 
     select k.relowner into _migration_table_owner_id
@@ -28,8 +29,20 @@ begin
 
     if _migration_table_owner_id is not null
     and _migration_table_owner_id is distinct from _current_user_id then
-        raise exception 'only the owner of the ai.migration_app table can install/upgrade this extension';
-        return;
+    
+        if _migration_table_owner_id = to_regrole('pg_database_owner') then
+            select d.datdba into strict _database_owner_id
+            from pg_catalog.pg_database d
+            where d.datname = current_database();
+
+            if _database_owner_id is distinct from _current_user_id then
+                raise exception 'only the owner of the ai.migration_app table can install/upgrade this extension';
+                return;
+            end if;
+        else
+            raise exception 'only the owner of the ai.migration_app table can install/upgrade this extension';
+            return;
+        end if;
     end if;
 
     if _migration_table_owner_id is null then

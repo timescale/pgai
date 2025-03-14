@@ -13,8 +13,10 @@
 select
   "name"
 , case "name"
-    -- we hacked this frozen file and thus must make an exception for it
-    when '002-secret_permissions.sql' then '066cbcf6e6898c241a665b08ee25b4cb'
+    -- this file had pg_catalog.pg_extension_config_dump commands so we had to modify it
+    when '001-vectorizer.sql' then 'skip'
+    -- this file had both vectorizer and non-vectorizer code so we had to modify it
+    when '009-drop-truncate-from-vectorizer-config.sql' then 'skip'
     else md5(convert_to(body, 'UTF8'))
   end as body_md5
 from ai.migration_app
