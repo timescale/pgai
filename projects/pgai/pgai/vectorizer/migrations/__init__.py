@@ -81,6 +81,8 @@ def apply_migrations(data: dict[str, Any]) -> dict[str, Any]:
         )
         return data
 
+    current_version = current_version.replace("-dev", "")
+
     current = semver.VersionInfo.parse(current_version)
     latest = semver.VersionInfo.parse(get_latest_version())
 
