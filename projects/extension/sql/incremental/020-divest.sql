@@ -1,20 +1,43 @@
---todo: guard by vectorizer table part of the extension
-drop function if exists ai._vectorizer_create_dependencies(integer);
-drop function if exists ai._vectorizer_handle_drops() cascade;
--------------------------------------------------------------------------------
--- schema, tables, views, sequences
 do $block$
 declare
+    _vectorizer_is_in_extension boolean;
     _rec record;
     _sql text;
     _db_owner_name text;
     _acl_is_default boolean;
 begin
+
+    --the vectorizer table is in the very first migration that used to be run as part of the extension install
+    --so we can check if the vectorizer machinery is in the extension by checking if the vectorizer table exists
+    select
+        count(*) > 0 into _vectorizer_is_in_extension
+    from pg_catalog.pg_depend d
+    inner join pg_catalog.pg_class k on (d.objid = k.oid)
+    inner join pg_catalog.pg_namespace n on (k.relnamespace = n.oid)
+    inner join pg_catalog.pg_extension x on (d.refobjid = x.oid)
+    where d.classid = 'pg_catalog.pg_class'::regclass::oid
+    and d.refclassid = 'pg_catalog.pg_extension'::regclass::oid
+    and d.deptype = 'e'
+    and x.extname = 'ai'
+    and n.nspname = 'ai'
+    and k.relname = 'vectorizer';
+    
+    if not _vectorizer_is_in_extension then
+        --the vectorizer machinery is not in the extension, so we can skip the divest process
+        return;
+    end if;
+    
+    drop function if exists ai._vectorizer_create_dependencies(integer);
+    drop function if exists ai._vectorizer_handle_drops() cascade;
+    
     select r.rolname into strict _db_owner_name
     from pg_catalog.pg_database d
     join pg_catalog.pg_authid r on d.datdba = r.oid
     where d.datname = current_database();
-    
+
+-------------------------------------------------------------------------------
+-- schema, tables, views, sequences
+
     execute format('alter schema ai owner to %I;', _db_owner_name);
     
     execute format('create table ai.migration_app
@@ -162,8 +185,6 @@ begin
     if _acl_is_default is not null and _acl_is_default then
         execute format('revoke all on ai.vectorizer from pg_database_owner');
     end if;
-end;
-$block$;
 
 -------------------------------------------------------------------------------
 -- triggers
@@ -177,18 +198,6 @@ $block$;
 
 -------------------------------------------------------------------------------
 -- functions, procedures
-do $block$
-declare
-    _rec record;
-    _sql text;
-    _db_owner_name text;
-    _acl_is_default boolean;
-begin
-    select r.rolname into strict _db_owner_name
-    from pg_catalog.pg_database d
-    join pg_catalog.pg_authid r on d.datdba = r.oid
-    where d.datname = current_database();
-
     for _rec in
     (
         select *
