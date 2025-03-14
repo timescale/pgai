@@ -1,9 +1,11 @@
+import os
 import re
 from collections.abc import Iterable, Sequence
 from functools import cached_property
 from typing import Any, Literal, cast
 
 import openai
+import psutil
 import tiktoken
 from openai import resources
 from pydantic import BaseModel
@@ -118,7 +120,10 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
             Sequence[EmbeddingVector | ChunkEmbeddingError]: The embeddings or
             errors for each document.
         """
+        process = psutil.Process(os.getpid())
+        logger.info(f"memory_usage (before encoding): {process.memory_info().rss/(1024*1024)}MiB")
         encoded_documents = await self._encode(documents)
+        logger.info(f"memory_usage (after encoding): {process.memory_info().rss/(1024*1024)}MiB")
         await logger.adebug(f"Chunks produced: {len(documents)}")
         is_tokenized = self._encoder is not None
         try:

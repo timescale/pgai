@@ -5,6 +5,8 @@ import os
 import random
 import signal
 import sys
+import resource
+import psutil
 import traceback
 from collections.abc import Sequence
 from typing import Any
@@ -326,8 +328,14 @@ async def async_run_vectorizer_worker(
     features = None
     worker_tracking = None
 
+    pid = os.getpid()
+
+    # Get a Process object for the current process
+    process = psutil.Process(pid)
+
     while True:
         try:
+            log.info(f"memory_usage: {process.memory_info().rss/(1024*1024)}MiB")
             if not can_connect or pgai_version is None:
                 with (
                     psycopg.Connection.connect(db_url) as con,

@@ -8,6 +8,7 @@ from functools import cached_property, partial
 from itertools import repeat
 from typing import Any, TypeAlias
 from uuid import UUID
+import psutil
 
 import numpy as np
 import psycopg
@@ -470,6 +471,7 @@ class Worker:
         worker_tracking: WorkerTracking,
         should_continue_processing_hook: None | Callable[[int, int], bool] = None,
     ):
+        self.process = psutil.Process(os.getpid())
         self.db_url = db_url
         self.vectorizer = vectorizer
         self.queries = VectorizerQueryBuilder(vectorizer)
@@ -607,7 +609,11 @@ class Worker:
             if len(items) == 0:
                 return 0
 
+            logger.info(f"memory_usage (before embed_and_write): {self.process.memory_info().rss/(1024*1024)}MiB")
+
             num_chunks = await self._embed_and_write(conn, items)
+
+            logger.info(f"memory_usage (after embed_and_write): {self.process.memory_info().rss/(1024*1024)}MiB")
 
             processing_stats.add_request_time(
                 time.perf_counter() - start_time, num_chunks
@@ -789,6 +795,7 @@ class Worker:
         """
         records_without_embeddings: list[EmbeddingRecord] = []
         documents: list[str] = []
+        logger.info(f"memory_usage (before chunking): {self.process.memory_info().rss/(1024*1024)}MiB")
         for item in items:
             pk = self._get_item_pk_values(item)
             chunks = self.vectorizer.config.chunking.into_chunks(item)
@@ -796,9 +803,11 @@ class Worker:
                 formatted = self.vectorizer.config.formatting.format(chunk, item)
                 records_without_embeddings.append(pk + [chunk_id, formatted])
                 documents.append(formatted)
-
+            logger.info(f"memory_usage (after chunking): {self.process.memory_info().rss/(1024*1024)}MiB")
         try:
+            logger.info(f"memory_usage (before embedding): {self.process.memory_info().rss/(1024*1024)}MiB")
             embeddings = await self.vectorizer.config.embedding.embed(documents)
+            logger.info(f"memory_usage (after embedding): {self.process.memory_info().rss/(1024*1024)}MiB")
         except Exception as e:
             raise EmbeddingProviderError() from e
 

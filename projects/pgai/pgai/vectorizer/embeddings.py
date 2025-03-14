@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from typing import Generic, TypeAlias, TypeVar
+import psutil, os
 
 import structlog
 from ddtrace import tracer
@@ -118,6 +119,8 @@ class BatchApiCaller(Generic[T]):
         )
         num_batches = len(batches)
 
+        process = psutil.Process(os.getpid())
+
         total_duration = 0.0
         embedding_stats = EmbeddingStats()
         with tracer.trace("embeddings.do"):
@@ -125,6 +128,7 @@ class BatchApiCaller(Generic[T]):
             if current_span:
                 current_span.set_tag("batches.total", num_batches)
             for i, (start, end) in enumerate(batches):
+                logger.info(f"memory_usage (beginning batch {i}): {process.memory_info().rss/(1024*1024)}MiB")
                 batch_num = i
                 batch = documents[start:end]
 
