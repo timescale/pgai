@@ -105,9 +105,7 @@ class Config:
         if isinstance(data, dict) and all(isinstance(key, str) for key in data):  # type: ignore[reportUnknownVariableType]
             return apply_migrations(data)  # type: ignore[arg-type]
 
-        logger.warning(
-            "Unable to migrate configuration: raw data type is unknown"
-        )
+        logger.warning("Unable to migrate configuration: raw data type is unknown")
         return data  # type: ignore[reportUnknownVariableType]
 
 

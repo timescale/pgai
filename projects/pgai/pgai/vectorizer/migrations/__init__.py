@@ -75,9 +75,7 @@ def apply_migrations(data: dict[str, Any]) -> dict[str, Any]:
     # determine starting version
     current_version = data.get("version")
     if current_version is None:
-        logger.warning(
-            "Unable to migrate configuration: 'version' field missing."
-        )
+        logger.warning("Unable to migrate configuration: 'version' field missing")
         return data
 
     current_version = current_version.replace("-dev", "")
