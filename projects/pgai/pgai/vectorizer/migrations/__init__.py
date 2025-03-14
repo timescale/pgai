@@ -76,8 +76,7 @@ def apply_migrations(data: dict[str, Any]) -> dict[str, Any]:
     current_version = data.get("version")
     if current_version is None:
         logger.warning(
-            "Vectorizer Config migration can't be considered. "
-            "Raw data does not contain a version field."
+            "Unable to migrate configuration: 'version' field missing."
         )
         return data
 
