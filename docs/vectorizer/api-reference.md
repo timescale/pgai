@@ -240,7 +240,7 @@ The parsing functions are:
 
 - [ai.parsing_auto](#aiparsing_auto): Automatically selects the appropriate parser based on file type.
 - [ai.parsing_none](#aiparsing_none): Converts various formats to Markdown. See [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) for supported formats.
-- [ai.parsing_docling](#aiparsing_docling): More powerful alternative to PyMuPDF. See [Docling](https://ds4sd.github.io/docling/usage/supported_formats/) for supported formats.
+- [ai.parsing_docling](#aiparsing_docling): More powerful alternative to PyMuPDF. See [Docling](https://docling-project.github.io/docling/usage/supported_formats/) for supported formats.
 - [ai.parsing_pymupdf](#aiparsing_pymupdf): For cases where no parsing is needed.
 
 ### ai.parsing_auto
@@ -304,7 +304,7 @@ A JSON configuration object that you can use in [ai.create_vectorizer](#create-v
 
 ### ai.parsing_docling
 
-You use `ai.parsing_docling` to parse the data provided by the loader using [docling](https://ds4sd.github.io/docling/).
+You use `ai.parsing_docling` to parse the data provided by the loader using [docling](https://docling-project.github.io/docling/).
 
 Docling is a more robust and thorough document parsing library that:
 - Uses OCR capabilities to extract text from images

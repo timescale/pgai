@@ -1,11 +1,13 @@
 import asyncio
+import json
 import os
 import threading
 import time
 from collections.abc import Callable
-from functools import cached_property
+from functools import cached_property, partial
 from itertools import repeat
 from typing import Any, TypeAlias
+from uuid import UUID
 
 import numpy as np
 import psycopg
@@ -14,9 +16,12 @@ from ddtrace import tracer
 from pgvector.psycopg import register_vector_async  # type: ignore
 from psycopg import AsyncConnection, sql
 from psycopg.rows import dict_row
-from psycopg.types.json import Jsonb
+from psycopg.types.json import Jsonb, set_json_dumps
+from pydantic import model_validator
 from pydantic.dataclasses import dataclass
 from pydantic.fields import Field
+from pydantic_core._pydantic_core import ArgsKwargs
+from typing_extensions import override
 
 from .chunking import (
     LangChainCharacterTextSplitter,
@@ -26,9 +31,11 @@ from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .embeddings import ChunkEmbeddingError
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
-from .loading import LoadingError, RowLoading, UriLoading
+from .loading import ColumnLoading, UriLoading, LoadingError
+from .migrations import apply_migrations
 from .parsing import ParsingAuto, ParsingNone, ParsingPyMuPDF
 from .processing import ProcessingDefault
+from .worker_tracking import WorkerTracking
 
 logger = structlog.get_logger()
 
@@ -76,7 +83,7 @@ class Config:
     """
 
     version: str
-    loading: RowLoading | UriLoading
+    loading: ColumnLoading | UriLoading
     embedding: OpenAI | Ollama | VoyageAI | LiteLLM
     processing: ProcessingDefault
     chunking: (
@@ -87,6 +94,19 @@ class Config:
         default_factory=lambda: ParsingAuto(implementation="auto"),
         discriminator="implementation",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_config_to_new_version(cls, data: Any) -> Any:
+        if not data:
+            return data
+        if isinstance(data, ArgsKwargs) and data.kwargs is not None:
+            return apply_migrations(data.kwargs)
+        if isinstance(data, dict) and all(isinstance(key, str) for key in data):  # type: ignore[reportUnknownVariableType]
+            return apply_migrations(data)  # type: ignore[arg-type]
+
+        logger.warning("Unable to migrate configuration: raw data type is unknown")
+        return data  # type: ignore[reportUnknownVariableType]
 
 
 @dataclass
@@ -595,6 +615,16 @@ class ProcessingStats:
         )
 
 
+class UUIDEncoder(json.JSONEncoder):
+    """A JSON encoder which can dump UUID."""
+
+    @override
+    def default(self, o: Any):
+        if isinstance(o, UUID):
+            return str(o)
+        return json.JSONEncoder.default(self, o)
+
+
 class Worker:
     """
     Responsible for processing items from the work queue and generating embeddings.
@@ -618,6 +648,7 @@ class Worker:
         db_url: str,
         vectorizer: Vectorizer,
         features: Features,
+        worker_tracking: WorkerTracking,
         should_continue_processing_hook: None | Callable[[int, int], bool] = None,
     ):
         self.db_url = db_url
@@ -628,6 +659,7 @@ class Worker:
         )
         self.features = features
         self.copy_types: None | list[int] = None
+        self.worker_tracking = worker_tracking
         self.pending_retries: list[tuple[SourceRow, LoadingError]] = []
 
     async def run(self) -> int:
@@ -642,9 +674,12 @@ class Worker:
         loops = 0
 
         async with await psycopg.AsyncConnection.connect(
-            self.db_url, autocommit=True
+            self.db_url,
+            autocommit=True,
+            application_name=f"pgai-worker[{self.vectorizer.id}]: {self.worker_tracking.get_short_worker_id()}",  # noqa: E501
         ) as conn:
             try:
+                set_json_dumps(partial(json.dumps, cls=UUIDEncoder), context=conn)
                 await register_vector_async(conn)
                 await self.vectorizer.config.embedding.setup()
                 while True:
@@ -655,7 +690,9 @@ class Worker:
                         return res
                     res += items_processed
                     loops += 1
-
+                    await self.worker_tracking.save_vectorizer_success(
+                        conn, self.vectorizer.id, items_processed
+                    )
             except EmbeddingProviderError as e:
                 async with conn.transaction():
                     await self._insert_vectorizer_error(
@@ -734,7 +771,7 @@ class Worker:
         processing_stats = ProcessingStats()
         start_time = time.perf_counter()
         async with conn.transaction():
-            items = await self._fetch_work(conn)
+            items = await self._fetch_work(conn, self.vectorizer.config.loading.retries)
 
             current_span = tracer.current_span()
             if current_span:
@@ -760,7 +797,9 @@ class Worker:
 
             return len(items)
 
-    async def _fetch_work(self, conn: AsyncConnection) -> list[SourceRow]:
+    async def _fetch_work(
+        self, conn: AsyncConnection, loading_retries: int
+    ) -> list[SourceRow]:
         """
         Fetches a batch of tasks from the work queue table. Safe for concurrent use.
 

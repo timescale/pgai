@@ -7,7 +7,7 @@ To run pgai, you need to run two containers:
 
 We have example docker-compose files to get you started:
 
-- [docker compose for pgai](/examples/docker_compose_pgai_ollama/docker-compose.yml) - for using pgai with OpenAI and Voyage AI
+- [docker compose for pgai](/examples/docker_compose_pgai/docker-compose.yml) - for using pgai with OpenAI and Voyage AI
 - [docker compose for pgai with Ollama](/examples/docker_compose_pgai_ollama/docker-compose.yml) - for using pgai with Ollama running locally
 
 If you want to run the containers by themselves, see the detailed instructions below.

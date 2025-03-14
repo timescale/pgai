@@ -63,12 +63,11 @@ FROM base
 ENV WHERE_AM_I=docker
 USER root
 
-RUN pip install --break-system-packages uv==0.5.20
+RUN pip install --break-system-packages uv==0.6.3
 
-WORKDIR /pgai
+# install only our python dependencies for dev/test
+COPY pyproject.toml uv.lock /py/
+RUN uv sync --directory /py --no-install-project --only-dev --frozen
+ENV PATH="/py/.venv/bin:$PATH"
 
-## install our test python dependencies
-COPY pyproject.toml uv.lock requirements-lock.txt build.py /pgai
-COPY ai /pgai/ai
-RUN uv sync
-ENV PATH="/pgai/.venv/bin:$PATH"
+WORKDIR /pgai/projects/extension

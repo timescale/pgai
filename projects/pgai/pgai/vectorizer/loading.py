@@ -24,7 +24,7 @@ def guess_filetype(file_like: BytesIO, file_path: str | None = None) -> str | No
     return guess.extension
 
 
-class RowLoading(BaseModel):
+class ColumnLoading(BaseModel):
     implementation: Literal["column"]
     column_name: str
     retries: int = 6

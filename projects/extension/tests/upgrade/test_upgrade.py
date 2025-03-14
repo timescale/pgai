@@ -1,7 +1,7 @@
 import os
 import subprocess
 from collections import namedtuple
-from pathlib import Path
+from pathlib import Path, PosixPath
 
 import psycopg
 import pytest
@@ -32,7 +32,9 @@ def where_am_i() -> str:
 
 
 def docker_dir() -> str:
-    return "/pgai/tests/upgrade"
+    return str(
+        PosixPath("/").joinpath("pgai", "projects", "extension", "tests", "upgrade")
+    )
 
 
 def host_dir() -> Path:
@@ -144,8 +146,8 @@ def test_upgrades():
         create_extension("upgrade_target", path.target)
         assert check_version("upgrade_target") == path.target
         # executes different init functions due to chunking function signature change.
-        if is_version_earlier_than(path.target, "0.8.1"):
-            init_db_script("upgrade_target", "init_old.sql")
+        if is_version_earlier_or_equal_than(path.target, "0.9.0"):
+            init_db_script("upgrade_target", "init_0_9_0.sql")
         else:
             init_db_script("upgrade_target", "init.sql")
         snapshot("upgrade_target", f"{path_name}-expected")
@@ -153,7 +155,7 @@ def test_upgrades():
         create_database("upgrade_path")
         create_extension("upgrade_path", path.path[0])
         assert check_version("upgrade_path") == path.path[0]
-        init_db_script("upgrade_path", "init_old.sql")
+        init_db_script("upgrade_path", "init_0_9_0.sql")
         # upgrade through each version to the end
         for version in path.path[1:]:
             update_extension("upgrade_path", version)
@@ -179,10 +181,10 @@ def test_upgrades():
         assert actual == expected, f"snapshots do not match for {debug_path}"
 
 
-def is_version_earlier_than(v1, v2):
+def is_version_earlier_or_equal_than(v1, v2):
     v1_parts = list(map(int, v1.split("-")[0].split(".")))
     v2_parts = list(map(int, v2.split("-")[0].split(".")))
-    return v1_parts < v2_parts
+    return v1_parts <= v2_parts
 
 
 def fetch_versions(dbname: str) -> list[str]:
@@ -214,7 +216,7 @@ def test_production_version_upgrade_path():
     # start at the first version
     create_extension("upgrade0", versions[0])
     assert check_version("upgrade0") == versions[0]
-    init_db_script("upgrade0", "init_old.sql")
+    init_db_script("upgrade0", "init_0_9_0.sql")
     # upgrade through each version to the end
     for version in versions[1:]:
         update_extension("upgrade0", version)
@@ -225,7 +227,7 @@ def test_production_version_upgrade_path():
     create_database("upgrade1")
     create_extension("upgrade1", versions[-1])
     assert check_version("upgrade1") == versions[-1]
-    init_db_script("upgrade1", "init_old.sql")
+    init_db_script("upgrade1", "init_0_9_0.sql")
     # snapshot the ai extension and schema
     snapshot("upgrade1", "upgrade1")
     # compare the snapshots. they should match
@@ -289,8 +291,8 @@ def test_vectorizer_trigger_upgrade():
             assert "IS DISTINCT FROM" not in old_trigger_def
 
             # Upgrade to the new version
-            update_extension("trigger_upgrade", "0.8.1-dev")
-            assert check_version("trigger_upgrade") == "0.8.1-dev"
+            update_extension("trigger_upgrade", "0.9.0")
+            assert check_version("trigger_upgrade") == "0.9.0"
 
             # Get the new trigger function definition
             cur.execute(

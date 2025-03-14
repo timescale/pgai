@@ -11,6 +11,7 @@ from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.vectorizer import Vectorizer, Worker
 from pgai.vectorizer.features.features import Features
+from pgai.vectorizer.worker_tracking import WorkerTracking
 from tests.vectorizer.cli.conftest import (
     TestDatabase,
     configure_vectorizer,
@@ -331,6 +332,7 @@ def test_disabled_vectorizer_is_skipped_before_next_batch(
     )
 
     features = Features("100.0.0")
+    worker_tracking = WorkerTracking(cli_db_url, 500, features, "0.0.1")
 
     # When the vectorizer is disabled after processing the first batch.
     def should_continue_processing_hook(_loops: int, _res: int) -> bool:
@@ -343,7 +345,11 @@ def test_disabled_vectorizer_is_skipped_before_next_batch(
     ):
         results = asyncio.run(
             Worker(
-                cli_db_url, vectorizer, features, should_continue_processing_hook
+                cli_db_url,
+                vectorizer,
+                features,
+                worker_tracking,
+                should_continue_processing_hook,
             ).run()
         )
     # Then it successfully exits after the first batch.
@@ -391,6 +397,7 @@ def test_disabled_vectorizer_is_backwards_compatible(
         " separators => array[E'\\n\\n', E'\\n', ' '])",
     )
     features = Features("0.6.0")
+    worker_tracking = WorkerTracking(cli_db_url, 500, features, "0.0.1")
     assert not features.disable_vectorizers
 
     # And the vectorizer is disabled so that we can test the backwards
@@ -412,7 +419,9 @@ def test_disabled_vectorizer_is_backwards_compatible(
 
     # When the vectorizer is executed.
     with vcr_.use_cassette("test_disabled_vectorizer_is_backwards_compatible.yaml"):
-        results = asyncio.run(Worker(cli_db_url, vectorizer, features).run())
+        results = asyncio.run(
+            Worker(cli_db_url, vectorizer, features, worker_tracking).run()
+        )
 
     # Then the disable is ignored and the vectorizer successfully exits after
     # processing the batches.
@@ -436,6 +445,53 @@ def test_disabled_vectorizer_is_backwards_compatible(
         )
         row = cur.fetchone()
         assert row is not None and row["pending_items"] == 0
+
+
+def test_regression_vectorizer_uuid_pk_with_error(
+    cli_db: tuple[PostgresContainer, Connection],
+    cli_db_url: str,
+    vcr_: Any,
+):
+    """Validate that we correctly handle a uuid in PK when there's an error chunking"""
+    _, connection = cli_db
+
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("drop table if exists uuid_table")
+        cur.execute("""
+                create table uuid_table
+                ( id uuid not null
+                , content text not null
+                , primary key (id)
+                )
+            """)
+        cur.execute("""
+                insert into uuid_table (id, content)
+                VALUES (
+                  gen_random_uuid()
+                , repeat('if two witches watch two watches, which witch watches which watch', 1000)
+                )
+            """)  # noqa
+
+    vectorizer_id = configure_vectorizer(
+        "uuid_table",
+        cli_db[1],
+    )
+
+    # When running the worker
+    with vcr_.use_cassette("test_regression_vectorizer_uuid_pk_with_error.yaml"):
+        result = run_vectorizer_worker(cli_db_url, vectorizer_id)
+
+    if result.exit_code != 0:
+        assert result.output == ""
+
+    # Then verify the chunks were created correctly
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT count(*) FROM uuid_table_embedding_store")
+        results = cur.fetchall()
+        assert results[0]["count"] == 0
+        cur.execute("SELECT count(*) FROM ai.vectorizer_errors")
+        results = cur.fetchall()
+        assert results[0]["count"] == 1
 
 
 def test_vectorizer_without_retries_works_as_expected(

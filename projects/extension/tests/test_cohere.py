@@ -363,9 +363,10 @@ def test_cohere_rerank_simple(cur_with_api_key):
 
 
 def test_cohere_chat_complete(cur_with_api_key):
+    # even with temperature 0.0 and seed 42, the response can vary, so we only check if it's not empty
     cur_with_api_key.execute("""
         select ai.cohere_chat_complete
-        ( 'command-r-plus'
+        ( 'command-r'
         , jsonb_build_array
           ( jsonb_build_object
             ( 'role', 'user'
@@ -376,7 +377,5 @@ def test_cohere_chat_complete(cur_with_api_key):
         , temperature=>0.0
         )->'message'->'content'->0->>'text'
     """)
-    actual = cur_with_api_key.fetchone()[0]
-    assert (
-        actual == "As much wood as a woodchuck would, if a woodchuck could chuck wood."
-    )
+    result = cur_with_api_key.fetchone()[0]
+    assert result
