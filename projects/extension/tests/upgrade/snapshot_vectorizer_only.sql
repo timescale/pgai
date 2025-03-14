@@ -5,7 +5,7 @@
 -- verbose display of the objects in the ai schema
 \d+ ai.*
 
-\df ai.*
+\df+ ai.*
 SELECT
   proname AS function_name,
   md5(pg_get_functiondef(p.oid)) AS body_md5

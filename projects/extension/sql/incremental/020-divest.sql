@@ -162,6 +162,7 @@ declare
     _rec record;
     _sql text;
     _db_owner_name text;
+    _acl_is_default boolean;
 begin
     select r.rolname into strict _db_owner_name
     from pg_catalog.pg_database d
@@ -255,6 +256,26 @@ begin
         ;
         raise notice '%', _sql;
         execute _sql;
+        
+        --see if the default acl is set for the db owner and reset to null if so 
+        select proacl = array[ 
+           makeaclitem(
+            to_regrole(_db_owner_name)::oid, 
+            to_regrole(_db_owner_name)::oid, 
+            'EXECUTE', 
+            TRUE),
+            makeaclitem(
+            to_regrole('pg_database_owner')::oid, 
+            to_regrole(_db_owner_name)::oid, 
+            'EXECUTE', 
+            TRUE)
+        ] into _acl_is_default
+        from pg_catalog.pg_proc p
+        where p.oid = _rec.oid;
+        
+        if _acl_is_default then
+            execute format('update pg_catalog.pg_proc set proacl = NULL where oid = %L', _rec.oid);
+        end if;
     end loop;
 end;
 $block$;
