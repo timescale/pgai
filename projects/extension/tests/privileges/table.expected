@@ -1,4 +1,4 @@
- schema |           table            | user  | privilege | granted
+ schema |           table            | user  | privilege | granted 
 --------+----------------------------+-------+-----------+---------
  ai     | _secret_permissions        | alice | delete    | YES
  ai     | _secret_permissions        | alice | insert    | YES
@@ -32,6 +32,22 @@
  ai     | _vectorizer_q_1            | jill  | insert    | YES
  ai     | _vectorizer_q_1            | jill  | select    | YES
  ai     | _vectorizer_q_1            | jill  | update    | YES
+ ai     | _vectorizer_q_failed_1     | alice | delete    | YES
+ ai     | _vectorizer_q_failed_1     | alice | insert    | YES
+ ai     | _vectorizer_q_failed_1     | alice | select    | YES
+ ai     | _vectorizer_q_failed_1     | alice | update    | YES
+ ai     | _vectorizer_q_failed_1     | bob   | delete    | no
+ ai     | _vectorizer_q_failed_1     | bob   | insert    | no
+ ai     | _vectorizer_q_failed_1     | bob   | select    | no
+ ai     | _vectorizer_q_failed_1     | bob   | update    | no
+ ai     | _vectorizer_q_failed_1     | fred  | delete    | YES
+ ai     | _vectorizer_q_failed_1     | fred  | insert    | YES
+ ai     | _vectorizer_q_failed_1     | fred  | select    | YES
+ ai     | _vectorizer_q_failed_1     | fred  | update    | YES
+ ai     | _vectorizer_q_failed_1     | jill  | delete    | YES
+ ai     | _vectorizer_q_failed_1     | jill  | insert    | YES
+ ai     | _vectorizer_q_failed_1     | jill  | select    | YES
+ ai     | _vectorizer_q_failed_1     | jill  | update    | YES
  ai     | feature_flag               | alice | delete    | YES
  ai     | feature_flag               | alice | insert    | YES
  ai     | feature_flag               | alice | select    | YES
@@ -128,22 +144,6 @@
  ai     | vectorizer_worker_progress | jill  | insert    | YES
  ai     | vectorizer_worker_progress | jill  | select    | YES
  ai     | vectorizer_worker_progress | jill  | update    | YES
- ai     | _vectorizer_q_failed_1     | alice | delete    | YES
- ai     | _vectorizer_q_failed_1     | alice | insert    | YES
- ai     | _vectorizer_q_failed_1     | alice | select    | YES
- ai     | _vectorizer_q_failed_1     | alice | update    | YES
- ai     | _vectorizer_q_failed_1     | bob   | delete    | no
- ai     | _vectorizer_q_failed_1     | bob   | insert    | no
- ai     | _vectorizer_q_failed_1     | bob   | select    | no
- ai     | _vectorizer_q_failed_1     | bob   | update    | no
- ai     | _vectorizer_q_failed_1     | fred  | delete    | YES
- ai     | _vectorizer_q_failed_1     | fred  | insert    | YES
- ai     | _vectorizer_q_failed_1     | fred  | select    | YES
- ai     | _vectorizer_q_failed_1     | fred  | update    | YES
- ai     | _vectorizer_q_failed_1     | jill  | delete    | YES
- ai     | _vectorizer_q_failed_1     | jill  | insert    | YES
- ai     | _vectorizer_q_failed_1     | jill  | select    | YES
- ai     | _vectorizer_q_failed_1     | jill  | update    | YES
  wiki   | post                       | alice | delete    | YES
  wiki   | post                       | alice | insert    | YES
  wiki   | post                       | alice | select    | YES
@@ -176,5 +176,5 @@
  wiki   | post_embedding_store       | jill  | insert    | YES
  wiki   | post_embedding_store       | jill  | select    | YES
  wiki   | post_embedding_store       | jill  | update    | YES
-(160 rows)
+(176 rows)
 
