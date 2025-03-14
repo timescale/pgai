@@ -1,0 +1,77 @@
+interactions:
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, br, zstd
+      connection:
+      - keep-alive
+      content-type:
+      - application/json
+      host:
+      - api.openai.com
+      user-agent:
+      - AsyncOpenAI/Python 1.65.3
+      x-stainless-arch:
+      - arm64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - MacOS
+      x-stainless-package-version:
+      - 1.65.3
+      x-stainless-read-timeout:
+      - '600'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.10.15
+    method: GET
+    uri: https://api.openai.com/v1/batches/batch_67cf68323760819097ce6ea8b3337bfb
+  response:
+    body:
+      string: !!binary |
+        IbwCACAGXctXaC77W+BBL6p1cuB0Oydtt0DaoiTmiCNIT1YeXt4wQvKxnwSg42FoB/oHCaDXHH70
+        D/S/ReBPYYaTU/uaTxnyCELixn29w+T1cWzn/TI/1tf8vsP4FfufwHGcd5AEgk6rbX3aO1re+KzL
+        HWJvcrrTUTheq6/0D81cVeEI2yhGIsBNbgMD
+    headers:
+      CF-RAY:
+      - 91fc8ad64a27d82a-MRS
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - br
+      Content-Type:
+      - application/json
+      Date:
+      - Thu, 13 Mar 2025 15:25:10 GMT
+      Server:
+      - cloudflare
+      Transfer-Encoding:
+      - chunked
+      X-Content-Type-Options:
+      - nosniff
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      openai-organization:
+      - popsql
+      openai-processing-ms:
+      - '19'
+      openai-version:
+      - '2020-10-01'
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains; preload
+      x-request-id:
+      - req_5e70ee5be008019806f738e792124b01
+    status:
+      code: 404
+      message: Not Found
+version: 1
