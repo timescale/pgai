@@ -17,8 +17,10 @@ from pgvector.psycopg import register_vector_async  # type: ignore
 from psycopg import AsyncConnection, sql
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb, set_json_dumps
+from pydantic import model_validator
 from pydantic.dataclasses import dataclass
 from pydantic.fields import Field
+from pydantic_core._pydantic_core import ArgsKwargs
 from typing_extensions import override
 
 from .chunking import (
@@ -29,7 +31,8 @@ from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .embeddings import ChunkEmbeddingError
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
-from .loading import RowLoading, UriLoading, UriLoadingError
+from .loading import ColumnLoading, UriLoading, UriLoadingError
+from .migrations import apply_migrations
 from .parsing import ParsingAuto, ParsingNone, ParsingPyMuPDF
 from .processing import ProcessingDefault
 from .worker_tracking import WorkerTracking
@@ -80,7 +83,7 @@ class Config:
     """
 
     version: str
-    loading: RowLoading | UriLoading
+    loading: ColumnLoading | UriLoading
     embedding: OpenAI | Ollama | VoyageAI | LiteLLM
     processing: ProcessingDefault
     chunking: (
@@ -91,6 +94,19 @@ class Config:
         default_factory=lambda: ParsingAuto(implementation="auto"),
         discriminator="implementation",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_config_to_new_version(cls, data: Any) -> Any:
+        if not data:
+            return data
+        if isinstance(data, ArgsKwargs) and data.kwargs is not None:
+            return apply_migrations(data.kwargs)
+        if isinstance(data, dict) and all(isinstance(key, str) for key in data):  # type: ignore[reportUnknownVariableType]
+            return apply_migrations(data)  # type: ignore[arg-type]
+
+        logger.warning("Unable to migrate configuration: raw data type is unknown")
+        return data  # type: ignore[reportUnknownVariableType]
 
 
 @dataclass
