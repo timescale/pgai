@@ -352,14 +352,13 @@ async def async_run_vectorizer_worker(
                         await handle_error(
                             err_msg, None, worker_tracking, exit_on_error
                         )
-                        break
-                    features = Features(pgai_version)
-
-                    worker_tracking = WorkerTracking(
-                        db_url, poll_interval, features, __version__
-                    )
-                    await worker_tracking.start()
-                    can_connect = True
+                    else:
+                        features = Features(pgai_version)
+                        worker_tracking = WorkerTracking(
+                            db_url, poll_interval, features, __version__
+                        )
+                        await worker_tracking.start()
+                        can_connect = True
 
             if can_connect and features is not None and worker_tracking is not None:
                 if not dynamic_mode and len(valid_vectorizer_ids) != len(
