@@ -106,8 +106,7 @@ class Config:
             return apply_migrations(data)  # type: ignore[arg-type]
 
         logger.warning(
-            "Vectorizer Config migration can't be considered. "
-            "Raw data type is unknown"
+            "Unable to migrate configuration: raw data type is unknown"
         )
         return data  # type: ignore[reportUnknownVariableType]
 
