@@ -109,9 +109,9 @@ query like this:
 ```sql
 SELECT ai.create_vectorizer( 
    'blog'::regclass,
-    destination => 'blog_contents_embeddings',
-    embedding => ai.embedding_ollama('nomic-embed-text', 768),
-    chunking => ai.chunking_recursive_character_text_splitter('contents')
+   loading => ai.loading_column('contents'),
+   destination => 'blog_contents_embeddings',
+   embedding => ai.embedding_ollama('nomic-embed-text', 768)
 );
 ```
 
@@ -119,6 +119,12 @@ This example uses the `nomic-embed-text` embedding model hosted on a local
 Ollama instance. Vectorizer supports other embedding providers, for more details
 consult the [embedding configuration](/docs/vectorizer/api-reference.md#embedding-configuration)
 section of the vectorizer API reference.
+
+The `loading` parameter specifies the source of the data to generate embeddings from. E.g. from the `contents` column.
+Vectorizer supports other loaders, such as the
+`ai.loading_uri`, which loads external documents from local or remote buckets like S3, etc.
+For more details, check the [loading configuration](/docs/vectorizer/api-reference.md#loading-configuration) section 
+of the vectorizer API reference.
 
 Additionally, if the `contents` field is lengthy, it is split into multiple chunks,
 resulting in several embeddings for a single blog post. Chunking helps
@@ -135,9 +141,9 @@ into each chunk:
 ```sql
 SELECT ai.create_vectorizer(   
     'blog'::regclass,
+    loading => ai.loading_column('contents'),
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_ollama('nomic-embed-text', 768),
-    chunking => ai.chunking_recursive_character_text_splitter('contents'),
     formatting => ai.formatting_python_template('$title: $chunk')
 );
 ```
@@ -223,9 +229,9 @@ accordingly:
 ```sql
 SELECT ai.create_vectorizer(
     'blog'::regclass,
+    loading => ai.loading_column('contents'),
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_ollama('nomic-embed-text', 768),
-    chunking => ai.chunking_recursive_character_text_splitter('contents', chunk_size => 700),
     formatting => ai.formatting_python_template('$title - by $author - $chunk')
 );
 ```
@@ -243,9 +249,9 @@ example uses a HNSW index:
 ```sql
 SELECT ai.create_vectorizer(
     'blog'::regclass,
+    loading => ai.loading_column('contents'),
     destination => 'blog_contents_embeddings',
     embedding => ai.embedding_ollama('nomic-embed-text', 768),
-    chunking => ai.chunking_recursive_character_text_splitter('contents', chunk_size => 700),
     formatting => ai.formatting_python_template('$title - by $author - $chunk'),
     indexing => ai.indexing_hnsw(min_rows => 100000, opclass => 'vector_l2_ops')
 );

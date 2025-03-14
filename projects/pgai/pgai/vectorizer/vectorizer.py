@@ -17,8 +17,10 @@ from pgvector.psycopg import register_vector_async  # type: ignore
 from psycopg import AsyncConnection, sql
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb, set_json_dumps
+from pydantic import model_validator
 from pydantic.dataclasses import dataclass
 from pydantic.fields import Field
+from pydantic_core._pydantic_core import ArgsKwargs
 from typing_extensions import override
 
 from .chunking import (
@@ -29,6 +31,9 @@ from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .embeddings import ChunkEmbeddingError
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
+from .loading import ColumnLoading, UriLoading, UriLoadingError
+from .migrations import apply_migrations
+from .parsing import ParsingAuto, ParsingNone, ParsingPyMuPDF
 from .processing import ProcessingDefault
 from .worker_tracking import WorkerTracking
 
@@ -78,12 +83,30 @@ class Config:
     """
 
     version: str
+    loading: ColumnLoading | UriLoading
     embedding: OpenAI | Ollama | VoyageAI | LiteLLM
     processing: ProcessingDefault
     chunking: (
         LangChainCharacterTextSplitter | LangChainRecursiveCharacterTextSplitter
     ) = Field(..., discriminator="implementation")
     formatting: PythonTemplate | ChunkValue = Field(..., discriminator="implementation")
+    parsing: ParsingNone | ParsingAuto | ParsingPyMuPDF = Field(
+        default_factory=lambda: ParsingAuto(implementation="auto"),
+        discriminator="implementation",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_config_to_new_version(cls, data: Any) -> Any:
+        if not data:
+            return data
+        if isinstance(data, ArgsKwargs) and data.kwargs is not None:
+            return apply_migrations(data.kwargs)
+        if isinstance(data, dict) and all(isinstance(key, str) for key in data):  # type: ignore[reportUnknownVariableType]
+            return apply_migrations(data)  # type: ignore[arg-type]
+
+        logger.warning("Unable to migrate configuration: raw data type is unknown")
+        return data  # type: ignore[reportUnknownVariableType]
 
 
 @dataclass
@@ -211,7 +234,7 @@ class VectorizerQueryBuilder:
 
         > ... the system retrieves a specified number of entries from the work
         queue, determined by the batch queue size parameter. A FOR UPDATE lock
-        is taken to ensure that concurrently executing scripts don’t try
+        is taken to ensure that concurrently executing scripts don't try
         processing the same queue items. The SKIP LOCKED directive ensures that
         if any entry is currently being handled by another script, the system
         will skip it instead of waiting, avoiding unnecessary delays.
@@ -231,14 +254,16 @@ class VectorizerQueryBuilder:
                 WITH selected_rows AS (
                     SELECT {pk_fields}
                     FROM {queue_table}
-                    LIMIT %s
+                    WHERE (loading_retry_after is null or loading_retry_after < now())
+                    AND loading_retries <= %(loading_retries)s
+                    LIMIT %(batch_size)s
                     FOR UPDATE SKIP LOCKED
                 ),
                 locked_items AS (
                     SELECT
                         {pk_fields},
                         pg_try_advisory_xact_lock(
-                            %s,
+                            %(queue_table_oid)s,
                             hashtext(concat_ws('|', {lock_fields}))
                         ) AS locked
                     FROM (
@@ -356,6 +381,52 @@ class VectorizerQueryBuilder:
     def is_vectorizer_disabled_query(self) -> sql.Composed:
         return sql.SQL("SELECT disabled FROM {} WHERE id = %s").format(
             self.vectorizer_table_ident,
+        )
+
+    @cached_property
+    def requeue_or_remove_work_query(self) -> sql.Composed:
+        return sql.SQL("""
+            MERGE INTO {queue_table} AS target
+            USING (
+                SELECT
+                    {pk_fields}
+                FROM
+                    {queue_table}
+                WHERE
+                    ({pk_fields}) IN ({pk_values})
+                AND
+                    (loading_retry_after is null or loading_retry_after < now())
+            ) AS source
+            ON {merge_predicates}
+            WHEN MATCHED
+                AND target.loading_retries >= %(loading_retries)s THEN
+                    UPDATE
+                        SET
+                            loading_retries = target.loading_retries + 1,
+                            loading_retry_after = null
+            WHEN MATCHED THEN
+                    UPDATE
+                        SET
+                            loading_retries = target.loading_retries + 1,
+                            loading_retry_after = now() +
+                                (INTERVAL '3 minutes' * (target.loading_retries + 1))
+            RETURNING target.loading_retries < %(loading_retries)s AS is_retryable
+                        """).format(
+            pk_fields=self.pk_fields_sql,
+            queue_table=sql.Identifier(
+                self.vectorizer.queue_schema, self.vectorizer.queue_table
+            ),
+            pk_values=sql.SQL(",").join(
+                sql.SQL("(%(pk{})s)").format(sql.Literal(i))
+                for i in range(len(self.pk_fields))
+            ),
+            merge_predicates=sql.SQL(" AND ").join(
+                sql.SQL("target.{} = source.{}").format(
+                    sql.Identifier(x.attname),
+                    sql.Identifier(x.attname),
+                )
+                for x in self.vectorizer.source_pk
+            ),
         )
 
 
@@ -526,8 +597,33 @@ class Worker:
                             ),
                         ),
                     )
+
+                if e.__cause__ is not None:
+                    raise e.__cause__  # noqa
+                raise e
+
+            except UriLoadingError as e:
+                async with conn.transaction():
+                    is_retryable = await self._requeue_or_remove_work(
+                        conn, self.vectorizer.config.loading.retries, e.pk_values
+                    )
+                    await self._insert_vectorizer_error(
+                        conn,
+                        (
+                            self.vectorizer.id,
+                            e.msg,
+                            Jsonb(
+                                {
+                                    "loader": self.vectorizer.config.loading.implementation,  # noqa
+                                    "error_reason": str(e.__cause__),
+                                    "is_retryable": is_retryable,
+                                }
+                            ),
+                        ),
+                    )
+
                 # This is to make the traceback not as verbose by removing
-                # the lines about our wrapper exception being casused by
+                # the lines about our wrapper exception being caused by
                 # the actual exception.
                 if e.__cause__ is not None:
                     raise e.__cause__  # noqa
@@ -590,7 +686,7 @@ class Worker:
         processing_stats = ProcessingStats()
         start_time = time.perf_counter()
         async with conn.transaction():
-            items = await self._fetch_work(conn)
+            items = await self._fetch_work(conn, self.vectorizer.config.loading.retries)
 
             current_span = tracer.current_span()
             if current_span:
@@ -616,7 +712,9 @@ class Worker:
 
             return len(items)
 
-    async def _fetch_work(self, conn: AsyncConnection) -> list[SourceRow]:
+    async def _fetch_work(
+        self, conn: AsyncConnection, loading_retries: int
+    ) -> list[SourceRow]:
         """
         Fetches a batch of tasks from the work queue table. Safe for concurrent use.
 
@@ -633,10 +731,11 @@ class Worker:
         async with conn.cursor(row_factory=dict_row) as cursor:
             await cursor.execute(
                 self.queries.fetch_work_query,
-                (
-                    self.vectorizer.config.processing.batch_size,
-                    queue_table_oid,
-                ),
+                {
+                    "batch_size": self.vectorizer.config.processing.batch_size,
+                    "queue_table_oid": queue_table_oid,
+                    "loading_retries": loading_retries,
+                },
             )
             return await cursor.fetchall()
 
@@ -747,11 +846,11 @@ class Worker:
         records: list[VectorizerErrorRecord],
     ):
         """
-        Inserts vectorizer errors into the errors table.
+        inserts vectorizer errors into the errors table.
 
-        Args:
-            conn (AsyncConnection): The database connection.
-            records (list[VectorizerErrorRecord]): The error records to be inserted.
+        args:
+            conn (asyncconnection): the database connection.
+            records (list[vectorizererrorrecord]): the error records to be inserted.
         """
         async with conn.cursor() as cursor:
             await cursor.executemany(self.queries.insert_errors_query, records)
@@ -790,11 +889,17 @@ class Worker:
         records_without_embeddings: list[EmbeddingRecord] = []
         documents: list[str] = []
         for item in items:
-            pk = self._get_item_pk_values(item)
-            chunks = self.vectorizer.config.chunking.into_chunks(item)
+            pk_values = self._get_item_pk_values(item)
+            try:
+                payload = self.vectorizer.config.loading.load(item)
+            except Exception as e:
+                raise UriLoadingError(pk_values=pk_values) from e
+
+            payload = self.vectorizer.config.parsing.parse(item, payload)
+            chunks = self.vectorizer.config.chunking.into_chunks(item, payload)
             for chunk_id, chunk in enumerate(chunks, 0):
                 formatted = self.vectorizer.config.formatting.format(chunk, item)
-                records_without_embeddings.append(pk + [chunk_id, formatted])
+                records_without_embeddings.append(pk_values + [chunk_id, formatted])
                 documents.append(formatted)
 
         try:
@@ -833,6 +938,33 @@ class Worker:
                 }
             ),
         )
+
+    async def _requeue_or_remove_work(
+        self,
+        conn: AsyncConnection,
+        loading_retries: int,
+        pk_values: list[Any],
+    ) -> bool:
+        """
+        Requeue the work items that failed to generate embeddings.
+
+        Args:
+            conn (AsyncConnection): The database connection.
+        """
+        params = {
+            "loading_retries": loading_retries,
+            **{f"pk{i}": value for i, value in enumerate(pk_values)},
+        }
+
+        async with conn.cursor() as cursor:
+            await cursor.execute(
+                self.queries.requeue_or_remove_work_query,
+                params,
+            )
+            row = await cursor.fetchone()
+            if row is None:
+                raise ValueError("is_retryable is None")
+            return row[0]
 
 
 TIKTOKEN_CACHE_DIR = os.path.join(

@@ -1,0 +1,52 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Range:
+      - !!binary |
+        Ynl0ZXM9MC0=
+      User-Agent:
+      - !!binary |
+        Qm90bzMvMS4zNi40IG1kL0JvdG9jb3JlIzEuMzYuNCB1YS8yLjAgb3MvbWFjb3MjMjMuNi4wIG1k
+        L2FyY2gjYXJtNjQgbGFuZy9weXRob24jMy4xMC4xNSBtZC9weWltcGwjQ1B5dGhvbiBjZmcvcmV0
+        cnktbW9kZSNsZWdhY3kgQm90b2NvcmUvMS4zNi40
+      X-Amz-Content-SHA256:
+      - !!binary |
+        ZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3
+        ODUyYjg1NQ==
+      X-Amz-Date:
+      - !!binary |
+        MjAyNTAzMDVUMTE0MzE2Wg==
+      amz-sdk-invocation-id:
+      - !!binary |
+        YzY5ZDIyOGMtMTI4MS00ZGU2LWFkZjktOTQ3YjczYjZlYWM2
+      amz-sdk-request:
+      - !!binary |
+        YXR0ZW1wdD0x
+      x-amz-checksum-mode:
+      - !!binary |
+        RU5BQkxFRA==
+    method: GET
+    uri: http://localhost:32882/localstack-test-bucket/non_existing_doc.pdf
+  response:
+    body:
+      string: '<?xml version=''1.0'' encoding=''utf-8''?>
+
+        <Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><RequestId>204ec6cd-66f5-4952-9e67-cfb89429331e</RequestId><Key>non_existing_doc.pdf</Key></Error>'
+    headers:
+      Content-Length:
+      - '218'
+      Content-Type:
+      - application/xml
+      Date:
+      - Wed, 05 Mar 2025 11:43:16 GMT
+      Server:
+      - TwistedWeb/24.3.0
+      x-amz-id-2:
+      - s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=
+      x-amz-request-id:
+      - 204ec6cd-66f5-4952-9e67-cfb89429331e
+    status:
+      code: 404
+      message: NOT FOUND
+version: 1

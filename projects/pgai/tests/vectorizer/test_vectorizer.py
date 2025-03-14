@@ -74,9 +74,10 @@ async def test_vectorizer_internal():
         cur.execute("""
                 select ai.create_vectorizer
                 ( 'note0'::regclass
+                , loading=>ai.loading_column('note')
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
                 , formatting=>ai.formatting_python_template('$id: $chunk')
-                , chunking=>ai.chunking_character_text_splitter('note')
+                , chunking=>ai.chunking_character_text_splitter()
                 , scheduling=>
                     ai.scheduling_timescaledb
                     ( interval '5m'
@@ -176,9 +177,10 @@ async def test_vectorizer_weird_pk():
         cur.execute("""
                 select ai.create_vectorizer
                 ( 'weird'::regclass
+                , loading=>ai.loading_column('note')
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
                 , formatting=>ai.formatting_python_template('$chunk')
-                , chunking=>ai.chunking_character_text_splitter('note')
+                , chunking=>ai.chunking_character_text_splitter()
                 , scheduling=>
                     ai.scheduling_timescaledb
                     ( interval '5m'
