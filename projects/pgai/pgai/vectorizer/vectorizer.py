@@ -35,6 +35,7 @@ from .loading import ColumnLoading, UriLoading, UriLoadingError
 from .migrations import apply_migrations
 from .parsing import ParsingAuto, ParsingNone, ParsingPyMuPDF
 from .processing import ProcessingDefault
+from .worker_tracking import WorkerTracking
 
 logger = structlog.get_logger()
 
@@ -540,6 +541,7 @@ class Worker:
         db_url: str,
         vectorizer: Vectorizer,
         features: Features,
+        worker_tracking: WorkerTracking,
         should_continue_processing_hook: None | Callable[[int, int], bool] = None,
     ):
         self.db_url = db_url
@@ -550,6 +552,7 @@ class Worker:
         )
         self.features = features
         self.copy_types: None | list[int] = None
+        self.worker_tracking = worker_tracking
 
     async def run(self) -> int:
         """
@@ -563,7 +566,9 @@ class Worker:
         loops = 0
 
         async with await psycopg.AsyncConnection.connect(
-            self.db_url, autocommit=True
+            self.db_url,
+            autocommit=True,
+            application_name=f"pgai-worker[{self.vectorizer.id}]: {self.worker_tracking.get_short_worker_id()}",  # noqa: E501
         ) as conn:
             try:
                 set_json_dumps(partial(json.dumps, cls=UUIDEncoder), context=conn)
@@ -577,7 +582,9 @@ class Worker:
                         return res
                     res += items_processed
                     loops += 1
-
+                    await self.worker_tracking.save_vectorizer_success(
+                        conn, self.vectorizer.id, items_processed
+                    )
             except EmbeddingProviderError as e:
                 async with conn.transaction():
                     await self._insert_vectorizer_error(
@@ -624,7 +631,6 @@ class Worker:
                 if e.__cause__ is not None:
                     raise e.__cause__  # noqa
                 raise e
-
             except Exception as e:
                 async with conn.transaction():
                     await self._insert_vectorizer_error(

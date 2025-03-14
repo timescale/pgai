@@ -449,7 +449,7 @@ begin
             end
         , api_key=>_api_key
         , api_key_name=>_api_key_name
-        , base_url=>_base_url
+        --, base_url=>_base_url
         , frequency_penalty=>_frequency_penalty
         , logit_bias=>_logit_bias
         , logprobs=>_logprobs
@@ -460,7 +460,7 @@ begin
         , stop=>_stop
         , temperature=>_temperature
         , top_p=>_top_p
-        , openai_user=>_openai_user
+        --, openai_user=>_openai_user
         ) into strict _response
         ;
 

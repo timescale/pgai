@@ -11,6 +11,7 @@ from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.vectorizer import Vectorizer, Worker
 from pgai.vectorizer.features.features import Features
+from pgai.vectorizer.worker_tracking import WorkerTracking
 from tests.vectorizer.cli.conftest import (
     TestDatabase,
     configure_vectorizer,
@@ -331,6 +332,7 @@ def test_disabled_vectorizer_is_skipped_before_next_batch(
     )
 
     features = Features("100.0.0")
+    worker_tracking = WorkerTracking(cli_db_url, 500, features, "0.0.1")
 
     # When the vectorizer is disabled after processing the first batch.
     def should_continue_processing_hook(_loops: int, _res: int) -> bool:
@@ -343,7 +345,11 @@ def test_disabled_vectorizer_is_skipped_before_next_batch(
     ):
         results = asyncio.run(
             Worker(
-                cli_db_url, vectorizer, features, should_continue_processing_hook
+                cli_db_url,
+                vectorizer,
+                features,
+                worker_tracking,
+                should_continue_processing_hook,
             ).run()
         )
     # Then it successfully exits after the first batch.
@@ -391,6 +397,7 @@ def test_disabled_vectorizer_is_backwards_compatible(
         " separators => array[E'\\n\\n', E'\\n', ' '])",
     )
     features = Features("0.6.0")
+    worker_tracking = WorkerTracking(cli_db_url, 500, features, "0.0.1")
     assert not features.disable_vectorizers
 
     # And the vectorizer is disabled so that we can test the backwards
@@ -412,7 +419,9 @@ def test_disabled_vectorizer_is_backwards_compatible(
 
     # When the vectorizer is executed.
     with vcr_.use_cassette("test_disabled_vectorizer_is_backwards_compatible.yaml"):
-        results = asyncio.run(Worker(cli_db_url, vectorizer, features).run())
+        results = asyncio.run(
+            Worker(cli_db_url, vectorizer, features, worker_tracking).run()
+        )
 
     # Then the disable is ignored and the vectorizer successfully exits after
     # processing the batches.

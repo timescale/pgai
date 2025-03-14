@@ -7,6 +7,7 @@ from psycopg.sql import SQL, Identifier
 
 from pgai import cli
 from pgai.vectorizer.features import Features
+from pgai.vectorizer.worker_tracking import WorkerTracking
 
 # skip tests in this module if disabled
 enable_vectorizer_tool_tests = os.getenv("ENABLE_VECTORIZER_TOOL_TESTS")
@@ -33,7 +34,7 @@ def create_database(dbname: str) -> None:
         cur.execute(SQL("create database {dbname}").format(dbname=Identifier(dbname)))
 
 
-def test_vectorizer_internal():
+async def test_vectorizer_internal():
     db = "vcli0"
     create_database(db)
     _db_url = db_url("postgres", db)
@@ -111,7 +112,10 @@ def test_vectorizer_internal():
 
         # run the vectorizer
         features = Features(pgai_version)
-        cli.run_vectorizer(_db_url, vectorizer_actual, 1, features)
+        worker_tracking = WorkerTracking(_db_url, 500, features, "0.0.1")
+        await cli.run_vectorizer(
+            _db_url, vectorizer_actual, 1, features, worker_tracking
+        )
 
         # make sure the queue was emptied
         cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
@@ -143,7 +147,7 @@ def test_vectorizer_internal():
         assert actual is True
 
 
-def test_vectorizer_weird_pk():
+async def test_vectorizer_weird_pk():
     # make sure we can handle a multi-column primary key with "interesting" data types
     # this has implications on the COPY with binary format logic in the vectorizer
     db = "vcli1"
@@ -217,7 +221,10 @@ def test_vectorizer_weird_pk():
 
         # run the vectorizer
         features = Features(pgai_version)
-        cli.run_vectorizer(_db_url, vectorizer_actual, 1, features)
+        worker_tracking = WorkerTracking(_db_url, 500, features, "0.0.1")
+        await cli.run_vectorizer(
+            _db_url, vectorizer_actual, 1, features, worker_tracking
+        )
 
         # make sure the queue was emptied
         cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
