@@ -57,3 +57,8 @@ from ai.vectorizer
 ;
 
 \d+ wiki.*
+\z wiki.*
+\dt+ wiki.*
+\dv+ wiki.*
+\di+ wiki.*
+\dy+ wiki.*

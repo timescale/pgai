@@ -1,11 +1,6 @@
 --todo: guard by vectorizer table part of the extension
-
-
-
 drop function if exists ai._vectorizer_create_dependencies(integer);
 drop function if exists ai._vectorizer_handle_drops() cascade;
-
-
 -------------------------------------------------------------------------------
 -- schema, tables, views, sequences
 do $block$
@@ -45,9 +40,6 @@ begin
         , '017-upgrade-source-pk.sql'
         , '018-drop-foreign-key-constraint.sql'
     );
-    
-    
-    
 
     for _rec in
     (
@@ -64,16 +56,17 @@ begin
         and d.refclassid = 'pg_catalog.pg_extension'::regclass::oid
         and d.deptype = 'e'
         and x.extname = 'ai'
-        and (n.nspname, k.relname) not in
+        and (n.nspname, k.relname) in
         (
             values
-              ('ai', 'migration')
-            , ('ai', 'feature_flag')
-            , ('ai', '_secret_permissions')
-            , ('ai', 'secret_permissions')
+              ('ai', 'vectorizer_id_seq')
+            , ('ai', 'vectorizer')
+            , ('ai', 'vectorizer_errors')
+            , ('ai', 'vectorizer_status')
         )
     )
     loop
+        raise warning $$dropping ('%', '%')$$, _rec.nspname, _rec.relname;
         select format
         ( $sql$alter extension ai drop %s %I.%I$sql$
         , case _rec.relkind
@@ -175,11 +168,12 @@ $block$;
 -------------------------------------------------------------------------------
 -- triggers
 
+--nothing to do?
 
 -------------------------------------------------------------------------------
 -- event triggers
 
-
+--no event triggers left
 
 -------------------------------------------------------------------------------
 -- functions, procedures
@@ -217,52 +211,56 @@ begin
             and d.deptype = 'e'
             and x.extname = 'ai'
         ) x
-        where x.spec not in
-        ( 'function ai.openai_tokenize(model text, text_input text)'
-        , 'function ai.openai_detokenize(model text, tokens integer[])'
-        , 'function ai.openai_list_models(api_key text, api_key_name text, extra_headers jsonb, extra_query jsonb, "verbose" boolean, client_config jsonb)'
-        , 'function ai.openai_list_models_with_raw_response(api_key text, api_key_name text, extra_headers jsonb, extra_query jsonb, "verbose" boolean, client_config jsonb)'
-        , 'function ai.openai_embed(model text, input_text text, api_key text, api_key_name text, dimensions integer, openai_user text, extra_headers jsonb, extra_query jsonb, extra_body jsonb, "verbose" boolean, client_config jsonb)'
-        , 'function ai.openai_embed(model text, input_texts text[], api_key text, api_key_name text, dimensions integer, openai_user text, extra_headers jsonb, extra_query jsonb, extra_body jsonb, "verbose" boolean, client_config jsonb)'
-        , 'function ai.openai_embed(model text, input_tokens integer[], api_key text, api_key_name text, dimensions integer, openai_user text, extra_headers jsonb, extra_query jsonb, extra_body jsonb, "verbose" boolean, client_config jsonb)'
-        , 'function ai.openai_embed_with_raw_response(model text, input_text text, api_key text, api_key_name text, dimensions integer, openai_user text, extra_headers jsonb, extra_query jsonb, extra_body jsonb, "verbose" boolean, client_config jsonb)'
-        , 'function ai.openai_embed_with_raw_response(model text, input_texts text[], api_key text, api_key_name text, dimensions integer, openai_user text, extra_headers jsonb, extra_query jsonb, extra_body jsonb, "verbose" boolean, client_config jsonb)'
-        , 'function ai.openai_embed_with_raw_response(model text, input_tokens integer[], api_key text, api_key_name text, dimensions integer, openai_user text, extra_headers jsonb, extra_query jsonb, extra_body jsonb, "verbose" boolean, client_config jsonb)'
-        , 'function ai.openai_chat_complete(model text, messages jsonb, api_key text, api_key_name text, frequency_penalty double precision, logit_bias jsonb, logprobs boolean, top_logprobs integer, max_tokens integer, max_completion_tokens integer, n integer, presence_penalty double precision, response_format jsonb, seed integer, stop text, temperature double precision, top_p double precision, tools jsonb, tool_choice text, openai_user text, extra_headers jsonb, extra_query jsonb, extra_body jsonb, "verbose" boolean, client_config jsonb)'
-        , 'function ai.openai_chat_complete_with_raw_response(model text, messages jsonb, api_key text, api_key_name text, frequency_penalty double precision, logit_bias jsonb, logprobs boolean, top_logprobs integer, max_tokens integer, max_completion_tokens integer, n integer, presence_penalty double precision, response_format jsonb, seed integer, stop text, temperature double precision, top_p double precision, tools jsonb, tool_choice text, openai_user text, extra_headers jsonb, extra_query jsonb, extra_body jsonb, "verbose" boolean, client_config jsonb)'
-        , 'function ai.openai_chat_complete_simple(message text, api_key text, api_key_name text, "verbose" boolean, client_config jsonb)'
-        , 'function ai.openai_moderate(model text, input_text text, api_key text, api_key_name text, extra_headers jsonb, extra_query jsonb, extra_body jsonb, "verbose" boolean, client_config jsonb)'
-        , 'function ai.openai_moderate_with_raw_response(model text, input_text text, api_key text, api_key_name text, extra_headers jsonb, extra_query jsonb, extra_body jsonb, "verbose" boolean, client_config jsonb)'
-        , 'function ai.openai_client_config(base_url text, timeout_seconds double precision, organization text, project text, max_retries integer, default_headers jsonb, default_query jsonb)'
-        , 'function ai.ollama_list_models(host text, "verbose" boolean)'
-        , 'function ai.ollama_ps(host text, "verbose" boolean)'
-        , 'function ai.ollama_embed(model text, input_text text, host text, keep_alive text, embedding_options jsonb, "verbose" boolean)'
-        , 'function ai.ollama_generate(model text, prompt text, host text, images bytea[], keep_alive text, embedding_options jsonb, system_prompt text, template text, context integer[], "verbose" boolean)'
-        , 'function ai.ollama_chat_complete(model text, messages jsonb, host text, keep_alive text, chat_options jsonb, tools jsonb, response_format jsonb, "verbose" boolean)'
-        , 'function ai.anthropic_list_models(api_key text, api_key_name text, base_url text, "verbose" boolean)'
-        , 'function ai.anthropic_generate(model text, messages jsonb, max_tokens integer, api_key text, api_key_name text, base_url text, timeout double precision, max_retries integer, system_prompt text, user_id text, stop_sequences text[], temperature double precision, tool_choice jsonb, tools jsonb, top_k integer, top_p double precision, "verbose" boolean)'
-        , 'function ai.cohere_list_models(api_key text, api_key_name text, endpoint text, default_only boolean, "verbose" boolean)'
-        , 'function ai.cohere_tokenize(model text, text_input text, api_key text, api_key_name text, "verbose" boolean)'
-        , 'function ai.cohere_detokenize(model text, tokens integer[], api_key text, api_key_name text, "verbose" boolean)'
-        , 'function ai.cohere_embed(model text, input_text text, api_key text, api_key_name text, input_type text, truncate_long_inputs text, "verbose" boolean)'
-        , 'function ai.cohere_classify(model text, inputs text[], api_key text, api_key_name text, examples jsonb, truncate_long_inputs text, "verbose" boolean)'
-        , 'function ai.cohere_classify_simple(model text, inputs text[], api_key text, api_key_name text, examples jsonb, truncate_long_inputs text, "verbose" boolean)'
-        , 'function ai.cohere_rerank(model text, query text, documents text[], api_key text, api_key_name text, top_n integer, max_tokens_per_doc integer, "verbose" boolean)'
-        , 'function ai.cohere_rerank_simple(model text, query text, documents text[], api_key text, api_key_name text, top_n integer, max_tokens_per_doc integer, "verbose" boolean)'
-        , 'function ai.cohere_chat_complete(model text, messages jsonb, api_key text, api_key_name text, tools jsonb, documents jsonb, citation_options jsonb, response_format jsonb, safety_mode text, max_tokens integer, stop_sequences text[], temperature double precision, seed integer, frequency_penalty double precision, presence_penalty double precision, k integer, p double precision, logprobs boolean, tool_choice text, strict_tools boolean, "verbose" boolean)'
-        , 'function ai.reveal_secret(secret_name text, use_cache boolean)'
-        , 'function ai.grant_secret(secret_name text, grant_to_role text)'
-        , 'function ai.revoke_secret(secret_name text, revoke_from_role text)'
-        , 'function ai.voyageai_embed(model text, input_text text, input_type text, api_key text, api_key_name text, "verbose" boolean)'
-        , 'function ai.voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text, "verbose" boolean)'
-        , 'procedure ai.load_dataset_multi_txn(IN name text, IN config_name text, IN split text, IN schema_name name, IN table_name name, IN if_table_exists text, IN field_types jsonb, IN batch_size integer, IN max_batches integer, IN commit_every_n_batches integer, IN kwargs jsonb)'
-        , 'function ai.load_dataset(name text, config_name text, split text, schema_name name, table_name name, if_table_exists text, field_types jsonb, batch_size integer, max_batches integer, kwargs jsonb)'
-        , 'function ai.litellm_embed(model text, input_text text, api_key text, api_key_name text, extra_options jsonb, "verbose" boolean)'
-        , 'function ai.litellm_embed(model text, input_texts text[], api_key text, api_key_name text, extra_options jsonb, "verbose" boolean)'
-        , 'function ai.chunk_text(input text, chunk_size integer, chunk_overlap integer, separator text, is_separator_regex boolean)'
-        , 'function ai.chunk_text_recursively(input text, chunk_size integer, chunk_overlap integer, separators text[], is_separator_regex boolean)'
-        , 'function ai.grant_ai_usage(to_user name, admin boolean)'
-        , 'function ai.execute_vectorizer(vectorizer_id integer)'
+        where x.spec in
+        ( 
+         'function ai.chunking_character_text_splitter(chunk_column name, chunk_size integer, chunk_overlap integer, separator text, is_separator_regex boolean)'
+        , 'function ai.chunking_recursive_character_text_splitter(chunk_column name, chunk_size integer, chunk_overlap integer, separators text[], is_separator_regex boolean)'
+        , 'function ai._validate_chunking(config jsonb, source_schema name, source_table name)'
+        , 'function ai.formatting_python_template(template text)'
+        , 'function ai._validate_formatting_python_template(config jsonb, source_schema name, source_table name)'
+        , 'function ai._validate_formatting(config jsonb, source_schema name, source_table name)'
+        , 'function ai.scheduling_none()'
+        , 'function ai.scheduling_default()'
+        , 'function ai.scheduling_timescaledb(schedule_interval interval, initial_start timestamp with time zone, fixed_schedule boolean, timezone text)'
+        , 'function ai._resolve_scheduling_default()'
+        , 'function ai._validate_scheduling(config jsonb)'
+        , 'function ai.embedding_openai(model text, dimensions integer, chat_user text, api_key_name text, base_url text)'
+        , 'function ai.embedding_ollama(model text, dimensions integer, base_url text, options jsonb, keep_alive text)'
+        , 'function ai.embedding_voyageai(model text, dimensions integer, input_type text, api_key_name text)'
+        , 'function ai.embedding_litellm(model text, dimensions integer, api_key_name text, extra_options jsonb)'
+        , 'function ai._validate_embedding(config jsonb)'
+        , 'function ai.indexing_none()'
+        , 'function ai.indexing_default()'
+        , 'function ai.indexing_diskann(min_rows integer, storage_layout text, num_neighbors integer, search_list_size integer, max_alpha double precision, num_dimensions integer, num_bits_per_dimension integer, create_when_queue_empty boolean)'
+        , 'function ai._resolve_indexing_default()'
+        , 'function ai._validate_indexing_diskann(config jsonb)'
+        , 'function ai.indexing_hnsw(min_rows integer, opclass text, m integer, ef_construction integer, create_when_queue_empty boolean)'
+        , 'function ai._validate_indexing_hnsw(config jsonb)'
+        , 'function ai._validate_indexing(config jsonb)'
+        , 'function ai.processing_default(batch_size integer, concurrency integer)'
+        , 'function ai._validate_processing(config jsonb)'
+        , 'function ai.grant_to(VARIADIC grantees name[])'
+        , 'function ai.grant_to()'
+        , 'function ai._vectorizer_source_pk(source_table regclass)'
+        , 'function ai._vectorizer_grant_to_source(source_schema name, source_table name, grant_to name[])'
+        , 'function ai._vectorizer_grant_to_vectorizer(grant_to name[])'
+        , 'function ai._vectorizer_create_target_table(source_pk jsonb, target_schema name, target_table name, dimensions integer, grant_to name[])'
+        , 'function ai._vectorizer_create_view(view_schema name, view_name name, source_schema name, source_table name, source_pk jsonb, target_schema name, target_table name, grant_to name[])'
+        , 'function ai._vectorizer_create_queue_table(queue_schema name, queue_table name, source_pk jsonb, grant_to name[])'
+        , 'function ai._vectorizer_build_trigger_definition(queue_schema name, queue_table name, target_schema name, target_table name, source_pk jsonb)'
+        , 'function ai._vectorizer_create_source_trigger(trigger_name name, queue_schema name, queue_table name, source_schema name, source_table name, target_schema name, target_table name, source_pk jsonb)'
+        , 'function ai._vectorizer_vector_index_exists(target_schema name, target_table name, indexing jsonb)'
+        , 'function ai._vectorizer_should_create_vector_index(vectorizer ai.vectorizer)'
+        , 'function ai._vectorizer_create_vector_index(target_schema name, target_table name, indexing jsonb)'
+        , 'procedure ai._vectorizer_job(IN job_id integer, IN config jsonb)'
+        , 'function ai._vectorizer_schedule_job(vectorizer_id integer, scheduling jsonb)'
+        , 'function ai.create_vectorizer(source regclass, destination name, embedding jsonb, chunking jsonb, indexing jsonb, formatting jsonb, scheduling jsonb, processing jsonb, target_schema name, target_table name, view_schema name, view_name name, queue_schema name, queue_table name, grant_to name[], enqueue_existing boolean)'
+        , 'function ai.disable_vectorizer_schedule(vectorizer_id integer)'
+        , 'function ai.enable_vectorizer_schedule(vectorizer_id integer)'
+        , 'function ai.drop_vectorizer(vectorizer_id integer, drop_all boolean)'
+        , 'function ai.vectorizer_queue_pending(vectorizer_id integer, exact_count boolean)'
+        , 'function ai.vectorizer_embed(embedding_config jsonb, input_text text, input_type text)'
+        , 'function ai.vectorizer_embed(vectorizer_id integer, input_text text, input_type text)'
         )
     )
     loop
