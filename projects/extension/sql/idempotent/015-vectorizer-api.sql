@@ -90,7 +90,7 @@ begin
     end if;
 
     if not _is_owner then
-s        raise exception 'only a superuser or the owner of the source table may create a vectorizer on it';
+        raise exception 'only a superuser or the owner of the source table may create a vectorizer on it';
     end if;
 
     select (embedding operator(pg_catalog.->) 'dimensions')::pg_catalog.int4 into _dimensions;

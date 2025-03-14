@@ -16,7 +16,7 @@ begin
         select * from ai.vectorizer
     )
     loop
-        select array_agg(grantee) into _grant_to
+        select array_agg(distinct(grantee)) into _grant_to
         from (
                  select (aclexplode(k.relacl)).grantee::regrole::text as grantee
                  from pg_class k
