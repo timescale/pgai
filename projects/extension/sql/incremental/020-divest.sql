@@ -104,25 +104,37 @@ begin
             raise notice '%', _sql;
             execute _sql;
         end if;
-       
-        --this was granted by the extension installation but is no longer needed as the db owner owns the tables now
-        execute format('revoke all on %I.%I from pg_database_owner', _rec.nspname, _rec.relname);
-        
-        --there was also often a grant to the db owner by the extension installation, but this is no longer needed as the db owner owns the tables now
-        --and if this is the only acl clean up the acl by resetting it to null
+      
+        --see if the default acl is set for the db owner and reset to null if so 
         if _rec.relkind in ('r', 'v') then
-            select array[makeaclitem(to_regrole(_db_owner_name)::oid, to_regrole(_db_owner_name)::oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN', TRUE)] = c.relacl into strict _acl_is_default
+            select relacl = array[ 
+               makeaclitem(
+                to_regrole(_db_owner_name)::oid, 
+                to_regrole(_db_owner_name)::oid, 
+                'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN', 
+                TRUE),
+                makeaclitem(
+                to_regrole('pg_database_owner')::oid, 
+                to_regrole(_db_owner_name)::oid, 
+                'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN', 
+                TRUE)
+            ] into _acl_is_default
             from pg_catalog.pg_class c
-            where c.oid = _rec.oid; 
-        end if;
-        
-        if _acl_is_default then
-            execute format('update pg_catalog.pg_class set relacl = NULL where oid = %L', _rec.oid);
+            where c.oid = _rec.oid;
+            
+            if _acl_is_default then
+                execute format('update pg_catalog.pg_class set relacl = NULL where oid = %L', _rec.oid);
+            end if;
         end if;
     end loop;
     
     --check the vectorizer_id_seq acl and reset to null if it is the default (do this after the loop so we can see acl after the tables are changed)
-    select array[makeaclitem(to_regrole(_db_owner_name)::oid, to_regrole(_db_owner_name)::oid, 'SELECT, USAGE, UPDATE', TRUE)] = c.relacl into _acl_is_default
+    select  c.relacl = 
+       array[
+           makeaclitem(to_regrole(_db_owner_name)::oid, to_regrole(_db_owner_name)::oid, 'SELECT, USAGE, UPDATE', TRUE),
+           makeaclitem(to_regrole('pg_database_owner')::oid, to_regrole(_db_owner_name)::oid, 'SELECT, USAGE, UPDATE', TRUE)
+        ] 
+    into _acl_is_default
     from pg_catalog.pg_class c
     where c.oid = to_regclass('ai.vectorizer_id_seq');
     
@@ -142,6 +154,20 @@ begin
     
     if _acl_is_default is not null and _acl_is_default then
         execute format('revoke grant option for all on ai.vectorizer from %I', _db_owner_name);
+    end if;
+    
+    --remove pg_database_owner grant on vectorizer entirely if it's the default grant
+    select c.relacl @> 
+           makeaclitem(
+            to_regrole('pg_database_owner')::oid, 
+            to_regrole(_db_owner_name)::oid, 
+            'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN', 
+            TRUE) into _acl_is_default
+    from pg_catalog.pg_class c
+    where c.oid = to_regclass('ai.vectorizer');
+    
+    if _acl_is_default is not null and _acl_is_default then
+        execute format('revoke all on ai.vectorizer from pg_database_owner');
     end if;
 end;
 $block$;
