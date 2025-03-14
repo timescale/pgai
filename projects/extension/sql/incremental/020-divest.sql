@@ -1,43 +1,54 @@
 --todo: guard by vectorizer table part of the extension
 
-create table ai.migration_app
-( "name" text not null primary key
-, applied_at_version text not null
-, applied_at timestamptz not null default pg_catalog.clock_timestamp()
-, body text not null
-);
-
-
-insert into ai.migration_app (name, applied_at_version, applied_at, body)
-select "name", 'unpackaged', now(), body
-from ai.migration
-where name in (
-    '001-vectorizer.sql'
-    , '003-vec-storage.sql'
-    , '005-vectorizer-queue-pending.sql'
-    , '006-drop-vectorizer.sql'
-    , '009-drop-truncate-from-vectorizer-config.sql'
-    , '012-add-vectorizer-disabled-column.sql'
-    , '017-upgrade-source-pk.sql'
-    , '018-drop-foreign-key-constraint.sql'
-    );
 
 
 drop function if exists ai._vectorizer_create_dependencies(integer);
 drop function if exists ai._vectorizer_handle_drops() cascade;
 
--------------------------------------------------------------------------------
--- schema
---alter extension ai drop schema ai;
-alter schema ai owner to pg_database_owner;
 
 -------------------------------------------------------------------------------
--- tables, views, sequences
+-- schema, tables, views, sequences
 do $block$
 declare
     _rec record;
     _sql text;
+    _db_owner_name text;
+    _acl_is_default boolean;
 begin
+    select r.rolname into strict _db_owner_name
+    from pg_catalog.pg_database d
+    join pg_catalog.pg_authid r on d.datdba = r.oid
+    where d.datname = current_database();
+    
+    execute format('alter schema ai owner to %I;', _db_owner_name);
+    
+    execute format('create table ai.migration_app
+    ( "name" text not null primary key
+    , applied_at_version text not null
+    , applied_at timestamptz not null default pg_catalog.clock_timestamp()
+    , body text not null
+    )');
+    
+    execute format('alter table ai.migration_app owner to %I', _db_owner_name);
+    execute format('alter extension ai drop table ai.migration_app');
+
+    insert into ai.migration_app (name, applied_at_version, applied_at, body)
+    select "name", 'unpackaged', now(), body
+    from ai.migration
+    where name in (
+        '001-vectorizer.sql'
+        , '003-vec-storage.sql'
+        , '005-vectorizer-queue-pending.sql'
+        , '006-drop-vectorizer.sql'
+        , '009-drop-truncate-from-vectorizer-config.sql'
+        , '012-add-vectorizer-disabled-column.sql'
+        , '017-upgrade-source-pk.sql'
+        , '018-drop-foreign-key-constraint.sql'
+    );
+    
+    
+    
+
     for _rec in
     (
         select
@@ -79,7 +90,7 @@ begin
         
         if _rec.relname != 'vectorizer_id_seq' THEN
             select format
-            ( $sql$alter %s %I.%I owner to pg_database_owner$sql$
+            ( $sql$alter %s %I.%I owner to %I$sql$
             , case _rec.relkind
                 when 'r' then 'table'
                 when 'S' then 'sequence'
@@ -87,16 +98,53 @@ begin
             end
             , _rec.nspname
             , _rec.relname
+            , _db_owner_name
             ) into strict _sql
             ;
             raise notice '%', _sql;
             execute _sql;
         end if;
+       
+        --this was granted by the extension installation but is no longer needed as the db owner owns the tables now
+        execute format('revoke all on %I.%I from pg_database_owner', _rec.nspname, _rec.relname);
+        
+        --there was also often a grant to the db owner by the extension installation, but this is no longer needed as the db owner owns the tables now
+        --and if this is the only acl clean up the acl by resetting it to null
+        if _rec.relkind in ('r', 'v') then
+            select array[makeaclitem(to_regrole(_db_owner_name)::oid, to_regrole(_db_owner_name)::oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN', TRUE)] = c.relacl into strict _acl_is_default
+            from pg_catalog.pg_class c
+            where c.oid = _rec.oid; 
+        end if;
+        
+        if _acl_is_default then
+            execute format('update pg_catalog.pg_class set relacl = NULL where oid = %L', _rec.oid);
+        end if;
     end loop;
+    
+    --check the vectorizer_id_seq acl and reset to null if it is the default (do this after the loop so we can see acl after the tables are changed)
+    select array[makeaclitem(to_regrole(_db_owner_name)::oid, to_regrole(_db_owner_name)::oid, 'SELECT, USAGE, UPDATE', TRUE)] = c.relacl into _acl_is_default
+    from pg_catalog.pg_class c
+    where c.oid = to_regclass('ai.vectorizer_id_seq');
+    
+    if _acl_is_default is not null and _acl_is_default then
+        execute format('update pg_catalog.pg_class set relacl = NULL where oid = %L', to_regclass('ai.vectorizer_id_seq')::oid);
+    end if;
+    
+    --vectorizer had a grant option for the db owner, but now the db owner is the table owner so clean up the acl by removing the grant option
+    select c.relacl @> 
+           makeaclitem(
+            to_regrole(_db_owner_name)::oid, 
+            to_regrole(_db_owner_name)::oid, 
+            'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN', 
+            TRUE) into _acl_is_default
+    from pg_catalog.pg_class c
+    where c.oid = to_regclass('ai.vectorizer');
+    
+    if _acl_is_default is not null and _acl_is_default then
+        execute format('revoke grant option for all on ai.vectorizer from %I', _db_owner_name);
+    end if;
 end;
 $block$;
-
-
 
 -------------------------------------------------------------------------------
 -- triggers
@@ -113,7 +161,13 @@ do $block$
 declare
     _rec record;
     _sql text;
+    _db_owner_name text;
 begin
+    select r.rolname into strict _db_owner_name
+    from pg_catalog.pg_database d
+    join pg_catalog.pg_authid r on d.datdba = r.oid
+    where d.datname = current_database();
+
     for _rec in
     (
         select *
@@ -194,8 +248,9 @@ begin
         execute _sql;
         
         select format
-        ( $sql$alter %s owner to pg_database_owner$sql$
+        ( $sql$alter %s owner to %I$sql$
         , _rec.spec
+        , _db_owner_name
         ) into strict _sql
         ;
         raise notice '%', _sql;

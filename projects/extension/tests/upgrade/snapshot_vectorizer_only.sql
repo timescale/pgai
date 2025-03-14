@@ -4,8 +4,25 @@
 
 -- verbose display of the objects in the ai schema
 \d+ ai.*
---todo: add function source
+
 \df ai.*
+SELECT
+  proname AS function_name,
+  md5(pg_get_functiondef(p.oid)) AS body_md5
+FROM
+  pg_proc p
+JOIN
+  pg_namespace n ON n.oid = p.pronamespace
+WHERE
+  n.nspname = 'ai'
+ORDER BY
+  proname, body_md5;
+
+\z ai.*
+\dt+ ai.*
+\dv+ ai.*
+\di+ ai.*
+\dy+ ai.*
 
 
 
