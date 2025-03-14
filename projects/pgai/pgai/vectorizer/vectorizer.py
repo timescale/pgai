@@ -5,8 +5,8 @@ import threading
 import time
 from collections.abc import Callable
 from functools import cached_property, partial
-from itertools import repeat
-from typing import Any, TypeAlias
+from itertools import repeat, islice
+from typing import Any, TypeAlias, Iterator, AsyncGenerator
 from uuid import UUID
 import psutil
 
@@ -435,6 +435,18 @@ class ProcessingStats:
         )
 
 
+def flexible_take(iterable):
+    """Creates a function that takes n elements from the iterable each time it's called."""
+    # Convert to iterator if it's not already one
+    iterator = iter(iterable)
+
+    def take(n):
+        # Convert to list so we get exactly what was requested
+        return list(islice(iterator, n))
+
+    return take
+
+
 class UUIDEncoder(json.JSONEncoder):
     """A JSON encoder which can dump UUID."""
 
@@ -689,13 +701,14 @@ class Worker:
         """
 
         await self._delete_embeddings(conn, items)
-        records, errors = await self._generate_embeddings(items)
-        # await self._insert_embeddings(conn, records)
-        await self._copy_embeddings(conn, records)
-        if errors:
-            await self._insert_vectorizer_errors(conn, errors)
+        count = 0
+        async for records, errors in self._generate_embeddings(items):
+            await self._copy_embeddings(conn, records)
+            if errors:
+                await self._insert_vectorizer_errors(conn, errors)
+            count+=len(records)
 
-        return len(records)
+        return count
 
     async def _delete_embeddings(self, conn: AsyncConnection, items: list[SourceRow]):
         """
@@ -782,7 +795,7 @@ class Worker:
 
     async def _generate_embeddings(
         self, items: list[SourceRow]
-    ) -> tuple[list[EmbeddingRecord], list[VectorizerErrorRecord]]:
+    ) -> AsyncGenerator[tuple[list[EmbeddingRecord], list[VectorizerErrorRecord]], None]:
         """
         Generates the embeddings for the given items.
 
@@ -806,23 +819,25 @@ class Worker:
             logger.info(f"memory_usage (after chunking): {self.process.memory_info().rss/(1024*1024)}MiB")
         try:
             logger.info(f"memory_usage (before embedding): {self.process.memory_info().rss/(1024*1024)}MiB")
-            embeddings = await self.vectorizer.config.embedding.embed(documents)
+            rwe_take = flexible_take(records_without_embeddings)
+            async for embeddings in self.vectorizer.config.embedding.embed(documents):
+                records: list[EmbeddingRecord] = []
+                errors: list[VectorizerErrorRecord] = []
+                logger.info(f"memory_usage (before zipping): {self.process.memory_info().rss/(1024*1024)}MiB")
+                for record, embedding in zip(
+                        rwe_take(len(embeddings)), embeddings, strict=True
+                ):
+                    if isinstance(embedding, ChunkEmbeddingError):
+                        errors.append(self._vectorizer_error_record(record, embedding))
+                    else:
+                        records.append(record + [np.array(embedding)])
+                logger.info(f"memory_usage (after zipping): {self.process.memory_info().rss/(1024*1024)}MiB")
+                yield records, errors
+
             logger.info(f"memory_usage (after embedding): {self.process.memory_info().rss/(1024*1024)}MiB")
         except Exception as e:
             raise EmbeddingProviderError() from e
 
-        assert len(embeddings) == len(records_without_embeddings)
-
-        records: list[EmbeddingRecord] = []
-        errors: list[VectorizerErrorRecord] = []
-        for record, embedding in zip(
-            records_without_embeddings, embeddings, strict=True
-        ):
-            if isinstance(embedding, ChunkEmbeddingError):
-                errors.append(self._vectorizer_error_record(record, embedding))
-            else:
-                records.append(record + [np.array(embedding)])
-        return records, errors
 
     def _vectorizer_error_record(
         self, record: EmbeddingRecord, chunk_error: ChunkEmbeddingError

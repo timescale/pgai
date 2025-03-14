@@ -2,7 +2,7 @@ import time
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from typing import Generic, TypeAlias, TypeVar
+from typing import Generic, TypeAlias, TypeVar, Iterator, AsyncGenerator
 import psutil, os
 
 import structlog
@@ -97,7 +97,7 @@ class BatchApiCaller(Generic[T]):
 
     async def batch_chunks_and_embed(
         self, documents: list[T], is_tokenized: bool = False
-    ) -> list[EmbeddingVector]:
+    ) -> AsyncGenerator[list[EmbeddingVector], None]:
         """
         Performs the actual embedding of encoded documents by sending requests
         to the embedding API.
@@ -109,17 +109,18 @@ class BatchApiCaller(Generic[T]):
         Returns:
             list[EmbeddingVector]: A list of embedding vectors for each document.
         """
-        response: list[list[float]] = []
         max_chunks_per_batch = self.max_chunks_per_batch
         max_tokens_per_batch = self.max_tokens_per_batch if is_tokenized else None
+        process = psutil.Process(os.getpid())
+        logger.info(f"memory_usage (before batching): {process.memory_info().rss/(1024*1024)}MiB")
         batches = batch_indices(
             documents,
             max_chunks_per_batch=max_chunks_per_batch,
             max_tokens_per_batch=max_tokens_per_batch,
         )
         num_batches = len(batches)
+        logger.info(f"memory_usage (after batching): {process.memory_info().rss/(1024*1024)}MiB")
 
-        process = psutil.Process(os.getpid())
 
         total_duration = 0.0
         embedding_stats = EmbeddingStats()
@@ -156,7 +157,7 @@ class BatchApiCaller(Generic[T]):
                     )
                     total_duration += request_duration
 
-                    response += response_.embeddings
+                    yield response_.embeddings
 
             embedding_stats.add_request_time(total_duration, len(documents))
             await embedding_stats.print_stats()
@@ -175,7 +176,7 @@ class BatchApiCaller(Generic[T]):
                     embedding_stats.chunks_per_second(),
                 )
 
-            return response
+            # return response
 
 
 class Embedder(ABC):
@@ -189,7 +190,7 @@ class Embedder(ABC):
     @abstractmethod
     async def embed(
         self, documents: list[str]
-    ) -> Sequence[EmbeddingVector | ChunkEmbeddingError]:
+    ) -> AsyncGenerator[Sequence[EmbeddingVector | ChunkEmbeddingError], None]:
         """
         Embeds a list of documents into vectors.
 
