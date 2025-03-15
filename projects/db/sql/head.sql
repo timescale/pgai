@@ -63,3 +63,12 @@ create table if not exists ai.feature_flag_app
 , applied_at_version text not null
 , applied_at timestamptz not null default pg_catalog.clock_timestamp()
 );
+
+create table if not exists ai.app_version
+( "name" text not null primary key
+, version text not null
+, installed_at timestamptz not null default pg_catalog.clock_timestamp()
+);
+
+insert into ai.app_version ("name", version)
+values ('ai', '__version__') on conflict ("name") do update set version = excluded.version;

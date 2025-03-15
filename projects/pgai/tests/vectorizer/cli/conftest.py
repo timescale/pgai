@@ -27,7 +27,9 @@ class TestDatabase:
         self.dbname = dbname
         url = self._create_connection_url(dbname="template1")
         with psycopg.connect(url, autocommit=True) as conn:
-            conn.execute("CREATE EXTENSION IF NOT EXISTS ai CASCADE")
+            #conn.execute("CREATE EXTENSION IF NOT EXISTS ai CASCADE")
+            from pgai.install import install
+            install(url)
             conn.execute(
                 sql.SQL("CREATE DATABASE {0}").format(sql.Identifier(self.dbname))
             )

@@ -62,6 +62,12 @@ tracer.enabled = get_bool_env("DD_TRACE_ENABLED")
 def get_pgai_version(cur: psycopg.Cursor) -> str | None:
     cur.execute("select extversion from pg_catalog.pg_extension where extname = 'ai'")
     row = cur.fetchone()
+    if row is not None:
+        return row[0]
+   
+    # todo: think this through more, expecially for Feature Flags
+    cur.execute("select version from ai.app_version where name = 'ai'")
+    row = cur.fetchone()
     return row[0] if row is not None else None
 
 
