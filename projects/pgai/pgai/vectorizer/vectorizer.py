@@ -28,7 +28,6 @@ from .chunking import (
     LangChainRecursiveCharacterTextSplitter,
 )
 from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
-from .embeddings import ChunkEmbeddingError
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
 from .loading import ColumnLoading, LoadingError, UriLoading
@@ -945,12 +944,10 @@ class Worker:
         """
 
         await self._delete_embeddings(conn, items)
-        records, loading_errors, errors = await self._generate_embeddings(items)
+        records, loading_errors = await self._generate_embeddings(items)
         if self.features.loading_retries and loading_errors:
             await self.handle_loading_retries(conn, loading_errors)
         await self._copy_embeddings(conn, records)
-        if errors:
-            await self._insert_vectorizer_errors(conn, errors)
 
         return len(records)
 
@@ -1021,21 +1018,6 @@ class Worker:
             for record in records:
                 await copy.write_row(record)
 
-    async def _insert_vectorizer_errors(
-        self,
-        conn: AsyncConnection,
-        records: list[VectorizerErrorRecord],
-    ):
-        """
-        inserts vectorizer errors into the errors table.
-
-        args:
-            conn (asyncconnection): the database connection.
-            records (list[vectorizererrorrecord]): the error records to be inserted.
-        """
-        async with conn.cursor() as cursor:
-            await cursor.executemany(self.queries.insert_errors_query, records)
-
     async def _insert_vectorizer_error(
         self,
         conn: AsyncConnection,
@@ -1059,7 +1041,6 @@ class Worker:
     ) -> tuple[
         list[EmbeddingRecord],
         list[tuple[SourceRow, LoadingError]],
-        list[VectorizerErrorRecord],
     ]:
         """
         Generates the embeddings for the given items.
@@ -1098,34 +1079,11 @@ class Worker:
         assert len(embeddings) == len(records_without_embeddings)
 
         records: list[EmbeddingRecord] = []
-        errors: list[VectorizerErrorRecord] = []
         for record, embedding in zip(
             records_without_embeddings, embeddings, strict=True
         ):
-            if isinstance(embedding, ChunkEmbeddingError):
-                errors.append(self._vectorizer_error_record(record, embedding))
-            else:
-                records.append(record + [np.array(embedding)])
-        return records, loading_errors, errors
-
-    def _vectorizer_error_record(
-        self, record: EmbeddingRecord, chunk_error: ChunkEmbeddingError
-    ) -> VectorizerErrorRecord:
-        return (
-            self.vectorizer.id,
-            chunk_error.error,
-            Jsonb(
-                {
-                    "pk": {
-                        pk_attname: record[i]
-                        for i, pk_attname in enumerate(self.queries.pk_attnames)
-                    },
-                    "chunk_id": record[-2],
-                    "chunk": record[-1],
-                    "error_reason": chunk_error.error_details,
-                }
-            ),
-        )
+            records.append(record + [np.array(embedding)])
+        return records, loading_errors
 
     async def handle_loading_retries(
         self,
