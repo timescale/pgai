@@ -9,21 +9,6 @@ from ddtrace import tracer
 
 logger = structlog.get_logger()
 
-
-@dataclass
-class ChunkEmbeddingError:
-    """
-    A data class to represent an error that occurs during chunk embedding.
-
-    Attributes:
-        error (str): A brief description of the error.
-        error_details (str): Detailed information about the error.
-    """
-
-    error: str = ""
-    error_details: str = ""
-
-
 EmbeddingVector: TypeAlias = list[float]
 
 StringDocument: TypeAlias = str
@@ -183,9 +168,7 @@ class Embedder(ABC):
     """
 
     @abstractmethod
-    async def embed(
-        self, documents: list[str]
-    ) -> Sequence[EmbeddingVector | ChunkEmbeddingError]:
+    async def embed(self, documents: list[str]) -> Sequence[EmbeddingVector]:
         """
         Embeds a list of documents into vectors.
 
@@ -194,8 +177,7 @@ class Embedder(ABC):
             to be embedded.
 
         Returns:
-            Sequence[EmbeddingVector | ChunkEmbeddingError]: A sequence of
-            embedding vectors or errors encountered during embedding.
+            Sequence[EmbeddingVector]: A sequence of embedding vectors.
         """
 
     @abstractmethod
