@@ -1,0 +1,34 @@
+on:
+  pull_request_target:
+    paths:
+      - "docs/**/*.md"
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**/*.md"
+
+name: huggingface-dataset
+
+
+jobs:
+  publish-dataset:
+    name: Publish dataset to huggingface hub
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.6.6"
+          enable-cache: true
+
+      - name: Check dataset
+        if: github.event_name == 'pull_request_target'
+        run: ./scripts/generate_huggingface_dataset.py check
+
+      - name: Push dataset
+        if: github.event_name == 'push'
+        env:
+          HUGGINGFACE_HUB_TIMESCALE_TOKEN: ${{ secrets.HUGGINGFACE_HUB_TIMESCALE_TOKEN }}
+        run: ./scripts/generate_huggingface_dataset.py push
+
