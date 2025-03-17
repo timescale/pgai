@@ -3,9 +3,8 @@ import json
 import os
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from functools import cached_property, partial
-from itertools import repeat
 from typing import Any, TypeAlias
 from uuid import UUID
 
@@ -61,6 +60,8 @@ class PkAtt:
     """
 
     attname: str
+    pknum: int
+    attnum: int
 
 
 @dataclass
@@ -139,10 +140,14 @@ class VectorizerQueryBuilder:
         """Generates the SQL expression for a comma separated list of the
         attributes of a primary key. For example, if the primary key has 2
         fields (author, title), it will return a sql.Composed object that
-        represents the SQL expression "author, title".
+        represents the SQL expression "author, title". The columns will be
+        listed in the order they appear in the table NOT the primary key.
         """
         return sql.SQL(" ,").join(
-            [sql.Identifier(a.attname) for a in self.vectorizer.source_pk]
+            [
+                sql.Identifier(a.attname)
+                for a in sorted(self.vectorizer.source_pk, key=lambda pk: pk.attnum)
+            ]
         )
 
     @cached_property
@@ -150,15 +155,25 @@ class VectorizerQueryBuilder:
         """
         Returns a list of primary key attribute names. For example, if the
         primary key has 2 fields (author, title), it will return ["author", "title"].
+        The columns will be listed in the order they appear in the table NOT the
+        primary key.
         """
-        return [a.attname for a in self.vectorizer.source_pk]
+        return [
+            a.attname
+            for a in sorted(self.vectorizer.source_pk, key=lambda pk: pk.attnum)
+        ]
 
     @property
     def pk_fields(self) -> list[sql.Identifier]:
         """
         Returns the SQL identifiers for primary key fields.
+        The columns will be listed in the order they appear in the table NOT the
+        primary key.
         """
-        return [sql.Identifier(a.attname) for a in self.vectorizer.source_pk]
+        return [
+            sql.Identifier(a.attname)
+            for a in sorted(self.vectorizer.source_pk, key=lambda pk: pk.attnum)
+        ]
 
     @property
     def target_table_ident(self) -> sql.Identifier:
@@ -306,16 +321,6 @@ class VectorizerQueryBuilder:
         ).format(
             self.target_table_ident,
             self.pk_fields_sql,
-        )
-
-    @cached_property
-    def insert_embeddings_query(self) -> sql.Composed:
-        return sql.SQL(
-            "INSERT INTO {} ({}, chunk_seq, chunk, embedding) VALUES ({}, %s, %s, %s)"
-        ).format(
-            self.target_table_ident,
-            self.pk_fields_sql,
-            sql.SQL(" ,").join(list(repeat(sql.SQL("%s"), len(self.pk_fields)))),
         )
 
     @cached_property
@@ -477,7 +482,7 @@ class Worker:
             lambda _loops, _res: True
         )
         self.features = features
-        self.copy_types: None | list[int] = None
+        self.copy_types: None | Sequence[int] = None
         self.worker_tracking = worker_tracking
 
     async def run(self) -> int:
@@ -703,6 +708,36 @@ class Worker:
         async with conn.cursor() as cursor:
             await cursor.execute(self.queries.delete_embeddings_query(len(items)), ids)
 
+    async def _load_copy_types(self, conn: AsyncConnection) -> None:
+        """
+        Loads the database types for the columns of the target table into
+        self.copy_types.
+
+        Args:
+            conn (AsyncConnection): The database connection.
+        """
+        async with conn.cursor() as cursor:
+            await cursor.execute(
+                """
+                select a.atttypid
+                from pg_catalog.pg_class k
+                inner join pg_catalog.pg_namespace n
+                    on (k.relnamespace operator(pg_catalog.=) n.oid)
+                inner join pg_catalog.pg_attribute a
+                    on (k.oid operator(pg_catalog.=) a.attrelid)
+                where n.nspname operator(pg_catalog.=) %s
+                and k.relname operator(pg_catalog.=) %s
+                and a.attname operator(pg_catalog.!=) 'embedding_uuid'
+                and a.attnum operator(pg_catalog.>) 0
+                order by a.attnum
+            """,
+                (self.vectorizer.target_schema, self.vectorizer.target_table),
+            )
+            self.copy_types = [row[0] for row in await cursor.fetchall()]
+        assert self.copy_types is not None
+        # len(source_pk) + chunk_seq + chunk + embedding
+        assert len(self.copy_types) == len(self.vectorizer.source_pk) + 3
+
     @tracer.wrap()
     async def _copy_embeddings(
         self,
@@ -717,29 +752,16 @@ class Worker:
             conn (AsyncConnection): The database connection.
             records (list[EmbeddingRecord]): The embedding records to be copied.
         """
-        async with conn.cursor(binary=True) as cursor:
-            if self.copy_types is None:
-                await cursor.execute(
-                    """
-                    select a.atttypid
-                    from pg_catalog.pg_class k
-                    inner join pg_catalog.pg_namespace n
-                        on (k.relnamespace operator(pg_catalog.=) n.oid)
-                    inner join pg_catalog.pg_attribute a
-                        on (k.oid operator(pg_catalog.=) a.attrelid)
-                    where n.nspname operator(pg_catalog.=) %s
-                    and k.relname operator(pg_catalog.=) %s
-                    and a.attname operator(pg_catalog.!=) 'embedding_uuid'
-                    and a.attnum operator(pg_catalog.>) 0
-                    order by a.attnum
-                """,
-                    (self.vectorizer.target_schema, self.vectorizer.target_table),
-                )
-                self.copy_types = [row[0] for row in await cursor.fetchall()]
-            async with cursor.copy(self.queries.copy_embeddings_query) as copy:
-                copy.set_types(self.copy_types)
-                for record in records:
-                    await copy.write_row(record)
+        if self.copy_types is None:
+            await self._load_copy_types(conn)
+        async with (
+            conn.cursor(binary=True) as cursor,
+            cursor.copy(self.queries.copy_embeddings_query) as copy,
+        ):
+            assert self.copy_types is not None  # ugh. make pyright happy
+            copy.set_types(self.copy_types)
+            for record in records:
+                await copy.write_row(record)
 
     async def _insert_vectorizer_errors(
         self,
