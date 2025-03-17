@@ -1,18 +1,10 @@
-import os
-
 import psycopg
-import pytest
 from psycopg.rows import namedtuple_row
 from psycopg.sql import SQL, Identifier
 
 from pgai import cli
 from pgai.vectorizer.features import Features
 from pgai.vectorizer.worker_tracking import WorkerTracking
-
-# skip tests in this module if disabled
-enable_vectorizer_tool_tests = os.getenv("ENABLE_VECTORIZER_TOOL_TESTS")
-if not enable_vectorizer_tool_tests or enable_vectorizer_tool_tests == "0":
-    pytest.skip(allow_module_level=True)
 
 
 def db_url(user: str, dbname: str) -> str:
@@ -170,7 +162,8 @@ async def test_vectorizer_weird_pk():
                 , c timestamp with time zone not null
                 , d tstzrange not null
                 , note text not null
-                , primary key (a, b, c, d)
+                -- use a different ordering for pk to ensure we handle it
+                , primary key (a, c, b, d)
                 )
             """)
         # create a vectorizer for the table
