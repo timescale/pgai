@@ -34,7 +34,7 @@ def test_vectorizer_exits_with_error_when_no_ai_extension(
     result = run_vectorizer_worker(postgres_container.get_connection_url())
 
     assert result.exit_code == 1
-    assert "the pgai extension is not installed" in result.output.lower()
+    assert "pgai is not installed in the database" in result.output.lower()
 
 
 def test_vectorizer_exits_with_error_when_vectorizers_specified_but_missing(
@@ -54,7 +54,7 @@ def test_vectorizer_does_not_exit_with_error_when_no_ai_extension(
     )
 
     assert result.exit_code == 0
-    assert "the pgai extension is not installed" in result.output.lower()
+    assert "pgai is not installed in the database" in result.output.lower()
 
 
 def test_vectorizer_does_not_exit_with_error_when_vectorizers_specified_but_missing(
@@ -325,8 +325,8 @@ def test_disabled_vectorizer_is_skipped_before_next_batch(
     vectorizer.config.embedding.set_api_key(  # type: ignore
         {"OPENAI_API_KEY": "empty"}
     )
-
-    features = Features("100.0.0")
+ 
+    features = Features.for_testing_latest_version()
     worker_tracking = WorkerTracking(cli_db_url, 500, features, "0.0.1")
 
     # When the vectorizer is disabled after processing the first batch.
@@ -391,7 +391,7 @@ def test_disabled_vectorizer_is_backwards_compatible(
         chunking="chunking_recursive_character_text_splitter('content', 100, 20,"
         " separators => array[E'\\n\\n', E'\\n', ' '])",
     )
-    features = Features("0.6.0")
+    features = Features.for_testing_no_features()
     worker_tracking = WorkerTracking(cli_db_url, 500, features, "0.0.1")
     assert not features.disable_vectorizers
 
