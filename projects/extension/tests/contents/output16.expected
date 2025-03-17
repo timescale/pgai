@@ -20,7 +20,7 @@ CREATE EXTENSION
  function ai.cohere_rerank_simple(text,text,text[],text,text,integer,integer,boolean)
  function ai.cohere_rerank(text,text,text[],text,text,integer,integer,boolean)
  function ai.cohere_tokenize(text,text,text,text,boolean)
- function ai.create_vectorizer(regclass,name,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name,name,name,name,name[],boolean)
+ function ai.create_vectorizer(regclass,name,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name,name,name,name,name[],boolean,boolean,name)
  function ai.disable_vectorizer_schedule(integer)
  function ai.drop_vectorizer(integer,boolean)
  function ai.embedding_litellm(text,integer,text,jsonb)
@@ -80,7 +80,8 @@ CREATE EXTENSION
  function ai._validate_indexing(jsonb)
  function ai._validate_processing(jsonb)
  function ai._validate_scheduling(jsonb)
- function ai._vectorizer_build_trigger_definition(name,name,name,name,jsonb)
+ function ai._vectorizer_add_embedding_column(name,name,integer,name,name[])
+ function ai._vectorizer_build_trigger_definition(name,name,name,name,name,name,jsonb)
  function ai._vectorizer_create_dependencies(integer)
  function ai._vectorizer_create_queue_table(name,name,jsonb,name[])
  function ai._vectorizer_create_source_trigger(name,name,name,name,name,name,name,jsonb)
@@ -113,7 +114,7 @@ CREATE EXTENSION
  table ai.vectorizer_worker_progress
  view ai.secret_permissions
  view ai.vectorizer_status
-(109 rows)
+(110 rows)
 
                                     Table "ai._secret_permissions"
  Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
@@ -184,10 +185,10 @@ View definition:
  source_schema | name    |           | not null |                                  | plain    |             |              | 
  source_table  | name    |           | not null |                                  | plain    |             |              | 
  source_pk     | jsonb   |           | not null |                                  | extended |             |              | 
- target_schema | name    |           | not null |                                  | plain    |             |              | 
- target_table  | name    |           | not null |                                  | plain    |             |              | 
- view_schema   | name    |           | not null |                                  | plain    |             |              | 
- view_name     | name    |           | not null |                                  | plain    |             |              | 
+ target_schema | name    |           |          |                                  | plain    |             |              | 
+ target_table  | name    |           |          |                                  | plain    |             |              | 
+ view_schema   | name    |           |          |                                  | plain    |             |              | 
+ view_name     | name    |           |          |                                  | plain    |             |              | 
  trigger_name  | name    |           | not null |                                  | plain    |             |              | 
  queue_schema  | name    |           |          |                                  | plain    |             |              | 
  queue_table   | name    |           |          |                                  | plain    |             |              | 
@@ -195,7 +196,7 @@ View definition:
  disabled      | boolean |           | not null | false                            | plain    |             |              | 
 Indexes:
     "vectorizer_pkey" PRIMARY KEY, btree (id)
-    "vectorizer_target_schema_target_table_key" UNIQUE CONSTRAINT, btree (target_schema, target_table)
+    "vectorizer_target_schema_target_table_idx" UNIQUE, btree (target_schema, target_table) WHERE target_schema IS NOT NULL AND target_table IS NOT NULL
 Referenced by:
     TABLE "ai.vectorizer_errors" CONSTRAINT "vectorizer_errors_id_fkey" FOREIGN KEY (id) REFERENCES ai.vectorizer(id) ON DELETE CASCADE
     TABLE "ai.vectorizer_worker_progress" CONSTRAINT "vectorizer_worker_progress_vectorizer_id_fkey" FOREIGN KEY (vectorizer_id) REFERENCES ai.vectorizer(id) ON DELETE CASCADE
@@ -254,12 +255,12 @@ View definition:
     disabled
    FROM ai.vectorizer v;
 
-          Index "ai.vectorizer_target_schema_target_table_key"
+          Index "ai.vectorizer_target_schema_target_table_idx"
     Column     |  Type   | Key? |  Definition   | Storage | Stats target 
 ---------------+---------+------+---------------+---------+--------------
  target_schema | cstring | yes  | target_schema | plain   | 
  target_table  | cstring | yes  | target_table  | plain   | 
-unique, btree, for table "ai.vectorizer"
+unique, btree, for table "ai.vectorizer", predicate (target_schema IS NOT NULL AND target_table IS NOT NULL)
 
                                                           Table "ai.vectorizer_worker_process"
            Column            |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 

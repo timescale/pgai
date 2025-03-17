@@ -84,6 +84,8 @@ class Config:
         LangChainCharacterTextSplitter | LangChainRecursiveCharacterTextSplitter
     ) = Field(..., discriminator="implementation")
     formatting: PythonTemplate | ChunkValue = Field(..., discriminator="implementation")
+    skip_chunking: bool = False
+    embedding_column: str = "embedding"
 
 
 @dataclass
@@ -113,9 +115,9 @@ class Vectorizer:
     queue_schema: str
     source_schema: str
     source_table: str
-    target_schema: str
-    target_table: str
     source_pk: list[PkAtt]
+    target_schema: str | None = None
+    target_table: str | None = None
     errors_schema: str = "ai"
     errors_table: str = "vectorizer_errors"
     schema: str = "ai"
@@ -165,9 +167,26 @@ class VectorizerQueryBuilder:
         """
         Returns the SQL identifier for the fully qualified name of the target table.
         """
+        if (
+            self.vectorizer.target_table is None
+            or self.vectorizer.target_schema is None
+        ):
+            raise ValueError(
+                "target_table and target_schema must be set"
+                "to get the target_table_identifier"
+            )
 
         return sql.Identifier(
             self.vectorizer.target_schema, self.vectorizer.target_table
+        )
+
+    @property
+    def source_table_ident(self) -> sql.Identifier:
+        """
+        Returns the SQL identifier for the fully qualified name of the source table.
+        """
+        return sql.Identifier(
+            self.vectorizer.source_schema, self.vectorizer.source_table
         )
 
     @property
@@ -316,6 +335,15 @@ class VectorizerQueryBuilder:
             self.target_table_ident,
             self.pk_fields_sql,
             sql.SQL(" ,").join(list(repeat(sql.SQL("%s"), len(self.pk_fields)))),
+        )
+
+    @cached_property
+    def insert_into_source_table_query(self) -> sql.Composed:
+        return sql.SQL("UPDATE {} SET {} = %s WHERE ({}) = ({})").format(
+            self.source_table_ident,
+            sql.Identifier(self.vectorizer.config.embedding_column),
+            self.pk_fields_sql,
+            sql.SQL(", ").join([sql.SQL("%s") for _ in self.pk_fields]),
         )
 
     @cached_property
@@ -681,11 +709,13 @@ class Worker:
         Returns:
             int: The number of records written to the database.
         """
-
-        await self._delete_embeddings(conn, items)
+        if not self.vectorizer.config.skip_chunking:
+            await self._delete_embeddings(conn, items)
         records, errors = await self._generate_embeddings(items)
-        # await self._insert_embeddings(conn, records)
-        await self._copy_embeddings(conn, records)
+        if self.vectorizer.config.skip_chunking:
+            await self._insert_embeddings(conn, records)
+        else:
+            await self._copy_embeddings(conn, records)
         if errors:
             await self._insert_vectorizer_errors(conn, errors)
 
@@ -702,6 +732,26 @@ class Worker:
         ids = [item[pk] for item in items for pk in self.queries.pk_attnames]
         async with conn.cursor() as cursor:
             await cursor.execute(self.queries.delete_embeddings_query(len(items)), ids)
+
+    async def _insert_embeddings(
+        self, conn: AsyncConnection, items: list[EmbeddingRecord]
+    ):
+        """
+        Inserts the embeddings for the given items into the
+        original source table into the embedding column.
+
+        Args:
+            conn (AsyncConnection): The database connection.
+            items (list[SourceRow]): The items whose embeddings need to be inserted.
+        """
+        items_with_only_pk_and_embedding = [
+            [item[-1]] + item[: len(item) - 3] for item in items
+        ]
+        async with conn.cursor() as cursor:
+            await cursor.executemany(
+                self.queries.insert_into_source_table_query,
+                items_with_only_pk_and_embedding,
+            )
 
     @tracer.wrap()
     async def _copy_embeddings(
@@ -791,6 +841,13 @@ class Worker:
         documents: list[str] = []
         for item in items:
             pk = self._get_item_pk_values(item)
+            if self.vectorizer.config.skip_chunking:
+                formatted = self.vectorizer.config.formatting.format(
+                    item[self.vectorizer.config.chunking.chunk_column], item
+                )
+                records_without_embeddings.append(pk + [0, formatted])
+                documents.append(formatted)
+                continue
             chunks = self.vectorizer.config.chunking.into_chunks(item)
             for chunk_id, chunk in enumerate(chunks, 0):
                 formatted = self.vectorizer.config.formatting.format(chunk, item)

@@ -97,6 +97,50 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- _vectorizer_add_embedding_column
+create or replace function ai._vectorizer_add_embedding_column
+( source_schema pg_catalog.name
+, source_table pg_catalog.name
+, dimensions pg_catalog.int4
+, embedding_column pg_catalog.name
+, grant_to pg_catalog.name[]
+) returns void as
+$func$
+declare
+    _sql pg_catalog.text;
+    _column_exists pg_catalog.bool;
+begin
+    -- Check if embedding column already exists
+    select exists(
+        select 1 
+        from pg_catalog.pg_attribute a
+        join pg_catalog.pg_class c on a.attrelid = c.oid
+        join pg_catalog.pg_namespace n on c.relnamespace = n.oid
+        where n.nspname = source_schema
+        and c.relname = source_table
+        and a.attname = embedding_column
+        and not a.attisdropped
+    ) into _column_exists;
+    
+    if _column_exists then
+        raise exception 'embedding column %I already exists in %I.%I', embedding_column, source_schema, source_table;
+    else
+        -- Add embedding column to source table
+        select pg_catalog.format(
+            $sql$
+            alter table %I.%I 
+            add column %I @extschema:vector@.vector(%L) storage main
+            $sql$,
+            source_schema, source_table, embedding_column, dimensions
+        ) into strict _sql;
+        
+        execute _sql;
+    end if;
+end;
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp;
+
 -- _vectorizer_create_target_table
 create or replace function ai._vectorizer_create_target_table
 ( source_pk pg_catalog.jsonb
@@ -315,70 +359,72 @@ begin
 
     -- if we drop the source or the target with `cascade` it should drop the queue
     -- if we drop the source with `cascade` it should drop the target
-    -- there's no unique constraint on pg_depend so we manually prevent duplicate entries
-    with x as
-    (
-        -- the queue table depends on the source table
+    -- there's no unique constraint on pg_depend so we manually prevent duplicate entries\
+    if _vec.target_schema is not null and _vec.target_table is not null then
+        with x as
+        (
+            -- the queue table depends on the source table
+            select
+             (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as classid
+            , pg_catalog.format('%I.%I', _vec.queue_schema, _vec.queue_table)::pg_catalog.regclass::pg_catalog.oid as objid
+            , 0 as objsubid
+            , (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as refclassid
+            , pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::pg_catalog.regclass::pg_catalog.oid as refobjid
+            , 0 as refobjsubid
+            , 'n' as deptype
+            union all
+            -- the queue table depends on the target table
+            select
+             (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as classid
+            , pg_catalog.format('%I.%I', _vec.queue_schema, _vec.queue_table)::pg_catalog.regclass::pg_catalog.oid as objid
+            , 0 as objsubid
+            , (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as refclassid
+            , pg_catalog.format('%I.%I', _vec.target_schema, _vec.target_table)::pg_catalog.regclass::pg_catalog.oid as refobjid
+            , 0 as refobjsubid
+            , 'n' as deptype
+            union all
+            -- the target table depends on the source table
+            select
+             (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as classid
+            , pg_catalog.format('%I.%I', _vec.target_schema, _vec.target_table)::pg_catalog.regclass::pg_catalog.oid as objid
+            , 0 as objsubid
+            , (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as refclassid
+            , pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::pg_catalog.regclass::pg_catalog.oid as refobjid
+            , 0 as refobjsubid
+            , 'n' as deptype
+        )
+        insert into pg_catalog.pg_depend
+        ( classid
+        , objid
+        , objsubid
+        , refclassid
+        , refobjid
+        , refobjsubid
+        , deptype
+        )
         select
-         (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as classid
-        , pg_catalog.format('%I.%I', _vec.queue_schema, _vec.queue_table)::pg_catalog.regclass::pg_catalog.oid as objid
-        , 0 as objsubid
-        , (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as refclassid
-        , pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::pg_catalog.regclass::pg_catalog.oid as refobjid
-        , 0 as refobjsubid
-        , 'n' as deptype
-        union all
-        -- the queue table depends on the target table
-        select
-         (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as classid
-        , pg_catalog.format('%I.%I', _vec.queue_schema, _vec.queue_table)::pg_catalog.regclass::pg_catalog.oid as objid
-        , 0 as objsubid
-        , (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as refclassid
-        , pg_catalog.format('%I.%I', _vec.target_schema, _vec.target_table)::pg_catalog.regclass::pg_catalog.oid as refobjid
-        , 0 as refobjsubid
-        , 'n' as deptype
-        union all
-        -- the target table depends on the source table
-        select
-         (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as classid
-        , pg_catalog.format('%I.%I', _vec.target_schema, _vec.target_table)::pg_catalog.regclass::pg_catalog.oid as objid
-        , 0 as objsubid
-        , (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as refclassid
-        , pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::pg_catalog.regclass::pg_catalog.oid as refobjid
-        , 0 as refobjsubid
-        , 'n' as deptype
-    )
-    insert into pg_catalog.pg_depend
-    ( classid
-    , objid
-    , objsubid
-    , refclassid
-    , refobjid
-    , refobjsubid
-    , deptype
-    )
-    select
-      x.classid
-    , x.objid
-    , x.objsubid
-    , x.refclassid
-    , x.refobjid
-    , x.refobjsubid
-    , x.deptype
-    from x
-    where not exists
-    (
-        select 1
-        from pg_catalog.pg_depend d
-        where d.classid operator(pg_catalog.=) x.classid
-        and d.objid operator(pg_catalog.=) x.objid
-        and d.objsubid operator(pg_catalog.=) x.objsubid
-        and d.refclassid operator(pg_catalog.=) x.refclassid
-        and d.refobjid operator(pg_catalog.=) x.refobjid
-        and d.refobjsubid operator(pg_catalog.=) x.refobjsubid
-        and d.deptype operator(pg_catalog.=) x.deptype
-    )
-    ;
+          x.classid
+        , x.objid
+        , x.objsubid
+        , x.refclassid
+        , x.refobjid
+        , x.refobjsubid
+        , x.deptype
+        from x
+        where not exists
+        (
+            select 1
+            from pg_catalog.pg_depend d
+            where d.classid operator(pg_catalog.=) x.classid
+            and d.objid operator(pg_catalog.=) x.objid
+            and d.objsubid operator(pg_catalog.=) x.objsubid
+            and d.refclassid operator(pg_catalog.=) x.refclassid
+            and d.refobjid operator(pg_catalog.=) x.refobjid
+            and d.refobjsubid operator(pg_catalog.=) x.refobjsubid
+            and d.deptype operator(pg_catalog.=) x.deptype
+        )
+        ;
+    end if;
 end
 $func$
 language plpgsql volatile security definer -- definer on purpose
@@ -466,6 +512,8 @@ create or replace function ai._vectorizer_build_trigger_definition
 , queue_table pg_catalog.name
 , target_schema pg_catalog.name
 , target_table pg_catalog.name
+, source_schema pg_catalog.name
+, source_table pg_catalog.name
 , source_pk pg_catalog.jsonb
 ) returns pg_catalog.text as
 $func$
@@ -475,6 +523,8 @@ declare
     _pk_columns pg_catalog.text;
     _pk_values pg_catalog.text;
     _func_def pg_catalog.text;
+    _relevant_columns_check pg_catalog.text;
+    _truncate_statement pg_catalog.text;
 begin
     -- Pre-calculate all the parts we need
     select pg_catalog.string_agg(pg_catalog.format('%I', x.attname), ', ' order by x.attnum)
@@ -485,59 +535,114 @@ begin
     into strict _pk_values
     from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name);
 
-    -- Create delete statement for deleted rows
-    _delete_statement := format('delete from %I.%I where %s', target_schema, target_table,
+    
+    if target_schema is not null and target_table is not null then
+        -- Create delete statement for deleted rows
+        _delete_statement := format('delete from %I.%I where %s', target_schema, target_table,
         (select string_agg(format('%I = old.%I', attname, attname), ' and ')
         from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name)));
+        
+       
+   
+        -- Create the primary key change check expression
+        select string_agg(
+            format('old.%I IS DISTINCT FROM new.%I', attname, attname),
+            ' OR '
+        )
+        into strict _pk_change_check
+        from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name);
 
-    -- Create the primary key change check expression
-    select string_agg(
-        format('old.%I IS DISTINCT FROM new.%I', attname, attname),
-        ' OR '
-    )
-    into strict _pk_change_check
-    from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name);
-    _func_def := $def$
-    begin
-        if (TG_LEVEL = 'ROW') then
-            if (TG_OP = 'DELETE') then
-                $DELETE_STATEMENT$;
-            elsif (TG_OP = 'UPDATE') then
-                if $PK_CHANGE_CHECK$ then
+        -- Create the truncate statement
+        _truncate_statement := format('truncate table %I.%I; truncate table %I.%I',
+                                target_schema, target_table, queue_schema, queue_table);
+    end if;
+    
+    _relevant_columns_check := 
+        pg_catalog.format('EXISTS (
+            SELECT 1 FROM pg_catalog.jsonb_each(to_jsonb(old)) AS o(key, value)
+            JOIN pg_catalog.jsonb_each(to_jsonb(new)) AS n(key, value) 
+            ON o.key = n.key
+            WHERE o.value IS DISTINCT FROM n.value
+            AND o.key != ALL(
+                SELECT config->>''embedding_column''
+                FROM ai.vectorizer 
+                WHERE source_table = %L AND source_schema = %L
+                AND (config->''skip_chunking'')::boolean = true
+            )
+        )', source_table, source_schema);
+
+    
+    
+    if target_schema is not null and target_table is not null then
+        _func_def := $def$
+        begin
+            if (TG_LEVEL = 'ROW') then
+                if (TG_OP = 'DELETE') then
                     $DELETE_STATEMENT$;
+                elsif (TG_OP = 'UPDATE') then
+                    -- Check if the primary key has changed and queue the update
+                    if $PK_CHANGE_CHECK$ then
+                        $DELETE_STATEMENT$;
+                        insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
+                            values ($PK_VALUES$);
+                    -- check if a relevant column has changed and queue the update
+                    elsif $RELEVANT_COLUMNS_CHECK$ then
+                        insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
+                        values ($PK_VALUES$);
+                    end if;
+                    
+                    return new;
+                else
+                    insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
+                    values ($PK_VALUES$);
+                    return new;
                 end if;
-                
-                insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
-                values ($PK_VALUES$);
-                return new;
-            else
-                insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
-                values ($PK_VALUES$);
-                return new;
+    
+            elsif (TG_LEVEL = 'STATEMENT') then
+                if (TG_OP = 'TRUNCATE') then
+                    $TRUNCATE_STATEMENT$;
+                end if;
+                return null;
             end if;
-
-        elsif (TG_LEVEL = 'STATEMENT') then
-            if (TG_OP = 'TRUNCATE') then
-                execute format('truncate table %I.%I', '$TARGET_SCHEMA$', '$TARGET_TABLE$');
-                execute format('truncate table %I.%I', '$QUEUE_SCHEMA$', '$QUEUE_TABLE$');
+            
+            return null;
+        end;
+        $def$;
+    
+        -- Replace placeholders
+        _func_def := replace(_func_def, '$DELETE_STATEMENT$', _delete_statement);
+        _func_def := replace(_func_def, '$PK_CHANGE_CHECK$', _pk_change_check);
+        _func_def := replace(_func_def, '$QUEUE_SCHEMA$', quote_ident(queue_schema));
+        _func_def := replace(_func_def, '$QUEUE_TABLE$', quote_ident(queue_table));
+        _func_def := replace(_func_def, '$PK_COLUMNS$', _pk_columns);
+        _func_def := replace(_func_def, '$PK_VALUES$', _pk_values);
+        _func_def := replace(_func_def, '$TARGET_SCHEMA$', quote_ident(target_schema));
+        _func_def := replace(_func_def, '$TARGET_TABLE$', quote_ident(target_table));
+        _func_def := replace(_func_def, '$RELEVANT_COLUMNS_CHECK$', _relevant_columns_check);
+        _func_def := replace(_func_def, '$TRUNCATE_STATEMENT$', _truncate_statement);
+    else
+        _func_def := $def$
+        begin
+            if (TG_LEVEL = 'ROW') then
+                if (TG_OP = 'UPDATE') then
+                    if $RELEVANT_COLUMNS_CHECK$ then
+                        insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
+                        values ($PK_VALUES$);
+                    end if;
+                elseif (TG_OP = 'INSERT') then
+                    insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
+                    values ($PK_VALUES$);
+                end if;
             end if;
             return null;
-        end if;
-        
-        return null;
-    end;
-    $def$;
-
-    -- Replace placeholders
-    _func_def := replace(_func_def, '$DELETE_STATEMENT$', _delete_statement);
-    _func_def := replace(_func_def, '$PK_CHANGE_CHECK$', _pk_change_check);
-    _func_def := replace(_func_def, '$QUEUE_SCHEMA$', quote_ident(queue_schema));
-    _func_def := replace(_func_def, '$QUEUE_TABLE$', quote_ident(queue_table));
-    _func_def := replace(_func_def, '$PK_COLUMNS$', _pk_columns);
-    _func_def := replace(_func_def, '$PK_VALUES$', _pk_values);
-    _func_def := replace(_func_def, '$TARGET_SCHEMA$', quote_ident(target_schema));
-    _func_def := replace(_func_def, '$TARGET_TABLE$', quote_ident(target_table));
-
+        end;
+        $def$;
+        _func_def := replace(_func_def, '$RELEVANT_COLUMNS_CHECK$', _relevant_columns_check);
+        _func_def := replace(_func_def, '$QUEUE_SCHEMA$', quote_ident(queue_schema));
+        _func_def := replace(_func_def, '$QUEUE_TABLE$', quote_ident(queue_table));
+        _func_def := replace(_func_def, '$PK_COLUMNS$', _pk_columns);
+        _func_def := replace(_func_def, '$PK_VALUES$', _pk_values);
+    end if;
     return _func_def;
 end;
 $func$ language plpgsql immutable security invoker
@@ -570,7 +675,13 @@ begin
     $sql$
     , queue_schema
     , trigger_name
-    , ai._vectorizer_build_trigger_definition(queue_schema, queue_table, target_schema, target_table, source_pk)
+    , ai._vectorizer_build_trigger_definition(queue_schema,
+                                              queue_table,
+                                              target_schema,
+                                              target_table,
+                                              source_schema,
+                                              source_table,
+                                              source_pk)
     );
 
     -- Revoke public permissions
@@ -619,9 +730,9 @@ set search_path to pg_catalog, pg_temp
 do $upgrade_block$
 declare
     _vec record;
-    _new_version text := '0.8.1';
+    _new_version text := '0.10';
 begin
-    -- Find all vectorizers with version < 0.8.1
+    -- Find all vectorizers with version < 0.10
     for _vec in (
         select 
             v.id,
@@ -655,7 +766,14 @@ begin
             set search_path to pg_catalog, pg_temp
             $sql$
             , _vec.queue_schema, _vec.trigger_name,
-            ai._vectorizer_build_trigger_definition(_vec.queue_schema, _vec.queue_table, _vec.target_schema, _vec.target_table, _vec.source_pk)
+            ai._vectorizer_build_trigger_definition(
+                    _vec.queue_schema,
+                    _vec.queue_table,
+                    _vec.target_schema,
+                    _vec.target_table,
+                    _vec.source_schema,
+                    _vec.source_table,
+                    _vec.source_pk)
         );
 
         execute format(
@@ -663,6 +781,11 @@ begin
             _vec.trigger_name, _vec.source_schema, _vec.source_table
         );
 
+        execute format(
+            'drop trigger if exists %I on %I.%I',
+            format('%s_truncate',_vec.trigger_name) , _vec.source_schema, _vec.source_table
+        );
+        
         execute format(
             'create trigger %I after insert or update or delete on %I.%I for each row execute function %I.%I()',
             _vec.trigger_name, _vec.source_schema, _vec.source_table, _vec.queue_schema, _vec.trigger_name
