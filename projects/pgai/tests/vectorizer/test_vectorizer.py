@@ -1,37 +1,17 @@
 import psycopg
 from psycopg.rows import namedtuple_row
 from psycopg.sql import SQL, Identifier
+from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai import cli
 from pgai.vectorizer.features import Features
 from pgai.vectorizer.worker_tracking import WorkerTracking
 
 
-def db_url(user: str, dbname: str) -> str:
-    return f"postgres://{user}@127.0.0.1:5432/{dbname}"
-
-
-def create_database(dbname: str) -> None:
+async def test_vectorizer_internal(postgres_container: PostgresContainer):
+    db_url = postgres_container.get_connection_url(driver=None)
     with (
-        psycopg.connect(
-            db_url(user="postgres", dbname="postgres"), autocommit=True
-        ) as con,
-        con.cursor() as cur,
-    ):
-        cur.execute(
-            SQL("drop database if exists {dbname} with (force)").format(
-                dbname=Identifier(dbname)
-            )
-        )
-        cur.execute(SQL("create database {dbname}").format(dbname=Identifier(dbname)))
-
-
-async def test_vectorizer_internal():
-    db = "vcli0"
-    create_database(db)
-    _db_url = db_url("postgres", db)
-    with (
-        psycopg.connect(_db_url, autocommit=True, row_factory=namedtuple_row) as con,
+        psycopg.connect(db_url, autocommit=True, row_factory=namedtuple_row) as con,
         con.cursor() as cur,
     ):
         cur.execute("create extension if not exists vectorscale cascade")
@@ -40,8 +20,8 @@ async def test_vectorizer_internal():
         cur.execute("create extension if not exists ai cascade")
         pgai_version = cli.get_pgai_version(cur)
         assert pgai_version is not None
-        assert len(cli.get_vectorizer_ids(_db_url)) == 0
-        assert len(cli.get_vectorizer_ids(_db_url, [42, 19])) == 0
+        assert len(cli.get_vectorizer_ids(db_url)) == 0
+        assert len(cli.get_vectorizer_ids(db_url, [42, 19])) == 0
         cur.execute("create extension if not exists timescaledb")
         cur.execute("drop table if exists note0")
         cur.execute("""
@@ -92,21 +72,21 @@ async def test_vectorizer_internal():
         vectorizer_expected = cur.fetchone()
 
         # test cli.get_vectorizer_ids
-        assert len(cli.get_vectorizer_ids(_db_url)) == 1
-        assert len(cli.get_vectorizer_ids(_db_url, [42, 19])) == 0
-        assert len(cli.get_vectorizer_ids(_db_url, [vectorizer_id, 19])) == 1
-        assert len(cli.get_vectorizer_ids(_db_url, [vectorizer_id])) == 1
+        assert len(cli.get_vectorizer_ids(db_url)) == 1
+        assert len(cli.get_vectorizer_ids(db_url, [42, 19])) == 0
+        assert len(cli.get_vectorizer_ids(db_url, [vectorizer_id, 19])) == 1
+        assert len(cli.get_vectorizer_ids(db_url, [vectorizer_id])) == 1
 
         # test cli.get_vectorizer
-        vectorizer_actual = cli.get_vectorizer(_db_url, vectorizer_id)
+        vectorizer_actual = cli.get_vectorizer(db_url, vectorizer_id)
         assert vectorizer_actual is not None
         assert vectorizer_expected.source_table == vectorizer_actual.source_table  # type: ignore
 
         # run the vectorizer
         features = Features(pgai_version)
-        worker_tracking = WorkerTracking(_db_url, 500, features, "0.0.1")
+        worker_tracking = WorkerTracking(db_url, 500, features, "0.0.1")
         await cli.run_vectorizer(
-            _db_url, vectorizer_actual, 1, features, worker_tracking
+            db_url, vectorizer_actual, 1, features, worker_tracking
         )
 
         # make sure the queue was emptied
@@ -139,14 +119,12 @@ async def test_vectorizer_internal():
         assert actual is True
 
 
-async def test_vectorizer_weird_pk():
+async def test_vectorizer_weird_pk(postgres_container: PostgresContainer):
     # make sure we can handle a multi-column primary key with "interesting" data types
     # this has implications on the COPY with binary format logic in the vectorizer
-    db = "vcli1"
-    create_database(db)
-    _db_url = db_url("postgres", db)
+    db_url = postgres_container.get_connection_url(driver=None)
     with (
-        psycopg.connect(_db_url, autocommit=True, row_factory=namedtuple_row) as con,
+        psycopg.connect(db_url, autocommit=True, row_factory=namedtuple_row) as con,
         con.cursor() as cur,
     ):
         cur.execute("create extension if not exists vectorscale cascade")
@@ -196,7 +174,7 @@ async def test_vectorizer_weird_pk():
         vectorizer_expected = cur.fetchone()
 
         # test cli.get_vectorizer
-        vectorizer_actual = cli.get_vectorizer(_db_url, vectorizer_id)
+        vectorizer_actual = cli.get_vectorizer(db_url, vectorizer_id)
         assert vectorizer_actual is not None
         assert vectorizer_expected.source_table == vectorizer_actual.source_table  # type: ignore
 
@@ -214,9 +192,9 @@ async def test_vectorizer_weird_pk():
 
         # run the vectorizer
         features = Features(pgai_version)
-        worker_tracking = WorkerTracking(_db_url, 500, features, "0.0.1")
+        worker_tracking = WorkerTracking(db_url, 500, features, "0.0.1")
         await cli.run_vectorizer(
-            _db_url, vectorizer_actual, 1, features, worker_tracking
+            db_url, vectorizer_actual, 1, features, worker_tracking
         )
 
         # make sure the queue was emptied
