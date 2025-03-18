@@ -1,4 +1,11 @@
 VERSION := `awk '/^__version__ = .*/ {gsub(/__version__ = |"/, ""); print}' ./pgai/__init__.py`
+BENCHMARK_CONTAINER := 'pgai-benchmark'
+BENCHMARK_CONTAINER_READY_MAX_RETRIES := '5'
+BENCHMARK_DB_USER := "test"
+BENCHMARK_DB_PASSWORD := "test"
+BENCHMARK_DB_NAME := "test"
+BENCHMARK_DB_PORT := "5438"
+BENCHMARK_DB_URL := "postgres://" + BENCHMARK_DB_USER + ":" + BENCHMARK_DB_PASSWORD + "@localhost:" + BENCHMARK_DB_PORT + "/" + BENCHMARK_DB_NAME
 
 # add the db justfile to this one
 mod db 'db/justfile'
@@ -28,7 +35,7 @@ build:
 
 # Install the wheel package locally
 install:
-	@uv sync --all-extras
+	@uv sync --all-extras --all-groups
 
 # Install the wheel package locally
 install-active:
@@ -87,3 +94,197 @@ docker-stop:
 # Remove the Docker container and its volumes
 docker-rm:
 	@docker rm --force --volumes pgai-cli
+
+# Start a new container with the pgai extension using the benchmark configuration.
+benchmark-db:
+  #!/usr/bin/env bash
+  set -euxo pipefail
+  echo "Building pgai image..."
+  docker build -t {{BENCHMARK_CONTAINER}}:latest -f ../extension/Dockerfile \
+      --target pgai-test-db ../extension
+
+  echo "Starting container {{BENCHMARK_CONTAINER}}..."
+  docker run -d --name {{BENCHMARK_CONTAINER}} -p {{BENCHMARK_DB_PORT}}:5432 \
+      -e POSTGRES_HOST_AUTH_METHOD=trust \
+      -e POSTGRES_USER={{BENCHMARK_DB_USER}} \
+      -e POSTGRES_PASSWORD={{BENCHMARK_DB_PASSWORD}} \
+      -e POSTGRES_DB={{BENCHMARK_DB_NAME}} \
+      {{BENCHMARK_CONTAINER}}:latest
+  echo "Container {{BENCHMARK_CONTAINER}} started. Waiting for database to become ready..."
+
+  echo "Checking if PostgreSQL is ready..."
+  retries=0
+  while [ $retries -lt {{BENCHMARK_CONTAINER_READY_MAX_RETRIES}} ]; do
+    if pg_isready -h localhost -p {{BENCHMARK_DB_PORT}} -U {{BENCHMARK_DB_USER}}; then
+      echo "PostgreSQL is ready!"
+      break
+    else
+      echo "PostgreSQL is not ready yet. Retrying in 2 seconds..."
+      sleep 2
+      retries=$((retries + 1))
+      if [ $retries = 5 ]; then
+        echo "Failed to connect to DB exiting"
+        exit 1
+      fi
+    fi
+  done
+
+  echo "Importing sample dataset..."
+  pg_restore -h localhost -p {{BENCHMARK_DB_PORT}} -U {{BENCHMARK_DB_USER}} \
+    -d {{BENCHMARK_DB_NAME}} -v -Fc --exit-on-error --no-owner \
+    --no-privileges benchmark/wiki.dump
+  psql -h localhost -p {{BENCHMARK_DB_PORT}} -U {{BENCHMARK_DB_USER}} \
+    -d {{BENCHMARK_DB_NAME}} \
+    -c "create extension if not exists ai cascade;" \
+    -c "create extension if not exists timescaledb;"
+
+# BENCHMARK variables
+
+# How many items should be kept in the wiki database for the test.
+total_items := "off"
+# Repeat the body of each wiki article by X to increase the chunks per items.
+repeat_content := "off"
+# Cassette to use for benchmark tests with vcr.
+vcr_cassette := "wiki_openai_500"
+# Cassette to use for benchmark tests with vcr.
+vcr_record_mode := "once"
+# Do not remove the benchmark container.
+keep_container := "false"
+
+# Creates a vectorizer over the wiki table of the benchmark DB.
+benchmark-setup-vectorizer:
+  uv run python -m pgai install -d {{BENCHMARK_DB_URL}}
+  psql -h localhost -p {{BENCHMARK_DB_PORT}} -U {{BENCHMARK_DB_USER}} \
+    -d {{BENCHMARK_DB_NAME}} \
+    -v total_items={{total_items}} \
+    -v repeat_content={{repeat_content}} \
+    -f ./benchmark/create_vectorizer.sql
+
+# Remove the benchmark container.
+benchmark-clean:
+  #!/usr/bin/env bash
+  if [ "{{keep_container}}" != "true" ]; then
+    docker rm -f {{BENCHMARK_CONTAINER}}
+  else
+    echo "Keeping benchmark container"
+  fi
+
+# Ends the benchmark by clearing the vectorizer queue.
+benchmark-stop:
+  psql -h localhost -p {{BENCHMARK_DB_PORT}} -U {{BENCHMARK_DB_USER}} \
+    -d {{BENCHMARK_DB_NAME}} \
+    -c "truncate table ai._vectorizer_q_1"
+
+# Runs a memory benchmark using memray. Results are stored in
+# benchmark/results.
+#
+# Make sure to run just install to install the bench uv dependcy group, that
+# includes all the benchmark tools.
+#
+# If you want to use the vcr cassette to not hit openAI change the command to
+# worker-benchmark. Be advise that then the benchmark will take into account
+# the memory used by vcr to handle the requests. The casssette file is stored
+# using git lfs (https://git-lfs.com/).
+[doc('Runs a memory benchmark using memray. Results are stored in benchmark/results.')]
+benchmark-mem: benchmark-clean benchmark-db benchmark-setup-vectorizer
+  #!/usr/bin/env bash
+  set -euxo pipefail
+  time={{datetime('%F-%H-%M-%S')}}
+  mkdir -p benchmark/results
+  result_file="benchmark/results/memray-${time}.bin"
+  flamegraph_file="benchmark/results/mem-flamegraph-${time}.html"
+  time uv run memray run -o $result_file -m pgai vectorizer worker --once -d {{BENCHMARK_DB_URL}}
+  uv run memray flamegraph -o $flamegraph_file $result_file
+  open $flamegraph_file
+
+# Runs a cpu benchmark using py-spy. Results are stored in benchmark/results.
+#
+# Make sure to run just install to install the bench uv dependcy group, that
+# includes all the benchmark tools.
+#
+# CPU benchmarks use a vectorizer that starts the worker wrapped in the context
+# of a VCR cassette. Meaning that requests/responses to the openAI API are
+# served from a local file, they don't hit the actual API. The casssette is
+# stored using git lfs (https://git-lfs.com/).
+#
+# If you get the error:
+#
+# Error: Failed to find python version from target process
+#
+# You need to make sure the python binary of your virtualenv is not a symlink
+# to a binary in a directory that requires root access (/usr/bin/, or brew
+# dir). UV re-uses existing python installations, you can force it to manage a
+# version with:
+#
+#   uv python install --python-preference only-managed 3.12`,
+#
+# Delete the virtualenv:
+#   rm --rf projects/pgai/.venv
+[doc('Runs a cpu benchmark using py-spy. Results are stored in benchmark/results.')]
+benchmark-cpu: benchmark-clean benchmark-db benchmark-setup-vectorizer
+  #!/usr/bin/env bash
+  set -euxo pipefail
+  if ! command -v git-lfs &> /dev/null; then
+      echo "Git LFS is not installed. Please install to pull the CPU benchmark vcr cassette."
+      echo "Visit https://git-lfs.github.com/ for installation instructions."
+      exit 1
+  fi
+  mkdir -p benchmark/results
+  time={{datetime('%F-%H-%M-%S')}}
+  flamegraph_file="benchmark/results/cpu-flamegraph-${time}.svg"
+  # Turn off command echoing to avoid printing the api key.
+  set +x
+  echo 'Starting CPU profile'
+  time sudo -E OPENAI_API_KEY="$OPENAI_API_KEY" .venv/bin/py-spy record -o $flamegraph_file -- \
+    .venv/bin/python -m benchmark vectorizer worker-with-vcr \
+      --once -d {{BENCHMARK_DB_URL}} \
+      --cassette {{vcr_cassette}} --record-mode {{vcr_record_mode}}
+
+# Runs a CPU benchmark using py-spy, but instead of generating a flamegraph
+# it displays a top like view of CPU ussage.
+#
+# Make sure to run just install to install the bench uv dependcy group, that
+# includes all the benchmark tools.
+#
+# CPU benchmarks use a vectorizer that starts the worker wrapped in the context
+# of a VCR cassette. Meaning that requests/responses to the openAI API are
+# served from a local file, they don't hit the actual API. The casssette is
+# stored using git lfs (https://git-lfs.com/).
+#
+# If you get the error:
+#
+# Error: Failed to find python version from target process
+#
+# You need to make sure the python binary of your virtualenv is not a symlink
+# to a binary in a directory that requires root access (/usr/bin/, or brew
+# dir). UV re-uses existing python installations, you can force it to manage a
+# version with:
+#
+#   uv python install --python-preference only-managed 3.12`,
+#
+# Delete the virtualenv:
+#   rm --rf projects/pgai/.venv
+[doc('Start a CPU benchmark displaying a top like view.')]
+benchmark-cpu-top: benchmark-clean benchmark-db benchmark-setup-vectorizer
+  #!/usr/bin/env bash
+  set -euxo pipefail
+  if ! command -v git-lfs &> /dev/null; then
+      echo "Git LFS is not installed. Please install to pull the CPU benchmark vcr cassette."
+      echo "Visit https://git-lfs.github.com/ for installation instructions."
+      exit 1
+  fi
+  mkdir -p benchmark/results
+  time={{datetime('%F-%H-%M-%S')}}
+  flamegraph_file="benchmark/results/cpu-flamegraph-${time}.svg"
+  # Turn off command echoing to avoid printing the api key.
+  set +x
+  echo 'Starting CPU profile'
+  sudo -E OPENAI_API_KEY="$OPENAI_API_KEY" .venv/bin/py-spy top -- \
+    .venv/bin/python -m pgai vectorizer worker-benchmark \
+      --once -d {{BENCHMARK_DB_URL}} \
+      --cassette {{vcr_cassette}} --record-mode {{vcr_record_mode}}
+
+# Shows how many objects are in the vectorizer queue of the current benchmark.
+benchmark-queue-count:
+  watch 'psql -h localhost -p {{BENCHMARK_DB_PORT}} -U {{BENCHMARK_DB_USER}} \
+    -d {{BENCHMARK_DB_NAME}} -c "select count(*) from ai._vectorizer_q_1"'
