@@ -527,7 +527,8 @@ def test_vectorizer_without_retries_works_as_expected(
 
     # When the vectorizer is executed.
     with vcr_.use_cassette("test_loading_retries_disabled_works_with_vectorizer.yaml"):
-        asyncio.run(Worker(cli_db_url, vectorizer, features).run())
+        worker_tracking = WorkerTracking(cli_db_url, 500, features, "0.0.1")
+        asyncio.run(Worker(cli_db_url, vectorizer, features, worker_tracking).run())
 
     with connection.cursor(row_factory=dict_row) as cur:
         cur.execute("""

@@ -406,9 +406,9 @@ def test_there_will_be_no_more_retries_after_the_sixth_failure(
         cur.execute(
             "SELECT loading_retries, loading_retry_after" " FROM ai._vectorizer_q_1;"
         )
-        queue_item = cur.fetchone()
-        assert queue_item["loading_retries"] == 7  # type: ignore
-        assert queue_item["loading_retry_after"] is None  # type: ignore
+        with connection.cursor(row_factory=dict_row) as cur:
+            cur.execute("SELECT count(*) FROM ai._vectorizer_q_failed_1;")
+            assert cur.fetchone()["count"] == 1  # type: ignore
 
 
 def test_retries_should_do_nothing_if_retry_after_is_in_the_future(

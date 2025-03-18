@@ -31,7 +31,7 @@ from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .embeddings import ChunkEmbeddingError
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
-from .loading import ColumnLoading, UriLoading, LoadingError
+from .loading import ColumnLoading, LoadingError, UriLoading
 from .migrations import apply_migrations
 from .parsing import ParsingAuto, ParsingNone, ParsingPyMuPDF
 from .processing import ProcessingDefault
@@ -132,8 +132,9 @@ class Vectorizer:
 
     id: int
     config: Config
-    queue_table: str
     queue_schema: str
+    queue_table: str
+    queue_failed_table: str
     source_schema: str
     source_table: str
     target_schema: str
@@ -539,6 +540,23 @@ class VectorizerQueryBuilder:
             ),
         )
 
+    @cached_property
+    def insert_queue_failed_query(self) -> sql.Composed:
+        return sql.SQL("""
+            INSERT INTO {queue_failed_table}
+                ({pk_fields}, failure_step)
+            VALUES
+                ({pk_values}, %(failure_step)s)""").format(
+            queue_failed_table=sql.Identifier(
+                self.vectorizer.queue_schema, self.vectorizer.queue_failed_table
+            ),
+            pk_fields=self.pk_fields_sql,
+            pk_values=sql.SQL(",").join(
+                sql.SQL("(%(pk{})s)").format(sql.Literal(i))
+                for i in range(len(self.pk_fields))
+            ),
+        )
+
 
 class ProcessingStats:
     """
@@ -771,7 +789,7 @@ class Worker:
         processing_stats = ProcessingStats()
         start_time = time.perf_counter()
         async with conn.transaction():
-            items = await self._fetch_work(conn, self.vectorizer.config.loading.retries)
+            items = await self._fetch_work(conn)
 
             current_span = tracer.current_span()
             if current_span:
@@ -797,9 +815,7 @@ class Worker:
 
             return len(items)
 
-    async def _fetch_work(
-        self, conn: AsyncConnection, loading_retries: int
-    ) -> list[SourceRow]:
+    async def _fetch_work(self, conn: AsyncConnection) -> list[SourceRow]:
         """
         Fetches a batch of tasks from the work queue table. Safe for concurrent use.
 
@@ -1038,7 +1054,7 @@ class Worker:
     async def handle_loading_retries(self, conn: AsyncConnection):
         if self.pending_retries:
             for item, e in self.pending_retries:
-                is_retryable = await self._reinsert_work_to_retry(
+                is_retryable = await self._reinsert_loading_work_to_retry(
                     conn, self.vectorizer.config.loading.retries, item
                 )
                 await self._insert_vectorizer_error(
@@ -1058,7 +1074,7 @@ class Worker:
 
         self.pending_retries = []
 
-    async def _reinsert_work_to_retry(
+    async def _reinsert_loading_work_to_retry(
         self, conn: AsyncConnection, max_loading_retries: int, item: SourceRow
     ) -> bool:
         """
@@ -1067,9 +1083,21 @@ class Worker:
 
         current_retries = item.get("loading_retries", 0)
         if current_retries >= max_loading_retries:
+            queue_failed_params = {
+                "failure_step": "loading",
+                **{
+                    f"pk{i}": value
+                    for i, value in enumerate(self._get_item_pk_values(item))
+                },
+            }
+
+            async with conn.cursor() as cursor:
+                await cursor.execute(
+                    self.queries.insert_queue_failed_query, queue_failed_params
+                )
             return False
 
-        params = {
+        reinsert_params = {
             "loading_retries": max_loading_retries,
             "current_retries": current_retries,
             **{
@@ -1081,7 +1109,7 @@ class Worker:
         async with conn.cursor() as cursor:
             await cursor.execute(
                 self.queries.reinsert_work_to_retry_query,
-                params,
+                reinsert_params,
             )
             return True
 
