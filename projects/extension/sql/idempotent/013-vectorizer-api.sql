@@ -31,6 +31,8 @@ create or replace function ai.create_vectorizer
 , queue_table pg_catalog.name default null
 , grant_to pg_catalog.name[] default ai.grant_to()
 , enqueue_existing pg_catalog.bool default true
+, skip_chunking pg_catalog.bool default false
+, embedding_column pg_catalog.name default 'embedding'
 ) returns pg_catalog.int4
 as $func$
 declare
@@ -45,6 +47,12 @@ declare
     _sql pg_catalog.text;
     _job_id pg_catalog.int8;
 begin
+
+    if skip_chunking then
+        if target_schema is not null or target_table is not null then
+            raise exception 'target_schema and target_table are not allowed when skip_chunking is true';
+        end if;
+    end if;
     -- make sure all the roles listed in grant_to exist
     if grant_to is not null then
         select
@@ -102,30 +110,44 @@ begin
     end if;
 
     _vectorizer_id = pg_catalog.nextval('ai.vectorizer_id_seq'::pg_catalog.regclass);
-    target_schema = coalesce(target_schema, _source_schema);
-    target_table = case
-        when target_table is not null then target_table
-        when destination is not null then pg_catalog.concat(destination, '_store')
-        else pg_catalog.concat(_source_table, '_embedding_store')
-    end;
-    view_schema = coalesce(view_schema, _source_schema);
-    view_name = case
-        when view_name is not null then view_name
-        when destination is not null then destination
-        else pg_catalog.concat(_source_table, '_embedding')
-    end;
+    
+    if skip_chunking then
+        -- Don't need a view when using the same table
+        view_schema = null;
+        view_name = null;
+    else
+        -- Normal case - separate target table
+        target_schema = coalesce(target_schema, _source_schema);
+        target_table = case
+            when target_table is not null then target_table
+            when destination is not null then pg_catalog.concat(destination, '_store')
+            else pg_catalog.concat(_source_table, '_embedding_store')
+        end;
+        view_schema = coalesce(view_schema, _source_schema);
+        view_name = case
+            when view_name is not null then view_name
+            when destination is not null then destination
+            else pg_catalog.concat(_source_table, '_embedding')
+        end;
+    end if;
+    
     _trigger_name = pg_catalog.concat('_vectorizer_src_trg_', _vectorizer_id);
     queue_schema = coalesce(queue_schema, 'ai');
     queue_table = coalesce(queue_table, pg_catalog.concat('_vectorizer_q_', _vectorizer_id));
 
-    -- make sure view name is available
-    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
-        raise exception 'an object named %.% already exists. specify an alternate destination explicitly', view_schema, view_name;
+    -- make sure view name is available (only if not skipping chunking)
+    if not skip_chunking and view_schema is not null and view_name is not null then
+        if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
+            raise exception 'an object named %.% already exists. specify an alternate destination explicitly', view_schema, view_name;
+        end if;
     end if;
 
-    -- make sure target table name is available
-    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', target_schema, target_table)) is not null then
-        raise exception 'an object named %.% already exists. specify an alternate destination or target_table explicitly', target_schema, target_table;
+    -- make sure target table name is available (only if not skipping chunking)
+    if not skip_chunking and target_schema is not null and target_table is not null then
+        if pg_catalog.to_regclass(pg_catalog.format('%I.%I', target_schema, target_table)) is not null 
+           and not (target_schema = _source_schema and target_table = _source_table) then
+            raise exception 'an object named %.% already exists. specify an alternate destination or target_table explicitly', target_schema, target_table;
+        end if;
     end if;
 
     -- make sure queue table name is available
@@ -174,14 +196,25 @@ begin
     , grant_to
     );
 
-    -- create the target table
-    perform ai._vectorizer_create_target_table
-    ( _source_pk
-    , target_schema
-    , target_table
-    , _dimensions
-    , grant_to
-    );
+    if skip_chunking then
+        -- Add embedding column to source table
+        perform ai._vectorizer_add_embedding_column
+        ( _source_schema
+        , _source_table
+        , _dimensions
+        , embedding_column
+        , grant_to
+        );
+    else
+        -- Create separate target table
+        perform ai._vectorizer_create_target_table
+        ( _source_pk
+        , target_schema
+        , target_table
+        , _dimensions
+        , grant_to
+        );
+    end if;
 
     -- create queue table
     perform ai._vectorizer_create_queue_table
@@ -203,17 +236,19 @@ begin
     , _source_pk
     );
 
-    -- create view
-    perform ai._vectorizer_create_view
-    ( view_schema
-    , view_name
-    , _source_schema
-    , _source_table
-    , _source_pk
-    , target_schema
-    , target_table
-    , grant_to
-    );
+    -- create view (only if not skipping chunking)
+    if not skip_chunking and view_schema is not null and view_name is not null then
+        perform ai._vectorizer_create_view
+        ( view_schema
+        , view_name
+        , _source_schema
+        , _source_table
+        , _source_pk
+        , target_schema
+        , target_table
+        , grant_to
+        );
+    end if;
 
     -- schedule the async ext job
     select ai._vectorizer_schedule_job
@@ -259,6 +294,8 @@ begin
       , 'formatting', formatting
       , 'scheduling', scheduling
       , 'processing', processing
+      , 'skip_chunking', skip_chunking
+      , 'embedding_column', embedding_column
       )
     );
 

@@ -83,6 +83,8 @@ def configure_vectorizer(
     chunking: str = "chunking_character_text_splitter('content')",
     formatting: str = "formatting_python_template('$chunk')",
     embedding: str = "embedding_openai('text-embedding-ada-002', 1536)",
+    skip_chunking: bool = False,
+    embedding_column: str = "embedding",
 ):
     with connection.cursor(row_factory=dict_row) as cur:
         # Create vectorizer
@@ -93,7 +95,9 @@ def configure_vectorizer(
                 chunking => ai.{chunking},
                 formatting => ai.{formatting},
                 processing => ai.processing_default(batch_size => {batch_size},
-                                                    concurrency => {concurrency})
+                                                    concurrency => {concurrency}),
+                skip_chunking => {skip_chunking},
+                embedding_column => '{embedding_column}'
             )
         """)  # type: ignore
         vectorizer_id: int = int(cur.fetchone()["create_vectorizer"])  # type: ignore
@@ -113,6 +117,29 @@ def setup_source_table(
                     id INT NOT NULL PRIMARY KEY,
                     id2 INT NOT NULL,
                     content TEXT NOT NULL
+                )
+            """)
+        # Insert test data
+        values = [(i, i, f"post_{i}") for i in range(1, number_of_rows + 1)]
+        cur.executemany(
+            "INSERT INTO blog (id, id2, content) VALUES (%s, %s, %s)", values
+        )
+    return table_name
+
+
+def setup_source_table_composed_primary_key(
+    connection: Connection,
+    number_of_rows: int,
+):
+    table_name = "blog"
+    with connection.cursor(row_factory=dict_row) as cur:
+        # Create source table
+        cur.execute(f"""
+                CREATE TABLE {table_name} (
+                    id INT NOT NULL,
+                    id2 INT NOT NULL,
+                    content TEXT NOT NULL,
+                    PRIMARY KEY (id, id2)
                 )
             """)
         # Insert test data
