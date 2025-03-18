@@ -16,6 +16,7 @@ dependencies = [
     "langchain-text-splitters>=0.2,<1.0",
     "exceptiongroup>=1.0, <2.0",
     "pydantic>=2.0,<3.0",
+    "mistral-common>=1.0,<2.0",
     "ollama>=0.4.5,<0.5.0",
     "openai>=1.44,<2.0",
     "python-dotenv>=1.0,<2.0",
@@ -27,7 +28,7 @@ dependencies = [
     "pytimeparse>=1.1,<2.0",
     "voyageai>=0.3.1,<0.3.2; python_version < '3.13'", # 0.3.2 fails the tests somehow
     "litellm>=1.65.0,<1.66.0",
-    "google-cloud-aiplatform>=1.78.0,<2.0",
+    "google-cloud-aiplatform[tokenization]>=1.78.0,<2.0",
     "boto3>=1.35.0,<2.0",
     "smart-open==7.1.0",
     "pymupdf4llm==0.0.17",
