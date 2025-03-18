@@ -448,7 +448,7 @@ class Actions:
         )
         cmd = " ".join(
             [
-                "docker run --rm -d --name pgai-ext --hostname pgai-ext -e POSTGRES_HOST_AUTH_METHOD=trust",
+                "docker run -d --name pgai-ext --hostname pgai-ext -e POSTGRES_HOST_AUTH_METHOD=trust",
                 networking,
                 f"--mount type=bind,src={ext_dir().parent.parent},dst=/pgai",
                 "-w /pgai/projects/extension",

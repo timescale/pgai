@@ -527,8 +527,8 @@ class VectorizerQueryBuilder:
             INSERT INTO {queue_table}
                 ({pk_fields}, loading_retries, loading_retry_after)
             VALUES
-                ({pk_values}, (%(current_retries)s+1),
-                now() + INTERVAL '3 minutes'* (%(current_retries)s + 1))
+                ({pk_values}, (%(loading_retries)s+1),
+                now() + INTERVAL '3 minutes'* (%(loading_retries)s + 1))
                         """).format(
             pk_fields=self.pk_fields_sql,
             queue_table=sql.Identifier(
@@ -678,7 +678,6 @@ class Worker:
         self.features = features
         self.copy_types: None | list[int] = None
         self.worker_tracking = worker_tracking
-        self.pending_retries: list[tuple[SourceRow, LoadingError]] = []
 
     async def run(self) -> int:
         """
@@ -891,9 +890,9 @@ class Worker:
         """
 
         await self._delete_embeddings(conn, items)
-        records, errors = await self._generate_embeddings(items)
-        if self.features.loading_retries:
-            await self.handle_loading_retries(conn)
+        records, loading_errors, errors = await self._generate_embeddings(items)
+        if self.features.loading_retries and loading_errors:
+            await self.handle_loading_retries(conn, loading_errors)
         await self._copy_embeddings(conn, records)
         if errors:
             await self._insert_vectorizer_errors(conn, errors)
@@ -985,7 +984,11 @@ class Worker:
 
     async def _generate_embeddings(
         self, items: list[SourceRow]
-    ) -> tuple[list[EmbeddingRecord], list[VectorizerErrorRecord]]:
+    ) -> tuple[
+        list[EmbeddingRecord],
+        list[tuple[SourceRow, LoadingError]],
+        list[VectorizerErrorRecord],
+    ]:
         """
         Generates the embeddings for the given items.
 
@@ -997,6 +1000,7 @@ class Worker:
                 of embedding records and error records.
         """
         records_without_embeddings: list[EmbeddingRecord] = []
+        loading_errors: list[tuple[SourceRow, LoadingError]] = []
         documents: list[str] = []
         for item in items:
             pk_values = self._get_item_pk_values(item)
@@ -1004,7 +1008,7 @@ class Worker:
                 payload = self.vectorizer.config.loading.load(item)
             except Exception as e:
                 if self.features.loading_retries:
-                    self.pending_retries.append((item, (LoadingError(e=e))))
+                    loading_errors.append((item, (LoadingError(e=e))))
                 continue
 
             payload = self.vectorizer.config.parsing.parse(item, payload)
@@ -1030,7 +1034,7 @@ class Worker:
                 errors.append(self._vectorizer_error_record(record, embedding))
             else:
                 records.append(record + [np.array(embedding)])
-        return records, errors
+        return records, loading_errors, errors
 
     def _vectorizer_error_record(
         self, record: EmbeddingRecord, chunk_error: ChunkEmbeddingError
@@ -1051,28 +1055,29 @@ class Worker:
             ),
         )
 
-    async def handle_loading_retries(self, conn: AsyncConnection):
-        if self.pending_retries:
-            for item, e in self.pending_retries:
-                is_retryable = await self._reinsert_loading_work_to_retry(
-                    conn, self.vectorizer.config.loading.retries, item
-                )
-                await self._insert_vectorizer_error(
-                    conn,
-                    (
-                        self.vectorizer.id,
-                        e.msg,
-                        Jsonb(
-                            {
-                                "loader": self.vectorizer.config.loading.implementation,  # noqa
-                                "error_reason": str(e.__cause__),
-                                "is_retryable": is_retryable,
-                            }
-                        ),
+    async def handle_loading_retries(
+        self,
+        conn: AsyncConnection,
+        loading_errors: list[tuple[SourceRow, LoadingError]],
+    ):
+        for item, e in loading_errors:
+            is_retryable = await self._reinsert_loading_work_to_retry(
+                conn, self.vectorizer.config.loading.retries, item
+            )
+            await self._insert_vectorizer_error(
+                conn,
+                (
+                    self.vectorizer.id,
+                    e.msg,
+                    Jsonb(
+                        {
+                            "loader": self.vectorizer.config.loading.implementation,  # noqa
+                            "error_reason": str(e.__cause__),
+                            "is_retryable": is_retryable,
+                        }
                     ),
-                )
-
-        self.pending_retries = []
+                ),
+            )
 
     async def _reinsert_loading_work_to_retry(
         self, conn: AsyncConnection, max_loading_retries: int, item: SourceRow
@@ -1081,8 +1086,8 @@ class Worker:
         Requeue the work items that failed to generate embeddings.
         """
 
-        current_retries = item.get("loading_retries", 0)
-        if current_retries >= max_loading_retries:
+        loading_retries = item.get("loading_retries", 0)
+        if loading_retries >= max_loading_retries:
             queue_failed_params = {
                 "failure_step": "loading",
                 **{
@@ -1098,8 +1103,7 @@ class Worker:
             return False
 
         reinsert_params = {
-            "loading_retries": max_loading_retries,
-            "current_retries": current_retries,
+            "loading_retries": loading_retries,
             **{
                 f"pk{i}": value
                 for i, value in enumerate(self._get_item_pk_values(item))

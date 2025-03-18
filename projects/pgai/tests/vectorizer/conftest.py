@@ -28,10 +28,6 @@ def download_docling_models():
     # pre-fetch all models required by docling
     # this is done to avoid downloading the models during the tests.
     # Models are downloaded to: ~/.cache/huggingface/hub/models--ds4sd--docling-models
-    if any(Path.home().joinpath(f"{DOCLING_CACHE_DIR}").iterdir()):
-        print("Docling models found, skipping download.")
-        return
-
     print("Attempting to download docling models.")
     docling.utils.model_downloader.download_models(
         progress=True,
