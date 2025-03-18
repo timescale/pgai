@@ -126,4 +126,11 @@ dev-dependencies = [
     "twine==5.1.1",
     "mitmproxy==10.3.0",
     "Jinja2>=3.1.5",
+    "pdbpp>=0.10.3",
+]
+
+[dependency-groups]
+bench = [
+    "memray>=1.16.0",
+    "py-spy>=0.4.0",
 ]

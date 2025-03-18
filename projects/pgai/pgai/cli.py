@@ -279,6 +279,109 @@ def vectorizer_worker(
     )
 
 
+@click.command(name="worker-benchmark")
+@click.version_option(version=__version__)
+@click.option(
+    "-d",
+    "--db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The database URL to connect to",
+)
+@click.option(
+    "-i",
+    "--vectorizer-id",
+    "vectorizer_ids",
+    type=click.INT,
+    multiple=True,
+    help="Only fetch work from the given vectorizer ids. If not provided, all vectorizers will be fetched.",  # noqa
+    default=[],
+)
+@click.option(
+    "-c",
+    "--concurrency",
+    type=click.IntRange(1),
+    default=1,
+    show_default=True,
+)
+@click.option(
+    "--log-level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARN", "ERROR", "FATAL", "CRITICAL"], case_sensitive=False
+    ),
+    default="INFO",
+)
+@click.option(
+    "--poll-interval",
+    type=TimeDurationParamType(),
+    default="5m",
+    show_default=True,
+    help="The interval, in duration string or integer (seconds), to wait before checking for new work after processing all available work in the queue.",  # noqa
+)
+@click.option(
+    "--once",
+    type=click.BOOL,
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="Exit after processing all available work (implies --exit-on-error).",
+)
+@click.option(
+    "--exit-on-error",
+    type=click.BOOL,
+    default=None,
+    show_default=True,
+    help="Exit immediately when an error occurs.",
+)
+def vectorizer_worker_benchmark(
+    db_url: str,
+    vectorizer_ids: Sequence[int],
+    concurrency: int,
+    log_level: str,
+    poll_interval: int,
+    once: bool,
+    exit_on_error: bool | None,
+) -> None:
+    from pathlib import Path
+
+    import vcr  # type:ignore
+
+    cassette_library_dir = Path(__file__).parent.parent.joinpath(
+        "benchmark", "cassettes"
+    )
+    cassette_library_dir.mkdir(exist_ok=True)
+
+    def remove_set_cookie_header(response: dict[str, Any]):
+        headers = response["headers"]
+        headers_to_remove = ["set-cookie", "Set-Cookie"]
+        for header in headers_to_remove:
+            if header in headers:
+                del headers[header]
+        return response
+
+    vcr_ = vcr.VCR(
+        serializer="yaml",
+        cassette_library_dir=str(cassette_library_dir),
+        record_mode=vcr.mode.ONCE,
+        filter_headers=["authorization", "api-key"],
+        match_on=["method", "scheme", "host", "port", "path", "query", "body"],
+        before_record_response=remove_set_cookie_header,
+    )
+    with vcr_.use_cassette("wiki_openai_500"):  # type: ignore
+        asyncio.run(
+            async_run_vectorizer_worker(
+                db_url,
+                vectorizer_ids,
+                concurrency,
+                log_level,
+                poll_interval,
+                once,
+                exit_on_error,
+            )
+        )
+
+
 async def handle_error(
     error_message: str,
     vectorizer_id: int | None,
@@ -423,4 +526,5 @@ def cli():
 
 
 vectorizer.add_command(vectorizer_worker)
+vectorizer.add_command(vectorizer_worker_benchmark)
 cli.add_command(vectorizer)
