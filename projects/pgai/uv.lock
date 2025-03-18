@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '4' and platform_python_implementation != 'PyPy'",
@@ -2089,6 +2090,7 @@ dev = [
     { name = "psycopg", extra = ["binary"] },
     { name = "pyright" },
     { name = "pytest" },
+    { name = "pytest-asyncio" },
     { name = "python-dotenv" },
     { name = "ruff" },
     { name = "testcontainers" },
@@ -2119,6 +2121,7 @@ requires-dist = [
     { name = "typing-extensions", specifier = ">=4.0,<5.0" },
     { name = "voyageai", specifier = ">=0.3.1,<0.3.2" },
 ]
+provides-extras = ["sqlalchemy"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2128,6 +2131,7 @@ dev = [
     { name = "psycopg", extras = ["binary"], specifier = "==3.2.1" },
     { name = "pyright", specifier = "==1.1.385" },
     { name = "pytest", specifier = "==8.3.2" },
+    { name = "pytest-asyncio", specifier = "==0.25.3" },
     { name = "python-dotenv", specifier = "==1.0.1" },
     { name = "ruff", specifier = "==0.6.9" },
     { name = "testcontainers", specifier = "==4.8.1" },
@@ -2614,6 +2618,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b4/8c/9862305bdcd6020bc7b45b1b5e7397a6caf1a33d3025b9a003b39075ffb2/pytest-8.3.2.tar.gz", hash = "sha256:c132345d12ce551242c87269de812483f5bcc87cdbb4722e48487ba194f9fdce", size = 1439314 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0f/f9/cf155cf32ca7d6fa3601bc4c5dd19086af4b320b706919d48a4c79081cf9/pytest-8.3.2-py3-none-any.whl", hash = "sha256:4ba08f9ae7dcf84ded419494d229b48d0903ea6407b030eaec46df5e6a73bba5", size = 341802 },
+]
+
+[[package]]
+name = "pytest-asyncio"
+version = "0.25.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f2/a8/ecbc8ede70921dd2f544ab1cadd3ff3bf842af27f87bbdea774c7baa1d38/pytest_asyncio-0.25.3.tar.gz", hash = "sha256:fc1da2cf9f125ada7e710b4ddad05518d4cee187ae9412e9ac9271003497f07a", size = 54239 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/67/17/3493c5624e48fd97156ebaec380dcaafee9506d7e2c46218ceebbb57d7de/pytest_asyncio-0.25.3-py3-none-any.whl", hash = "sha256:9e89518e0f9bd08928f97a3482fdc4e244df17529460bc038291ccaf8f85c7c3", size = 19467 },
 ]
 
 [[package]]
