@@ -328,7 +328,7 @@ def test_disabled_vectorizer_is_skipped_before_next_batch(
     assert row is not None
     vectorizer = Vectorizer(**row["vectorizer"])
     vectorizer.config.embedding.set_api_key(  # type: ignore
-        {"OPENAI_API_KEY": "empty"}
+        {"OPENAI_API_KEY": os.getenv("OPENAI_API_KEY")}
     )
 
     features = Features.for_testing_latest_version()
@@ -414,7 +414,7 @@ def test_disabled_vectorizer_is_backwards_compatible(
     assert row is not None
     vectorizer = Vectorizer(**row["vectorizer"])
     vectorizer.config.embedding.set_api_key(  # type: ignore
-        {"OPENAI_API_KEY": "empty"}
+        {"OPENAI_API_KEY": os.getenv("OPENAI_API_KEY")}
     )
 
     # When the vectorizer is executed.

@@ -1,36 +1,38 @@
 interactions:
 - request:
-    body: '{"input": [[2252, 62, 16], [2252, 62, 17]], "model": "text-embedding-ada-002",
-        "encoding_format": "float"}'
+    body: '{"input": ["post_1", "post_2"], "model": "text-embedding-ada-002", "encoding_format":
+      "float"}'
     headers:
       accept:
       - application/json
       accept-encoding:
-      - gzip, deflate
+      - gzip, deflate, br, zstd
       connection:
       - keep-alive
       content-length:
-      - '78'
+      - '94'
       content-type:
       - application/json
       host:
       - api.openai.com
       user-agent:
-      - AsyncOpenAI/Python 1.42.0
+      - AsyncOpenAI/Python 1.60.0
       x-stainless-arch:
-      - arm64
+      - x64
       x-stainless-async:
       - async:asyncio
       x-stainless-lang:
       - python
       x-stainless-os:
-      - MacOS
+      - Linux
       x-stainless-package-version:
-      - 1.42.0
+      - 1.60.0
+      x-stainless-retry-count:
+      - '0'
       x-stainless-runtime:
       - CPython
       x-stainless-runtime-version:
-      - 3.12.4
+      - 3.12.7
     method: POST
     uri: https://api.openai.com/v1/embeddings
   response:
@@ -40,10 +42,8 @@ interactions:
         \       \"type\": \"invalid_request_error\",\n        \"param\": null,\n        \"code\":
         \"invalid_api_key\"\n    }\n}\n"
     headers:
-      CF-Cache-Status:
-      - DYNAMIC
       CF-RAY:
-      - 8bdea12438fe1bac-MAD
+      - 9224d65b8db603b5-ZRH
       Connection:
       - keep-alive
       Content-Length:
@@ -51,25 +51,21 @@ interactions:
       Content-Type:
       - application/json; charset=utf-8
       Date:
-      - Wed, 04 Sep 2024 14:22:03 GMT
+      - Tue, 18 Mar 2025 12:47:13 GMT
       Server:
       - cloudflare
-      Set-Cookie:
-      - __cf_bm=B02.tgmUlTMtdXEQOiBzZOU_sln3ceUM8cKZBfxzdsw-1725459723-1.0.1.1-osLM_Xbnp9vSCBx3p0xex.ZlJscAdKPPKXGc64Yj4fxpL2XAwgaSWpqRRYdwj95Np6Skwr9g2zdEDS2pA246WA;
-        path=/; expires=Wed, 04-Sep-24 14:52:03 GMT; domain=.api.openai.com; HttpOnly;
-        Secure; SameSite=None
-      - _cfuvid=_6vXM2ugLqEnxWEMQQu0lv__9uP7Q14aS4CxwR7Kbp8-1725459723094-0.0.1.1-604800000;
-        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       X-Content-Type-Options:
       - nosniff
       alt-svc:
       - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
       strict-transport-security:
-      - max-age=15552000; includeSubDomains; preload
+      - max-age=31536000; includeSubDomains; preload
       vary:
       - Origin
       x-request-id:
-      - req_3ffff344ecaba2bb9c83b4b9f5d8d59a
+      - req_38d181f6111f1ee751f9518581e6c403
     status:
       code: 401
       message: Unauthorized

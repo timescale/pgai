@@ -1,20 +1,9 @@
-from typing import Any
-
 import pytest
 
 from pgai.vectorizer.embeddings import batch_indices
 
-token_documents = [[1, 2, 3, 4, 5], [2], [3], [4], [5], [6], [7], [8], [9]]
-string_documents = [
-    "A",
-    "sequence",
-    "of",
-    "chunks",
-    "which are",
-    "split",
-    "from a",
-    "larger text",
-]
+token_documents = [5, 1, 1, 1, 1, 1, 1, 1, 1]
+string_documents = [1, 8, 2, 5, 9, 5, 6, 11]
 
 
 @pytest.mark.parametrize(
@@ -72,7 +61,7 @@ string_documents = [
     ],
 )
 def test_batch_indices(
-    input: list[Any],
+    input: list[int],
     batch_size: int,
     token_limit: int | None,
     expected: list[tuple[int, int]],

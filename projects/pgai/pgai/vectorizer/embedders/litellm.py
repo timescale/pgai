@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from functools import cached_property
 from typing import Any, Literal
 
 import litellm
@@ -10,11 +9,9 @@ from typing_extensions import override
 
 from ..embeddings import (
     ApiKeyMixin,
-    BatchApiCaller,
     Embedder,
     EmbeddingResponse,
     EmbeddingVector,
-    StringDocument,
     Usage,
     logger,
 )
@@ -76,15 +73,8 @@ class LiteLLM(ApiKeyMixin, BaseModel, Embedder):
             Sequence[EmbeddingVector]: The embeddings for each document.
         """
         await logger.adebug(f"Chunks produced: {len(documents)}")
-        return await self._batcher.batch_chunks_and_embed(documents)
-
-    @cached_property
-    def _batcher(self) -> BatchApiCaller[StringDocument]:
-        return BatchApiCaller(
-            self._max_chunks_per_batch(),
-            self._max_tokens_per_batch(),
-            self.call_embed_api,
-        )
+        chunk_lengths = [0 for _ in documents]
+        return await self.batch_chunks_and_embed(documents, chunk_lengths)
 
     @override
     def _max_chunks_per_batch(self) -> int:
@@ -112,7 +102,8 @@ class LiteLLM(ApiKeyMixin, BaseModel, Embedder):
                 )
                 return 5
 
-    async def call_embed_api(self, documents: str | list[str]) -> EmbeddingResponse:
+    @override
+    async def call_embed_api(self, documents: list[str]) -> EmbeddingResponse:
         # Without `suppress_debug_info`, LiteLLM writes the following into stdout:
         # Provider List: https://docs.litellm.ai/docs/providers
         # This is useless, and confusing, so we suppress it.
