@@ -60,10 +60,12 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
         return self.user if self.user is not None else openai.NOT_GIVEN
 
     @cached_property
-    def _embedder(self) -> resources.AsyncEmbeddings:
+    def _embedder(self) -> resources.AsyncEmbeddingsWithRawResponse:
+        # TODO: if we move to a generator base approach we should try
+        # benchmarking with_streaming_response.
         return openai.AsyncOpenAI(
             base_url=self.base_url, api_key=self._api_key, max_retries=3
-        ).embeddings
+        ).embeddings.with_raw_response
 
     @override
     def _max_chunks_per_batch(self) -> int:
@@ -74,19 +76,20 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
         return 600_000
 
     async def call_embed_api(self, documents: list[Document]) -> EmbeddingResponse:
-        response = await self._embedder.create(
+        raw_response = await self._embedder.create(
             input=cast(list[str] | Iterable[Iterable[int]], documents),
             model=self.model,
             dimensions=self._openai_dimensions,
             user=self._openai_user,
             encoding_format="float",
         )
+        response = raw_response.http_response.json()
         usage = Usage(
-            prompt_tokens=response.usage.prompt_tokens,
-            total_tokens=response.usage.total_tokens,
+            prompt_tokens=response["usage"]["prompt_tokens"],
+            total_tokens=response["usage"]["total_tokens"],
         )
         return EmbeddingResponse(
-            embeddings=[r.embedding for r in response.data], usage=usage
+            embeddings=[r["embedding"] for r in response["data"]], usage=usage
         )
 
     @cached_property
