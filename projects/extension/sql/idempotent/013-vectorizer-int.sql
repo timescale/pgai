@@ -95,6 +95,88 @@ $func$
 language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
+-------------------------------------------------------------------------------
+-- _vectorizer_create_destination
+create or replace function ai._vectorizer_create_destination
+(
+    source_schema pg_catalog.name
+    , source_pk pg_catalog.jsonb
+    , source_table pg_catalog.name
+    , dimensions pg_catalog.int4
+    , destination jsonb
+    , grant_to pg_catalog.name[]
+) returns void as
+$func$
+declare
+    target_schema pg_catalog.name;
+    target_table pg_catalog.name;
+    view_schema pg_catalog.name;
+    view_name pg_catalog.name;
+    implementation pg_catalog.text;
+    embedding_column pg_catalog.name;
+begin
+
+    implementation = destination operator(pg_catalog.->>) 'implementation';
+    if implementation = 'custom' then
+        target_schema = coalesce(destination operator(pg_catalog.->>) 'target_schema', source_schema);
+        target_table = case
+            when destination operator(pg_catalog.->>) 'target_table' is not null then destination operator(pg_catalog.->>) 'target_table'
+            when destination operator(pg_catalog.->>) 'destination' is not null then pg_catalog.concat(destination operator(pg_catalog.->>) 'destination', '_store')
+            else pg_catalog.concat(source_table, '_embedding_store')
+        end;
+        view_schema = coalesce(view_schema, source_schema);
+        view_name = case
+            when destination operator(pg_catalog.->>) 'view_name' is not null then destination operator(pg_catalog.->>) 'view_name'
+            when destination operator(pg_catalog.->>) 'destination' is not null then destination operator(pg_catalog.->>) 'destination'
+            else pg_catalog.concat(source_table), '_embedding')
+        end;
+        -- make sure view name is available
+        if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
+            raise exception 'an object named %.% already exists. specify an alternate destination explicitly', view_schema, view_name;
+        end if;
+
+        -- make sure target table name is available
+        if pg_catalog.to_regclass(pg_catalog.format('%I.%I', target_schema, target_table)) is not null then
+            raise exception 'an object named %.% already exists. specify an alternate destination or target_table explicitly', target_schema, target_table;
+        end if;
+
+        -- create the target table
+        perform ai._vectorizer_create_target_table
+        ( source_pk
+        , target_schema
+        , target_table
+        , dimensions
+        , grant_to
+        );
+
+        perform ai._vectorizer_create_view
+        ( view_schema
+        , view_name
+        , source_schema
+        , source_table
+        , source_pk
+        , target_schema
+        , target_table
+        , grant_to
+        );
+    if implementation = 'source' then
+        perform ai._vectorizer_add_embedding_column
+        ( source_schema
+        , source_table
+        , dimensions
+        , embedding_column
+        , grant_to
+        );
+    end if;
+
+    perform ai._vectorizer_create_dependencies(vectorizer_id);
+
+    return;
+end;
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
 
 -------------------------------------------------------------------------------
 -- _vectorizer_add_embedding_column
@@ -360,71 +442,75 @@ begin
     -- if we drop the source or the target with `cascade` it should drop the queue
     -- if we drop the source with `cascade` it should drop the target
     -- there's no unique constraint on pg_depend so we manually prevent duplicate entries\
-    if _vec.target_schema is not null and _vec.target_table is not null then
-        with x as
-        (
-            -- the queue table depends on the source table
-            select
-             (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as classid
-            , pg_catalog.format('%I.%I', _vec.queue_schema, _vec.queue_table)::pg_catalog.regclass::pg_catalog.oid as objid
-            , 0 as objsubid
-            , (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as refclassid
-            , pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::pg_catalog.regclass::pg_catalog.oid as refobjid
-            , 0 as refobjsubid
-            , 'n' as deptype
-            union all
-            -- the queue table depends on the target table
-            select
-             (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as classid
-            , pg_catalog.format('%I.%I', _vec.queue_schema, _vec.queue_table)::pg_catalog.regclass::pg_catalog.oid as objid
-            , 0 as objsubid
-            , (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as refclassid
-            , pg_catalog.format('%I.%I', _vec.target_schema, _vec.target_table)::pg_catalog.regclass::pg_catalog.oid as refobjid
-            , 0 as refobjsubid
-            , 'n' as deptype
-            union all
-            -- the target table depends on the source table
-            select
-             (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as classid
-            , pg_catalog.format('%I.%I', _vec.target_schema, _vec.target_table)::pg_catalog.regclass::pg_catalog.oid as objid
-            , 0 as objsubid
-            , (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as refclassid
-            , pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::pg_catalog.regclass::pg_catalog.oid as refobjid
-            , 0 as refobjsubid
-            , 'n' as deptype
-        )
-        insert into pg_catalog.pg_depend
-        ( classid
-        , objid
-        , objsubid
-        , refclassid
-        , refobjid
-        , refobjsubid
-        , deptype
-        )
+    with x as
+    (
+    -- the queue table depends on the source table (always included)
+    select
+        (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as classid
+        , pg_catalog.format('%I.%I', _vec.queue_schema, _vec.queue_table)::pg_catalog.regclass::pg_catalog.oid as objid
+        , 0 as objsubid
+        , (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as refclassid
+        , pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::pg_catalog.regclass::pg_catalog.oid as refobjid
+        , 0 as refobjsubid
+        , 'n' as deptype
+        
+        union all
+        
+        -- the following rows are only included if target_schema and target_table are not null
         select
-          x.classid
-        , x.objid
-        , x.objsubid
-        , x.refclassid
-        , x.refobjid
-        , x.refobjsubid
-        , x.deptype
-        from x
-        where not exists
-        (
-            select 1
-            from pg_catalog.pg_depend d
-            where d.classid operator(pg_catalog.=) x.classid
-            and d.objid operator(pg_catalog.=) x.objid
-            and d.objsubid operator(pg_catalog.=) x.objsubid
-            and d.refclassid operator(pg_catalog.=) x.refclassid
-            and d.refobjid operator(pg_catalog.=) x.refobjid
-            and d.refobjsubid operator(pg_catalog.=) x.refobjsubid
-            and d.deptype operator(pg_catalog.=) x.deptype
-        )
-        ;
-    end if;
+        (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as classid
+        , pg_catalog.format('%I.%I', _vec.queue_schema, _vec.queue_table)::pg_catalog.regclass::pg_catalog.oid as objid
+        , 0 as objsubid
+        , (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as refclassid
+        , pg_catalog.format('%I.%I', _vec.target_schema, _vec.target_table)::pg_catalog.regclass::pg_catalog.oid as refobjid
+        , 0 as refobjsubid
+        , 'n' as deptype
+        where _vec.target_schema is not null and _vec.target_table is not null
+        
+        union all
+        
+        -- the target table depends on the source table (only if target exists)
+        select
+        (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as classid
+        , pg_catalog.format('%I.%I', _vec.target_schema, _vec.target_table)::pg_catalog.regclass::pg_catalog.oid as objid
+        , 0 as objsubid
+        , (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as refclassid
+        , pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::pg_catalog.regclass::pg_catalog.oid as refobjid
+        , 0 as refobjsubid
+        , 'n' as deptype
+        where _vec.target_schema is not null and _vec.target_table is not null
+    )
+    insert into pg_catalog.pg_depend
+    ( classid
+    , objid
+    , objsubid
+    , refclassid
+    , refobjid
+    , refobjsubid
+    , deptype
+    )
+    select
+        x.classid
+    , x.objid
+    , x.objsubid
+    , x.refclassid
+    , x.refobjid
+    , x.refobjsubid
+    , x.deptype
+    from x
+    where not exists
+    (
+        select 1
+        from pg_catalog.pg_depend d
+        where d.classid operator(pg_catalog.=) x.classid
+        and d.objid operator(pg_catalog.=) x.objid
+        and d.objsubid operator(pg_catalog.=) x.objsubid
+        and d.refclassid operator(pg_catalog.=) x.refclassid
+        and d.refobjid operator(pg_catalog.=) x.refobjid
+        and d.refobjsubid operator(pg_catalog.=) x.refobjsubid
+        and d.deptype operator(pg_catalog.=) x.deptype
+    )
+    ;
 end
 $func$
 language plpgsql volatile security definer -- definer on purpose
