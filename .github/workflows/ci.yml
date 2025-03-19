@@ -4,6 +4,8 @@ on:
   pull_request_target:
     paths-ignore:
       - "**.md"
+      - ".github/workflows/*.yml"
+      - ".github/workflows/*.yaml"
   workflow_dispatch:
 permissions:
   contents: read
