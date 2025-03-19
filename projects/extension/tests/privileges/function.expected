@@ -60,6 +60,10 @@
  f       | bob   | execute   | no      | ai     | _vectorizer_create_dependencies(vectorizer_id integer)
  f       | fred  | execute   | no      | ai     | _vectorizer_create_dependencies(vectorizer_id integer)
  f       | jill  | execute   | YES     | ai     | _vectorizer_create_dependencies(vectorizer_id integer)
+ f       | alice | execute   | YES     | ai     | _vectorizer_create_queue_failed_table(queue_schema name, queue_failed_table name, source_pk jsonb, grant_to name[])
+ f       | bob   | execute   | no      | ai     | _vectorizer_create_queue_failed_table(queue_schema name, queue_failed_table name, source_pk jsonb, grant_to name[])
+ f       | fred  | execute   | no      | ai     | _vectorizer_create_queue_failed_table(queue_schema name, queue_failed_table name, source_pk jsonb, grant_to name[])
+ f       | jill  | execute   | YES     | ai     | _vectorizer_create_queue_failed_table(queue_schema name, queue_failed_table name, source_pk jsonb, grant_to name[])
  f       | alice | execute   | YES     | ai     | _vectorizer_create_queue_table(queue_schema name, queue_table name, source_pk jsonb, grant_to name[])
  f       | bob   | execute   | no      | ai     | _vectorizer_create_queue_table(queue_schema name, queue_table name, source_pk jsonb, grant_to name[])
  f       | fred  | execute   | no      | ai     | _vectorizer_create_queue_table(queue_schema name, queue_table name, source_pk jsonb, grant_to name[])
@@ -428,5 +432,5 @@
  f       | bob   | execute   | no      | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text, "verbose" boolean)
  f       | fred  | execute   | no      | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text, "verbose" boolean)
  f       | jill  | execute   | YES     | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text, "verbose" boolean)
-(428 rows)
+(432 rows)
 

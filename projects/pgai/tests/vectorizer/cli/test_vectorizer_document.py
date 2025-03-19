@@ -9,7 +9,6 @@ from psycopg import Connection
 from psycopg.rows import dict_row
 from testcontainers.localstack import LocalStackContainer  # type: ignore
 
-from pgai.vectorizer.loading import UriLoadingError
 from tests.vectorizer.cli.conftest import (
     TestDatabase,
     configure_vectorizer,
@@ -196,10 +195,23 @@ def test_simple_document_embedding_s3_no_credentials(
     os.environ["AWS_SHARED_CREDENTIALS_FILE"] = "/dev/null"
 
     # No cassette because it should never get to an API call.
-    result = run_vectorizer_worker(cli_db_url, vectorizer_id)
+    run_vectorizer_worker(cli_db_url, vectorizer_id)
 
-    assert result.exit_code == 1
-    assert "Unable to locate credentials" in result.stdout
+    connection = cli_db[1]
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT count(*) FROM ai._vectorizer_q_1;")
+        assert cur.fetchone()["count"] == 1  # type: ignore
+        cur.execute("SELECT id, message, details FROM ai.vectorizer_errors")
+        records = cur.fetchall()
+        assert len(records) == 1
+        error = records[0]
+        assert error["id"] == vectorizer_id
+        assert error["message"] == "loading failed"
+        assert error["details"] == {
+            "loader": "uri",
+            "error_reason": "Unable to locate credentials",
+            "is_retryable": True,
+        }
 
 
 def test_simple_document_embedding_s3(
@@ -318,10 +330,10 @@ def test_retries_on_not_present_document_embedding_s3(
     )
 
     with vcr_.use_cassette("doc_retries_s3_not_found.yaml"):
-        try:
-            run_vectorizer_worker(cli_db_url, vectorizer_id)
-        except UriLoadingError as e:
-            assert e.msg == "URI loading failed"
+        result = run_vectorizer_worker(cli_db_url, vectorizer_id)
+
+    if result.exception:
+        print(result.stdout)
 
     with connection.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT count(*) FROM ai._vectorizer_q_1;")
@@ -331,7 +343,7 @@ def test_retries_on_not_present_document_embedding_s3(
         assert len(records) == 1
         error = records[0]
         assert error["id"] == vectorizer_id
-        assert error["message"] == "URI loading failed"
+        assert error["message"] == "loading failed"
         assert error["details"] == {
             "loader": "uri",
             "error_reason": f"unable to access bucket: '{s3_bucket}'"
@@ -369,10 +381,10 @@ def test_there_will_be_no_more_retries_after_the_sixth_failure(
         )
 
     with vcr_.use_cassette("doc_retries_s3_not_found.yaml"):
-        try:
-            run_vectorizer_worker(cli_db_url, vectorizer_id)
-        except UriLoadingError as e:
-            assert e.msg == "URI loading failed"
+        result = run_vectorizer_worker(cli_db_url, vectorizer_id)
+
+    if result.exception:
+        print(result.stdout)
 
     with connection.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT id, message, details FROM ai.vectorizer_errors")
@@ -380,7 +392,7 @@ def test_there_will_be_no_more_retries_after_the_sixth_failure(
         assert len(records) == 1
         error = records[0]
         assert error["id"] == vectorizer_id
-        assert error["message"] == "URI loading failed"
+        assert error["message"] == "loading failed"
         assert error["details"] == {
             "loader": "uri",
             "error_reason": f"unable to access bucket: '{s3_bucket}'"
@@ -394,9 +406,9 @@ def test_there_will_be_no_more_retries_after_the_sixth_failure(
         cur.execute(
             "SELECT loading_retries, loading_retry_after" " FROM ai._vectorizer_q_1;"
         )
-        queue_item = cur.fetchone()
-        assert queue_item["loading_retries"] == 7  # type: ignore
-        assert queue_item["loading_retry_after"] is None  # type: ignore
+        with connection.cursor(row_factory=dict_row) as cur:
+            cur.execute("SELECT count(*) FROM ai._vectorizer_q_failed_1;")
+            assert cur.fetchone()["count"] == 1  # type: ignore
 
 
 def test_retries_should_do_nothing_if_retry_after_is_in_the_future(
@@ -412,10 +424,10 @@ def test_retries_should_do_nothing_if_retry_after_is_in_the_future(
     )
 
     with vcr_.use_cassette("doc_retries_s3_not_found.yaml"):
-        try:
-            run_vectorizer_worker(cli_db_url, vectorizer_id)
-        except UriLoadingError as e:
-            assert e.msg == "URI loading failed"
+        result = run_vectorizer_worker(cli_db_url, vectorizer_id)
+
+    if result.exception:
+        print(result.stdout)
 
     with connection.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT count(*) FROM ai._vectorizer_q_1;")
@@ -425,7 +437,7 @@ def test_retries_should_do_nothing_if_retry_after_is_in_the_future(
         assert len(records) == 1
         error = records[0]
         assert error["id"] == vectorizer_id
-        assert error["message"] == "URI loading failed"
+        assert error["message"] == "loading failed"
         assert error["details"] == {
             "loader": "uri",
             "error_reason": f"unable to access bucket: '{s3_bucket}'"
@@ -448,10 +460,10 @@ def test_retries_should_do_nothing_if_retry_after_is_in_the_future(
         assert queue_item["loading_retry_after"] > datetime.now(tz=timezone.utc)  # type: ignore
 
     with vcr_.use_cassette("doc_retries_s3_not_found.yaml"):
-        try:
-            run_vectorizer_worker(cli_db_url, vectorizer_id)
-        except UriLoadingError as e:
-            assert e.msg == "URI loading failed"
+        result = run_vectorizer_worker(cli_db_url, vectorizer_id)
+
+    if result.exception:
+        print(result.stdout)
 
     # loading_retries shouldn't have changed, given that
     # the loading_retry_after field is in the future.
