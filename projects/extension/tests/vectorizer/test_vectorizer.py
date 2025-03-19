@@ -83,6 +83,7 @@ VECTORIZER_ROW = r"""
     "queue_table": "_vectorizer_q_1",
     "view_schema": "website",
     "queue_schema": "ai",
+    "queue_failed_table": "_vectorizer_q_failed_1",
     "source_table": "blog",
     "target_table": "blog_embedding_store",
     "trigger_name": "_vectorizer_src_trg_1",

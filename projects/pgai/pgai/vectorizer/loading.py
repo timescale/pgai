@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from io import BytesIO
-from typing import Any, Literal
+from typing import Literal
 
 import smart_open  # type: ignore
 from filetype import filetype  # type: ignore
@@ -61,17 +61,8 @@ class LoadingError(Exception):
     Raised when the loader fails.
     """
 
-    msg = "loading failed"
-
-
-class UriLoadingError(LoadingError):
-    pk_values: list[Any]
-    """
-    Raised when the URI loader fails.
-    """
-
-    def __init__(self, *args: str, pk_values: list[Any]):
+    def __init__(self, *args: str, e: Exception):
         super().__init__(*args)
-        self.pk_values = pk_values
+        self.__cause__ = e
 
-    msg = "URI loading failed"
+    msg = "loading failed"
