@@ -541,6 +541,14 @@ begin
     ) into strict _sql;
     execute _sql;
 
+    -- drop the failed queue table if exists
+    select pg_catalog.format
+    ( $sql$drop table if exists %I.%I$sql$
+    , _vec.queue_schema
+    , _vec.queue_failed_table
+    ) into strict _sql;
+    execute _sql;
+
     if drop_all then
         -- drop the view if exists
         select pg_catalog.format
