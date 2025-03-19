@@ -353,7 +353,7 @@ async def async_run_vectorizer_worker(
                             err_msg, None, worker_tracking, exit_on_error
                         )
                     else:
-                        features = Features(pgai_version)
+                        features = Features.from_db(cur)
                         worker_tracking = WorkerTracking(
                             db_url, poll_interval, features, __version__
                         )
