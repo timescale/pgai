@@ -326,7 +326,7 @@ def test_disabled_vectorizer_is_skipped_before_next_batch(
         {"OPENAI_API_KEY": "empty"}
     )
 
-    features = Features("100.0.0")
+    features = Features.for_testing_latest_version()
     worker_tracking = WorkerTracking(cli_db_url, 500, features, "0.0.1")
 
     # When the vectorizer is disabled after processing the first batch.
@@ -391,7 +391,7 @@ def test_disabled_vectorizer_is_backwards_compatible(
         chunking="chunking_recursive_character_text_splitter('content', 100, 20,"
         " separators => array[E'\\n\\n', E'\\n', ' '])",
     )
-    features = Features("0.6.0")
+    features = Features.for_testing_no_features()
     worker_tracking = WorkerTracking(cli_db_url, 500, features, "0.0.1")
     assert not features.disable_vectorizers
 
