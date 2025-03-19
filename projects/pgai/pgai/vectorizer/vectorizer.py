@@ -479,49 +479,6 @@ class VectorizerQueryBuilder:
         )
 
     @cached_property
-    def requeue_or_remove_work_query(self) -> sql.Composed:
-        return sql.SQL("""
-            MERGE INTO {queue_table} AS target
-            USING (
-                SELECT
-                    {pk_fields}
-                FROM
-                    {queue_table}
-                WHERE
-                    ({pk_fields}) IN ({pk_values})
-                AND
-                    (loading_retry_after is null or loading_retry_after < now())
-            ) AS source
-            ON {merge_predicates}
-            WHEN MATCHED
-                AND target.loading_retries >= %(loading_retries)s THEN
-                    DELETE
-            WHEN MATCHED THEN
-                    UPDATE
-                        SET
-                            loading_retries = target.loading_retries + 1,
-                            loading_retry_after = now() +
-                                (INTERVAL '3 minutes' * (target.loading_retries + 1))
-            RETURNING target.loading_retries < %(loading_retries)s AS is_retryable
-                        """).format(
-            pk_fields=self.pk_fields_sql,
-            queue_table=sql.Identifier(
-                self.vectorizer.queue_schema, self.vectorizer.queue_table
-            ),
-            pk_values=sql.SQL(",").join(
-                sql.SQL("(%(pk{})s)").format(sql.Literal(i))
-                for i in range(len(self.pk_fields))
-            ),
-            merge_predicates=sql.SQL(" AND ").join(
-                sql.SQL("target.{} = source.{}").format(
-                    sql.Identifier(x.attname),
-                    sql.Identifier(x.attname),
-                )
-                for x in self.vectorizer.source_pk
-            ),
-        )
-
-    @cached_property
     def reinsert_work_to_retry_query(self) -> sql.Composed:
         return sql.SQL("""
             INSERT INTO {queue_table}

@@ -206,7 +206,7 @@ begin
     , grant_to
     );
 
-    -- create queue table
+    -- create queue failed table
     perform ai._vectorizer_create_queue_failed_table
     ( queue_schema
     , _queue_failed_table
