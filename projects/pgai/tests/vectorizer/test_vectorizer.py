@@ -82,7 +82,7 @@ async def test_vectorizer_internal(postgres_container: PostgresContainer):
         assert vectorizer_expected.source_table == vectorizer_actual.source_table  # type: ignore
 
         # run the vectorizer
-        features = Features(pgai_version)
+        features = Features.for_testing_latest_version()
         worker_tracking = WorkerTracking(db_url, 500, features, "0.0.1")
         await cli.run_vectorizer(
             db_url, vectorizer_actual, 1, features, worker_tracking
@@ -189,7 +189,7 @@ async def test_vectorizer_weird_pk(postgres_container: PostgresContainer):
             """)  # noqa
 
         # run the vectorizer
-        features = Features(pgai_version)
+        features = Features.for_testing_latest_version()
         worker_tracking = WorkerTracking(db_url, 500, features, "0.0.1")
         await cli.run_vectorizer(
             db_url, vectorizer_actual, 1, features, worker_tracking
