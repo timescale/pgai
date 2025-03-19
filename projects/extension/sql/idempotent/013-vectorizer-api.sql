@@ -1,5 +1,3 @@
-
-
 -------------------------------------------------------------------------------
 -- execute_vectorizer
 create or replace function ai.execute_vectorizer(vectorizer_id pg_catalog.int4) returns void
@@ -31,6 +29,9 @@ create or replace function ai.create_vectorizer
 , queue_table pg_catalog.name default null
 , grant_to pg_catalog.name[] default ai.grant_to()
 , enqueue_existing pg_catalog.bool default true
+, async_batch_queue_table pg_catalog.name default null
+, async_batch_chunks_table pg_catalog.name default null
+, async_batch_polling_interval pg_catalog.interval default '5 minutes'::pg_catalog.interval
 ) returns pg_catalog.int4
 as $func$
 declare
@@ -44,6 +45,7 @@ declare
     _vectorizer_id pg_catalog.int4;
     _sql pg_catalog.text;
     _job_id pg_catalog.int8;
+    _async_batch_supported pg_catalog.bool;
 begin
     -- make sure all the roles listed in grant_to exist
     if grant_to is not null then
@@ -117,6 +119,14 @@ begin
     _trigger_name = pg_catalog.concat('_vectorizer_src_trg_', _vectorizer_id);
     queue_schema = coalesce(queue_schema, 'ai');
     queue_table = coalesce(queue_table, pg_catalog.concat('_vectorizer_q_', _vectorizer_id));
+    async_batch_queue_table = coalesce(
+      async_batch_queue_table,
+      pg_catalog.concat('_vectorizer_async_batch_q_', _vectorizer_id)
+    );
+    async_batch_chunks_table = coalesce(
+      async_batch_chunks_table,
+      pg_catalog.concat('_vectorizer_async_batch_chunks_', _vectorizer_id)
+    );
 
     -- make sure view name is available
     if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
@@ -131,6 +141,16 @@ begin
     -- make sure queue table name is available
     if pg_catalog.to_regclass(pg_catalog.format('%I.%I', queue_schema, queue_table)) is not null then
         raise exception 'an object named %.% already exists. specify an alternate queue_table explicitly', queue_schema, queue_table;
+    end if;
+
+    -- make sure embedding batch table name is available
+    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', queue_schema, async_batch_queue_table)) is not null then
+        raise exception 'an object named %.% already exists. specify an alternate async_batch_queue_table explicitly', queue_schema, async_batch_queue_table;
+    end if;
+
+    -- make sure embedding batch chunks table name is available
+    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', queue_schema, async_batch_chunks_table)) is not null then
+        raise exception 'an object named %.% already exists. specify an alternate async_batch_chunks_table explicitly', queue_schema, async_batch_chunks_table;
     end if;
 
     -- validate the embedding config
@@ -225,6 +245,25 @@ begin
         scheduling = pg_catalog.jsonb_insert(scheduling, array['job_id'], pg_catalog.to_jsonb(_job_id));
     end if;
 
+    -- TODO: I wanted this to be created only when enabling the async batch
+    -- support, so that we don't create 2 extra tables that probably won't be
+    -- used. The issue is that we don't store the value of grant_to.
+    -- Tow new tables might not be enough to warrant any changes, but if you're
+    -- multi-tenant with 100 of customers, it'll be like 200 extra empty
+    -- tables.
+    --
+    -- create async batch tables.
+    select (embedding operator(pg_catalog.?) 'async_batch_enabled')::bool into _async_batch_supported;
+    if _async_batch_supported is true then
+        perform ai._vectorizer_create_async_batch_tables
+            ( queue_schema
+            , async_batch_queue_table
+            , async_batch_chunks_table
+            , _source_pk
+            , grant_to
+            );
+    end if;
+
     insert into ai.vectorizer
     ( id
     , source_schema
@@ -238,6 +277,9 @@ begin
     , queue_schema
     , queue_table
     , config
+    , async_batch_queue_table
+    , async_batch_chunks_table
+    , async_batch_polling_interval
     )
     values
     ( _vectorizer_id
@@ -260,6 +302,9 @@ begin
       , 'scheduling', scheduling
       , 'processing', processing
       )
+    , async_batch_queue_table
+    , async_batch_chunks_table
+    , async_batch_polling_interval
     );
 
     -- record dependencies in pg_depend

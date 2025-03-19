@@ -25,7 +25,12 @@ from .chunking import (
     LangChainRecursiveCharacterTextSplitter,
 )
 from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
-from .embeddings import ChunkEmbeddingError
+from .embeddings import (
+    AsyncBatch,
+    AsyncBatchEmbedder,
+    ChunkEmbeddingError,
+    DocumentWithID,
+)
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
 from .processing import ProcessingDefault
@@ -121,6 +126,9 @@ class Vectorizer:
     errors_table: str = "vectorizer_errors"
     schema: str = "ai"
     table: str = "vectorizer"
+    async_batch_queue_table: str | None = None
+    async_batch_chunks_table: str | None = None
+    async_batch_polling_interval: str = "5 minutes"
 
 
 class VectorizerQueryBuilder:
@@ -200,6 +208,26 @@ class VectorizerQueryBuilder:
         Returns the SQL identifier for the fully qualified name of the queue table.
         """
         return sql.Identifier(self.vectorizer.queue_schema, self.vectorizer.queue_table)
+
+    @property
+    def async_batch_queue_table_ident(self) -> sql.Identifier:
+        """
+        Returns the SQL identifier for the fully qualified name of the queue table.
+        """
+        table = self.vectorizer.async_batch_queue_table
+        if table is None:
+            raise ValueError("missing async batch configuration")
+        return sql.Identifier(self.vectorizer.queue_schema, table)
+
+    @property
+    def async_batch_chunks_table_ident(self) -> sql.Identifier:
+        """
+        Returns the SQL identifier for the fully qualified name of the queue table.
+        """
+        table = self.vectorizer.async_batch_chunks_table
+        if table is None:
+            raise ValueError("missing async batch configuration")
+        return sql.Identifier(self.vectorizer.queue_schema, table)
 
     @property
     def vectorizer_table_ident(self) -> sql.Identifier:
@@ -329,6 +357,120 @@ class VectorizerQueryBuilder:
             "INSERT INTO {} (id, message, details) VALUES (%s, %s, %s)"
         ).format(
             self.errors_table_ident,
+        )
+
+    @cached_property
+    def fetch_async_batch_to_process_query(self) -> sql.Composed:
+        # TODO: what errors should be retried? Not ok batch status should go to
+        # the errors table, since there's nothing that can be done there,
+        # should we put the ids back into the queue?
+        return sql.SQL(
+            """
+                WITH locked_rows AS (
+                    SELECT id
+                    FROM {batch_table}
+                    WHERE next_attempt_after < NOW()
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                    FOR UPDATE SKIP LOCKED
+                )
+                UPDATE
+                    {batch_table} b
+                SET
+                    total_attempts = b.total_attempts + 1,
+                    next_attempt_after = NOW() + %s::text::interval
+                FROM
+                    locked_rows l
+                WHERE
+                    l.id = b.id
+                RETURNING b.id, b.status, b.metadata
+                """
+        ).format(batch_table=self.async_batch_queue_table_ident)
+
+    @cached_property
+    def update_batch_embedding_query(self) -> sql.Composed:
+        return sql.SQL("""
+        UPDATE {batch_table} SET
+            status = %s
+            completed_at = %s,
+            failed_at = %s,
+            errors = %s
+        WHERE external_batch_id = %s
+        """).format(batch_table=self.async_batch_queue_table_ident)
+
+    @cached_property
+    def delete_batch_embedding_from_queue_query(self) -> sql.Composed:
+        return sql.SQL("""
+        DELETE FROM {batch_table}
+        WHERE id = %s
+        """).format(batch_table=self.async_batch_queue_table_ident)
+
+    @cached_property
+    def insert_async_batch_query(self) -> sql.Composed:
+        return sql.SQL("""
+        INSERT INTO {batch_table} (
+            id, status, errors, metadata, next_attempt_after
+        ) VALUES (
+          %s, %s, %s, %s, NOW() + %s::text::interval
+        )
+        """).format(batch_table=self.async_batch_queue_table_ident)
+
+    @cached_property
+    def insert_async_batch_embedding(self) -> sql.Composed:
+        return sql.SQL("""
+        WITH chunk AS (
+            DELETE FROM {batch_chunks_table}
+            WHERE
+                {pk_fields_and} AND
+                chunk_seq = %s AND
+                async_batch_id = %s
+            RETURNING {pk_fields_sql}, chunk_seq, chunk, %s
+        )
+        INSERT INTO {target_table}
+        ({pk_fields_sql}, chunk_seq, chunk, embedding) SELECT * FROM chunk
+        """).format(
+            batch_chunks_table=self.async_batch_chunks_table_ident,
+            pk_fields_sql=self.pk_fields_sql,
+            pk_fields_and=sql.SQL(" AND ").join(
+                [
+                    sql.SQL("{} = %s").format(sql.Identifier(a.attname))
+                    for a in self.vectorizer.source_pk
+                ]
+            ),
+            pk_placeholders=sql.SQL(" ,").join(
+                list(repeat(sql.SQL("%s"), len(self.pk_fields)))
+            ),
+            target_table=self.target_table_ident,
+        )
+
+    @cached_property
+    def update_async_batch_query(self) -> sql.Composed:
+        return sql.SQL("""
+        UPDATE {batch_table} SET
+            status = %s, metadata = %s
+        WHERE id = %s
+        """).format(batch_table=self.async_batch_queue_table_ident)
+
+    def insert_async_batch_chunks_query(self, async_batch_id: str) -> sql.Composed:
+        return sql.SQL("""
+        INSERT INTO {batch_chunks_table} (
+            async_batch_id,
+            {pk_fields},
+            chunk_seq,
+            chunk
+        ) VALUES (
+            {async_batch_id},
+            {pk_placeholders},
+            %s,
+            %s
+        )
+        """).format(
+            batch_chunks_table=self.async_batch_chunks_table_ident,
+            pk_fields=self.pk_fields_sql,
+            pk_placeholders=sql.SQL(" ,").join(
+                list(repeat(sql.SQL("%s"), len(self.pk_fields)))
+            ),
+            async_batch_id=sql.Literal(async_batch_id),
         )
 
     def _pks_placeholders_tuples(self, items_count: int) -> sql.Composed:
@@ -495,6 +637,9 @@ class Worker:
         """
         res = 0
         loops = 0
+        embedder = self.vectorizer.config.embedding
+        async_batch_supported = isinstance(embedder, AsyncBatchEmbedder)
+        use_async_batch = async_batch_supported and embedder.is_async_batch_enabled()
 
         async with await psycopg.AsyncConnection.connect(
             self.db_url,
@@ -504,14 +649,39 @@ class Worker:
             try:
                 set_json_dumps(partial(json.dumps, cls=UUIDEncoder), context=conn)
                 await register_vector_async(conn)
-                await self.vectorizer.config.embedding.setup()
+                await embedder.setup()
+
                 while True:
                     if not await self._should_continue_processing(conn, loops, res):
                         return res
-                    items_processed = await self._do_batch(conn)
-                    if items_processed == 0:
+
+                    items_processed = 0
+                    items_processed_async = 0
+                    async_batches_created = 0
+
+                    # Process any pending async batches. After disabling async
+                    # batches, there could be some pending batches waiting to
+                    # be processed.
+                    if async_batch_supported:
+                        # TODO: should this be wrapped in a try catch so that
+                        # we can continue generating batches or sync
+                        # embeddings?
+                        items_processed_async = await self._process_async_batch(conn)
+
+                    if use_async_batch:
+                        async_batches_created = await self._create_async_batch(conn)
+                    else:
+                        items_processed = await self._do_batch(conn)
+
+                    no_pending_work = (
+                        items_processed == 0
+                        and items_processed_async == 0
+                        and async_batches_created == 0
+                    )
+                    if no_pending_work:
                         return res
-                    res += items_processed
+
+                    res += items_processed + items_processed_async
                     loops += 1
                     await self.worker_tracking.save_vectorizer_success(
                         conn, self.vectorizer.id, items_processed
@@ -579,6 +749,185 @@ class Worker:
                     return False
 
         return self._should_continue_processing_hook(loops, res)
+
+    async def _process_async_batch(self, conn: AsyncConnection) -> int:
+        # TODO: review docs
+        """
+        Checks if chunks submitted with create_async_batches completed and
+        stores them when they are completed.
+
+        This function is only called when is_api_async returns true.
+
+        Args:
+            conn (AsyncConnection): The asynchronous database connection.
+        """
+        embedder = self.vectorizer.config.embedding
+        if not isinstance(embedder, AsyncBatchEmbedder):
+            raise ValueError("Embedder does not support async batch operations")
+        embeddings = []
+
+        conn.transaction()
+        try:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(
+                    self.queries.fetch_async_batch_to_process_query,
+                    (self.vectorizer.async_batch_polling_interval,),
+                )
+
+                row = await cursor.fetchone()
+                if row is None:
+                    return 0
+                batch = AsyncBatch(**row)
+
+                if batch.status == "pending":
+                    # TODO: handle failures, what if the batch no longer
+                    # exists, should we revert the batch chunks table and
+                    # put back the pk in the queue?
+                    batch = await embedder.fetch_async_batch(batch.id)
+                    await conn.execute(
+                        self.queries.update_async_batch_query,
+                        (
+                            batch.status,
+                            Jsonb(batch.metadata),
+                            batch.id,
+                        ),
+                    )
+                    # TODO: handle canceled batches if the batched was
+                    # canceled we need to put back the PKs from the chunks
+                    # table to the queue.
+                    if batch.status == "pending":
+                        return 0
+
+                # Batch has been processed successfully by the external api,
+                # that means we can collect the results and store them in the
+                # database.
+                if batch.status == "ready":
+                    async with conn.transaction():
+                        embeddings = await embedder.fetch_async_batch_embeddings(batch)
+                        # TODO: `errors` should be returned from
+                        # `fetch_async_batch_embeddings`
+                        errors: list[VectorizerErrorRecord] = []
+                        records = [
+                            self._decode_chunk_id(e[0]) + [batch.id, e[1]]
+                            for e in embeddings
+                        ]
+
+                        async with conn.cursor() as cursor:
+                            # TODO: should we use COPY here? We do it for sync
+                            # embeddings. If we wanted to use COPY we'd need to
+                            # first fetch the data from the batch_chunks table
+                            # to get the chunk content that goes into the
+                            # store.
+                            await cursor.executemany(
+                                self.queries.insert_async_batch_embedding, records
+                            )
+                        if errors:
+                            # TODO: batches can have partial results, at least in
+                            # openAI, you get a file with successful responses and
+                            # the embeddings, and another with errors. In case like
+                            # a batch timed out, we can store the successful
+                            # embeddings but we need to move the ones that couldn't
+                            # be processed from the batch-chunks table to the queue
+                            # table, so they can be retried.
+                            await self._insert_vectorizer_errors(conn, errors)
+
+                        batch.status = "imported"
+                        await conn.execute(
+                            self.queries.update_async_batch_query,
+                            (
+                                batch.status,
+                                Jsonb(batch.metadata),
+                                batch.id,
+                            ),
+                        )
+
+                if batch.status == "imported":
+                    async with conn.transaction():
+                        # TODO: in the openAI implementation we are deleting 3
+                        # files, input, output and error. If any of those files
+                        # were already deleted this will fail and get stuck in
+                        # this step. If a file doesn't exist we don't have to
+                        # anything except continue.
+                        await embedder.finalize_async_batch(batch)
+                        await conn.execute(
+                            self.queries.delete_batch_embedding_from_queue_query,
+                            (batch.id,),
+                        )
+                return len(embeddings)
+        finally:
+            await conn.commit()
+
+    async def _create_async_batch(self, conn: AsyncConnection) -> int:
+        """
+        Submits chunks for async embedding processing.
+        This allows to process very large amounts of data faster than with the
+        embeddings api, because batch apis usually have vastly higher rate limits.
+
+        This function is only called when is_api_async returns true.
+
+        Args:
+            conn (AsyncConnection): The asynchronous database connection.
+        """
+        async with conn.transaction():
+            try:
+                items = await self._fetch_work(conn)
+
+                await logger.adebug(
+                    f"Items pulled from queue for batch embedding: {len(items)}"
+                )
+
+                # Filter out items that were deleted from the source table.
+                # We use the first primary key column, since they can only
+                # be null if the LEFT JOIN didn't find a match.
+                items = [
+                    i
+                    for i in items
+                    if i[self.vectorizer.source_pk[0].attname] is not None
+                ]
+
+                if len(items) == 0:
+                    return 0
+
+                (
+                    async_batch,
+                    batch_chunks_records,
+                ) = await self._create_async_batch_from_items(items)
+
+                await conn.execute(
+                    self.queries.insert_async_batch_query,
+                    (
+                        async_batch.id,
+                        async_batch.status,
+                        async_batch.errors,
+                        Jsonb(async_batch.metadata),
+                        self.vectorizer.async_batch_polling_interval,
+                    ),
+                )
+
+                async with conn.cursor() as cur:
+                    await cur.executemany(
+                        self.queries.insert_async_batch_chunks_query(async_batch.id),
+                        batch_chunks_records,
+                    )
+
+                # TODO: discuss if we should delete here or before inserting
+                # new embeddings. If we do it here, then some time will pass
+                # without embeddings for these items. The alternative is to
+                # keep the old embeddings on which means there could be
+                # incorrect answers related to outdated data.
+                await self._delete_embeddings(conn, items)
+
+                return len(items)
+            except Exception as e:
+                await self._insert_vectorizer_error(
+                    conn,
+                    (
+                        self.vectorizer.id,
+                        VECTORIZER_FAILED,
+                        Jsonb({"error_reason": str(e)}),
+                    ),
+                )
+                raise e
 
     @tracer.wrap()
     async def _do_batch(self, conn: AsyncConnection) -> int:
@@ -689,7 +1038,6 @@ class Worker:
 
         await self._delete_embeddings(conn, items)
         records, errors = await self._generate_embeddings(items)
-        # await self._insert_embeddings(conn, records)
         await self._copy_embeddings(conn, records)
         if errors:
             await self._insert_vectorizer_errors(conn, errors)
@@ -836,6 +1184,72 @@ class Worker:
             else:
                 records.append(record + [np.array(embedding)])
         return records, errors
+
+    def _generate_asynch_batch_chunk_id(
+        self, pk_values: list[Any], chunk_seq: int
+    ) -> str:
+        """Generate a unique chunk ID from primary key values and chunk sequence"""
+        pk_parts = [
+            f"{field}={value}"
+            for field, value in zip(self.queries.pk_attnames, pk_values, strict=True)
+        ]
+        return ":::".join(pk_parts + [f"chunk_seq={chunk_seq}"])
+
+    def _decode_chunk_id(self, chunk_id: str) -> list[Any]:
+        """Decode a chunk ID back into its component values.
+
+        Args:
+            chunk_id: A string ID generated by _generate_asynch_batch_chunk_id
+
+        Returns:
+            A list containing just the values in order:
+                [pk_value1, pk_value2, ..., chunk_seq]
+        """
+        parts = chunk_id.split(":::")
+        return [part.split("=")[1] for part in parts]
+
+    def _prepare_documents(
+        self, items: list[SourceRow]
+    ) -> tuple[list[DocumentWithID], list[list[Any]]]:
+        """Prepare documents and chunks for async batch processing"""
+        documents: list[DocumentWithID] = []
+        batch_chunks_records: list[list[Any]] = []
+
+        for item in items:
+            pk = self._get_item_pk_values(item)
+            chunks = self.vectorizer.config.chunking.into_chunks(item)
+
+            for chunk_seq, chunk in enumerate(chunks, 0):
+                formatted = self.vectorizer.config.formatting.format(chunk, item)
+                chunk_id = self._generate_asynch_batch_chunk_id(pk, chunk_seq)
+
+                documents.append(
+                    DocumentWithID(
+                        id=chunk_id,
+                        content=formatted,
+                    )
+                )
+
+                batch_chunks_records.append(pk + [chunk_seq])
+
+        return documents, batch_chunks_records
+
+    async def _create_async_batch_from_items(
+        self, items: list[SourceRow]
+    ) -> tuple[AsyncBatch, list[list[Any]]]:
+        embedder = self.vectorizer.config.embedding
+        if not isinstance(embedder, AsyncBatchEmbedder):
+            raise ValueError("Embedder does not support async batch operations")
+        documents, batch_chunks_records = self._prepare_documents(items)
+        try:
+            batch = await embedder.create_async_batch(documents)
+            batch_chunks_records = [
+                record + [doc.content]
+                for record, doc in zip(batch_chunks_records, documents, strict=True)
+            ]
+            return batch, batch_chunks_records
+        except Exception as e:
+            raise EmbeddingProviderError() from e
 
     def _vectorizer_error_record(
         self, record: EmbeddingRecord, chunk_error: ChunkEmbeddingError

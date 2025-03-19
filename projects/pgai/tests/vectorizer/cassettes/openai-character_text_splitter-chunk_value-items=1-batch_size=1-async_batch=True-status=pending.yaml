@@ -1,0 +1,80 @@
+interactions:
+  - request:
+      body: ""
+      headers:
+        accept:
+          - application/json
+        accept-encoding:
+          - gzip, deflate, br, zstd
+        connection:
+          - keep-alive
+        content-type:
+          - application/json
+        host:
+          - api.openai.com
+        user-agent:
+          - AsyncOpenAI/Python 1.65.3
+        x-stainless-arch:
+          - arm64
+        x-stainless-async:
+          - async:asyncio
+        x-stainless-lang:
+          - python
+        x-stainless-os:
+          - MacOS
+        x-stainless-package-version:
+          - 1.65.3
+        x-stainless-read-timeout:
+          - "600"
+        x-stainless-retry-count:
+          - "0"
+        x-stainless-runtime:
+          - CPython
+        x-stainless-runtime-version:
+          - 3.10.15
+      method: GET
+      uri: https://api.openai.com/v1/batches/batch_67cf68323760819097ce6ea8b3337bfa
+    response:
+      body:
+        string: !!binary |
+          IQwKACCbOtuzTDrNId4eCB2SUxccoOLgTYEBD4iunYs9TqNzAb8GFngBNgs88GydRkPHovIPqw7f
+          7hQAFAXGgFna5zPmBzn3Q8d2At8MrciMgpx8SsPMcZwg4ymqCgBW2Zzy3hMrIpJFHPkAjAGN0TJo
+          lVFRCFl2NpdtW7UdxiCH5bLcCVkPPeNiSYzHGy6WpDn8dCtuIudsawWe81xefn9t1jf90MMMB1FJ
+          9qDBAsaAtiutrk/7ocPY1lHBeXLo0R4+3WfXfKhn8js684/e+YvY5tF7QtLlx4jTsOwBVLC0xxis
+          wLV81wsDd1CcLcO4zSmta9GSHgaObf/AhUyXYitk6Q5Ck41q3IIFzceZscWIg5remxjFEmuwDjv5
+          lgLJC3Zj1KzDGDbODgD/YiDHGCy1rTPvnXbMrYQxmArAAaq2oj4t0j6F18rBAAM=
+      headers:
+        CF-RAY:
+          - 91edfa8e4a052e37-MRS
+        Connection:
+          - keep-alive
+        Content-Encoding:
+          - br
+        Content-Type:
+          - application/json
+        Date:
+          - Tue, 11 Mar 2025 20:59:59 GMT
+        Server:
+          - cloudflare
+        Transfer-Encoding:
+          - chunked
+        X-Content-Type-Options:
+          - nosniff
+        alt-svc:
+          - h3=":443"; ma=86400
+        cf-cache-status:
+          - DYNAMIC
+        openai-organization:
+          - popsql
+        openai-processing-ms:
+          - "29"
+        openai-version:
+          - "2020-10-01"
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains; preload
+        x-request-id:
+          - req_3672a9bc9c2a28799d2336b1ef3d44c5
+      status:
+        code: 200
+        message: OK
+version: 1

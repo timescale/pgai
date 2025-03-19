@@ -1,0 +1,338 @@
+interactions:
+- request:
+    body: "--fixedboundary\r\nContent-Disposition: form-data; name=\"purpose\"\r\n\r\nbatch\r\n--fixedboundary\r\nContent-Disposition:
+      form-data; name=\"file\"; filename=\"upload\"\r\nContent-Type: application/octet-stream\r\n\r\n{\"custom_id\":
+      \"id=1:::chunk_seq=0\", \"method\": \"POST\", \"url\": \"/v1/embeddings\", \"body\":
+      {\"model\": \"text-embedding-ada-002\", \"input\": \"post_1\"}}\n{\"custom_id\":
+      \"id=2:::chunk_seq=0\", \"method\": \"POST\", \"url\": \"/v1/embeddings\", \"body\":
+      {\"model\": \"text-embedding-ada-002\", \"input\": \"post_2\"}}\n\r\n--fixedboundary\r\n"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, br, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '561'
+      content-type:
+      - multipart/form-data; boundary=fixedboundary
+      host:
+      - api.openai.com
+      user-agent:
+      - AsyncOpenAI/Python 1.65.3
+      x-stainless-arch:
+      - arm64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - MacOS
+      x-stainless-package-version:
+      - 1.65.3
+      x-stainless-read-timeout:
+      - '600'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.10.15
+    method: POST
+    uri: https://api.openai.com/v1/files
+  response:
+    body:
+      string: !!binary |
+        IYADACBWzenfqJvVSYlkbatYPgaAdHLg0m5vngZYmFuAxREHebHghOZnoZnLxIiQqdDRNW4EN4gd
+        WIwIgamt/bin/e8/jp/6643y+boksg2OUhw0VNwIStbaN4huEDupTFBq8jiTpjs11E6FG+0upxkS
+        zgeO4bLGjbbnw/Z0vW73V312+jwonYp72sSxy6OqZd1UuBFS0OnYC1T+d43VmrGFGQM=
+    headers:
+      CF-RAY:
+      - 91eb573fcdab11bf-BCN
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - br
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 11 Mar 2025 13:18:59 GMT
+      Server:
+      - cloudflare
+      Transfer-Encoding:
+      - chunked
+      X-Content-Type-Options:
+      - nosniff
+      access-control-allow-origin:
+      - '*'
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      openai-organization:
+      - popsql
+      openai-processing-ms:
+      - '386'
+      openai-version:
+      - '2020-10-01'
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains; preload
+      x-request-id:
+      - req_bcec68e010921176a8d4218f17124c26
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "--fixedboundary\r\nContent-Disposition: form-data; name=\"purpose\"\r\n\r\nbatch\r\n--fixedboundary\r\nContent-Disposition:
+      form-data; name=\"file\"; filename=\"upload\"\r\nContent-Type: application/octet-stream\r\n\r\n{\"custom_id\":
+      \"id=3:::chunk_seq=0\", \"method\": \"POST\", \"url\": \"/v1/embeddings\", \"body\":
+      {\"model\": \"text-embedding-ada-002\", \"input\": \"post_3\"}}\n{\"custom_id\":
+      \"id=4:::chunk_seq=0\", \"method\": \"POST\", \"url\": \"/v1/embeddings\", \"body\":
+      {\"model\": \"text-embedding-ada-002\", \"input\": \"post_4\"}}\n\r\n--fixedboundary\r\n"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, br, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '561'
+      content-type:
+      - multipart/form-data; boundary=fixedboundary
+      host:
+      - api.openai.com
+      user-agent:
+      - AsyncOpenAI/Python 1.65.3
+      x-stainless-arch:
+      - arm64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - MacOS
+      x-stainless-package-version:
+      - 1.65.3
+      x-stainless-read-timeout:
+      - '600'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.10.15
+    method: POST
+    uri: https://api.openai.com/v1/files
+  response:
+    body:
+      string: !!binary |
+        IYADACBbc/o3KhddYl81AEwJvxvr5MCl3d48DbAwtwCLIw7yYsEJzc9CM5cvA8DymtCNowcYxBmh
+        wAAwvtdWHGsz7RotfbdH78KyBuXWSvlLioOGih7g9cJvkUEM4oyKS45SV2Xl5d7d9c2pRQ80x5oh
+        4XxA99OFoweqbaiW66q6q8/0quKGWu5Fl2Uuj5ZfeNeiB5iCTrIXqKe/a2zXjP2ZAQM=
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-RAY:
+      - 91eb57423aedf76d-MAD
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - br
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 11 Mar 2025 13:18:59 GMT
+      Server:
+      - cloudflare
+      Transfer-Encoding:
+      - chunked
+      X-Content-Type-Options:
+      - nosniff
+      access-control-allow-origin:
+      - '*'
+      alt-svc:
+      - h3=":443"; ma=86400
+      openai-organization:
+      - popsql
+      openai-processing-ms:
+      - '507'
+      openai-version:
+      - '2020-10-01'
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains; preload
+      x-request-id:
+      - req_b39ad952ae42bada16849166e25aa8b2
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"completion_window": "24h", "endpoint": "/v1/embeddings", "input_file_id":
+      "file-KBnxVWzzTtUgzaLR8mavi5"}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, br, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '106'
+      content-type:
+      - application/json
+      cookie:
+      - __cf_bm=1cjAeNSoVDxZ34hOi8CJC_LsI.OGq7tqN0yAtVrpmdg-1741699139-1.0.1.1-T5XfSWCW9LK2V7rTpOgvnfkQpWJHfTFXmShRkV4td3vxhMxPM.reFHIHRzlc8DfJRPTdZvpVhrS1PLZwPp5YjFWDELRcHvzLjOTGG1xQDB4;
+        _cfuvid=sruppqXuP36BuHrG7IanFG58uqwG3DLxMLsUOB_pk0E-1741699139429-0.0.1.1-604800000
+      host:
+      - api.openai.com
+      user-agent:
+      - AsyncOpenAI/Python 1.65.3
+      x-stainless-arch:
+      - arm64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - MacOS
+      x-stainless-package-version:
+      - 1.65.3
+      x-stainless-read-timeout:
+      - '600'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.10.15
+    method: POST
+    uri: https://api.openai.com/v1/batches
+  response:
+    body:
+      string: !!binary |
+        IWQJACCbTttZJp3mNLvDmDU/9dE0wYticmD++9/fBIe38K/KNhdGY2IWpREvkC4LPPDMXSlP8dm2
+        25GvhW9/MwDkFgvAukrNe7CuvSivFeXee5Ff8vqSa+NV20jdNkbiIQPApR6oSZ6oiCi2eeQfYAF4
+        /hBnmmtqW479ZrO7rsu6YQFxn6Z+xPG+p9DxRIHHm44nOt6u8ev17efnOb30P9XDo5+rDzY4fJhh
+        w0sMDxosYQEodbvYUpX2DQvA4xwhx570wp7CCQ9gNqnk9Os3qA1VwgKE08LmuVA5ZMQxLDfa9Erx
+        deeVNA3htHDeGM+fOo7VxD8c+0oz44ACKKnwp6OMagYvXZyb8HGMQwUrpYdX4R6o2YYFbIcVAP6w
+        QI4FXA4y4deXI7cKFnDJAP45NGZKVVuliq3N/g0D
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-RAY:
+      - 91eb57459b2d11bf-BCN
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - br
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 11 Mar 2025 13:19:00 GMT
+      Server:
+      - cloudflare
+      Transfer-Encoding:
+      - chunked
+      X-Content-Type-Options:
+      - nosniff
+      alt-svc:
+      - h3=":443"; ma=86400
+      openai-organization:
+      - popsql
+      openai-processing-ms:
+      - '448'
+      openai-version:
+      - '2020-10-01'
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains; preload
+      x-request-id:
+      - req_3ab632992265dfaa3e4406b8fb09a8cd
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"completion_window": "24h", "endpoint": "/v1/embeddings", "input_file_id":
+      "file-P2S2bhVE9Keyn66MoZ6ktx"}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, br, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '106'
+      content-type:
+      - application/json
+      cookie:
+      - __cf_bm=5Nof1XxsykDmD.5i53oaFaFIo_GjXPuu8aN5cfPTrpA-1741699139-1.0.1.1-rpB7F_Tz5oQ8.KfKiVCVXaMqa6qQ8EtpSAKzWPTgkvwf8349niPlkqye1Rpu4yFcHbOAtHjawgGa1zJmYpwyVXZgOOH8tcJ.lQeGGE.Ayj0;
+        _cfuvid=XRIAxSo2G8U6_vVEo81UciSNYduI6iqEL4uRuLtKLIQ-1741699139878-0.0.1.1-604800000
+      host:
+      - api.openai.com
+      user-agent:
+      - AsyncOpenAI/Python 1.65.3
+      x-stainless-arch:
+      - arm64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - MacOS
+      x-stainless-package-version:
+      - 1.65.3
+      x-stainless-read-timeout:
+      - '600'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.10.15
+    method: POST
+    uri: https://api.openai.com/v1/batches
+  response:
+    body:
+      string: !!binary |
+        IQPIEgBANp22s0w6zWk29D1T8rWaJhNRTDP/feomOPzCsRvTw2hMzKI04gXSZYEHHvzrWSRGYVF+
+        H7Fqzn376wAgl5gA5pktTioIy50beV7kay8S8S7XeRaUvi48HUS+p3HlAGCf11TYmdAQkynjyD/A
+        BHD7IbbU5VSWbKp5zO409dOMCZilbesRm2GxSnNLiuON5pbWl/JG5qf7fXygbxMEZ/1z0NgvHXyZ
+        YcO9UQ8aLGECKL1yMdvMLjMmgNc5IjYV9MJi3REOQDZpxOHXb1CpMosJiNATQRwLbycZs1HbDcf0
+        UvE18ESWhgg9EUa+P/MnzSZr+YdNldHKsEMiSELhT3sZtQxeujjX6sM2LmUmCg9P1Xeg5jMmcBxW
+        APiHBQJMAHvA1++HbBVMYOcA/DM0OrJZmdmMVjj/Aw==
+    headers:
+      CF-RAY:
+      - 91eb57486808f76d-MAD
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - br
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 11 Mar 2025 13:19:00 GMT
+      Server:
+      - cloudflare
+      Transfer-Encoding:
+      - chunked
+      X-Content-Type-Options:
+      - nosniff
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      openai-organization:
+      - popsql
+      openai-processing-ms:
+      - '521'
+      openai-version:
+      - '2020-10-01'
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains; preload
+      x-request-id:
+      - req_d7f866ec71491c3b6616089108f3d3f4
+    status:
+      code: 200
+      message: OK
+version: 1
