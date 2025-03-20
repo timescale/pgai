@@ -127,8 +127,9 @@ class Vectorizer:
         db_url: str,
         features: Features,
         worker_tracking: WorkerTracking,
-        concurrency: int | None,
+        concurrency: int | None = None,
         should_continue_processing_hook: None | Callable[[int, int], bool] = None,
+        fail_on_first_exception: bool = False,
     ) -> int:
         """Run this vectorizer with the specified configuration using Worker instances
 
@@ -140,6 +141,8 @@ class Vectorizer:
                 (overrides vectorizer config if provided)
             should_continue_processing_hook: Optional callback to
                 control processing flow
+            fail_on_first_exception: If True, raise the first exception
+                and do not wait for the rest of the workers to finish
 
         Returns:
             Number of items processed
@@ -157,7 +160,10 @@ class Vectorizer:
             )
             for _ in range(concurrency)
         ]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        results = await asyncio.gather(
+            *tasks, return_exceptions=not fail_on_first_exception
+        )
 
         # raise any exceptions, but only after all tasks have completed
         items: int = 0
