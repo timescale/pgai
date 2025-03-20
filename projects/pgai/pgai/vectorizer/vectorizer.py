@@ -26,6 +26,7 @@ from typing_extensions import override
 from .chunking import (
     LangChainCharacterTextSplitter,
     LangChainRecursiveCharacterTextSplitter,
+    NoneChunker,
 )
 from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .embeddings import ChunkEmbeddingError
@@ -87,7 +88,9 @@ class Config:
     embedding: OpenAI | Ollama | VoyageAI | LiteLLM
     processing: ProcessingDefault
     chunking: (
-        LangChainCharacterTextSplitter | LangChainRecursiveCharacterTextSplitter
+        LangChainCharacterTextSplitter
+        | LangChainRecursiveCharacterTextSplitter
+        | NoneChunker
     ) = Field(..., discriminator="implementation")
     formatting: PythonTemplate | ChunkValue = Field(..., discriminator="implementation")
     parsing: ParsingNone | ParsingAuto | ParsingPyMuPDF = Field(
