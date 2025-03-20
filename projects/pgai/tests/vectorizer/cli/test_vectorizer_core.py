@@ -444,3 +444,176 @@ def test_disabled_vectorizer_is_backwards_compatible(
         )
         row = cur.fetchone()
         assert row is not None and row["pending_items"] == 0
+
+
+def test_regression_vectorizer_uuid_pk_with_error(
+    cli_db: tuple[PostgresContainer, Connection],
+    cli_db_url: str,
+    vcr_: Any,
+):
+    """Validate that we correctly handle a uuid in PK when there's an error chunking"""
+    _, connection = cli_db
+
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("drop table if exists uuid_table")
+        cur.execute("""
+                create table uuid_table
+                ( id uuid not null
+                , content text not null
+                , primary key (id)
+                )
+            """)
+        cur.execute("""
+                insert into uuid_table (id, content)
+                VALUES (
+                  gen_random_uuid()
+                , repeat('if two witches watch two watches, which witch watches which watch', 1000)
+                )
+            """)  # noqa
+
+    vectorizer_id = configure_vectorizer(
+        "uuid_table",
+        cli_db[1],
+    )
+
+    # When running the worker
+    with vcr_.use_cassette("test_regression_vectorizer_uuid_pk_with_error.yaml"):
+        result = run_vectorizer_worker(cli_db_url, vectorizer_id)
+
+    if result.exit_code != 0:
+        assert result.output == ""
+
+    # Then verify the chunks were created correctly
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT count(*) FROM uuid_table_embedding_store")
+        results = cur.fetchall()
+        assert results[0]["count"] == 0
+        cur.execute("SELECT count(*) FROM ai.vectorizer_errors")
+        results = cur.fetchall()
+        assert results[0]["count"] == 1
+
+
+def test_chunking_none(
+    cli_db: tuple[PostgresContainer, Connection],
+    cli_db_url: str,
+    vcr_: Any,
+):
+    """Test that chunking_none preserves the document as a single chunk"""
+    _, connection = cli_db
+    table_name = setup_source_table(connection, 2)
+    vectorizer_id = configure_vectorizer(
+        table_name,
+        cli_db[1],
+        batch_size=2,
+        chunking="chunking_none()",
+    )
+
+    # Given content with natural splitting points that would normally be chunked
+    sample_content = """Introduction to Machine Learning
+
+    Machine learning is a subset of artificial intelligence that focuses on data and
+    algorithms.
+    It enables systems to learn and improve from experience.
+
+    Key Concepts:
+    1. Supervised Learning
+    2. Unsupervised Learning
+    3. Reinforcement Learning
+
+    Each type has its own unique applications and methodologies."""
+
+    shorter_content = "This is a shorter post that shouldn't need splitting."
+
+    # Update the test data with our structured content
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("UPDATE blog SET content = %s WHERE id = 1", (sample_content,))
+        cur.execute("UPDATE blog SET content = %s WHERE id = 2", (shorter_content,))
+
+    # When running the worker
+    with vcr_.use_cassette("test_chunking_none.yaml"):
+        result = run_vectorizer_worker(cli_db_url, vectorizer_id)
+
+    assert result.exit_code == 0
+
+    # Then verify each document remains as a single chunk
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("""
+            SELECT id, chunk_seq, chunk
+            FROM blog_embedding_store
+            ORDER BY id, chunk_seq
+        """)
+        chunks = cur.fetchall()
+
+        # Verify each document has exactly one chunk
+        first_doc_chunks = [c for c in chunks if c["id"] == 1]
+        assert (
+            len(first_doc_chunks) == 1
+        ), "Long document should remain as a single chunk with chunking_none"
+        assert first_doc_chunks[0]["chunk"] == sample_content
+
+        # Verify short content is also a single chunk
+        second_doc_chunks = [c for c in chunks if c["id"] == 2]
+        assert len(second_doc_chunks) == 1, "Short document should be a single chunk"
+        assert second_doc_chunks[0]["chunk"] == shorter_content
+
+        # Verify chunk sequences are correct (should all be 0)
+        for doc_chunks in [first_doc_chunks, second_doc_chunks]:
+            assert (
+                doc_chunks[0]["chunk_seq"] == 0
+            ), "Chunk sequence should be 0 for single chunks"
+
+
+def test_vectorizer_without_retries_works_as_expected(
+    cli_db: tuple[PostgresContainer, Connection],
+    cli_db_url: str,
+    vcr_: Any,
+):
+    """Test that vectorizers work as intended without
+    the loading_retries feature enabled"""
+    _, connection = cli_db
+    table_name = setup_source_table(connection, 1)
+
+    # Given a vectorizer and the feature `loading_retries` disabled.
+    vectorizer_id = configure_vectorizer(
+        table_name,
+        cli_db[1],
+    )
+    features = Features("0.9.0")
+    assert not features.loading_retries
+
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "select pg_catalog.to_jsonb(v) as vectorizer from ai.vectorizer v where v.id = %s",  # noqa
+            (vectorizer_id,),
+        )
+        row = cur.fetchone()
+    assert row is not None
+
+    vectorizer = Vectorizer(**row["vectorizer"])
+    vectorizer.config.embedding.set_api_key(  # type: ignore
+        {"OPENAI_API_KEY": "empty"}
+    )
+
+    # When the vectorizer is executed.
+    with vcr_.use_cassette("test_loading_retries_disabled_works_with_vectorizer.yaml"):
+        worker_tracking = WorkerTracking(cli_db_url, 500, features, "0.0.1")
+        asyncio.run(Worker(cli_db_url, vectorizer, features, worker_tracking).run())
+
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("""
+            SELECT count(*)
+            FROM blog_embedding_store
+        """)
+        row = cur.fetchone()
+        assert row is not None and row["count"] == 1
+
+        cur.execute(
+            """
+            SELECT pending_items
+            FROM ai.vectorizer_status
+            WHERE id = %s
+        """,
+            (vectorizer_id,),
+        )
+        row = cur.fetchone()
+        assert row is not None and row["pending_items"] == 0
