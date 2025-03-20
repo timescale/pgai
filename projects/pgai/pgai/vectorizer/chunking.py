@@ -52,9 +52,10 @@ class NoneChunker(BaseModel, Chunker):
         Returns the text as a single chunk without any processing.
 
         Args:
-            item (dict[str, Any]): A dictionary representing a database row,
+            row (dict[str, Any]): A dictionary representing a database row,
                 where keys are column names and values are the corresponding
                 data.
+            payload (str): The text content to be chunked.
 
         Returns:
             list[str]: A list containing just the original text as a single chunk.
