@@ -85,9 +85,8 @@ async def test_vectorizer_internal(postgres_container: PostgresContainer):
         # run the vectorizer
         features = Features.for_testing_latest_version()
         worker_tracking = WorkerTracking(db_url, 500, features, "0.0.1")
-        await cli.run_vectorizer(
-            db_url, vectorizer_actual, 1, features, worker_tracking
-        )
+
+        await vectorizer_actual.run(db_url, features, worker_tracking, 1)
 
         # make sure the queue was emptied
         cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
@@ -193,9 +192,7 @@ async def test_vectorizer_weird_pk(postgres_container: PostgresContainer):
         # run the vectorizer
         features = Features.for_testing_latest_version()
         worker_tracking = WorkerTracking(db_url, 500, features, "0.0.1")
-        await cli.run_vectorizer(
-            db_url, vectorizer_actual, 1, features, worker_tracking
-        )
+        await vectorizer_actual.run(db_url, features, worker_tracking, 1)
 
         # make sure the queue was emptied
         cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
