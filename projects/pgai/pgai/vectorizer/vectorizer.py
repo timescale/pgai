@@ -122,6 +122,62 @@ class Vectorizer:
     schema: str = "ai"
     table: str = "vectorizer"
 
+    async def run(
+        self,
+        db_url: str,
+        features: Features,
+        worker_tracking: WorkerTracking,
+        concurrency: int | None,
+        should_continue_processing_hook: None | Callable[[int, int], bool] = None,
+    ) -> int:
+        """Run this vectorizer with the specified configuration using Worker instances
+
+        Args:
+            db_url: Database connection URL
+            features: Features from database
+            worker_tracking: Tracking instance for worker stats
+            concurrency: Number of concurrent workers
+                (overrides vectorizer config if provided)
+            should_continue_processing_hook: Optional callback to
+                control processing flow
+
+        Returns:
+            Number of items processed
+        """
+        concurrency = concurrency or self.config.processing.concurrency
+        tasks = [
+            asyncio.create_task(
+                Worker(
+                    db_url,
+                    self,
+                    features,
+                    worker_tracking,
+                    should_continue_processing_hook,
+                ).run()
+            )
+            for _ in range(concurrency)
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # raise any exceptions, but only after all tasks have completed
+        items: int = 0
+        exceptions: list[BaseException] = []
+        for result in results:
+            if isinstance(result, BaseException):
+                # report all exceptions
+                await worker_tracking.save_vectorizer_error(self.id, str(result))
+                exceptions.append(result)
+            else:
+                items += result
+
+        if len(exceptions) > 0:
+            raise Exception(exceptions)
+
+        logger.info(
+            "finished processing vectorizer", items=items, vectorizer_id=self.id
+        )
+        return items
+
 
 class VectorizerQueryBuilder:
     """
