@@ -68,14 +68,6 @@ class ChunkingRecursiveCharacterTextSplitterConfig(SQLArgumentMixin):
 
 
 @dataclass
-class ChunkingNoneConfig(SQLArgumentMixin):
-    """Configuration for ai.chunking_none function."""
-
-    arg_type: ClassVar[str] = "chunking"
-    function_name: ClassVar[str] = "ai.chunking_none"
-
-
-@dataclass
 class EmbeddingLitellmConfig(SQLArgumentMixin):
     """Configuration for ai.embedding_litellm function."""
 
