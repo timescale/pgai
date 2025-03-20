@@ -16,6 +16,13 @@ def db_url(user: str) -> str:
 def test_chunking_character_text_splitter():
     tests = [
         (
+            "select ai.chunking_none()",
+            {
+                "implementation": "none",
+                "config_type": "chunking",
+            },
+        ),
+        (
             "select ai.chunking_character_text_splitter(128, 10)",
             {
                 "separator": "\n\n",
@@ -152,6 +159,10 @@ def test_validate_chunking():
         """
         select ai._validate_chunking
         ( ai.chunking_recursive_character_text_splitter(128, 10) )
+        """,
+        """
+        select ai._validate_chunking
+        ( ai.chunking_none() )
         """,
     ]
     bad = [
