@@ -1870,15 +1870,15 @@ def create_user(cur: psycopg.Cursor, user: str) -> None:
 
 
 def test_create_vectorizer_privs():
-    pytest.skip("TODO: fix this test")
     with psycopg.connect(db_url("postgres")) as con:
         with con.cursor() as cur:
             create_user(cur, "jimmy")
             cur.execute("grant create on schema public to jimmy")
-            cur.execute("select ai.grant_ai_usage('jimmy', admin=>false)")
+            cur.execute("select ai.grant_vectorizer_usage('jimmy', admin=>false)")
             create_user(cur, "greg")
-            cur.execute("select ai.grant_ai_usage('greg', admin=>false)")
-
+            cur.execute("select ai.grant_vectorizer_usage('greg', admin=>false)")
+            
+            
     # jimmy owns the source table
     with psycopg.connect(db_url("jimmy")) as con:
         with con.cursor() as cur:
