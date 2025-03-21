@@ -1,4 +1,4 @@
-# Vectorizer quick start
+# Vectorizer quick start with OpenAI
 
 This page shows you how to create a vectorizer in a self-hosted Postgres instance, then use 
 the pgai vectorizer worker to create embeddings from data in your database. To finish off we show how simple it 

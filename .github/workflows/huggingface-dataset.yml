@@ -1,0 +1,41 @@
+on:
+  pull_request_target:
+    paths:
+      - "docs/**/*.md"
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**/*.md"
+
+name: huggingface-dataset
+
+
+jobs:
+  publish-dataset:
+    name: Publish dataset to huggingface hub
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # in a pull_request_target event, the ref is the `main` branch not the PR branch
+          # so we need to tell checkout to use the head.ref instead.
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+    
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.6.6"
+          enable-cache: true
+          cache-dependency-glob: "./projects/pgai/uv.lock"
+
+      - name: Check dataset
+        if: github.event_name == 'pull_request_target'
+        run: ./scripts/generate_huggingface_dataset.py check
+
+      - name: Push dataset
+        if: github.event_name == 'push'
+        env:
+          HUGGINGFACE_HUB_TIMESCALE_TOKEN: ${{ secrets.HUGGINGFACE_HUB_TIMESCALE_TOKEN }}
+        run: ./scripts/generate_huggingface_dataset.py push
+
