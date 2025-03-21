@@ -28,10 +28,10 @@ dependencies = [
     "litellm>=1.58.2,<1.59.0",
     "google-cloud-aiplatform>=1.78.0,<2.0",
     "boto3>=1.35.0,<2.0",
-    "smart-open>=7.1.0",
-    "pymupdf4llm>=0.0.17",
-    "filetype>=1.2.0",
-    "docling>=2.21.0",
+    "smart-open==7.1.0",
+    "pymupdf4llm==0.0.17",
+    "filetype==1.2.0",
+    "docling==2.21.0",
     "semver>=3.0.4",
 ]
 classifiers = [

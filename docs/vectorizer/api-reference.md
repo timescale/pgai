@@ -278,9 +278,9 @@ A JSON configuration object that you can use in [ai.create_vectorizer](#create-v
 
 ### ai.parsing_none
 
-You use `ai.parsing_none` to load the data as-is from the source table.
+You use `ai.parsing_none` to skip the parsing step. Only appropriate for textual data.
 
-#### Example usage
+#### Example usage, for textual data.
 
 ```sql
 SELECT ai.create_vectorizer(

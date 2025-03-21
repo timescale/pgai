@@ -7,7 +7,7 @@ This tutorial will guide you through the process of generating embeddings for do
 - Download this example subdirectory. You can quickly do it by generating a downloadable `.zip` file from [here](https://download-directory.github.io/?url=https%3A%2F%2Fgithub.com%2Ftimescale%2Fpgai%2Ftree%2Fmain%2Fexamples%2Fembeddings_from_documents).
 - PostgreSQL database with the PGAI extension installed. Refer to [pgai install](/docs/README.md#pgai-install) for installation instructions.
 - Documents to process (supports various formats including MD, XLSX, HTML, PDF). We will use those available in the [documents](documents) directory.
-- A running instance of the [Vectorizer Worker](/docs/vectorizer/worker.md). In order to load the documents from the [documents](documents) directory, you need to modify the `compose.yaml` file created in the previous step and add the following volume to the `vectorizer-worker` service:
+- A running instance of the [Vectorizer Worker](/docs/vectorizer/worker.md). In order to load the documents from the [documents](documents) directory, you need to modify the `compose-dev.yaml` file found [here](/projects/pgai/compose-dev.yaml), and add the following volume to the `vectorizer-worker` service:
    ```yaml
    volumes:
       - ./documents:/app/documents
@@ -119,9 +119,9 @@ LIMIT 2;
 - Results include both documents stored locally and remotely (if any).
 - Read [pgvector documentation](https://github.com/pgvector/pgvector) for more details on vector similarity search functions.
 
-## Automatic updates
+## Automatic synchronization
 
-PGAI automatically handles embedding updates:
+PGAI automatically handles updates, inserts and deletes to the source table(`documentation` in this example): 
 - When you modify the source table content, embeddings are regenerated. For example, if the `file_uri` column is updated, the corresponding document embedding is automatically updated.
 - No manual intervention needed to keep embeddings in sync.
 

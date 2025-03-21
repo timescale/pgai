@@ -509,7 +509,7 @@ def test_vectorizer_without_retries_works_as_expected(
         table_name,
         cli_db[1],
     )
-    features = Features("0.9.0")
+    features = Features.for_testing_no_features()
     assert not features.loading_retries
 
     with connection.cursor(row_factory=dict_row) as cur:

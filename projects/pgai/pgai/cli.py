@@ -134,36 +134,6 @@ def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer:
         return vectorizer
 
 
-async def run_vectorizer(
-    db_url: str,
-    vectorizer: Vectorizer,
-    concurrency: int,
-    features: Features,
-    worker_tracking: WorkerTracking,
-) -> None:
-    tasks = [
-        asyncio.create_task(Worker(db_url, vectorizer, features, worker_tracking).run())
-        for _ in range(concurrency)
-    ]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-
-    # raise any exceptions, but only after all tasks have completed
-    items: int = 0
-    exceptions: list[BaseException] = []
-    for result in results:
-        if isinstance(result, BaseException):
-            # report all exceptions
-            await worker_tracking.save_vectorizer_error(vectorizer.id, str(result))
-            exceptions.append(result)
-        else:
-            items += result
-
-    if len(exceptions) > 0:
-        raise Exception(exceptions)
-
-    log.info("finished processing vectorizer", items=items, vectorizer_id=vectorizer.id)
-
-
 class TimeDurationParamType(click.ParamType):
     name = "time duration"
 
@@ -232,13 +202,6 @@ def download_models():
     default=[],
 )
 @click.option(
-    "-c",
-    "--concurrency",
-    type=click.IntRange(1),
-    default=1,
-    show_default=True,
-)
-@click.option(
     "--log-level",
     type=click.Choice(
         ["DEBUG", "INFO", "WARN", "ERROR", "FATAL", "CRITICAL"], case_sensitive=False
@@ -264,6 +227,13 @@ def download_models():
     help="Exit after processing all available work (implies --exit-on-error).",
 )
 @click.option(
+    "-c",
+    "--concurrency",
+    type=click.IntRange(1),
+    default=None,
+    show_default=True,
+)
+@click.option(
     "--exit-on-error",
     type=click.BOOL,
     default=None,
@@ -273,20 +243,20 @@ def download_models():
 def vectorizer_worker(
     db_url: str,
     vectorizer_ids: Sequence[int],
-    concurrency: int,
     log_level: str,
     poll_interval: int,
     once: bool,
+    concurrency: int | None,
     exit_on_error: bool | None,
 ) -> None:
     asyncio.run(
         async_run_vectorizer_worker(
             db_url,
             vectorizer_ids,
-            concurrency,
             log_level,
             poll_interval,
             once,
+            concurrency,
             exit_on_error,
         )
     )
@@ -311,10 +281,10 @@ async def handle_error(
 async def async_run_vectorizer_worker(
     db_url: str,
     vectorizer_ids: Sequence[int],
-    concurrency: int,
     log_level: str,
     poll_interval: int,
     once: bool,
+    concurrency: int | None,
     exit_on_error: bool | None,
 ) -> None:
     # gracefully handle being asked to shut down
@@ -397,8 +367,11 @@ async def async_run_vectorizer_worker(
                         break
 
                     log.info("running vectorizer", vectorizer_id=vectorizer_id)
-                    await run_vectorizer(
-                        db_url, vectorizer, concurrency, features, worker_tracking
+                    await vectorizer.run(
+                        db_url=db_url,
+                        features=features,
+                        worker_tracking=worker_tracking,
+                        concurrency=concurrency,
                     )
         except psycopg.OperationalError as e:
             if "connection failed" in str(e):
