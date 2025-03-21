@@ -17,8 +17,10 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.create_vectorizer
 ( source pg_catalog.regclass
 , destination pg_catalog.name default null
+, loading pg_catalog.jsonb default null
+, parsing pg_catalog.jsonb default ai.parsing_auto()
 , embedding pg_catalog.jsonb default null
-, chunking pg_catalog.jsonb default null
+, chunking pg_catalog.jsonb default ai.chunking_recursive_character_text_splitter()
 , indexing pg_catalog.jsonb default ai.indexing_default()
 , formatting pg_catalog.jsonb default ai.formatting_python_template()
 , scheduling pg_catalog.jsonb default ai.scheduling_default()
@@ -44,6 +46,7 @@ declare
     _vectorizer_id pg_catalog.int4;
     _sql pg_catalog.text;
     _job_id pg_catalog.int8;
+    _queue_failed_table pg_catalog.name;
 begin
     -- make sure all the roles listed in grant_to exist
     if grant_to is not null then
@@ -63,9 +66,9 @@ begin
     if embedding is null then
         raise exception 'embedding configuration is required';
     end if;
-
-    if chunking is null then
-        raise exception 'chunking configuration is required';
+    
+    if loading is null then
+        raise exception 'loading configuration is required';
     end if;
 
     -- get source table name and schema name
@@ -117,6 +120,7 @@ begin
     _trigger_name = pg_catalog.concat('_vectorizer_src_trg_', _vectorizer_id);
     queue_schema = coalesce(queue_schema, 'ai');
     queue_table = coalesce(queue_table, pg_catalog.concat('_vectorizer_q_', _vectorizer_id));
+    _queue_failed_table = pg_catalog.concat('_vectorizer_q_failed_', _vectorizer_id);
 
     -- make sure view name is available
     if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
@@ -133,11 +137,22 @@ begin
         raise exception 'an object named %.% already exists. specify an alternate queue_table explicitly', queue_schema, queue_table;
     end if;
 
+    -- validate the loading config
+    perform ai._validate_loading(loading, _source_schema, _source_table);
+
+    -- validate the parsing config
+    perform ai._validate_parsing(
+        parsing,
+        loading,
+        _source_schema,
+        _source_table
+    );
+
     -- validate the embedding config
     perform ai._validate_embedding(embedding);
 
     -- validate the chunking config
-    perform ai._validate_chunking(chunking, _source_schema, _source_table);
+    perform ai._validate_chunking(chunking);
 
     -- if ai.indexing_default, resolve the default
     if indexing operator(pg_catalog.->>) 'implementation' = 'default' then
@@ -191,6 +206,14 @@ begin
     , grant_to
     );
 
+    -- create queue failed table
+    perform ai._vectorizer_create_queue_failed_table
+    ( queue_schema
+    , _queue_failed_table
+    , _source_pk
+    , grant_to
+    );
+
     -- create trigger on source table to populate queue
     perform ai._vectorizer_create_source_trigger
     ( _trigger_name
@@ -237,6 +260,7 @@ begin
     , trigger_name
     , queue_schema
     , queue_table
+    , queue_failed_table
     , config
     )
     values
@@ -251,8 +275,11 @@ begin
     , _trigger_name
     , queue_schema
     , queue_table
+    , _queue_failed_table
     , pg_catalog.jsonb_build_object
       ( 'version', '@extversion@'
+      , 'loading', loading
+      , 'parsing', parsing
       , 'embedding', embedding
       , 'chunking', chunking
       , 'indexing', indexing
@@ -511,6 +538,14 @@ begin
     ( $sql$drop table if exists %I.%I$sql$
     , _vec.queue_schema
     , _vec.queue_table
+    ) into strict _sql;
+    execute _sql;
+
+    -- drop the failed queue table if exists
+    select pg_catalog.format
+    ( $sql$drop table if exists %I.%I$sql$
+    , _vec.queue_schema
+    , _vec.queue_failed_table
     ) into strict _sql;
     execute _sql;
 

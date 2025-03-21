@@ -37,7 +37,7 @@ def configure_ollama_vectorizer(
     number_of_rows: int = 1,
     concurrency: int = 1,
     batch_size: int = 1,
-    chunking: str = "chunking_character_text_splitter('content')",
+    chunking: str = "chunking_character_text_splitter()",
     formatting: str = "formatting_python_template('$chunk')",
 ) -> int:
     """Creates and configures an ollama vectorizer for testing"""
@@ -101,8 +101,8 @@ def test_ollama_vectorizer(
 @pytest.mark.parametrize(
     "chunking",
     [
-        "chunking_character_text_splitter('content')",
-        "chunking_recursive_character_text_splitter('content')",
+        "chunking_character_text_splitter()",
+        "chunking_recursive_character_text_splitter()",
     ],
 )
 def test_vectorization_successful_with_null_contents(
