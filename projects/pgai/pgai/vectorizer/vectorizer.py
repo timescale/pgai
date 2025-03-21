@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import sys
 import threading
 import time
 from collections.abc import Callable, Sequence
@@ -40,6 +41,12 @@ SourceRow: TypeAlias = dict[str, Any]
 DEFAULT_CONCURRENCY = 1
 
 VECTORIZER_FAILED = "vectorizer failed with unexpected error"
+
+if sys.version_info >= (3, 11):
+    from builtins import BaseExceptionGroup
+else:
+    # For Python 3.10 and below, use the backport
+    from exceptiongroup import BaseExceptionGroup
 
 
 class EmbeddingProviderError(Exception):
@@ -177,7 +184,7 @@ class Vectorizer:
                 items += result
 
         if len(exceptions) > 0:
-            raise Exception(exceptions)
+            raise BaseExceptionGroup("failed to run the vectorizer", exceptions)
 
         logger.info(
             "finished processing vectorizer", items=items, vectorizer_id=self.id
