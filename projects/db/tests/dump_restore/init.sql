@@ -1,5 +1,3 @@
-create extension if not exists ai cascade;
-
 create table blog
 ( id int not null primary key generated always as identity
 , title text not null
@@ -16,4 +14,12 @@ values
 , ('how to make stir fry', '2022-01-06'::timestamptz, 'pick up the phone and order takeout', 'easy', '["phone-required"]'::jsonb)
 ;
 
-select ai.grant_secret('top_secret_password', 'ethel')
+select ai.create_vectorizer
+( 'blog'::regclass
+, embedding=>ai.embedding_openai('text-embedding-3-small', 768)
+, chunking=>ai.chunking_character_text_splitter('content', 128, 10)
+, formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
+, scheduling=>ai.scheduling_none()
+, indexing=>ai.indexing_none()
+, grant_to=>ai.grant_to('ethel')
+);

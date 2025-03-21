@@ -5,6 +5,8 @@ from pathlib import Path, PosixPath
 import psycopg
 import pytest
 
+from pgai.install import install
+
 # skip tests in this module if disabled
 enable_dump_restore_tests = os.getenv("ENABLE_DUMP_RESTORE_TESTS")
 if enable_dump_restore_tests == "0":
@@ -27,7 +29,7 @@ def where_am_i() -> str:
 def docker_dir() -> str:
     return str(
         PosixPath("/").joinpath(
-            "pgai", "projects", "extension", "tests", "dump_restore"
+            "pgai", "projects", "db", "tests", "dump_restore"
         )
     )
 
@@ -109,6 +111,7 @@ def snapshot_db(dbname: str) -> None:
 
 
 def init_src() -> None:
+    install(db_url(user=USER, dbname="src"))
     cmd = " ".join(
         [
             "psql",
@@ -141,6 +144,14 @@ def after_dst() -> None:
     subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
 
 
+def count_vectorizers() -> int:
+    with psycopg.connect(db_url(user=USER, dbname="dst"), autocommit=True) as con:
+        with con.cursor() as cur:
+            cur.execute("select count(*) from ai.vectorizer")
+            count: int = cur.fetchone()[0]
+            return count
+
+
 def test_dump_restore():
     create_user(USER)
     create_user("ethel")
@@ -155,3 +166,4 @@ def test_dump_restore():
     dst = read_file(str(host_dir().joinpath("dst.snapshot")))
     assert dst == src
     after_dst()  # make sure we can USE the restored db
+    assert count_vectorizers() == 2
