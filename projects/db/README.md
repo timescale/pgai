@@ -55,3 +55,18 @@
 `just build && just install`
 `uv sync --active`
 `cd ../pgai && uv pip install --editable .`
+
+
+--extension tests
+just docker-build
+just docker-run
+just docker-shell
+
+//inside shell 1
+just test-server
+
+//inside shell 2
+just build && just install-all
+just test
+
+--db tests 
