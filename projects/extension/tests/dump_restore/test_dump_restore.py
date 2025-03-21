@@ -78,6 +78,9 @@ def dump_db() -> None:
 
 
 def restore_db() -> None:
+    with psycopg.connect(db_url(user=USER, dbname="dst")) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension ai cascade")
     cmd = " ".join(
         [
             "psql",

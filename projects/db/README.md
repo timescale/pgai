@@ -23,6 +23,9 @@
 # todo
 
 - should we `uv sync` in the dev container in /db?
+- unpackage tests from all previous versions
+- fix test_jill_privileges, create_vectorizer_privileges test
+
 
  
 # dev notes
@@ -43,3 +46,12 @@
 - in the db dir 
 - `VIRTAUL_ENV=/py/.venv/ PATH=/py/.venv/bin/:$PATH uv pip install pytest`
 - `uv pip install fastapi[standard]`
+
+
+---
+`uv venv --directory /py/`
+`source /py/.venv/bin/activate`
+`uv pip install pytest fastapi[standard]`
+`just build && just install`
+`uv sync --active`
+`cd ../pgai && uv pip install --editable .`
