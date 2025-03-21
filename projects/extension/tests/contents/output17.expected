@@ -21,7 +21,9 @@ CREATE EXTENSION
  function ai.cohere_rerank_simple(text,text,text[],text,text,integer,integer,boolean)
  function ai.cohere_rerank(text,text,text[],text,text,integer,integer,boolean)
  function ai.cohere_tokenize(text,text,text,text,boolean)
- function ai.create_vectorizer(regclass,name,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name,name,name,name,name[],boolean)
+ function ai.create_vectorizer(regclass,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name[],boolean)
+ function ai.destination_default(name,name,name,name,name)
+ function ai.destination_source(name)
  function ai.disable_vectorizer_schedule(integer)
  function ai.drop_vectorizer(integer,boolean)
  function ai.embedding_litellm(text,integer,text,jsonb)
@@ -89,13 +91,15 @@ CREATE EXTENSION
  function ai._validate_parsing(jsonb,jsonb,name,name)
  function ai._validate_processing(jsonb)
  function ai._validate_scheduling(jsonb)
- function ai._vectorizer_build_trigger_definition(name,name,name,name,jsonb)
+ function ai._vectorizer_add_embedding_column(name,name,integer,name,name[])
+ function ai._vectorizer_build_trigger_definition(name,name,name,name,name,name,jsonb)
  function ai._vectorizer_create_dependencies(integer)
+ function ai._vectorizer_create_destination(integer,name,name,jsonb,integer,jsonb,name[])
  function ai._vectorizer_create_queue_failed_table(name,name,jsonb,name[])
  function ai._vectorizer_create_queue_table(name,name,jsonb,name[])
  function ai._vectorizer_create_source_trigger(name,name,name,name,name,name,name,jsonb)
  function ai._vectorizer_create_target_table(jsonb,name,name,integer,name[])
- function ai._vectorizer_create_vector_index(name,name,jsonb)
+ function ai._vectorizer_create_vector_index(name,name,jsonb,name)
  function ai._vectorizer_create_view(name,name,name,name,jsonb,name,name,name[])
  function ai.vectorizer_embed(integer,text,text)
  function ai.vectorizer_embed(jsonb,text,text)
@@ -107,7 +111,7 @@ CREATE EXTENSION
  function ai._vectorizer_schedule_job(integer,jsonb)
  function ai._vectorizer_should_create_vector_index(ai.vectorizer)
  function ai._vectorizer_source_pk(regclass)
- function ai._vectorizer_vector_index_exists(name,name,jsonb)
+ function ai._vectorizer_vector_index_exists(name,name,jsonb,name)
  function ai.voyageai_embed(text,text,text,text,text,boolean)
  function ai.voyageai_embed(text,text[],text,text,text,boolean)
  function ai._worker_heartbeat(uuid,integer,integer,text)
@@ -141,7 +145,7 @@ CREATE EXTENSION
  type ai.vectorizer_worker_progress[]
  view ai.secret_permissions
  view ai.vectorizer_status
-(137 rows)
+(141 rows)
 
                                     Table "ai._secret_permissions"
  Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
@@ -212,10 +216,6 @@ View definition:
  source_schema      | name    |           | not null |                                  | plain    |             |              | 
  source_table       | name    |           | not null |                                  | plain    |             |              | 
  source_pk          | jsonb   |           | not null |                                  | extended |             |              | 
- target_schema      | name    |           | not null |                                  | plain    |             |              | 
- target_table       | name    |           | not null |                                  | plain    |             |              | 
- view_schema        | name    |           | not null |                                  | plain    |             |              | 
- view_name          | name    |           | not null |                                  | plain    |             |              | 
  trigger_name       | name    |           | not null |                                  | plain    |             |              | 
  queue_schema       | name    |           |          |                                  | plain    |             |              | 
  queue_table        | name    |           |          |                                  | plain    |             |              | 
@@ -224,7 +224,6 @@ View definition:
  queue_failed_table | name    |           |          |                                  | plain    |             |              | 
 Indexes:
     "vectorizer_pkey" PRIMARY KEY, btree (id)
-    "vectorizer_target_schema_target_table_key" UNIQUE CONSTRAINT, btree (target_schema, target_table)
 Referenced by:
     TABLE "ai.vectorizer_errors" CONSTRAINT "vectorizer_errors_id_fkey" FOREIGN KEY (id) REFERENCES ai.vectorizer(id) ON DELETE CASCADE
     TABLE "ai.vectorizer_worker_progress" CONSTRAINT "vectorizer_worker_progress_vectorizer_id_fkey" FOREIGN KEY (vectorizer_id) REFERENCES ai.vectorizer(id) ON DELETE CASCADE
@@ -267,28 +266,21 @@ primary key, btree, for table "ai.vectorizer"
 ---------------+---------+-----------+----------+---------+----------+-------------
  id            | integer |           |          |         | plain    | 
  source_table  | text    | C         |          |         | extended | 
- target_table  | text    | C         |          |         | extended | 
- view          | text    | C         |          |         | extended | 
+ target_table  | text    |           |          |         | extended | 
+ view          | text    |           |          |         | extended | 
  pending_items | bigint  |           |          |         | plain    | 
  disabled      | boolean |           |          |         | plain    | 
 View definition:
  SELECT id,
     format('%I.%I'::text, source_schema, source_table) AS source_table,
-    format('%I.%I'::text, target_schema, target_table) AS target_table,
-    format('%I.%I'::text, view_schema, view_name) AS view,
+    format('%I.%I'::text, (config -> 'destination'::text) ->> 'target_schema'::text, (config -> 'destination'::text) ->> 'target_table'::text) AS target_table,
+    format('%I.%I'::text, (config -> 'destination'::text) ->> 'view_schema'::text, (config -> 'destination'::text) ->> 'view_name'::text) AS view,
         CASE
             WHEN queue_table IS NOT NULL AND has_table_privilege(CURRENT_USER, format('%I.%I'::text, queue_schema, queue_table), 'select'::text) THEN ai.vectorizer_queue_pending(id)
             ELSE NULL::bigint
         END AS pending_items,
     disabled
    FROM ai.vectorizer v;
-
-          Index "ai.vectorizer_target_schema_target_table_key"
-    Column     |  Type   | Key? |  Definition   | Storage | Stats target 
----------------+---------+------+---------------+---------+--------------
- target_schema | cstring | yes  | target_schema | plain   | 
- target_table  | cstring | yes  | target_table  | plain   | 
-unique, btree, for table "ai.vectorizer"
 
                                                           Table "ai.vectorizer_worker_process"
            Column            |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 

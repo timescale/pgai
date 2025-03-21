@@ -1,3 +1,5 @@
+import re
+
 import os
 import subprocess
 from collections import namedtuple
@@ -105,7 +107,13 @@ def init_db_script(dbname: str, script: str) -> None:
     subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
 
 
-def snapshot(dbname: str, name: str) -> None:
+def snapshot(dbname: str, name: str, target_version: str) -> None:
+    cleaned_version = re.sub(r'[^\d.]', '', target_version)
+    version = tuple(map(int, cleaned_version.split(".")))
+    if version <= (0, 9, 0):
+        snapshot_script = "snapshot_old_api.sql"
+    else:
+        snapshot_script = "snapshot.sql"
     cmd = " ".join(
         [
             "psql",
@@ -113,7 +121,7 @@ def snapshot(dbname: str, name: str) -> None:
             "-v ON_ERROR_STOP=1",
             "-X",
             f"-o {docker_dir()}/{name}.snapshot",
-            f"-f {docker_dir()}/snapshot.sql",
+            f"-f {docker_dir()}/{snapshot_script}",
         ]
     )
     if where_am_i() != "docker":
@@ -151,7 +159,7 @@ def test_upgrades():
             init_db_script("upgrade_target", "init_old_api.sql")
         else:
             init_db_script("upgrade_target", "init.sql")
-        snapshot("upgrade_target", f"{path_name}-expected")
+        snapshot("upgrade_target", f"{path_name}-expected", path.path[1])
         # start at the first version in the path
         create_database("upgrade_path")
         create_extension("upgrade_path", path.path[0])
@@ -161,7 +169,7 @@ def test_upgrades():
         for version in path.path[1:]:
             update_extension("upgrade_path", version)
             assert check_version("upgrade_path") == version
-        snapshot("upgrade_path", f"{path_name}-actual")
+        snapshot("upgrade_path", f"{path_name}-actual", path.path[1])
         # compare the snapshots. they should match
         expected = (
             Path(__file__)

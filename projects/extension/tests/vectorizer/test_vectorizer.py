@@ -36,6 +36,14 @@ VECTORIZER_ROW = r"""
             "implementation": "character_text_splitter",
             "is_separator_regex": false
         },
+        "destination": {
+            "config_type": "destination",
+            "implementation": "default",
+            "target_schema": "website",
+            "target_table": "blog_embedding_store",
+            "view_name": "blog_embedding",
+            "view_schema": "website"
+        },
         "indexing": {
             "config_type": "indexing",
             "implementation": "none"
@@ -79,16 +87,12 @@ VECTORIZER_ROW = r"""
             "typname": "timestamp with time zone"
         }
     ],
-    "view_name": "blog_embedding",
     "queue_table": "_vectorizer_q_1",
-    "view_schema": "website",
     "queue_schema": "ai",
     "queue_failed_table": "_vectorizer_q_failed_1",
     "source_table": "blog",
-    "target_table": "blog_embedding_store",
     "trigger_name": "_vectorizer_src_trg_1",
     "source_schema": "website",
-    "target_schema": "website",
     "disabled": false
 }
 """
@@ -632,7 +636,7 @@ def test_drop_vectorizer():
 
             # does the target table exist? (it should)
             cur.execute(
-                f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null"
+                f"select to_regclass('{vectorizer.config['destination']['target_schema']}.{vectorizer.config['destination']['target_table']}') is not null"
             )
             actual = cur.fetchone()[0]
             assert actual is True
@@ -646,7 +650,7 @@ def test_drop_vectorizer():
 
             # does the view exist? (it should)
             cur.execute(
-                f"select to_regclass('{vectorizer.view_schema}.{vectorizer.view_name}') is not null"
+                f"select to_regclass('{vectorizer.config['destination']['view_schema']}.{vectorizer.config['destination']['view_name']}') is not null"
             )
             actual = cur.fetchone()[0]
             assert actual is True
@@ -667,7 +671,7 @@ def test_drop_vectorizer():
 
             # does the target table exist? (it SHOULD)
             cur.execute(
-                f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null"
+                f"select to_regclass('{vectorizer.config['destination']['target_schema']}.{vectorizer.config['destination']['target_table']}') is not null"
             )
             actual = cur.fetchone()[0]
             assert actual is True
@@ -681,7 +685,7 @@ def test_drop_vectorizer():
 
             # does the view exist? (it SHOULD)
             cur.execute(
-                f"select to_regclass('{vectorizer.view_schema}.{vectorizer.view_name}') is not null"
+                f"select to_regclass('{vectorizer.config['destination']['view_schema']}.{vectorizer.config['destination']['view_name']}') is not null"
             )
             actual = cur.fetchone()[0]
             assert actual is True
@@ -760,7 +764,7 @@ def test_drop_all_vectorizer():
 
             # does the target table exist? (it should)
             cur.execute(
-                f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null"
+                f"select to_regclass('{vectorizer.config['destination']['target_schema']}.{vectorizer.config['destination']['target_table']}') is not null"
             )
             actual = cur.fetchone()[0]
             assert actual is True
@@ -774,7 +778,7 @@ def test_drop_all_vectorizer():
 
             # does the view exist? (it should)
             cur.execute(
-                f"select to_regclass('{vectorizer.view_schema}.{vectorizer.view_name}') is not null"
+                f"select to_regclass('{vectorizer.config['destination']['view_schema']}.{vectorizer.config['destination']['view_name']}') is not null"
             )
             actual = cur.fetchone()[0]
             assert actual is True
@@ -797,7 +801,7 @@ def test_drop_all_vectorizer():
 
             # does the target table exist? (it should NOT)
             cur.execute(
-                f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null"
+                f"select to_regclass('{vectorizer.config['destination']['target_schema']}.{vectorizer.config['destination']['target_table']}') is not null"
             )
             actual = cur.fetchone()[0]
             assert actual is False
@@ -811,7 +815,7 @@ def test_drop_all_vectorizer():
 
             # does the view exist? (it should NOT)
             cur.execute(
-                f"select to_regclass('{vectorizer.view_schema}.{vectorizer.view_name}') is not null"
+                f"select to_regclass('{vectorizer.config['destination']['view_schema']}.{vectorizer.config['destination']['view_name']}') is not null"
             )
             actual = cur.fetchone()[0]
             assert actual is False
@@ -890,7 +894,7 @@ def test_drop_source():
 
             # does the target table exist? (it should)
             cur.execute(
-                f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null"
+                f"select to_regclass('{vectorizer.config['destination']['target_schema']}.{vectorizer.config['destination']['target_table']}') is not null"
             )
             actual = cur.fetchone()[0]
             assert actual is True
@@ -904,7 +908,7 @@ def test_drop_source():
 
             # does the view exist? (it should)
             cur.execute(
-                f"select to_regclass('{vectorizer.view_schema}.{vectorizer.view_name}') is not null"
+                f"select to_regclass('{vectorizer.config['destination']['view_schema']}.{vectorizer.config['destination']['view_name']}') is not null"
             )
             actual = cur.fetchone()[0]
             assert actual is True
@@ -936,7 +940,7 @@ def test_drop_source():
 
             # does the target table exist? (it should NOT)
             cur.execute(
-                f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null"
+                f"select to_regclass('{vectorizer.config['destination']['target_schema']}.{vectorizer.config['destination']['target_table']}') is not null"
             )
             actual = cur.fetchone()[0]
             assert actual is False
@@ -950,7 +954,7 @@ def test_drop_source():
 
             # does the view exist? (it should not)
             cur.execute(
-                f"select to_regclass('{vectorizer.view_schema}.{vectorizer.view_name}') is not null"
+                f"select to_regclass('{vectorizer.config['destination']['view_schema']}.{vectorizer.config['destination']['view_name']}') is not null"
             )
             actual = cur.fetchone()[0]
             assert actual is False
@@ -1024,7 +1028,7 @@ def test_drop_source_no_row():
 
             # does the target table exist? (it should)
             cur.execute(
-                f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null"
+                f"select to_regclass('{vectorizer.config['destination']['target_schema']}.{vectorizer.config['destination']['target_table']}') is not null"
             )
             actual = cur.fetchone()[0]
             assert actual is True
@@ -1038,7 +1042,7 @@ def test_drop_source_no_row():
 
             # does the view exist? (it should)
             cur.execute(
-                f"select to_regclass('{vectorizer.view_schema}.{vectorizer.view_name}') is not null"
+                f"select to_regclass('{vectorizer.config['destination']['view_schema']}.{vectorizer.config['destination']['view_name']}') is not null"
             )
             actual = cur.fetchone()[0]
             assert actual is True
@@ -1066,7 +1070,7 @@ def test_drop_source_no_row():
 
             # does the target table exist? (it should NOT)
             cur.execute(
-                f"select to_regclass('{vectorizer.target_schema}.{vectorizer.target_table}') is not null"
+                f"select to_regclass('{vectorizer.config['destination']['target_schema']}.{vectorizer.config['destination']['target_table']}') is not null"
             )
             actual = cur.fetchone()[0]
             assert actual is False
@@ -1080,7 +1084,7 @@ def test_drop_source_no_row():
 
             # does the view exist? (it should not)
             cur.execute(
-                f"select to_regclass('{vectorizer.view_schema}.{vectorizer.view_name}') is not null"
+                f"select to_regclass('{vectorizer.config['destination']['view_schema']}.{vectorizer.config['destination']['view_name']}') is not null"
             )
             actual = cur.fetchone()[0]
             assert actual is False
@@ -1129,7 +1133,7 @@ def index_creation_tester(cur: psycopg.Cursor, vectorizer_id: int) -> None:
     # make sure the index does NOT exist
     cur.execute(
         """
-                select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
+                select ai._vectorizer_vector_index_exists(v.config->'destination'->>'target_schema', v.config->'destination'->>'target_table', v.config->'indexing')
                 from ai.vectorizer v
                 where v.id = %s
             """,
@@ -1147,7 +1151,7 @@ def index_creation_tester(cur: psycopg.Cursor, vectorizer_id: int) -> None:
     # make sure the index does NOT exist
     cur.execute(
         """
-                select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
+                select ai._vectorizer_vector_index_exists(v.config->'destination'->>'target_schema', v.config->'destination'->>'target_table', v.config->'indexing')
                 from ai.vectorizer v
                 where v.id = %s
             """,
@@ -1158,7 +1162,7 @@ def index_creation_tester(cur: psycopg.Cursor, vectorizer_id: int) -> None:
 
     # insert 5 rows into the target
     cur.execute(f"""
-                insert into {vectorizer.target_schema}.{vectorizer.target_table}
+                insert into {vectorizer.config['destination']['target_schema']}.{vectorizer.config['destination']['target_table']}
                 ( embedding_uuid
                 , id
                 , chunk_seq
@@ -1183,7 +1187,7 @@ def index_creation_tester(cur: psycopg.Cursor, vectorizer_id: int) -> None:
     # make sure the index does NOT exist (min_rows = 10)
     cur.execute(
         """
-                select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
+                select ai._vectorizer_vector_index_exists(v.config->'destination'->>'target_schema', v.config->'destination'->>'target_table', v.config->'indexing')
                 from ai.vectorizer v
                 where v.id = %s
             """,
@@ -1194,7 +1198,7 @@ def index_creation_tester(cur: psycopg.Cursor, vectorizer_id: int) -> None:
 
     # insert 5 rows into the target
     cur.execute(f"""
-                insert into {vectorizer.target_schema}.{vectorizer.target_table}
+                insert into {vectorizer.config['destination']['target_schema']}.{vectorizer.config['destination']['target_table']}
                 ( embedding_uuid
                 , id
                 , chunk_seq
@@ -1236,7 +1240,7 @@ def index_creation_tester(cur: psycopg.Cursor, vectorizer_id: int) -> None:
     # make sure the index does NOT exist (queue table is NOT empty)
     cur.execute(
         """
-                select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
+                select ai._vectorizer_vector_index_exists(v.config->'destination'->>'target_schema', v.config->'destination'->>'target_table', v.config->'indexing')
                 from ai.vectorizer v
                 where v.id = %s
             """,
@@ -1269,7 +1273,7 @@ def index_creation_tester(cur: psycopg.Cursor, vectorizer_id: int) -> None:
     # make sure the index ****DOES**** exist  (min_rows = 10 and 10 rows exist AND queue table is empty)
     cur.execute(
         """
-                select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
+                select ai._vectorizer_vector_index_exists(v.config->'destination'->>'target_schema', v.config->'destination'->>'target_table', v.config->'indexing')
                 from ai.vectorizer v
                 where v.id = %s
             """,
@@ -1438,7 +1442,7 @@ def test_index_create_concurrency():
             # make sure the index does NOT exist (min_rows = 10)
             cur.execute(
                 """
-                        select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
+                        select ai._vectorizer_vector_index_exists(v.config->'destination'->>'target_schema', v.config->'destination'->>'target_table', v.config->'indexing')
                         from ai.vectorizer v
                         where v.id = %s
                     """,
@@ -1449,7 +1453,7 @@ def test_index_create_concurrency():
 
             # insert 10 rows into the target
             cur.execute(f"""
-                        insert into {vectorizer.target_schema}.{vectorizer.target_table}
+                        insert into {vectorizer.config['destination']['target_schema']}.{vectorizer.config['destination']['target_table']}
                         ( embedding_uuid
                         , id
                         , chunk_seq
@@ -1470,7 +1474,7 @@ def test_index_create_concurrency():
                 with con2.cursor() as cur2:
                     cur2.execute(
                         """
-                        select ai._vectorizer_create_vector_index(v.target_schema, v.target_table, v.config->'indexing')
+                        select ai._vectorizer_create_vector_index(v.config->'destination'->>'target_schema', v.config->'destination'->>'target_table', v.config->'indexing')
                         from ai.vectorizer v
                         where v.id = %s
                         """,
@@ -1480,7 +1484,7 @@ def test_index_create_concurrency():
                     # try to explicitly create the index on the other connection
                     cur.execute(
                         """
-                        select ai._vectorizer_create_vector_index(v.target_schema, v.target_table, v.config->'indexing')
+                        select ai._vectorizer_create_vector_index(v.config->'destination'->>'target_schema', v.config->'destination'->>'target_table', v.config->'indexing')
                         from ai.vectorizer v
                         where v.id = %s
                         """,
@@ -1491,7 +1495,7 @@ def test_index_create_concurrency():
             # make sure the index DOES exist (min_rows = 10)
             cur.execute(
                 """
-                        select ai._vectorizer_vector_index_exists(v.target_schema, v.target_table, v.config->'indexing')
+                        select ai._vectorizer_vector_index_exists(v.config->'destination'->>'target_schema', v.config->'destination'->>'target_table', v.config->'indexing')
                         from ai.vectorizer v
                         where v.id = %s
                     """,
@@ -1516,8 +1520,8 @@ def test_index_create_concurrency():
                     and a.attnum operator(pg_catalog.=) i.indkey[0]
                     )
                 inner join ai.vectorizer v 
-                on (n.nspname operator(pg_catalog.=) v.target_schema
-                and k.relname operator(pg_catalog.=) v.target_table)
+                on (n.nspname operator(pg_catalog.=) (v.config->'destination'->>'target_schema')
+                and k.relname operator(pg_catalog.=) (v.config->'destination'->>'target_table'))
                 where v.id = %s
             """,
                 (vectorizer_id,),
@@ -1592,8 +1596,7 @@ def test_naming_collisions():
                 , indexing=>ai.indexing_none()
                 , grant_to=>null
                 , enqueue_existing=>false
-                , view_schema=>'ai'
-                , view_name=>'note4_embedding2'
+                , destination=>ai.destination_default(view_schema=>'ai', view_name=>'note4_embedding2')
                 );
                 """)
 
@@ -1613,10 +1616,10 @@ def test_naming_collisions():
                 , indexing=>ai.indexing_none()
                 , grant_to=>null
                 , enqueue_existing=>false
-                , view_schema=>'ai'
-                , view_name=>'note4_embedding2'
-                , target_schema=>'vec'
-                , target_table=>'note4_embedding_store2'
+                , destination=>ai.destination_default(view_schema=>'ai',
+                                                      view_name=>'note4_embedding2',
+                                                      target_schema=>'vec',
+                                                      target_table=>'note4_embedding_store2')
                 , queue_schema=>'ai'
                 , queue_table=>'_vectorizer_q_1'
                 );
@@ -1634,23 +1637,23 @@ def test_naming_collisions():
             , indexing=>ai.indexing_none()
             , grant_to=>null
             , enqueue_existing=>false
-            , target_schema=>'vec'
-            , target_table=>'note4_embedding_store2'
+            , destination=>ai.destination_default(target_schema=>'vec',
+                                                  target_table=>'note4_embedding_store2',
+                                                  view_schema=>'vec',
+                                                  view_name=>'note4_embedding2')
             , queue_schema=>'ai'
             , queue_table=>'this_is_a_queue_table'
-            , view_schema=>'vec'
-            , view_name=>'note4_embedding2'
             );
             """)
             vectorizer_id = cur.fetchone()[0]
             cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
             vectorizer = cur.fetchone()
-            assert vectorizer.target_schema == "vec"
-            assert vectorizer.target_table == "note4_embedding_store2"
+            assert vectorizer.config['destination']['target_schema'] == "vec"
+            assert vectorizer.config['destination']['target_table'] == "note4_embedding_store2"
             assert vectorizer.queue_schema == "ai"
             assert vectorizer.queue_table == "this_is_a_queue_table"
-            assert vectorizer.view_schema == "vec"
-            assert vectorizer.view_name == "note4_embedding2"
+            assert vectorizer.config['destination']['view_schema'] == "vec"
+            assert vectorizer.config['destination']['view_name'] == "note4_embedding2"
             cur.execute("""
                 select to_regclass('vec.note4_embedding_store2') is not null
                 and to_regclass('ai.this_is_a_queue_table') is not null
@@ -1670,18 +1673,18 @@ def test_naming_collisions():
             , indexing=>ai.indexing_none()
             , grant_to=>null
             , enqueue_existing=>false
-            , destination=>'fernando'
+            , destination=>ai.destination_default(destination=>'fernando')
             );
             """)
             vectorizer_id = cur.fetchone()[0]
             cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
             vectorizer = cur.fetchone()
-            assert vectorizer.target_schema == "vec"
-            assert vectorizer.target_table == "fernando_store"
+            assert vectorizer.config['destination']['target_schema'] == "vec"
+            assert vectorizer.config['destination']['target_table'] == "fernando_store"
             assert vectorizer.queue_schema == "ai"
             assert vectorizer.queue_table == f"_vectorizer_q_{vectorizer.id}"
-            assert vectorizer.view_schema == "vec"
-            assert vectorizer.view_name == "fernando"
+            assert vectorizer.config['destination']['view_schema'] == "vec"
+            assert vectorizer.config['destination']['view_name'] == "fernando"
             cur.execute(f"""
                 select to_regclass('vec.fernando_store') is not null
                 and to_regclass('ai._vectorizer_q_{vectorizer.id}') is not null
@@ -1840,7 +1843,7 @@ def test_grant_to_public():
             cur.execute(f"""
                 select has_table_privilege
                 ( 'public'
-                , '{vectorizer.target_schema}.{vectorizer.target_table}'
+                , '{vectorizer.config['destination']['target_schema']}.{vectorizer.config['destination']['target_table']}'
                 , 'select'
                 )""")
             assert cur.fetchone()[0]
@@ -1941,7 +1944,7 @@ def test_create_vectorizer_privs():
             select ai.create_vectorizer
             ( 'priv_test'::regclass
             , loading => ai.loading_column('foo')
-            , destination=>'red_balloon'
+            , destination=>ai.destination_default(destination=>'red_balloon')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
             , chunking=>ai.chunking_character_text_splitter()
             , scheduling=>ai.scheduling_none()
