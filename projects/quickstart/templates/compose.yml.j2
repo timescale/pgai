@@ -4,7 +4,9 @@ services:
     image: {{ db_docker_image }}
     environment:
       POSTGRES_PASSWORD: postgres
-      {{ api_key_name }}: {{ api_key }}
+      {% for k, v in api_keys.items() %}
+      {{ k }}: {{ v }}
+      {% endfor %}
     ports:
       - "5432"
     volumes:

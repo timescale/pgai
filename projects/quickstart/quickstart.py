@@ -1,10 +1,14 @@
 ## Note: This is PoC-level code, at best. Most of it probably doesn' work.
+import traceback
+from dataclasses import dataclass, field
+from typing import Set
 
 import questionary
 import shutil
 import subprocess
 import os
 
+from psycopg import sql
 from yaspin import yaspin
 import time
 from textwrap import dedent, indent
@@ -16,6 +20,8 @@ import voyageai
 import atexit
 import platform
 import requests
+from tabulate import tabulate
+
 
 env = Environment(
     loader=PackageLoader("quickstart"),
@@ -54,19 +60,18 @@ EMBEDDING_MODELS = {
     ],
 }
 
-# Note: These durations were experimentally determined on the wikipedia
-# dataset, which consists of 4_191_464 characters in 6267 chunks.
-WIKIPEDIA_EMBEDDING_DURATION_SECONDS = {
-    "voyage-3-large": 90,
-    "voyage-3": 90,
-    "voyage-3-lite": 90,
-    "text-embedding-3-large": 50,
-    "text-embedding-3-small": 50,
-    "text-embedding-ada-002": 50,
-    "embed-english-v3.0": 30,
-    "embed-english-light-v3.0": 20,
-    "embed-multilingual-v3.0": 30,
-    "embed-multilingual-light-v3.0": 20,
+# Note: These durations were experimentally determined on the pgai-docs dataset.
+PGAI_DOCS_EMBEDDING_DURATION_SECONDS = {
+    "voyage-3-large": 10,
+    "voyage-3": 10,
+    "voyage-3-lite": 10,
+    "text-embedding-3-large": 13,
+    "text-embedding-3-small": 13,
+    "text-embedding-ada-002": 13,
+    "embed-english-v3.0": 10,
+    "embed-english-light-v3.0": 10,
+    "embed-multilingual-v3.0": 10,
+    "embed-multilingual-light-v3.0": 10,
     "all-minilm": None,
     "nomic-embed-text": None,
     "mxbai-embed-large": None,
@@ -90,11 +95,18 @@ DIMENSIONS = {
     "all-minilm": 384,
 }
 
-EMBEDDING_FUNCTIONS = {
+EMBEDDING_CONFIG_FUNCTIONS = {
     OPENAI: "embedding_openai",
     COHERE: "embedding_litellm",
     VOYAGE: "embedding_voyageai",
     OLLAMA: "embedding_ollama",
+}
+
+EMBEDDING_FUNCTIONS = {
+    OPENAI: "openai_embed",
+    COHERE: "litellm_embed",
+    VOYAGE: "voyageai_embed",
+    OLLAMA: "ollama_embed",
 }
 
 API_KEY_NAME = {
@@ -139,12 +151,22 @@ EXIT_CODE = None
 EXIT_REASON = None
 
 
-def exit_quickstart(code: int, reason: str):
+@dataclass
+class EmbeddingModelConfig:
+    provider: str
+    api_key: str
+    model: str
+
+
+def exit_quickstart(code: int, reason: str | BaseException):
     global EXIT_CODE, EXIT_REASON
     EXIT_CODE = code
     EXIT_REASON = reason
     if code > 0:
-        print(reason)
+        if isinstance(reason, BaseException):
+            traceback.print_exception(reason)
+        else:
+            print(reason)
     exit(code)
 
 
@@ -178,7 +200,7 @@ def model_title(model: str) -> str:
 def validate():
     models = [model for models in EMBEDDING_MODELS.values() for model in models]
     for model in models:
-        assert model in WIKIPEDIA_EMBEDDING_DURATION_SECONDS, (
+        assert model in PGAI_DOCS_EMBEDDING_DURATION_SECONDS, (
             f"no embedding duration for model '{model}'"
         )
         assert model in DIMENSIONS, f"no dimension for model '{model}'"
@@ -195,14 +217,17 @@ def has_docker_compose(docker_bin) -> bool:
     return True
 
 
-def generate_docker_compose(provider, api_key):
-    api_key_name = API_KEY_NAME[provider]
-    use_ollama = provider == OLLAMA
+def generate_docker_compose(emcs: list[EmbeddingModelConfig]):
+    use_ollama = any([emc.provider == OLLAMA for emc in emcs])
+    api_keys = {
+        API_KEY_NAME[emc.provider]: emc.api_key
+        for emc in emcs
+        if emc.provider != OLLAMA
+    }
     template = env.get_template("compose.yml.j2")
     return template.render(
-        provider=provider,
-        api_key_name=api_key_name,
-        api_key=api_key,
+        api_keys=api_keys,
+        api_key_names=API_KEY_NAME,
         use_ollama=use_ollama,
         db_docker_image=DB_DOCKER_IMAGE,
         vectorizer_worker_docker_image=VECTORIZER_WORKER_DOCKER_IMAGE,
@@ -229,22 +254,21 @@ def check_db_connectivity(docker_bin):
         return False
 
 
-def write_compose(provider, api_key):
-    docker_compose = generate_docker_compose(provider, api_key)
-    with yaspin(text="writing compose.yml") as sp:
+def write_compose(emcs: list[EmbeddingModelConfig]):
+    docker_compose = generate_docker_compose(emcs)
+    with yaspin(text="writing compose.yml", color="green") as sp:
         with open("compose.yml", "w", encoding="utf-8") as f:
             f.write(docker_compose)
-        sp.write("✔ wrote compose.yml")
+        sp.ok("✔")
 
 
 def start_containers(docker_bin):
-    port = None
-    with yaspin(text="starting containers") as sp:
+    with yaspin(text="starting containers", color="green") as sp:
         result = subprocess.run(
             [docker_bin, "compose", "up", "-d"], capture_output=True
         )
         if result.returncode == 0:
-            sp.write("✔ started containers")
+            sp.ok("✔")
         else:
             sp.write("unable to start containers")
             return None
@@ -258,79 +282,54 @@ def start_containers(docker_bin):
         port = result.stdout.decode("utf-8").strip()
         sp.text = "checking db connectivity"
         if check_db_connectivity(docker_bin):
-            sp.write("✔ db listening")
+            sp.ok("✔")
         else:
             sp.write("db not up")
             return None
     return port
 
 
-def execute_sql(port, sql, **kwargs):
-    with psycopg.connect(f"postgres://postgres:postgres@{port}") as conn:
-        return conn.execute(sql, kwargs)
-
-
-def fetchone_sql(port, sql, **kwargs):
-    with psycopg.connect(f"postgres://postgres:postgres@{port}") as conn:
-        return conn.execute(sql, kwargs).fetchone()
-
-
-def fetchall_sql(port, sql, **kwargs):
-    with psycopg.connect(f"postgres://postgres:postgres@{port}") as conn:
-        return conn.execute(sql, kwargs).fetchall()
-
-
-def create_extension(port):
-    with yaspin(text="creating extension") as sp:
+def create_extension(conn):
+    with yaspin(text="creating extension", color="green") as sp:
         sql = "CREATE EXTENSION IF NOT EXISTS ai CASCADE;"
         sp.write(f"running '{sql}'")
         sp.text = "creating extension"
-        execute_sql(port, sql)
-        sp.write("✔ extension created")
+        conn.execute(sql)
+        sp.ok("✔")
 
 
-def setup_dataset(dataset, port):
-    sql_snippets = {
-        "wikipedia": """
-            select ai.load_dataset(
-              'wikipedia'
-            , config_name => '20220301.en'
-            , kwargs=> '{"trust_remote_code": true}'::jsonb
-            , table_name => 'wikipedia'
-            , batch_size => 100
-            , max_batches => 1
-            )
-        """
-    }
-    table = dataset
-    if dataset not in sql_snippets.keys():
-        exit_quickstart(1, f"unknown dataset '{dataset}'")
+def setup_pgai_docs_dataset(conn):
+    table = "pgai_docs"
     start = time.time()
-    with yaspin(text="loading dataset") as sp:
-        sql = sql_snippets[dataset]
-        if table in get_tables(port):
+    with yaspin(text="loading dataset", color="green") as sp:
+        sql = "SELECT ai.load_dataset('timescale/pgai-docs', table_name => 'pgai_docs')"
+        if table in get_tables(conn):
             sp.write(f"table '{table}' already exists")
             sp.text = f"dropping table '{table}'"
-            execute_sql(port, f"DROP TABLE {table} CASCADE")
-            sp.write(f"✔ table '{table}' dropped")
+            conn.execute(f"DROP TABLE {table} CASCADE")
+            sp.ok("✔")
 
         sp.write(f"running query:\n{indent(dedent(sql), '    ')}")
         sp.text = "loading dataset"
-        execute_sql(port, sql)
-        execute_sql(port, f"alter table {table} add primary key (id)")
-        sp.write("✔ dataset loaded")
+        conn.execute(sql)
+        conn.execute(f"alter table {table} add primary key (path)")
+        sp.ok("✔")
     METADATA["dataset_loading_duration_seconds"] = time.time() - start
 
 
-def get_tables(port):
-    results = fetchall_sql(
-        port,
-        "SELECT relname from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r' and relname not in (SELECT target_table FROM ai.vectorizer)",
-    )
+def get_tables(conn):
+    sql = """
+        SELECT relname
+        FROM pg_class
+        WHERE relnamespace = 'public'::regnamespace
+          AND relkind = 'r'
+          AND relname not in (SELECT target_table FROM ai.vectorizer)
+    """
+    results = conn.execute(sql).fetchall()
     return [r[0] for r in results]
 
 
-def setup_vectorizer(answers, port) -> int:
+def setup_vectorizer(emc: EmbeddingModelConfig, conn) -> int:
     VECTORIZER_METADATA = {}
     METADATA["vectorizer"] = VECTORIZER_METADATA
 
@@ -341,20 +340,20 @@ def setup_vectorizer(answers, port) -> int:
 
     def get_text_columns(table):
         sql = column_sql + " AND atttypid = 'text'::regtype::oid"
-        results = fetchall_sql(port, sql, table=table)
+        results = conn.execute(sql, {"table": table}).fetchall()
         return [r[0] for r in results]
 
     def get_columns(table):
-        results = fetchall_sql(port, column_sql, table=table)
+        results = conn.execute(column_sql, {"table": table}).fetchall()
         return [r[0] for r in results]
 
-    def get_existing_vectorizer_names(table, port) -> list[str]:
-        results = fetchall_sql(port, vectorizer_sql, table=table)
+    def get_existing_vectorizer_names(table, conn) -> list[str]:
+        results = conn.execute(vectorizer_sql, {"table": table}).fetchall()
         return [r[0] for r in results]
 
     print("The dataset is loaded")
 
-    tables = get_tables(port)
+    tables = get_tables(conn)
     table = None
     if len(tables) == 0:
         exit_quickstart(1, "no tables in public schema")
@@ -364,7 +363,7 @@ def setup_vectorizer(answers, port) -> int:
         ).unsafe_ask()
     VECTORIZER_METADATA["table"] = table
 
-    vectorizers = get_existing_vectorizer_names(table, port)
+    vectorizers = get_existing_vectorizer_names(table, conn)
     destination = None
     if len(vectorizers) > 0:
         print(f"The table '{table}' already has a vectorizer ({vectorizers})")
@@ -413,9 +412,9 @@ def setup_vectorizer(answers, port) -> int:
     else:
         formatting = None
 
-    provider = answers["provider"]
-    embedding_function = EMBEDDING_FUNCTIONS[provider]
-    model = answers["model"]
+    provider = emc.provider
+    embedding_function = EMBEDDING_CONFIG_FUNCTIONS[provider]
+    model = emc.model
     dims = DIMENSIONS[model]
     if provider == COHERE:
         function_args = f"'cohere/{model}', {dims}, api_key_name => 'COHERE_API_KEY'"
@@ -433,31 +432,31 @@ def setup_vectorizer(answers, port) -> int:
         , chunking => ai.chunking_recursive_character_text_splitter('{column}'){additional_bits}
         );
     """
-    with yaspin(text="creating vectorizer") as sp:
+    with yaspin(text="creating vectorizer", color="green") as sp:
         sp.write(f"running query:\n{indent(dedent(sql), '    ')}")
         sp.text = "creating vectorizer"
-        row = fetchone_sql(port, sql)
+        row = conn.execute(sql).fetchone()
         vectorizer_id = int(row[0])
-        sp.write("✔ vectorizer created")
+        sp.ok("✔")
     return vectorizer_id
 
 
-def monitor_embeddings(answers, port, vectorizer_id):
+def monitor_embeddings(emc, conn, vectorizer_id):
     MONITOR_METADATA = {}
     METADATA["monitor"] = MONITOR_METADATA
-    provider = answers["provider"]
-    model = answers["model"]
+    provider = emc.provider
+    model = emc.model
     sql = f"select ai.vectorizer_queue_pending({vectorizer_id}, exact_count => true);"
     if provider == OLLAMA:
         print("embedding source table, this could take a very long time")
         duration_seconds = None
     else:
-        duration_seconds = WIKIPEDIA_EMBEDDING_DURATION_SECONDS[model]
+        duration_seconds = PGAI_DOCS_EMBEDDING_DURATION_SECONDS[model]
     MONITOR_METADATA["estimated_embedding_duration_seconds"] = duration_seconds
     start = time.time()
-    with yaspin(text="embedding source table") as sp:
+    with yaspin(text="embedding source table", color="green") as sp:
         while True:
-            row = fetchone_sql(port, sql)
+            row = conn.execute(sql).fetchone()
             count = int(row[0])
             if duration_seconds is None:
                 remaining = ""
@@ -471,7 +470,7 @@ def monitor_embeddings(answers, port, vectorizer_id):
                     remaining = f", approx. {duration_seconds:.0f}s"
             sp.text = f"embedding source table ({count} rows remaining{remaining})"
             if count == 0:
-                sp.write("✔ source table embedded")
+                sp.ok("✔")
                 break
             time.sleep(1)
     MONITOR_METADATA["actual_embedding_duration_seconds"] = time.time() - start
@@ -506,13 +505,6 @@ def is_api_key_valid(provider, api_key):
         raise RuntimeError(f"Unexpected provider {provider}")
 
 
-def get_api_key(answers):
-    provider = answers["provider"]
-    if provider == OLLAMA:
-        return None
-    return answers.get("api_key", None) or os.getenv(API_KEY_NAME[provider], None)
-
-
 def pull_images(docker_bin):
     print("pulling required docker images")
     if subprocess.run([docker_bin, "compose", "pull"]).returncode != 0:
@@ -532,8 +524,7 @@ def pull_ollama_model(docker_bin, model):
     METADATA["ollama_model_pull_duration_seconds"] = time.time() - start
 
 
-def ask_initial_questions():
-    answers = {}
+def ask_vectorizer_questions() -> EmbeddingModelConfig:
     provider = questionary.select(
         "Which embedding model provider would you like to use?",
         choices=[
@@ -541,18 +532,18 @@ def ask_initial_questions():
             for k in EMBEDDING_MODELS.keys()
         ],
     ).unsafe_ask()
-    answers["provider"] = provider
-    METADATA["provider"] = provider
     api_key = None
     env_has_key = os.getenv(API_KEY_NAME[provider]) is not None
     METADATA["api_key_source"] = "environment" if env_has_key else "user"
-    if provider in [COHERE, VOYAGE, OPENAI] and not env_has_key:
-        api_key = questionary.password(
-            "API Key", validate=lambda v: len(v) > 0
-        ).unsafe_ask()
-    answers["api_key"] = api_key
+    if provider in [COHERE, VOYAGE, OPENAI]:
+        if env_has_key:
+            api_key = os.getenv(API_KEY_NAME[provider], None)
+        else:
+            api_key = questionary.password(
+                "API Key", validate=lambda v: len(v) > 0
+            ).unsafe_ask()
 
-    if not is_api_key_valid(provider, get_api_key(answers)):
+    if not is_api_key_valid(provider, api_key):
         # TODO: loop to get valid API key
         error_msg = "The provided API key is invalid"
         exit_quickstart(1, error_msg)
@@ -564,18 +555,200 @@ def ask_initial_questions():
             for k in EMBEDDING_MODELS[provider]
         ],
     ).unsafe_ask()
-    answers["model"] = model
-    METADATA["model"] = model
-    dataset = questionary.select(
-        "Which dataset would you like to use?",
-        choices=["wikipedia", "other", "another other"],
+    return EmbeddingModelConfig(provider=provider, api_key=api_key, model=model)
+
+
+def get_vectorizer_details(conn, vectorizer_id):
+    vectorizer_details_sql = """
+        SELECT
+          source_schema
+        , source_table
+        , target_schema
+        , target_table
+        , view_schema
+        , view_name as embedding_view
+        FROM ai.vectorizer
+        WHERE vectorizer.id = %(vectorizer_id)s
+    """
+    return conn.execute(
+        vectorizer_details_sql, {"vectorizer_id": vectorizer_id}
+    ).fetchone()
+
+
+def showcase_embeddings(conn, vectorizer_id):
+    source_schema, source_table, target_schema, target_table, view_schema, view_name = (
+        get_vectorizer_details(conn, vectorizer_id)
+    )
+    print(
+        f"The data in the source table '{source_schema}.{source_table}' is now chunked and embedded"
+    )
+    print(
+        f"The chunks and corresponding embeddings are stored in the '{target_schema}.{target_table}' table"
+    )
+    print(
+        f"For convenience, the '{view_schema}.{view_name}' view joins the source table with its embeddings"
+    )
+    print()
+
+
+@dataclass
+class QuickstartState:
+    providers: Set[str] = field(default_factory=set)
+    emcs: list[EmbeddingModelConfig] = field(default_factory=list)
+    dataset_loaded: bool = False
+    docker_bin: str | None = None
+    docker_host: str | None = None
+    vectorizer_id_to_emc: dict[int, EmbeddingModelConfig] = field(default_factory=dict)
+
+
+def similarity_search(state: QuickstartState):
+    conn = psycopg.connect(
+        f"postgres://postgres:postgres@{state.docker_host}", autocommit=True
+    )
+
+    if len(state.vectorizer_id_to_emc.keys()) > 1:
+        vectorizers = conn.execute("SELECT id, view_name FROM ai.vectorizer").fetchall()
+        vectorizer_id = questionary.select(
+            "Which vectorizer would you like to use for similarity search",
+            choices=[
+                questionary.Choice(title=view_name, value=id)
+                for id, view_name in vectorizers
+            ],
+        ).unsafe_ask()
+    else:
+        vectorizer_id = list(state.vectorizer_id_to_emc.keys())[0]
+
+    emc = state.vectorizer_id_to_emc[vectorizer_id]
+    _, _, _, _, view_schema, view_name = get_vectorizer_details(conn, vectorizer_id)
+
+    print(
+        "Similarity search is about finding documents which are semantically similar to a query string."
+    )
+    print(
+        "To find similar documents, you compute the vector distance using pgvector's '<=>' operator"
+    )
+    print(
+        "For example, the following query gets the top 10 chunks most similar to the input vector:"
+    )
+    print(f"""
+        SELECT
+          title
+        , chunk
+        , embedding <=> '<input vector>'::vector as distance
+        FROM {view_schema}.{view_name}
+        ORDER BY 2
+        LIMIT 10
+    """)
+    print("Let's see an example based on the pgai documentation")
+    print("The pgai documentation covers a few core topics")
+
+    VECTORIZER_OPENAI = "pgai vectorizer with OpenAI"
+    CHAT_COMPLETION = "pgai chat completion"
+    PGAI_EXTENSION_INSTALL = "pgai extension installation"
+
+    chosen = questionary.select(
+        "Select a topic for which you would like to perform similarity search:",
+        choices=[VECTORIZER_OPENAI, CHAT_COMPLETION, PGAI_EXTENSION_INSTALL],
     ).unsafe_ask()
-    answers["dataset"] = dataset
-    METADATA["dataset"] = dataset
-    return answers
+    if chosen == VECTORIZER_OPENAI:
+        query = "Set up a vectorizer with OpenAI"
+    elif chosen == CHAT_COMPLETION:
+        query = "Perform chat completion using OpenAI"
+    else:
+        query = "pgai extension installation instructions"
+
+    dimensions_sql = (
+        sql.SQL(", dimensions => %(dimensions)s")
+        if emc.model == "text-embedding-3-large"
+        else sql.SQL("")
+    )
+
+    simple_similarity_search_sql = sql.SQL("""
+        SELECT
+          title
+        , chunk_seq
+        , substring(chunk for 20) || '...' as chunk_snippet
+        , embedding <=> ai.{}(%(model)s, %(query)s{}) as distance
+        FROM {}.{}
+        ORDER BY 4
+        LIMIT 10
+    """).format(
+        sql.Identifier(EMBEDDING_FUNCTIONS[emc.provider]),
+        dimensions_sql,
+        sql.Identifier(view_schema),
+        sql.Identifier(view_name),
+    )
+
+    params = {"model": emc.model, "query": query, "dimensions": DIMENSIONS[emc.model]}
+    cur = psycopg.ClientCursor(conn)
+    print(cur.mogrify(simple_similarity_search_sql, params))
+    results = conn.execute(simple_similarity_search_sql, params).fetchall()
+
+    print(
+        tabulate(results, headers=["title", "chunk_seq", "chunk_snippet", "distance"])
+    )
+    print("")
+
+    print("That was a good start, but to find the top matching documents (not chunks),")
+    print("we need to do some aggregation")
+    questionary.press_any_key_to_continue().unsafe_ask()
+
+    similarity_search_sql = sql.SQL("""
+        WITH document_min_chunk_distances AS (
+           SELECT
+             title
+           , min(embedding <=> ai.{}(%(model)s, %(query)s{})) AS distance
+           FROM {}.{}
+           GROUP BY title
+        )
+        SELECT rank() OVER (ORDER BY distance) AS rank, title, distance
+        FROM document_min_chunk_distances
+        ORDER BY 1
+        LIMIT 5;
+    """).format(
+        sql.Identifier(EMBEDDING_FUNCTIONS[emc.provider]),
+        dimensions_sql,
+        sql.Identifier(view_schema),
+        sql.Identifier(view_name),
+    )
+    cur = psycopg.ClientCursor(conn)
+    print(cur.mogrify(similarity_search_sql, params))
+    results = conn.execute(similarity_search_sql, params).fetchall()
+
+    print(tabulate(results, headers=["rank", "title", "distance"]))
+    print("")
+
+
+def create_vectorizer(state: QuickstartState):
+    emc = ask_vectorizer_questions()
+    state.emcs.append(emc)
+    if emc.provider not in state.providers:
+        state.providers.add(emc.provider)
+        write_compose(state.emcs)
+        pull_images(state.docker_bin)
+        port = start_containers(state.docker_bin)
+        if port is None:
+            exit_quickstart(1, "container not started")
+        state.docker_host = port
+        if emc.provider == OLLAMA:
+            pull_ollama_model(state.docker_bin, emc.model)
+
+    with psycopg.connect(
+        f"postgres://postgres:postgres@{state.docker_host}", autocommit=True
+    ) as conn:
+        create_extension(conn)
+        if not state.dataset_loaded:
+            setup_pgai_docs_dataset(conn)
+            state.dataset_loaded = True
+        vectorizer_id = setup_vectorizer(emc, conn)
+        state.vectorizer_id_to_emc[vectorizer_id] = emc
+        monitor_embeddings(emc, conn, vectorizer_id)
+        showcase_embeddings(conn, vectorizer_id)
 
 
 def main():
+    state = QuickstartState()
+
     docker_bin = shutil.which("docker")
     if docker_bin is None:
         print("install docker https://docs.docker.com/desktop/ and try again")
@@ -587,6 +760,8 @@ def main():
         exit_quickstart(
             1, "docker does not have the compose subcommand, but it is required"
         )
+
+    state.docker_bin = docker_bin
 
     print("Welcome to the pgai vectorizer quickstart!")
     print("The quickstart guides you through creating your first vectorizer")
@@ -600,23 +775,24 @@ def main():
 
     questionary.press_any_key_to_continue().unsafe_ask()
 
-    answers = ask_initial_questions()
-    provider = answers["provider"]
+    create_vectorizer(state)
 
-    api_key = get_api_key(answers)
-    write_compose(provider, api_key)
-    pull_images(docker_bin)
-    port = start_containers(docker_bin)
-    if port is None:
-        exit_quickstart(1, "container not started")
-    if provider == OLLAMA:
-        pull_ollama_model(docker_bin, answers["model"])
-    create_extension(port)
-    dataset = answers.get("dataset", None)
-    if dataset is not None:
-        setup_dataset(dataset, port)
-    vectorizer_id = setup_vectorizer(answers, port)
-    monitor_embeddings(answers, port, vectorizer_id)
+    SIMILARITY_SEARCH = "Run a basic similarity search"
+    CREATE_ANOTHER = "Create another vectorizer"
+    EXIT = "Exit"
+    choices = [SIMILARITY_SEARCH, CREATE_ANOTHER, EXIT]
+    while True:
+        chosen = questionary.select(
+            "What would you like to do next?",
+            choices=choices,
+        ).unsafe_ask()
+        if chosen == SIMILARITY_SEARCH:
+            similarity_search(state)
+        elif chosen == CREATE_ANOTHER:
+            create_vectorizer(state)
+        else:
+            print("Thank you for using the pgai quickstart, have fun!")
+            exit_quickstart(0, "done")
 
 
 def telemetry():
@@ -644,5 +820,7 @@ if __name__ == "__main__":
     validate()
     try:
         main()
+    except SystemExit as e:
+        raise e
     except BaseException as e:
-        exit_quickstart(1, str(e))
+        exit_quickstart(1, e)
