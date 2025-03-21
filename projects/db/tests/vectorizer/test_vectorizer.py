@@ -184,6 +184,10 @@ def psql_cmd(cmd: str) -> str:
 
 
 def test_vectorizer_timescaledb():
+    with psycopg.connect(db_url("test")) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension ai cascade")
+    
     with psycopg.connect(
         db_url("postgres"), autocommit=True, row_factory=namedtuple_row
     ) as con:
@@ -2020,3 +2024,26 @@ def test_weird_primary_key():
             cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
             actual = cur.fetchone()[0]
             assert actual == 7
+
+
+def test_install_ai_extension_before_library():
+    with psycopg.connect(db_url("test")) as con:
+        with con.cursor() as cur:
+            cur.execute("drop schema if exists ai cascade")
+            cur.execute("create extension ai cascade")
+    
+    
+    from pgai.install import install
+    install(db_url("test"))
+    
+def test_install_library_before_ai_extension():
+    with psycopg.connect(db_url("test")) as con:
+        with con.cursor() as cur:
+            cur.execute("drop schema if exists ai cascade")
+            
+    from pgai.install import install
+    install(db_url("test"))
+    
+    with psycopg.connect(db_url("test")) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension ai cascade")

@@ -41,7 +41,7 @@ def create_test_db(cur: psycopg.Cursor) -> None:
     cur.execute("create database test owner test")
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(autouse=True)
 def set_up_test_db() -> None:
     # create a test user and test database owned by the test user
     with psycopg.connect(
@@ -60,10 +60,6 @@ def set_up_test_db() -> None:
     # use the test user to create the extension in the test database
     from pgai.install import install
     install("postgres://test@127.0.0.1:5432/test")
-    with psycopg.connect("postgres://test@127.0.0.1:5432/test") as con:
-        with con.cursor() as cur:
-            cur.execute("create extension ai cascade")
-
 
 def detailed_notice_handler(diag):
     print(f"""
