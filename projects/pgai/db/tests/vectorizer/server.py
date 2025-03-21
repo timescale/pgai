@@ -172,8 +172,6 @@ class Vectorizer(BaseModel):
     source_schema: str
     source_table: str
     source_pk: list[PrimaryKeyColumn]
-    target_schema: str
-    target_table: str
     trigger_name: str
     queue_schema: str | None = None
     queue_table: str | None = None
