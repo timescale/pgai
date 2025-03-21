@@ -29,7 +29,7 @@ def where_am_i() -> str:
 def docker_dir() -> str:
     return str(
         PosixPath("/").joinpath(
-            "pgai", "projects", "db", "tests", "dump_restore"
+            "pgai", "projects", "pgai", "db", "tests", "dump_restore"
         )
     )
 

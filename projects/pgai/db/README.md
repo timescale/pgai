@@ -75,8 +75,10 @@ just docker-run
 just docker-shell
 
 //inside shell 1
-just test-server
+uv pip install fastapi[standard]
+cd db && just test-server
 
 //inside shell 2
-cd ../extension && just build && just install && cd ../db
+uv sync --active
+cd ../extension && just build && just install && cd ../pgai/db
 just test

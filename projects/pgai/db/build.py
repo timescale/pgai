@@ -210,7 +210,7 @@ class Actions:
             [
                 "docker run -d --name pgai-db --hostname pgai-db -e POSTGRES_HOST_AUTH_METHOD=trust",
                 networking,
-                f"--mount type=bind,src={ext_dir().parent.parent},dst=/pgai",
+                f"--mount type=bind,src={ext_dir().parent.parent.parent},dst=/pgai",
                 "-w /pgai/projects/pgai",
                 "-e OPENAI_API_KEY",
                 "-e COHERE_API_KEY",
@@ -363,7 +363,7 @@ def ext_dir() -> Path:
     return Path(__file__).resolve().parent
 
 def lib_dir() -> Path:
-    return ext_dir().parent / "pgai"
+    return ext_dir().parent
 
 def lib_data_dir() -> Path:
     return lib_dir() / "pgai" / "data"
