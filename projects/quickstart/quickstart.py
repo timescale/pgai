@@ -1,7 +1,7 @@
-## Note: This is PoC-level code, at best. Most of it probably doesn' work.
 import traceback
-from dataclasses import dataclass, field
-from typing import Set
+from collections import OrderedDict
+from dataclasses import dataclass
+from typing import Set, Any, NoReturn
 
 import questionary
 import shutil
@@ -128,7 +128,7 @@ OLLAMA_MODEL_SIZE = {
     "snowflake-arctic-embed": "670MB",
 }
 
-METADATA = {
+METADATA: dict[str, Any] = {
     "version": "0",  # NOTE: Increment this whenever the metadata structure changes materially
 }
 
@@ -154,15 +154,15 @@ EXIT_REASON = None
 @dataclass
 class EmbeddingModelConfig:
     provider: str
-    api_key: str
+    api_key: str | None
     model: str
 
 
-def exit_quickstart(code: int, reason: str | BaseException):
+def exit_quickstart(code: int, reason: str | BaseException) -> NoReturn:
     global EXIT_CODE, EXIT_REASON
     EXIT_CODE = code
     EXIT_REASON = reason
-    if code > 0:
+    if code > 0 and not isinstance(reason, KeyboardInterrupt):
         if isinstance(reason, BaseException):
             traceback.print_exception(reason)
         else:
@@ -170,13 +170,13 @@ def exit_quickstart(code: int, reason: str | BaseException):
     exit(code)
 
 
-def provider_title(provider: str) -> str:
+def provider_title(docker_bin: str, provider: str) -> str:
     if provider != OLLAMA:
         return provider
     arch = str(
         subprocess.run(
             [
-                shutil.which("docker"),
+                docker_bin,
                 "version",
                 "--format",
                 "{{.Server.Os}}/{{.Server.Arch}}",
@@ -277,7 +277,7 @@ def start_containers(docker_bin):
         )
         if result.returncode != 0:
             sp.write("unable to obtain db port")
-            sp.write(result.stderr)
+            sp.write(str(result.stderr))
             return None
         port = result.stdout.decode("utf-8").strip()
         sp.text = "checking db connectivity"
@@ -329,10 +329,7 @@ def get_tables(conn):
     return [r[0] for r in results]
 
 
-def setup_vectorizer(emc: EmbeddingModelConfig, conn) -> int:
-    VECTORIZER_METADATA = {}
-    METADATA["vectorizer"] = VECTORIZER_METADATA
-
+def setup_vectorizer(emc: EmbeddingModelConfig, conn, telemetry: dict[str, Any]) -> int:
     column_sql = "SELECT attname FROM pg_attribute WHERE attrelid = format('%%I.%%I', 'public', %(table)s::text)::regclass AND attnum >=1 AND NOT attisdropped"
     vectorizer_sql = (
         "SELECT view_name FROM ai.vectorizer WHERE source_table = %(table)s::text"
@@ -361,7 +358,7 @@ def setup_vectorizer(emc: EmbeddingModelConfig, conn) -> int:
         table = questionary.select(
             "Select the table to vectorize", choices=tables
         ).unsafe_ask()
-    VECTORIZER_METADATA["table"] = table
+    telemetry["table"] = table
 
     vectorizers = get_existing_vectorizer_names(table, conn)
     destination = None
@@ -372,7 +369,7 @@ def setup_vectorizer(emc: EmbeddingModelConfig, conn) -> int:
             validate=lambda x: x not in vectorizers,
         ).unsafe_ask()
         destination = f"\n        , destination => '{name}'"
-        VECTORIZER_METADATA["destination"] = name
+        telemetry["destination"] = name
 
     columns = get_text_columns(table)
     column = None
@@ -382,7 +379,7 @@ def setup_vectorizer(emc: EmbeddingModelConfig, conn) -> int:
         column = questionary.select(
             "Select the column to embed", choices=columns
         ).unsafe_ask()
-    VECTORIZER_METADATA["column"] = column
+    telemetry["column"] = column
 
     print(
         f"The vectorizer splits the content of the '{column}' columns into smaller pieces\n"
@@ -395,14 +392,14 @@ def setup_vectorizer(emc: EmbeddingModelConfig, conn) -> int:
     configure_formatting = questionary.confirm(
         "Would you like to configure formatting?"
     ).unsafe_ask()
-    VECTORIZER_METADATA["configure_formatting"] = configure_formatting
+    telemetry["configure_formatting"] = configure_formatting
     if configure_formatting is True:
         choices = get_columns(table)
         choices.remove(column)
         items = questionary.checkbox(
             "Which columns would you like to add to the formatting?", choices=choices
         ).unsafe_ask()
-        VECTORIZER_METADATA["formatting_column_count"] = len(items)
+        telemetry["formatting_columns"] = items
         items.append("chunk")
         formatting = (
             "\n        , formatting => ai.formatting_python_template('"
@@ -441,9 +438,9 @@ def setup_vectorizer(emc: EmbeddingModelConfig, conn) -> int:
     return vectorizer_id
 
 
-def monitor_embeddings(emc, conn, vectorizer_id):
-    MONITOR_METADATA = {}
-    METADATA["monitor"] = MONITOR_METADATA
+def monitor_embeddings(
+    emc: EmbeddingModelConfig, conn, vectorizer_id: int, telemetry: dict[str, Any]
+):
     provider = emc.provider
     model = emc.model
     sql = f"select ai.vectorizer_queue_pending({vectorizer_id}, exact_count => true);"
@@ -452,7 +449,8 @@ def monitor_embeddings(emc, conn, vectorizer_id):
         duration_seconds = None
     else:
         duration_seconds = PGAI_DOCS_EMBEDDING_DURATION_SECONDS[model]
-    MONITOR_METADATA["estimated_embedding_duration_seconds"] = duration_seconds
+
+    telemetry["estimated_embedding_duration_seconds"] = duration_seconds
     start = time.time()
     with yaspin(text="embedding source table", color="green") as sp:
         while True:
@@ -473,7 +471,7 @@ def monitor_embeddings(emc, conn, vectorizer_id):
                 sp.ok("✔")
                 break
             time.sleep(1)
-    MONITOR_METADATA["actual_embedding_duration_seconds"] = time.time() - start
+    telemetry["actual_embedding_duration_seconds"] = time.time() - start
 
 
 def is_api_key_valid(provider, api_key):
@@ -487,12 +485,12 @@ def is_api_key_valid(provider, api_key):
         except openai.AuthenticationError:
             return False
     elif provider == VOYAGE:
-        client = voyageai.Client(api_key=api_key)
+        client = voyageai.Client(api_key=api_key)  # type: ignore
         model = "voyage-3-lite"
         try:
             client.embed(["test"], model=model)
             return True
-        except voyageai.error.AuthenticationError:
+        except voyageai.error.AuthenticationError:  # type: ignore
             return False
     elif provider == COHERE:
         client = cohere.Client(api_key=api_key)
@@ -521,24 +519,265 @@ def pull_ollama_model(docker_bin, model):
         != 0
     ):
         exit_quickstart(1, "error while pulling ollama model")
-    METADATA["ollama_model_pull_duration_seconds"] = time.time() - start
+    if "ollama_model_pull" not in METADATA:
+        METADATA["ollama_model_pull"] = []
+    METADATA["ollama_model_pull"].append(
+        {"model": model, "duration_seconds": time.time() - start}
+    )
 
 
-def ask_vectorizer_questions() -> EmbeddingModelConfig:
+@dataclass
+class Quickstart:
+    docker_bin: str
+    providers: Set[str]
+    vectorizer_id_to_emc: dict[int, EmbeddingModelConfig]
+    emcs: list[EmbeddingModelConfig]
+    dataset_loaded: bool = False
+    docker_host: str | None = None
+
+    def __init__(self):
+        docker_bin = shutil.which("docker")
+        if docker_bin is None:
+            print("install docker https://docs.docker.com/desktop/ and try again")
+            exit_quickstart(
+                1,
+                "docker is not available but is required for pgai vectorizer quickstart",
+            )
+        if not has_docker_compose(docker_bin):
+            print(
+                "install docker compose https://docs.docker.com/compose/ and try again"
+            )
+            exit_quickstart(
+                1, "docker does not have the compose subcommand, but it is required"
+            )
+        self.docker_bin = docker_bin
+        self.providers = set()
+        self.emcs = []
+        self.vectorizer_id_to_emc = {}
+
+    def run(self):
+        print(
+            "Welcome to the pgai vectorizer quickstart!\n"
+            "The quickstart guides you through creating your first vectorizer\n"
+            "This includes:\n"
+            "- setting up a database\n"
+            "- getting some data into your database\n"
+            "- integrating with a vector embedding provider\n"
+            "- configuring the vectorizer\n"
+            "- creating vector embeddings of your sample data\n"
+        )
+
+        questionary.press_any_key_to_continue().unsafe_ask()
+
+        self.create_vectorizer()
+
+        SIMILARITY_SEARCH = "Run a basic similarity search"
+        CREATE_ANOTHER = "Create another vectorizer"
+        EXIT = "Exit"
+        choices = [SIMILARITY_SEARCH, CREATE_ANOTHER, EXIT]
+        while True:
+            chosen = questionary.select(
+                "What would you like to do next?",
+                choices=choices,
+            ).unsafe_ask()
+            if chosen == SIMILARITY_SEARCH:
+                self.similarity_search()
+            elif chosen == CREATE_ANOTHER:
+                self.create_vectorizer()
+            else:
+                print("Thank you for using the pgai quickstart, have fun!")
+                exit_quickstart(0, "done")
+
+    def create_vectorizer(self):
+        if "vectorizers" not in METADATA:
+            METADATA["vectorizers"] = []
+        telemetry = {}
+        METADATA["vectorizers"].append(telemetry)
+        emc = ask_vectorizer_questions(self.docker_bin, telemetry)
+        self.emcs.append(emc)
+        if emc.provider not in self.providers:
+            self.providers.add(emc.provider)
+            write_compose(self.emcs)
+            pull_images(self.docker_bin)
+            port = start_containers(self.docker_bin)
+            if port is None:
+                exit_quickstart(1, "container not started")
+            self.docker_host = port
+            if emc.provider == OLLAMA:
+                pull_ollama_model(self.docker_bin, emc.model)
+
+        with psycopg.connect(
+            f"postgres://postgres:postgres@{self.docker_host}", autocommit=True
+        ) as conn:
+            create_extension(conn)
+            if not self.dataset_loaded:
+                setup_pgai_docs_dataset(conn)
+                self.dataset_loaded = True
+            vectorizer_id = setup_vectorizer(emc, conn, telemetry)
+            telemetry["id"] = vectorizer_id
+            self.vectorizer_id_to_emc[vectorizer_id] = emc
+            monitor_embeddings(emc, conn, vectorizer_id, telemetry)
+            showcase_embeddings(conn, vectorizer_id)
+
+    def similarity_search(self):
+        telemetry = {}
+        if "similarity_searches" not in METADATA:
+            METADATA["similarity_searches"] = []
+        METADATA["similarity_searches"].append(telemetry)
+        conn = psycopg.connect(
+            f"postgres://postgres:postgres@{self.docker_host}", autocommit=True
+        )
+
+        vectorizers = conn.execute("SELECT id, view_name FROM ai.vectorizer").fetchall()
+        vectorizer_id_to_view_name = OrderedDict(vectorizers)
+
+        if len(self.vectorizer_id_to_emc.keys()) > 1:
+            vectorizer_id = questionary.select(
+                "Which vectorizer would you like to use for similarity search",
+                choices=[
+                    questionary.Choice(title=view_name, value=id)
+                    for id, view_name in vectorizer_id_to_view_name.items()
+                ],
+            ).unsafe_ask()
+            telemetry["vectorizers_presented"] = list(
+                vectorizer_id_to_view_name.values()
+            )
+            telemetry["vectorizer_chosen"] = vectorizer_id_to_view_name[vectorizer_id]
+        else:
+            vectorizer_id = list(self.vectorizer_id_to_emc.keys())[0]
+            telemetry["vectorizer_chosen"] = "default"
+        telemetry["vectorizer_id"] = vectorizer_id
+
+        emc = self.vectorizer_id_to_emc[vectorizer_id]
+        vectorizer_view_sql = "SELECT view_schema, view_name FROM ai.vectorizer WHERE id = %(vectorizer_id)s"
+        row = conn.execute(
+            vectorizer_view_sql, {"vectorizer_id": vectorizer_id}
+        ).fetchone()
+        if not row:
+            exit_quickstart(1, f"vectorizer not found '{vectorizer_id}'")
+        view_schema, view_name = row
+
+        print(
+            "Similarity search is about finding documents which are semantically similar to a query string.\n"
+            "To find similar documents, you compute the vector distance using pgvector's '<=>' operator.\n"
+            "For example, the following query gets the top 10 chunks most similar to the input vector:\n"
+            f"""
+            SELECT
+              title
+            , chunk
+            , embedding <=> '<input vector>'::vector as distance
+            FROM {view_name}
+            ORDER BY 2
+            LIMIT 10
+            """
+            "Let's see an example based on the pgai documentation\n"
+            "The pgai documentation covers a few core topics\n"
+        )
+
+        VECTORIZER_OPENAI = "pgai vectorizer with OpenAI"
+        CHAT_COMPLETION = "pgai chat completion"
+        PGAI_EXTENSION_INSTALL = "pgai extension installation"
+
+        choices = [VECTORIZER_OPENAI, CHAT_COMPLETION, PGAI_EXTENSION_INSTALL]
+        chosen = questionary.select(
+            "Select a topic for which you would like to perform similarity search:",
+            choices=choices,
+        ).unsafe_ask()
+        telemetry["topics_presented"] = choices
+        telemetry["topic_selected"] = chosen
+        if chosen == VECTORIZER_OPENAI:
+            query = "Set up a vectorizer with OpenAI"
+        elif chosen == CHAT_COMPLETION:
+            query = "Perform chat completion using OpenAI"
+        else:
+            query = "pgai extension installation instructions"
+
+        dimensions_sql = (
+            sql.SQL(", dimensions => %(dimensions)s")
+            if emc.model == "text-embedding-3-large"
+            else sql.SQL("")
+        )
+
+        simple_similarity_search_sql = sql.SQL("""
+            SELECT
+              title
+            , chunk_seq
+            , substring(chunk for 20) || '...' as chunk_snippet
+            , embedding <=> ai.{}(%(model)s, %(query)s{}) as distance
+            FROM {}.{}
+            ORDER BY 4
+            LIMIT 10
+        """).format(
+            sql.Identifier(EMBEDDING_FUNCTIONS[emc.provider]),
+            dimensions_sql,
+            sql.Identifier(view_schema),
+            sql.Identifier(view_name),
+        )
+
+        params = {
+            "model": emc.model,
+            "query": query,
+            "dimensions": DIMENSIONS[emc.model],
+        }
+        cur = psycopg.ClientCursor(conn)
+        print(cur.mogrify(simple_similarity_search_sql, params))
+        results = conn.execute(simple_similarity_search_sql, params).fetchall()
+
+        print(
+            tabulate(
+                results, headers=["title", "chunk_seq", "chunk_snippet", "distance"]
+            )
+        )
+        print("")
+
+        print(
+            "That was a good start, but to find the top matching documents (not chunks),"
+        )
+        print("we need to do some aggregation")
+        questionary.press_any_key_to_continue().unsafe_ask()
+
+        similarity_search_sql = sql.SQL("""
+            WITH document_min_chunk_distances AS (
+               SELECT
+                 title
+               , min(embedding <=> ai.{}(%(model)s, %(query)s{})) AS distance
+               FROM {}.{}
+               GROUP BY title
+            )
+            SELECT rank() OVER (ORDER BY distance) AS rank, title, distance
+            FROM document_min_chunk_distances
+            ORDER BY 1
+            LIMIT 5;
+        """).format(
+            sql.Identifier(EMBEDDING_FUNCTIONS[emc.provider]),
+            dimensions_sql,
+            sql.Identifier(view_schema),
+            sql.Identifier(view_name),
+        )
+        cur = psycopg.ClientCursor(conn)
+        print(cur.mogrify(similarity_search_sql, params))
+        results = conn.execute(similarity_search_sql, params).fetchall()
+
+        print(tabulate(results, headers=["rank", "title", "distance"]))
+        print("")
+
+
+def ask_vectorizer_questions(
+    docker_bin: str, telemetry: dict[str, Any]
+) -> EmbeddingModelConfig:
     provider = questionary.select(
         "Which embedding model provider would you like to use?",
         choices=[
-            questionary.Choice(title=provider_title(k), value=k)
+            questionary.Choice(title=provider_title(docker_bin, k), value=k)
             for k in EMBEDDING_MODELS.keys()
         ],
     ).unsafe_ask()
+    telemetry["provider"] = provider
     api_key = None
-    env_has_key = os.getenv(API_KEY_NAME[provider]) is not None
-    METADATA["api_key_source"] = "environment" if env_has_key else "user"
     if provider in [COHERE, VOYAGE, OPENAI]:
-        if env_has_key:
-            api_key = os.getenv(API_KEY_NAME[provider], None)
-        else:
+        api_key = os.getenv(API_KEY_NAME[provider], None)
+        telemetry["api_key_source"] = "environment" if api_key is not None else "user"
+        if api_key is None:
             api_key = questionary.password(
                 "API Key", validate=lambda v: len(v) > 0
             ).unsafe_ask()
@@ -555,17 +794,15 @@ def ask_vectorizer_questions() -> EmbeddingModelConfig:
             for k in EMBEDDING_MODELS[provider]
         ],
     ).unsafe_ask()
+    telemetry["model"] = model
     return EmbeddingModelConfig(provider=provider, api_key=api_key, model=model)
 
 
-def get_vectorizer_details(conn, vectorizer_id):
+def get_vectorizer_details(conn, vectorizer_id) -> tuple[str, str, str] | None:
     vectorizer_details_sql = """
         SELECT
-          source_schema
-        , source_table
-        , target_schema
+          source_table
         , target_table
-        , view_schema
         , view_name as embedding_view
         FROM ai.vectorizer
         WHERE vectorizer.id = %(vectorizer_id)s
@@ -576,223 +813,20 @@ def get_vectorizer_details(conn, vectorizer_id):
 
 
 def showcase_embeddings(conn, vectorizer_id):
-    source_schema, source_table, target_schema, target_table, view_schema, view_name = (
-        get_vectorizer_details(conn, vectorizer_id)
-    )
+    row = get_vectorizer_details(conn, vectorizer_id)
+    if not row:
+        exit_quickstart(1, f"vectorizer not found {vectorizer_id}")
+    source_table, target_table, view_name = row
     print(
-        f"The data in the source table '{source_schema}.{source_table}' is now chunked and embedded"
+        f"The data in the source table '{source_table}' is now chunked and embedded\n"
+        f"The chunks and corresponding embeddings are stored in the '{target_table}' table.\n"
+        f"For convenience, the '{view_name}' view joins the source table with its embeddings\n"
     )
-    print(
-        f"The chunks and corresponding embeddings are stored in the '{target_schema}.{target_table}' table"
-    )
-    print(
-        f"For convenience, the '{view_schema}.{view_name}' view joins the source table with its embeddings"
-    )
-    print()
-
-
-@dataclass
-class QuickstartState:
-    providers: Set[str] = field(default_factory=set)
-    emcs: list[EmbeddingModelConfig] = field(default_factory=list)
-    dataset_loaded: bool = False
-    docker_bin: str | None = None
-    docker_host: str | None = None
-    vectorizer_id_to_emc: dict[int, EmbeddingModelConfig] = field(default_factory=dict)
-
-
-def similarity_search(state: QuickstartState):
-    conn = psycopg.connect(
-        f"postgres://postgres:postgres@{state.docker_host}", autocommit=True
-    )
-
-    if len(state.vectorizer_id_to_emc.keys()) > 1:
-        vectorizers = conn.execute("SELECT id, view_name FROM ai.vectorizer").fetchall()
-        vectorizer_id = questionary.select(
-            "Which vectorizer would you like to use for similarity search",
-            choices=[
-                questionary.Choice(title=view_name, value=id)
-                for id, view_name in vectorizers
-            ],
-        ).unsafe_ask()
-    else:
-        vectorizer_id = list(state.vectorizer_id_to_emc.keys())[0]
-
-    emc = state.vectorizer_id_to_emc[vectorizer_id]
-    _, _, _, _, view_schema, view_name = get_vectorizer_details(conn, vectorizer_id)
-
-    print(
-        "Similarity search is about finding documents which are semantically similar to a query string."
-    )
-    print(
-        "To find similar documents, you compute the vector distance using pgvector's '<=>' operator"
-    )
-    print(
-        "For example, the following query gets the top 10 chunks most similar to the input vector:"
-    )
-    print(f"""
-        SELECT
-          title
-        , chunk
-        , embedding <=> '<input vector>'::vector as distance
-        FROM {view_schema}.{view_name}
-        ORDER BY 2
-        LIMIT 10
-    """)
-    print("Let's see an example based on the pgai documentation")
-    print("The pgai documentation covers a few core topics")
-
-    VECTORIZER_OPENAI = "pgai vectorizer with OpenAI"
-    CHAT_COMPLETION = "pgai chat completion"
-    PGAI_EXTENSION_INSTALL = "pgai extension installation"
-
-    chosen = questionary.select(
-        "Select a topic for which you would like to perform similarity search:",
-        choices=[VECTORIZER_OPENAI, CHAT_COMPLETION, PGAI_EXTENSION_INSTALL],
-    ).unsafe_ask()
-    if chosen == VECTORIZER_OPENAI:
-        query = "Set up a vectorizer with OpenAI"
-    elif chosen == CHAT_COMPLETION:
-        query = "Perform chat completion using OpenAI"
-    else:
-        query = "pgai extension installation instructions"
-
-    dimensions_sql = (
-        sql.SQL(", dimensions => %(dimensions)s")
-        if emc.model == "text-embedding-3-large"
-        else sql.SQL("")
-    )
-
-    simple_similarity_search_sql = sql.SQL("""
-        SELECT
-          title
-        , chunk_seq
-        , substring(chunk for 20) || '...' as chunk_snippet
-        , embedding <=> ai.{}(%(model)s, %(query)s{}) as distance
-        FROM {}.{}
-        ORDER BY 4
-        LIMIT 10
-    """).format(
-        sql.Identifier(EMBEDDING_FUNCTIONS[emc.provider]),
-        dimensions_sql,
-        sql.Identifier(view_schema),
-        sql.Identifier(view_name),
-    )
-
-    params = {"model": emc.model, "query": query, "dimensions": DIMENSIONS[emc.model]}
-    cur = psycopg.ClientCursor(conn)
-    print(cur.mogrify(simple_similarity_search_sql, params))
-    results = conn.execute(simple_similarity_search_sql, params).fetchall()
-
-    print(
-        tabulate(results, headers=["title", "chunk_seq", "chunk_snippet", "distance"])
-    )
-    print("")
-
-    print("That was a good start, but to find the top matching documents (not chunks),")
-    print("we need to do some aggregation")
-    questionary.press_any_key_to_continue().unsafe_ask()
-
-    similarity_search_sql = sql.SQL("""
-        WITH document_min_chunk_distances AS (
-           SELECT
-             title
-           , min(embedding <=> ai.{}(%(model)s, %(query)s{})) AS distance
-           FROM {}.{}
-           GROUP BY title
-        )
-        SELECT rank() OVER (ORDER BY distance) AS rank, title, distance
-        FROM document_min_chunk_distances
-        ORDER BY 1
-        LIMIT 5;
-    """).format(
-        sql.Identifier(EMBEDDING_FUNCTIONS[emc.provider]),
-        dimensions_sql,
-        sql.Identifier(view_schema),
-        sql.Identifier(view_name),
-    )
-    cur = psycopg.ClientCursor(conn)
-    print(cur.mogrify(similarity_search_sql, params))
-    results = conn.execute(similarity_search_sql, params).fetchall()
-
-    print(tabulate(results, headers=["rank", "title", "distance"]))
-    print("")
-
-
-def create_vectorizer(state: QuickstartState):
-    emc = ask_vectorizer_questions()
-    state.emcs.append(emc)
-    if emc.provider not in state.providers:
-        state.providers.add(emc.provider)
-        write_compose(state.emcs)
-        pull_images(state.docker_bin)
-        port = start_containers(state.docker_bin)
-        if port is None:
-            exit_quickstart(1, "container not started")
-        state.docker_host = port
-        if emc.provider == OLLAMA:
-            pull_ollama_model(state.docker_bin, emc.model)
-
-    with psycopg.connect(
-        f"postgres://postgres:postgres@{state.docker_host}", autocommit=True
-    ) as conn:
-        create_extension(conn)
-        if not state.dataset_loaded:
-            setup_pgai_docs_dataset(conn)
-            state.dataset_loaded = True
-        vectorizer_id = setup_vectorizer(emc, conn)
-        state.vectorizer_id_to_emc[vectorizer_id] = emc
-        monitor_embeddings(emc, conn, vectorizer_id)
-        showcase_embeddings(conn, vectorizer_id)
 
 
 def main():
-    state = QuickstartState()
-
-    docker_bin = shutil.which("docker")
-    if docker_bin is None:
-        print("install docker https://docs.docker.com/desktop/ and try again")
-        exit_quickstart(
-            1, "docker is not available but is required for pgai vectorizer quickstart"
-        )
-    if not has_docker_compose(docker_bin):
-        print("install docker compose https://docs.docker.com/compose/ and try again")
-        exit_quickstart(
-            1, "docker does not have the compose subcommand, but it is required"
-        )
-
-    state.docker_bin = docker_bin
-
-    print("Welcome to the pgai vectorizer quickstart!")
-    print("The quickstart guides you through creating your first vectorizer")
-    print("This includes:")
-    print("- setting up a database")
-    print("- getting some data into your database")
-    print("- integrating with a vector embedding provider")
-    print("- configuring the vectorizer")
-    print("- creating vector embeddings of your sample data")
-    print()
-
-    questionary.press_any_key_to_continue().unsafe_ask()
-
-    create_vectorizer(state)
-
-    SIMILARITY_SEARCH = "Run a basic similarity search"
-    CREATE_ANOTHER = "Create another vectorizer"
-    EXIT = "Exit"
-    choices = [SIMILARITY_SEARCH, CREATE_ANOTHER, EXIT]
-    while True:
-        chosen = questionary.select(
-            "What would you like to do next?",
-            choices=choices,
-        ).unsafe_ask()
-        if chosen == SIMILARITY_SEARCH:
-            similarity_search(state)
-        elif chosen == CREATE_ANOTHER:
-            create_vectorizer(state)
-        else:
-            print("Thank you for using the pgai quickstart, have fun!")
-            exit_quickstart(0, "done")
+    quickstart = Quickstart()
+    quickstart.run()
 
 
 def telemetry():
@@ -804,7 +838,7 @@ def telemetry():
         # somewhat paranoid check that we don't accidentally submit telemetry twice
         return
     TELEMETRY["duration"] = time.time() - PROGRAM_START
-    TELEMETRY["success"] = EXIT_CODE is None
+    TELEMETRY["success"] = EXIT_CODE is None or EXIT_CODE == 0
     METADATA["error"] = EXIT_REASON
 
     try:
