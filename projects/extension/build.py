@@ -471,6 +471,14 @@ class Actions:
             ]
         )
         subprocess.run(cmd, shell=True, check=True, env=os.environ, text=True)
+        # install the pgai library in the container, needed to run the upgrade unpackaged tests
+        subprocess.run(
+            """docker exec pgai-ext uv pip install --editable /pgai/projects/pgai""",
+            shell=True,
+            check=True,
+            env=os.environ,
+            text=True,
+        )
 
     @staticmethod
     def docker_start() -> None:
