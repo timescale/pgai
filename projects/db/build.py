@@ -347,8 +347,8 @@ def git_tag(version: str) -> str:
     return f"extension-{version}"
 
 
-def pg_major() -> str | None:
-    return os.getenv("PG_MAJOR")
+def pg_major() -> str:
+    return os.getenv("PG_MAJOR", "17")
 
 
 def ext_dir() -> Path:

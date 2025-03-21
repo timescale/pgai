@@ -34,5 +34,12 @@
 
 
 ### testing
+
+- `uv venv --directory /py/`
+- `export VIRTAUL_ENV=/py/.venv/`
 - in the pgai directory, run `VIRTAUL_ENV=/py/.venv/ uv pip install --editable .`
 - in the extension directory, run `just build && just install-all && uv run --no-project pytest -k unpackaged`
+
+- in the db dir 
+- `VIRTAUL_ENV=/py/.venv/ PATH=/py/.venv/bin/:$PATH uv pip install pytest`
+- `uv pip install fastapi[standard]`
