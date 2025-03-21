@@ -326,7 +326,7 @@ class Actions:
     def test_server() -> None:
         """runs the test http server in the docker container"""
         if where_am_i() == "host":
-            cmd = "docker exec -it -w /pgai/projects/extension/tests/vectorizer pgai-ext fastapi dev server.py"
+            cmd = "docker exec -it -w /pgai/projects/extension/tests pgai-ext fastapi dev server.py"
             subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
         else:
             cmd = "uv run --no-project fastapi dev server.py"
@@ -335,7 +335,7 @@ class Actions:
                 shell=True,
                 check=True,
                 env=os.environ,
-                cwd=tests_dir().joinpath("vectorizer"),
+                cwd=tests_dir(),
             )
 
     @staticmethod

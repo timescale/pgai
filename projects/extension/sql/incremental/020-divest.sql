@@ -5,7 +5,15 @@ declare
     _sql text;
     _db_owner_name text;
     _acl_is_default boolean;
+    _major_version integer;
+    _maintain text;
 begin
+    select split_part(current_setting('server_version'), '.', 1)::INT into _major_version   ;
+    if _major_version < 17 then
+        _maintain := '';
+    else
+        _maintain := ',MAINTAIN';
+    end if;
 
     --the vectorizer table is in the very first migration that used to be run as part of the extension install
     --so we can check if the vectorizer machinery is in the extension by checking if the vectorizer table exists
@@ -127,12 +135,12 @@ begin
                makeaclitem(
                 to_regrole(_db_owner_name)::oid, 
                 to_regrole(_db_owner_name)::oid, 
-                'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN', 
+                'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER' || _maintain, 
                 TRUE),
                 makeaclitem(
                 to_regrole('pg_database_owner')::oid, 
                 to_regrole(_db_owner_name)::oid, 
-                'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN', 
+                'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER' || _maintain, 
                 TRUE)
             ] into _acl_is_default
             from pg_catalog.pg_class c
@@ -163,7 +171,7 @@ begin
            makeaclitem(
             to_regrole(_db_owner_name)::oid, 
             to_regrole(_db_owner_name)::oid, 
-            'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN', 
+            'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER' || _maintain, 
             TRUE) into _acl_is_default
     from pg_catalog.pg_class c
     where c.oid = to_regclass('ai.vectorizer');
@@ -177,7 +185,7 @@ begin
            makeaclitem(
             to_regrole('pg_database_owner')::oid, 
             to_regrole(_db_owner_name)::oid, 
-            'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN', 
+            'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER' || _maintain, 
             TRUE) into _acl_is_default
     from pg_catalog.pg_class c
     where c.oid = to_regclass('ai.vectorizer');
@@ -258,6 +266,10 @@ begin
         , 'function ai._vectorizer_create_queue_table(queue_schema name, queue_table name, source_pk jsonb, grant_to name[])'
         , 'function ai._vectorizer_build_trigger_definition(queue_schema name, queue_table name, target_schema name, target_table name, source_pk jsonb)'
         , 'function ai._vectorizer_create_source_trigger(trigger_name name, queue_schema name, queue_table name, source_schema name, source_table name, target_schema name, target_table name, source_pk jsonb)'
+        , 'function ai._vectorizer_create_source_trigger(trigger_name name, queue_schema name, queue_table name, source_schema name, source_table name, source_pk jsonb)'
+        , 'function ai._vectorizer_create_target_table(source_schema name, source_table name, source_pk jsonb, target_schema name, target_table name, dimensions integer, grant_to name[])'
+        , 'function ai.drop_vectorizer(vectorizer_id integer)'
+        , 'function ai.vectorizer_queue_pending(vectorizer_id integer)'
         , 'function ai._vectorizer_vector_index_exists(target_schema name, target_table name, indexing jsonb)'
         , 'function ai._vectorizer_should_create_vector_index(vectorizer ai.vectorizer)'
         , 'function ai._vectorizer_create_vector_index(target_schema name, target_table name, indexing jsonb)'
