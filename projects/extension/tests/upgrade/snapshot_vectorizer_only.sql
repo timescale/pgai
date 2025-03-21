@@ -44,10 +44,6 @@ select
 , source_schema
 , source_table
 , source_pk
-, target_schema
-, target_table
-, view_schema
-, view_name
 , trigger_name
 , queue_schema
 , queue_table

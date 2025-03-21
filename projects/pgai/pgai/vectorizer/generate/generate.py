@@ -2,6 +2,7 @@ from pathlib import Path
 
 import psycopg
 
+import pgai
 from pgai.vectorizer.generate.config_generator import (
     generate_config_classes,
     generate_vectorizer_params,
@@ -35,6 +36,8 @@ VECTORIZER_FUNCTIONS = [
     "scheduling_none",
     "scheduling_timescaledb",
     "processing_default",
+    "destination_default",
+    "destination_source",
 ]
 
 
@@ -58,8 +61,8 @@ def generate_vectorizer_configs(
     conn_str: str, output_file: Path, vectorizer_output_file: Path
 ) -> None:
     """Generate all vectorizer configuration classes."""
+    pgai.install(conn_str)
     with psycopg.connect(conn_str) as conn:
-        conn.execute("Create extension if not exists ai cascade;")
         available_functions = list_vectorizer_functions(conn)
         functions = get_function_metadata(conn, available_functions)
         generate_config_classes(functions, output_file)

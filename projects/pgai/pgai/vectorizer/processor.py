@@ -104,7 +104,7 @@ class Processor:
                 raise VectorizerNotFoundError(f"vectorizer_id={vectorizer_id}")
             vectorizer = row["vectorizer"]
             embedding = vectorizer["config"]["embedding"]
-            vectorizer = Vectorizer(**vectorizer)
+            vectorizer = Vectorizer.model_validate(vectorizer)
             # The Ollama API doesn't need a key, so `api_key_name` may be unset
             if "api_key_name" in embedding:
                 api_key_name = embedding["api_key_name"]

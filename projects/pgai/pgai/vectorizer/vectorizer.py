@@ -26,6 +26,7 @@ from .chunking import (
     LangChainRecursiveCharacterTextSplitter,
     NoneChunker,
 )
+from .destination import DefaultDestination, SourceDestination
 from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
@@ -92,6 +93,9 @@ class Config(BaseModel):
     loading: ColumnLoading | UriLoading
     embedding: OpenAI | Ollama | VoyageAI | LiteLLM
     processing: ProcessingDefault
+    destination: DefaultDestination | SourceDestination = Field(
+        ..., discriminator="implementation"
+    )
     chunking: (
         LangChainCharacterTextSplitter
         | LangChainRecursiveCharacterTextSplitter
@@ -130,8 +134,6 @@ class Vectorizer(BaseModel):
     queue_table: str
     source_schema: str
     source_table: str
-    target_schema: str
-    target_table: str
     source_pk: list[PkAtt]
     queue_failed_table: str | None = None
     errors_schema: str = "ai"
@@ -268,9 +270,19 @@ class VectorizerQueryBuilder:
         """
         Returns the SQL identifier for the fully qualified name of the target table.
         """
-
+        assert isinstance(self.vectorizer.config.destination, DefaultDestination)
         return sql.Identifier(
-            self.vectorizer.target_schema, self.vectorizer.target_table
+            self.vectorizer.config.destination.target_schema,
+            self.vectorizer.config.destination.target_table,
+        )
+
+    @property
+    def source_table_ident(self) -> sql.Identifier:
+        """
+        Returns the SQL identifier for the fully qualified name of the source table.
+        """
+        return sql.Identifier(
+            self.vectorizer.source_schema, self.vectorizer.source_table
         )
 
     @property
@@ -530,9 +542,17 @@ class VectorizerQueryBuilder:
     def copy_embeddings_query(self) -> sql.Composed:
         return sql.SQL(
             "COPY {} ({}, chunk_seq, chunk, embedding) FROM STDIN WITH (FORMAT BINARY)"
-        ).format(
-            self.target_table_ident,
+        ).format(self.target_table_ident, self.pk_fields_sql)
+
+    @cached_property
+    def update_embedding_query(self) -> sql.Composed:
+        """Returns a SQL query to update the embedding column (for SourceDestination)"""
+        assert isinstance(self.vectorizer.config.destination, SourceDestination)
+        return sql.SQL("UPDATE {} SET {} = %s WHERE ({}) = ({})").format(
+            self.source_table_ident,
+            sql.Identifier(self.vectorizer.config.destination.embedding_column),
             self.pk_fields_sql,
+            sql.SQL(", ").join([sql.Placeholder() for _ in self.pk_fields]),
         )
 
     @cached_property
@@ -977,6 +997,8 @@ class Worker:
             conn (AsyncConnection): The database connection.
             items (list[SourceRow]): The items whose embeddings need to be deleted.
         """
+        if self.vectorizer.config.destination.implementation == "source":
+            return
         ids = [item[pk] for item in items for pk in self.queries.pk_attnames]
         async with conn.cursor() as cursor:
             await cursor.execute(self.queries.delete_embeddings_query(len(items)), ids)
@@ -989,11 +1011,16 @@ class Worker:
         Args:
             conn (AsyncConnection): The database connection.
         """
+        assert isinstance(self.vectorizer.config.destination, DefaultDestination)
+        target_schema = self.vectorizer.config.destination.target_schema
+        target_table = self.vectorizer.config.destination.target_table
+
         target_columns: list[str] = list(self.queries.pk_attnames) + [
             "chunk_seq",
             "chunk",
             "embedding",
         ]
+
         async with conn.cursor() as cursor:
             await cursor.execute(
                 """
@@ -1009,8 +1036,8 @@ class Worker:
                 and a.attnum operator(pg_catalog.>) 0
             """,
                 (
-                    self.vectorizer.target_schema,
-                    self.vectorizer.target_table,
+                    target_schema,
+                    target_table,
                     target_columns,
                 ),
             )
@@ -1027,23 +1054,39 @@ class Worker:
         records: list[EmbeddingRecord],
     ):
         """
-        Inserts embeddings into the embedding table using COPY FROM STDIN WITH
-        (FORMAT BINARY).
+        Inserts embeddings into the target table.
+
+        For DefaultDestination, uses COPY FROM STDIN WITH (FORMAT BINARY).
+        For SourceDestination, uses UPDATE statements for each row.
 
         Args:
             conn (AsyncConnection): The database connection.
             records (list[EmbeddingRecord]): The embedding records to be copied.
         """
-        if self.copy_types is None:
-            await self._load_copy_types(conn)
-        async with (
-            conn.cursor(binary=True) as cursor,
-            cursor.copy(self.queries.copy_embeddings_query) as copy,
-        ):
-            assert self.copy_types is not None  # ugh. make pyright happy
-            copy.set_types(self.copy_types)
-            for record in records:
-                await copy.write_row(record)
+        if self.vectorizer.config.destination.implementation == "default":
+            if self.copy_types is None:
+                await self._load_copy_types(conn)
+            async with (
+                conn.cursor(binary=True) as cursor,
+                cursor.copy(self.queries.copy_embeddings_query) as copy,
+            ):
+                assert self.copy_types is not None  # ugh. make pyright happy
+                copy.set_types(self.copy_types)
+                for record in records:
+                    await copy.write_row(record)
+
+            assert self.copy_types is not None
+            # len(source_pk) + chunk_seq + chunk + embedding
+            assert len(self.copy_types) == len(self.vectorizer.source_pk) + 3
+
+        if self.vectorizer.config.destination.implementation == "source":
+            async with conn.cursor() as cursor:
+                for record in records:
+                    pk_values = record[: len(self.queries.pk_attnames)]
+                    embedding = record[-1]  # Last item is the embedding
+                    await cursor.execute(
+                        self.queries.update_embedding_query, [embedding] + pk_values
+                    )
 
     async def _insert_vectorizer_error(
         self,

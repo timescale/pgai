@@ -22,18 +22,18 @@ class CreateVectorizerOp(MigrateOperation):
 
 
 class DropVectorizerOp(MigrateOperation):
-    def __init__(self, target_table: str | None, drop_all: bool):
-        self.target_table = target_table
+    def __init__(self, vectorizer_id: int | None, drop_all: bool):
+        self.vectorizer_id = vectorizer_id
         self.drop_all = drop_all
 
     @classmethod
     def drop_vectorizer(
         cls,
         operations: Operations,
-        target_table: str | None,
+        vectorizer_id: int | None,
         drop_all: bool = True,
     ):
-        op = DropVectorizerOp(target_table, drop_all)
+        op = DropVectorizerOp(vectorizer_id, drop_all)
         return operations.invoke(op)
 
 
@@ -44,18 +44,10 @@ def create_vectorizer(operations: Operations, operation: CreateVectorizerOp):
 
 def drop_vectorizer(operations: Operations, operation: DropVectorizerOp):
     connection = operations.get_bind()
-    result = connection.execute(
-        text("SELECT id FROM ai.vectorizer WHERE target_table = :table_name"),
-        {"table_name": operation.target_table},
-    ).scalar()
-
-    if result is None:
-        return
-
     # Drop the vectorizer
     connection.execute(
         text("SELECT ai.drop_vectorizer(:id, drop_all=>:drop_all)"),
-        {"id": result, "drop_all": operation.drop_all},
+        {"id": operation.vectorizer_id, "drop_all": operation.drop_all},
     )
 
 
