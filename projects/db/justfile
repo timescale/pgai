@@ -30,46 +30,10 @@ clean-py:
 	@./build.py clean-py
 
 build:
-	@PG_BIN={{PG_BIN}} ./build.py build
-
-install:
-	@PG_BIN={{PG_BIN}} ./build.py install
-
-install-all:
-	@PG_BIN={{PG_BIN}} ./build.py install all
-
-build-install:
-	@PG_BIN={{PG_BIN}} ./build.py build-install
-
-install-sql:
-	@PG_BIN={{PG_BIN}} ./build.py install-sql
-
-install-sql-all:
-	@PG_BIN={{PG_BIN}} ./build.py install-sql all
-
-install-prior-py:
-	@./build.py install-prior-py
-
-install-py:
-	@./build.py install-py
-
-uninstall:
-	@PG_BIN={{PG_BIN}} ./build.py uninstall
-
-uninstall-sql:
-	@PG_BIN={{PG_BIN}} ./build.py uninstall-sql
-
-uninstall-py:
-	@./build.py uninstall-py
-
-freeze:
-	@./build.py freeze
+	@PG_BIN={{PG_BIN}} ./build.py build-sql
 
 build-sql:
 	@./build.py build-sql
-
-build-release:
-    @./build.py build-release
 
 test-server:
 	@./build.py test-server
@@ -116,39 +80,10 @@ docker-stop:
 docker-rm:
 	@./build.py docker-rm
 
-run:
-	@PG_MAJOR={{PG_MAJOR}} PG_BIN={{PG_BIN}} ./build.py run
-	@docker exec -it -u postgres pgai-ext /bin/bash -c "set -e; if [ -f .env ]; then set -a; source .env; set +a; fi; psql"
-
 # Launches a bash shell in the container
 docker-shell:
-	@docker exec -it -u root pgai-ext /bin/bash
+	@docker exec -it -u root pgai-db /bin/bash
 
 # Launches a psql shell in the container
 psql-shell:
-	@docker exec -it -u postgres pgai-ext /bin/bash -c "set -e; if [ -f .env ]; then set -a; source .env; set +a; fi; psql"
-
-# Runs tests that rely on snapshots against PG 17 and 16 and updates the
-# expected files with the generated actual files.
-update-snapshots: build-sql docker-rm docker-build docker-run
-    #!/usr/bin/env bash
-    set -uo pipefail
-    docker exec pgai-ext just install-py install-sql
-    docker exec pgai-ext uv run pytest tests/contents/test_contents.py
-    rm tests/contents/output17.expected
-    mv tests/contents/output17.actual tests/contents/output17.expected
-    docker exec pgai-ext uv run pytest tests/privileges/test_privileges.py
-    for f in tests/privileges/*.actual; do
-        if [ -f "$f" ]; then
-            expected="${f%.actual}.expected"
-            rm -f "$expected"
-            mv "$f" "$expected"
-        fi
-    done
-    just docker-rm
-    PG_MAJOR=16 just docker-build docker-run
-    docker exec pgai-ext just install-py install-sql
-    docker exec pgai-ext uv run pytest tests/contents/test_contents.py
-    rm tests/contents/output16.expected
-    mv tests/contents/output16.actual tests/contents/output16.expected
-    just docker-rm
+	@docker exec -it -u postgres pgai-db /bin/bash -c "set -e; if [ -f .env ]; then set -a; source .env; set +a; fi; psql"

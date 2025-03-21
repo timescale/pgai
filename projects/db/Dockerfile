@@ -64,5 +64,8 @@ ENV WHERE_AM_I=docker
 USER root
 
 RUN pip install --break-system-packages uv==0.6.3
+RUN mkdir /py/ && uv venv --directory /py/
+ENV PATH="/py/.venv/bin:$PATH"
+ENV VIRTUAL_ENV=/py/.venv
 
 WORKDIR /pgai/projects/pgai

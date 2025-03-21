@@ -70,3 +70,13 @@ just build && just install-all
 just test
 
 --db tests 
+just docker-build
+just docker-run
+just docker-shell
+
+//inside shell 1
+just test-server
+
+//inside shell 2
+cd ../extension && just build && just install && cd ../db
+just test

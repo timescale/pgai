@@ -616,7 +616,6 @@ def test_drop_vectorizer():
         db_url("test"), autocommit=True, row_factory=namedtuple_row
     ) as con:
         with con.cursor() as cur:
-            cur.execute("create extension if not exists ai cascade")
             cur.execute("create extension if not exists timescaledb")
             cur.execute("drop schema if exists wiki cascade")
             cur.execute("create schema wiki")
@@ -755,7 +754,6 @@ def test_drop_all_vectorizer():
         db_url("test"), autocommit=True, row_factory=namedtuple_row
     ) as con:
         with con.cursor() as cur:
-            cur.execute("create extension if not exists ai cascade")
             cur.execute("create extension if not exists timescaledb")
             cur.execute("drop table if exists drop_me")
             cur.execute("""
@@ -1413,7 +1411,6 @@ def test_index_create_concurrency():
         db_url("test"), autocommit=True, row_factory=namedtuple_row
     ) as con:
         with con.cursor() as cur:
-            cur.execute("create extension if not exists ai cascade")
             cur.execute("create extension if not exists timescaledb")
             cur.execute("create schema if not exists vec")
             cur.execute("drop table if exists vec.note2")
@@ -1555,7 +1552,6 @@ def test_naming_collisions():
         db_url("test"), autocommit=True, row_factory=namedtuple_row
     ) as con:
         with con.cursor() as cur:
-            cur.execute("create extension if not exists ai cascade")
             cur.execute("create extension if not exists timescaledb")
             cur.execute("create schema if not exists vec")
             cur.execute("drop table if exists vec.note4")
@@ -1713,7 +1709,6 @@ def test_none_index_scheduling():
         db_url("test"), autocommit=True, row_factory=namedtuple_row
     ) as con:
         with con.cursor() as cur:
-            cur.execute("create extension if not exists ai cascade")
             cur.execute("create extension if not exists timescaledb")
             cur.execute("create schema if not exists vec")
             cur.execute("drop table if exists vec.note3")
@@ -1763,7 +1758,6 @@ def test_queue_pending():
         db_url("test"), autocommit=True, row_factory=namedtuple_row
     ) as con:
         with con.cursor() as cur:
-            cur.execute("create extension if not exists ai cascade")
             cur.execute("create extension if not exists timescaledb")
             cur.execute("create schema if not exists vec")
             cur.execute("drop table if exists vec.note5")
@@ -1814,7 +1808,6 @@ def test_grant_to_public():
         db_url("test"), autocommit=True, row_factory=namedtuple_row
     ) as con:
         with con.cursor() as cur:
-            cur.execute("create extension if not exists ai cascade")
             cur.execute("create extension if not exists timescaledb")
             cur.execute("create schema if not exists vec")
             cur.execute("drop table if exists vec.note6")
@@ -1976,7 +1969,6 @@ def test_weird_primary_key():
         db_url("test"), autocommit=True, row_factory=namedtuple_row
     ) as con:
         with con.cursor() as cur:
-            cur.execute("create extension if not exists ai cascade")
             cur.execute("create extension if not exists timescaledb")
             cur.execute("create schema if not exists vec")
             cur.execute("drop domain if exists vec.code cascade")
