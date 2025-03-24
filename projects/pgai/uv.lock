@@ -1,5 +1,4 @@
 version = 1
-revision = 1
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '4' and platform_machine == 'x86_64' and platform_python_implementation != 'PyPy' and sys_platform == 'darwin'",
@@ -2865,8 +2864,8 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.35.0,<2.0" },
     { name = "click", specifier = ">=8.0,<9.0" },
     { name = "datadog-lambda", specifier = ">=6.9,<7.0" },
-    { name = "docling", specifier = ">=2.21.0" },
-    { name = "filetype", specifier = ">=1.2.0" },
+    { name = "docling", specifier = "==2.21.0" },
+    { name = "filetype", specifier = "==1.2.0" },
     { name = "google-cloud-aiplatform", specifier = ">=1.78.0,<2.0" },
     { name = "langchain-openai", specifier = ">=0.1,<1.0" },
     { name = "langchain-text-splitters", specifier = ">=0.2,<1.0" },
@@ -2876,18 +2875,17 @@ requires-dist = [
     { name = "pgvector", specifier = ">=0.3,<1.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2,<4.0" },
     { name = "pydantic", specifier = ">=2.0,<3.0" },
-    { name = "pymupdf4llm", specifier = ">=0.0.17" },
+    { name = "pymupdf4llm", specifier = "==0.0.17" },
     { name = "python-dotenv", specifier = ">=1.0,<2.0" },
     { name = "pytimeparse", specifier = ">=1.1,<2.0" },
     { name = "semver", specifier = ">=3.0.4" },
-    { name = "smart-open", specifier = ">=7.1.0" },
+    { name = "smart-open", specifier = "==7.1.0" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=2.0.36" },
     { name = "structlog", specifier = ">=24.0,<25.0" },
     { name = "tiktoken", specifier = ">=0.7,<1.0" },
     { name = "typing-extensions", specifier = ">=4.0,<5.0" },
     { name = "voyageai", specifier = ">=0.3.1,<0.3.2" },
 ]
-provides-extras = ["sqlalchemy"]
 
 [package.metadata.requires-dev]
 dev = [

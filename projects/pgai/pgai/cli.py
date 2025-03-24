@@ -22,7 +22,7 @@ from .__init__ import __version__
 from .vectorizer.embeddings import ApiKeyMixin
 from .vectorizer.features import Features
 from .vectorizer.parsing import DOCLING_CACHE_DIR
-from .vectorizer.vectorizer import Vectorizer, Worker
+from .vectorizer.vectorizer import Vectorizer
 from .vectorizer.worker_tracking import WorkerTracking
 
 load_dotenv()

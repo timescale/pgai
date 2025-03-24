@@ -88,6 +88,8 @@ def migrate_to_0_10_0(old_conf: Config_0_9) -> dict[str, Any]:
                 is_separator_regex=old_conf.chunking.is_separator_regex,
             )
         case _:
-            raise ValueError(f"Unknown chunking implementation: {old_conf.chunking.implementation}")
+            raise ValueError(
+                f"Unknown chunking implementation: {old_conf.chunking.implementation}"
+            )
 
     return result

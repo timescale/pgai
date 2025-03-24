@@ -11,9 +11,9 @@ class Features:
 
     def __init__(
         self,
-            has_disabled_column: bool,
-            has_worker_tracking_table: bool,
-            has_loading_retries: bool,
+        has_disabled_column: bool,
+        has_worker_tracking_table: bool,
+        has_loading_retries: bool,
     ) -> None:
         self.has_disabled_column = has_disabled_column
         self.has_worker_tracking_table = has_worker_tracking_table

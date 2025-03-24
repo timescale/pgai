@@ -239,9 +239,9 @@ You use the parsing configuration functions in `pgai` to define how data is pars
 The parsing functions are:
 
 - [ai.parsing_auto](#aiparsing_auto): Automatically selects the appropriate parser based on file type.
-- [ai.parsing_none](#aiparsing_none): Converts various formats to Markdown. See [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) for supported formats.
+- [ai.parsing_none](#aiparsing_none): Converts various formats to Markdown.
 - [ai.parsing_docling](#aiparsing_docling): More powerful alternative to PyMuPDF. See [Docling](https://docling-project.github.io/docling/usage/supported_formats/) for supported formats.
-- [ai.parsing_pymupdf](#aiparsing_pymupdf): For cases where no parsing is needed.
+- [ai.parsing_pymupdf](#aiparsing_pymupdf): See [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) for supported formats.
 
 ### ai.parsing_auto
 
