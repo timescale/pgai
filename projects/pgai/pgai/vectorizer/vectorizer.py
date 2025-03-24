@@ -332,10 +332,15 @@ class VectorizerQueryBuilder:
                     WHERE l.locked = true
                     AND {delete_join_predicates}
                 )
-                SELECT {source_table}.*
-                FROM locked_items
-                LEFT JOIN {source_schema}.{source_table} USING ({pk_fields})
-                WHERE locked_items.locked = true
+                SELECT s.*
+                FROM locked_items l
+                LEFT JOIN LATERAL ( -- NOTE: lateral join forces runtime chunk exclusion
+                    SELECT *
+                    FROM {source_schema}.{source_table} s
+                    WHERE {lateral_join_predicates}
+                    LIMIT 1
+                ) AS s ON true
+                WHERE l.locked = true
                 ORDER BY {pk_fields}
                         """).format(
             pk_fields=self.pk_fields_sql,
@@ -363,6 +368,15 @@ class VectorizerQueryBuilder:
             ),
             source_schema=sql.Identifier(self.vectorizer.source_schema),
             source_table=sql.Identifier(self.vectorizer.source_table),
+            lateral_join_predicates=sql.SQL(" AND ").join(
+                [
+                    sql.SQL("l.{} = s.{}").format(
+                        sql.Identifier(x.attname),
+                        sql.Identifier(x.attname),
+                    )
+                    for x in self.vectorizer.source_pk
+                ]
+            ),
         )
 
     @cached_property
