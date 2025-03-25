@@ -30,7 +30,7 @@ class TestDatabase:
         with psycopg.connect(url, autocommit=True) as conn:
             if extension_version != "":
                 conn.execute(
-                    f"CREATE EXTENSION IF NOT EXISTS ai"
+                    f"CREATE EXTENSION IF NOT EXISTS ai"  # type: ignore
                     f"   WITH VERSION '{extension_version}' CASCADE"
                 )
             else:
@@ -69,10 +69,11 @@ def cli_db(
     for marker in request.node.iter_markers():  # type: ignore
         if marker.name == "postgres_params":  # type: ignore
             break
-    params: Mapping[str, Any] = marker.kwargs if marker else {}
-    ai_extension_version: str = params.get("ai_extension_version", "")
+    params: Mapping[str, Any] = marker.kwargs if marker else {}  # type: ignore
+    ai_extension_version: str = params.get("ai_extension_version", "")  # type: ignore
     test_database = TestDatabase(
-        container=postgres_container, extension_version=ai_extension_version
+        container=postgres_container,
+        extension_version=ai_extension_version,  # type: ignore
     )
 
     # Connect

@@ -77,7 +77,7 @@ def vcr_():
 
 @pytest.fixture(scope="session")
 def postgres_container_manager() -> (
-    Generator[Callable[[bool], PostgresContainer], None, None]
+    Generator[Callable[[bool, str], PostgresContainer], None, None]
 ):
     extension_dir = (
         Path(__file__).parent.parent.parent.parent.joinpath("extension").resolve()
@@ -89,7 +89,7 @@ def postgres_container_manager() -> (
     containers: dict[str, PostgresContainer] = {}
 
     def get_container(
-            load_openai_key: bool = True, ai_extension_version: str = ""
+        load_openai_key: bool = True, ai_extension_version: str = ""
     ) -> PostgresContainer:
         # Use config as cache key
         key = f"openai_{load_openai_key}+ai_extension_version_{ai_extension_version}"
@@ -123,8 +123,8 @@ def postgres_container_manager() -> (
 @pytest.fixture
 def postgres_container(
     request: pytest.FixtureRequest,
-    postgres_container_manager: Callable[[bool], PostgresContainer],
-) -> Generator[PostgresContainer, None, None]:
+    postgres_container_manager: Callable[[bool, str], PostgresContainer],
+) -> PostgresContainer:
     marker: pytest.Mark | None = None
     for marker in request.node.iter_markers():  # type: ignore
         if marker.name == "postgres_params":  # type: ignore
@@ -134,9 +134,10 @@ def postgres_container(
     load_openai_key: bool = params.get("load_openai_key", True)  # type: ignore
     ai_extension_version: str = params.get("ai_extension_version", "")  # type: ignore
 
-    return postgres_container_manager(
-        load_openai_key=load_openai_key, ai_extension_version=ai_extension_version
-    )  # type: ignore
+    return postgres_container_manager(  # type: ignore
+        load_openai_key=load_openai_key,  # type: ignore
+        ai_extension_version=ai_extension_version,
+    )
 
 
 class ReverseProxyAddon:

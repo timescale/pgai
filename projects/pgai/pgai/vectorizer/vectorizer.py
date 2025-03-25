@@ -574,7 +574,8 @@ class VectorizerQueryBuilder:
             VALUES
                 ({pk_values}, %(failure_step)s)""").format(
             queue_failed_table=sql.Identifier(
-                self.vectorizer.queue_schema, self.vectorizer.queue_failed_table
+                self.vectorizer.queue_schema,
+                self.vectorizer.queue_failed_table,  # type: ignore
             ),
             pk_fields=self.pk_fields_sql,
             pk_values=sql.SQL(",").join(
