@@ -1,7 +1,9 @@
 from typing import Any
 
+import pytest
 from pydantic.dataclasses import dataclass
 
+from pgai.vectorizer.migrations import migrations as global_migrations
 from pgai.vectorizer.migrations import register_migration
 from pgai.vectorizer.vectorizer import Config
 
@@ -81,6 +83,23 @@ config_0_10_0 = {
         "schedule_interval": "00:05:00",
     },
 }
+
+
+@pytest.fixture(autouse=True)
+def clean_migrations():
+    """
+    Fixture to preserve and restore the global migrations list.
+    This ensures that migrations registered in tests don't affect other tests.
+    """
+    # Save the original migrations list
+    original_migrations = global_migrations.copy()
+
+    # Yield control back to the test
+    yield
+
+    # Restore the original migrations list after the test
+    global_migrations.clear()
+    global_migrations.extend(original_migrations)
 
 
 def test_multiple_migrations():
