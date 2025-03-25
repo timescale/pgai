@@ -68,17 +68,19 @@ Dataset Setup:
    -- OpenAI text-embedding-3-small (768 dim)
    SELECT ai.create_vectorizer(
        'sec_filings'::regclass,
+       loading => ai.loading_column('text'),
        destination => 'sec_filings_openai_embeddings',
        embedding => ai.embedding_openai('text-embedding-3-small', 768),
-       chunking => ai.chunking_recursive_character_text_splitter('text', 512, 50)
+       chunking => ai.chunking_recursive_character_text_splitter(512, 50)
    );
 
    -- Voyage finance-2 (1024 dim)
    SELECT ai.create_vectorizer(
        'sec_filings'::regclass,
+       loading => ai.loading_column('text'),
        destination => 'sec_filings_voyage_embeddings',
        embedding => ai.embedding_voyageai('voyage-finance-2', 1024),
-       chunking => ai.chunking_recursive_character_text_splitter('text', 512, 50)
+       chunking => ai.chunking_recursive_character_text_splitter(512, 50)
    );
    ```
 

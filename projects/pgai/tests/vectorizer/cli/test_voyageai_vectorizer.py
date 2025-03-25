@@ -19,7 +19,7 @@ def configure_voyageai_vectorizer_id(
     number_of_rows: int = 1,
     concurrency: int = 1,
     batch_size: int = 1,
-    chunking: str = "chunking_character_text_splitter('content')",
+    chunking: str = "chunking_character_text_splitter()",
     formatting: str = "formatting_python_template('$chunk')",
 ) -> int:
     """Creates and configures a VoyageAI vectorizer for testing"""
@@ -103,11 +103,12 @@ def test_voyageai_vectorizer_fails_when_api_key_is_not_set(
         cur.execute("CREATE TABLE blog(id bigint primary key, content text);")
         cur.execute("""SELECT ai.create_vectorizer(
                 'blog',
+                loading => ai.loading_column('content'),
                 embedding => ai.embedding_voyageai(
                     'voyage-3-lite',
                     512
                 ),
-                chunking => ai.chunking_character_text_splitter('content')
+                chunking => ai.chunking_character_text_splitter()
         )""")  # noqa
         cur.execute("INSERT INTO blog (id, content) VALUES(1, repeat('1', 100000))")
 

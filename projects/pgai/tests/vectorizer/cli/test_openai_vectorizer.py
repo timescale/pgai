@@ -22,7 +22,7 @@ def configure_openai_vectorizer(
     number_of_rows: int = 1,
     concurrency: int = 1,
     batch_size: int = 1,
-    chunking: str = "chunking_character_text_splitter('content')",
+    chunking: str = "chunking_character_text_splitter()",
     formatting: str = "formatting_python_template('$chunk')",
 ) -> int:
     """Creates and configures a vectorizer for testing"""
@@ -194,7 +194,7 @@ def test_document_exceeds_model_context_length(
         cli_db[1],
         number_of_rows=2,
         batch_size=2,
-        chunking="chunking_recursive_character_text_splitter('content', 128, 10,"
+        chunking="chunking_recursive_character_text_splitter(128, 10,"
         " separators => array[E'\n\n'])",
     )
     with conn.cursor(row_factory=dict_row) as cur:
@@ -250,7 +250,7 @@ def test_invalid_api_key_error(
         cli_db[1],
         number_of_rows=2,
         batch_size=2,
-        chunking="chunking_recursive_character_text_splitter('content')",
+        chunking="chunking_recursive_character_text_splitter()",
     )
 
     os.environ["OPENAI_API_KEY"] = "invalid"

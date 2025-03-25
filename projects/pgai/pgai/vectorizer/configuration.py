@@ -48,7 +48,6 @@ class ChunkingCharacterTextSplitterConfig(SQLArgumentMixin):
     arg_type: ClassVar[str] = "chunking"
     function_name: ClassVar[str] = "ai.chunking_character_text_splitter"
 
-    chunk_column: str
     chunk_size: int | None = None
     chunk_overlap: int | None = None
     separator: str | None = None
@@ -62,7 +61,6 @@ class ChunkingRecursiveCharacterTextSplitterConfig(SQLArgumentMixin):
     arg_type: ClassVar[str] = "chunking"
     function_name: ClassVar[str] = "ai.chunking_recursive_character_text_splitter"
 
-    chunk_column: str
     chunk_size: int | None = None
     chunk_overlap: int | None = None
     separators: list[str] | None = None
@@ -178,6 +176,58 @@ class IndexingNoneConfig(SQLArgumentMixin):
 
     arg_type: ClassVar[str] = "indexing"
     function_name: ClassVar[str] = "ai.indexing_none"
+
+
+@dataclass
+class LoadingColumnConfig(SQLArgumentMixin):
+    """Configuration for ai.loading_column function."""
+
+    arg_type: ClassVar[str] = "loading"
+    function_name: ClassVar[str] = "ai.loading_column"
+
+    column_name: str
+
+
+@dataclass
+class LoadingUriConfig(SQLArgumentMixin):
+    """Configuration for ai.loading_uri function."""
+
+    arg_type: ClassVar[str] = "loading"
+    function_name: ClassVar[str] = "ai.loading_uri"
+
+    column_name: str
+
+
+@dataclass
+class ParsingAutoConfig(SQLArgumentMixin):
+    """Configuration for ai.parsing_auto function."""
+
+    arg_type: ClassVar[str] = "parsing"
+    function_name: ClassVar[str] = "ai.parsing_auto"
+
+
+@dataclass
+class ParsingDoclingConfig(SQLArgumentMixin):
+    """Configuration for ai.parsing_docling function."""
+
+    arg_type: ClassVar[str] = "parsing"
+    function_name: ClassVar[str] = "ai.parsing_docling"
+
+
+@dataclass
+class ParsingNoneConfig(SQLArgumentMixin):
+    """Configuration for ai.parsing_none function."""
+
+    arg_type: ClassVar[str] = "parsing"
+    function_name: ClassVar[str] = "ai.parsing_none"
+
+
+@dataclass
+class ParsingPymupdfConfig(SQLArgumentMixin):
+    """Configuration for ai.parsing_pymupdf function."""
+
+    arg_type: ClassVar[str] = "parsing"
+    function_name: ClassVar[str] = "ai.parsing_pymupdf"
 
 
 @dataclass

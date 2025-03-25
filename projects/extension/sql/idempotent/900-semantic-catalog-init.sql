@@ -38,7 +38,8 @@ begin
     , processing=>processing
     , grant_to=>grant_to
     , formatting=>ai.formatting_python_template() -- TODO: this ain't gonna work
-    , chunking=>ai.chunking_recursive_character_text_splitter('description') -- TODO
+    , chunking=>ai.chunking_recursive_character_text_splitter() -- TODO
+    , loading=>ai.loading_column('description')
     ) into strict _obj_vec_id
     ;
 
@@ -51,7 +52,8 @@ begin
     , processing=>processing
     , grant_to=>grant_to
     , formatting=>ai.formatting_python_template() -- TODO: this ain't gonna work
-    , chunking=>ai.chunking_recursive_character_text_splitter('description') -- TODO
+    , chunking=>ai.chunking_recursive_character_text_splitter() -- TODO
+    , loading=>ai.loading_column('description')
     ) into strict _sql_vec_id
     ;
 

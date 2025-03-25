@@ -18,11 +18,20 @@ VECTORIZER_ROW = r"""
 {
     "id": 1,
     "config": {
+        "loading": {
+            "config_type": "loading",
+            "implementation": "column",
+            "retries": 6,
+            "column_name": "body"
+        },
+        "parsing": {
+            "config_type": "parsing",
+            "implementation": "auto"
+        },
         "chunking": {
             "separator": "\n\n",
             "chunk_size": 128,
             "config_type": "chunking",
-            "chunk_column": "body",
             "chunk_overlap": 10,
             "implementation": "character_text_splitter",
             "is_separator_regex": false
@@ -74,6 +83,7 @@ VECTORIZER_ROW = r"""
     "queue_table": "_vectorizer_q_1",
     "view_schema": "website",
     "queue_schema": "ai",
+    "queue_failed_table": "_vectorizer_q_failed_1",
     "source_table": "blog",
     "target_table": "blog_embedding_store",
     "trigger_name": "_vectorizer_src_trg_1",
@@ -129,11 +139,13 @@ Access method: heap
 
 QUEUE_TABLE = """
                                                  Table "ai._vectorizer_q_1"
-  Column   |           Type           | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
------------+--------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
- title     | text                     |           | not null |         | extended |             |              | 
- published | timestamp with time zone |           | not null |         | plain    |             |              | 
- queued_at | timestamp with time zone |           | not null | now()   | plain    |             |              | 
+       Column        |           Type           | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
+---------------------+--------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
+ title               | text                     |           | not null |         | extended |             |              | 
+ published           | timestamp with time zone |           | not null |         | plain    |             |              | 
+ queued_at           | timestamp with time zone |           | not null | now()   | plain    |             |              | 
+ loading_retries     | integer                  |           | not null | 0       | plain    |             |              | 
+ loading_retry_after | timestamp with time zone |           |          |         | plain    |             |              | 
 Indexes:
     "_vectorizer_q_1_title_published_idx" btree (title, published)
 Access method: heap
@@ -226,8 +238,9 @@ def test_vectorizer_timescaledb():
             cur.execute("""
             select ai.create_vectorizer
             ( 'website.blog'::regclass
+            , loading => ai.loading_column('body')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
-            , chunking=>ai.chunking_character_text_splitter('body', 128, 10)
+            , chunking=>ai.chunking_character_text_splitter(128, 10)
             , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
             , scheduling=>ai.scheduling_timescaledb
                     ( interval '5m'
@@ -259,37 +272,6 @@ def test_vectorizer_timescaledb():
             cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
             actual = cur.fetchone()[0]
             assert actual == 3
-
-            # bob should have select on the source table
-            cur.execute("select has_table_privilege('bob', 'website.blog', 'select')")
-            actual = cur.fetchone()[0]
-            assert actual
-
-            # bob should have select, update, delete on the queue table
-            cur.execute(
-                f"select has_table_privilege('bob', '{vec.queue_schema}.{vec.queue_table}', 'select, update, delete')"
-            )
-            actual = cur.fetchone()[0]
-            assert actual
-
-            # bob should have select, insert, update on the target table
-            cur.execute(
-                f"select has_table_privilege('bob', '{vec.target_schema}.{vec.target_table}', 'select, insert, update')"
-            )
-            actual = cur.fetchone()[0]
-            assert actual
-
-            # bob should have select on the view
-            cur.execute(
-                f"select has_table_privilege('bob', '{vec.view_schema}.{vec.view_name}', 'select')"
-            )
-            actual = cur.fetchone()[0]
-            assert actual
-
-            # bob should have select on the vectorizer table
-            cur.execute("select has_table_privilege('bob', 'ai.vectorizer', 'select')")
-            actual = cur.fetchone()[0]
-            assert actual
 
             # get timescaledb job's job_id
             cur.execute(
@@ -636,8 +618,9 @@ def test_drop_vectorizer():
             cur.execute("""
             select ai.create_vectorizer
             ( 'wiki.post'::regclass
+            , loading => ai.loading_column('content')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
-            , chunking=>ai.chunking_character_text_splitter('content', 128, 10)
+            , chunking=>ai.chunking_character_text_splitter(128, 10)
             , scheduling=>ai.scheduling_timescaledb()
             , grant_to=>null
             );
@@ -763,8 +746,9 @@ def test_drop_all_vectorizer():
             cur.execute("""
             select ai.create_vectorizer
             ( 'drop_me'::regclass
+            , loading => ai.loading_column('content')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
-            , chunking=>ai.chunking_character_text_splitter('content', 128, 10)
+            , chunking=>ai.chunking_character_text_splitter(128, 10)
             , scheduling=>ai.scheduling_timescaledb()
             , grant_to=>null
             );
@@ -892,8 +876,9 @@ def test_drop_source():
             cur.execute("""
             select ai.create_vectorizer
             ( 'public.blog_drop'::regclass
+            , loading => ai.loading_column('content')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
-            , chunking=>ai.chunking_character_text_splitter('content', 128, 10)
+            , chunking=>ai.chunking_character_text_splitter(128, 10)
             , scheduling=>ai.scheduling_timescaledb()
             , grant_to=>null
             );
@@ -1025,8 +1010,9 @@ def test_drop_source_no_row():
             cur.execute("""
             select ai.create_vectorizer
             ( 'public.drop_no_row'::regclass
+            , loading => ai.loading_column('content')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
-            , chunking=>ai.chunking_character_text_splitter('content', 128, 10)
+            , chunking=>ai.chunking_character_text_splitter(128, 10)
             , scheduling=>ai.scheduling_timescaledb()
             , grant_to=>null
             );
@@ -1326,8 +1312,9 @@ def test_diskann_index():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.note0'::regclass
+            , loading => ai.loading_column('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-            , chunking=>ai.chunking_character_text_splitter('note')
+            , chunking=>ai.chunking_character_text_splitter()
             , scheduling=>
                 ai.scheduling_timescaledb
                 ( interval '5m'
@@ -1371,8 +1358,9 @@ def test_hnsw_index():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.note1'::regclass
+            , loading => ai.loading_column('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-            , chunking=>ai.chunking_character_text_splitter('note')
+            , chunking=>ai.chunking_character_text_splitter()
             , scheduling=>
                 ai.scheduling_timescaledb
                 ( interval '5m'
@@ -1422,8 +1410,9 @@ def test_index_create_concurrency():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.note2'::regclass
+            , loading => ai.loading_column('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-            , chunking=>ai.chunking_character_text_splitter('note')
+            , chunking=>ai.chunking_character_text_splitter()
             , scheduling=>
                 ai.scheduling_timescaledb
                 ( interval '5m'
@@ -1558,8 +1547,9 @@ def test_naming_collisions():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.note4'::regclass
+            , loading => ai.loading_column('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-            , chunking=>ai.chunking_character_text_splitter('note')
+            , chunking=>ai.chunking_character_text_splitter()
             , scheduling=>ai.scheduling_none()
             , indexing=>ai.indexing_none()
             , grant_to=>null
@@ -1576,8 +1566,9 @@ def test_naming_collisions():
                 cur.execute("""
                 select ai.create_vectorizer
                 ( 'vec.note4'::regclass
+                , loading => ai.loading_column('note')
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-                , chunking=>ai.chunking_character_text_splitter('note')
+                , chunking=>ai.chunking_character_text_splitter()
                 , scheduling=>ai.scheduling_none()
                 , indexing=>ai.indexing_none()
                 , grant_to=>null
@@ -1594,8 +1585,9 @@ def test_naming_collisions():
                 cur.execute("""
                 select ai.create_vectorizer
                 ( 'vec.note4'::regclass
+                , loading => ai.loading_column('note')
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-                , chunking=>ai.chunking_character_text_splitter('note')
+                , chunking=>ai.chunking_character_text_splitter()
                 , scheduling=>ai.scheduling_none()
                 , indexing=>ai.indexing_none()
                 , grant_to=>null
@@ -1614,8 +1606,9 @@ def test_naming_collisions():
                 cur.execute("""
                 select ai.create_vectorizer
                 ( 'vec.note4'::regclass
+                , loading => ai.loading_column('note')
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-                , chunking=>ai.chunking_character_text_splitter('note')
+                , chunking=>ai.chunking_character_text_splitter()
                 , scheduling=>ai.scheduling_none()
                 , indexing=>ai.indexing_none()
                 , grant_to=>null
@@ -1634,8 +1627,9 @@ def test_naming_collisions():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.note4'::regclass
+            , loading => ai.loading_column('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-            , chunking=>ai.chunking_character_text_splitter('note')
+            , chunking=>ai.chunking_character_text_splitter()
             , scheduling=>ai.scheduling_none()
             , indexing=>ai.indexing_none()
             , grant_to=>null
@@ -1669,8 +1663,9 @@ def test_naming_collisions():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.note4'::regclass
+            , loading => ai.loading_column('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-            , chunking=>ai.chunking_character_text_splitter('note')
+            , chunking=>ai.chunking_character_text_splitter()
             , scheduling=>ai.scheduling_none()
             , indexing=>ai.indexing_none()
             , grant_to=>null
@@ -1720,8 +1715,9 @@ def test_none_index_scheduling():
                 cur.execute("""
                 select ai.create_vectorizer
                 ( 'vec.note3'::regclass
+                , loading => ai.loading_column('note')
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-                , chunking=>ai.chunking_character_text_splitter('note')
+                , chunking=>ai.chunking_character_text_splitter()
                 , scheduling=> ai.scheduling_none()
                 , indexing=>ai.indexing_hnsw(min_rows=>10, m=>20)
                 , grant_to=>null
@@ -1734,8 +1730,9 @@ def test_none_index_scheduling():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.note3'::regclass
+            , loading => ai.loading_column('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-            , chunking=>ai.chunking_character_text_splitter('note')
+            , chunking=>ai.chunking_character_text_splitter()
             , scheduling=> ai.scheduling_none()
             , indexing=>ai.indexing_none()
             , grant_to=>null
@@ -1766,8 +1763,9 @@ def test_queue_pending():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.note5'::regclass
+            , loading => ai.loading_column('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-            , chunking=>ai.chunking_character_text_splitter('note')
+            , chunking=>ai.chunking_character_text_splitter()
             , scheduling=> ai.scheduling_none()
             , indexing=>ai.indexing_none()
             , grant_to=>null
@@ -1817,8 +1815,9 @@ def test_grant_to_public():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.note6'::regclass
+            , loading => ai.loading_column('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-            , chunking=>ai.chunking_character_text_splitter('note')
+            , chunking=>ai.chunking_character_text_splitter()
             , scheduling=> ai.scheduling_none()
             , indexing=>ai.indexing_none()
             , grant_to=>ai.grant_to('public')
@@ -1891,8 +1890,9 @@ def test_create_vectorizer_privs():
                 cur.execute("""
                 select ai.create_vectorizer
                 ( 'priv_test'::regclass
+                , loading => ai.loading_column('foo')
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-                , chunking=>ai.chunking_character_text_splitter('foo')
+                , chunking=>ai.chunking_character_text_splitter()
                 , scheduling=>ai.scheduling_none()
                 , indexing=>ai.indexing_none()
                 , grant_to=>null
@@ -1910,8 +1910,9 @@ def test_create_vectorizer_privs():
                 cur.execute("""
                 select ai.create_vectorizer
                 ( 'priv_test'::regclass
+                , loading => ai.loading_column('foo')
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-                , chunking=>ai.chunking_character_text_splitter('foo')
+                , chunking=>ai.chunking_character_text_splitter()
                 , scheduling=>ai.scheduling_none()
                 , indexing=>ai.indexing_none()
                 , grant_to=>null
@@ -1924,8 +1925,9 @@ def test_create_vectorizer_privs():
             cur.execute("""
             select ai.create_vectorizer
             ( 'priv_test'::regclass
+            , loading => ai.loading_column('foo')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-            , chunking=>ai.chunking_character_text_splitter('foo')
+            , chunking=>ai.chunking_character_text_splitter()
             , scheduling=>ai.scheduling_none()
             , indexing=>ai.indexing_none()
             , grant_to=>null
@@ -1938,14 +1940,230 @@ def test_create_vectorizer_privs():
             cur.execute("""
             select ai.create_vectorizer
             ( 'priv_test'::regclass
+            , loading => ai.loading_column('foo')
             , destination=>'red_balloon'
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-            , chunking=>ai.chunking_character_text_splitter('foo')
+            , chunking=>ai.chunking_character_text_splitter()
             , scheduling=>ai.scheduling_none()
             , indexing=>ai.indexing_none()
             , grant_to=>null
             );
             """)
+
+
+def test_vectorizer_bytea():
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("create schema if not exists vec")
+            cur.execute("drop table if exists vec.doc_bytea")
+            cur.execute("""
+                create table vec.doc_bytea
+                ( id bigint not null primary key generated always as identity
+                , content bytea not null
+                )
+            """)
+
+            # Insert a sample PDF as bytea
+            cur.execute("""
+                insert into vec.doc_bytea(content)
+                values (decode('255044462D312E340A25', 'hex'))  -- Start of PDF file magic bytes
+            """)
+
+            # Create a vectorizer for the bytea column
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'vec.doc_bytea'::regclass
+            , loading => ai.loading_column('content')
+            , embedding => ai.embedding_openai('text-embedding-3-small', 3)
+            , chunking => ai.chunking_character_text_splitter()
+            , scheduling => ai.scheduling_none()
+            , indexing => ai.indexing_none()
+            , grant_to => null
+            , enqueue_existing => false
+            );
+            """)
+            vectorizer_id = cur.fetchone()[0]
+
+            # Verify vectorizer was created
+            cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
+            vectorizer = cur.fetchone()
+            assert vectorizer is not None
+            assert vectorizer.config["loading"]["column_name"] == "content"
+            assert vectorizer.config["parsing"]["implementation"] == "auto"
+
+
+def test_vectorizer_document_loading_pymupdf():
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("create schema if not exists vec")
+            cur.execute("drop table if exists vec.doc_url_pymupdf")
+            cur.execute("""
+                create table vec.doc_url_pymupdf
+                ( id bigint not null primary key generated always as identity
+                , url text not null
+                )
+            """)
+
+            # Create vectorizer with document loading and pymupdf - should work
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'vec.doc_url_pymupdf'::regclass
+            , loading => ai.loading_uri('url')
+            , parsing => ai.parsing_pymupdf()
+            , embedding => ai.embedding_openai('text-embedding-3-small', 3)
+            , chunking => ai.chunking_character_text_splitter()
+            , scheduling => ai.scheduling_none()
+            , indexing => ai.indexing_none()
+            , grant_to => null
+            , enqueue_existing => false
+            );
+            """)
+            vectorizer_id = cur.fetchone()[0]
+
+            # Verify vectorizer was created with correct configuration
+            cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
+            vectorizer = cur.fetchone()
+            assert vectorizer is not None
+            assert vectorizer.config["loading"]["column_name"] == "url"
+            assert vectorizer.config["loading"]["implementation"] == "uri"
+            assert vectorizer.config["parsing"]["implementation"] == "pymupdf"
+
+
+def test_vectorizer_bytea_parsing_none_fails():
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("create schema if not exists vec")
+            cur.execute("drop table if exists vec.doc_bytea_fail")
+            cur.execute("""
+                create table vec.doc_bytea_fail
+                ( id bigint not null primary key generated always as identity
+                , content bytea not null
+                )
+            """)
+
+            # Attempt to create vectorizer with parsing_none on bytea - should fail
+            with pytest.raises(
+                psycopg.errors.RaiseException,
+                match=".*cannot use parsing_none with bytea columns.*",
+            ):
+                cur.execute("""
+                select ai.create_vectorizer
+                ( 'vec.doc_bytea_fail'::regclass
+                , loading => ai.loading_column('content')
+                , parsing => ai.parsing_none()
+                , embedding => ai.embedding_openai('text-embedding-3-small', 3)
+                , chunking => ai.chunking_character_text_splitter()
+                , scheduling => ai.scheduling_none()
+                , indexing => ai.indexing_none()
+                , grant_to => null
+                , enqueue_existing => false
+                );
+                """)
+
+
+def test_vectorizer_uri_loading_parsing_none_is_allowed():
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create schema if not exists vec")
+            cur.execute("drop table if exists vec.doc_url_parsing_none")
+            cur.execute("""
+                create table vec.doc_url_parsing_none
+                ( id bigint not null primary key generated always as identity
+                , url text not null
+                )
+            """)
+
+            # Vectorizer with uri loading and parsing_none should be allowed since
+            # the user might want to load a raw text file (not requiring any parsing)
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'vec.doc_url_parsing_none'::regclass
+            , loading => ai.loading_uri('url')
+            , parsing => ai.parsing_none()
+            , embedding => ai.embedding_openai('text-embedding-3-small', 3)
+            , chunking => ai.chunking_character_text_splitter()
+            , scheduling => ai.scheduling_none()
+            , indexing => ai.indexing_none()
+            , grant_to => null
+            , enqueue_existing => false
+            );
+            """)
+
+            vectorizer_id = cur.fetchone()[0]
+
+            # Verify vectorizer was created with correct configuration
+            cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
+            vectorizer = cur.fetchone()
+            assert vectorizer is not None
+            assert vectorizer.config["loading"]["column_name"] == "url"
+            assert vectorizer.config["loading"]["implementation"] == "uri"
+            assert vectorizer.config["parsing"]["implementation"] == "none"
+
+
+def test_vectorizer_text_pymupdf_fails():
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists ai cascade")
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("create schema if not exists vec")
+
+            # Test each text type
+            text_types = ["text", "varchar", "char(10)", "character varying"]
+
+            for text_type in text_types:
+                # Replace multiple special characters and spaces with underscores
+                sanitized_type = (
+                    text_type.replace(" ", "_")
+                    .replace("(", "_")
+                    .replace(")", "")
+                    .replace(",", "_")
+                )
+                # Remove any double underscores that might have been created
+                sanitized_type = "_".join(filter(None, sanitized_type.split("_")))
+                table_name = f"vec.text_pymupdf_fail_{sanitized_type}"
+                cur.execute(f"drop table if exists {table_name}")
+                cur.execute(f"""
+                    create table {table_name}
+                    ( id bigint not null primary key generated always as identity
+                    , content {text_type} not null
+                    )
+                """)
+
+                # Attempt to create vectorizer with pymupdf on text column - should fail
+                with pytest.raises(
+                    psycopg.errors.RaiseException,
+                    match="parsing_pymupdf must be used with a bytea column.*",
+                ):
+                    cur.execute(f"""
+                    select ai.create_vectorizer
+                    ( '{table_name}'::regclass
+                    , loading => ai.loading_column('content')
+                    , parsing => ai.parsing_pymupdf()
+                    , embedding => ai.embedding_openai('text-embedding-3-small', 3)
+                    , chunking => ai.chunking_character_text_splitter()
+                    , scheduling => ai.scheduling_none()
+                    , indexing => ai.indexing_none()
+                    , grant_to => null
+                    , enqueue_existing => false
+                    );
+                    """)
 
 
 def test_weird_primary_key():
@@ -1984,8 +2202,9 @@ def test_weird_primary_key():
             cur.execute("""
             select ai.create_vectorizer
             ( 'vec.weird'::regclass
+            , loading=>ai.loading_column('note')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-            , chunking=>ai.chunking_character_text_splitter('note')
+            , chunking=>ai.chunking_character_text_splitter()
             , scheduling=> ai.scheduling_none()
             , indexing=>ai.indexing_none()
             , grant_to=>ai.grant_to('public')

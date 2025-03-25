@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+import docling.utils.model_downloader
 import pytest
 import tiktoken
 import vcr  # type:ignore
@@ -16,9 +17,22 @@ from mitmproxy.tools.dump import DumpMaster
 from testcontainers.core.image import DockerImage  # type:ignore
 from testcontainers.postgres import PostgresContainer  # type:ignore
 
+from pgai.vectorizer.parsing import DOCLING_CACHE_DIR
 from pgai.vectorizer.vectorizer import TIKTOKEN_CACHE_DIR
 
 DIMENSION_COUNT = 1536
+
+
+@pytest.fixture(scope="session", autouse=True)
+def download_docling_models():
+    # pre-fetch all models required by docling
+    # this is done to avoid downloading the models during the tests.
+    # Models are downloaded to: ~/.cache/huggingface/hub/models--ds4sd--docling-models
+    print("Attempting to download docling models.")
+    docling.utils.model_downloader.download_models(
+        progress=True,
+        output_dir=DOCLING_CACHE_DIR,
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -63,7 +77,7 @@ def vcr_():
 
 @pytest.fixture(scope="session")
 def postgres_container_manager() -> (
-    Generator[Callable[[bool], PostgresContainer], None, None]
+    Generator[Callable[[bool, str], PostgresContainer], None, None]
 ):
     extension_dir = (
         Path(__file__).parent.parent.parent.parent.joinpath("extension").resolve()
@@ -74,9 +88,11 @@ def postgres_container_manager() -> (
 
     containers: dict[str, PostgresContainer] = {}
 
-    def get_container(load_openai_key: bool = True) -> PostgresContainer:
+    def get_container(
+        load_openai_key: bool = True, ai_extension_version: str = ""
+    ) -> PostgresContainer:
         # Use config as cache key
-        key = f"openai_{load_openai_key}"
+        key = f"openai_{load_openai_key}+ai_extension_version_{ai_extension_version}"
 
         if key not in containers:
             container = PostgresContainer(
@@ -107,8 +123,8 @@ def postgres_container_manager() -> (
 @pytest.fixture
 def postgres_container(
     request: pytest.FixtureRequest,
-    postgres_container_manager: Callable[[bool], PostgresContainer],
-) -> Generator[PostgresContainer, None, None]:
+    postgres_container_manager: Callable[[bool, str], PostgresContainer],
+) -> PostgresContainer:
     marker: pytest.Mark | None = None
     for marker in request.node.iter_markers():  # type: ignore
         if marker.name == "postgres_params":  # type: ignore
@@ -116,8 +132,12 @@ def postgres_container(
 
     params: Mapping[str, Any] = marker.kwargs if marker else {}  # type: ignore
     load_openai_key: bool = params.get("load_openai_key", True)  # type: ignore
+    ai_extension_version: str = params.get("ai_extension_version", "")  # type: ignore
 
-    return postgres_container_manager(load_openai_key=load_openai_key)  # type: ignore
+    return postgres_container_manager(  # type: ignore
+        load_openai_key=load_openai_key,  # type: ignore
+        ai_extension_version=ai_extension_version,
+    )
 
 
 class ReverseProxyAddon:
@@ -152,7 +172,7 @@ def run_reverse_proxy(
     proxy_thread.start()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def openai_proxy_url(request: pytest.FixtureRequest):
     if not hasattr(request, "param") or request.param is None:
         # a valid url is required in order to start the openai proxy fixture

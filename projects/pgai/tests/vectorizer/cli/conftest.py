@@ -1,4 +1,5 @@
-from collections.abc import Generator
+from collections.abc import Generator, Mapping
+from typing import Any
 
 import psycopg
 import pytest
@@ -19,7 +20,7 @@ class TestDatabase:
     container: PostgresContainer
     dbname: str
 
-    def __init__(self, container: PostgresContainer):
+    def __init__(self, container: PostgresContainer, extension_version: str = ""):
         global count
         dbname = f"test_{count}"
         count += 1
@@ -27,7 +28,13 @@ class TestDatabase:
         self.dbname = dbname
         url = self._create_connection_url(dbname="template1")
         with psycopg.connect(url, autocommit=True) as conn:
-            conn.execute("CREATE EXTENSION IF NOT EXISTS ai CASCADE")
+            if extension_version != "":
+                conn.execute(
+                    f"CREATE EXTENSION IF NOT EXISTS ai"  # type: ignore
+                    f"   WITH VERSION '{extension_version}' CASCADE"
+                )
+            else:
+                conn.execute("CREATE EXTENSION IF NOT EXISTS ai CASCADE")
             conn.execute(
                 sql.SQL("CREATE DATABASE {0}").format(sql.Identifier(self.dbname))
             )
@@ -55,10 +62,19 @@ class TestDatabase:
 @pytest.fixture
 def cli_db(
     postgres_container: PostgresContainer,
+    request: pytest.FixtureRequest,
 ) -> Generator[tuple[TestDatabase, Connection], None, None]:
     """Creates a test database with pgai installed"""
-
-    test_database = TestDatabase(container=postgres_container)
+    marker: pytest.Mark | None = None
+    for marker in request.node.iter_markers():  # type: ignore
+        if marker.name == "postgres_params":  # type: ignore
+            break
+    params: Mapping[str, Any] = marker.kwargs if marker else {}  # type: ignore
+    ai_extension_version: str = params.get("ai_extension_version", "")  # type: ignore
+    test_database = TestDatabase(
+        container=postgres_container,
+        extension_version=ai_extension_version,  # type: ignore
+    )
 
     # Connect
     with psycopg.connect(
@@ -80,20 +96,25 @@ def configure_vectorizer(
     connection: Connection,
     concurrency: int = 1,
     batch_size: int = 1,
-    chunking: str = "chunking_character_text_splitter('content')",
+    chunking: str = "chunking_character_text_splitter()",
     formatting: str = "formatting_python_template('$chunk')",
     embedding: str = "embedding_openai('text-embedding-ada-002', 1536)",
+    loading: str | None = "ai.loading_column(column_name => 'content')",
+    parsing: str | None = None,
 ):
     with connection.cursor(row_factory=dict_row) as cur:
         # Create vectorizer
+        parsing = f", parsing => {parsing}" if parsing else ""
         cur.execute(f"""
             SELECT ai.create_vectorizer(
                 '{source_table}'::regclass,
+                loading => {loading},
                 embedding => ai.{embedding},
                 chunking => ai.{chunking},
                 formatting => ai.{formatting},
                 processing => ai.processing_default(batch_size => {batch_size},
                                                     concurrency => {concurrency})
+                {parsing}
             )
         """)  # type: ignore
         vectorizer_id: int = int(cur.fetchone()["create_vectorizer"])  # type: ignore
@@ -143,8 +164,11 @@ def run_vectorizer_worker(
     if extra_params:
         args.extend(extra_params)
 
-    return CliRunner().invoke(
+    result = CliRunner().invoke(
         vectorizer_worker,
         args,
         catch_exceptions=False,
     )
+    if result.exit_code != 0:
+        print(result.output)
+    return result

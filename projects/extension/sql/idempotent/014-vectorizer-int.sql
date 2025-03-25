@@ -399,7 +399,14 @@ declare
 begin
     -- create the table
     select pg_catalog.format
-    ( $sql$create table %I.%I(%s, queued_at timestamptz not null default now())$sql$
+    ( $sql$
+      create table %I.%I
+      ( %s
+      , queued_at pg_catalog.timestamptz not null default now()
+      , loading_retries pg_catalog.int4 not null default 0
+      , loading_retry_after pg_catalog.timestamptz
+      )
+      $sql$
     , queue_schema, queue_table
     , (
         select pg_catalog.string_agg
@@ -447,6 +454,87 @@ begin
         ( $sql$grant select, insert, update, delete on %I.%I to %s$sql$
         , queue_schema
         , queue_table
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+    end if;
+end;
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _vectorizer_create_queue_failed_table
+create or replace function ai._vectorizer_create_queue_failed_table
+( queue_schema pg_catalog.name
+, queue_failed_table pg_catalog.name
+, source_pk pg_catalog.jsonb
+, grant_to pg_catalog.name[]
+) returns void as
+$func$
+declare
+    _sql pg_catalog.text;
+begin
+    -- create the table
+    select pg_catalog.format
+    ( $sql$
+      create table %I.%I
+      ( %s
+      , created_at pg_catalog.timestamptz not null default now()
+      , failure_step pg_catalog.text not null default ''
+      )
+      $sql$
+    , queue_schema, queue_failed_table
+    , (
+        select pg_catalog.string_agg
+        (
+          pg_catalog.format
+          ( '%I %s not null'
+          , x.attname
+          , x.typname
+          )
+          , E'\n, '
+          order by x.attnum
+        )
+        from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name, typname name)
+      )
+    ) into strict _sql
+    ;
+    execute _sql;
+
+    -- create the index
+    select pg_catalog.format
+    ( $sql$create index on %I.%I (%s)$sql$
+    , queue_schema, queue_failed_table
+    , (
+        select pg_catalog.string_agg(pg_catalog.format('%I', x.attname), ', ' order by x.pknum)
+        from pg_catalog.jsonb_to_recordset(source_pk) x(pknum int, attname name)
+      )
+    ) into strict _sql
+    ;
+    execute _sql;
+
+    if grant_to is not null then
+        -- grant usage on queue schema to grant_to roles
+        select pg_catalog.format
+        ( $sql$grant usage on schema %I to %s$sql$
+        , queue_schema
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+
+        -- grant select, update, delete on queue table to grant_to roles
+        select pg_catalog.format
+        ( $sql$grant select, insert, update, delete on %I.%I to %s$sql$
+        , queue_schema
+        , queue_failed_table
         , (
             select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
             from pg_catalog.unnest(grant_to) x
@@ -616,12 +704,13 @@ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-- This code block recreates all triggers for vectorizers to make sure
+-- they have the most recent version of the trigger function
 do $upgrade_block$
 declare
     _vec record;
-    _new_version text := '0.8.1';
 begin
-    -- Find all vectorizers with version < 0.8.1
+    -- Find all vectorizers
     for _vec in (
         select 
             v.id,
@@ -635,10 +724,9 @@ begin
             v.queue_table,
             v.config
         from ai.vectorizer v
-        where string_to_array(regexp_replace((v.config->>'version'), '[-+].*$', ''), '.')::int[] < string_to_array(_new_version, '.')::int[]
     )
     loop
-        raise notice 'Upgrading trigger function for vectorizer ID %s from version %s', _vec.id, _vec.config->>'version';
+        raise notice 'Recreating trigger function for vectorizer ID %s', _vec.id;
         
         execute format(
             'alter extension ai add function %I.%I()',
@@ -664,6 +752,11 @@ begin
         );
 
         execute format(
+            'drop trigger if exists %I on %I.%I',
+            format('%s_truncate',_vec.trigger_name) , _vec.source_schema, _vec.source_table
+        );
+
+        execute format(
             'create trigger %I after insert or update or delete on %I.%I for each row execute function %I.%I()',
             _vec.trigger_name, _vec.source_schema, _vec.source_table, _vec.queue_schema, _vec.trigger_name
         );
@@ -677,12 +770,8 @@ begin
             'alter extension ai drop function %I.%I()',
             _vec.queue_schema, _vec.trigger_name
         );
-
-        update ai.vectorizer 
-        set config = jsonb_set(config, '{version}', format('"%s"', _new_version)::jsonb)
-        where id = _vec.id;
         
-        raise info 'Successfully upgraded trigger for vectorizer ID % to version %', _vec.id, _new_version;
+        raise info 'Successfully recreated trigger for vectorizer ID %', _vec.id;
     end loop;
 end;
 $upgrade_block$;

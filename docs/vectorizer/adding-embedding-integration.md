@@ -64,6 +64,6 @@ with a new integration look into the code generator docs in [/projects/pgai/pgai
 ## Documentation
 
 Ensure that the new integration is documented:
-- Document the new database function in [/docs/vectorizer/api-reference.md].
-- Document any changes to the vectorizer worker in [/docs/vectorizer/worker.md].
-- Add a new row in [Supported features in each model](/README.md#supported-features-in-each-model) for your worker.
+- Document the new database function in [/docs/vectorizer/api-reference.md](/docs/vectorizer/api-reference.md).
+- Document any changes to the vectorizer worker in [/docs/vectorizer/worker.md](/docs/vectorizer/worker.md).
+- Add a new row in [Supported features in each model](/docs/README.md#pgai-model-calling) for your worker.

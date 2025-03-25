@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from typing import Any
 
 import click
+import docling.utils.model_downloader
 import psycopg
 import structlog
 from ddtrace import tracer
@@ -20,6 +21,7 @@ from pytimeparse import parse  # type: ignore
 from .__init__ import __version__
 from .vectorizer.embeddings import ApiKeyMixin
 from .vectorizer.features import Features
+from .vectorizer.parsing import DOCLING_CACHE_DIR
 from .vectorizer.vectorizer import Vectorizer
 from .vectorizer.worker_tracking import WorkerTracking
 
@@ -172,6 +174,14 @@ def shutdown_handler(signum: int, _frame: Any):
     exit(0)
 
 
+@click.command(name="download-models")
+def download_models():
+    docling.utils.model_downloader.download_models(
+        progress=True,
+        output_dir=DOCLING_CACHE_DIR,  # pyright: ignore [reportUndefinedVariable]
+    )
+
+
 @click.command(name="worker")
 @click.version_option(version=__version__)
 @click.option(
@@ -203,7 +213,10 @@ def shutdown_handler(signum: int, _frame: Any):
     type=TimeDurationParamType(),
     default="5m",
     show_default=True,
-    help="The interval, in duration string or integer (seconds), to wait before checking for new work after processing all available work in the queue.",  # noqa
+    help="The interval, in duration string or integer (seconds), "
+    "to wait before checking for new work after processing "
+    "all available work in the queue.",
+    # noqa
 )
 @click.option(
     "--once",
@@ -396,4 +409,5 @@ def cli():
 
 
 vectorizer.add_command(vectorizer_worker)
+vectorizer.add_command(download_models)
 cli.add_command(vectorizer)

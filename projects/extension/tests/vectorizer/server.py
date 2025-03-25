@@ -20,7 +20,6 @@ DB_URL = "postgres://postgres@127.0.0.1:5432/test"
 class ChunkingCharacterTextSplitter(BaseModel):
     implementation: Literal["character_text_splitter"]
     config_type: Literal["chunking"]
-    chunk_column: str
     chunk_size: int
     chunk_overlap: int
     separator: str | None
@@ -30,7 +29,6 @@ class ChunkingCharacterTextSplitter(BaseModel):
 class ChunkingRecursiveCharacterTextSplitter(BaseModel):
     implementation: Literal["recursive_character_text_splitter"]
     config_type: Literal["chunking"]
-    chunk_column: str
     chunk_size: int
     chunk_overlap: int
     separators: list[str] | None
@@ -110,6 +108,38 @@ class ProcessingDefault(BaseModel):
     concurrency: int | None = None
 
 
+class LoadingColumn(BaseModel):
+    implementation: Literal["column"]
+    config_type: Literal["loading"]
+    column_name: str
+
+
+class LoadingUri(BaseModel):
+    implementation: Literal["uri"]
+    config_type: Literal["loading"]
+    column_name: str
+
+
+class ParsingAuto(BaseModel):
+    implementation: Literal["auto"]
+    config_type: Literal["parsing"]
+
+
+class ParsingNone(BaseModel):
+    implementation: Literal["none"]
+    config_type: Literal["parsing"]
+
+
+class ParsingPyMuPDF(BaseModel):
+    implementation: Literal["pymupdf"]
+    config_type: Literal["parsing"]
+
+
+class ParsingDocling(BaseModel):
+    implementation: Literal["docling"]
+    config_type: Literal["parsing"]
+
+
 class Config(BaseModel):
     version: str
     indexing: IndexingNone | IndexingDiskANN | IndexingHNSW = Field(
@@ -124,6 +154,10 @@ class Config(BaseModel):
         Field(..., discriminator="implementation")
     )
     processing: ProcessingDefault = Field(..., discriminator="implementation")
+    loading: LoadingColumn | LoadingUri = Field(..., discriminator="implementation")
+    parsing: ParsingAuto | ParsingNone | ParsingPyMuPDF | ParsingDocling = Field(
+        ..., discriminator="implementation"
+    )
 
 
 class PrimaryKeyColumn(BaseModel):

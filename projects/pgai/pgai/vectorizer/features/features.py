@@ -10,10 +10,14 @@ class Features:
     """Feature flags and version-dependent functionality manager."""
 
     def __init__(
-        self, has_disabled_column: bool, has_worker_tracking_table: bool
+        self,
+        has_disabled_column: bool,
+        has_worker_tracking_table: bool,
+        has_loading_retries: bool,
     ) -> None:
         self.has_disabled_column = has_disabled_column
         self.has_worker_tracking_table = has_worker_tracking_table
+        self.has_loading_retries = has_loading_retries
 
     @classmethod
     def from_db(cls: type[Self], cur: psycopg.Cursor) -> Self:
@@ -37,15 +41,25 @@ class Features:
         cur.execute(query)
         has_worker_tracking_table = cur.fetchone() is not None
 
-        return cls(has_disabled_column, has_worker_tracking_table)
+        query = """
+        SELECT p.proname
+        FROM pg_proc p
+        JOIN pg_namespace n ON p.pronamespace = n.oid
+        WHERE p.proname = '_vectorizer_create_queue_failed_table'
+        AND n.nspname = 'ai'
+        """
+        cur.execute(query)
+        has_loading_retries = cur.fetchone() is not None
+
+        return cls(has_disabled_column, has_worker_tracking_table, has_loading_retries)
 
     @classmethod
     def for_testing_latest_version(cls: type[Self]) -> Self:
-        return cls(True, True)
+        return cls(True, True, True)
 
     @classmethod
     def for_testing_no_features(cls: type[Self]) -> Self:
-        return cls(False, False)
+        return cls(False, False, False)
 
     @cached_property
     def disable_vectorizers(self) -> bool:
@@ -60,3 +74,12 @@ class Features:
     def worker_tracking(self) -> bool:
         """If the worker tracking feature is supported by the extension."""
         return self.has_worker_tracking_table
+
+    @cached_property
+    def loading_retries(self) -> bool:
+        """If the loading retries feature is supported by the extension.
+
+        The feature includes changes in the way we fetch_work from the
+        queueing tables, and also how we handle the retries.
+        """
+        return self.has_loading_retries

@@ -100,8 +100,9 @@ create and manage all the necessary database objects and processes. For example:
 ```sql
 SELECT ai.create_vectorizer(
     'website.blog'::regclass,
+    loading => ai.loading_column('contents'),
     embedding => ai.embedding_ollama('nomic-embed-text', 768),
-    chunking => ai.chunking_character_text_splitter('body', 128, 10),
+    chunking => ai.chunking_character_text_splitter(128, 10),
     formatting => ai.formatting_python_template('title: $title published: $published $chunk'),
     grant_to => ai.grant_to('bob', 'alice')
 );
@@ -109,8 +110,9 @@ SELECT ai.create_vectorizer(
 
 This function call:
 1. Sets up a vectorizer for the `website.blog` table.
+2. Loads the `contents` column.
 2. Uses the Ollama `nomic-embed-text` model to create 768 dimensional embeddings.
-3. Chunks the `body` column into 128-character pieces with a 10-character overlap.
+3. Chunks the content into 128-character pieces with a 10-character overlap.
 4. Formats each chunk with a `title` and a `published` date.
 5. Grants necessary permissions to the roles `bob` and `alice`.
 
@@ -126,7 +128,9 @@ in other management functions.
 | source           | regclass                                               | -                                 | ✔        | The source table that embeddings are generated for.                                                |
 | destination      | name                                                   | -                                 | ✖        | Set the name of the table embeddings are stored in, and the view with both the original data and the embeddings.<br>The view is named `<destination>`, the embedding table is named `<destination>_store`.<br>You set destination to avoid naming conflicts when you configure additional vectorizers for a source table.                              |
 | embedding        | [Embedding configuration](#embedding-configuration)    | -                                 | ✔        | Set how to embed the data.                                                                         |
-| chunking         | [Chunking configuration](#chunking-configuration)      | -                                 | ✔        | Set the way to split text data, using functions like `ai.chunking_character_text_splitter()`.      |
+| loading          | [Loading configuration](#loading-configuration)      | -                                 | ✔        | Set the way to load the data from the source table, using functions like `ai.loading_column()`.      |
+| parsing          | [Parsing configuration](#parsing-configuration)      | ai.parsing_auto()                                 | ✖        | Set the way to parse the data, using functions like `ai.parsing_auto()`.      |
+| chunking         | [Chunking configuration](#chunking-configuration)      | `ai.chunking_recursive_character_text_splitter()`           | ✖        | Set the way to split text data, using functions like `ai.chunking_character_text_splitter()`.      |
 | indexing         | [Indexing configuration](#indexing-configuration)      | `ai.indexing_default()`           | ✖        | Specify how to index the embeddings. For example, `ai.indexing_diskann()` or `ai.indexing_hnsw()`. |
 | formatting       | [Formatting configuration](#formatting-configuration)  | `ai.formatting_python_template()` | ✖        | Define the data format before embedding, using `ai.formatting_python_template()`.                  |
 | scheduling       | [Scheduling configuration](#scheduling-configuration)  | `ai.scheduling_default()`         | ✖        | Set how often to run the vectorizer. For example, `ai.scheduling_timescaledb()`.                   |
@@ -144,6 +148,228 @@ in other management functions.
 #### Returns
 
 The `int` id of the vectorizer that you created.
+
+## Loading configuration
+
+You use the loading configuration functions in `pgai` to define the way data is loaded from the source table.
+
+The loading functions are:
+
+- [ai.loading_column](#ailoading_column)
+- [ai.loading_uri](#ailoading_uri)
+
+### ai.loading_column
+
+You use `ai.loading_column` to load the data to embed directly from a column in the source table.
+
+#### Example usage
+
+```sql
+SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    loading => ai.loading_column('contents'),
+    -- other parameters...
+);
+```
+
+#### Parameters
+
+`ai.loading_column` takes the following parameters:
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| column_name | text | - | ✔ | The name of the column containing the data to load. |
+
+#### Returns
+
+A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
+
+### ai.loading_uri
+
+You use `ai.loading_uri` to load the data to embed from a file that is referenced in a column of the source table.
+This file path is internally passed to [smart_open](https://github.com/piskvorky/smart_open), so it supports any protocol that smart_open supports, including:
+
+- Local files
+- Amazon S3
+- Google Cloud Storage
+- Azure Blob Storage
+- HTTP/HTTPS
+- SFTP
+- and [many more](https://github.com/piskvorky/smart_open/blob/master/help.txt)
+
+
+#### Environment configuration
+
+You just need to ensure the vectorizer worker has the correct credentials to access the file, such as in environment variables. Here is an example for AWS S3:
+
+```bash
+export AWS_ACCESS_KEY_ID='your_access_key'
+export AWS_SECRET_ACCESS_KEY='your_secret_key'
+export AWS_REGION='your_region'  # optional
+```
+
+Make sure these environment variables are properly set in the environment where the PGAI vectorizer worker runs.
+
+#### Example usage
+
+```sql
+SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    loading => ai.loading_uri('file_uri_column_name'),
+    -- other parameters...
+);
+```
+
+#### Parameters
+
+`ai.loading_uri` takes the following parameters:
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| column_name | text | - | ✔ | The name of the column containing the file path. |
+
+#### Returns
+
+A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
+
+## Parsing configuration
+
+You use the parsing configuration functions in `pgai` to define how data is parsed after document loading. This is useful if for non-textual formats such as PDF documents.
+
+The parsing functions are:
+
+- [ai.parsing_auto](#aiparsing_auto): Automatically selects the appropriate parser based on file type.
+- [ai.parsing_none](#aiparsing_none): Converts various formats to Markdown.
+- [ai.parsing_docling](#aiparsing_docling): More powerful alternative to PyMuPDF. See [Docling](https://docling-project.github.io/docling/usage/supported_formats/) for supported formats.
+- [ai.parsing_pymupdf](#aiparsing_pymupdf): See [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) for supported formats.
+
+### ai.parsing_auto
+
+You use `ai.parsing_auto` to automatically select an appropriate parser based on detected file types.
+Documents with unrecognizable formats won't be processed and will generate an error (in the `ai.vectorizer_errors` table.
+
+The parser selection works by examining file extensions and content types:
+- For PDF files, images, Office documents (DOCX, XLSX, etc.): Uses docling
+- For EPUB and MOBI (e-book formats): Uses pymupdf
+- For text formats (TXT, MD, etc.): No parser is used (content is read directly)
+
+#### Example usage
+
+```sql
+SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    parsing => ai.parsing_auto(),
+    -- other parameters...
+);
+```
+
+#### Parameters
+
+`ai.parsing_auto` takes the following parameters:
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| None | - | - | - | - |
+
+#### Returns
+
+A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
+
+
+### ai.parsing_none
+
+You use `ai.parsing_none` to skip the parsing step. Only appropriate for textual data.
+
+#### Example usage, for textual data.
+
+```sql
+SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    parsing => ai.parsing_none(),
+    -- other parameters...
+);
+```   
+
+#### Parameters
+
+`ai.parsing_none` takes the following parameters:
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| None | - | - | - | - |
+
+#### Returns
+
+A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
+
+### ai.parsing_docling
+
+You use `ai.parsing_docling` to parse the data provided by the loader using [docling](https://docling-project.github.io/docling/).
+
+Docling is a more robust and thorough document parsing library that:
+- Uses OCR capabilities to extract text from images
+- Can parse complex documents with tables and multi-column layouts
+- Supports Office formats (DOCX, XLSX, etc.)
+- Preserves document structure better than other parsers
+- Converts documents to markdown format
+
+Note that docling uses ML models for improved parsing, which makes it slower than simpler parsers like pymupdf.
+
+#### Example usage
+
+```sql
+SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    parsing => ai.parsing_docling(),
+    -- other parameters...
+);
+```
+
+#### Parameters
+
+`ai.parsing_docling` takes the following parameters:
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| None | - | - | - | - |
+
+#### Returns
+
+A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
+
+### ai.parsing_pymupdf
+
+You use `ai.parsing_pymupdf` to parse the data provided by the loader using [pymupdf](https://pymupdf.readthedocs.io/en/latest/).
+
+PyMuPDF is a faster, simpler document parser that:
+- Processes PDF documents with basic structure preservation
+- Supports e-book formats like EPUB and MOBI
+- Is generally faster than docling for simpler documents
+- Works well for documents with straightforward layouts
+
+Choose pymupdf when processing speed is more important than perfect structure preservation.
+
+#### Example usage
+
+```sql
+SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    parsing => ai.parsing_pymupdf(),
+    -- other parameters...
+);
+```
+
+#### Parameters
+
+`ai.parsing_pymupdf` takes the following parameters:
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| None | - | - | - | - |
+
+#### Returns
+
+A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
 
 ## Chunking configuration
 
@@ -175,13 +401,13 @@ You use `ai.chunking_character_text_splitter` to:
 
 #### Example usage
 
-- Split the `body` column of the `my_table` table into chunks of 128 characters, with 10
+- Split the content into chunks of 128 characters, with 10
   character overlap, using '\n;' as the separator:
 
   ```sql
   SELECT ai.create_vectorizer(
       'my_table'::regclass,
-      chunking => ai.chunking_character_text_splitter('body', 128, 10, E'\n'),
+      chunking => ai.chunking_character_text_splitter(128, 10, E'\n'),
       -- other parameters...
   );
   ```
@@ -192,7 +418,6 @@ You use `ai.chunking_character_text_splitter` to:
 
 |Name| Type | Default | Required | Description                                            |
 |-|------|---------|-|--------------------------------------------------------|
-|chunk_column| name | -       |✔| The name of the column containing the text to be chunked |
 |chunk_size| int  | 800     |✖| The maximum number of characters in a chunk            |
 |chunk_overlap| int  | 400     |✖| The number of characters to overlap between chunks     |
 |separator| text | E'\n\n' |✖| The string or character used to split the text         |
@@ -209,14 +434,13 @@ You use it to recursively split text into chunks using multiple separators.
 
 #### Example usage
 
-- Recursively split the `content` column into chunks of 256 characters, with a 20 character 
+- Recursively split content into chunks of 256 characters, with a 20 character 
   overlap, first trying to split on '\n;', then on spaces:
 
   ```sql
     SELECT ai.create_vectorizer(
       'my_table'::regclass,
       chunking => ai.chunking_recursive_character_text_splitter(
-        'content', 
         256, 
         20, 
         separators => array[E'\n;', ' ']
@@ -231,7 +455,6 @@ You use it to recursively split text into chunks using multiple separators.
 
 | Name               | Type | Default | Required | Description                                              |
 |--------------------|------|---------|-|----------------------------------------------------------|
-| chunk_column       | name | -       |✔| The name of the column containing the text to be chunked |
 | chunk_size         | int  | 800     |✖| The maximum number of characters per chunk               |
 | chunk_overlap      | int  | 400     |✖| The number of characters to overlap between chunks       |
 | separators         | text[] | array[E'\n\n', E'\n', '.', '?', '!', ' ', ''] |✖| The string or character used to split the text |
