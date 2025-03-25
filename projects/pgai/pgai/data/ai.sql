@@ -36,11 +36,11 @@ begin
             where d.datname = current_database();
 
             if _database_owner_id is distinct from _current_user_id then
-                raise exception 'only the owner of the ai.migration_app table can install/upgrade this extension';
+                raise exception 'only the owner of the ai.migration_app table can run database migrations';
                 return;
             end if;
         else
-            raise exception 'only the owner of the ai.migration_app table can install/upgrade this extension';
+            raise exception 'only the owner of the ai.migration_app table can run database migrations';
             return;
         end if;
     end if;
@@ -72,6 +72,19 @@ create table if not exists ai.app_version
 , version text not null
 , installed_at timestamptz not null default pg_catalog.clock_timestamp()
 );
+
+--check if the app has already been installed, error if so
+do $$
+declare
+    _app_version text;
+begin
+    select version from ai.app_version where name operator(pg_catalog.=) 'ai' into _app_version;
+    
+    if _app_version is not null and _app_version = '__version__' then
+        raise exception 'the pgai library has already been installed/upgraded' using errcode = '42710';
+    end if;
+end;
+$$;
 
 insert into ai.app_version ("name", version)
 values ('ai', '__version__') on conflict ("name") do update set version = excluded.version;
@@ -432,7 +445,7 @@ $migration_body$
 -- in the extension, this was done in 009-drop-truncate-from-vectorizer-config.sql
 -- but that has a mix of extension and vectorizer config changes.
 -- so we need to split it out. but put it at the beginning of the lib changes.
--- since it's idempotent, code the change in order is OK.
+-- since it's idempotent and no changes from 009-018 depend on it, the change in order is OK.
 UPDATE ai.vectorizer SET config = config #- '{"embedding", "truncate"}' WHERE config @? '$.embedding.truncate';
 
 $migration_body$;

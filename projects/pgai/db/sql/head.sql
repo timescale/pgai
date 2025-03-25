@@ -33,11 +33,11 @@ begin
             where d.datname = current_database();
 
             if _database_owner_id is distinct from _current_user_id then
-                raise exception 'only the owner of the ai.migration_app table can install/upgrade this extension';
+                raise exception 'only the owner of the ai.migration_app table can run database migrations';
                 return;
             end if;
         else
-            raise exception 'only the owner of the ai.migration_app table can install/upgrade this extension';
+            raise exception 'only the owner of the ai.migration_app table can run database migrations';
             return;
         end if;
     end if;
@@ -69,6 +69,19 @@ create table if not exists ai.app_version
 , version text not null
 , installed_at timestamptz not null default pg_catalog.clock_timestamp()
 );
+
+--check if the app has already been installed, error if so
+do $$
+declare
+    _app_version text;
+begin
+    select version from ai.app_version where name operator(pg_catalog.=) 'ai' into _app_version;
+    
+    if _app_version is not null and _app_version = '__version__' then
+        raise exception 'the pgai library has already been installed/upgraded' using errcode = '42710';
+    end if;
+end;
+$$;
 
 insert into ai.app_version ("name", version)
 values ('ai', '__version__') on conflict ("name") do update set version = excluded.version;

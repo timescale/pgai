@@ -673,9 +673,18 @@ def check_sql_file_order(path: Path, prev: int) -> int:
     this = sql_file_number(path)
     # ensuring file number correlation
 
-    # TODO: renable check later
-    # if this < 900 and this != prev + 1:
-    #    fatal(f"{kind} sql files must be strictly ordered. this: {this} prev: {prev}")
+    if this < 900 and this <= prev:
+        fatal(
+            f"{kind} sql files must not contain duplicate numbers. this: {this} prev: {prev}"
+        )
+
+    # strict order was relaxed during vectorizer divestment, leaving holes in the sequence
+    # so we need to handle those gaps
+    min_strict_order = 14
+    if kind == "incremental":
+        min_strict_order = 21
+    if this > min_strict_order and this < 900 and this != prev + 1:
+        fatal(f"{kind} sql files must be strictly ordered. this: {this} prev: {prev}")
 
     # avoiding file number duplication
     if this >= 900 and this == prev:  # allow gaps in pre-production scripts

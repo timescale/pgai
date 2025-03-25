@@ -89,11 +89,6 @@ class Actions:
 
     @staticmethod
     def build() -> None:
-        """alias for build-sql"""
-        Actions.build_sql()
-
-    @staticmethod
-    def build_sql() -> None:
         """constructs the sql files for the extension"""
         check_versions()
         check_incremental_sql_files(incremental_sql_files())
@@ -131,11 +126,6 @@ class Actions:
 
     @staticmethod
     def clean() -> None:
-        """removes python build artifacts from the src dir"""
-        Actions.clean_sql()
-
-    @staticmethod
-    def clean_sql() -> None:
         """removes sql file artifacts from the sql dir"""
         for f in output_sql_dir().glob(f"ai--*.*.*--{this_version()}.sql"):
             f.unlink(missing_ok=True)
@@ -169,7 +159,7 @@ class Actions:
             )
 
     @staticmethod
-    def lint_sql() -> None:
+    def lint() -> None:
         """runs pgspot against the `ai--<this_version>.sql` file"""
         cmd = " ".join(
             [
@@ -179,12 +169,6 @@ class Actions:
             ]
         )
         subprocess.run(cmd, shell=True, check=True, env=os.environ)
-
-
-    @staticmethod
-    def lint() -> None:
-        """runs both sql and python linters"""
-        Actions.lint_sql()
 
     @staticmethod
     def docker_build() -> None:

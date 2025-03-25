@@ -211,6 +211,8 @@ def test_unpackaged_upgrade():
     create_database("upgrade_target")
     import pgai
 
+    from ai import __version__
+
     pgai.install(db_url(USER, "upgrade_target"))
     init_db_script("upgrade_target", "init_vectorizer_only.sql")
     snapshot("upgrade_target", "unpackaged-expected", "_vectorizer_only")
@@ -231,11 +233,16 @@ def test_unpackaged_upgrade():
         assert check_version(test_db) == version
         init_db_script(test_db, "init_vectorizer_only.sql")
 
-        # Upgrade to the development version
-        update_extension(test_db, "0.9.1-dev")
-        assert check_version(test_db) == "0.9.1-dev"
+        # Upgrade to the latest version
+        update_extension(test_db, __version__)
+        assert check_version(test_db) == __version__
 
         # Drop the extension and install using pgai library
+        # We are dropping the extension because we want to test the state of the vectorizer
+        # library in this test. Not the extension. Dropping the extension is required to
+        # ensure that the snapshots are the same on a clean install of vectorizer and the
+        # extension divestment path. Also makes sure that the drop of the extension does not
+        # affect the vectorizer db items.
         drop_extension(test_db)
         pgai.install(db_url(USER, test_db))
 
