@@ -704,12 +704,13 @@ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-- This code block recreates all triggers for vectorizers to make sure
+-- they have the most recent version of the trigger function
 do $upgrade_block$
 declare
     _vec record;
-    _new_version text := '0.8.1';
 begin
-    -- Find all vectorizers with version < 0.8.1
+    -- Find all vectorizers
     for _vec in (
         select 
             v.id,
@@ -723,10 +724,9 @@ begin
             v.queue_table,
             v.config
         from ai.vectorizer v
-        where string_to_array(regexp_replace((v.config->>'version'), '[-+].*$', ''), '.')::int[] < string_to_array(_new_version, '.')::int[]
     )
     loop
-        raise notice 'Upgrading trigger function for vectorizer ID %s from version %s', _vec.id, _vec.config->>'version';
+        raise notice 'Recreating trigger function for vectorizer ID %s', _vec.id;
         
         execute format(
             'alter extension ai add function %I.%I()',
@@ -752,6 +752,11 @@ begin
         );
 
         execute format(
+            'drop trigger if exists %I on %I.%I',
+            format('%s_truncate',_vec.trigger_name) , _vec.source_schema, _vec.source_table
+        );
+
+        execute format(
             'create trigger %I after insert or update or delete on %I.%I for each row execute function %I.%I()',
             _vec.trigger_name, _vec.source_schema, _vec.source_table, _vec.queue_schema, _vec.trigger_name
         );
@@ -765,12 +770,8 @@ begin
             'alter extension ai drop function %I.%I()',
             _vec.queue_schema, _vec.trigger_name
         );
-
-        update ai.vectorizer 
-        set config = jsonb_set(config, '{version}', format('"%s"', _new_version)::jsonb)
-        where id = _vec.id;
         
-        raise info 'Successfully upgraded trigger for vectorizer ID % to version %', _vec.id, _new_version;
+        raise info 'Successfully recreated trigger for vectorizer ID %', _vec.id;
     end loop;
 end;
 $upgrade_block$;
