@@ -28,7 +28,8 @@ BEGIN
                     'implementation': 'auto',
                     'config_type': 'parsing'
                 ),
-                'chunking', _chunking operator(pg_catalog.-) 'chunk_column'
+                'chunking', _chunking operator(pg_catalog.-) 'chunk_column',
+                'version', '@extversion@'
             );
             
             -- Update the vectorizer with new config

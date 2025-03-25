@@ -1,4 +1,5 @@
-from collections.abc import Generator
+from collections.abc import Generator, Mapping
+from typing import Any
 
 import psycopg
 import pytest
@@ -19,7 +20,7 @@ class TestDatabase:
     container: PostgresContainer
     dbname: str
 
-    def __init__(self, container: PostgresContainer):
+    def __init__(self, container: PostgresContainer, extension_version: str = ""):
         global count
         dbname = f"test_{count}"
         count += 1
@@ -27,7 +28,12 @@ class TestDatabase:
         self.dbname = dbname
         url = self._create_connection_url(dbname="template1")
         with psycopg.connect(url, autocommit=True) as conn:
-            conn.execute("CREATE EXTENSION IF NOT EXISTS ai CASCADE")
+            if extension_version != "":
+                conn.execute(
+                    f"CREATE EXTENSION IF NOT EXISTS ai WITH VERSION '{extension_version}' CASCADE"
+                )
+            else:
+                conn.execute("CREATE EXTENSION IF NOT EXISTS ai CASCADE")
             conn.execute(
                 sql.SQL("CREATE DATABASE {0}").format(sql.Identifier(self.dbname))
             )
@@ -55,10 +61,16 @@ class TestDatabase:
 @pytest.fixture
 def cli_db(
     postgres_container: PostgresContainer,
+    request: pytest.FixtureRequest,
 ) -> Generator[tuple[TestDatabase, Connection], None, None]:
     """Creates a test database with pgai installed"""
-
-    test_database = TestDatabase(container=postgres_container)
+    marker: pytest.Mark | None = None
+    for marker in request.node.iter_markers():  # type: ignore
+        if marker.name == "postgres_params":  # type: ignore
+            break
+    params: Mapping[str, Any] = marker.kwargs if marker else {}
+    ai_extension_version: str = params.get("ai_extension_version", "")
+    test_database = TestDatabase(container=postgres_container, extension_version=ai_extension_version)
 
     # Connect
     with psycopg.connect(

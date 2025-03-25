@@ -142,12 +142,12 @@ class Vectorizer:
     config: Config
     queue_schema: str
     queue_table: str
-    queue_failed_table: str
     source_schema: str
     source_table: str
     target_schema: str
     target_table: str
     source_pk: list[PkAtt]
+    queue_failed_table: str | None = None
     errors_schema: str = "ai"
     errors_table: str = "vectorizer_errors"
     schema: str = "ai"
