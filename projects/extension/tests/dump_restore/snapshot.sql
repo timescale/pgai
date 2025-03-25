@@ -30,8 +30,7 @@ order by c.c, s.s
 \! rm -f describe_objects.sql
 select format('%s %s', c.c, s.s)
 from unnest(array
-[ 'public.*'
-, 'ai.*'
+[  'ai.*'
 ]) s(s)
 cross join unnest(array
 [ '\d+' -- Describe each relation

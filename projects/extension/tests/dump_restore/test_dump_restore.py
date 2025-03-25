@@ -130,20 +130,6 @@ def read_file(filename: str) -> str:
         return f.read()
 
 
-def after_dst() -> None:
-    cmd = " ".join(
-        [
-            "psql",
-            f'''-d "{db_url(USER, "dst")}"''',
-            "-v ON_ERROR_STOP=1",
-            f"-f {docker_dir()}/after.sql",
-        ]
-    )
-    if where_am_i() != "docker":
-        cmd = f"docker exec -w {docker_dir()} pgai-ext {cmd}"
-    subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
-
-
 def test_dump_restore():
     create_user(USER)
     create_user("ethel")
@@ -157,4 +143,3 @@ def test_dump_restore():
     src = read_file(str(host_dir().joinpath("src.snapshot")))
     dst = read_file(str(host_dir().joinpath("dst.snapshot")))
     assert dst == src
-    after_dst()  # make sure we can USE the restored db

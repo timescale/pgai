@@ -5,7 +5,6 @@ import psycopg
 
 Self = TypeVar("Self", bound="Features")
 
-
 class Features:
     """Feature flags and version-dependent functionality manager."""
 

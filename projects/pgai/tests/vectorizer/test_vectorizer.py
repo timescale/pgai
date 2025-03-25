@@ -3,26 +3,36 @@ from psycopg.rows import namedtuple_row
 from psycopg.sql import SQL, Identifier
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
+from testcontainers.postgres import PostgresContainer  # type: ignore
+
+import pytest
+import pgai
 from pgai import cli
 from pgai.vectorizer.features import Features
 from pgai.vectorizer.worker_tracking import WorkerTracking
+from .conftest import create_connection_url
 
 
-async def test_vectorizer_internal(postgres_container: PostgresContainer):
-    db_url = postgres_container.get_connection_url(driver=None)
+def create_database(dbname: str, postgres_container: PostgresContainer) -> None:
+    with (
+        psycopg.connect(
+            postgres_container.get_connection_url(), autocommit=True
+        ) as con,
+        con.cursor() as cur,
+    ):
+        cur.execute(
+            SQL("drop database if exists {dbname} with (force)").format(
+                dbname=Identifier(dbname)
+            )
+        )
+        cur.execute(SQL("create database {dbname}").format(dbname=Identifier(dbname)))
+
+async def _vectorizer_test_after_install(postgres_container: PostgresContainer, dbname: str):
+    db_url = create_connection_url(postgres_container, dbname=dbname)
     with (
         psycopg.connect(db_url, autocommit=True, row_factory=namedtuple_row) as con,
         con.cursor() as cur,
     ):
-        cur.execute("create extension if not exists vectorscale cascade")
-        pgai_version = cli.get_pgai_version(cur)
-        assert pgai_version is None
-        cur.execute("create extension if not exists ai cascade")
-        pgai_version = cli.get_pgai_version(cur)
-        assert pgai_version is not None
-        assert len(cli.get_vectorizer_ids(db_url)) == 0
-        assert len(cli.get_vectorizer_ids(db_url, [42, 19])) == 0
-        cur.execute("create extension if not exists timescaledb")
         cur.execute("drop table if exists note0")
         cur.execute("""
                 create table note0
@@ -78,12 +88,12 @@ async def test_vectorizer_internal(postgres_container: PostgresContainer):
         assert len(cli.get_vectorizer_ids(db_url, [vectorizer_id])) == 1
 
         # test cli.get_vectorizer
-        vectorizer_actual = cli.get_vectorizer(db_url, vectorizer_id)
+        features = Features.for_testing_latest_version()
+        vectorizer_actual = cli.get_vectorizer(db_url, vectorizer_id, features)
         assert vectorizer_actual is not None
         assert vectorizer_expected.source_table == vectorizer_actual.source_table  # type: ignore
 
         # run the vectorizer
-        features = Features.for_testing_latest_version()
         worker_tracking = WorkerTracking(db_url, 500, features, "0.0.1")
 
         await vectorizer_actual.run(db_url, features, worker_tracking, 1)
@@ -117,20 +127,37 @@ async def test_vectorizer_internal(postgres_container: PostgresContainer):
         actual = cur.fetchone()[0]  # type: ignore
         assert actual is True
 
+@pytest.mark.asyncio
+async def test_vectorizer_internal(postgres_container: PostgresContainer):
+    db = "vcli0"
+    create_database(db, postgres_container)
+    _db_url = create_connection_url(postgres_container, dbname=db)
+    with (
+        psycopg.connect(_db_url, autocommit=True, row_factory=namedtuple_row) as con,
+        con.cursor() as cur,
+    ):
+        cur.execute("create extension if not exists vectorscale cascade")
+        pgai.install(_db_url)
+        assert len(cli.get_vectorizer_ids(_db_url)) == 0
+        assert len(cli.get_vectorizer_ids(_db_url, [42, 19])) == 0
+        cur.execute("create extension if not exists timescaledb")
+    await _vectorizer_test_after_install(postgres_container, db)
 
+
+@pytest.mark.asyncio
 async def test_vectorizer_weird_pk(postgres_container: PostgresContainer):
     # make sure we can handle a multi-column primary key with "interesting" data types
     # this has implications on the COPY with binary format logic in the vectorizer
-    db_url = postgres_container.get_connection_url(driver=None)
+    db = "vcli1"
+    create_database(db, postgres_container)
+    db_url = postgres_container.get_connection_url()
     with (
         psycopg.connect(db_url, autocommit=True, row_factory=namedtuple_row) as con,
         con.cursor() as cur,
     ):
         cur.execute("create extension if not exists vectorscale cascade")
         cur.execute("create extension if not exists timescaledb")
-        cur.execute("create extension if not exists ai cascade")
-        pgai_version = cli.get_pgai_version(cur)
-        assert pgai_version is not None
+        pgai.install(db_url)
         cur.execute("drop table if exists weird")
         cur.execute("""
                 create table weird
@@ -173,7 +200,8 @@ async def test_vectorizer_weird_pk(postgres_container: PostgresContainer):
         vectorizer_expected = cur.fetchone()
 
         # test cli.get_vectorizer
-        vectorizer_actual = cli.get_vectorizer(db_url, vectorizer_id)
+        features = Features.for_testing_latest_version()
+        vectorizer_actual = cli.get_vectorizer(db_url, vectorizer_id, features)
         assert vectorizer_actual is not None
         assert vectorizer_expected.source_table == vectorizer_actual.source_table  # type: ignore
 
@@ -208,3 +236,96 @@ async def test_vectorizer_weird_pk(postgres_container: PostgresContainer):
         )
         actual = cur.fetchone()[0]  # type: ignore
         assert actual == 7
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("async_install", [True, False])
+async def test_vectorizer_install_twice(postgres_container: PostgresContainer, async_install: bool):
+    db = "ainstall2"
+    create_database(db, postgres_container)
+    _db_url = create_connection_url(postgres_container, dbname=db)
+    if async_install:
+        await pgai.ainstall(_db_url)
+        await pgai.ainstall(_db_url)
+    else:
+        pgai.install(_db_url)
+        pgai.install(_db_url)
+    
+    with pytest.raises(psycopg.errors.DuplicateObject):
+        if async_install:
+            await pgai.ainstall(_db_url, if_not_exists=False)
+        else:
+            pgai.install(_db_url, if_not_exists=False)
+    
+    # test the vectorizer
+    with (
+        psycopg.connect(_db_url, autocommit=True, row_factory=namedtuple_row) as con,
+        con.cursor() as cur,
+    ):
+        cur.execute("create extension if not exists timescaledb")
+    await _vectorizer_test_after_install(postgres_container, db)
+
+@pytest.mark.postgres_params(set_executor_url=True)
+@pytest.mark.asyncio
+@pytest.mark.parametrize("async_install", [True, False])
+async def test_vectorizer_install_need_ai_extension(postgres_container: PostgresContainer, async_install: bool):
+    # the pytest mark set the ai.external_functions_executor_url to http://www.example.com
+
+    db = "need_ai_extension"
+    create_database(db, postgres_container)
+    _db_url = create_connection_url(postgres_container, dbname=db)
+    if async_install:
+        await pgai.ainstall(_db_url)
+    else:
+        pgai.install(_db_url)
+
+    with (
+        psycopg.connect(_db_url, autocommit=True, row_factory=namedtuple_row) as con,
+        con.cursor() as cur,
+    ):
+        cur.execute("select extname from pg_extension where extname = 'ai'")
+        result = cur.fetchone()
+        assert result is not None
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("async_install", [True, False])
+async def test_vectorizer_install_no_ai_extension(postgres_container: PostgresContainer, async_install: bool):
+    # by default, the ai extension should not be installed
+    db = "no_ai_extension"
+    create_database(db, postgres_container)
+    _db_url = create_connection_url(postgres_container, dbname=db)
+    if async_install:
+        await pgai.ainstall(_db_url)
+    else:
+        pgai.install(_db_url)
+
+    with (
+        psycopg.connect(_db_url, autocommit=True, row_factory=namedtuple_row) as con,
+        con.cursor() as cur,
+    ):
+        cur.execute("select extname from pg_extension where extname = 'ai'")
+        result = cur.fetchone()
+        assert result is None
+            
+@pytest.mark.asyncio
+@pytest.mark.parametrize("async_install", [True, False])
+async def test_vectorizer_install_vector_in_different_schema(postgres_container: PostgresContainer, async_install: bool):
+    db = "vector_in_different_schema"
+    create_database(db, postgres_container)
+    _db_url = create_connection_url(postgres_container, dbname=db)
+    
+    with (
+        psycopg.connect(_db_url, autocommit=True, row_factory=namedtuple_row) as con,
+        con.cursor() as cur,
+    ):
+        cur.execute("create schema other")
+        cur.execute("create extension if not exists vector schema other")
+        cur.execute("create extension if not exists timescaledb")
+        cur.execute(f"alter database {db} set search_path = public,other")
+    
+    if async_install:
+        await pgai.ainstall(_db_url)
+    else:
+        pgai.install(_db_url)
+   
+    await _vectorizer_test_after_install(postgres_container, db)
+    

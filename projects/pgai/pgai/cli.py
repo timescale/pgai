@@ -24,7 +24,9 @@ from .vectorizer.features import Features
 from .vectorizer.parsing import DOCLING_CACHE_DIR
 from .vectorizer.vectorizer import Vectorizer
 from .vectorizer.worker_tracking import WorkerTracking
-from .install import install as install_pgai
+from pgai._install.install import install as install_pgai
+
+from dataclasses import dataclass
 
 load_dotenv()
 
@@ -60,14 +62,10 @@ def get_bool_env(name: str | None) -> bool:
 
 tracer.enabled = get_bool_env("DD_TRACE_ENABLED")
 
-
+@dataclass
 class Version:
-    def __init__(self, ext_version: str | None, app_version: str | None):
-        self.ext_version = ext_version
-        self.app_version = app_version
-
-    def __str__(self):
-        return f"ext_version: {self.ext_version}, app_version: {self.app_version}"
+    ext_version: str | None
+    app_version: str | None
 
 def get_pgai_version(cur: psycopg.Cursor) -> Version | None:
     cur.execute("select extversion from pg_catalog.pg_extension where extname = 'ai'")

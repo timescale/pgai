@@ -6,7 +6,7 @@ begin
         , 'Feature flag "{feature_flag}" has been enabled.'
         , 'Pre-release software will be installed.'
         , 'This code is not production-grade, is not guaranteed to work, and is not supported in any way.'
-        , 'Extension upgrades are not supported once pre-release software has been installed.'
+        , 'Upgrades are not supported once pre-release software has been installed.'
         );
 
         insert into ai.feature_flag_app ("name", applied_at_version)
