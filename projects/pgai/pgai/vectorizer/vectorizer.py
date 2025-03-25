@@ -17,7 +17,7 @@ from pgvector.psycopg import register_vector_async  # type: ignore
 from psycopg import AsyncConnection, sql
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb, set_json_dumps
-from pydantic import model_validator
+from pydantic import BaseModel, model_validator
 from pydantic.dataclasses import dataclass
 from pydantic.fields import Field
 from pydantic_core._pydantic_core import ArgsKwargs
@@ -28,6 +28,7 @@ from .chunking import (
     LangChainRecursiveCharacterTextSplitter,
     NoneChunker,
 )
+from .destination import DefaultDestination
 from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .embeddings import ChunkEmbeddingError
 from .features import Features
@@ -69,8 +70,8 @@ class PkAtt:
     attname: str
 
 
-@dataclass
-class Config:
+
+class Config(BaseModel):
     """
     Holds the configuration for the vectorizer including embedding, processing,
     chunking, and formatting.
@@ -87,6 +88,7 @@ class Config:
     loading: ColumnLoading | UriLoading
     embedding: OpenAI | Ollama | VoyageAI | LiteLLM
     processing: ProcessingDefault
+    destination: DefaultDestination
     chunking: (
         LangChainCharacterTextSplitter
         | LangChainRecursiveCharacterTextSplitter
@@ -112,8 +114,7 @@ class Config:
         return data  # type: ignore[reportUnknownVariableType]
 
 
-@dataclass
-class Vectorizer:
+class Vectorizer(BaseModel):
     """
     Represents a vectorizer configuration that processes data from a source
     table to generate embeddings.
@@ -137,17 +138,78 @@ class Vectorizer:
     config: Config
     queue_schema: str
     queue_table: str
-    queue_failed_table: str
+    queue_failed_table: str | None = None
     source_schema: str
     source_table: str
-    target_schema: str
-    target_table: str
+    target_schema: str | None = Field(None, deprecated=True)
+    target_table: str | None = Field(None, deprecated=True)
     source_pk: list[PkAtt]
     errors_schema: str = "ai"
     errors_table: str = "vectorizer_errors"
     schema: str = "ai"
     table: str = "vectorizer"
 
+    @model_validator(mode="before")
+    @classmethod
+    def adapt_target_fields_to_destination_config(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """
+        Moves the target fields from the root level to the destination config.
+        """
+        if isinstance(data, dict):
+            # Check if we have old-style config (target fields at root level)
+            has_target_schema = (
+                "target_schema" in data and data.get("target_schema") is not None
+            )
+            has_target_table = (
+                "target_table" in data and data.get("target_table") is not None
+            )
+
+            if has_target_schema or has_target_table:
+                # Ensure config exists
+                if "config" not in data:
+                    data["config"] = {}
+
+                # Make sure config is a dict
+                if not isinstance(data["config"], dict):
+                    data["config"] = (
+                        data["config"].model_dump()
+                        if hasattr(data["config"], "model_dump")
+                        else dict(data["config"])
+                    )
+
+                # Ensure destination exists in config
+                if "destination" not in data["config"]:
+                    data["config"]["destination"] = {}
+                elif not isinstance(data["config"]["destination"], dict):
+                    data["config"]["destination"] = (
+                        data["config"]["destination"].model_dump()
+                        if hasattr(data["config"]["destination"], "model_dump")
+                        else dict(data["config"]["destination"])
+                    )
+
+                # Set implementation to default if not already set
+                if "implementation" not in data["config"]["destination"]:
+                    data["config"]["destination"]["implementation"] = "default"
+                if "config_type" not in data["config"]["destination"]:
+                    data["config"]["destination"]["config_type"] = "destination"
+
+                # Move target_schema if present
+                if (
+                    has_target_schema
+                    and "target_schema" not in data["config"]["destination"]
+                ):
+                    data["config"]["destination"]["target_schema"] = data[
+                        "target_schema"
+                    ]
+
+                # Move target_table if present
+                if (
+                    has_target_table
+                    and "target_table" not in data["config"]["destination"]
+                ):
+                    data["config"]["destination"]["target_table"] = data["target_table"]
+
+        return data
 
 class VectorizerQueryBuilder:
     """
@@ -194,7 +256,7 @@ class VectorizerQueryBuilder:
         """
 
         return sql.Identifier(
-            self.vectorizer.target_schema, self.vectorizer.target_table
+            self.vectorizer.config.destination.target_schema, self.vectorizer.config.destination.target_table
         )
 
     @property
@@ -901,7 +963,7 @@ class Worker:
                     and a.attnum operator(pg_catalog.>) 0
                     order by a.attnum
                 """,
-                    (self.vectorizer.target_schema, self.vectorizer.target_table),
+                    (self.vectorizer.config.destination.target_schema, self.vectorizer.config.destination.target_table),
                 )
                 self.copy_types = [row[0] for row in await cursor.fetchall()]
             async with cursor.copy(self.queries.copy_embeddings_query) as copy:

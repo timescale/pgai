@@ -50,7 +50,7 @@ ENV PIP_BREAK_SYSTEM_PACKAGES=1
 RUN pip install uv==0.5.20
 WORKDIR /pgai
 COPY . .
-RUN just build install
+RUN just build install-all
 
 RUN mkdir -p /docker-entrypoint-initdb.d && \
     echo "#!/bin/bash" > /docker-entrypoint-initdb.d/configure-timescaledb.sh && \

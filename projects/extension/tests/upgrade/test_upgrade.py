@@ -231,14 +231,14 @@ def test_production_version_upgrade_path():
         update_extension("upgrade0", version)
         assert check_version("upgrade0") == version
     # snapshot the ai extension and schema
-    snapshot("upgrade0", "upgrade0")
+    snapshot("upgrade0", "upgrade0", versions[-1])
     # now create the extension directly at the latest
     create_database("upgrade1")
     create_extension("upgrade1", versions[-1])
     assert check_version("upgrade1") == versions[-1]
     init_db_script("upgrade1", "init_old_api.sql")
     # snapshot the ai extension and schema
-    snapshot("upgrade1", "upgrade1")
+    snapshot("upgrade1", "upgrade1", versions[-1])
     # compare the snapshots. they should match
     upgrade0 = (
         Path(__file__).parent.absolute().joinpath("upgrade0.snapshot").read_text()

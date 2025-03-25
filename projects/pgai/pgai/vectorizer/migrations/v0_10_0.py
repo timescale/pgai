@@ -1,7 +1,6 @@
 from typing import Any, Literal
 
-from pydantic import BaseModel
-from pydantic.dataclasses import dataclass
+from pydantic import BaseModel, ConfigDict
 from pydantic.fields import Field
 from typing_extensions import override
 
@@ -45,8 +44,7 @@ class LangChainRecursiveCharacterTextSplitter_0_9(BaseModel, Chunker):
         return []  # noop
 
 
-@dataclass
-class Config_0_9:
+class Config_0_9(BaseModel):
     version: str
     embedding: OpenAI | Ollama | VoyageAI | LiteLLM
     processing: ProcessingDefault
@@ -54,6 +52,7 @@ class Config_0_9:
         LangChainCharacterTextSplitter_0_9 | LangChainRecursiveCharacterTextSplitter_0_9
     ) = Field(..., discriminator="implementation")
     formatting: PythonTemplate | ChunkValue = Field(..., discriminator="implementation")
+    model_config = ConfigDict(extra="allow")
 
 
 @register_migration(
@@ -64,7 +63,7 @@ class Config_0_9:
 )
 def migrate_to_0_10_0(old_conf: Config_0_9) -> dict[str, Any]:
     # use the data as is from the previous version so we modify whatever is needed
-    result = old_conf.__dict__.copy()
+    result = dict(old_conf)
 
     result["loading"] = ColumnLoading(
         implementation="column", column_name=old_conf.chunking.chunk_column

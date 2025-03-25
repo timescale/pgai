@@ -125,8 +125,8 @@ async def test_vectorizer_internal():
         # make sure we got 10 rows out
         cur.execute(
             SQL("select count(*) from {target_schema}.{target_table}").format(
-                target_schema=Identifier(vectorizer_expected.target_schema),  # type: ignore
-                target_table=Identifier(vectorizer_expected.target_table),  # type: ignore
+                target_schema=Identifier(vectorizer_expected.config.destination.target_schema),  # type: ignore
+                target_table=Identifier(vectorizer_expected.config.destination.target_table),  # type: ignore
             )
         )
         actual = cur.fetchone()[0]  # type: ignore
