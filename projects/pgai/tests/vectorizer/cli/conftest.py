@@ -30,7 +30,8 @@ class TestDatabase:
         with psycopg.connect(url, autocommit=True) as conn:
             if extension_version != "":
                 conn.execute(
-                    f"CREATE EXTENSION IF NOT EXISTS ai WITH VERSION '{extension_version}' CASCADE"
+                    f"CREATE EXTENSION IF NOT EXISTS ai"
+                    f"   WITH VERSION '{extension_version}' CASCADE"
                 )
             else:
                 conn.execute("CREATE EXTENSION IF NOT EXISTS ai CASCADE")
@@ -70,7 +71,9 @@ def cli_db(
             break
     params: Mapping[str, Any] = marker.kwargs if marker else {}
     ai_extension_version: str = params.get("ai_extension_version", "")
-    test_database = TestDatabase(container=postgres_container, extension_version=ai_extension_version)
+    test_database = TestDatabase(
+        container=postgres_container, extension_version=ai_extension_version
+    )
 
     # Connect
     with psycopg.connect(

@@ -12,7 +12,9 @@ from tests.vectorizer.cli.conftest import (
 
 
 @pytest.mark.postgres_params(ai_extension_version="0.8.0")
-def test_080_vectorizer_definition(cli_db: tuple[TestDatabase, Connection], cli_db_url: str, vcr_: Any):
+def test_080_vectorizer_definition(
+        cli_db: tuple[TestDatabase, Connection], cli_db_url: str, vcr_: Any
+):
     conn = cli_db[1]
     setup_source_table(conn, 3)
 

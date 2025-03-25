@@ -88,7 +88,9 @@ def postgres_container_manager() -> (
 
     containers: dict[str, PostgresContainer] = {}
 
-    def get_container(load_openai_key: bool = True, ai_extension_version: str ="") -> PostgresContainer:
+    def get_container(
+            load_openai_key: bool = True, ai_extension_version: str = ""
+    ) -> PostgresContainer:
         # Use config as cache key
         key = f"openai_{load_openai_key}+ai_extension_version_{ai_extension_version}"
 
@@ -132,7 +134,9 @@ def postgres_container(
     load_openai_key: bool = params.get("load_openai_key", True)  # type: ignore
     ai_extension_version: str = params.get("ai_extension_version", "")  # type: ignore
 
-    return postgres_container_manager(load_openai_key=load_openai_key, ai_extension_version=ai_extension_version)  # type: ignore
+    return postgres_container_manager(
+        load_openai_key=load_openai_key, ai_extension_version=ai_extension_version
+    )  # type: ignore
 
 
 class ReverseProxyAddon:
