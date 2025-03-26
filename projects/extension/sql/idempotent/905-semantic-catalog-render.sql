@@ -219,6 +219,8 @@ as $func$
 declare
     _classid pg_catalog.oid = _render_semantic_catalog_view.classid;
     _objid pg_catalog.oid = _render_semantic_catalog_view.objid;
+    _view_schema pg_catalog.name;
+    _view_name pg_catalog.name;
     _ddl pg_catalog.text;
     _description pg_catalog.text;
     _sample_data pg_catalog.text;
@@ -229,9 +231,29 @@ begin
     ;
 
     -- get the ddl for the view
-    select pg_catalog.pg_get_viewdef(_objid, true)
-    into _ddl
+    perform 1
+    from pg_extension
+    where extname = 'timescaledb'
     ;
+    if found then
+        select n.nspname, c.relname
+        into _view_schema, _view_name
+        from pg_class c
+        join pg_namespace n on n.oid = c.relnamespace
+        where c.oid = _objid;
+
+        select view_definition
+        into _ddl
+        from timescaledb_information.continuous_aggregates
+        where view_schema = _view_schema and view_name = _view_name
+        ;
+    end if;
+
+    if _ddl is null then
+        select pg_catalog.pg_get_viewdef(_objid, true)
+        into _ddl
+        ;
+    end if;
 
     if _ddl is null then
         return '';
