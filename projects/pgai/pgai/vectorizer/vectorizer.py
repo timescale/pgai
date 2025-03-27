@@ -17,9 +17,7 @@ from pgvector.psycopg import register_vector_async  # type: ignore
 from psycopg import AsyncConnection, sql
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb, set_json_dumps
-from pydantic import model_validator
-from pydantic.dataclasses import dataclass
-from pydantic.fields import Field
+from pydantic import BaseModel, Field, model_validator
 from pydantic_core._pydantic_core import ArgsKwargs
 from typing_extensions import override
 
@@ -62,8 +60,7 @@ class EmbeddingProviderError(Exception):
     msg = "embedding provider failed"
 
 
-@dataclass
-class PkAtt:
+class PkAtt(BaseModel):
     """
     Represents an attribute of a primary key.
 
@@ -76,8 +73,7 @@ class PkAtt:
     attnum: int
 
 
-@dataclass
-class Config:
+class Config(BaseModel):
     """
     Holds the configuration for the vectorizer including embedding, processing,
     chunking, and formatting.
@@ -117,8 +113,7 @@ class Config:
         return data  # type: ignore[reportUnknownVariableType]
 
 
-@dataclass
-class Vectorizer:
+class Vectorizer(BaseModel):
     """
     Represents a vectorizer configuration that processes data from a source
     table to generate embeddings.
@@ -150,7 +145,7 @@ class Vectorizer:
     queue_failed_table: str | None = None
     errors_schema: str = "ai"
     errors_table: str = "vectorizer_errors"
-    schema: str = "ai"
+    schema_: str = Field(alias="schema", default="ai")
     table: str = "vectorizer"
 
     async def run(
@@ -295,7 +290,7 @@ class VectorizerQueryBuilder:
         Returns the SQL identifier for the fully qualified name of the
         vectorizer table.
         """
-        return sql.Identifier(self.vectorizer.schema, self.vectorizer.table)
+        return sql.Identifier(self.vectorizer.schema_, self.vectorizer.table)
 
     @cached_property
     def fetch_work_query(self) -> sql.Composed:

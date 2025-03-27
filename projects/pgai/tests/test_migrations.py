@@ -1,7 +1,7 @@
 from typing import Any
 
 import pytest
-from pydantic.dataclasses import dataclass
+from pydantic import BaseModel
 
 from pgai.vectorizer.migrations import migrations as global_migrations
 from pgai.vectorizer.migrations import register_migration
@@ -103,8 +103,7 @@ def clean_migrations():
 
 
 def test_multiple_migrations():
-    @dataclass
-    class SimpleConfig:
+    class SimpleConfig(BaseModel):
         version: str
 
     # register some migrations
