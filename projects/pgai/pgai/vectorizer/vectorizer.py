@@ -20,7 +20,6 @@ from psycopg.types.json import Jsonb, set_json_dumps
 from pydantic import model_validator
 from pydantic.dataclasses import dataclass
 from pydantic.fields import Field
-from pydantic_core._pydantic_core import ArgsKwargs
 from typing_extensions import override
 
 from .chunking import (
@@ -32,7 +31,6 @@ from .embeddings import ChunkEmbeddingError
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
 from .loading import ColumnLoading, LoadingError, UriLoading
-from .migrations import apply_migrations
 from .parsing import ParsingAuto, ParsingNone, ParsingPyMuPDF
 from .processing import ProcessingDefault
 from .worker_tracking import WorkerTracking
@@ -99,22 +97,29 @@ class Config:
     ) = Field(..., discriminator="implementation")
     formatting: PythonTemplate | ChunkValue = Field(..., discriminator="implementation")
     parsing: ParsingNone | ParsingAuto | ParsingPyMuPDF = Field(
-        default_factory=lambda: ParsingAuto(implementation="auto"),
+        default_factory=lambda: ParsingNone(implementation="none"),
         discriminator="implementation",
     )
 
     @model_validator(mode="before")
     @classmethod
-    def migrate_config_to_new_version(cls, data: Any) -> Any:
+    def create_loading_config_if_not_present(cls, data: Any) -> Any:
         if not data:
             return data
-        if isinstance(data, ArgsKwargs) and data.kwargs is not None:
-            return apply_migrations(data.kwargs)
-        if isinstance(data, dict) and all(isinstance(key, str) for key in data):  # type: ignore[reportUnknownVariableType]
-            return apply_migrations(data)  # type: ignore[arg-type]
-
-        logger.warning("Unable to migrate configuration: raw data type is unknown")
-        return data  # type: ignore[reportUnknownVariableType]
+        if (
+            isinstance(data, dict)
+            and all(isinstance(key, str) for key in data)  # type: ignore
+            and data.get("loading", None) is None  # type: ignore
+        ):  # type: ignore
+            try:
+                column = data.get("chunking").get("chunk_column")  # type: ignore
+                data["loading"] = ColumnLoading(
+                    implementation="column",
+                    column_name=column,  # type: ignore
+                )
+            except (AttributeError, KeyError) as e:
+                raise ValueError("chunk_column or loading config is required") from e
+        return data  # type: ignore
 
 
 @dataclass

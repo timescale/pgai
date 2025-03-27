@@ -1,11 +1,4 @@
-from typing import Any
-
-import pytest
-from pydantic.dataclasses import dataclass
-
-from pgai.vectorizer.migrations import migrations as global_migrations
-from pgai.vectorizer.migrations import register_migration
-from pgai.vectorizer.vectorizer import Config
+from pgai.vectorizer.vectorizer import Vectorizer
 
 config_0_9_0 = {
     "version": "0.9.0",
@@ -84,49 +77,39 @@ config_0_10_0 = {
     },
 }
 
-
-@pytest.fixture(autouse=True)
-def clean_migrations():
-    """
-    Fixture to preserve and restore the global migrations list.
-    This ensures that migrations registered in tests don't affect other tests.
-    """
-    # Save the original migrations list
-    original_migrations = global_migrations.copy()
-
-    # Yield control back to the test
-    yield
-
-    # Restore the original migrations list after the test
-    global_migrations.clear()
-    global_migrations.extend(original_migrations)
-
-
-def test_multiple_migrations():
-    @dataclass
-    class SimpleConfig:
-        version: str
-
-    # register some migrations
-    def migration_func_1_2(old_conf: SimpleConfig) -> dict[str, Any]:
-        assert old_conf.version == "0.0.1"
-        return {"version": "0.0.2"}
-
-    def migration_func_2_0_9(old_conf: SimpleConfig) -> dict[str, Any]:
-        assert old_conf.version == "0.0.2"
-        return config_0_9_0
-
-    register_migration("0.0.2", SimpleConfig, "1 to 2")(migration_func_1_2)
-    register_migration("0.9.0", SimpleConfig, "2 to 0.9.0")(migration_func_2_0_9)
-
-    migrated_config = Config(version="0.0.1")  # pyright: ignore [reportCallIssue]
-    expected_config = Config(**config_0_10_0)  # pyright: ignore [reportArgumentType]
-
-    assert migrated_config == expected_config
+vectorizer_fields = {
+    "id": 1,
+    "queue_schema": "public",
+    "queue_table": "queue",
+    "source_schema": "public",
+    "source_table": "source",
+    "target_schema": "public",
+    "target_table": "target",
+    "source_pk": [
+        {
+            "attname": "id",
+            "pknum": 1,
+            "attnum": 1,
+        }
+    ],
+}
 
 
 def test_migrate_config_from_ext_version_0_9_to_0_10():
-    migrated_config = Config(**config_0_9_0)  # pyright: ignore [reportArgumentType]
-    expected_config = Config(**config_0_10_0)  # pyright: ignore [reportArgumentType]
+    migrated_vectorizer = Vectorizer(
+        **{  # type: ignore
+            **vectorizer_fields,
+            "config": config_0_9_0,
+        }
+    )  # pyright: ignore [reportArgumentType]
+    expected_vectorizer = Vectorizer(
+        **{  # type: ignore
+            **vectorizer_fields,
+            "config": config_0_10_0,
+        }
+    )  # pyright: ignore [reportArgumentType]
 
-    assert migrated_config == expected_config
+    migrated_vectorizer.config.version = (
+        "0.10.0"  # The version field is not adapted, for comparison we set it manually
+    )
+    assert migrated_vectorizer == expected_vectorizer
