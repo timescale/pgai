@@ -1,6 +1,6 @@
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import override
 
 from pgai.vectorizer.chunking import (
@@ -44,6 +44,7 @@ class LangChainRecursiveCharacterTextSplitter_0_9(BaseModel, Chunker):
 
 
 class Config_0_9(BaseModel):
+    model_config = ConfigDict(extra="allow")
     version: str
     embedding: OpenAI | Ollama | VoyageAI | LiteLLM
     processing: ProcessingDefault
@@ -53,40 +54,46 @@ class Config_0_9(BaseModel):
     formatting: PythonTemplate | ChunkValue = Field(..., discriminator="implementation")
 
 
+class Vectorizer_0_9(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    config: Config_0_9
+
+
 @register_migration(
     "0.10.0",
-    Config_0_9,
+    Vectorizer_0_9,
     "Migrate from no loading config to column_config, add "
     "parsing none, use proper chunking config",
 )
-def migrate_to_0_10_0(old_conf: Config_0_9) -> dict[str, Any]:
+def migrate_to_0_10_0(old_vectorizer: Vectorizer_0_9) -> dict[str, Any]:
     # use the data as is from the previous version so we modify whatever is needed
-    result = old_conf.__dict__.copy()
+    result = old_vectorizer.model_dump()
+    old_config = old_vectorizer.config
 
-    result["loading"] = ColumnLoading(
-        implementation="column", column_name=old_conf.chunking.chunk_column
+    result["config"]["loading"] = ColumnLoading(
+        implementation="column", column_name=old_config.chunking.chunk_column
     )
-    result["parsing"] = ParsingNone(implementation="none")
-    match old_conf.chunking.implementation:
+    result["config"]["parsing"] = ParsingNone(implementation="none")
+    match old_vectorizer.config.chunking.implementation:
         case "character_text_splitter":
-            result["chunking"] = LangChainCharacterTextSplitter(
+            result["config"]["chunking"] = LangChainCharacterTextSplitter(
                 implementation="character_text_splitter",
-                separator=old_conf.chunking.separator,  # type: ignore[reportUnknownVariableType]
-                chunk_size=old_conf.chunking.chunk_size,
-                chunk_overlap=old_conf.chunking.chunk_overlap,
-                is_separator_regex=old_conf.chunking.is_separator_regex,
+                separator=old_config.chunking.separator,  # type: ignore[reportUnknownVariableType]
+                chunk_size=old_config.chunking.chunk_size,
+                chunk_overlap=old_config.chunking.chunk_overlap,
+                is_separator_regex=old_config.chunking.is_separator_regex,
             )
         case "recursive_character_text_splitter":
-            result["chunking"] = LangChainRecursiveCharacterTextSplitter(
+            result["config"]["chunking"] = LangChainRecursiveCharacterTextSplitter(
                 implementation="recursive_character_text_splitter",
-                separators=old_conf.chunking.separators,  # type: ignore[reportUnknownVariableType]
-                chunk_size=old_conf.chunking.chunk_size,
-                chunk_overlap=old_conf.chunking.chunk_overlap,
-                is_separator_regex=old_conf.chunking.is_separator_regex,
+                separators=old_config.chunking.separators,  # type: ignore[reportUnknownVariableType]
+                chunk_size=old_config.chunking.chunk_size,
+                chunk_overlap=old_config.chunking.chunk_overlap,
+                is_separator_regex=old_config.chunking.is_separator_regex,
             )
         case _:
             raise ValueError(
-                f"Unknown chunking implementation: {old_conf.chunking.implementation}"
+                f"Unknown chunking implementation: {old_config.chunking.implementation}"
             )
 
     return result
