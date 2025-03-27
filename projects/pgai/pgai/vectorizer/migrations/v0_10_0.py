@@ -1,8 +1,6 @@
 from typing import Any, Literal
 
-from pydantic import BaseModel
-from pydantic.dataclasses import dataclass
-from pydantic.fields import Field
+from pydantic import BaseModel, Field
 from typing_extensions import override
 
 from pgai.vectorizer.chunking import (
@@ -45,8 +43,7 @@ class LangChainRecursiveCharacterTextSplitter_0_9(BaseModel, Chunker):
         return []  # noop
 
 
-@dataclass
-class Config_0_9:
+class Config_0_9(BaseModel):
     version: str
     embedding: OpenAI | Ollama | VoyageAI | LiteLLM
     processing: ProcessingDefault
