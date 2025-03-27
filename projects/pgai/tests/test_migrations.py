@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from pgai.vectorizer.migrations import migrations as global_migrations
 from pgai.vectorizer.migrations import register_migration
-from pgai.vectorizer.vectorizer import Config
+from pgai.vectorizer.vectorizer import Vectorizer
 
 config_0_9_0 = {
     "version": "0.9.0",
@@ -84,6 +84,23 @@ config_0_10_0 = {
     },
 }
 
+vectorizer_fields = {
+    "id": 1,
+    "queue_schema": "public",
+    "queue_table": "queue",
+    "source_schema": "public",
+    "source_table": "source",
+    "target_schema": "public",
+    "target_table": "target",
+    "source_pk": [
+        {
+            "attname": "id",
+            "pknum": 1,
+            "attnum": 1,
+        }
+    ],
+}
+
 
 @pytest.fixture(autouse=True)
 def clean_migrations():
@@ -106,26 +123,53 @@ def test_multiple_migrations():
     class SimpleConfig(BaseModel):
         version: str
 
+    class SimpleVectorizer(BaseModel):
+        config: SimpleConfig
+
     # register some migrations
-    def migration_func_1_2(old_conf: SimpleConfig) -> dict[str, Any]:
-        assert old_conf.version == "0.0.1"
-        return {"version": "0.0.2"}
+    def migration_func_1_2(old_vectorizer: SimpleVectorizer) -> dict[str, Any]:
+        assert old_vectorizer.config.version == "0.0.1"
+        old_vectorizer.config.version = "0.0.2"
+        return old_vectorizer.model_dump()
 
-    def migration_func_2_0_9(old_conf: SimpleConfig) -> dict[str, Any]:
-        assert old_conf.version == "0.0.2"
-        return config_0_9_0
+    def migration_func_2_0_9(old_vectorizer: SimpleVectorizer) -> dict[str, Any]:
+        assert old_vectorizer.config.version == "0.0.2"
+        return {
+            **vectorizer_fields,
+            "config": config_0_9_0,
+        }
 
-    register_migration("0.0.2", SimpleConfig, "1 to 2")(migration_func_1_2)
-    register_migration("0.9.0", SimpleConfig, "2 to 0.9.0")(migration_func_2_0_9)
+    register_migration("0.0.2", SimpleVectorizer, "1 to 2")(migration_func_1_2)
+    register_migration("0.9.0", SimpleVectorizer, "2 to 0.9.0")(migration_func_2_0_9)
 
-    migrated_config = Config(version="0.0.1")  # pyright: ignore [reportCallIssue]
-    expected_config = Config(**config_0_10_0)  # pyright: ignore [reportArgumentType]
+    migreated_vectorizer = Vectorizer(
+        **{  # type: ignore
+            **vectorizer_fields,
+            "config": config_0_10_0 | {"version": "0.0.1"},
+        }
+    )
+    expected_vectorizer = Vectorizer(
+        **{  # type: ignore
+            **vectorizer_fields,
+            "config": config_0_10_0,
+        }
+    )
 
-    assert migrated_config == expected_config
+    assert migreated_vectorizer == expected_vectorizer
 
 
 def test_migrate_config_from_ext_version_0_9_to_0_10():
-    migrated_config = Config(**config_0_9_0)  # pyright: ignore [reportArgumentType]
-    expected_config = Config(**config_0_10_0)  # pyright: ignore [reportArgumentType]
+    migrated_vectorizer = Vectorizer(
+        **{  # type: ignore
+            **vectorizer_fields,
+            "config": config_0_9_0,
+        }
+    )  # pyright: ignore [reportArgumentType]
+    expected_vectorizer = Vectorizer(
+        **{  # type: ignore
+            **vectorizer_fields,
+            "config": config_0_10_0,
+        }
+    )  # pyright: ignore [reportArgumentType]
 
-    assert migrated_config == expected_config
+    assert migrated_vectorizer == expected_vectorizer
