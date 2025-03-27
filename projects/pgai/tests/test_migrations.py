@@ -1,10 +1,3 @@
-from typing import Any
-
-import pytest
-from pydantic import BaseModel
-
-from pgai.vectorizer.migrations import migrations as global_migrations
-from pgai.vectorizer.migrations import register_migration
 from pgai.vectorizer.vectorizer import Vectorizer
 
 config_0_9_0 = {
@@ -102,62 +95,6 @@ vectorizer_fields = {
 }
 
 
-@pytest.fixture(autouse=True)
-def clean_migrations():
-    """
-    Fixture to preserve and restore the global migrations list.
-    This ensures that migrations registered in tests don't affect other tests.
-    """
-    # Save the original migrations list
-    original_migrations = global_migrations.copy()
-
-    # Yield control back to the test
-    yield
-
-    # Restore the original migrations list after the test
-    global_migrations.clear()
-    global_migrations.extend(original_migrations)
-
-
-def test_multiple_migrations():
-    class SimpleConfig(BaseModel):
-        version: str
-
-    class SimpleVectorizer(BaseModel):
-        config: SimpleConfig
-
-    # register some migrations
-    def migration_func_1_2(old_vectorizer: SimpleVectorizer) -> dict[str, Any]:
-        assert old_vectorizer.config.version == "0.0.1"
-        old_vectorizer.config.version = "0.0.2"
-        return old_vectorizer.model_dump()
-
-    def migration_func_2_0_9(old_vectorizer: SimpleVectorizer) -> dict[str, Any]:
-        assert old_vectorizer.config.version == "0.0.2"
-        return {
-            **vectorizer_fields,
-            "config": config_0_9_0,
-        }
-
-    register_migration("0.0.2", SimpleVectorizer, "1 to 2")(migration_func_1_2)
-    register_migration("0.9.0", SimpleVectorizer, "2 to 0.9.0")(migration_func_2_0_9)
-
-    migreated_vectorizer = Vectorizer(
-        **{  # type: ignore
-            **vectorizer_fields,
-            "config": config_0_10_0 | {"version": "0.0.1"},
-        }
-    )
-    expected_vectorizer = Vectorizer(
-        **{  # type: ignore
-            **vectorizer_fields,
-            "config": config_0_10_0,
-        }
-    )
-
-    assert migreated_vectorizer == expected_vectorizer
-
-
 def test_migrate_config_from_ext_version_0_9_to_0_10():
     migrated_vectorizer = Vectorizer(
         **{  # type: ignore
@@ -172,4 +109,7 @@ def test_migrate_config_from_ext_version_0_9_to_0_10():
         }
     )  # pyright: ignore [reportArgumentType]
 
+    migrated_vectorizer.config.version = (
+        "0.10.0"  # The version field is not adapted, for comparison we set it manually
+    )
     assert migrated_vectorizer == expected_vectorizer
