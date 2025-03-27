@@ -101,19 +101,6 @@ class Config(BaseModel):
         discriminator="implementation",
     )
 
-    @model_validator(mode="before")
-    @classmethod
-    def migrate_config_to_new_version(cls, data: Any) -> Any:
-        if not data:
-            return data
-        if isinstance(data, ArgsKwargs) and data.kwargs is not None:
-            return apply_migrations(data.kwargs)
-        if isinstance(data, dict) and all(isinstance(key, str) for key in data):  # type: ignore[reportUnknownVariableType]
-            return apply_migrations(data)  # type: ignore[arg-type]
-
-        logger.warning("Unable to migrate configuration: raw data type is unknown")
-        return data  # type: ignore[reportUnknownVariableType]
-
 
 class Vectorizer(BaseModel):
     """
@@ -206,6 +193,19 @@ class Vectorizer(BaseModel):
             "finished processing vectorizer", items=items, vectorizer_id=self.id
         )
         return items
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_config_to_new_version(cls, data: Any) -> Any:
+        if not data:
+            return data
+        if isinstance(data, ArgsKwargs) and data.kwargs is not None:
+            return apply_migrations(data.kwargs)
+        if isinstance(data, dict) and all(isinstance(key, str) for key in data):  # type: ignore[reportUnknownVariableType]
+            return apply_migrations(data)  # type: ignore[arg-type]
+
+        logger.warning("Unable to migrate configuration: raw data type is unknown")
+        return data  # type: ignore[reportUnknownVariableType]
 
 
 class VectorizerQueryBuilder:
