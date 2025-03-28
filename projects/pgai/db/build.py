@@ -9,6 +9,7 @@ import sys
 import textwrap
 from collections import OrderedDict
 from pathlib import Path
+from typing import Callable, cast
 
 
 class Actions:
@@ -37,11 +38,11 @@ class Actions:
     ```
     """
 
-    def __contains__(self, item):
+    def __contains__(self, item: str) -> bool:
         """containment check for action"""
         return getattr(self, item.replace("-", "_"), None) is not None
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> Callable[[], None] | Callable[[str], None]:
         """get the member function for an action, indexed by action name"""
         return getattr(self, key.replace("-", "_"))
 
@@ -49,7 +50,7 @@ class Actions:
     def help(cls):
         """displays this message and exits"""
         message = "Available targets:"
-        descriptions = OrderedDict()
+        descriptions: OrderedDict[str, tuple[str, str]] = OrderedDict()
         longest_key = 0
 
         def get_docstring_parts(docstring: str | None):
@@ -407,10 +408,11 @@ def sql_file_number(path: Path) -> int:
     match = re.match(pattern, path.name)
     if not match:
         fatal(f"{path} file name does not match the pattern {pattern}")
+    assert match is not None  # help pyright understand match cannot be None here
     return int(match.group(1))
 
 
-def check_sql_file_order(path: Path, prev: int, min_strict_number=0) -> int:
+def check_sql_file_order(path: Path, prev: int, min_strict_number: int = 0) -> int:
     kind = path.parent.name
     this = sql_file_number(path)
     # ensuring file number correlation
@@ -493,7 +495,7 @@ def build_idempotent_sql_file(input_file: Path) -> str:
 
 
 def build_feature_flags() -> str:
-    feature_flags = set()
+    feature_flags: set[str] = set()
     for path in incremental_sql_files():
         ff = parse_feature_flag(path)
         if ff:
@@ -552,7 +554,7 @@ if __name__ == "__main__":
         actions.help()
         sys.exit(0)
     i = 1
-    functions = []
+    functions: list[tuple[Callable[[], None], None] | tuple[Callable[[str], None], str]] = []
     while i < len(sys.argv):
         action = sys.argv[i]
         if action in actions:
@@ -562,13 +564,16 @@ if __name__ == "__main__":
                 arg = sys.argv[i + 1]
                 i += 1
             fn = actions[action]
-            functions.append((fn, arg))
+            if arg is not None:
+                functions.append((cast(Callable[[str], None], fn), arg))
+            else:
+                functions.append((cast(Callable[[], None], fn), None))
             i += 1
         else:
             print(f"{action} is not a valid action", file=sys.stderr)
             sys.exit(1)
     for fn, arg in functions:
         if arg is not None:
-            fn(arg)
+            fn(arg) # type: ignore
         else:
-            fn()
+            fn() # type: ignore
