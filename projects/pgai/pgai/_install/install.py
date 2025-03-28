@@ -1,6 +1,7 @@
 from importlib.resources import files
 
 import psycopg
+from psycopg import sql as sql_lib
 
 from .. import __version__
 
@@ -15,22 +16,24 @@ def _get_sql(vector_extension_schema: str) -> str:
     return sql
 
 
-def _get_guc_vectorizer_url_sql() -> str:
-    return "select pg_catalog.current_setting(%s, true) as val"
+def _get_guc_vectorizer_url_sql() -> sql_lib.SQL:
+    return sql_lib.SQL("select pg_catalog.current_setting(%s, true) as val")
 
 
-def _get_vector_extension_schema_sql() -> str:
-    return """
+def _get_vector_extension_schema_sql() -> sql_lib.SQL:
+    return sql_lib.SQL("""
         select n.nspname
         from pg_extension e
         join pg_namespace n on n.oid = e.extnamespace
         where e.extname = 'vector'
-    """
+    """)
 
 
 def verify_error_library_already_installed(
     error_from_result: psycopg.errors.DuplicateObject,
 ) -> bool:
+    if error_from_result.diag.message_primary is None:
+        return False
     return (
         "the pgai library has already been installed/upgraded"
         in error_from_result.diag.message_primary
@@ -64,12 +67,14 @@ async def ainstall(
             await conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
         else:
             await conn.execute(
-                f"CREATE EXTENSION IF NOT EXISTS vector with schema {vector_extension_schema}" # noqa: E501
+                sql_lib.SQL(
+                    "CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA {}"
+                ).format(sql_lib.Literal(vector_extension_schema))
             )
 
         await cur.execute(_get_vector_extension_schema_sql())
         result = await cur.fetchone()
-        if result[0] is None:
+        if result is None or result[0] is None:
             raise Exception("vector extension not installed")
 
         sql = _get_sql(result[0])
@@ -78,11 +83,11 @@ async def ainstall(
         # we need to install the ai extension
         await cur.execute(_get_guc_vectorizer_url_sql(), (GUC_VECTORIZER_URL,))
         result = await cur.fetchone()
-        if result[0] is not None:
+        if result is not None and result[0] is not None:
             await conn.execute("CREATE EXTENSION IF NOT EXISTS ai cascade")
 
         try:
-            await conn.execute(sql)
+            await conn.execute(sql)  # type: ignore
         except psycopg.errors.DuplicateObject as error_from_result:
             if if_not_exists and verify_error_library_already_installed(
                 error_from_result
@@ -104,7 +109,7 @@ def install(
             default schema (default: None)
         if_not_exists: If True, ignore if library is already installed. If False,
             raise error (default: True)
-    
+
     Raises:
         psycopg.errors.DuplicateObject: If library is already installed and
             if_not_exists=False
@@ -117,12 +122,14 @@ def install(
             conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
         else:
             conn.execute(
-                f"CREATE EXTENSION IF NOT EXISTS vector with schema {vector_extension_schema}" # noqa: E501
+                sql_lib.SQL(
+                    "CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA {}"
+                ).format(sql_lib.Literal(vector_extension_schema))
             )
 
         cur.execute(_get_vector_extension_schema_sql())
         result = cur.fetchone()
-        if result[0] is None:
+        if result is None or result[0] is None:
             raise Exception("vector extension not installed")
 
         sql = _get_sql(result[0])
@@ -131,11 +138,11 @@ def install(
         # we need to install the ai extension
         cur.execute(_get_guc_vectorizer_url_sql(), (GUC_VECTORIZER_URL,))
         result = cur.fetchone()
-        if result[0] is not None:
+        if result is not None and result[0] is not None:
             conn.execute("CREATE EXTENSION IF NOT EXISTS ai cascade")
 
         try:
-            conn.execute(sql)
+            conn.execute(sql)  # type: ignore
         except psycopg.errors.DuplicateObject as error_from_result:
             if if_not_exists and verify_error_library_already_installed(
                 error_from_result

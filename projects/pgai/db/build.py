@@ -8,8 +8,9 @@ import subprocess
 import sys
 import textwrap
 from collections import OrderedDict
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, cast
+from typing import cast
 
 
 class Actions:
@@ -145,7 +146,7 @@ class Actions:
     def test_server() -> None:
         """runs the test http server in the docker container"""
         if where_am_i() == "host":
-            cmd = "docker exec -it -w /pgai/projects/extension/tests/vectorizer pgai-db fastapi dev server.py" # noqa: E501
+            cmd = "docker exec -it -w /pgai/projects/extension/tests/vectorizer pgai-db fastapi dev server.py"  # noqa: E501
             subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
         else:
             cmd = "uv run --no-project fastapi dev server.py"
@@ -163,7 +164,7 @@ class Actions:
         cmd = " ".join(
             [
                 "uv run --no-project pgspot --ignore-lang=plpython3u",
-                '--proc-without-search-path "ai._vectorizer_job(job_id integer,config pg_catalog.jsonb)"', # noqa: E501
+                '--proc-without-search-path "ai._vectorizer_job(job_id integer,config pg_catalog.jsonb)"',  # noqa: E501
                 f"{output_sql_file()}",
             ]
         )
@@ -421,13 +422,13 @@ def check_sql_file_order(path: Path, prev: int, min_strict_number: int = 0) -> i
     # avoiding file number duplication
     if this >= 900 and this == prev:  # allow gaps in pre-production scripts
         fatal(
-            f"{kind} sql files must not have duplicate numbers. this: {this} prev: {prev}" # noqa: E501
+            f"{kind} sql files must not have duplicate numbers. this: {this} prev: {prev}"  # noqa: E501
         )
     ff = parse_feature_flag(path)
     # feature flagged files should be between 900 and 999
     if this < 900 and ff:
         fatal(
-            f"{kind} sql files under 900 must be NOT gated by a feature flag: {path.name}" # noqa: E501
+            f"{kind} sql files under 900 must be NOT gated by a feature flag: {path.name}"  # noqa: E501
         )
     # only feature flagged files go over 899
     if this >= 900 and not ff:
@@ -451,9 +452,7 @@ def check_incremental_sql_files(paths: list[Path]) -> None:
     for path in paths:
         prev = check_sql_file_order(path, prev, min_strict_number=20)
         if path.name in frozen and hash_file(path) != frozen[path.name]:
-            fatal(
-                f"changing frozen incremental sql file {path.name} is not allowed"
-            )
+            fatal(f"changing frozen incremental sql file {path.name} is not allowed")
 
 
 def output_sql_file() -> Path:
@@ -554,7 +553,9 @@ if __name__ == "__main__":
         actions.help()
         sys.exit(0)
     i = 1
-    functions: list[tuple[Callable[[], None], None] | tuple[Callable[[str], None], str]] = []
+    functions: list[
+        tuple[Callable[[], None], None] | tuple[Callable[[str], None], str]
+    ] = []
     while i < len(sys.argv):
         action = sys.argv[i]
         if action in actions:
@@ -574,6 +575,6 @@ if __name__ == "__main__":
             sys.exit(1)
     for fn, arg in functions:
         if arg is not None:
-            fn(arg) # type: ignore
+            fn(arg)  # type: ignore
         else:
-            fn() # type: ignore
+            fn()  # type: ignore

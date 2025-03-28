@@ -77,7 +77,7 @@ def vcr_():
 
 @pytest.fixture(scope="session")
 def postgres_container_manager() -> (
-    Generator[Callable[[bool, str], PostgresContainer], None, None]
+    Generator[Callable[[bool, bool, str], PostgresContainer], None, None]
 ):
     extension_dir = (
         Path(__file__).parent.parent.parent.parent.joinpath("extension").resolve()

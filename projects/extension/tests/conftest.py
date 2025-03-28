@@ -1,6 +1,7 @@
 import dotenv
 import psycopg
 import pytest
+import psycopg.errors
 
 dotenv.load_dotenv()
 
@@ -62,8 +63,7 @@ def set_up_test_db() -> None:
         with con.cursor() as cur:
             cur.execute("create extension ai cascade")
 
-
-def detailed_notice_handler(diag):
+def detailed_notice_handler(diag: psycopg.errors.Diagnostic) -> None:
     print(f"""
     Severity: {diag.severity}
     Message:  {diag.message_primary}

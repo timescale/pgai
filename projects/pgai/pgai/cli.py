@@ -84,7 +84,9 @@ def get_pgai_version(cur: psycopg.Cursor) -> Version | None:
             AND table_name = 'app_version'
         )
     """)
-    table_exists = cur.fetchone()[0]
+    res = cur.fetchone()
+    assert res is not None
+    table_exists = res[0]
     if table_exists:
         cur.execute("select version from ai.app_version where name = 'ai'")
         row = cur.fetchone()
