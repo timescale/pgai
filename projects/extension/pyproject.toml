@@ -8,7 +8,7 @@ dynamic = ["version"]
 requires-python = ">=3.10"
 
 dependencies= [
-    "openai==1.56.0",
+    "openai==1.69.0",
     "tiktoken==0.7.0",
     "ollama==0.4.5",
     "anthropic==0.49.0",
