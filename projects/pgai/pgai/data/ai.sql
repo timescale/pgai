@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
--- ai 0.9.1-dev
+-- ai 0.10.0
 
 
 set local search_path = pg_catalog, pg_temp;
@@ -90,8 +90,6 @@ insert into ai.app_version ("name", version)
 values ('ai', '__version__') on conflict ("name") do update set version = excluded.version;
 
 
-
-
 -------------------------------------------------------------------------------
 -- 001-vectorizer.sql
 do $outer_migration_block$ /*001-vectorizer.sql*/
@@ -139,7 +137,7 @@ begin
     _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
     execute _sql;
     insert into ai.migration_app ("name", body, applied_at_version)
-    values (_migration_name, _migration_body, $version$0.9.1-dev$version$);
+    values (_migration_name, _migration_body, $version$__version__$version$);
 end;
 $outer_migration_block$;
 
@@ -193,7 +191,7 @@ begin
     _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
     execute _sql;
     insert into ai.migration_app ("name", body, applied_at_version)
-    values (_migration_name, _migration_body, $version$0.9.1-dev$version$);
+    values (_migration_name, _migration_body, $version$__version__$version$);
 end;
 $outer_migration_block$;
 
@@ -226,7 +224,7 @@ begin
     _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
     execute _sql;
     insert into ai.migration_app ("name", body, applied_at_version)
-    values (_migration_name, _migration_body, $version$0.9.1-dev$version$);
+    values (_migration_name, _migration_body, $version$__version__$version$);
 end;
 $outer_migration_block$;
 
@@ -254,7 +252,7 @@ begin
     _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
     execute _sql;
     insert into ai.migration_app ("name", body, applied_at_version)
-    values (_migration_name, _migration_body, $version$0.9.1-dev$version$);
+    values (_migration_name, _migration_body, $version$__version__$version$);
 end;
 $outer_migration_block$;
 
@@ -282,7 +280,7 @@ begin
     _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
     execute _sql;
     insert into ai.migration_app ("name", body, applied_at_version)
-    values (_migration_name, _migration_body, $version$0.9.1-dev$version$);
+    values (_migration_name, _migration_body, $version$__version__$version$);
 end;
 $outer_migration_block$;
 
@@ -347,7 +345,7 @@ begin
     _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
     execute _sql;
     insert into ai.migration_app ("name", body, applied_at_version)
-    values (_migration_name, _migration_body, $version$0.9.1-dev$version$);
+    values (_migration_name, _migration_body, $version$__version__$version$);
 end;
 $outer_migration_block$;
 
@@ -429,7 +427,7 @@ begin
     _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
     execute _sql;
     insert into ai.migration_app ("name", body, applied_at_version)
-    values (_migration_name, _migration_body, $version$0.9.1-dev$version$);
+    values (_migration_name, _migration_body, $version$__version__$version$);
 end;
 $outer_migration_block$;
 
@@ -461,7 +459,7 @@ begin
     _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
     execute _sql;
     insert into ai.migration_app ("name", body, applied_at_version)
-    values (_migration_name, _migration_body, $version$0.9.1-dev$version$);
+    values (_migration_name, _migration_body, $version$__version__$version$);
 end;
 $outer_migration_block$;
 
@@ -519,7 +517,319 @@ begin
     _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
     execute _sql;
     insert into ai.migration_app ("name", body, applied_at_version)
-    values (_migration_name, _migration_body, $version$0.9.1-dev$version$);
+    values (_migration_name, _migration_body, $version$__version__$version$);
+end;
+$outer_migration_block$;
+
+-------------------------------------------------------------------------------
+-- 021-drop-create-vectorizer-old-function.sql
+do $outer_migration_block$ /*021-drop-create-vectorizer-old-function.sql*/
+declare
+    _sql text;
+    _migration record;
+    _migration_name text = $migration_name$021-drop-create-vectorizer-old-function.sql$migration_name$;
+    _migration_body text =
+$migration_body$
+-- adding a new jsonb param to include the loader.
+drop function if exists ai.create_vectorizer(regclass,name,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name,name,name,name,name[],boolean);
+-- adding a new boolean chunk_document to infer if we're validating a chunker that relies on documents.
+drop function if exists ai._validate_chunking(jsonb,name,name);
+
+-- dropping the old chunking functions.
+drop function if exists ai.chunking_character_text_splitter(name,integer,integer,text,boolean);
+drop function if exists ai.chunking_recursive_character_text_splitter(name,integer,integer,text[],boolean);
+
+
+
+$migration_body$;
+begin
+    select * into _migration from ai.migration_app where "name" operator(pg_catalog.=) _migration_name;
+    if _migration is not null then
+        raise notice 'migration %s already applied. skipping.', _migration_name;
+        if _migration.body operator(pg_catalog.!=) _migration_body then
+            raise warning 'the contents of migration "%s" have changed', _migration_name;
+        end if;
+        return;
+    end if;
+    _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
+    execute _sql;
+    insert into ai.migration_app ("name", body, applied_at_version)
+    values (_migration_name, _migration_body, $version$__version__$version$);
+end;
+$outer_migration_block$;
+
+-------------------------------------------------------------------------------
+-- 022-migrate-existing-vectorizers-to-loading.sql
+do $outer_migration_block$ /*022-migrate-existing-vectorizers-to-loading.sql*/
+declare
+    _sql text;
+    _migration record;
+    _migration_name text = $migration_name$022-migrate-existing-vectorizers-to-loading.sql$migration_name$;
+    _migration_body text =
+$migration_body$
+do language plpgsql $block$
+DECLARE
+    _vectorizer RECORD;
+    _chunking jsonb;
+    _chunk_column text;
+    _config jsonb;
+BEGIN
+    -- Loop through all vectorizers
+    FOR _vectorizer IN SELECT id, config FROM ai.vectorizer
+    LOOP
+        -- Extract the chunking config and chunk_column
+        _chunking := _vectorizer.config operator(pg_catalog.->)'chunking';
+        _chunk_column := _chunking operator(pg_catalog.->>)'chunk_column';
+        
+        IF _chunk_column IS NOT NULL THEN
+            -- Create new config:
+            -- 1. Add loading config
+            -- 2. Add parsing config
+            -- 3. Remove chunk_column from chunking config
+            _config := _vectorizer.config operator(pg_catalog.||) jsonb_build_object(
+                'loading', json_object(
+                    'implementation': 'column',
+                    'config_type': 'loading',
+                    'column_name': _chunk_column,
+                    'retries': 6
+           ),
+                'parsing', json_object(
+                    'implementation': 'auto',
+                    'config_type': 'parsing'
+                ),
+                'chunking', _chunking operator(pg_catalog.-) 'chunk_column',
+                'version', '__version__'
+            );
+            
+            -- Update the vectorizer with new config
+            UPDATE ai.vectorizer 
+            SET config = _config
+            WHERE id operator(pg_catalog.=) _vectorizer.id;
+        END IF;
+    END LOOP;
+end;
+$block$;
+$migration_body$;
+begin
+    select * into _migration from ai.migration_app where "name" operator(pg_catalog.=) _migration_name;
+    if _migration is not null then
+        raise notice 'migration %s already applied. skipping.', _migration_name;
+        if _migration.body operator(pg_catalog.!=) _migration_body then
+            raise warning 'the contents of migration "%s" have changed', _migration_name;
+        end if;
+        return;
+    end if;
+    _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
+    execute _sql;
+    insert into ai.migration_app ("name", body, applied_at_version)
+    values (_migration_name, _migration_body, $version$__version__$version$);
+end;
+$outer_migration_block$;
+
+-------------------------------------------------------------------------------
+-- 023-migrate-vectorizer-queue-tables.sql
+do $outer_migration_block$ /*023-migrate-vectorizer-queue-tables.sql*/
+declare
+    _sql text;
+    _migration record;
+    _migration_name text = $migration_name$023-migrate-vectorizer-queue-tables.sql$migration_name$;
+    _migration_body text =
+$migration_body$
+do language plpgsql $block$
+declare
+    _rec pg_catalog.record;
+    _sql pg_catalog.text;
+begin
+    -- loop through all vectorizers to extract queue tables information
+    for _rec in (
+        select queue_schema, queue_table from ai.vectorizer
+    )
+    loop
+
+        select pg_catalog.format
+               ( $sql$alter table %I.%I
+                 add column if not exists loading_retries pg_catalog.int4 not null default 0
+                 , add column if not exists loading_retry_after pg_catalog.timestamptz default null$sql$
+                 , _rec.queue_schema
+                 , _rec.queue_table
+               ) into strict _sql;
+
+        raise debug '%', _sql;
+        execute _sql;
+    end loop;
+end;
+$block$;
+
+$migration_body$;
+begin
+    select * into _migration from ai.migration_app where "name" operator(pg_catalog.=) _migration_name;
+    if _migration is not null then
+        raise notice 'migration %s already applied. skipping.', _migration_name;
+        if _migration.body operator(pg_catalog.!=) _migration_body then
+            raise warning 'the contents of migration "%s" have changed', _migration_name;
+        end if;
+        return;
+    end if;
+    _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
+    execute _sql;
+    insert into ai.migration_app ("name", body, applied_at_version)
+    values (_migration_name, _migration_body, $version$__version__$version$);
+end;
+$outer_migration_block$;
+
+-------------------------------------------------------------------------------
+-- 024-add-vectorizer-queue-failed-table.sql
+do $outer_migration_block$ /*024-add-vectorizer-queue-failed-table.sql*/
+declare
+    _sql text;
+    _migration record;
+    _migration_name text = $migration_name$024-add-vectorizer-queue-failed-table.sql$migration_name$;
+    _migration_body text =
+$migration_body$
+alter table ai.vectorizer add column queue_failed_table name;
+
+$migration_body$;
+begin
+    select * into _migration from ai.migration_app where "name" operator(pg_catalog.=) _migration_name;
+    if _migration is not null then
+        raise notice 'migration %s already applied. skipping.', _migration_name;
+        if _migration.body operator(pg_catalog.!=) _migration_body then
+            raise warning 'the contents of migration "%s" have changed', _migration_name;
+        end if;
+        return;
+    end if;
+    _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
+    execute _sql;
+    insert into ai.migration_app ("name", body, applied_at_version)
+    values (_migration_name, _migration_body, $version$__version__$version$);
+end;
+$outer_migration_block$;
+
+-------------------------------------------------------------------------------
+-- 025-migrate-vectorizer-to-have-queue-failed-table.sql
+do $outer_migration_block$ /*025-migrate-vectorizer-to-have-queue-failed-table.sql*/
+declare
+    _sql text;
+    _migration record;
+    _migration_name text = $migration_name$025-migrate-vectorizer-to-have-queue-failed-table.sql$migration_name$;
+    _migration_body text =
+$migration_body$
+do language plpgsql $block$
+begin
+    update ai.vectorizer
+    set queue_failed_table = '_vectorizer_q_failed_' || id;
+end
+$block$;
+
+do language plpgsql $block$
+declare
+    _sql pg_catalog.text;
+    _vec ai.vectorizer;
+    _grant_to text[];
+begin
+    -- loop through all vectorizers to extract queue tables information
+    for _vec in (
+        select * from ai.vectorizer
+    )
+    loop
+        select array_agg(distinct(grantee)) into _grant_to
+        from (
+                 select (aclexplode(k.relacl)).grantee::regrole::text as grantee
+                 from pg_class k
+                     inner join pg_namespace n on (k.relnamespace = n.oid)
+                 where k.relname = _vec.queue_table
+                   and n.nspname = _vec.queue_schema
+             ) as grants
+        ;
+
+        -- if no grantees found, use a sensible default or leave it null
+        if _grant_to is null then
+            _grant_to := '{}';
+        end if;
+        select pg_catalog.format
+        ( $sql$
+        create table %I.%I
+        ( %s
+        , created_at pg_catalog.timestamptz not null default now()
+        , failure_step pg_catalog.text not null default ''
+        )
+        $sql$
+        , _vec.queue_schema, _vec.queue_failed_table
+        , (
+            select pg_catalog.string_agg
+            ( pg_catalog.format
+              ( '%I %s not null'
+              , x.attname
+              , x.typname
+              )
+            , e'\n, '
+            order by x.attnum
+            )
+            from pg_catalog.jsonb_to_recordset(_vec.source_pk) x(attnum int, attname name, typname name)
+        )
+        ) into strict _sql
+        ;
+        execute _sql;
+
+        -- create the index
+        select pg_catalog.format
+        ( $sql$create index on %I.%I (%s)$sql$
+        , _vec.queue_schema, _vec.queue_failed_table
+        , (
+            select pg_catalog.string_agg(pg_catalog.format('%I', x.attname), ', ' order by x.pknum)
+            from pg_catalog.jsonb_to_recordset(_vec.source_pk) x(pknum int, attname name)
+          )
+        ) into strict _sql
+        ;
+        execute _sql;
+
+
+        -- apply permissions if we found grantees
+        if array_length(_grant_to, 1) > 0 then
+        -- grant usage on queue schema to identified roles
+        select pg_catalog.format
+               ( $sql$grant usage on schema %I to %s$sql$
+                   , _vec.queue_schema
+                   , (
+                     select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+                     from pg_catalog.unnest(_grant_to) x
+                 )
+               ) into strict _sql;
+
+        execute _sql;
+
+        -- grant select, update, delete on queue table to identified roles
+        select pg_catalog.format
+               ( $sql$grant select, insert, update, delete on %I.%I to %s$sql$
+                    , _vec.queue_schema
+                   , _vec.queue_failed_table
+                   , (
+                     select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+                     from pg_catalog.unnest(_grant_to) x
+                 )
+               ) into strict _sql;
+
+        execute _sql;
+        end if;
+
+    end loop;
+end $block$
+;
+
+$migration_body$;
+begin
+    select * into _migration from ai.migration_app where "name" operator(pg_catalog.=) _migration_name;
+    if _migration is not null then
+        raise notice 'migration %s already applied. skipping.', _migration_name;
+        if _migration.body operator(pg_catalog.!=) _migration_body then
+            raise warning 'the contents of migration "%s" have changed', _migration_name;
+        end if;
+        return;
+    end if;
+    _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
+    execute _sql;
+    insert into ai.migration_app ("name", body, applied_at_version)
+    values (_migration_name, _migration_body, $version$__version__$version$);
 end;
 $outer_migration_block$;
 
@@ -529,8 +839,7 @@ $outer_migration_block$;
 -------------------------------------------------------------------------------
 -- chunking_character_text_splitter
 create or replace function ai.chunking_character_text_splitter
-( chunk_column pg_catalog.name
-, chunk_size pg_catalog.int4 default 800
+( chunk_size pg_catalog.int4 default 800
 , chunk_overlap pg_catalog.int4 default 400
 , separator pg_catalog.text default E'\n\n'
 , is_separator_regex pg_catalog.bool default false
@@ -539,7 +848,6 @@ as $func$
     select json_object
     ( 'implementation': 'character_text_splitter'
     , 'config_type': 'chunking'
-    , 'chunk_column': chunk_column
     , 'chunk_size': chunk_size
     , 'chunk_overlap': chunk_overlap
     , 'separator': separator
@@ -553,8 +861,7 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- chunking_recursive_character_text_splitter
 create or replace function ai.chunking_recursive_character_text_splitter
-( chunk_column pg_catalog.name
-, chunk_size pg_catalog.int4 default 800
+( chunk_size pg_catalog.int4 default 800
 , chunk_overlap pg_catalog.int4 default 400
 , separators pg_catalog.text[] default array[E'\n\n', E'\n', '.', '?', '!', ' ', '']
 , is_separator_regex pg_catalog.bool default false
@@ -563,7 +870,6 @@ as $func$
     select json_object
     ( 'implementation': 'recursive_character_text_splitter'
     , 'config_type': 'chunking'
-    , 'chunk_column': chunk_column
     , 'chunk_size': chunk_size
     , 'chunk_overlap': chunk_overlap
     , 'separators': separators
@@ -577,16 +883,11 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- _validate_chunking
 create or replace function ai._validate_chunking
-( config pg_catalog.jsonb
-, source_schema pg_catalog.name
-, source_table pg_catalog.name
-) returns void
+( config pg_catalog.jsonb ) returns void
 as $func$
 declare
     _config_type pg_catalog.text;
     _implementation pg_catalog.text;
-    _chunk_column pg_catalog.text;
-    _found pg_catalog.bool;
 begin
     if pg_catalog.jsonb_typeof(config) operator(pg_catalog.!=) 'object' then
         raise exception 'chunking config is not a jsonb object';
@@ -600,23 +901,6 @@ begin
     _implementation = config operator(pg_catalog.->>) 'implementation';
     if _implementation is null or _implementation not in ('character_text_splitter', 'recursive_character_text_splitter') then
         raise exception 'invalid chunking config implementation';
-    end if;
-
-    _chunk_column = config operator(pg_catalog.->>) 'chunk_column';
-
-    select count(*) operator(pg_catalog.>) 0 into strict _found
-    from pg_catalog.pg_class k
-    inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
-    inner join pg_catalog.pg_attribute a on (k.oid operator(pg_catalog.=) a.attrelid)
-    inner join pg_catalog.pg_type y on (a.atttypid operator(pg_catalog.=) y.oid)
-    where n.nspname operator(pg_catalog.=) source_schema
-    and k.relname operator(pg_catalog.=) source_table
-    and a.attnum operator(pg_catalog.>) 0
-    and a.attname operator(pg_catalog.=) _chunk_column
-    and y.typname in ('text', 'varchar', 'char', 'bpchar')
-    ;
-    if not _found then
-        raise exception 'chunk column in config does not exist in the table: %', _chunk_column;
     end if;
 end
 $func$ language plpgsql stable security invoker
@@ -1238,7 +1522,219 @@ set search_path to pg_catalog, pg_temp
 
 
 --------------------------------------------------------------------------------
--- 008-vectorizer-int.sql
+-- 008-loading.sql
+-------------------------------------------------------------------------------
+-- loading_column
+create or replace function ai.loading_column
+( column_name pg_catalog.name
+, retries pg_catalog.int4 default 6)
+returns pg_catalog.jsonb
+as $func$
+    select json_object
+    ( 'implementation': 'column'
+    , 'config_type': 'loading'
+    , 'column_name': column_name
+    , 'retries': retries
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- loading_uri
+create or replace function ai.loading_uri
+( column_name pg_catalog.name
+, retries pg_catalog.int4 default 6)
+returns pg_catalog.jsonb
+as $func$
+    select json_object
+    ( 'implementation': 'uri'
+    , 'config_type': 'loading'
+    , 'column_name': column_name
+    , 'retries': retries
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _validate_loading
+create or replace function ai._validate_loading
+( config pg_catalog.jsonb
+, source_schema pg_catalog.name
+, source_table pg_catalog.name
+) returns void
+as $func$
+declare
+    _config_type pg_catalog.text;
+    _implementation pg_catalog.text;
+    _column_name pg_catalog.name;
+    _found pg_catalog.bool;
+    _column_type pg_catalog.text;
+begin
+    if pg_catalog.jsonb_typeof(config) operator(pg_catalog.!=) 'object' then
+        raise exception 'loading config is not a jsonb object';
+end if;
+
+    _config_type = config operator(pg_catalog.->>) 'config_type';
+    if _config_type is null or _config_type operator(pg_catalog.!=) 'loading' then
+        raise exception 'invalid config_type for loading config';
+end if;
+
+    _implementation = config operator(pg_catalog.->>) 'implementation';
+    if _implementation is null or _implementation not in ('column', 'uri') then
+        raise exception 'invalid loading config implementation';
+end if;
+
+    _column_name = config operator(pg_catalog.->>) 'column_name';
+     if _column_name is null then
+        raise exception 'invalid loading config, missing column_name';
+end if;
+    
+    if (config operator(pg_catalog.->>) 'retries') is null or (config operator(pg_catalog.->>) 'retries')::int < 0 then
+        raise exception 'invalid loading config, retries must be a non-negative integer';
+end if;
+
+    select y.typname into _column_type
+    from pg_catalog.pg_class k
+        inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
+        inner join pg_catalog.pg_attribute a on (k.oid operator(pg_catalog.=) a.attrelid)
+        inner join pg_catalog.pg_type y on (a.atttypid operator(pg_catalog.=) y.oid)
+    where n.nspname operator(pg_catalog.=) source_schema
+        and k.relname operator(pg_catalog.=) source_table
+        and a.attnum operator(pg_catalog.>) 0
+        and a.attname operator(pg_catalog.=) _column_name
+        and y.typname in ('text', 'varchar', 'char', 'bpchar', 'bytea')
+        and not a.attisdropped;
+
+    if _column_type is null then
+            raise exception 'column_name in config does not exist in the table: %', _column_name;
+    end if;
+
+    if _implementation = 'uri' and _column_type not in ('text', 'varchar', 'char', 'bpchar') then
+        raise exception 'the type of the column `%` in config is not compatible with `uri` loading '
+       'implementation (type should be either text, varchar, char, bpchar, or bytea)', _column_name;
+    end if;
+end
+$func$ language plpgsql stable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+
+--------------------------------------------------------------------------------
+-- 009-parsing.sql
+-------------------------------------------------------------------------------
+-- parsing_auto
+create or replace function ai.parsing_auto() returns pg_catalog.jsonb
+as $func$
+    select json_object
+    ( 'implementation': 'auto'
+    , 'config_type': 'parsing'
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- parsing_none
+create or replace function ai.parsing_none() returns pg_catalog.jsonb
+as $func$
+    select json_object
+    ( 'implementation': 'none'
+    , 'config_type': 'parsing'
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- parser_pymupdf
+create or replace function ai.parsing_pymupdf() returns pg_catalog.jsonb
+as $func$
+    select json_object
+    ( 'implementation': 'pymupdf'
+    , 'config_type': 'parsing'
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- parser_docling
+create or replace function ai.parsing_docling() returns pg_catalog.jsonb
+as $func$
+    select json_object
+    ( 'implementation': 'docling'
+    , 'config_type': 'parsing'
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _validate_parsing
+create or replace function ai._validate_parsing
+( parsing pg_catalog.jsonb
+, loading pg_catalog.jsonb
+, source_schema pg_catalog.name
+, source_table pg_catalog.name
+) returns void
+as $func$
+declare
+    _column_type pg_catalog.name;
+    _config_type pg_catalog.text;
+    _loading_implementation pg_catalog.text;
+    _parsing_implementation pg_catalog.text;
+begin
+    -- Basic structure validation
+    if pg_catalog.jsonb_typeof(parsing) operator(pg_catalog.!=) 'object' then
+        raise exception 'parsing config is not a jsonb object';
+    end if;
+
+    -- Validate config_type
+    _config_type = parsing operator(pg_catalog.->>) 'config_type';
+    if _config_type is null or _config_type operator(pg_catalog.!=) 'parsing' then
+        raise exception 'invalid config_type for parsing config';
+    end if;
+
+    -- Get implementations
+    _loading_implementation = loading operator(pg_catalog.->>) 'implementation';
+    -- Skip validation of loading implementation since it's done in _validate_loading
+
+    _parsing_implementation = parsing operator(pg_catalog.->>) 'implementation';
+    if _parsing_implementation not in ('auto', 'none', 'pymupdf', 'docling') then
+        raise exception 'invalid parsing config implementation';
+    end if;
+
+    -- Get the column type once
+    select y.typname 
+    into _column_type
+    from pg_catalog.pg_class k
+        inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
+        inner join pg_catalog.pg_attribute a on (k.oid operator(pg_catalog.=) a.attrelid)
+        inner join pg_catalog.pg_type y on (a.atttypid operator(pg_catalog.=) y.oid)
+    where n.nspname operator(pg_catalog.=) source_schema
+    and k.relname operator(pg_catalog.=) source_table
+    and a.attnum operator(pg_catalog.>) 0
+    and a.attname operator(pg_catalog.=) (loading operator(pg_catalog.->>) 'column_name');
+
+    -- Validate all combinations
+    if _parsing_implementation = 'none' and _column_type = 'bytea' then
+        raise exception 'cannot use parsing_none with bytea columns';
+    end if;
+
+    if _loading_implementation = 'column' and _parsing_implementation in ('pymupdf', 'docling')
+       and _column_type != 'bytea' then
+        raise exception 'parsing_% must be used with a bytea column', _parsing_implementation;
+    end if;
+
+end
+$func$ language plpgsql stable security invoker
+set search_path to pg_catalog, pg_temp;
+
+
+--------------------------------------------------------------------------------
+-- 010-vectorizer-int.sql
 
 -------------------------------------------------------------------------------
 -- _vectorizer_source_pk
@@ -1530,7 +2026,14 @@ declare
 begin
     -- create the table
     select pg_catalog.format
-    ( $sql$create table %I.%I(%s, queued_at timestamptz not null default now())$sql$
+    ( $sql$
+      create table %I.%I
+      ( %s
+      , queued_at pg_catalog.timestamptz not null default now()
+      , loading_retries pg_catalog.int4 not null default 0
+      , loading_retry_after pg_catalog.timestamptz
+      )
+      $sql$
     , queue_schema, queue_table
     , (
         select pg_catalog.string_agg
@@ -1578,6 +2081,87 @@ begin
         ( $sql$grant select, insert, update, delete on %I.%I to %s$sql$
         , queue_schema
         , queue_table
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+    end if;
+end;
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _vectorizer_create_queue_failed_table
+create or replace function ai._vectorizer_create_queue_failed_table
+( queue_schema pg_catalog.name
+, queue_failed_table pg_catalog.name
+, source_pk pg_catalog.jsonb
+, grant_to pg_catalog.name[]
+) returns void as
+$func$
+declare
+    _sql pg_catalog.text;
+begin
+    -- create the table
+    select pg_catalog.format
+    ( $sql$
+      create table %I.%I
+      ( %s
+      , created_at pg_catalog.timestamptz not null default now()
+      , failure_step pg_catalog.text not null default ''
+      )
+      $sql$
+    , queue_schema, queue_failed_table
+    , (
+        select pg_catalog.string_agg
+        (
+          pg_catalog.format
+          ( '%I %s not null'
+          , x.attname
+          , x.typname
+          )
+          , E'\n, '
+          order by x.attnum
+        )
+        from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name, typname name)
+      )
+    ) into strict _sql
+    ;
+    execute _sql;
+
+    -- create the index
+    select pg_catalog.format
+    ( $sql$create index on %I.%I (%s)$sql$
+    , queue_schema, queue_failed_table
+    , (
+        select pg_catalog.string_agg(pg_catalog.format('%I', x.attname), ', ' order by x.pknum)
+        from pg_catalog.jsonb_to_recordset(source_pk) x(pknum int, attname name)
+      )
+    ) into strict _sql
+    ;
+    execute _sql;
+
+    if grant_to is not null then
+        -- grant usage on queue schema to grant_to roles
+        select pg_catalog.format
+        ( $sql$grant usage on schema %I to %s$sql$
+        , queue_schema
+        , (
+            select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
+            from pg_catalog.unnest(grant_to) x
+          )
+        ) into strict _sql;
+        execute _sql;
+
+        -- grant select, update, delete on queue table to grant_to roles
+        select pg_catalog.format
+        ( $sql$grant select, insert, update, delete on %I.%I to %s$sql$
+        , queue_schema
+        , queue_failed_table
         , (
             select pg_catalog.string_agg(pg_catalog.quote_ident(x), ', ')
             from pg_catalog.unnest(grant_to) x
@@ -1747,12 +2331,13 @@ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-- This code block recreates all triggers for vectorizers to make sure
+-- they have the most recent version of the trigger function
 do $upgrade_block$
 declare
     _vec record;
-    _new_version text := '0.8.1';
 begin
-    -- Find all vectorizers with version < 0.8.1
+    -- Find all vectorizers
     for _vec in (
         select 
             v.id,
@@ -1766,10 +2351,9 @@ begin
             v.queue_table,
             v.config
         from ai.vectorizer v
-        where string_to_array(regexp_replace((v.config->>'version'), '[-+].*$', ''), '.')::int[] < string_to_array(_new_version, '.')::int[]
     )
     loop
-        raise notice 'Upgrading trigger function for vectorizer ID %s from version %s', _vec.id, _vec.config->>'version';
+        raise notice 'Recreating trigger function for vectorizer ID %s', _vec.id;
 
         execute format
         (
@@ -1790,6 +2374,11 @@ begin
         );
 
         execute format(
+            'drop trigger if exists %I on %I.%I',
+            format('%s_truncate',_vec.trigger_name) , _vec.source_schema, _vec.source_table
+        );
+
+        execute format(
             'create trigger %I after insert or update or delete on %I.%I for each row execute function %I.%I()',
             _vec.trigger_name, _vec.source_schema, _vec.source_table, _vec.queue_schema, _vec.trigger_name
         );
@@ -1798,12 +2387,8 @@ begin
             'create trigger %I after truncate on %I.%I for each statement execute function %I.%I()',
             format('%s_truncate',_vec.trigger_name) , _vec.source_schema, _vec.source_table, _vec.queue_schema, _vec.trigger_name
         );
-
-        update ai.vectorizer 
-        set config = jsonb_set(config, '{version}', format('"%s"', _new_version)::jsonb)
-        where id = _vec.id;
         
-        raise info 'Successfully upgraded trigger for vectorizer ID % to version %', _vec.id, _new_version;
+        raise info 'Successfully recreated trigger for vectorizer ID %', _vec.id;
     end loop;
 end;
 $upgrade_block$;
@@ -2187,14 +2772,16 @@ language plpgsql security invoker
 
 
 --------------------------------------------------------------------------------
--- 009-vectorizer-api.sql
+-- 011-vectorizer-api.sql
 -------------------------------------------------------------------------------
 -- create_vectorizer
 create or replace function ai.create_vectorizer
 ( source pg_catalog.regclass
 , destination pg_catalog.name default null
+, loading pg_catalog.jsonb default null
+, parsing pg_catalog.jsonb default ai.parsing_auto()
 , embedding pg_catalog.jsonb default null
-, chunking pg_catalog.jsonb default null
+, chunking pg_catalog.jsonb default ai.chunking_recursive_character_text_splitter()
 , indexing pg_catalog.jsonb default ai.indexing_default()
 , formatting pg_catalog.jsonb default ai.formatting_python_template()
 , scheduling pg_catalog.jsonb default ai.scheduling_default()
@@ -2220,6 +2807,7 @@ declare
     _vectorizer_id pg_catalog.int4;
     _sql pg_catalog.text;
     _job_id pg_catalog.int8;
+    _queue_failed_table pg_catalog.name;
 begin
     -- make sure all the roles listed in grant_to exist
     if grant_to is not null then
@@ -2239,9 +2827,9 @@ begin
     if embedding is null then
         raise exception 'embedding configuration is required';
     end if;
-
-    if chunking is null then
-        raise exception 'chunking configuration is required';
+    
+    if loading is null then
+        raise exception 'loading configuration is required';
     end if;
 
     -- get source table name and schema name
@@ -2293,6 +2881,7 @@ begin
     _trigger_name = pg_catalog.concat('_vectorizer_src_trg_', _vectorizer_id);
     queue_schema = coalesce(queue_schema, 'ai');
     queue_table = coalesce(queue_table, pg_catalog.concat('_vectorizer_q_', _vectorizer_id));
+    _queue_failed_table = pg_catalog.concat('_vectorizer_q_failed_', _vectorizer_id);
 
     -- make sure view name is available
     if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
@@ -2309,11 +2898,22 @@ begin
         raise exception 'an object named %.% already exists. specify an alternate queue_table explicitly', queue_schema, queue_table;
     end if;
 
+    -- validate the loading config
+    perform ai._validate_loading(loading, _source_schema, _source_table);
+
+    -- validate the parsing config
+    perform ai._validate_parsing(
+        parsing,
+        loading,
+        _source_schema,
+        _source_table
+    );
+
     -- validate the embedding config
     perform ai._validate_embedding(embedding);
 
     -- validate the chunking config
-    perform ai._validate_chunking(chunking, _source_schema, _source_table);
+    perform ai._validate_chunking(chunking);
 
     -- if ai.indexing_default, resolve the default
     if indexing operator(pg_catalog.->>) 'implementation' = 'default' then
@@ -2367,6 +2967,14 @@ begin
     , grant_to
     );
 
+    -- create queue failed table
+    perform ai._vectorizer_create_queue_failed_table
+    ( queue_schema
+    , _queue_failed_table
+    , _source_pk
+    , grant_to
+    );
+
     -- create trigger on source table to populate queue
     perform ai._vectorizer_create_source_trigger
     ( _trigger_name
@@ -2413,6 +3021,7 @@ begin
     , trigger_name
     , queue_schema
     , queue_table
+    , queue_failed_table
     , config
     )
     values
@@ -2427,8 +3036,11 @@ begin
     , _trigger_name
     , queue_schema
     , queue_table
+    , _queue_failed_table
     , pg_catalog.jsonb_build_object
-      ( 'version', '0.9.1-dev'
+      ( 'version', '__version__'
+      , 'loading', loading
+      , 'parsing', parsing
       , 'embedding', embedding
       , 'chunking', chunking
       , 'indexing', indexing
@@ -2687,6 +3299,14 @@ begin
     ) into strict _sql;
     execute _sql;
 
+    -- drop the failed queue table if exists
+    select pg_catalog.format
+    ( $sql$drop table if exists %I.%I$sql$
+    , _vec.queue_schema
+    , _vec.queue_failed_table
+    ) into strict _sql;
+    execute _sql;
+
     if drop_all then
         -- drop the view if exists
         select pg_catalog.format
@@ -2848,7 +3468,7 @@ set search_path to pg_catalog, pg_temp
 
 
 --------------------------------------------------------------------------------
--- 010-worker-tracking.sql
+-- 012-worker-tracking.sql
 CREATE OR REPLACE FUNCTION ai._worker_start(version text, expected_heartbeat_interval interval) RETURNS uuid AS $$
 DECLARE
     worker_id uuid;

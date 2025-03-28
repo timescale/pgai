@@ -599,7 +599,6 @@ set search_path to pg_catalog, pg_temp
 do $upgrade_block$
 declare
     _vec record;
-    _new_version text := '0.8.1';
 begin
     -- Find all vectorizers
     for _vec in (
@@ -615,10 +614,9 @@ begin
             v.queue_table,
             v.config
         from ai.vectorizer v
-        where string_to_array(regexp_replace((v.config->>'version'), '[-+].*$', ''), '.')::int[] < string_to_array(_new_version, '.')::int[]
     )
     loop
-        raise notice 'Recreating trigger function for vectorizer ID %s from version %s', _vec.id, _vec.config->>'version';
+        raise notice 'Recreating trigger function for vectorizer ID %s', _vec.id;
 
         execute format
         (
@@ -652,10 +650,6 @@ begin
             'create trigger %I after truncate on %I.%I for each statement execute function %I.%I()',
             format('%s_truncate',_vec.trigger_name) , _vec.source_schema, _vec.source_table, _vec.queue_schema, _vec.trigger_name
         );
-
-        update ai.vectorizer 
-        set config = jsonb_set(config, '{version}', format('"%s"', _new_version)::jsonb)
-        where id = _vec.id;
         
         raise info 'Successfully recreated trigger for vectorizer ID %', _vec.id;
     end loop;

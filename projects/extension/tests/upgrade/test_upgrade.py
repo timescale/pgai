@@ -153,16 +153,13 @@ def test_upgrades():
         assert check_version("upgrade_target") == path.target
         # executes different init functions due to chunking function signature change.
         print("from", path.source, "to", path.target)
-        if is_version_earlier_or_equal_than(path.target, "0.9.0"):
-            init_db_script("upgrade_target", "init_old_api.sql")
-        else:
-            init_db_script("upgrade_target", "init.sql")
+        init_db_script("upgrade_target", "init.sql")
         snapshot("upgrade_target", f"{path_name}-expected")
         # start at the first version in the path
         create_database("upgrade_path")
         create_extension("upgrade_path", path.path[0])
         assert check_version("upgrade_path") == path.path[0]
-        init_db_script("upgrade_path", "init_old_api.sql")
+        init_db_script("upgrade_path", "init.sql")
         # upgrade through each version to the end
         for version in path.path[1:]:
             update_extension("upgrade_path", version)
@@ -231,7 +228,7 @@ def test_unpackaged_upgrade():
         # Install the old extension version
         create_extension(test_db, version)
         assert check_version(test_db) == version
-        init_db_script(test_db, "init_vectorizer_only.sql")
+        init_db_script(test_db, "init_vectorizer_only_old_api.sql")
 
         # Upgrade to the latest version
         update_extension(test_db, __version__)
@@ -292,7 +289,7 @@ def test_production_version_upgrade_path():
     # start at the first version
     create_extension("upgrade0", versions[0])
     assert check_version("upgrade0") == versions[0]
-    init_db_script("upgrade0", "init_old_api.sql")
+    init_db_script("upgrade0", "init.sql")
     # upgrade through each version to the end
     for version in versions[1:]:
         update_extension("upgrade0", version)
@@ -303,7 +300,7 @@ def test_production_version_upgrade_path():
     create_database("upgrade1")
     create_extension("upgrade1", versions[-1])
     assert check_version("upgrade1") == versions[-1]
-    init_db_script("upgrade1", "init_old_api.sql")
+    init_db_script("upgrade1", "init.sql")
     # snapshot the ai extension and schema
     snapshot("upgrade1", "upgrade1")
     # compare the snapshots. they should match

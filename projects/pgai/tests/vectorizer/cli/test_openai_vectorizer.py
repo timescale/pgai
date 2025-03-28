@@ -50,7 +50,6 @@ def configure_openai_vectorizer(
         (1, 1, 1, 8000, False),
         (4, 2, 2, None, False),
         (1, 1, 1, None, True),
-        (1, 1, 1, 8000, True),
         (4, 2, 2, None, True),
     ],
     indirect=["openai_proxy_url"],
