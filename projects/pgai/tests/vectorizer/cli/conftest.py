@@ -35,6 +35,7 @@ class TestDatabase:
                 )
             else:
                 import pgai
+
                 pgai.install(url)
             conn.execute(
                 sql.SQL("CREATE DATABASE {0}").format(sql.Identifier(self.dbname))

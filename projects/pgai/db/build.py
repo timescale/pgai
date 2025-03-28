@@ -6,10 +6,10 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 import textwrap
 from collections import OrderedDict
 from pathlib import Path
+
 
 class Actions:
     """Collects all actions which the build.py script supports
@@ -221,7 +221,7 @@ class Actions:
             env=os.environ,
             text=True,
         )
-        
+
     @staticmethod
     def docker_start() -> None:
         """starts the container"""
@@ -243,7 +243,6 @@ class Actions:
             env=os.environ,
             text=True,
         )
-        
 
     @staticmethod
     def docker_shell() -> None:
@@ -279,8 +278,9 @@ class Actions:
         cmd = "docker exec -it -d -w /pgai/tests pgai-db fastapi dev server.py"
         subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
 
+
 def this_version() -> str:
-    init_path = os.path.join(os.path.dirname(__file__), '..', 'pgai', '__init__.py')
+    init_path = os.path.join(os.path.dirname(__file__), "..", "pgai", "__init__.py")
     with open(init_path) as f:
         content = f.read()
         version_match = re.search(r'^__version__ = ["\']([^"\']*)["\']', content, re.M)
@@ -292,6 +292,7 @@ def this_version() -> str:
 def fatal(msg: str) -> None:
     print(msg, file=sys.stderr)
     sys.exit(1)
+
 
 def parse_version(version: str) -> tuple[int, int, int, str | None]:
     parts = re.split(r"[.-]", version, maxsplit=4)
@@ -319,14 +320,18 @@ def pg_major() -> str:
 def ext_dir() -> Path:
     return Path(__file__).resolve().parent
 
+
 def lib_dir() -> Path:
     return ext_dir().parent
+
 
 def lib_data_dir() -> Path:
     return lib_dir() / "pgai" / "data"
 
+
 def lib_sql_file() -> Path:
     return lib_data_dir() / "ai.sql"
+
 
 def sql_dir() -> Path:
     return ext_dir() / "sql"
@@ -365,6 +370,7 @@ def hash_file(path: Path) -> str:
     sha256.update(path.read_bytes())
     return sha256.hexdigest()
 
+
 def frozen_file() -> Path:
     return incremental_sql_dir() / "frozen.txt"
 
@@ -380,6 +386,7 @@ def read_frozen_file() -> dict[str, str]:
             frozen[parts[1]] = parts[0]
     return frozen
 
+
 def parse_feature_flag(path: Path) -> str | None:
     with path.open(mode="rt", encoding="utf-8") as f:
         line = f.readline()
@@ -392,7 +399,8 @@ def parse_feature_flag(path: Path) -> str | None:
                 f"feature flag {ff} in {path.name} does not match the pattern {pattern}"
             )
         return ff
-    
+
+
 def sql_file_number(path: Path) -> int:
     pattern = r"^(\d{3})-[a-z][a-z_-]*\.sql$"
     match = re.match(pattern, path.name)
@@ -401,7 +409,7 @@ def sql_file_number(path: Path) -> int:
     return int(match.group(1))
 
 
-def check_sql_file_order(path: Path, prev: int, min_strict_number = 0) -> int:
+def check_sql_file_order(path: Path, prev: int, min_strict_number=0) -> int:
     kind = path.parent.name
     this = sql_file_number(path)
     # ensuring file number correlation
@@ -448,7 +456,6 @@ def check_incremental_sql_files(paths: list[Path]) -> None:
 
 def output_sql_file() -> Path:
     return output_sql_dir() / f"ai--{this_version()}.sql"
-
 
 
 def feature_flag_to_guc(feature_flag: str) -> str:
@@ -499,9 +506,7 @@ def build_feature_flags() -> str:
     output = ""
     for feature_flag in feature_flags:
         guc = feature_flag_to_guc(feature_flag)
-        output += template.format(
-            feature_flag=feature_flag, guc=guc
-        )
+        output += template.format(feature_flag=feature_flag, guc=guc)
     return output
 
 

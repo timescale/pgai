@@ -4,6 +4,7 @@ from pathlib import Path, PosixPath
 
 import psycopg
 import pytest
+
 import pgai
 
 # skip tests in this module if disabled

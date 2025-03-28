@@ -59,7 +59,9 @@ def set_up_test_db() -> None:
             cur.execute("grant pg_read_server_files to test")
     # use the test user to create the extension in the test database
     import pgai
+
     pgai.install("postgres://test@127.0.0.1:5432/test")
+
 
 def detailed_notice_handler(diag):
     print(f"""
