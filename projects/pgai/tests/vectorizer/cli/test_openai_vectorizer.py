@@ -82,7 +82,6 @@ def test_process_vectorizer(
             array_fill(0, ARRAY[1536])::vector)
         """)
 
-
     if secrets_from_db:
         # create extension to test loading secret from db
         conn.execute("""CREATE EXTENSION IF NOT EXISTS ai CASCADE""")

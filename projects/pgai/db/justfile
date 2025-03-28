@@ -6,19 +6,15 @@ PG_BIN := env("PG_BIN", "/usr/lib/postgresql/" + PG_MAJOR + "/bin")
 default:
     @just --list
 
-ci: docker-build docker-run
+ci: docker-build docker-run docker-sync
   #!/usr/bin/env bash
   set -euo pipefail
   pwd
   trap "python3 build.py docker-stop; python3 build.py docker-rm" EXIT
-  docker exec pgai-ext just build
-  docker exec pgai-ext just lint
-  docker exec pgai-ext just format
-  docker exec pgai-ext just install-all
-  docker exec -d pgai-ext just test-server
-  docker exec pgai-ext just test
-  build.py docker-stop
-  build.py docker-rm
+  docker exec pgai-db just build
+  docker exec pgai-db just lint
+  docker exec -d pgai-db just test-server
+  docker exec pgai-db just test
 
 clean:
 	@./build.py clean
@@ -50,6 +46,9 @@ docker-stop:
 
 docker-rm:
 	@./build.py docker-rm
+
+docker-sync:
+	@./build.py docker-sync
 
 # Launches a bash shell in the container
 docker-shell:

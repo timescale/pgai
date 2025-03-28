@@ -1,6 +1,7 @@
 import dotenv
 import psycopg
 import pytest
+from psycopg.errors import Diagnostic
 
 dotenv.load_dotenv()
 
@@ -11,7 +12,9 @@ def does_test_user_exist(cur: psycopg.Cursor) -> bool:
         from pg_catalog.pg_roles
         where rolname = 'test'
     """)
-    return cur.fetchone()[0]
+    res = cur.fetchone()
+    assert res is not None
+    return res[0]
 
 
 def create_test_user(cur: psycopg.Cursor) -> None:
@@ -25,7 +28,9 @@ def does_test_db_exist(cur: psycopg.Cursor) -> bool:
         from pg_catalog.pg_database
         where datname = 'test'
     """)
-    return cur.fetchone()[0]
+    res = cur.fetchone()
+    assert res is not None
+    return res[0]
 
 
 def drop_test_db(cur: psycopg.Cursor) -> None:
@@ -59,9 +64,11 @@ def set_up_test_db() -> None:
             cur.execute("grant pg_read_server_files to test")
     # use the test user to create the extension in the test database
     import pgai
+
     pgai.install("postgres://test@127.0.0.1:5432/test")
 
-def detailed_notice_handler(diag):
+
+def detailed_notice_handler(diag: Diagnostic) -> None:
     print(f"""
     Severity: {diag.severity}
     Message:  {diag.message_primary}

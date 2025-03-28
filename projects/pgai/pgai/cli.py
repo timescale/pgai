@@ -7,7 +7,8 @@ import signal
 import sys
 import traceback
 from collections.abc import Sequence
-from typing import Any, Literal
+from dataclasses import dataclass
+from typing import Any
 
 import click
 import docling.utils.model_downloader
@@ -18,15 +19,14 @@ from dotenv import load_dotenv
 from psycopg.rows import dict_row, namedtuple_row
 from pytimeparse import parse  # type: ignore
 
+from pgai._install.install import install as install_pgai
+
 from .__init__ import __version__
 from .vectorizer.embeddings import ApiKeyMixin
 from .vectorizer.features import Features
 from .vectorizer.parsing import DOCLING_CACHE_DIR
 from .vectorizer.vectorizer import Vectorizer
 from .vectorizer.worker_tracking import WorkerTracking
-from pgai._install.install import install as install_pgai
-
-from dataclasses import dataclass
 
 load_dotenv()
 
@@ -62,32 +62,37 @@ def get_bool_env(name: str | None) -> bool:
 
 tracer.enabled = get_bool_env("DD_TRACE_ENABLED")
 
+
 @dataclass
 class Version:
     ext_version: str | None
     app_version: str | None
 
+
 def get_pgai_version(cur: psycopg.Cursor) -> Version | None:
     cur.execute("select extversion from pg_catalog.pg_extension where extname = 'ai'")
     row = cur.fetchone()
     ext_version = row[0] if row is not None else None
-    
+
     # todo: think this through more, expecially for Feature Flags
     app_version = None
     cur.execute("""
         SELECT EXISTS (
-            SELECT 1 
-            FROM information_schema.tables 
-            WHERE table_schema = 'ai' 
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'ai'
             AND table_name = 'app_version'
         )
     """)
-    table_exists = cur.fetchone()[0]
+    res = cur.fetchone()
+    assert res is not None
+    table_exists = res[0]
     if table_exists:
         cur.execute("select version from ai.app_version where name = 'ai'")
         row = cur.fetchone()
         app_version = row[0] if row is not None else None
     return Version(ext_version, app_version)
+
 
 def get_vectorizer_ids(
     db_url: str, vectorizer_ids: Sequence[int] | None = None
@@ -340,12 +345,9 @@ async def async_run_vectorizer_worker(
                     con.cursor(row_factory=namedtuple_row) as cur,
                 ):
                     pgai_version = get_pgai_version(cur)
-                    if (
-                        pgai_version is None or 
-                        (
-                            pgai_version.ext_version is None and 
-                            pgai_version.app_version is None
-                        )
+                    if pgai_version is None or (
+                        pgai_version.ext_version is None
+                        and pgai_version.app_version is None
                     ):
                         err_msg = "pgai is not installed in the database"
                         await handle_error(
@@ -440,7 +442,6 @@ def cli():
 vectorizer.add_command(vectorizer_worker)
 vectorizer.add_command(download_models)
 cli.add_command(vectorizer)
-
 
 
 @cli.command()

@@ -6,10 +6,12 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 import textwrap
 from collections import OrderedDict
+from collections.abc import Callable
 from pathlib import Path
+from typing import cast
+
 
 class Actions:
     """Collects all actions which the build.py script supports
@@ -37,11 +39,11 @@ class Actions:
     ```
     """
 
-    def __contains__(self, item):
+    def __contains__(self, item: str) -> bool:
         """containment check for action"""
         return getattr(self, item.replace("-", "_"), None) is not None
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> Callable[[], None] | Callable[[str], None]:
         """get the member function for an action, indexed by action name"""
         return getattr(self, key.replace("-", "_"))
 
@@ -49,7 +51,7 @@ class Actions:
     def help(cls):
         """displays this message and exits"""
         message = "Available targets:"
-        descriptions = OrderedDict()
+        descriptions: OrderedDict[str, tuple[str, str]] = OrderedDict()
         longest_key = 0
 
         def get_docstring_parts(docstring: str | None):
@@ -62,7 +64,7 @@ class Actions:
 
             return title, description
 
-        for key in cls.__dict__.keys():
+        for key in cls.__dict__:
             if key.startswith("_"):
                 # ignore private methods
                 continue
@@ -144,8 +146,8 @@ class Actions:
     def test_server() -> None:
         """runs the test http server in the docker container"""
         if where_am_i() == "host":
-            cmd = "docker exec -it -w /pgai/projects/extension/tests/vectorizer pgai-db fastapi dev server.py"
-            subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
+            cmd = "docker exec -it -w /pgai/projects/extension/tests/vectorizer pgai-db fastapi dev server.py"  # noqa: E501
+            subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=db_dir())
         else:
             cmd = "uv run --no-project fastapi dev server.py"
             subprocess.run(
@@ -162,7 +164,8 @@ class Actions:
         cmd = " ".join(
             [
                 "uv run --no-project pgspot --ignore-lang=plpython3u",
-                '--proc-without-search-path "ai._vectorizer_job(job_id integer,config pg_catalog.jsonb)"',
+                '--proc-without-search-path "ai._vectorizer_job(job_id integer,config pg_catalog.jsonb)"',  # noqa: E501
+                "--ignore PS010",  # allow creating the ai schema TODO: check if this is safe # noqa: E501
                 f"{output_sql_file()}",
             ]
         )
@@ -172,7 +175,16 @@ class Actions:
     def docker_build() -> None:
         """builds the dev docker image"""
         subprocess.run(
-            f"""docker build --build-arg PG_MAJOR={pg_major()} -t pgai-db .""",
+            " ".join(
+                [
+                    "docker build",
+                    f"--build-arg PG_MAJOR={pg_major()}",
+                    "--target pgai-lib-db-dev",
+                    "-t pgai-db",
+                    f"--file {ext_dir()}/Dockerfile",
+                    f"{ext_dir()}",
+                ]
+            ),
             shell=True,
             check=True,
             env=os.environ,
@@ -190,10 +202,11 @@ class Actions:
         )
         cmd = " ".join(
             [
-                "docker run -d --name pgai-db --hostname pgai-db -e POSTGRES_HOST_AUTH_METHOD=trust",
+                "docker run -d --name pgai-db --hostname pgai-db",
+                "-e POSTGRES_HOST_AUTH_METHOD=trust",
                 networking,
-                f"--mount type=bind,src={ext_dir().parent.parent.parent},dst=/pgai",
-                "-w /pgai/projects/pgai",
+                f"--mount type=bind,src={db_dir().parent.parent.parent},dst=/pgai",
+                "-w /pgai/projects/pgai/db",
                 "-e OPENAI_API_KEY",
                 "-e COHERE_API_KEY",
                 "-e MISTRAL_API_KEY",
@@ -213,15 +226,26 @@ class Actions:
             ]
         )
         subprocess.run(cmd, shell=True, check=True, env=os.environ, text=True)
+
+    @staticmethod
+    def docker_sync() -> None:
         # install the pgai library in the container
         subprocess.run(
-            """docker exec pgai-db uv pip install --editable /pgai/projects/pgai""",
+            " ".join(
+                [
+                    "docker exec pgai-db",
+                    "uv sync",
+                    "--directory /pgai/projects/pgai",
+                    "--all-extras",
+                    "--active",
+                ]
+            ),
             shell=True,
             check=True,
             env=os.environ,
             text=True,
         )
-        
+
     @staticmethod
     def docker_start() -> None:
         """starts the container"""
@@ -243,7 +267,6 @@ class Actions:
             env=os.environ,
             text=True,
         )
-        
 
     @staticmethod
     def docker_shell() -> None:
@@ -273,14 +296,15 @@ class Actions:
         Actions.docker_build()
         Actions.docker_run()
         cmd = "docker exec pgai-db make build-install"
-        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
+        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=db_dir())
         cmd = 'docker exec -u postgres pgai-db psql -c "create extension ai cascade"'
-        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
+        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=db_dir())
         cmd = "docker exec -it -d -w /pgai/tests pgai-db fastapi dev server.py"
-        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
+        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=db_dir())
+
 
 def this_version() -> str:
-    init_path = os.path.join(os.path.dirname(__file__), '..', 'pgai', '__init__.py')
+    init_path = os.path.join(os.path.dirname(__file__), "..", "pgai", "__init__.py")
     with open(init_path) as f:
         content = f.read()
         version_match = re.search(r'^__version__ = ["\']([^"\']*)["\']', content, re.M)
@@ -292,6 +316,7 @@ def this_version() -> str:
 def fatal(msg: str) -> None:
     print(msg, file=sys.stderr)
     sys.exit(1)
+
 
 def parse_version(version: str) -> tuple[int, int, int, str | None]:
     parts = re.split(r"[.-]", version, maxsplit=4)
@@ -316,20 +341,28 @@ def pg_major() -> str:
     return os.getenv("PG_MAJOR", "17")
 
 
-def ext_dir() -> Path:
+def db_dir() -> Path:
     return Path(__file__).resolve().parent
 
+
 def lib_dir() -> Path:
-    return ext_dir().parent
+    return db_dir().parent
+
+
+def ext_dir() -> Path:
+    return lib_dir().parent / "extension"
+
 
 def lib_data_dir() -> Path:
     return lib_dir() / "pgai" / "data"
 
+
 def lib_sql_file() -> Path:
     return lib_data_dir() / "ai.sql"
 
+
 def sql_dir() -> Path:
-    return ext_dir() / "sql"
+    return db_dir() / "sql"
 
 
 def output_sql_dir() -> Path:
@@ -365,6 +398,7 @@ def hash_file(path: Path) -> str:
     sha256.update(path.read_bytes())
     return sha256.hexdigest()
 
+
 def frozen_file() -> Path:
     return incremental_sql_dir() / "frozen.txt"
 
@@ -380,6 +414,7 @@ def read_frozen_file() -> dict[str, str]:
             frozen[parts[1]] = parts[0]
     return frozen
 
+
 def parse_feature_flag(path: Path) -> str | None:
     with path.open(mode="rt", encoding="utf-8") as f:
         line = f.readline()
@@ -392,16 +427,18 @@ def parse_feature_flag(path: Path) -> str | None:
                 f"feature flag {ff} in {path.name} does not match the pattern {pattern}"
             )
         return ff
-    
+
+
 def sql_file_number(path: Path) -> int:
     pattern = r"^(\d{3})-[a-z][a-z_-]*\.sql$"
     match = re.match(pattern, path.name)
     if not match:
         fatal(f"{path} file name does not match the pattern {pattern}")
+    assert match is not None  # help pyright understand match cannot be None here
     return int(match.group(1))
 
 
-def check_sql_file_order(path: Path, prev: int, min_strict_number = 0) -> int:
+def check_sql_file_order(path: Path, prev: int, min_strict_number: int = 0) -> int:
     kind = path.parent.name
     this = sql_file_number(path)
     # ensuring file number correlation
@@ -410,13 +447,13 @@ def check_sql_file_order(path: Path, prev: int, min_strict_number = 0) -> int:
     # avoiding file number duplication
     if this >= 900 and this == prev:  # allow gaps in pre-production scripts
         fatal(
-            f"{kind} sql files must not have duplicate numbers. this: {this} prev: {prev}"
+            f"{kind} sql files must not have duplicate numbers. this: {this} prev: {prev}"  # noqa: E501
         )
     ff = parse_feature_flag(path)
     # feature flagged files should be between 900 and 999
     if this < 900 and ff:
         fatal(
-            f"{kind} sql files under 900 must be NOT gated by a feature flag: {path.name}"
+            f"{kind} sql files under 900 must be NOT gated by a feature flag: {path.name}"  # noqa: E501
         )
     # only feature flagged files go over 899
     if this >= 900 and not ff:
@@ -439,16 +476,12 @@ def check_incremental_sql_files(paths: list[Path]) -> None:
     prev = 0
     for path in paths:
         prev = check_sql_file_order(path, prev, min_strict_number=20)
-        if path.name in frozen:
-            if hash_file(path) != frozen[path.name]:
-                fatal(
-                    f"changing frozen incremental sql file {path.name} is not allowed"
-                )
+        if path.name in frozen and hash_file(path) != frozen[path.name]:
+            fatal(f"changing frozen incremental sql file {path.name} is not allowed")
 
 
 def output_sql_file() -> Path:
     return output_sql_dir() / f"ai--{this_version()}.sql"
-
 
 
 def feature_flag_to_guc(feature_flag: str) -> str:
@@ -486,7 +519,7 @@ def build_idempotent_sql_file(input_file: Path) -> str:
 
 
 def build_feature_flags() -> str:
-    feature_flags = set()
+    feature_flags: set[str] = set()
     for path in incremental_sql_files():
         ff = parse_feature_flag(path)
         if ff:
@@ -499,14 +532,13 @@ def build_feature_flags() -> str:
     output = ""
     for feature_flag in feature_flags:
         guc = feature_flag_to_guc(feature_flag)
-        output += template.format(
-            feature_flag=feature_flag, guc=guc
-        )
+        output += template.format(feature_flag=feature_flag, guc=guc)
     return output
 
 
 def error_if_pre_release() -> None:
-    # Note: released versions always have the output sql file commited into the repository.
+    # Note: released versions always have the output sql file
+    # commited into the repository.
     output_file = output_sql_file()
     command = (
         "just ext build-install"
@@ -531,7 +563,7 @@ def error_if_pre_release() -> None:
 
 
 def tests_dir() -> Path:
-    return ext_dir().joinpath("tests").absolute()
+    return db_dir().joinpath("tests").absolute()
 
 
 def where_am_i() -> str:
@@ -546,7 +578,9 @@ if __name__ == "__main__":
         actions.help()
         sys.exit(0)
     i = 1
-    functions = []
+    functions: list[
+        tuple[Callable[[], None], None] | tuple[Callable[[str], None], str]
+    ] = []
     while i < len(sys.argv):
         action = sys.argv[i]
         if action in actions:
@@ -556,13 +590,16 @@ if __name__ == "__main__":
                 arg = sys.argv[i + 1]
                 i += 1
             fn = actions[action]
-            functions.append((fn, arg))
+            if arg is not None:
+                functions.append((cast(Callable[[str], None], fn), arg))
+            else:
+                functions.append((cast(Callable[[], None], fn), None))
             i += 1
         else:
             print(f"{action} is not a valid action", file=sys.stderr)
             sys.exit(1)
     for fn, arg in functions:
         if arg is not None:
-            fn(arg)
+            fn(arg)  # type: ignore
         else:
-            fn()
+            fn()  # type: ignore

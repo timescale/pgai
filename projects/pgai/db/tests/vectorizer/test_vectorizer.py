@@ -6,6 +6,7 @@ import psycopg
 import pytest
 from psycopg.rows import namedtuple_row
 
+
 def detailed_notice_handler(diag):
     print(f"""
     Severity: {diag.severity}
@@ -199,7 +200,7 @@ def test_vectorizer_timescaledb():
     with psycopg.connect(db_url("test")) as con:
         with con.cursor() as cur:
             cur.execute("create extension ai cascade")
-    
+
     with psycopg.connect(
         db_url("postgres"), autocommit=True, row_factory=namedtuple_row
     ) as con:
@@ -1873,8 +1874,7 @@ def test_create_vectorizer_privs():
             cur.execute("select ai.grant_vectorizer_usage('jimmy', admin=>false)")
             create_user(cur, "greg")
             cur.execute("select ai.grant_vectorizer_usage('greg', admin=>false)")
-            
-            
+
     # jimmy owns the source table
     with psycopg.connect(db_url("jimmy")) as con:
         with con.cursor() as cur:
@@ -2242,19 +2242,21 @@ def test_install_ai_extension_before_library():
         with con.cursor() as cur:
             cur.execute("drop schema if exists ai cascade")
             cur.execute("create extension ai cascade")
-    
-    
+
     import pgai
+
     pgai.install(db_url("test"))
-    
+
+
 def test_install_library_before_ai_extension():
     with psycopg.connect(db_url("test")) as con:
         with con.cursor() as cur:
             cur.execute("drop schema if exists ai cascade")
-            
+
     import pgai
+
     pgai.install(db_url("test"))
-    
+
     with psycopg.connect(db_url("test")) as con:
         with con.cursor() as cur:
             cur.execute("create extension ai cascade")

@@ -6,6 +6,7 @@ import pytest
 from alembic.config import Config
 from sqlalchemy import Engine, create_engine, text
 from testcontainers.postgres import PostgresContainer  # type: ignore
+
 import pgai
 
 # Get the path to the fixtures directory relative to this file
@@ -76,6 +77,7 @@ def alembic_config(alembic_dir: Path, postgres_container: PostgresContainer) -> 
 
     return config
 
+
 @pytest.fixture
 def initialized_engine(
     postgres_container: PostgresContainer,
@@ -89,13 +91,13 @@ def initialized_engine(
         Engine: Configured SQLAlchemy engine
     """
     engine = create_engine(postgres_container.get_connection_url(driver="psycopg"))
-    
+
     with engine.connect() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb;"))
         conn.commit()
-        
+
     pgai.install(postgres_container.get_connection_url())
-    
+
     yield engine
 
     with engine.connect() as conn:
