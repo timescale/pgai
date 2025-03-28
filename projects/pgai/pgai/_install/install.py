@@ -44,11 +44,15 @@ async def ainstall(
 
     Args:
         db_url: Database connection URL
-        vector_extension_schema: Schema where the vector extension is installed if it doesn't exist. If None, then the vector extension will be installed in the default schema (default: None)
-        if_not_exists: If True, ignore if library is already installed. If False, raise error (default: True)
+        vector_extension_schema: Schema where the vector extension is installed if it
+            doesn't exist. If None, then the vector extension will be installed in the
+            default schema (default: None)
+        if_not_exists: If True, ignore if library is already installed. If False,
+            raise error (default: True)
 
     Raises:
-        psycopg.errors.DuplicateObject: If library is already installed and if_not_exists=False
+        psycopg.errors.DuplicateObject: If library is already installed and
+            if_not_exists=False
     """
 
     async with (
@@ -60,7 +64,7 @@ async def ainstall(
             await conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
         else:
             await conn.execute(
-                f"CREATE EXTENSION IF NOT EXISTS vector with schema {vector_extension_schema}"
+                f"CREATE EXTENSION IF NOT EXISTS vector with schema {vector_extension_schema}" # noqa: E501
             )
 
         await cur.execute(_get_vector_extension_schema_sql())
@@ -70,7 +74,8 @@ async def ainstall(
 
         sql = _get_sql(result[0])
 
-        # if we need to send a ping to an external url, we need to install the ai extension
+        # if we need to send a ping to an external url then
+        # we need to install the ai extension
         await cur.execute(_get_guc_vectorizer_url_sql(), (GUC_VECTORIZER_URL,))
         result = await cur.fetchone()
         if result[0] is not None:
@@ -94,8 +99,15 @@ def install(
 
     Args:
         db_url: Database connection URL
-        vector_extension_schema: Schema where the vector extension is installed if it doesn't exist. If None, then the vector extension will be installed in the default schema (default: None)
-        if_not_exists: If True, ignore if library is already installed. If False, raise error (default: True)
+        vector_extension_schema: Schema where the vector extension is installed if it
+            doesn't exist. If None, then the vector extension will be installed in the
+            default schema (default: None)
+        if_not_exists: If True, ignore if library is already installed. If False,
+            raise error (default: True)
+    
+    Raises:
+        psycopg.errors.DuplicateObject: If library is already installed and
+            if_not_exists=False
     """
     with (
         psycopg.connect(db_url, autocommit=True) as conn,
@@ -105,7 +117,7 @@ def install(
             conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
         else:
             conn.execute(
-                f"CREATE EXTENSION IF NOT EXISTS vector with schema {vector_extension_schema}"
+                f"CREATE EXTENSION IF NOT EXISTS vector with schema {vector_extension_schema}" # noqa: E501
             )
 
         cur.execute(_get_vector_extension_schema_sql())
@@ -115,7 +127,8 @@ def install(
 
         sql = _get_sql(result[0])
 
-        # if we need to send a ping to an external url, we need to install the ai extension
+        # if we need to send a ping to an external url then
+        # we need to install the ai extension
         cur.execute(_get_guc_vectorizer_url_sql(), (GUC_VECTORIZER_URL,))
         result = cur.fetchone()
         if result[0] is not None:

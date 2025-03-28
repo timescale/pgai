@@ -78,9 +78,9 @@ def get_pgai_version(cur: psycopg.Cursor) -> Version | None:
     app_version = None
     cur.execute("""
         SELECT EXISTS (
-            SELECT 1 
-            FROM information_schema.tables 
-            WHERE table_schema = 'ai' 
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'ai'
             AND table_name = 'app_version'
         )
     """)

@@ -94,7 +94,7 @@ def postgres_container_manager() -> (
         ai_extension_version: str = "",
     ) -> PostgresContainer:
         # Use config as cache key
-        key = f"openai_{load_openai_key}+executor_url_{set_executor_url}+ai_extension_version_{ai_extension_version}"
+        key = f"openai_{load_openai_key}+executor_url_{set_executor_url}+ai_extension_version_{ai_extension_version}"  # noqa: E501
 
         if key not in containers:
             container = PostgresContainer(

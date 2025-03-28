@@ -62,7 +62,7 @@ class Actions:
 
             return title, description
 
-        for key in cls.__dict__.keys():
+        for key in cls.__dict__:
             if key.startswith("_"):
                 # ignore private methods
                 continue
@@ -144,7 +144,7 @@ class Actions:
     def test_server() -> None:
         """runs the test http server in the docker container"""
         if where_am_i() == "host":
-            cmd = "docker exec -it -w /pgai/projects/extension/tests/vectorizer pgai-db fastapi dev server.py"
+            cmd = "docker exec -it -w /pgai/projects/extension/tests/vectorizer pgai-db fastapi dev server.py" # noqa: E501
             subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
         else:
             cmd = "uv run --no-project fastapi dev server.py"
@@ -162,7 +162,7 @@ class Actions:
         cmd = " ".join(
             [
                 "uv run --no-project pgspot --ignore-lang=plpython3u",
-                '--proc-without-search-path "ai._vectorizer_job(job_id integer,config pg_catalog.jsonb)"',
+                '--proc-without-search-path "ai._vectorizer_job(job_id integer,config pg_catalog.jsonb)"', # noqa: E501
                 f"{output_sql_file()}",
             ]
         )
@@ -190,7 +190,8 @@ class Actions:
         )
         cmd = " ".join(
             [
-                "docker run -d --name pgai-db --hostname pgai-db -e POSTGRES_HOST_AUTH_METHOD=trust",
+                "docker run -d --name pgai-db --hostname pgai-db",
+                "-e POSTGRES_HOST_AUTH_METHOD=trust",
                 networking,
                 f"--mount type=bind,src={ext_dir().parent.parent.parent},dst=/pgai",
                 "-w /pgai/projects/pgai",
@@ -418,13 +419,13 @@ def check_sql_file_order(path: Path, prev: int, min_strict_number=0) -> int:
     # avoiding file number duplication
     if this >= 900 and this == prev:  # allow gaps in pre-production scripts
         fatal(
-            f"{kind} sql files must not have duplicate numbers. this: {this} prev: {prev}"
+            f"{kind} sql files must not have duplicate numbers. this: {this} prev: {prev}" # noqa: E501
         )
     ff = parse_feature_flag(path)
     # feature flagged files should be between 900 and 999
     if this < 900 and ff:
         fatal(
-            f"{kind} sql files under 900 must be NOT gated by a feature flag: {path.name}"
+            f"{kind} sql files under 900 must be NOT gated by a feature flag: {path.name}" # noqa: E501
         )
     # only feature flagged files go over 899
     if this >= 900 and not ff:
@@ -447,11 +448,10 @@ def check_incremental_sql_files(paths: list[Path]) -> None:
     prev = 0
     for path in paths:
         prev = check_sql_file_order(path, prev, min_strict_number=20)
-        if path.name in frozen:
-            if hash_file(path) != frozen[path.name]:
-                fatal(
-                    f"changing frozen incremental sql file {path.name} is not allowed"
-                )
+        if path.name in frozen and hash_file(path) != frozen[path.name]:
+            fatal(
+                f"changing frozen incremental sql file {path.name} is not allowed"
+            )
 
 
 def output_sql_file() -> Path:
@@ -511,7 +511,8 @@ def build_feature_flags() -> str:
 
 
 def error_if_pre_release() -> None:
-    # Note: released versions always have the output sql file commited into the repository.
+    # Note: released versions always have the output sql file
+    # commited into the repository.
     output_file = output_sql_file()
     command = (
         "just ext build-install"
