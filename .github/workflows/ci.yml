@@ -154,3 +154,8 @@ jobs:
         run: just pgai ci
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          
+      - name: DB sub moduleCI pipeline. Install dependencies, run linters execute tests and build the project", 
+        run: just pgai db ci
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

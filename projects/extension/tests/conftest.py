@@ -1,7 +1,7 @@
 import dotenv
 import psycopg
-import pytest
 import psycopg.errors
+import pytest
 
 dotenv.load_dotenv()
 

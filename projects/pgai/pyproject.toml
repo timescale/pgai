@@ -139,7 +139,8 @@ dev-dependencies = [
     "twine==5.1.1",
     "mitmproxy==10.3.0",
     "Jinja2>=3.1.5",
-    "fastapi>=0.115.8",
+    "fastapi[standard]>=0.115.8",
+    "pgspot>=0.9.0",
 ]
 
 [tool.hatch.build.targets.wheel.shared-data]

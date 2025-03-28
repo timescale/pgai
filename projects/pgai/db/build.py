@@ -147,7 +147,7 @@ class Actions:
         """runs the test http server in the docker container"""
         if where_am_i() == "host":
             cmd = "docker exec -it -w /pgai/projects/extension/tests/vectorizer pgai-db fastapi dev server.py"  # noqa: E501
-            subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
+            subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=db_dir())
         else:
             cmd = "uv run --no-project fastapi dev server.py"
             subprocess.run(
@@ -165,6 +165,7 @@ class Actions:
             [
                 "uv run --no-project pgspot --ignore-lang=plpython3u",
                 '--proc-without-search-path "ai._vectorizer_job(job_id integer,config pg_catalog.jsonb)"',  # noqa: E501
+                "--ignore PS010", #allow creating the ai schema TODO: check if this is safe
                 f"{output_sql_file()}",
             ]
         )
@@ -174,7 +175,7 @@ class Actions:
     def docker_build() -> None:
         """builds the dev docker image"""
         subprocess.run(
-            f"""docker build --build-arg PG_MAJOR={pg_major()} -t pgai-db .""",
+            f"""docker build --build-arg PG_MAJOR={pg_major()} --target pgai-lib-db-dev -t pgai-db --file {ext_dir()}/Dockerfile {ext_dir()}""",
             shell=True,
             check=True,
             env=os.environ,
@@ -195,8 +196,8 @@ class Actions:
                 "docker run -d --name pgai-db --hostname pgai-db",
                 "-e POSTGRES_HOST_AUTH_METHOD=trust",
                 networking,
-                f"--mount type=bind,src={ext_dir().parent.parent.parent},dst=/pgai",
-                "-w /pgai/projects/pgai",
+                f"--mount type=bind,src={db_dir().parent.parent.parent},dst=/pgai",
+                "-w /pgai/projects/pgai/db",
                 "-e OPENAI_API_KEY",
                 "-e COHERE_API_KEY",
                 "-e MISTRAL_API_KEY",
@@ -216,9 +217,12 @@ class Actions:
             ]
         )
         subprocess.run(cmd, shell=True, check=True, env=os.environ, text=True)
+       
+    @staticmethod
+    def docker_sync() -> None:
         # install the pgai library in the container
         subprocess.run(
-            """docker exec pgai-db uv pip install --editable /pgai/projects/pgai""",
+            """docker exec pgai-db uv sync --directory /pgai/projects/pgai --all-extras --active """,
             shell=True,
             check=True,
             env=os.environ,
@@ -275,11 +279,11 @@ class Actions:
         Actions.docker_build()
         Actions.docker_run()
         cmd = "docker exec pgai-db make build-install"
-        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
+        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=db_dir())
         cmd = 'docker exec -u postgres pgai-db psql -c "create extension ai cascade"'
-        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
+        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=db_dir())
         cmd = "docker exec -it -d -w /pgai/tests pgai-db fastapi dev server.py"
-        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
+        subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=db_dir())
 
 
 def this_version() -> str:
@@ -320,12 +324,16 @@ def pg_major() -> str:
     return os.getenv("PG_MAJOR", "17")
 
 
-def ext_dir() -> Path:
+def db_dir() -> Path:
     return Path(__file__).resolve().parent
 
 
 def lib_dir() -> Path:
-    return ext_dir().parent
+    return db_dir().parent
+
+
+def ext_dir() -> Path:
+    return lib_dir().parent / "extension"
 
 
 def lib_data_dir() -> Path:
@@ -337,7 +345,7 @@ def lib_sql_file() -> Path:
 
 
 def sql_dir() -> Path:
-    return ext_dir() / "sql"
+    return db_dir() / "sql"
 
 
 def output_sql_dir() -> Path:
@@ -538,7 +546,7 @@ def error_if_pre_release() -> None:
 
 
 def tests_dir() -> Path:
-    return ext_dir().joinpath("tests").absolute()
+    return db_dir().joinpath("tests").absolute()
 
 
 def where_am_i() -> str:

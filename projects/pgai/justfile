@@ -34,9 +34,9 @@ install:
 uninstall:
 	@uv pip uninstall -y pgai
 
-# Run pytest test suite
+# Run pytest test suite (does not run the db tests)
 test:
-	@uv run --no-project pytest
+	@uv run --no-project pytest tests/
 
 # Run ruff linter checks
 lint:
