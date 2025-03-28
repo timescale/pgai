@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from functools import cached_property
 from typing import Literal
 
 import voyageai
@@ -9,11 +8,9 @@ from typing_extensions import override
 
 from ..embeddings import (
     ApiKeyMixin,
-    BatchApiCaller,
     Embedder,
     EmbeddingResponse,
     EmbeddingVector,
-    StringDocument,
     Usage,
     logger,
 )
@@ -48,20 +45,14 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
             Sequence[EmbeddingVector]: The embeddings for each document.
         """
         await logger.adebug(f"Chunks produced: {len(documents)}")
-        return await self._batcher.batch_chunks_and_embed(documents)
-
-    @cached_property
-    def _batcher(self) -> BatchApiCaller[StringDocument]:
-        return BatchApiCaller(
-            self._max_chunks_per_batch(),
-            self._max_tokens_per_batch(),
-            self.call_embed_api,
-        )
+        chunk_lengths = [0 for _ in documents]
+        return await self.batch_chunks_and_embed(documents, chunk_lengths)
 
     @override
     def _max_chunks_per_batch(self) -> int:
         return 128
 
+    @override
     async def call_embed_api(self, documents: list[str]) -> EmbeddingResponse:
         response = await voyageai.AsyncClient(api_key=self._api_key).embed(
             documents,

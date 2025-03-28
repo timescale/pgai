@@ -1,7 +1,7 @@
 import re
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from functools import cached_property
-from typing import Literal, cast
+from typing import Literal
 
 import openai
 import tiktoken
@@ -12,12 +12,9 @@ from typing_extensions import override
 from ..embeddings import (
     ApiKeyMixin,
     BaseURLMixin,
-    BatchApiCaller,
-    Document,
     Embedder,
     EmbeddingResponse,
     EmbeddingVector,
-    StringDocument,
     Usage,
     logger,
 )
@@ -80,9 +77,10 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
     def _max_tokens_per_batch(self) -> int:
         return 600_000
 
-    async def call_embed_api(self, documents: list[Document]) -> EmbeddingResponse:
+    @override
+    async def call_embed_api(self, documents: list[str]) -> EmbeddingResponse:
         raw_response = await self._embedder.create(
-            input=cast(list[str] | Iterable[Iterable[int]], documents),
+            input=documents,
             model=self.model,
             dimensions=self._openai_dimensions,
             user=self._openai_user,
@@ -97,20 +95,12 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
             embeddings=[r["embedding"] for r in response["data"]], usage=usage
         )
 
-    @cached_property
-    def _batcher(self) -> BatchApiCaller[Document]:
-        return BatchApiCaller(
-            self._max_chunks_per_batch(),
-            self._max_tokens_per_batch(),
-            self.call_embed_api,
-        )
-
     @override
-    async def embed(self, documents: list[StringDocument]) -> Sequence[EmbeddingVector]:
+    async def embed(self, documents: list[str]) -> Sequence[EmbeddingVector]:
         """
         Embeds a list of documents into vectors using OpenAI's embeddings API.
         The documents are first encoded into tokens before being embedded and
-        and truncated to not exceed OpenAI's context window.
+        truncated to not exceed OpenAI's context window.
 
         Args:
             documents (list[str]): A list of documents to be embedded.
@@ -121,24 +111,21 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
         await logger.adebug(f"Chunks produced: {len(documents)}")
         encoder = self._encoder
         context_length = self._context_length
-        is_tokenized = False
-        processed_docs: list[Document] = []
         if encoder is not None and context_length is not None:
+            token_counts: list[int] = []
             # truncate all documents before submitting them to the API
-            is_tokenized = True
-            for document in documents:
+            for i, document in enumerate(documents):
                 tokenized = encoder.encode(document)
-                if len(tokenized) > context_length:
+                tokenized_length = len(tokenized)
+                if tokenized_length > context_length:
                     await logger.awarning(
                         f"chunk truncated from {len(tokenized)} to {context_length} tokens"  # noqa
                     )
-                    processed_docs.append(tokenized[:context_length])
-                else:
-                    processed_docs.append(tokenized)
+                    documents[i] = encoder.decode(tokenized[:context_length])
+                token_counts.append(min(context_length, tokenized_length))
         else:
-            processed_docs = cast(list[Document], documents)
-        await logger.adebug(f"Chunks produced: {len(documents)}")
-        return await self._batcher.batch_chunks_and_embed(processed_docs, is_tokenized)
+            token_counts = [0 for _ in documents]
+        return await self.batch_chunks_and_embed(documents, token_counts)
 
     @cached_property
     def _encoder(self) -> tiktoken.Encoding | None:
