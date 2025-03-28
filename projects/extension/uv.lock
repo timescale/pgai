@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -127,7 +128,7 @@ wheels = [
 
 [[package]]
 name = "anthropic"
-version = "0.44.0"
+version = "0.49.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -138,9 +139,9 @@ dependencies = [
     { name = "sniffio" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/eb/34/ed394012684f7d6e36bb36c8b7c82b438f0ef189d2afd3d0090b85801211/anthropic-0.44.0.tar.gz", hash = "sha256:dc5c91c8b0463f97513d2e79350511ef295a56910bac4fbbe9491016c71f2ef0", size = 196065 }
+sdist = { url = "https://files.pythonhosted.org/packages/86/e3/a88c8494ce4d1a88252b9e053607e885f9b14d0a32273d47b727cbee4228/anthropic-0.49.0.tar.gz", hash = "sha256:c09e885b0f674b9119b4f296d8508907f6cff0009bc20d5cf6b35936c40b4398", size = 210016 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d3/ad/c3c7d199eedc0b6d4621deed8dc1ed252ce399400cd76f1da098f1f50e56/anthropic-0.44.0-py3-none-any.whl", hash = "sha256:7087ccfc8ed7b164f971e094495cd3aeabac1e435fa393480cc146c87946c21c", size = 208634 },
+    { url = "https://files.pythonhosted.org/packages/76/74/5d90ad14d55fbe3f9c474fdcb6e34b4bed99e3be8efac98734a5ddce88c1/anthropic-0.49.0-py3-none-any.whl", hash = "sha256:bbc17ad4e7094988d2fa86b87753ded8dce12498f4b85fe5810f208f454a8375", size = 243368 },
 ]
 
 [[package]]
@@ -1388,7 +1389,7 @@ wheels = [
 
 [[package]]
 name = "openai"
-version = "1.56.0"
+version = "1.69.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -1400,9 +1401,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1c/7e/109c73d81018f3b993ca08c06fb2850ee151120a391fa9aeb857f34e0caf/openai-1.56.0.tar.gz", hash = "sha256:f7fa159c8e18e7f9a8d71ff4b8052452ae70a4edc6b76a6e97eda00d5364923f", size = 315175 }
+sdist = { url = "https://files.pythonhosted.org/packages/ab/99/d164612528dfb7a9b19330623daded608e75d25823b01f81e0376eb388a4/openai-1.69.0.tar.gz", hash = "sha256:7b8a10a8ff77e1ae827e5e4c8480410af2070fb68bc973d6c994cf8218f1f98d", size = 409579 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ec/ac/2d716e5fdae7f28b5cb4144bf55d0c782538350f7ad916ed2956268370b3/openai-1.56.0-py3-none-any.whl", hash = "sha256:0751a6e139a09fca2e9cbbe8a62bfdab901b5865249d2555d005decf966ef9c3", size = 389819 },
+    { url = "https://files.pythonhosted.org/packages/b8/a4/28113be8b7bc937656aaf7b06feff7e9a5eb742ee4e405c6c48c30d879c4/openai-1.69.0-py3-none-any.whl", hash = "sha256:73c4b2ddfd050060f8d93c70367189bd891e70a5adb6d69c04c3571f4fea5627", size = 599068 },
 ]
 
 [[package]]
@@ -1555,7 +1556,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "anthropic", specifier = "==0.44.0" },
+    { name = "anthropic", specifier = "==0.49.0" },
     { name = "backoff", specifier = "==2.2.1" },
     { name = "cohere", specifier = "==5.13.11" },
     { name = "datasets", specifier = "==3.1.0" },
@@ -1564,7 +1565,7 @@ requires-dist = [
     { name = "langchain-text-splitters", specifier = ">=0.3.5" },
     { name = "litellm", specifier = "==1.58.2" },
     { name = "ollama", specifier = "==0.4.5" },
-    { name = "openai", specifier = "==1.56.0" },
+    { name = "openai", specifier = "==1.69.0" },
     { name = "tiktoken", specifier = "==0.7.0" },
     { name = "voyageai", specifier = "==0.3.1" },
 ]
