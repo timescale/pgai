@@ -152,6 +152,10 @@
  f       | bob   | execute   | no      | ai     | chunking_character_text_splitter(chunk_size integer, chunk_overlap integer, separator text, is_separator_regex boolean)
  f       | fred  | execute   | no      | ai     | chunking_character_text_splitter(chunk_size integer, chunk_overlap integer, separator text, is_separator_regex boolean)
  f       | jill  | execute   | YES     | ai     | chunking_character_text_splitter(chunk_size integer, chunk_overlap integer, separator text, is_separator_regex boolean)
+ f       | alice | execute   | YES     | ai     | chunking_none()
+ f       | bob   | execute   | no      | ai     | chunking_none()
+ f       | fred  | execute   | no      | ai     | chunking_none()
+ f       | jill  | execute   | YES     | ai     | chunking_none()
  f       | alice | execute   | YES     | ai     | chunking_recursive_character_text_splitter(chunk_size integer, chunk_overlap integer, separators text[], is_separator_regex boolean)
  f       | bob   | execute   | no      | ai     | chunking_recursive_character_text_splitter(chunk_size integer, chunk_overlap integer, separators text[], is_separator_regex boolean)
  f       | fred  | execute   | no      | ai     | chunking_recursive_character_text_splitter(chunk_size integer, chunk_overlap integer, separators text[], is_separator_regex boolean)
@@ -432,5 +436,5 @@
  f       | bob   | execute   | no      | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text, "verbose" boolean)
  f       | fred  | execute   | no      | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text, "verbose" boolean)
  f       | jill  | execute   | YES     | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text, "verbose" boolean)
-(432 rows)
+(436 rows)
 

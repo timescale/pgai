@@ -8,6 +8,7 @@ CREATE EXTENSION
  function ai.anthropic_generate(text,jsonb,integer,text,text,text,double precision,integer,text,text,text[],double precision,jsonb,jsonb,integer,double precision,boolean)
  function ai.anthropic_list_models(text,text,text,boolean)
  function ai.chunking_character_text_splitter(integer,integer,text,boolean)
+ function ai.chunking_none()
  function ai.chunking_recursive_character_text_splitter(integer,integer,text[],boolean)
  function ai.chunk_text_recursively(text,integer,integer,text[],boolean)
  function ai.chunk_text(text,integer,integer,text,boolean)
@@ -140,7 +141,7 @@ CREATE EXTENSION
  type ai.vectorizer_worker_progress[]
  view ai.secret_permissions
  view ai.vectorizer_status
-(136 rows)
+(137 rows)
 
                                     Table "ai._secret_permissions"
  Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
