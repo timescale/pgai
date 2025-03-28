@@ -10,7 +10,7 @@ begin
         );
 
         insert into ai.feature_flag_app ("name", applied_at_version)
-        values ('{feature_flag}', '{version}')
+        values ('{feature_flag}', '__version__')
         on conflict on constraint feature_flag_app_pkey
         do nothing
         ;

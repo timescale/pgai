@@ -11,7 +11,6 @@ import textwrap
 from collections import OrderedDict
 from pathlib import Path
 
-
 class Actions:
     """Collects all actions which the build.py script supports
 
@@ -90,7 +89,6 @@ class Actions:
     @staticmethod
     def build() -> None:
         """constructs the sql files for the extension"""
-        check_versions()
         check_incremental_sql_files(incremental_sql_files())
         check_idempotent_sql_files(idempotent_sql_files())
         hr = "".rjust(80, "-")  # "horizontal rule"
@@ -281,44 +279,19 @@ class Actions:
         cmd = "docker exec -it -d -w /pgai/tests pgai-db fastapi dev server.py"
         subprocess.run(cmd, shell=True, check=True, env=os.environ, cwd=ext_dir())
 
-def versions() -> list[str]:
-    # ADD NEW VERSIONS TO THE FRONT OF THIS LIST! STAY SORTED PLEASE
-    return [
-        "0.9.1-dev",
-        "0.9.0",  # released
-        "0.8.0",  # released
-        "0.7.0",  # released
-        "0.6.0",  # released
-        "0.5.0",  # released
-        "0.4.1",  # released
-        "0.4.0",  # released
-    ]
-
-
 def this_version() -> str:
-    return versions()[0]
-
-
-def prior_versions() -> list[str]:
-    return versions()[1:] if len(versions()) > 1 else []
-
-
-def deprecated_versions() -> set[str]:
-    return set()
+    init_path = os.path.join(os.path.dirname(__file__), '..', 'pgai', '__init__.py')
+    with open(init_path) as f:
+        content = f.read()
+        version_match = re.search(r'^__version__ = ["\']([^"\']*)["\']', content, re.M)
+        if version_match:
+            return version_match.group(1)
+    raise RuntimeError("Cannot find version string")
 
 
 def fatal(msg: str) -> None:
     print(msg, file=sys.stderr)
     sys.exit(1)
-
-
-def check_versions():
-    # double-hyphens will cause issues. disallow
-    pattern = r"\d+\.\d+\.\d+(-[a-z0-9.]+)?"
-    for version in versions():
-        if re.fullmatch(pattern, version) is None:
-            fatal(f"version {version} does not match the pattern {pattern}")
-
 
 def parse_version(version: str) -> tuple[int, int, int, str | None]:
     parts = re.split(r"[.-]", version, maxsplit=4)
@@ -477,9 +450,6 @@ def output_sql_file() -> Path:
     return output_sql_dir() / f"ai--{this_version()}.sql"
 
 
-def control_file() -> Path:
-    return output_sql_dir() / "ai.control"
-
 
 def feature_flag_to_guc(feature_flag: str) -> str:
     return f"ai.enable_feature_flag_{feature_flag}"
@@ -495,12 +465,9 @@ def build_incremental_sql_file(input_file: Path) -> str:
     template = sql_dir().joinpath("migration.sql").read_text()
     migration_name = input_file.name
     migration_body = input_file.read_text()
-    version = this_version()
-    migration_body = migration_body.replace("@extversion@", version)
     code = template.format(
         migration_name=migration_name,
         migration_body=migration_body,
-        version=version,
     )
     feature_flag = parse_feature_flag(input_file)
     if feature_flag:
@@ -512,7 +479,6 @@ def build_idempotent_sql_file(input_file: Path) -> str:
     # keep leading indentation
     # remove first and last (blank) lines
     code = input_file.read_text()
-    code = code.replace("@extversion@", this_version())
     feature_flag = parse_feature_flag(input_file)
     if feature_flag:
         code = gate_sql(code, feature_flag)
@@ -534,7 +500,7 @@ def build_feature_flags() -> str:
     for feature_flag in feature_flags:
         guc = feature_flag_to_guc(feature_flag)
         output += template.format(
-            feature_flag=feature_flag, guc=guc, version=this_version()
+            feature_flag=feature_flag, guc=guc
         )
     return output
 

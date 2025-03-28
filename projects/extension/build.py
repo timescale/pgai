@@ -680,7 +680,7 @@ def check_sql_file_order(path: Path, prev: int) -> int:
 
     # strict order was relaxed during vectorizer divestment, leaving holes in the sequence
     # so we need to handle those gaps
-    min_strict_order = 14
+    min_strict_order = 15
     if kind == "incremental":
         min_strict_order = 21
     if this > min_strict_order and this < 900 and this != prev + 1:

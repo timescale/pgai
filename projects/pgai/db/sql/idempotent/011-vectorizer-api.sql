@@ -263,7 +263,7 @@ begin
     , queue_table
     , _queue_failed_table
     , pg_catalog.jsonb_build_object
-      ( 'version', '@extversion@'
+      ( 'version', '__version__'
       , 'loading', loading
       , 'parsing', parsing
       , 'embedding', embedding
