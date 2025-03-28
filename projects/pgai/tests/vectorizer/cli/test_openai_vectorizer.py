@@ -213,7 +213,7 @@ def test_document_exceeds_model_context_length(
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT * FROM blog_embedding_store ORDER BY id")
         records = cur.fetchall()
-        assert len(records) == 1
+        assert len(records) == 2
         record = records[0]
 
         # Verify the embedded document
@@ -221,21 +221,22 @@ def test_document_exceeds_model_context_length(
         assert record["chunk"] == "post_1"
         assert (
             record["embedding"]
-            == expected.embeddings["openai-character_text_splitter-chunk_value-1-1"]
+            == expected.embeddings["openai-character_text_splitter-chunk_value-1-1"][0]
+        )
+
+        record = records[1]
+
+        assert record["id"] == 2
+        assert record["chunk"] == long_content[:15001]
+        assert (
+            record["embedding"]
+            == expected.embeddings["openai-character_text_splitter-chunk_value-1-1"][1]
         )
 
         # Check error was logged
         cur.execute("SELECT * FROM ai.vectorizer_errors")
         errors = cur.fetchall()
-        assert len(errors) == 1
-        error = errors[0]
-        assert error["message"] == "chunk exceeds model context length"
-        assert error["details"]["pk"]["id"] == 2
-        assert (
-            error["details"]["error_reason"]
-            == "chunk exceeds the text-embedding-ada-002"
-            " model context length of 8192 tokens"
-        )
+        assert len(errors) == 0
 
 
 def test_invalid_api_key_error(

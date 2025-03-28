@@ -85,8 +85,7 @@ class Ollama(BaseModel, BaseURLMixin, Embedder):
             documents (list[str]): A list of documents to be embedded.
 
         Returns:
-            Sequence[EmbeddingVector | ChunkEmbeddingError]: The embeddings or
-            errors for each document.
+            Sequence[EmbeddingVector]: The embeddings for each document.
         """
         await logger.adebug(f"Chunks produced: {len(documents)}")
         return await self._batcher.batch_chunks_and_embed(documents)
