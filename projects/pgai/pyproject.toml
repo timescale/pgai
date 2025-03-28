@@ -118,6 +118,9 @@ select = [
 ]
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
+[tool.ruff.lint.per-file-ignores]
+"db/tests/*" = ["E501", "SIM117", "W291", "ARG001"]
+
 [tool.hatch.metadata]
 allow-direct-references = true
 
