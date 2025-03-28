@@ -1,20 +1,12 @@
- schema |       table       | user  | privilege | granted 
---------+-------------------+-------+-----------+---------
- ai     | vectorizer_id_seq | alice | select    | YES
- ai     | vectorizer_id_seq | alice | update    | YES
- ai     | vectorizer_id_seq | bob   | select    | no
- ai     | vectorizer_id_seq | bob   | update    | no
- ai     | vectorizer_id_seq | fred  | select    | no
- ai     | vectorizer_id_seq | fred  | update    | no
- ai     | vectorizer_id_seq | jill  | select    | YES
- ai     | vectorizer_id_seq | jill  | update    | YES
- wiki   | post_id_seq       | alice | select    | YES
- wiki   | post_id_seq       | alice | update    | YES
- wiki   | post_id_seq       | bob   | select    | no
- wiki   | post_id_seq       | bob   | update    | no
- wiki   | post_id_seq       | fred  | select    | no
- wiki   | post_id_seq       | fred  | update    | no
- wiki   | post_id_seq       | jill  | select    | no
- wiki   | post_id_seq       | jill  | update    | no
-(16 rows)
+ schema |    table    | user  | privilege | granted 
+--------+-------------+-------+-----------+---------
+ wiki   | post_id_seq | alice | select    | YES
+ wiki   | post_id_seq | alice | update    | YES
+ wiki   | post_id_seq | bob   | select    | no
+ wiki   | post_id_seq | bob   | update    | no
+ wiki   | post_id_seq | fred  | select    | no
+ wiki   | post_id_seq | fred  | update    | no
+ wiki   | post_id_seq | jill  | select    | no
+ wiki   | post_id_seq | jill  | update    | no
+(8 rows)
 

@@ -103,6 +103,7 @@ def test_vectorizer_composite_key(
         from sqlalchemy import func
 
         # Search for content similar to "machine learning"
+        session.execute(text("CREATE EXTENSION IF NOT EXISTS ai CASCADE;"))
         similar_embeddings = (
             session.query(Author.bio_embeddings)
             .order_by(
@@ -116,6 +117,7 @@ def test_vectorizer_composite_key(
             )
             .all()
         )
+        session.execute(text("DROP EXTENSION IF EXISTS ai;"))
 
         assert len(similar_embeddings) > 0
         # The bio should contain machine learning related content

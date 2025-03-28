@@ -14,8 +14,6 @@ create table ai.vectorizer
 , config jsonb not null
 , unique (target_schema, target_table)
 );
-perform pg_catalog.pg_extension_config_dump('ai.vectorizer'::pg_catalog.regclass, '');
-perform pg_catalog.pg_extension_config_dump('ai.vectorizer_id_seq'::pg_catalog.regclass, '');
 
 create table ai.vectorizer_errors
 ( id int not null references ai.vectorizer (id) on delete cascade
@@ -24,5 +22,3 @@ create table ai.vectorizer_errors
 , recorded timestamptz not null default now()
 );
 create index on ai.vectorizer_errors (id, recorded);
-perform pg_catalog.pg_extension_config_dump('ai.vectorizer'::pg_catalog.regclass, '');
-

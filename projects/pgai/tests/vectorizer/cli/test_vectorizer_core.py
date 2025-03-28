@@ -35,7 +35,7 @@ def test_vectorizer_exits_with_error_when_no_ai_extension(
     result = run_vectorizer_worker(postgres_container.get_connection_url())
 
     assert result.exit_code == 1
-    assert "the pgai extension is not installed" in result.output.lower()
+    assert "pgai is not installed in the database" in result.output.lower()
 
 
 def test_vectorizer_exits_with_error_when_vectorizers_specified_but_missing(
@@ -55,7 +55,7 @@ def test_vectorizer_does_not_exit_with_error_when_no_ai_extension(
     )
 
     assert result.exit_code == 0
-    assert "the pgai extension is not installed" in result.output.lower()
+    assert "pgai is not installed in the database" in result.output.lower()
 
 
 def test_vectorizer_does_not_exit_with_error_when_vectorizers_specified_but_missing(
@@ -330,7 +330,6 @@ def test_disabled_vectorizer_is_skipped_before_next_batch(
     vectorizer.config.embedding.set_api_key(  # type: ignore
         {"OPENAI_API_KEY": os.getenv("OPENAI_API_KEY")}
     )
-
     features = Features.for_testing_latest_version()
     worker_tracking = WorkerTracking(cli_db_url, 500, features, "0.0.1")
 

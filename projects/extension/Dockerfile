@@ -58,6 +58,19 @@ RUN mkdir -p /docker-entrypoint-initdb.d && \
     chmod +x /docker-entrypoint-initdb.d/configure-timescaledb.sh
 
 ###############################################################################
+# image for use in pgai-lib-db development
+FROM pgai-test-db as pgai-lib-db-dev
+ENV WHERE_AM_I=docker
+USER root
+
+RUN pip install --break-system-packages uv==0.6.3
+RUN mkdir /py/ && uv venv --directory /py/
+ENV PATH="/py/.venv/bin:$PATH"
+ENV VIRTUAL_ENV=/py/.venv
+
+WORKDIR /pgai/projects/pgai/db
+
+###############################################################################
 # image for use in extension development
 FROM base
 ENV WHERE_AM_I=docker
@@ -69,5 +82,6 @@ RUN pip install --break-system-packages uv==0.6.3
 COPY pyproject.toml uv.lock /py/
 RUN uv sync --directory /py --no-install-project --only-dev --frozen
 ENV PATH="/py/.venv/bin:$PATH"
+ENV VIRTUAL_ENV=/py/.venv
 
 WORKDIR /pgai/projects/extension

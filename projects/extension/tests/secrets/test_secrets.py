@@ -105,7 +105,9 @@ def test_reveal_secrets():
                 else:
                     cur.execute(query)
                     actual = cur.fetchone()[0]
-                    assert actual == expected
+                    assert (
+                        actual == expected
+                    ), f"setup: {setup}, query: {query}, expected: {expected}, actual: {actual}"
 
 
 def test_reveal_secret_cache():

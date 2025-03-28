@@ -96,11 +96,6 @@ begin
         execute _sql;
         end if;
 
-        execute format(
-            'alter extension ai drop table %I.%I',
-        _vec.queue_schema, _vec.queue_failed_table
-        );
-
     end loop;
 end $block$
 ;

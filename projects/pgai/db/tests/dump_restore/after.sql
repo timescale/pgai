@@ -18,4 +18,3 @@ select ai.create_vectorizer
 , indexing=>ai.indexing_none()
 , grant_to=>null
 );
-

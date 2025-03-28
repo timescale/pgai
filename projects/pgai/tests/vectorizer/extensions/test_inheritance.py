@@ -66,7 +66,8 @@ def test_vectorizer_embedding_creation(
 
     # Run vectorizer worker
     with vcr_.use_cassette("test_vectorizer_embedding_creation_relationship.yaml"):
-        run_vectorizer_worker(db_url, 1)
+        result = run_vectorizer_worker(db_url, 1)
+        assert result.exit_code == 0
 
     with Session(initialized_engine) as session:
         blog_post = session.query(BlogPost).first()

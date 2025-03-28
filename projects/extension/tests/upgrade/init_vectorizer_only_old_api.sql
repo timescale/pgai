@@ -25,5 +25,3 @@ select ai.create_vectorizer
 , indexing=>ai.indexing_none()
 , grant_to=>ai.grant_to('vera')
 );
-
-select ai.grant_secret('top_secret_password', 'vera')

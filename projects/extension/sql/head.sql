@@ -23,9 +23,6 @@ begin
         -- we have `schema=ai` in the control file, so postgres creates the schema automatically
         -- but this line makes pgspot happy
         create schema ai;
-    elseif _schema_owner_id operator(pg_catalog.!=) _current_user_id then
-        raise exception 'only the owner of the ai schema may install/upgrade this extension';
-        return;
     end if;
 
     select k.relowner into _migration_table_owner_id
