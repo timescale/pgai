@@ -35,7 +35,7 @@ select
     when '009-drop-truncate-from-vectorizer-config.sql' then 'skip'
     else md5(convert_to(body, 'UTF8'))
   end as body_md5
-from ai.migration_app
+from ai.pgai_lib_migration
 order by applied_at
 ;
 

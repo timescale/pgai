@@ -9,9 +9,9 @@ begin
         , 'Upgrades are not supported once pre-release software has been installed.'
         );
 
-        insert into ai.feature_flag_app ("name", applied_at_version)
+        insert into ai.pgai_lib_feature_flag ("name", applied_at_version)
         values ('{feature_flag}', '__version__')
-        on conflict on constraint feature_flag_app_pkey
+        on conflict on constraint pgai_lib_feature_flag_pkey
         do nothing
         ;
     end if;

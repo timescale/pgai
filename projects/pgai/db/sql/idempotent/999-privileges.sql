@@ -9,9 +9,9 @@ begin
         execute 'grant select, usage on sequence ai.vectorizer_id_seq to ' || to_user;
     else
         execute 'grant all privileges on schema ai to ' || to_user;
-        execute 'grant all privileges on table ai.migration_app to ' || to_user;
-        execute 'grant all privileges on table ai.app_version to ' || to_user;
-        execute 'grant all privileges on table ai.feature_flag_app to ' || to_user;
+        execute 'grant all privileges on table ai.pgai_lib_migration to ' || to_user;
+        execute 'grant all privileges on table ai.pgai_lib_version to ' || to_user;
+        execute 'grant all privileges on table ai.pgai_lib_feature_flag to ' || to_user;
         execute 'grant all privileges on table ai.vectorizer to ' || to_user;
         execute 'grant all privileges on table ai.vectorizer_errors to ' || to_user;
         execute 'grant all privileges on table ai.vectorizer_status to ' || to_user;

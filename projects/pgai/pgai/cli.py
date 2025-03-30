@@ -66,7 +66,7 @@ tracer.enabled = get_bool_env("DD_TRACE_ENABLED")
 @dataclass
 class Version:
     ext_version: str | None
-    app_version: str | None
+    pgai_lib_version: str | None
 
 
 def get_pgai_version(cur: psycopg.Cursor) -> Version | None:
@@ -75,23 +75,23 @@ def get_pgai_version(cur: psycopg.Cursor) -> Version | None:
     ext_version = row[0] if row is not None else None
 
     # todo: think this through more, expecially for Feature Flags
-    app_version = None
+    pgai_lib_version = None
     cur.execute("""
         SELECT EXISTS (
             SELECT 1
             FROM information_schema.tables
             WHERE table_schema = 'ai'
-            AND table_name = 'app_version'
+            AND table_name = 'pgai_lib_version'
         )
     """)
     res = cur.fetchone()
     assert res is not None
     table_exists = res[0]
     if table_exists:
-        cur.execute("select version from ai.app_version where name = 'ai'")
+        cur.execute("select version from ai.pgai_lib_version where name = 'ai'")
         row = cur.fetchone()
-        app_version = row[0] if row is not None else None
-    return Version(ext_version, app_version)
+        pgai_lib_version = row[0] if row is not None else None
+    return Version(ext_version, pgai_lib_version)
 
 
 def get_vectorizer_ids(
@@ -347,7 +347,7 @@ async def async_run_vectorizer_worker(
                     pgai_version = get_pgai_version(cur)
                     if pgai_version is None or (
                         pgai_version.ext_version is None
-                        and pgai_version.app_version is None
+                        and pgai_version.pgai_lib_version is None
                     ):
                         err_msg = "pgai is not installed in the database"
                         await handle_error(

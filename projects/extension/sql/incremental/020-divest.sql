@@ -48,17 +48,17 @@ begin
 
     execute format('alter schema ai owner to %I;', _db_owner_name);
     
-    execute format('create table ai.migration_app
+    execute format('create table ai.pgai_lib_migration
     ( "name" text not null primary key
     , applied_at_version text not null
     , applied_at timestamptz not null default pg_catalog.clock_timestamp()
     , body text not null
     )');
     
-    execute format('alter table ai.migration_app owner to %I', _db_owner_name);
-    execute format('alter extension ai drop table ai.migration_app');
+    execute format('alter table ai.pgai_lib_migration owner to %I', _db_owner_name);
+    execute format('alter extension ai drop table ai.pgai_lib_migration');
 
-    insert into ai.migration_app (name, applied_at_version, applied_at, body)
+    insert into ai.pgai_lib_migration (name, applied_at_version, applied_at, body)
     select "name", 'unpackaged', now(), body
     from ai.migration
     where name in (
