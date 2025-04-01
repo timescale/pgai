@@ -600,6 +600,8 @@ def test_drop_vectorizer():
     ) as con:
         with con.cursor() as cur:
             cur.execute("create extension if not exists timescaledb")
+            # need ai extension for timescaledb scheduling
+            cur.execute("create extension if not exists ai cascade")
             cur.execute("drop schema if exists wiki cascade")
             cur.execute("create schema wiki")
             cur.execute("drop table if exists wiki.post")
@@ -739,6 +741,8 @@ def test_drop_all_vectorizer():
     ) as con:
         with con.cursor() as cur:
             cur.execute("create extension if not exists timescaledb")
+            # need ai extension for timescaledb scheduling
+            cur.execute("create extension if not exists ai cascade")
             cur.execute("drop table if exists drop_me")
             cur.execute("""
                 create table drop_me
@@ -1401,6 +1405,8 @@ def test_index_create_concurrency():
     ) as con:
         with con.cursor() as cur:
             cur.execute("create extension if not exists timescaledb")
+            # need ai extension for timescaledb scheduling
+            cur.execute("create extension if not exists ai cascade")
             cur.execute("create schema if not exists vec")
             cur.execute("drop table if exists vec.note2")
             cur.execute("""

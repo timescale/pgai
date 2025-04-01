@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
--- ai 0.10.0
+-- ai 0.10.0-dev
 
 
 set local search_path = pg_catalog, pg_temp;
@@ -88,6 +88,8 @@ $$;
 
 insert into ai.pgai_lib_version ("name", version)
 values ('ai', '__version__') on conflict ("name") do update set version = excluded.version;
+
+
 
 
 -------------------------------------------------------------------------------
@@ -2357,6 +2359,8 @@ begin
 
         execute format
         (
+        --weird indent is intentional to make the sql functions look the same as during a fresh install
+        --otherwise the snapshots will not match during upgrade testing.
             $sql$
     create or replace function %I.%I() returns trigger 
     as $trigger_def$ 
@@ -2630,14 +2634,21 @@ declare
     _sql pg_catalog.text;
     _extension_schema pg_catalog.name;
     _job_id pg_catalog.int8;
+    _ai_extension_exists pg_catalog.bool;
 begin
     select pg_catalog.jsonb_extract_path_text(scheduling, 'implementation')
     into strict _implementation
     ;
     case
         when _implementation operator(pg_catalog.=) 'timescaledb' then
-            --TODO: this requires the ai extension to be installed so check for that too
-        
+            select pg_catalog.count(*) > 0
+            into strict _ai_extension_exists
+            from pg_catalog.pg_extension x
+            where x.extname operator(pg_catalog.=) 'ai';
+            
+            if not _ai_extension_exists then
+                raise exception 'ai extension not found but it is needed for timescaledb scheduling.';
+            end if;
             -- look up schema/name of the extension for scheduling. may be null
             select n.nspname into _extension_schema
             from pg_catalog.pg_extension x
@@ -3190,14 +3201,6 @@ declare
     _trigger pg_catalog.pg_trigger%rowtype;
     _sql pg_catalog.text;
 begin
-    ---------------------------------------------------------------------------
-    -- NOTE: this function is security invoker BUT it is called from an
-    -- event trigger that is security definer.
-    -- This function needs to STAY security invoker, but we need to treat
-    -- it as if it were security definer as far as observing security
-    -- best practices
-    ---------------------------------------------------------------------------
-
     -- grab the vectorizer we need to drop
     select v.* into strict _vec
     from ai.vectorizer v
