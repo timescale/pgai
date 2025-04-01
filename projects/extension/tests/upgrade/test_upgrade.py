@@ -191,6 +191,13 @@ def is_version_earlier_or_equal_than(v1, v2):
     return v1_parts <= v2_parts
 
 
+def install_pgai_library(db_url: str) -> None:
+    cmd = f'pgai install -d "{db_url}"'
+    if where_am_i() == "host":
+        cmd = f"docker exec -w {docker_dir()} pgai-ext {cmd}"
+    subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
+
+
 def test_unpackaged_upgrade():
     """Test upgrading from extension to pgai library for all released versions.
 
@@ -206,11 +213,10 @@ def test_unpackaged_upgrade():
 
     # Setup target to compare against (clean install via pgai library)
     create_database("upgrade_target")
-    import pgai
 
     from ai import __version__ as latest_extension_version
 
-    pgai.install(db_url(USER, "upgrade_target"))
+    install_pgai_library(db_url(USER, "upgrade_target"))
     init_db_script("upgrade_target", "init_vectorizer_only.sql")
     snapshot("upgrade_target", "unpackaged-expected", "_vectorizer_only")
     expected_path = (
@@ -241,7 +247,7 @@ def test_unpackaged_upgrade():
         # extension divestment path. Also makes sure that the drop of the extension does not
         # affect the vectorizer db items.
         drop_extension(test_db)
-        pgai.install(db_url(USER, test_db))
+        install_pgai_library(db_url(USER, test_db))
 
         # Snapshot and compare
         snapshot(test_db, f"unpackaged-actual-from-{version}", "_vectorizer_only")
