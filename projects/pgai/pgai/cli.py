@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 from psycopg.rows import dict_row, namedtuple_row
 from pytimeparse import parse  # type: ignore
 
-from pgai._install.install import install as install_pgai
+import pgai
 
 from .__init__ import __version__
 from .vectorizer.embeddings import ApiKeyMixin
@@ -451,6 +451,14 @@ cli.add_command(vectorizer)
     type=click.STRING,
     default="postgres://postgres@localhost:5432/postgres",
     show_default=True,
+    help="The database URL to connect to",
 )
-def install(db_url: str) -> None:
-    install_pgai(db_url)
+@click.option(
+    "--if-not-exists",
+    type=click.BOOL,
+    default=False,
+    show_default=True,
+    help="If the extension already exists, do not raise an error.",
+)
+def install(db_url: str, if_not_exists: bool) -> None:
+    pgai.install(db_url, if_not_exists=if_not_exists)

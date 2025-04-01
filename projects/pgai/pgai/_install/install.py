@@ -1,11 +1,15 @@
 from importlib.resources import files
 
 import psycopg
+import semver
+import structlog
 from psycopg import sql as sql_lib
 
 from .. import __version__
 
 GUC_VECTORIZER_URL = "ai.external_functions_executor_url"
+
+log = structlog.get_logger()
 
 
 def _get_sql(vector_extension_schema: str) -> str:
@@ -14,6 +18,18 @@ def _get_sql(vector_extension_schema: str) -> str:
     sql = sql.replace("@extschema:vector@", vector_extension_schema)
     sql = sql.replace("__version__", __version__)
     return sql
+
+
+def warn_if_pre_release() -> None:
+    if semver.VersionInfo.parse(__version__).prerelease is not None:
+        log.warning("""
+            Installing pre-release version of pgai.
+                                        
+            This is unstable software and no upgrade path is guaranteed.
+                    
+            Instead, install using the latest release in pip:
+            https://pypi.org/project/pgai/
+        """)
 
 
 def _get_guc_vectorizer_url_sql() -> sql_lib.SQL:
@@ -57,7 +73,7 @@ async def ainstall(
         psycopg.errors.DuplicateObject: If library is already installed and
             if_not_exists=False
     """
-
+    warn_if_pre_release()
     async with (
         await psycopg.AsyncConnection.connect(db_url, autocommit=True) as conn,
         conn.cursor() as cur,
@@ -89,6 +105,8 @@ async def ainstall(
         try:
             await conn.execute(sql)  # type: ignore
         except psycopg.errors.DuplicateObject as error_from_result:
+            # note the duplicate object error is raised in head.sql by a raise
+            # that uses the 42710 error code.
             if if_not_exists and verify_error_library_already_installed(
                 error_from_result
             ):
@@ -114,6 +132,7 @@ def install(
         psycopg.errors.DuplicateObject: If library is already installed and
             if_not_exists=False
     """
+    warn_if_pre_release()
     with (
         psycopg.connect(db_url, autocommit=True) as conn,
         conn.cursor() as cur,
@@ -144,6 +163,8 @@ def install(
         try:
             conn.execute(sql)  # type: ignore
         except psycopg.errors.DuplicateObject as error_from_result:
+            # note the duplicate object error is raised in head.sql by a raise
+            # that uses the 42710 error code.
             if if_not_exists and verify_error_library_already_installed(
                 error_from_result
             ):

@@ -50,6 +50,9 @@ docker-rm:
 docker-sync:
 	@./build.py docker-sync
 
+freeze:
+	@./build.py freeze
+
 # Launches a bash shell in the container
 docker-shell:
 	@docker exec -it -u root pgai-db /bin/bash

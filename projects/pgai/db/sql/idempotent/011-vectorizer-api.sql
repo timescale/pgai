@@ -415,14 +415,6 @@ declare
     _trigger pg_catalog.pg_trigger%rowtype;
     _sql pg_catalog.text;
 begin
-    ---------------------------------------------------------------------------
-    -- NOTE: this function is security invoker BUT it is called from an
-    -- event trigger that is security definer.
-    -- This function needs to STAY security invoker, but we need to treat
-    -- it as if it were security definer as far as observing security
-    -- best practices
-    ---------------------------------------------------------------------------
-
     -- grab the vectorizer we need to drop
     select v.* into strict _vec
     from ai.vectorizer v

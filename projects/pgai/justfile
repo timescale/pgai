@@ -30,6 +30,10 @@ build:
 install:
 	@uv sync --all-extras
 
+# Install the wheel package locally
+install-active:
+	@uv sync --all-extras --active
+
 # Remove the installed pgai package
 uninstall:
 	@uv pip uninstall -y pgai

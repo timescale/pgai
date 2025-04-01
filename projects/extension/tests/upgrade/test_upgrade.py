@@ -208,7 +208,7 @@ def test_unpackaged_upgrade():
     create_database("upgrade_target")
     import pgai
 
-    from ai import __version__
+    from ai import __version__ as latest_extension_version
 
     pgai.install(db_url(USER, "upgrade_target"))
     init_db_script("upgrade_target", "init_vectorizer_only.sql")
@@ -231,8 +231,8 @@ def test_unpackaged_upgrade():
         init_db_script(test_db, "init_vectorizer_only_old_api.sql")
 
         # Upgrade to the latest version
-        update_extension(test_db, __version__)
-        assert check_version(test_db) == __version__
+        update_extension(test_db, latest_extension_version)
+        assert check_version(test_db) == latest_extension_version
 
         # Drop the extension and install using pgai library
         # We are dropping the extension because we want to test the state of the vectorizer

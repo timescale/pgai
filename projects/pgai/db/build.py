@@ -6,7 +6,6 @@ import re
 import shutil
 import subprocess
 import sys
-import textwrap
 from collections import OrderedDict
 from collections.abc import Callable
 from pathlib import Path
@@ -534,32 +533,6 @@ def build_feature_flags() -> str:
         guc = feature_flag_to_guc(feature_flag)
         output += template.format(feature_flag=feature_flag, guc=guc)
     return output
-
-
-def error_if_pre_release() -> None:
-    # Note: released versions always have the output sql file
-    # commited into the repository.
-    output_file = output_sql_file()
-    command = (
-        "just ext build-install"
-        if "ROOT_JUSTFILE" in os.environ
-        else "just build-install"
-        if "PROJECT_JUSTFILE" in os.environ
-        else "python3 build.py build-install"
-    )
-    if not Path(output_file).exists():
-        print(
-            textwrap.dedent(f"""
-                WARNING: You're trying to install a pre-release version of pgai.
-                This is not supported, and there is no upgrade path.
-
-                Instead, install an official release from https://github.com/timescale/pgai/releases.
-
-                If you are certain that you want to install a pre-release version, run:
-                    `{command}`
-            """)
-        )
-        exit(1)
 
 
 def tests_dir() -> Path:

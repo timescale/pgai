@@ -8,17 +8,17 @@ schema and migration table. abort the upgrade if different.
 do $bootstrap_extension$
 declare
     _current_user_id oid = null;
-    _schema_owner_id oid = null;
+    _schema_exists boolean = false;
     _migration_table_owner_id oid = null;
 begin
     select pg_catalog.to_regrole('@extowner@')::oid
     into strict _current_user_id;
 
-    select pg_namespace.nspowner into strict _schema_owner_id
+    select count(*) > 0 into strict _schema_exists
     from pg_catalog.pg_namespace
     where pg_namespace.nspname operator(pg_catalog.=) 'ai';
 
-    if _schema_owner_id is null then
+    if not _schema_exists then
         -- this should NEVER happen
         -- we have `schema=ai` in the control file, so postgres creates the schema automatically
         -- but this line makes pgspot happy
