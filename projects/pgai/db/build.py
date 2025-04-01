@@ -165,7 +165,7 @@ class Actions:
                 "uv run --no-project pgspot --ignore-lang=plpython3u",
                 '--proc-without-search-path "ai._vectorizer_job(job_id integer,config pg_catalog.jsonb)"',  # noqa: E501
                 "--ignore PS010",  # allow creating the ai schema TODO: check if this is safe # noqa: E501
-                f"{output_sql_file()}",
+                f"{lib_sql_file()}",
             ]
         )
         subprocess.run(cmd, shell=True, check=True, env=os.environ)
