@@ -20,12 +20,6 @@
     - projects/extension (named pgai but imports as ai) - we should rename this to something else?
     - projects/pgai (named pgai and imports as pgai) - (I think this is the one in PIP)
 
-# todo
-
-- should we `uv sync` in the dev container in /db?
-- fix test_jill_privileges, create_vectorizer_privileges test
-
-
 ### testing
 --extension tests
 just docker-build
