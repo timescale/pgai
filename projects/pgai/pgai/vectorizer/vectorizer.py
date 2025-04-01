@@ -193,18 +193,19 @@ class Vectorizer(BaseModel):
         exceptions: list[BaseException] = []
         for result in results:
             if isinstance(result, BaseException):
-                # report all exceptions
+                # report all exceptions. Doesn't log, it just stores in the DB.
                 await worker_tracking.save_vectorizer_error(self.id, str(result))
                 exceptions.append(result)
             else:
                 items += result
 
-        if len(exceptions) > 0:
-            raise BaseExceptionGroup("failed to run the vectorizer", exceptions)
-
         logger.info(
             "finished processing vectorizer", items=items, vectorizer_id=self.id
         )
+
+        if len(exceptions) > 0:
+            raise BaseExceptionGroup("vectorizer finished with errors", exceptions)
+
         return items
 
 
