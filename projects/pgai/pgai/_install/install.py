@@ -107,9 +107,7 @@ async def ainstall(
         except psycopg.errors.DuplicateObject as error_from_result:
             # note the duplicate object error is raised in head.sql by a raise
             # that uses the 42710 error code.
-            if not strict and verify_error_library_already_installed(
-                error_from_result
-            ):
+            if not strict and verify_error_library_already_installed(error_from_result):
                 pass
             else:
                 raise error_from_result
@@ -165,9 +163,7 @@ def install(
         except psycopg.errors.DuplicateObject as error_from_result:
             # note the duplicate object error is raised in head.sql by a raise
             # that uses the 42710 error code.
-            if not strict and verify_error_library_already_installed(
-                error_from_result
-            ):
+            if not strict and verify_error_library_already_installed(error_from_result):
                 pass
             else:
                 raise error_from_result

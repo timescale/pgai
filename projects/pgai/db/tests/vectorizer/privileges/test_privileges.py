@@ -3,8 +3,9 @@ import subprocess
 from pathlib import Path, PosixPath
 
 import psycopg
-import pgai
 import pytest
+
+import pgai
 
 # skip tests in this module if disabled
 enable_privileges_tests = os.getenv("ENABLE_PRIVILEGES_TESTS")
@@ -24,7 +25,9 @@ def where_am_i() -> str:
 
 def docker_dir() -> str:
     return str(
-        PosixPath("/").joinpath("pgai", "projects", "pgai", "db", "tests", "vectorizer", "privileges")
+        PosixPath("/").joinpath(
+            "pgai", "projects", "pgai", "db", "tests", "vectorizer", "privileges"
+        )
     )
 
 
@@ -74,7 +77,7 @@ def test_create_vectorizer_privileges():
             )
             cur.execute("create database vec_priv owner base;")
     # connect as "base", create vectorizer
-    
+
     pgai.install(db_url("base", "vec_priv"))
     with psycopg.connect(db_url("base", "vec_priv")) as con:
         with con.cursor() as cur:

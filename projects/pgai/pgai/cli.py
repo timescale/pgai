@@ -458,7 +458,7 @@ cli.add_command(vectorizer)
     type=click.BOOL,
     default=False,
     show_default=True,
-    help="If True, raise an error when the extension already exists and is at the latest version.",
+    help="If True, raise an error when the extension already exists and is at the latest version.",  # noqa: E501
 )
 def install(db_url: str, strict: bool) -> None:
     pgai.install(db_url, strict=strict)
