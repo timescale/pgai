@@ -22,27 +22,20 @@
 
 ### testing
 --extension tests
-just docker-build
-just docker-run
+just docker-build docker-run
+docker exec pgai-ext just build install-all
+docker exec -d pgai-ext just test-server
 just docker-shell
 
-//inside shell 1
-just test-server
-
-//inside shell 2
-just build && just install-all
+//inside shell 
 just test
+// or `uv run --no-project pytest -x` or similar 
 
 --db tests 
-just docker-build
-just docker-run
+just docker-build docker-run docker-sync
+docker exec pgai-db just build
+docker exec -d pgai-db just test-server
 just docker-shell
-
-//inside shell 1
-uv pip install fastapi[standard]
-cd db && just test-server
-
-//inside shell 2
-uv sync --active
-cd ../extension && just build && just install && cd ../pgai/db
+ 
+//inside shell
 just test

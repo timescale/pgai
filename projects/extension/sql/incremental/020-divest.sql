@@ -112,6 +112,8 @@ begin
         raise notice '%', _sql;
         execute _sql;
         
+        -- The sequence vectorizer_id_seq is linked to the table vectorizer, so we cannot change the owner independently.
+        -- Changing the owner of the table is sufficient.
         if _rec.relname != 'vectorizer_id_seq' THEN
             select format
             ( $sql$alter %s %I.%I owner to %I$sql$
