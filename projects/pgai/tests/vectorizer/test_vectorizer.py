@@ -28,13 +28,17 @@ def create_database(dbname: str, postgres_container: PostgresContainer) -> None:
 
 
 async def _vectorizer_test_after_install(
-    postgres_container: PostgresContainer, dbname: str
+    postgres_container: PostgresContainer,
+    dbname: str,
+    ai_extension_features: bool = False,
 ):
     db_url = create_connection_url(postgres_container, dbname=dbname)
     with (
         psycopg.connect(db_url, autocommit=True, row_factory=namedtuple_row) as con,
         con.cursor() as cur,
     ):
+        if ai_extension_features:
+            cur.execute("create extension if not exists ai cascade")
         cur.execute("drop table if exists note0")
         cur.execute("""
                 create table note0
@@ -55,13 +59,9 @@ async def _vectorizer_test_after_install(
                 from generate_series(1, 5)
             """)  # noqa
         # create a vectorizer for the table
-        cur.execute("""
-                select ai.create_vectorizer
-                ( 'note0'::regclass
-                , loading=>ai.loading_column('note')
-                , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
-                , formatting=>ai.formatting_python_template('$id: $chunk')
-                , chunking=>ai.chunking_character_text_splitter()
+        additional_args = ""
+        if ai_extension_features:
+            additional_args = """
                 , scheduling=>
                     ai.scheduling_timescaledb
                     ( interval '5m'
@@ -69,6 +69,16 @@ async def _vectorizer_test_after_install(
                     , timezone=>'America/Chicago'
                     )
                 , indexing=>ai.indexing_diskann(min_rows=>10)
+            """
+
+        cur.execute(f"""
+                select ai.create_vectorizer
+                ( 'note0'::regclass
+                , loading=>ai.loading_column('note')
+                , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+                , formatting=>ai.formatting_python_template('$id: $chunk')
+                , chunking=>ai.chunking_character_text_splitter()
+                {additional_args}
                 , grant_to=>null
                 , enqueue_existing=>true
                 )
@@ -181,13 +191,6 @@ async def test_vectorizer_weird_pk(postgres_container: PostgresContainer):
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
                 , formatting=>ai.formatting_python_template('$chunk')
                 , chunking=>ai.chunking_character_text_splitter()
-                , scheduling=>
-                    ai.scheduling_timescaledb
-                    ( interval '5m'
-                    , initial_start=>'2050-01-06'::timestamptz
-                    , timezone=>'America/Chicago'
-                    )
-                , indexing=>ai.indexing_diskann(min_rows=>10)
                 , grant_to=>null
                 , enqueue_existing=>true
                 )
