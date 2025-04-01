@@ -454,11 +454,11 @@ cli.add_command(vectorizer)
     help="The database URL to connect to",
 )
 @click.option(
-    "--if-not-exists",
+    "--strict",
     type=click.BOOL,
     default=False,
     show_default=True,
-    help="If the extension already exists, do not raise an error.",
+    help="If True, raise an error when the extension already exists and is at the latest version.",
 )
-def install(db_url: str, if_not_exists: bool) -> None:
-    pgai.install(db_url, if_not_exists=if_not_exists)
+def install(db_url: str, strict: bool) -> None:
+    pgai.install(db_url, strict=strict)

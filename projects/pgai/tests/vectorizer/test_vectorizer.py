@@ -258,9 +258,9 @@ async def test_vectorizer_install_twice(
 
     with pytest.raises(psycopg.errors.DuplicateObject):
         if async_install:
-            await pgai.ainstall(_db_url, if_not_exists=False)
+            await pgai.ainstall(_db_url, strict=True)
         else:
-            pgai.install(_db_url, if_not_exists=False)
+            pgai.install(_db_url, strict=True)
 
     # test the vectorizer
     with (

@@ -57,7 +57,7 @@ def verify_error_library_already_installed(
 
 
 async def ainstall(
-    db_url: str, vector_extension_schema: str | None = None, if_not_exists: bool = True
+    db_url: str, vector_extension_schema: str | None = None, strict: bool = False
 ) -> None:
     """Asynchronously install the pgai library into a PostgreSQL database.
 
@@ -66,12 +66,12 @@ async def ainstall(
         vector_extension_schema: Schema where the vector extension is installed if it
             doesn't exist. If None, then the vector extension will be installed in the
             default schema (default: None)
-        if_not_exists: If True, ignore if library is already installed. If False,
-            raise error (default: True)
+        strict: If False, ignore if library is already installed. If True,
+            raise error (default: False)
 
     Raises:
         psycopg.errors.DuplicateObject: If library is already installed and
-            if_not_exists=False
+            strict=True
     """
     warn_if_pre_release()
     async with (
@@ -107,7 +107,7 @@ async def ainstall(
         except psycopg.errors.DuplicateObject as error_from_result:
             # note the duplicate object error is raised in head.sql by a raise
             # that uses the 42710 error code.
-            if if_not_exists and verify_error_library_already_installed(
+            if not strict and verify_error_library_already_installed(
                 error_from_result
             ):
                 pass
@@ -116,7 +116,7 @@ async def ainstall(
 
 
 def install(
-    db_url: str, vector_extension_schema: str | None = None, if_not_exists: bool = True
+    db_url: str, vector_extension_schema: str | None = None, strict: bool = False
 ) -> None:
     """Install the pgai library into a PostgreSQL database.
 
@@ -125,12 +125,12 @@ def install(
         vector_extension_schema: Schema where the vector extension is installed if it
             doesn't exist. If None, then the vector extension will be installed in the
             default schema (default: None)
-        if_not_exists: If True, ignore if library is already installed. If False,
-            raise error (default: True)
+        strict: If False, ignore if library is already installed. If True,
+            raise error (default: False)
 
     Raises:
         psycopg.errors.DuplicateObject: If library is already installed and
-            if_not_exists=False
+            strict=True
     """
     warn_if_pre_release()
     with (
@@ -165,7 +165,7 @@ def install(
         except psycopg.errors.DuplicateObject as error_from_result:
             # note the duplicate object error is raised in head.sql by a raise
             # that uses the 42710 error code.
-            if if_not_exists and verify_error_library_already_installed(
+            if not strict and verify_error_library_already_installed(
                 error_from_result
             ):
                 pass
