@@ -982,8 +982,13 @@ class Worker:
                 and a.attname operator(pg_catalog.!=) 'embedding_uuid'
                 and a.attnum operator(pg_catalog.>) 0
                 order by a.attnum
+                limit %s
             """,
-                (self.vectorizer.target_schema, self.vectorizer.target_table),
+                (
+                    self.vectorizer.target_schema,
+                    self.vectorizer.target_table,
+                    len(self.vectorizer.source_pk) + 3,
+                ),
             )
             self.copy_types = [row[0] for row in await cursor.fetchall()]
         assert self.copy_types is not None
