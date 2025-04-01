@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import os
 import random
+import sys
 import traceback
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -15,6 +16,12 @@ from .embeddings import ApiKeyMixin
 from .features import Features
 from .vectorizer import Vectorizer
 from .worker_tracking import WorkerTracking
+
+if sys.version_info >= (3, 11):
+    from builtins import BaseExceptionGroup
+else:
+    # For Python 3.10 and below, use the backport
+    from exceptiongroup import BaseExceptionGroup
 
 logger = structlog.get_logger()
 
@@ -132,7 +139,10 @@ class Processor:
         vectorizer_id: int | None,
         worker_tracking: WorkerTracking | None,
     ) -> Exception:
-        logger.error(error_message)
+        kwargs = {}
+        if vectorizer_id:
+            kwargs["vectorizer_id"] = vectorizer_id
+        logger.error(error_message, **kwargs)
         if worker_tracking is not None:
             await worker_tracking.save_vectorizer_error(vectorizer_id, error_message)
         if self.exit_on_error:
@@ -173,6 +183,7 @@ class Processor:
         worker_tracking = None
 
         while True:
+            vectorizer_id = None
             try:
                 if not can_connect or pgai_version is None:
                     with (
@@ -245,7 +256,23 @@ class Processor:
                     err_msg = f"unable to connect to database: {str(e)}"
                 else:
                     err_msg = f"unexpected error: {str(e)}"
-                exception = await self._handle_error(err_msg, None, worker_tracking)
+                exception = await self._handle_error(
+                    err_msg, vectorizer_id, worker_tracking
+                )
+                if self.exit_on_error:
+                    return exception
+            except BaseExceptionGroup as e:  # type: ignore
+                # catch any exceptions, log them, and keep on going
+                for exception in e.exceptions:  # type: ignore
+                    error_msg = str(exception)  # type: ignore
+                    logger.error(error_msg, vectorizer_id=vectorizer_id)
+                for exception_line in traceback.format_exception(e):  # type: ignore
+                    for line in exception_line.rstrip().split("\n"):
+                        logger.debug(line)
+                err_msg = f"unexpected error: {str(e)}"  # type: ignore
+                exception = await self._handle_error(
+                    err_msg, vectorizer_id, worker_tracking
+                )
                 if self.exit_on_error:
                     return exception
             except Exception as e:
@@ -254,7 +281,9 @@ class Processor:
                     for line in exception_line.rstrip().split("\n"):
                         logger.debug(line)
                 err_msg = f"unexpected error: {str(e)}"
-                exception = await self._handle_error(err_msg, None, worker_tracking)
+                exception = await self._handle_error(
+                    err_msg, vectorizer_id, worker_tracking
+                )
                 if self.exit_on_error:
                     return exception
 
