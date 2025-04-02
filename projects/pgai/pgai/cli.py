@@ -28,6 +28,12 @@ from .vectorizer.parsing import DOCLING_CACHE_DIR
 from .vectorizer.vectorizer import Vectorizer
 from .vectorizer.worker_tracking import WorkerTracking
 
+if sys.version_info >= (3, 11):
+    from builtins import BaseExceptionGroup
+else:
+    # For Python 3.10 and below, use the backport
+    from exceptiongroup import BaseExceptionGroup
+
 load_dotenv()
 
 structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
@@ -296,7 +302,10 @@ async def handle_error(
     worker_tracking: WorkerTracking | None,
     exit_on_error: bool | None,
 ) -> None:
-    log.error(error_message)
+    kwargs = {}
+    if vectorizer_id:
+        kwargs["vectorizer_id"] = vectorizer_id
+    log.error(error_message, **kwargs)
     if worker_tracking is not None:
         await worker_tracking.save_vectorizer_error(vectorizer_id, error_message)
     if exit_on_error:
@@ -338,6 +347,7 @@ async def async_run_vectorizer_worker(
     worker_tracking = None
 
     while True:
+        vectorizer_id = None
         try:
             if not can_connect or pgai_version is None:
                 with (
@@ -409,14 +419,24 @@ async def async_run_vectorizer_worker(
                 err_msg = f"unable to connect to database: {str(e)}"
             else:
                 err_msg = f"unexpected error: {str(e)}"
-            await handle_error(err_msg, None, worker_tracking, exit_on_error)
+            await handle_error(err_msg, vectorizer_id, worker_tracking, exit_on_error)
+        except BaseExceptionGroup as e:  # type: ignore
+            # catch any exceptions, log them, and keep on going
+            for exception in e.exceptions:  # type: ignore
+                error_msg = str(exception)  # type: ignore
+                log.error(error_msg, vectorizer_id=vectorizer_id)
+            for exception_line in traceback.format_exception(e):  # type: ignore
+                for line in exception_line.rstrip().split("\n"):
+                    log.debug(line)
+            err_msg = f"unexpected error: {str(e)}"  # type: ignore
+            await handle_error(err_msg, vectorizer_id, worker_tracking, exit_on_error)
         except Exception as e:
             # catch any exceptions, log them, and keep on going
             for exception_line in traceback.format_exception(e):
                 for line in exception_line.rstrip().split("\n"):
                     log.debug(line)
             err_msg = f"unexpected error: {str(e)}"
-            await handle_error(err_msg, None, worker_tracking, exit_on_error)
+            await handle_error(err_msg, vectorizer_id, worker_tracking, exit_on_error)
         if once:
             if worker_tracking is not None:
                 await worker_tracking.force_last_heartbeat_and_stop()
