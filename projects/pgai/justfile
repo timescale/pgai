@@ -1,5 +1,8 @@
 VERSION := `awk '/^__version__ = .*/ {gsub(/__version__ = |"/, ""); print}' ./pgai/__init__.py`
 
+# add the db justfile to this one
+mod db 'db/justfile'
+
 # Show list of recipes
 default:
     @just --list
@@ -27,13 +30,17 @@ build:
 install:
 	@uv sync --all-extras
 
+# Install the wheel package locally
+install-active:
+	@uv sync --all-extras --active
+
 # Remove the installed pgai package
 uninstall:
 	@uv pip uninstall -y pgai
 
-# Run pytest test suite
+# Run pytest test suite (does not run the db tests)
 test:
-	@uv run --no-project pytest
+	@uv run --no-project pytest tests/
 
 # Run ruff linter checks
 lint:

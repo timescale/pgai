@@ -1,0 +1,62 @@
+export PROJECT_JUSTFILE := "1" # Note: used in build.py
+PG_MAJOR := env("PG_MAJOR", "17")
+PG_BIN := env("PG_BIN", "/usr/lib/postgresql/" + PG_MAJOR + "/bin")
+
+# Show list of recipes
+default:
+    @just --list
+
+ci: docker-build docker-run docker-sync
+  #!/usr/bin/env bash
+  set -euo pipefail
+  pwd
+  trap "python3 build.py docker-stop; python3 build.py docker-rm" EXIT
+  docker exec pgai-db just build
+  docker exec pgai-db just lint
+  docker exec -d pgai-db just test-server
+  docker exec pgai-db just test
+
+clean:
+	@./build.py clean
+
+build:
+	@PG_BIN={{PG_BIN}} ./build.py build
+
+
+test-server:
+	@./build.py test-server
+
+test:
+	@./build.py test
+	
+lint:
+	@./build.py lint
+
+docker-build:
+	@PG_MAJOR={{PG_MAJOR}} ./build.py docker-build
+
+docker-run:
+	@./build.py docker-run
+
+docker-start:
+	@./build.py docker-start
+
+docker-stop:
+	@./build.py docker-stop
+
+docker-rm:
+	@./build.py docker-rm
+
+docker-sync:
+	@./build.py docker-sync
+
+freeze:
+	@./build.py freeze
+
+# Launches a bash shell in the container
+docker-shell:
+	@docker exec -it -u root pgai-db /bin/bash
+
+# Launches a psql shell in the container
+psql-shell:
+	@docker exec -it -u postgres pgai-db /bin/bash -c "set -e; if [ -f .env ]; then set -a; source .env; set +a; fi; psql"

@@ -74,6 +74,12 @@ def create_extension(dbname: str, version: str) -> None:
             cur.execute(f"create extension ai version '{version}' cascade")
 
 
+def drop_extension(dbname: str) -> None:
+    with psycopg.connect(db_url(user=USER, dbname=dbname), autocommit=True) as con:
+        with con.cursor() as cur:
+            cur.execute("drop extension ai cascade")
+
+
 def update_extension(dbname: str, version: str) -> None:
     with psycopg.connect(db_url(user=USER, dbname=dbname), autocommit=True) as con:
         con.add_notice_handler(detailed_notice_handler)
@@ -105,7 +111,7 @@ def init_db_script(dbname: str, script: str) -> None:
     subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
 
 
-def snapshot(dbname: str, name: str) -> None:
+def snapshot(dbname: str, name: str, suffix: str = "") -> None:
     cmd = " ".join(
         [
             "psql",
@@ -113,7 +119,7 @@ def snapshot(dbname: str, name: str) -> None:
             "-v ON_ERROR_STOP=1",
             "-X",
             f"-o {docker_dir()}/{name}.snapshot",
-            f"-f {docker_dir()}/snapshot.sql",
+            f"-f {docker_dir()}/snapshot{suffix}.sql",
         ]
     )
     if where_am_i() != "docker":
@@ -147,16 +153,13 @@ def test_upgrades():
         assert check_version("upgrade_target") == path.target
         # executes different init functions due to chunking function signature change.
         print("from", path.source, "to", path.target)
-        if is_version_earlier_or_equal_than(path.target, "0.9.0"):
-            init_db_script("upgrade_target", "init_old_api.sql")
-        else:
-            init_db_script("upgrade_target", "init.sql")
+        init_db_script("upgrade_target", "init.sql")
         snapshot("upgrade_target", f"{path_name}-expected")
         # start at the first version in the path
         create_database("upgrade_path")
         create_extension("upgrade_path", path.path[0])
         assert check_version("upgrade_path") == path.path[0]
-        init_db_script("upgrade_path", "init_old_api.sql")
+        init_db_script("upgrade_path", "init.sql")
         # upgrade through each version to the end
         for version in path.path[1:]:
             update_extension("upgrade_path", version)
@@ -188,6 +191,81 @@ def is_version_earlier_or_equal_than(v1, v2):
     return v1_parts <= v2_parts
 
 
+def install_pgai_library(db_url: str) -> None:
+    cmd = f'pgai install -d "{db_url}"'
+    if where_am_i() == "host":
+        cmd = f"docker exec -w {docker_dir()} pgai-ext {cmd}"
+    subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
+
+
+def test_unpackaged_upgrade():
+    """Test upgrading from extension to pgai library for all released versions.
+
+    This test verifies that the vectorizer functionality can correctly transition
+    from being managed by the extension to being managed by the pgai library,
+    regardless of which version of the extension was previously installed.
+    """
+    create_user(USER)
+    create_user(OTHER_USER)
+
+    # All released versions that should be tested
+    released_versions = ["0.9.0", "0.8.0", "0.7.0", "0.6.0", "0.5.0", "0.4.1", "0.4.0"]
+
+    # Setup target to compare against (clean install via pgai library)
+    create_database("upgrade_target")
+
+    from ai import __version__ as latest_extension_version
+
+    install_pgai_library(db_url(USER, "upgrade_target"))
+    init_db_script("upgrade_target", "init_vectorizer_only.sql")
+    snapshot("upgrade_target", "unpackaged-expected", "_vectorizer_only")
+    expected_path = (
+        Path(__file__).parent.absolute().joinpath("unpackaged-expected.snapshot")
+    )
+    expected = expected_path.read_text()
+
+    # Test upgrading from each released version
+    for version in released_versions:
+        print(f"\nTesting upgrade from extension version {version} to pgai library...")
+
+        test_db = f"upgrade_from_{version.replace('.', '_')}"
+        create_database(test_db)
+
+        # Install the old extension version
+        create_extension(test_db, version)
+        assert check_version(test_db) == version
+        init_db_script(test_db, "init_vectorizer_only_old_api.sql")
+
+        # Upgrade to the latest version
+        update_extension(test_db, latest_extension_version)
+        assert check_version(test_db) == latest_extension_version
+
+        # Drop the extension and install using pgai library
+        # We are dropping the extension because we want to test the state of the vectorizer
+        # library in this test. Not the extension. Dropping the extension is required to
+        # ensure that the snapshots are the same on a clean install of vectorizer and the
+        # extension divestment path. Also makes sure that the drop of the extension does not
+        # affect the vectorizer db items.
+        drop_extension(test_db)
+        install_pgai_library(db_url(USER, test_db))
+
+        # Snapshot and compare
+        snapshot(test_db, f"unpackaged-actual-from-{version}", "_vectorizer_only")
+        actual_path = (
+            Path(__file__)
+            .parent.absolute()
+            .joinpath(f"unpackaged-actual-from-{version}.snapshot")
+        )
+        actual = actual_path.read_text()
+
+        # Direct comparison of snapshots
+        assert (
+            actual == expected
+        ), f"Snapshots do not match for upgrade from {version} at {expected_path} {actual_path}"
+
+        print(f"Successfully upgraded from extension version {version} to pgai library")
+
+
 def fetch_versions(dbname: str) -> list[str]:
     with psycopg.connect(db_url(user=USER, dbname=dbname), autocommit=True) as con:
         with con.cursor() as cur:
@@ -217,7 +295,7 @@ def test_production_version_upgrade_path():
     # start at the first version
     create_extension("upgrade0", versions[0])
     assert check_version("upgrade0") == versions[0]
-    init_db_script("upgrade0", "init_old_api.sql")
+    init_db_script("upgrade0", "init.sql")
     # upgrade through each version to the end
     for version in versions[1:]:
         update_extension("upgrade0", version)
@@ -228,7 +306,7 @@ def test_production_version_upgrade_path():
     create_database("upgrade1")
     create_extension("upgrade1", versions[-1])
     assert check_version("upgrade1") == versions[-1]
-    init_db_script("upgrade1", "init_old_api.sql")
+    init_db_script("upgrade1", "init.sql")
     # snapshot the ai extension and schema
     snapshot("upgrade1", "upgrade1")
     # compare the snapshots. they should match

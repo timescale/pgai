@@ -150,6 +150,12 @@ def test_voyage_vectorizer(
     initialized_engine: Engine,
 ):
     """Test VoyageAI vectorizer configuration"""
+
+    # create the ai extension to test the timescaledb scheduling
+    with initialized_engine.connect() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS ai CASCADE;"))
+        conn.commit()
+
     config = create_vectorizer_config_code(
         loading=LoadingColumnConfig("content"),
         embedding=EmbeddingVoyageaiConfig(
@@ -197,6 +203,13 @@ def test_hnsw_vectorizer(
     initialized_engine: Engine,
 ):
     """Test HNSW vectorizer configuration"""
+
+    # create the ai extension to test the timescaledb scheduling
+    # (and that's needed for auto indexing)
+    with initialized_engine.connect() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS ai CASCADE;"))
+        conn.commit()
+
     config = create_vectorizer_config_code(
         loading=LoadingColumnConfig("content"),
         embedding=EmbeddingOpenaiConfig(

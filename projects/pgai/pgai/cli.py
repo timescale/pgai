@@ -7,6 +7,7 @@ import signal
 import sys
 import traceback
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Any
 
 import click
@@ -17,6 +18,8 @@ from ddtrace import tracer
 from dotenv import load_dotenv
 from psycopg.rows import dict_row, namedtuple_row
 from pytimeparse import parse  # type: ignore
+
+import pgai
 
 from .__init__ import __version__
 from .vectorizer.embeddings import ApiKeyMixin
@@ -60,10 +63,35 @@ def get_bool_env(name: str | None) -> bool:
 tracer.enabled = get_bool_env("DD_TRACE_ENABLED")
 
 
-def get_pgai_version(cur: psycopg.Cursor) -> str | None:
+@dataclass
+class Version:
+    ext_version: str | None
+    pgai_lib_version: str | None
+
+
+def get_pgai_version(cur: psycopg.Cursor) -> Version | None:
     cur.execute("select extversion from pg_catalog.pg_extension where extname = 'ai'")
     row = cur.fetchone()
-    return row[0] if row is not None else None
+    ext_version = row[0] if row is not None else None
+
+    # todo: think this through more, expecially for Feature Flags
+    pgai_lib_version = None
+    cur.execute("""
+        SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'ai'
+            AND table_name = 'pgai_lib_version'
+        )
+    """)
+    res = cur.fetchone()
+    assert res is not None
+    table_exists = res[0]
+    if table_exists:
+        cur.execute("select version from ai.pgai_lib_version where name = 'ai'")
+        row = cur.fetchone()
+        pgai_lib_version = row[0] if row is not None else None
+    return Version(ext_version, pgai_lib_version)
 
 
 def get_vectorizer_ids(
@@ -89,7 +117,7 @@ def get_vectorizer_ids(
         return valid_vectorizer_ids
 
 
-def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer:
+def get_vectorizer(db_url: str, vectorizer_id: int, features: Features) -> Vectorizer:
     with (
         psycopg.Connection.connect(db_url) as con,
         con.cursor(row_factory=dict_row) as cur,
@@ -110,7 +138,7 @@ def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer:
             api_key = os.getenv(api_key_name, None)
             if api_key is not None:
                 log.debug(f"obtained secret '{api_key_name}' from environment")
-            else:
+            elif features.db_reveal_secrets:
                 cur.execute(
                     "select ai.reveal_secret(%s)",
                     (api_key_name,),
@@ -317,8 +345,11 @@ async def async_run_vectorizer_worker(
                     con.cursor(row_factory=namedtuple_row) as cur,
                 ):
                     pgai_version = get_pgai_version(cur)
-                    if pgai_version is None:
-                        err_msg = "the pgai extension is not installed"
+                    if pgai_version is None or (
+                        pgai_version.ext_version is None
+                        and pgai_version.pgai_lib_version is None
+                    ):
+                        err_msg = "pgai is not installed in the database"
                         await handle_error(
                             err_msg, None, worker_tracking, exit_on_error
                         )
@@ -356,7 +387,7 @@ async def async_run_vectorizer_worker(
 
                 for vectorizer_id in valid_vectorizer_ids:
                     try:
-                        vectorizer = get_vectorizer(db_url, vectorizer_id)
+                        vectorizer = get_vectorizer(db_url, vectorizer_id, features)
                     except (VectorizerNotFoundError, ApiKeyNotFoundError) as e:
                         err_msg = (
                             f"error getting vectorizer: {type(e).__name__}: {str(e)}"
@@ -411,3 +442,23 @@ def cli():
 vectorizer.add_command(vectorizer_worker)
 vectorizer.add_command(download_models)
 cli.add_command(vectorizer)
+
+
+@cli.command()
+@click.option(
+    "-d",
+    "--db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The database URL to connect to",
+)
+@click.option(
+    "--strict",
+    type=click.BOOL,
+    default=False,
+    show_default=True,
+    help="If True, raise an error when the extension already exists and is at the latest version.",  # noqa: E501
+)
+def install(db_url: str, strict: bool) -> None:
+    pgai.install(db_url, strict=strict)

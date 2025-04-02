@@ -154,3 +154,33 @@ jobs:
         run: just pgai ci
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+  build-and-test-pgai-db-module:
+    needs: authorize
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # in a pull_request_target event, the ref is the `main` branch not the PR branch
+          # so we need to tell checkout to use the head.ref instead.
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+
+      - uses: taiki-e/install-action@just
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.5.20"
+          enable-cache: true
+          cache-dependency-glob: "./projects/pgai/uv.lock"
+
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "./projects/pgai/.python-version"
+          
+      - name: DB sub moduleCI pipeline. Install dependencies, run linters execute tests and build the project", 
+        run: just pgai db ci
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

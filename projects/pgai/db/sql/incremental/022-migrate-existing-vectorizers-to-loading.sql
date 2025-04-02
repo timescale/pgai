@@ -29,7 +29,7 @@ BEGIN
                     'config_type': 'parsing'
                 ),
                 'chunking', _chunking operator(pg_catalog.-) 'chunk_column',
-                'version', '@extversion@'
+                'version', '__version__'
             );
             
             -- Update the vectorizer with new config

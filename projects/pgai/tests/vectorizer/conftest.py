@@ -77,7 +77,7 @@ def vcr_():
 
 @pytest.fixture(scope="session")
 def postgres_container_manager() -> (
-    Generator[Callable[[bool, str], PostgresContainer], None, None]
+    Generator[Callable[[bool, bool, str], PostgresContainer], None, None]
 ):
     extension_dir = (
         Path(__file__).parent.parent.parent.parent.joinpath("extension").resolve()
@@ -89,10 +89,12 @@ def postgres_container_manager() -> (
     containers: dict[str, PostgresContainer] = {}
 
     def get_container(
-        load_openai_key: bool = True, ai_extension_version: str = ""
+        load_openai_key: bool = True,
+        set_executor_url: bool = False,
+        ai_extension_version: str = "",
     ) -> PostgresContainer:
         # Use config as cache key
-        key = f"openai_{load_openai_key}+ai_extension_version_{ai_extension_version}"
+        key = f"openai_{load_openai_key}+executor_url_{set_executor_url}+ai_extension_version_{ai_extension_version}"  # noqa: E501
 
         if key not in containers:
             container = PostgresContainer(
@@ -102,6 +104,11 @@ def postgres_container_manager() -> (
                 dbname="tsdb",
                 driver=None,
             )
+
+            if set_executor_url:
+                container = container.with_command(
+                    "-c 'ai.external_functions_executor_url=http://www.example.com'"
+                )
 
             if load_openai_key:
                 load_dotenv()
@@ -120,6 +127,23 @@ def postgres_container_manager() -> (
         container.stop()
 
 
+def create_connection_url(
+    container: PostgresContainer,
+    username: str | None = None,
+    password: str | None = None,
+    dbname: str | None = None,
+):
+    host = container._docker.host()  # type: ignore
+    return super(PostgresContainer, container)._create_connection_url(  # type: ignore
+        dialect="postgresql",
+        username=username or container.username,
+        password=password or container.password,
+        dbname=dbname or container.dbname,
+        host=host,
+        port=container.port,
+    )
+
+
 @pytest.fixture
 def postgres_container(
     request: pytest.FixtureRequest,
@@ -132,10 +156,12 @@ def postgres_container(
 
     params: Mapping[str, Any] = marker.kwargs if marker else {}  # type: ignore
     load_openai_key: bool = params.get("load_openai_key", True)  # type: ignore
+    set_executor_url: bool = params.get("set_executor_url", False)  # type: ignore
     ai_extension_version: str = params.get("ai_extension_version", "")  # type: ignore
 
     return postgres_container_manager(  # type: ignore
         load_openai_key=load_openai_key,  # type: ignore
+        set_executor_url=set_executor_url,
         ai_extension_version=ai_extension_version,
     )
 

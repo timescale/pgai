@@ -276,116 +276,6 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- _vectorizer_create_dependencies
-create or replace function ai._vectorizer_create_dependencies(vectorizer_id pg_catalog.int4)
-returns void as
-$func$
-declare
-    _vec ai.vectorizer%rowtype;
-    _is_owner pg_catalog.bool;
-begin
-    -- this function is security definer since we need to insert into a catalog table
-    -- fully-qualify everything and be careful of security holes
-
-    -- we don't want to run this function on arbitrary tables, so we don't take
-    -- schema/table names as parameters. we take a vectorizer id and look it up
-    -- preventing this function from being abused
-    select v.* into strict _vec
-    from ai.vectorizer v
-    where v.id operator(pg_catalog.=) vectorizer_id
-    ;
-
-    -- don't let anyone but a superuser or the owner (or members of the owner's role) of the source table call this
-    select pg_catalog.pg_has_role(pg_catalog.session_user(), k.relowner, 'MEMBER')
-    into strict _is_owner
-    from pg_catalog.pg_class k
-    inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
-    where k.oid operator(pg_catalog.=) pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::pg_catalog.regclass::pg_catalog.oid
-    ;
-    -- not an owner of the table, but superuser?
-    if not _is_owner then
-        select r.rolsuper into strict _is_owner
-        from pg_catalog.pg_roles r
-        where r.rolname operator(pg_catalog.=) pg_catalog.current_user()
-        ;
-    end if;
-    if not _is_owner then
-        raise exception 'only a superuser or the owner of the source table may call ai._vectorizer_create_dependencies';
-    end if;
-
-    -- if we drop the source or the target with `cascade` it should drop the queue
-    -- if we drop the source with `cascade` it should drop the target
-    -- there's no unique constraint on pg_depend so we manually prevent duplicate entries
-    with x as
-    (
-        -- the queue table depends on the source table
-        select
-         (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as classid
-        , pg_catalog.format('%I.%I', _vec.queue_schema, _vec.queue_table)::pg_catalog.regclass::pg_catalog.oid as objid
-        , 0 as objsubid
-        , (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as refclassid
-        , pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::pg_catalog.regclass::pg_catalog.oid as refobjid
-        , 0 as refobjsubid
-        , 'n' as deptype
-        union all
-        -- the queue table depends on the target table
-        select
-         (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as classid
-        , pg_catalog.format('%I.%I', _vec.queue_schema, _vec.queue_table)::pg_catalog.regclass::pg_catalog.oid as objid
-        , 0 as objsubid
-        , (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as refclassid
-        , pg_catalog.format('%I.%I', _vec.target_schema, _vec.target_table)::pg_catalog.regclass::pg_catalog.oid as refobjid
-        , 0 as refobjsubid
-        , 'n' as deptype
-        union all
-        -- the target table depends on the source table
-        select
-         (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as classid
-        , pg_catalog.format('%I.%I', _vec.target_schema, _vec.target_table)::pg_catalog.regclass::pg_catalog.oid as objid
-        , 0 as objsubid
-        , (select oid from pg_catalog.pg_class where relname operator(pg_catalog.=) 'pg_class') as refclassid
-        , pg_catalog.format('%I.%I', _vec.source_schema, _vec.source_table)::pg_catalog.regclass::pg_catalog.oid as refobjid
-        , 0 as refobjsubid
-        , 'n' as deptype
-    )
-    insert into pg_catalog.pg_depend
-    ( classid
-    , objid
-    , objsubid
-    , refclassid
-    , refobjid
-    , refobjsubid
-    , deptype
-    )
-    select
-      x.classid
-    , x.objid
-    , x.objsubid
-    , x.refclassid
-    , x.refobjid
-    , x.refobjsubid
-    , x.deptype
-    from x
-    where not exists
-    (
-        select 1
-        from pg_catalog.pg_depend d
-        where d.classid operator(pg_catalog.=) x.classid
-        and d.objid operator(pg_catalog.=) x.objid
-        and d.objsubid operator(pg_catalog.=) x.objsubid
-        and d.refclassid operator(pg_catalog.=) x.refclassid
-        and d.refobjid operator(pg_catalog.=) x.refobjid
-        and d.refobjsubid operator(pg_catalog.=) x.refobjsubid
-        and d.deptype operator(pg_catalog.=) x.deptype
-    )
-    ;
-end
-$func$
-language plpgsql volatile security definer -- definer on purpose
-set search_path to pg_catalog, pg_temp
-;
-
--------------------------------------------------------------------------------
 -- _vectorizer_create_queue_table
 create or replace function ai._vectorizer_create_queue_table
 ( queue_schema pg_catalog.name
@@ -727,21 +617,18 @@ begin
     )
     loop
         raise notice 'Recreating trigger function for vectorizer ID %s', _vec.id;
-        
-        execute format(
-            'alter extension ai add function %I.%I()',
-            _vec.queue_schema, _vec.trigger_name
-        );
 
         execute format
         (
+        --weird indent is intentional to make the sql functions look the same as during a fresh install
+        --otherwise the snapshots will not match during upgrade testing.
             $sql$
-            create or replace function %I.%I() returns trigger 
-            as $trigger_def$ 
-            %s 
-            $trigger_def$ language plpgsql volatile parallel safe security definer 
-            set search_path to pg_catalog, pg_temp
-            $sql$
+    create or replace function %I.%I() returns trigger 
+    as $trigger_def$ 
+    %s 
+    $trigger_def$ language plpgsql volatile parallel safe security definer 
+    set search_path to pg_catalog, pg_temp
+    $sql$
             , _vec.queue_schema, _vec.trigger_name,
             ai._vectorizer_build_trigger_definition(_vec.queue_schema, _vec.queue_table, _vec.target_schema, _vec.target_table, _vec.source_pk)
         );
@@ -764,11 +651,6 @@ begin
         execute format(
             'create trigger %I after truncate on %I.%I for each statement execute function %I.%I()',
             format('%s_truncate',_vec.trigger_name) , _vec.source_schema, _vec.source_table, _vec.queue_schema, _vec.trigger_name
-        );
-
-        execute format(
-            'alter extension ai drop function %I.%I()',
-            _vec.queue_schema, _vec.trigger_name
         );
         
         raise info 'Successfully recreated trigger for vectorizer ID %', _vec.id;
@@ -1000,6 +882,79 @@ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+
+-------------------------------------------------------------------------------
+-- _vectorizer_schedule_job
+create or replace function ai._vectorizer_schedule_job
+( vectorizer_id pg_catalog.int4
+, scheduling pg_catalog.jsonb
+) returns pg_catalog.int8 as
+$func$
+declare
+    _implementation pg_catalog.text;
+    _sql pg_catalog.text;
+    _extension_schema pg_catalog.name;
+    _job_id pg_catalog.int8;
+    _ai_extension_exists pg_catalog.bool;
+begin
+    select pg_catalog.jsonb_extract_path_text(scheduling, 'implementation')
+    into strict _implementation
+    ;
+    case
+        when _implementation operator(pg_catalog.=) 'timescaledb' then
+            select pg_catalog.count(*) > 0
+            into strict _ai_extension_exists
+            from pg_catalog.pg_extension x
+            where x.extname operator(pg_catalog.=) 'ai';
+            
+            if not _ai_extension_exists then
+                raise exception 'ai extension not found but it is needed for timescaledb scheduling.';
+            end if;
+            -- look up schema/name of the extension for scheduling. may be null
+            select n.nspname into _extension_schema
+            from pg_catalog.pg_extension x
+            inner join pg_catalog.pg_namespace n on (x.extnamespace operator(pg_catalog.=) n.oid)
+            where x.extname operator(pg_catalog.=) _implementation
+            ;
+            if _extension_schema is null then
+                raise exception 'timescaledb extension not found';
+            end if;
+        when _implementation operator(pg_catalog.=) 'none' then
+            return null;
+        else
+            raise exception 'scheduling implementation not recognized';
+    end case;
+
+    -- schedule the job using the implementation chosen
+    case _implementation
+        when 'timescaledb' then
+            -- schedule the work proc with timescaledb background jobs
+            select pg_catalog.format
+            ( $$select %I.add_job('ai._vectorizer_job'::pg_catalog.regproc, %s, config=>%L)$$
+            , _extension_schema
+            , ( -- gather up the arguments
+                select pg_catalog.string_agg
+                ( pg_catalog.format('%s=>%L', s.key, s.value)
+                , ', '
+                order by x.ord
+                )
+                from pg_catalog.jsonb_each_text(scheduling) s
+                inner join
+                pg_catalog.unnest(array['schedule_interval', 'initial_start', 'fixed_schedule', 'timezone']) with ordinality x(key, ord)
+                on (s.key = x.key)
+              )
+            , pg_catalog.jsonb_build_object('vectorizer_id', vectorizer_id)::pg_catalog.text
+            ) into strict _sql
+            ;
+            execute _sql into strict _job_id;
+    end case;
+    return _job_id;
+end
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
 -------------------------------------------------------------------------------
 -- _vectorizer_job
 create or replace procedure ai._vectorizer_job
@@ -1086,120 +1041,3 @@ end
 $func$
 language plpgsql security invoker
 ;
-
--------------------------------------------------------------------------------
--- _vectorizer_schedule_job
-create or replace function ai._vectorizer_schedule_job
-( vectorizer_id pg_catalog.int4
-, scheduling pg_catalog.jsonb
-) returns pg_catalog.int8 as
-$func$
-declare
-    _implementation pg_catalog.text;
-    _sql pg_catalog.text;
-    _extension_schema pg_catalog.name;
-    _job_id pg_catalog.int8;
-begin
-    select pg_catalog.jsonb_extract_path_text(scheduling, 'implementation')
-    into strict _implementation
-    ;
-    case
-        when _implementation operator(pg_catalog.=) 'timescaledb' then
-            -- look up schema/name of the extension for scheduling. may be null
-            select n.nspname into _extension_schema
-            from pg_catalog.pg_extension x
-            inner join pg_catalog.pg_namespace n on (x.extnamespace operator(pg_catalog.=) n.oid)
-            where x.extname operator(pg_catalog.=) _implementation
-            ;
-            if _extension_schema is null then
-                raise exception 'timescaledb extension not found';
-            end if;
-        when _implementation operator(pg_catalog.=) 'none' then
-            return null;
-        else
-            raise exception 'scheduling implementation not recognized';
-    end case;
-
-    -- schedule the job using the implementation chosen
-    case _implementation
-        when 'timescaledb' then
-            -- schedule the work proc with timescaledb background jobs
-            select pg_catalog.format
-            ( $$select %I.add_job('ai._vectorizer_job'::pg_catalog.regproc, %s, config=>%L)$$
-            , _extension_schema
-            , ( -- gather up the arguments
-                select pg_catalog.string_agg
-                ( pg_catalog.format('%s=>%L', s.key, s.value)
-                , ', '
-                order by x.ord
-                )
-                from pg_catalog.jsonb_each_text(scheduling) s
-                inner join
-                pg_catalog.unnest(array['schedule_interval', 'initial_start', 'fixed_schedule', 'timezone']) with ordinality x(key, ord)
-                on (s.key = x.key)
-              )
-            , pg_catalog.jsonb_build_object('vectorizer_id', vectorizer_id)::pg_catalog.text
-            ) into strict _sql
-            ;
-            execute _sql into strict _job_id;
-    end case;
-    return _job_id;
-end
-$func$
-language plpgsql volatile security invoker
-set search_path to pg_catalog, pg_temp
-;
-
--------------------------------------------------------------------------------
--- _vectorizer_handle_drops
-create or replace function ai._vectorizer_handle_drops()
-returns event_trigger as
-$func$
-declare
-    _id int;
-begin
-    -- this function is security definer
-    -- fully-qualify everything and be careful of security holes
-    for _id in
-    (
-        select distinct v.id
-        from pg_catalog.pg_event_trigger_dropped_objects() d
-        inner join ai.vectorizer v
-        on ((d.schema_name, d.object_name) in
-            ( (v.source_schema, v.source_table)
-            , (v.target_schema, v.target_table)
-            , (v.queue_schema, v.queue_table)
-            )
-        )
-        where pg_catalog.lower(d.object_type) operator(pg_catalog.=) 'table'
-    )
-    loop
-        -- this may cause recursive invocations of this event trigger
-        -- however it does not cause a problem
-        raise notice 'associated table for vectorizer % dropped. dropping vectorizer', _id;
-        perform ai.drop_vectorizer(_id);
-    end loop;
-end;
-$func$
-language plpgsql volatile security definer -- definer on purpose!
-set search_path to pg_catalog, pg_temp
-;
-
--- install the event trigger if not exists
-do language plpgsql $block$
-begin
-    -- if the event trigger already exists, noop
-    perform
-    from pg_catalog.pg_event_trigger g
-    where g.evtname operator(pg_catalog.=) '_vectorizer_handle_drops'
-    and g.evtfoid operator(pg_catalog.=) pg_catalog.to_regproc('ai._vectorizer_handle_drops')
-    ;
-    if found then
-        return;
-    end if;
-
-    create event trigger _vectorizer_handle_drops
-    on sql_drop
-    execute function ai._vectorizer_handle_drops();
-end
-$block$;
