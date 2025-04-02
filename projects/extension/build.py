@@ -344,7 +344,6 @@ class Actions:
         cmd = " ".join(
             [
                 "uv run --no-project pgspot --ignore-lang=plpython3u",
-                '--proc-without-search-path "ai._vectorizer_job(job_id integer,config pg_catalog.jsonb)"',
                 f"{output_sql_file()}",
             ]
         )
