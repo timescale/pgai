@@ -444,3 +444,73 @@ def test_disabled_vectorizer_is_backwards_compatible(
         )
         row = cur.fetchone()
         assert row is not None and row["pending_items"] == 0
+
+
+def test_chunking_none(
+    cli_db: tuple[PostgresContainer, Connection],
+    cli_db_url: str,
+    vcr_: Any,
+):
+    """Test that chunking_none preserves the document as a single chunk"""
+    _, connection = cli_db
+    table_name = setup_source_table(connection, 2)
+    vectorizer_id = configure_vectorizer(
+        table_name,
+        cli_db[1],
+        batch_size=2,
+        chunking="chunking_none()",
+    )
+
+    # Given content with natural splitting points that would normally be chunked
+    sample_content = """Introduction to Machine Learning
+
+    Machine learning is a subset of artificial intelligence that focuses on data and
+    algorithms.
+    It enables systems to learn and improve from experience.
+
+    Key Concepts:
+    1. Supervised Learning
+    2. Unsupervised Learning
+    3. Reinforcement Learning
+
+    Each type has its own unique applications and methodologies."""
+
+    shorter_content = "This is a shorter post that shouldn't need splitting."
+
+    # Update the test data with our structured content
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("UPDATE blog SET content = %s WHERE id = 1", (sample_content,))
+        cur.execute("UPDATE blog SET content = %s WHERE id = 2", (shorter_content,))
+
+    # When running the worker
+    with vcr_.use_cassette("test_chunking_none.yaml"):
+        result = run_vectorizer_worker(cli_db_url, vectorizer_id)
+
+    assert result.exit_code == 0
+
+    # Then verify each document remains as a single chunk
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("""
+            SELECT id, chunk_seq, chunk
+            FROM blog_embedding_store
+            ORDER BY id, chunk_seq
+        """)
+        chunks = cur.fetchall()
+
+        # Verify each document has exactly one chunk
+        first_doc_chunks = [c for c in chunks if c["id"] == 1]
+        assert (
+            len(first_doc_chunks) == 1
+        ), "Long document should remain as a single chunk with chunking_none"
+        assert first_doc_chunks[0]["chunk"] == sample_content
+
+        # Verify short content is also a single chunk
+        second_doc_chunks = [c for c in chunks if c["id"] == 2]
+        assert len(second_doc_chunks) == 1, "Short document should be a single chunk"
+        assert second_doc_chunks[0]["chunk"] == shorter_content
+
+        # Verify chunk sequences are correct (should all be 0)
+        for doc_chunks in [first_doc_chunks, second_doc_chunks]:
+            assert (
+                doc_chunks[0]["chunk_seq"] == 0
+            ), "Chunk sequence should be 0 for single chunks"

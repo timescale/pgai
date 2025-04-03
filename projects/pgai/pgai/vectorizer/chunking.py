@@ -33,6 +33,36 @@ class Chunker(ABC):
         """
 
 
+class NoneChunker(BaseModel, Chunker):
+    """
+    A chunker implementation that does not chunk the text.
+
+    This chunker passes the text through unmodified as a single chunk,
+    skipping any chunking logic and preserving the document as-is.
+
+    Attributes:
+        implementation (Literal): A literal value identifying the implementation.
+    """
+
+    implementation: Literal["none"]
+
+    @override
+    def into_chunks(self, row: dict[str, Any], payload: str) -> list[str]:
+        """
+        Returns the text as a single chunk without any processing.
+
+        Args:
+            row (dict[str, Any]): A dictionary representing a database row,
+                where keys are column names and values are the corresponding
+                data.
+            payload (str): The text content to be chunked.
+
+        Returns:
+            list[str]: A list containing just the original text as a single chunk.
+        """
+        return [payload]
+
+
 class LangChainCharacterTextSplitter(BaseModel, Chunker):
     """
     A chunker implementation using LangChain's CharacterTextSplitter.
