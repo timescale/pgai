@@ -90,7 +90,9 @@ class Config(BaseModel):
     loading: ColumnLoading | UriLoading
     embedding: OpenAI | Ollama | VoyageAI | LiteLLM
     processing: ProcessingDefault
-    destination: DefaultDestination | SourceDestination = Field(..., discriminator="implementation")
+    destination: DefaultDestination | SourceDestination = Field(
+        ..., discriminator="implementation"
+    )
     chunking: (
         LangChainCharacterTextSplitter
         | LangChainRecursiveCharacterTextSplitter
@@ -300,8 +302,7 @@ class VectorizerQueryBuilder:
         Uses the destination config's polymorphic method to determine the target table.
         """
         return self.vectorizer.config.destination.get_target_table_ident(
-            self.vectorizer.source_schema,
-            self.vectorizer.source_table
+            self.vectorizer.source_schema, self.vectorizer.source_table
         )
 
     @property
@@ -553,33 +554,30 @@ class VectorizerQueryBuilder:
     def delete_embeddings_query(self, items_count: int) -> sql.Composed:
         placeholders = self._pks_placeholders_tuples(items_count)
         return self.vectorizer.config.destination.get_delete_embeddings_query(
-            self.target_table_ident,
-            self.pk_fields_sql,
-            placeholders
+            self.target_table_ident, self.pk_fields_sql, placeholders
         )
 
     @cached_property
     def copy_embeddings_query(self) -> sql.Composed:
         return self.vectorizer.config.destination.get_copy_embeddings_query(
-            self.target_table_ident,
-            self.pk_fields_sql
+            self.target_table_ident, self.pk_fields_sql
         )
-        
+
     @cached_property
     def should_use_copy(self) -> bool:
         """Returns whether to use COPY or UPDATE for writing embeddings"""
         return self.vectorizer.config.destination.should_use_copy()
-        
+
     @cached_property
     def update_embedding_query(self) -> sql.Composed:
         """Returns a SQL query to update the embedding column (for SourceDestination)"""
         if hasattr(self.vectorizer.config.destination, "get_update_embedding_query"):
             return self.vectorizer.config.destination.get_update_embedding_query(
-                self.target_table_ident,
-                self.pk_fields_sql,
-                self.pk_fields
+                self.target_table_ident, self.pk_fields_sql, self.pk_fields
             )
-        raise NotImplementedError("This destination type does not support update_embedding_query")
+        raise NotImplementedError(
+            "This destination type does not support update_embedding_query"
+        )
 
     @cached_property
     def insert_errors_query(self) -> sql.Composed:
@@ -1021,20 +1019,22 @@ class Worker:
         if not self.queries.should_use_copy:
             # For SourceDestination we don't need copy types
             return
-            
+
         # For DefaultDestination, we need to get the column types for COPY
         dest = self.vectorizer.config.destination
         target_schema = ""
         target_table = ""
-        
+
         if hasattr(dest, "target_schema") and hasattr(dest, "target_table"):
             target_schema = dest.target_schema
             target_table = dest.target_table
         else:
-            schema_and_table = str(self.queries.target_table_ident).replace('"', '').split('.')
+            schema_and_table = (
+                str(self.queries.target_table_ident).replace('"', "").split(".")
+            )
             if len(schema_and_table) == 2:
                 target_schema, target_table = schema_and_table
-        
+
         async with conn.cursor() as cursor:
             await cursor.execute(
                 """
@@ -1056,7 +1056,7 @@ class Worker:
                 ),
             )
             self.copy_types = [row[0] for row in await cursor.fetchall()]
-            
+
         assert self.copy_types is not None
         # len(source_pk) + chunk_seq + chunk + embedding
         assert len(self.copy_types) == len(self.vectorizer.source_pk) + 3
@@ -1069,7 +1069,7 @@ class Worker:
     ):
         """
         Inserts embeddings into the target table.
-        
+
         For DefaultDestination, uses COPY FROM STDIN WITH (FORMAT BINARY).
         For SourceDestination, uses UPDATE statements for each row.
 
@@ -1093,11 +1093,10 @@ class Worker:
             # Use UPDATE for SourceDestination
             async with conn.cursor() as cursor:
                 for record in records:
-                    pk_values = record[:len(self.queries.pk_attnames)]
+                    pk_values = record[: len(self.queries.pk_attnames)]
                     embedding = record[-1]  # Last item is the embedding
                     await cursor.execute(
-                        self.queries.update_embedding_query,
-                        [embedding] + pk_values
+                        self.queries.update_embedding_query, [embedding] + pk_values
                     )
 
     async def _insert_vectorizer_error(

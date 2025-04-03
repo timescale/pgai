@@ -23,8 +23,8 @@ def configure_same_table_vectorizer(
                 chunking => ai.chunking_none(),
                 loading => ai.loading_column('content')
             )
-        """) # type: ignore
-        
+        """)  # type: ignore
+
         vectorizer_id: int = int(cur.fetchone()["create_vectorizer"])  # type: ignore
         return vectorizer_id
 
@@ -35,7 +35,7 @@ def test_same_table_vectorizer(
     vcr_: Any,
 ):
     """
-        Test that destination_source works and adds the embeddings to the original table
+    Test that destination_source works and adds the embeddings to the original table
     """
     _, con = cli_db
     table_name = setup_source_table(con, 2)
