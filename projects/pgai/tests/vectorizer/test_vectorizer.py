@@ -123,10 +123,10 @@ async def _vectorizer_test_after_install(
         cur.execute(
             SQL("select count(*) from {target_schema}.{target_table}").format(
                 target_schema=Identifier(
-                    vectorizer_expected.config.destination.target_schema  # type: ignore
+                    vectorizer_expected.config["destination"]["target_schema"]  # type: ignore
                 ),  # type: ignore
                 target_table=Identifier(
-                    vectorizer_expected.config.destination.target_table  # type: ignore
+                    vectorizer_expected.config["destination"]["target_table"]  # type: ignore
                 ),  # type: ignore
             )
         )
@@ -140,8 +140,12 @@ async def _vectorizer_test_after_install(
                 filter (where chunk = format('%s: %s', id, note))
                 from {view_schema}.{view_name}
                 """).format(
-                view_schema=Identifier(vectorizer_expected.view_schema),  # type: ignore
-                view_name=Identifier(vectorizer_expected.view_name),  # type: ignore
+                view_schema=Identifier(
+                    vectorizer_expected.config["destination"]["view_schema"]  # type: ignore
+                ),  # type: ignore
+                view_name=Identifier(
+                    vectorizer_expected.config["destination"]["view_name"]  # type: ignore
+                ),  # type: ignore
             )
         )
         actual = cur.fetchone()[0]  # type: ignore
@@ -245,8 +249,12 @@ async def test_vectorizer_weird_pk(postgres_container: PostgresContainer):
         # make sure we got 7 rows out
         cur.execute(
             SQL("select count(*) from {target_schema}.{target_table}").format(
-                target_schema=Identifier(vectorizer_expected.target_schema),  # type: ignore
-                target_table=Identifier(vectorizer_expected.target_table),  # type: ignore
+                target_schema=Identifier(
+                    vectorizer_expected.config["destination"]["target_schema"]  # type: ignore
+                ),  # type: ignore
+                target_table=Identifier(
+                    vectorizer_expected.config["destination"]["target_table"]  # type: ignore
+                ),  # type: ignore
             )
         )
         actual = cur.fetchone()[0]  # type: ignore
