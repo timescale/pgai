@@ -572,8 +572,10 @@ class VectorizerQueryBuilder:
     def update_embedding_query(self) -> sql.Composed:
         """Returns a SQL query to update the embedding column (for SourceDestination)"""
         if hasattr(self.vectorizer.config.destination, "get_update_embedding_query"):
-            return self.vectorizer.config.destination.get_update_embedding_query(
-                self.target_table_ident, self.pk_fields_sql, self.pk_fields
+            return self.vectorizer.config.destination.get_update_embedding_query(  # type: ignore
+                self.target_table_ident,
+                self.pk_fields_sql,
+                self.pk_fields,  # type: ignore
             )
         raise NotImplementedError(
             "This destination type does not support update_embedding_query"
@@ -1026,8 +1028,8 @@ class Worker:
         target_table = ""
 
         if hasattr(dest, "target_schema") and hasattr(dest, "target_table"):
-            target_schema = dest.target_schema
-            target_table = dest.target_table
+            target_schema = dest.target_schema  # type: ignore
+            target_table = dest.target_table  # type: ignore
         else:
             schema_and_table = (
                 str(self.queries.target_table_ident).replace('"', "").split(".")
@@ -1051,8 +1053,8 @@ class Worker:
                 order by a.attnum
             """,
                 (
-                    target_schema,
-                    target_table,
+                    target_schema,  # type: ignore
+                    target_table,  # type: ignore
                 ),
             )
             self.copy_types = [row[0] for row in await cursor.fetchall()]
