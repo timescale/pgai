@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.10.0](https://github.com/timescale/pgai/compare/pgai-v0.9.2...pgai-v0.10.0) (2025-04-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* truncate inputs to OpenAI ([#567](https://github.com/timescale/pgai/issues/567))
+
+### Features
+
+* add ai.chunking_none() to skip chunking ([#575](https://github.com/timescale/pgai/issues/575)) ([d84965a](https://github.com/timescale/pgai/commit/d84965af9b09892110e1cd9f989a99e70cd69319))
+* add support for generating embeddings for external documents ([#442](https://github.com/timescale/pgai/issues/442)) ([c356ae8](https://github.com/timescale/pgai/commit/c356ae8260c9b5464dcc586af9cc16f66b149f8d))
+* truncate inputs to OpenAI ([#567](https://github.com/timescale/pgai/issues/567)) ([ab29dd4](https://github.com/timescale/pgai/commit/ab29dd4b8176fb63aee3f3cde15092e2e1a8a9b7))
+
+
+### Miscellaneous
+
+* add missing dep ([#588](https://github.com/timescale/pgai/issues/588)) ([af9d1d3](https://github.com/timescale/pgai/commit/af9d1d33c2ec748e9d88aa5f9d0509ef4d125107))
+* refactor processing logic ([#604](https://github.com/timescale/pgai/issues/604)) ([47bb2ae](https://github.com/timescale/pgai/commit/47bb2ae9e474e01e70002566ef7bfa3589119eee))
+* submit plain (not tokenized) input to OpenAI ([#593](https://github.com/timescale/pgai/issues/593)) ([c6a9e6c](https://github.com/timescale/pgai/commit/c6a9e6c5aeb49b4fc2732380f7293bb166efb1b3))
+* use basemodel everywhere instead of mixing it with pydantic dataclasses ([#590](https://github.com/timescale/pgai/issues/590)) ([c180627](https://github.com/timescale/pgai/commit/c180627c737a529d6c1605ad872211d06cb43d0d))
+
 ## [0.9.2](https://github.com/timescale/pgai/compare/pgai-v0.9.1...pgai-v0.9.2) (2025-03-25)
 
 
