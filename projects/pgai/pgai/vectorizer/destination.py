@@ -43,8 +43,8 @@ class DefaultDestination(BaseModel):
 
     def get_target_table_ident(
         self,
-        source_schema: str,
-        source_table,  # noqa: ARG002
+        source_schema: str,  # type: ignore  # noqa: ARG002
+        source_table: str,  # type: ignore  # noqa: ARG002
     ) -> sql.Identifier:
         """Returns the SQL identifier for the target table (schema.table)"""
         return sql.Identifier(self.target_schema, self.target_table)
@@ -109,7 +109,7 @@ class SourceDestination(BaseModel):
         pk_fields_sql: sql.Composed,  # noqa: ARG002
     ) -> sql.Composed:
         """SourceDestination doesn't use COPY, uses UPDATE instead"""
-        return sql.SQL("")  # Placeholder, not actually used
+        raise NotImplementedError()
 
     def should_use_copy(self) -> bool:
         """SourceDestination uses UPDATE instead of COPY"""
