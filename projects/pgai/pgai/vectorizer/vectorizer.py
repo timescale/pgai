@@ -297,7 +297,18 @@ class VectorizerQueryBuilder:
         Returns the SQL identifier for the fully qualified name of the target table.
         Uses the destination config's polymorphic method to determine the target table.
         """
-        return self.vectorizer.config.destination.get_target_table_ident(
+        assert isinstance(self.vectorizer.config.destination, DefaultDestination)
+        return sql.Identifier(
+            self.vectorizer.config.destination.target_schema,
+            self.vectorizer.config.destination.target_table,
+        )
+
+    @property
+    def source_table_ident(self) -> sql.Identifier:
+        """
+        Returns the SQL identifier for the fully qualified name of the source table.
+        """
+        return sql.Identifier(
             self.vectorizer.source_schema, self.vectorizer.source_table
         )
 
@@ -548,33 +559,27 @@ class VectorizerQueryBuilder:
         )
 
     def delete_embeddings_query(self, items_count: int) -> sql.Composed:
-        placeholders = self._pks_placeholders_tuples(items_count)
-        return self.vectorizer.config.destination.get_delete_embeddings_query(
-            self.target_table_ident, self.pk_fields_sql, placeholders
+        return sql.SQL("DELETE FROM {} WHERE ({}) IN ({})").format(
+            self.target_table_ident,
+            self.pk_fields_sql,
+            self._pks_placeholders_tuples(items_count),
         )
 
     @cached_property
     def copy_embeddings_query(self) -> sql.Composed:
-        return self.vectorizer.config.destination.get_copy_embeddings_query(
-            self.target_table_ident, self.pk_fields_sql
-        )
-
-    @cached_property
-    def should_use_copy(self) -> bool:
-        """Returns whether to use COPY or UPDATE for writing embeddings"""
-        return self.vectorizer.config.destination.should_use_copy()
+        return sql.SQL(
+            "COPY {} ({}, chunk_seq, chunk, embedding) FROM STDIN WITH (FORMAT BINARY)"
+        ).format(self.target_table_ident, self.pk_fields_sql)
 
     @cached_property
     def update_embedding_query(self) -> sql.Composed:
         """Returns a SQL query to update the embedding column (for SourceDestination)"""
-        if hasattr(self.vectorizer.config.destination, "get_update_embedding_query"):
-            return self.vectorizer.config.destination.get_update_embedding_query(  # type: ignore
-                self.target_table_ident,
-                self.pk_fields_sql,
-                self.pk_fields,  # type: ignore
-            )
-        raise NotImplementedError(
-            "This destination type does not support update_embedding_query"
+        assert isinstance(self.vectorizer.config.destination, SourceDestination)
+        return sql.SQL("UPDATE {} SET {} = %s WHERE ({}) = ({})").format(
+            self.source_table_ident,
+            sql.Identifier(self.vectorizer.config.destination.embedding_column),
+            self.pk_fields_sql,
+            sql.SQL(", ").join([sql.Placeholder() for _ in self.pk_fields]),
         )
 
     @cached_property
@@ -1002,6 +1007,8 @@ class Worker:
             conn (AsyncConnection): The database connection.
             items (list[SourceRow]): The items whose embeddings need to be deleted.
         """
+        if self.vectorizer.config.destination.implementation == "source":
+            return
         ids = [item[pk] for item in items for pk in self.queries.pk_attnames]
         async with conn.cursor() as cursor:
             await cursor.execute(self.queries.delete_embeddings_query(len(items)), ids)
@@ -1014,30 +1021,16 @@ class Worker:
         Args:
             conn (AsyncConnection): The database connection.
         """
+        assert isinstance(self.vectorizer.config.destination, DefaultDestination)
+        target_schema = self.vectorizer.config.destination.target_schema
+        target_table = self.vectorizer.config.destination.target_table
+
         target_columns: list[str] = list(self.queries.pk_attnames) + [
             "chunk_seq",
             "chunk",
             "embedding",
         ]
-        if not self.queries.should_use_copy:
-            # For SourceDestination we don't need copy types
-            return
-
-        # For DefaultDestination, we need to get the column types for COPY
-        dest = self.vectorizer.config.destination
-        target_schema = ""
-        target_table = ""
-
-        if hasattr(dest, "target_schema") and hasattr(dest, "target_table"):
-            target_schema = dest.target_schema  # type: ignore
-            target_table = dest.target_table  # type: ignore
-        else:
-            schema_and_table = (
-                str(self.queries.target_table_ident).replace('"', "").split(".")
-            )
-            if len(schema_and_table) == 2:
-                target_schema, target_table = schema_and_table
-
+        
         async with conn.cursor() as cursor:
             await cursor.execute(
                 """
@@ -1080,8 +1073,7 @@ class Worker:
             conn (AsyncConnection): The database connection.
             records (list[EmbeddingRecord]): The embedding records to be copied.
         """
-        if self.queries.should_use_copy:
-            # Use COPY for DefaultDestination
+        if self.vectorizer.config.destination.implementation == "default":
             if self.copy_types is None:
                 await self._load_copy_types(conn)
             async with (
@@ -1092,8 +1084,12 @@ class Worker:
                 copy.set_types(self.copy_types)
                 for record in records:
                     await copy.write_row(record)
-        else:
-            # Use UPDATE for SourceDestination
+
+            assert self.copy_types is not None
+            # len(source_pk) + chunk_seq + chunk + embedding
+            assert len(self.copy_types) == len(self.vectorizer.source_pk) + 3
+
+        if self.vectorizer.config.destination.implementation == "source":
             async with conn.cursor() as cursor:
                 for record in records:
                     pk_values = record[: len(self.queries.pk_attnames)]
