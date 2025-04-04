@@ -1,0 +1,15 @@
+<table{% if table.id > -1 %} id="{{ table.id }}"{% endif %}>
+CREATE{% if table.persistence is not none %} {{ table.persistence | upper }} {% else %} {% endif %}TABLE {{ table.schema_name }}.{{ table.table_name }}
+( {% for column in (table.columns if table.columns is not none else []) %}{% if not loop.first %}{{ '\n, ' }}{% endif %}{{ column.name }} {{ column.type }}{% if column.is_not_null %} NOT NULL{% endif %}{% if column.default_value is not none %} {{ column.default_value }}{% endif %}{% endfor %}
+);
+{% for constraint in (table.constraints if table.constraints is not none else []) -%}
+ALTER TABLE {{ table.schema_name }}.{{ table.table_name }} ADD CONSTRAINT {{ constraint.name }} {{ constraint.definition }};
+{% endfor -%}
+{% for index in (table.indexes if table.indexes is not none else []) -%}
+{{ index.definition }};
+{% endfor -%}
+{% if table.description is not none %}COMMENT ON TABLE {{ table.schema_name }}.{{ table.table_name }} IS $${{ table.description.description }}$$;{% endif -%}
+{% for column in (table.columns if table.columns is not none else []) -%}
+{% if column.description is not none %}COMMENT ON COLUMN {{ table.schema_name }}.{{ table.table_name }}{{ column.name }} IS $${{ column.description.description }}$$;{% endif -%}
+{% endfor -%}
+</table>

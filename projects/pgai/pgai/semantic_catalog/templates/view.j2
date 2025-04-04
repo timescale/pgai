@@ -1,0 +1,13 @@
+<view{% if view.id > -1 %} id="{{ view.id }}"{% endif %}>
+CREATE{% if view.is_materialized %} MATERIALIZED {% else %} {% endif %}VIEW {{ view.schema_name }}.{{ view.view_name }} AS
+{{ view.definition }}
+/* column types
+{% for column in view.columns %}
+{{- column.name }} {{ column.type }}
+{% endfor -%}
+*/
+{% if view.description is not none %}COMMENT ON TABLE {{ view.schema_name }}.{{ view.table_name }} IS $${{ view.description.description }}$$;{% endif -%}
+{% for column in (view.columns if view.columns is not none else []) -%}
+{% if column.description is not none %}COMMENT ON COLUMN {{ view.schema_name }}.{{ view.table_name }}{{ column.name }} IS $${{ column.description.description }}$$;{% endif -%}
+{% endfor -%}
+</view>
