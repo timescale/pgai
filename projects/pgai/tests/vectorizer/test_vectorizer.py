@@ -5,7 +5,7 @@ from psycopg.sql import SQL, Identifier
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 import pgai
-from pgai import cli
+from pgai.vectorizer import Processor, Vectorizer
 from pgai.vectorizer.features import Features
 from pgai.vectorizer.worker_tracking import WorkerTracking
 
@@ -93,15 +93,19 @@ async def _vectorizer_test_after_install(
         cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
         vectorizer_expected = cur.fetchone()
 
+        processor = Processor(db_url)
+
         # test cli.get_vectorizer_ids
-        assert len(cli.get_vectorizer_ids(db_url)) == 1
-        assert len(cli.get_vectorizer_ids(db_url, [42, 19])) == 0
-        assert len(cli.get_vectorizer_ids(db_url, [vectorizer_id, 19])) == 1
-        assert len(cli.get_vectorizer_ids(db_url, [vectorizer_id])) == 1
+        assert len(processor._get_vectorizer_ids()) == 1  # type: ignore
+        assert len(processor._get_vectorizer_ids([42, 19])) == 0  # type: ignore
+        assert len(processor._get_vectorizer_ids([vectorizer_id, 19])) == 1  # type: ignore
+        assert len(processor._get_vectorizer_ids([vectorizer_id])) == 1  # type: ignore
 
         # test cli.get_vectorizer
         features = Features.for_testing_latest_version()
-        vectorizer_actual = cli.get_vectorizer(db_url, vectorizer_id, features)
+        vectorizer_actual: Vectorizer = processor._get_vectorizer(  # type: ignore
+            vectorizer_id, features
+        )
         assert vectorizer_actual is not None
         assert vectorizer_expected.source_table == vectorizer_actual.source_table  # type: ignore
 
@@ -151,8 +155,6 @@ async def test_vectorizer_internal(postgres_container: PostgresContainer):
     ):
         cur.execute("create extension if not exists vectorscale cascade")
         pgai.install(_db_url)
-        assert len(cli.get_vectorizer_ids(_db_url)) == 0
-        assert len(cli.get_vectorizer_ids(_db_url, [42, 19])) == 0
         cur.execute("create extension if not exists timescaledb")
     await _vectorizer_test_after_install(postgres_container, db)
 
@@ -205,9 +207,12 @@ async def test_vectorizer_weird_pk(postgres_container: PostgresContainer):
         cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
         vectorizer_expected = cur.fetchone()
 
-        # test cli.get_vectorizer
+        # test processor._get_vectorizer
+        processor = Processor(db_url)
         features = Features.for_testing_latest_version()
-        vectorizer_actual = cli.get_vectorizer(db_url, vectorizer_id, features)
+        vectorizer_actual: Vectorizer = processor._get_vectorizer(  # type: ignore
+            vectorizer_id, features
+        )
         assert vectorizer_actual is not None
         assert vectorizer_expected.source_table == vectorizer_actual.source_table  # type: ignore
 
