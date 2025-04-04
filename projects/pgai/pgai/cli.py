@@ -5,9 +5,11 @@ import os
 import signal
 import sys
 from collections.abc import Sequence
-from typing import Any
+from pathlib import Path
+from typing import Any, Literal
 
 import click
+import psycopg
 import structlog
 from ddtrace import tracer
 from dotenv import load_dotenv
@@ -243,3 +245,199 @@ def install(db_url: str, strict: bool) -> None:
     import pgai
 
     pgai.install(db_url, strict=strict)
+
+
+@click.group(name="semantic-catalog")
+@click.version_option(version=__version__)
+def semantic_catalog():
+    pass
+
+
+@semantic_catalog.command()
+@click.option(
+    "-d",
+    "--db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The connection URL to the database to find objects in.",
+)
+@click.option(
+    "-m",
+    "--model",
+    type=click.STRING,
+    default="anthropic:claude-3-7-sonnet-latest",
+    show_default=True,
+    help="The LLM model to generate descriptions",
+)
+@click.option(
+    "-c",
+    "--catalog-name",
+    type=click.STRING,
+    default="default",
+    show_default=True,
+    help="The name of the semantic catalog to insert descriptions into",
+)
+@click.option(
+    "--include-schema",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against schema names to be included in output.",
+)
+@click.option(
+    "--exclude-schema",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against schema names to be excluded from output.",  # noqa: E501
+)
+@click.option(
+    "--include-table",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against table names to be included in output.",
+)
+@click.option(
+    "--exclude-table",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against table names to be excluded from output.",  # noqa: E501
+)
+@click.option(
+    "--include-view",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against view names to be included in output.",
+)
+@click.option(
+    "--exclude-view",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against view names to be excluded from output.",
+)
+@click.option(
+    "--include-proc",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against procedure/function names to be included in output.",  # noqa: E501
+)
+@click.option(
+    "--exclude-proc",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against proc names to be excluded from output.",
+)
+@click.option(
+    "-o",
+    "--output",
+    type=click.Path(
+        exists=False, dir_okay=False, writable=True, resolve_path=True, path_type=Path
+    ),
+    default=None,
+    help="The path to a file to write output to.",
+)
+@click.option(
+    "-a",
+    "--append",
+    type=click.BOOL,
+    default=False,
+    help="Append to the output file instead of overwriting it.",
+)
+@click.option(
+    "-f",
+    "--format",
+    type=click.Choice(["sql", "comment"], case_sensitive=False),
+    default="sql",
+    help="Output format (sql, comment)",
+)
+def build(
+    db_url: str,
+    model: str,
+    catalog_name: str,
+    include_schema: str | None = None,
+    exclude_schema: str | None = None,
+    include_table: str | None = None,
+    exclude_table: str | None = None,
+    include_view: str | None = None,
+    exclude_view: str | None = None,
+    include_proc: str | None = None,
+    exclude_proc: str | None = None,
+    output: Path | None = None,
+    append: bool = False,
+    format: Literal["sql", "comment"] = "sql",
+) -> None:
+    from pgai.semantic_catalog.builder import build
+
+    # TODO: add progress feedback with Rich and add --quiet to turn it off
+    # TODO: is async io for stdout/file needed?
+    with sys.stdout if not output else output.open(mode="a" if append else "w") as f:
+        asyncio.run(
+            build(
+                db_url,
+                model,  # pyright: ignore [reportArgumentType]
+                catalog_name,
+                output=f,
+                include_schema=include_schema,
+                exclude_schema=exclude_schema,
+                include_table=include_table,
+                exclude_table=exclude_table,
+                include_view=include_view,
+                exclude_view=exclude_view,
+                include_proc=include_proc,
+                exclude_proc=exclude_proc,
+                format=format,
+            )
+        )
+
+
+@semantic_catalog.command()
+@click.argument("catalog-name")
+@click.option(
+    "-d",
+    "--db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The connection URL to the database the semantic catalog is in.",
+)
+@click.option(
+    "-c",
+    "--embed-config",
+    type=click.STRING,
+    default=None,
+    help="The name of the embedding configuration to generate vector for. (If None, do all)",  # noqa: E501
+)
+@click.option(
+    "-b",
+    "--batch-size",
+    type=click.INT,
+    default=None,
+    help="The number of embeddings to generate per batch.",
+)
+def vectorize(
+    catalog_name: str,
+    db_url: str,
+    embed_config: str | None,
+    batch_size: int | None = None,
+) -> None:
+    batch_size = batch_size if batch_size is not None else 32
+
+    async def do():
+        from pgai.semantic_catalog import from_name
+
+        async with await psycopg.AsyncConnection.connect(db_url) as con:
+            sc = await from_name(con, catalog_name)
+            match embed_config:
+                case None:
+                    await sc.vectorize_all(con, batch_size=batch_size)
+                case _:
+                    config = await sc.get_embedding_config(con, embed_config)
+                    if config is None:
+                        raise ValueError(
+                            f"No embedding configuration found for {catalog_name}"
+                        )
+                    await sc.vectorize(con, embed_config, config, batch_size=batch_size)
+
+    asyncio.run(do())
+
+
+cli.add_command(semantic_catalog)
