@@ -1,11 +1,14 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Any, Literal
 
 import litellm
+import tiktoken
 from litellm import EmbeddingResponse as LiteLLMEmbeddingResponse  # type: ignore
 from litellm import InMemoryCache  # type: ignore
+from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
 from pydantic import BaseModel
 from typing_extensions import override
+from vertexai.language_models import TextEmbeddingModel  # type: ignore
 
 from ..embeddings import (
     ApiKeyMixin,
@@ -15,6 +18,7 @@ from ..embeddings import (
     Usage,
     logger,
 )
+from .voyageai import voyage_max_tokens_per_batch, voyage_token_counter
 
 
 # TODO: remove this when this issue is fixed upstream: https://github.com/BerriAI/litellm/issues/7667
@@ -73,7 +77,14 @@ class LiteLLM(ApiKeyMixin, BaseModel, Embedder):
             Sequence[EmbeddingVector]: The embeddings for each document.
         """
         await logger.adebug(f"Chunks produced: {len(documents)}")
-        chunk_lengths = [0 for _ in documents]
+        token_counter = self._token_counter()
+        logger.debug("counting tokens")
+        chunk_lengths = (
+            [0 for _ in documents]
+            if token_counter is None
+            else [token_counter(doc) for doc in documents]
+        )
+        logger.debug("batching")
         return await self.batch_chunks_and_embed(documents, chunk_lengths)
 
     @override
@@ -91,9 +102,9 @@ class LiteLLM(ApiKeyMixin, BaseModel, Embedder):
             case "huggingface":
                 return 2048  # NOTE: There is not documented limit. In testing we got a response for a request with 10k (short) inputs.  # noqa
             case "mistral":
-                return 128  # FIXME: this is chosen somewhat arbitrarily. There is no limit on # chunks per batch, but there is a (low) limit on # tokens per batch (16384)  # noqa
+                return 128  # NOTE: this is chosen somewhat arbitrarily.
             case "vertex_ai":
-                return 250  # FIXME: this applies to `us-central-1` only (otherwise 5). Additionally there is a limit on # tokens per batch (20k) see https://cloud.google.com/vertex-ai/generative-ai/docs/embeddings/get-text-embeddings#get_text_embeddings_for_a_snippet_of_text  # noqa
+                return 250  # FIXME: this applies to `us-central-1` only (otherwise 5). See https://cloud.google.com/vertex-ai/generative-ai/docs/embeddings/get-text-embeddings#get_text_embeddings_for_a_snippet_of_text  # noqa
             case "voyage":
                 return 128  # see https://docs.voyageai.com/reference/embeddings-api
             case _:
@@ -101,6 +112,62 @@ class LiteLLM(ApiKeyMixin, BaseModel, Embedder):
                     f"unknown provider '{custom_llm_provider}', falling back to conservative max chunks per batch"  # noqa: E501
                 )
                 return 5
+
+    @override
+    def _max_tokens_per_batch(self) -> int | None:
+        model, custom_llm_provider, _, _ = litellm.get_llm_provider(self.model)  # type: ignore
+        match custom_llm_provider:
+            case "mistral":
+                return 16_000  # No official documentation, see: https://github.com/langchain-ai/langchain/blob/33354f984fba660e71ca0039cfbd3cf37643cfab/libs/partners/mistralai/langchain_mistralai/embeddings.py#L25
+            case "vertex_ai":
+                return 20_000  # See https://cloud.google.com/vertex-ai/generative-ai/docs/embeddings/get-text-embeddings#get_text_embeddings_for_a_snippet_of_text  # noqa
+            case "openai" | "azure":
+                return 600_000
+            case "voyage":
+                return voyage_max_tokens_per_batch(model)
+            case _:
+                return None
+
+    def _token_counter(self) -> Callable[[str], int] | None:
+        model, custom_llm_provider, _, _ = litellm.get_llm_provider(self.model)  # type: ignore
+        match custom_llm_provider:
+            case "mistral":
+                m_tokenizer = MistralTokenizer.from_model(model, strict=True)  # type: ignore
+
+                def token_counter(text: str) -> int:
+                    return len(
+                        m_tokenizer.instruct_tokenizer.tokenizer.encode(  # type: ignore
+                            text, False, False
+                        )
+                    )
+
+                return token_counter
+            case "vertex_ai":
+                v_tokenizer = TextEmbeddingModel.from_pretrained(model)
+
+                def token_counter(text: str) -> int:
+                    # NOTE: This is hideously inefficient, as evey call to
+                    # count_tokens makes an API request to the CountTokens API
+                    return v_tokenizer.count_tokens([text]).total_tokens
+
+                return token_counter
+            case "openai" | "azure":
+                try:
+                    encoder = tiktoken.encoding_for_model(model)
+                except KeyError:
+                    logger.warning(f"Tokenizer for the model {self.model} not found.")
+                    encoder = None
+
+                def token_counter(text: str) -> int:
+                    if encoder is None:
+                        return 0
+                    return len(encoder.encode(text))
+
+                return token_counter
+            case "voyage":
+                return voyage_token_counter(model)
+            case _:
+                return None
 
     @override
     async def call_embed_api(self, documents: list[str]) -> EmbeddingResponse:
