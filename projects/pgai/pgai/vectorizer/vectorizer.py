@@ -17,8 +17,8 @@ from pgvector.psycopg import register_vector_async  # type: ignore
 from psycopg import AsyncConnection, sql
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb, set_json_dumps
-from pydantic import BaseModel, Field, model_validator
-from pydantic_core._pydantic_core import ArgsKwargs
+from pydantic import BaseModel, model_validator
+from pydantic.fields import Field
 from typing_extensions import override
 
 from .chunking import (
@@ -26,11 +26,11 @@ from .chunking import (
     LangChainRecursiveCharacterTextSplitter,
     NoneChunker,
 )
+from .destination import DefaultDestination, SourceDestination
 from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
 from .loading import ColumnLoading, LoadingError, UriLoading
-from .migrations import apply_migrations
 from .parsing import ParsingAuto, ParsingNone, ParsingPyMuPDF
 from .processing import ProcessingDefault
 from .worker_tracking import WorkerTracking
@@ -90,6 +90,9 @@ class Config(BaseModel):
     loading: ColumnLoading | UriLoading
     embedding: OpenAI | Ollama | VoyageAI | LiteLLM
     processing: ProcessingDefault
+    destination: DefaultDestination | SourceDestination = Field(
+        ..., discriminator="implementation"
+    )
     chunking: (
         LangChainCharacterTextSplitter
         | LangChainRecursiveCharacterTextSplitter
@@ -97,22 +100,29 @@ class Config(BaseModel):
     ) = Field(..., discriminator="implementation")
     formatting: PythonTemplate | ChunkValue = Field(..., discriminator="implementation")
     parsing: ParsingNone | ParsingAuto | ParsingPyMuPDF = Field(
-        default_factory=lambda: ParsingAuto(implementation="auto"),
+        default_factory=lambda: ParsingNone(implementation="none"),
         discriminator="implementation",
     )
 
     @model_validator(mode="before")
     @classmethod
-    def migrate_config_to_new_version(cls, data: Any) -> Any:
+    def create_loading_config_if_not_present(cls, data: Any) -> Any:
         if not data:
             return data
-        if isinstance(data, ArgsKwargs) and data.kwargs is not None:
-            return apply_migrations(data.kwargs)
-        if isinstance(data, dict) and all(isinstance(key, str) for key in data):  # type: ignore[reportUnknownVariableType]
-            return apply_migrations(data)  # type: ignore[arg-type]
-
-        logger.warning("Unable to migrate configuration: raw data type is unknown")
-        return data  # type: ignore[reportUnknownVariableType]
+        if (
+            isinstance(data, dict)
+            and all(isinstance(key, str) for key in data)  # type: ignore
+            and data.get("loading", None) is None  # type: ignore
+        ):  # type: ignore
+            try:
+                column = data.get("chunking").get("chunk_column")  # type: ignore
+                data["loading"] = ColumnLoading(
+                    implementation="column",
+                    column_name=column,  # type: ignore
+                )
+            except (AttributeError, KeyError) as e:
+                raise ValueError("chunk_column or loading config is required") from e
+        return data  # type: ignore
 
 
 class Vectorizer(BaseModel):
@@ -141,14 +151,39 @@ class Vectorizer(BaseModel):
     queue_table: str
     source_schema: str
     source_table: str
-    target_schema: str
-    target_table: str
+    target_schema: str | None = Field(None, deprecated=True)
+    target_table: str | None = Field(None, deprecated=True)
     source_pk: list[PkAtt]
     queue_failed_table: str | None = None
     errors_schema: str = "ai"
     errors_table: str = "vectorizer_errors"
     schema_: str = Field(alias="schema", default="ai")
     table: str = "vectorizer"
+
+    @model_validator(mode="before")
+    @classmethod
+    def adapt_target_fields_to_destination_config(
+        cls, data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Moves the target fields from the root level to the destination config.
+        """
+        # Check if we have old-style config (target fields at root level)
+        target_schema = data.get("target_schema")
+        target_table = data.get("target_table")
+        config = data.get("config")
+        if config:
+            destination = config.get("destination")
+            if target_schema and target_table and not destination:
+                destination = {
+                    "implementation": "default",
+                    "target_schema": target_schema,
+                    "target_table": target_table,
+                }
+
+                data["config"]["destination"] = destination
+
+        return data
 
     async def run(
         self,
@@ -264,10 +299,21 @@ class VectorizerQueryBuilder:
     def target_table_ident(self) -> sql.Identifier:
         """
         Returns the SQL identifier for the fully qualified name of the target table.
+        Uses the destination config's polymorphic method to determine the target table.
         """
-
+        assert isinstance(self.vectorizer.config.destination, DefaultDestination)
         return sql.Identifier(
-            self.vectorizer.target_schema, self.vectorizer.target_table
+            self.vectorizer.config.destination.target_schema,
+            self.vectorizer.config.destination.target_table,
+        )
+
+    @property
+    def source_table_ident(self) -> sql.Identifier:
+        """
+        Returns the SQL identifier for the fully qualified name of the source table.
+        """
+        return sql.Identifier(
+            self.vectorizer.source_schema, self.vectorizer.source_table
         )
 
     @property
@@ -527,9 +573,17 @@ class VectorizerQueryBuilder:
     def copy_embeddings_query(self) -> sql.Composed:
         return sql.SQL(
             "COPY {} ({}, chunk_seq, chunk, embedding) FROM STDIN WITH (FORMAT BINARY)"
-        ).format(
-            self.target_table_ident,
+        ).format(self.target_table_ident, self.pk_fields_sql)
+
+    @cached_property
+    def update_embedding_query(self) -> sql.Composed:
+        """Returns a SQL query to update the embedding column (for SourceDestination)"""
+        assert isinstance(self.vectorizer.config.destination, SourceDestination)
+        return sql.SQL("UPDATE {} SET {} = %s WHERE ({}) = ({})").format(
+            self.source_table_ident,
+            sql.Identifier(self.vectorizer.config.destination.embedding_column),
             self.pk_fields_sql,
+            sql.SQL(", ").join([sql.Placeholder() for _ in self.pk_fields]),
         )
 
     @cached_property
@@ -957,6 +1011,8 @@ class Worker:
             conn (AsyncConnection): The database connection.
             items (list[SourceRow]): The items whose embeddings need to be deleted.
         """
+        if self.vectorizer.config.destination.implementation == "source":
+            return
         ids = [item[pk] for item in items for pk in self.queries.pk_attnames]
         async with conn.cursor() as cursor:
             await cursor.execute(self.queries.delete_embeddings_query(len(items)), ids)
@@ -969,6 +1025,10 @@ class Worker:
         Args:
             conn (AsyncConnection): The database connection.
         """
+        assert isinstance(self.vectorizer.config.destination, DefaultDestination)
+        target_schema = self.vectorizer.config.destination.target_schema
+        target_table = self.vectorizer.config.destination.target_table
+
         async with conn.cursor() as cursor:
             await cursor.execute(
                 """
@@ -984,9 +1044,13 @@ class Worker:
                 and a.attnum operator(pg_catalog.>) 0
                 order by a.attnum
             """,
-                (self.vectorizer.target_schema, self.vectorizer.target_table),
+                (
+                    target_schema,  # type: ignore
+                    target_table,  # type: ignore
+                ),
             )
             self.copy_types = [row[0] for row in await cursor.fetchall()]
+
         assert self.copy_types is not None
         # len(source_pk) + chunk_seq + chunk + embedding
         assert len(self.copy_types) == len(self.vectorizer.source_pk) + 3
@@ -998,23 +1062,39 @@ class Worker:
         records: list[EmbeddingRecord],
     ):
         """
-        Inserts embeddings into the embedding table using COPY FROM STDIN WITH
-        (FORMAT BINARY).
+        Inserts embeddings into the target table.
+
+        For DefaultDestination, uses COPY FROM STDIN WITH (FORMAT BINARY).
+        For SourceDestination, uses UPDATE statements for each row.
 
         Args:
             conn (AsyncConnection): The database connection.
             records (list[EmbeddingRecord]): The embedding records to be copied.
         """
-        if self.copy_types is None:
-            await self._load_copy_types(conn)
-        async with (
-            conn.cursor(binary=True) as cursor,
-            cursor.copy(self.queries.copy_embeddings_query) as copy,
-        ):
-            assert self.copy_types is not None  # ugh. make pyright happy
-            copy.set_types(self.copy_types)
-            for record in records:
-                await copy.write_row(record)
+        if self.vectorizer.config.destination.implementation == "default":
+            if self.copy_types is None:
+                await self._load_copy_types(conn)
+            async with (
+                conn.cursor(binary=True) as cursor,
+                cursor.copy(self.queries.copy_embeddings_query) as copy,
+            ):
+                assert self.copy_types is not None  # ugh. make pyright happy
+                copy.set_types(self.copy_types)
+                for record in records:
+                    await copy.write_row(record)
+
+            assert self.copy_types is not None
+            # len(source_pk) + chunk_seq + chunk + embedding
+            assert len(self.copy_types) == len(self.vectorizer.source_pk) + 3
+
+        if self.vectorizer.config.destination.implementation == "source":
+            async with conn.cursor() as cursor:
+                for record in records:
+                    pk_values = record[: len(self.queries.pk_attnames)]
+                    embedding = record[-1]  # Last item is the embedding
+                    await cursor.execute(
+                        self.queries.update_embedding_query, [embedding] + pk_values
+                    )
 
     async def _insert_vectorizer_error(
         self,
