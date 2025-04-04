@@ -24,7 +24,7 @@ def test_basic_vectorizer_configuration():
         destination=DestinationDefaultConfig(
             target_schema="vectorizer",
             target_table="document_embeddings",
-        )
+        ),
     )
 
     expected_sql = """SELECTai.create_vectorizer(
