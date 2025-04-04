@@ -2812,10 +2812,6 @@ begin
             raise notice 'Skipping vectorizer ID %s because it has a non-default destination', _vec.id;
             continue;
         end if;
-        execute format(
-            'alter extension ai add function %I.%I()',
-            _vec.queue_schema, _vec.trigger_name
-        );
 
         execute format
         (
