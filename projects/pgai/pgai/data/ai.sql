@@ -1872,6 +1872,35 @@ $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-------------------------------------------------------------------------------
+-- validate_destination
+create or replace function ai._validate_destination
+( destination pg_catalog.jsonb
+, chunking pg_catalog.jsonb ) returns void
+as $func$
+declare
+    _config_type pg_catalog.text;
+begin
+    if pg_catalog.jsonb_typeof(destination) operator(pg_catalog.!=) 'object' then
+        raise exception 'destination config is not a jsonb object';
+    end if;
+
+    _config_type = destination operator(pg_catalog.->>) 'config_type';
+    if _config_type is null or _config_type operator(pg_catalog.!=) 'destination' then
+        raise exception 'invalid config_type for destination config';
+    end if;
+
+    if destination->>'implementation' = 'source' then
+        if chunking->>'implementation' != 'none' then
+            raise exception 'chunking must be none for source destination';
+        end if;
+    end if;
+end
+$func$ language plpgsql stable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+
 --------------------------------------------------------------------------------
 -- 011-vectorizer-int.sql
 
@@ -3436,6 +3465,9 @@ begin
         _source_schema,
         _source_table
     );
+
+    -- validate the destination config
+    perform ai._validate_destination(destination, chunking);
 
     -- validate the embedding config
     perform ai._validate_embedding(embedding);

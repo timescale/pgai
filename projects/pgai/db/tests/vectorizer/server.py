@@ -35,6 +35,11 @@ class ChunkingRecursiveCharacterTextSplitter(BaseModel):
     is_separator_regex: bool | None
 
 
+class ChunkingNone(BaseModel):
+    implementation: Literal["none"]
+    config_type: Literal["chunking"]
+
+
 class EmbeddingOpenAI(BaseModel):
     implementation: Literal["openai"]
     config_type: Literal["embedding"]
@@ -150,9 +155,11 @@ class Config(BaseModel):
     scheduling: SchedulingNone | SchedulingPgCron | SchedulingTimescaledb = Field(
         ..., discriminator="implementation"
     )
-    chunking: ChunkingCharacterTextSplitter | ChunkingRecursiveCharacterTextSplitter = (
-        Field(..., discriminator="implementation")
-    )
+    chunking: (
+        ChunkingCharacterTextSplitter
+        | ChunkingRecursiveCharacterTextSplitter
+        | ChunkingNone
+    ) = Field(..., discriminator="implementation")
     processing: ProcessingDefault = Field(..., discriminator="implementation")
     loading: LoadingColumn | LoadingUri = Field(..., discriminator="implementation")
     parsing: ParsingAuto | ParsingNone | ParsingPyMuPDF | ParsingDocling = Field(

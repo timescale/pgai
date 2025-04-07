@@ -108,6 +108,9 @@ begin
         _source_table
     );
 
+    -- validate the destination config
+    perform ai._validate_destination(destination, chunking);
+
     -- validate the embedding config
     perform ai._validate_embedding(embedding);
 

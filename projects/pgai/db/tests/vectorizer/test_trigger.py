@@ -68,6 +68,7 @@ def test_same_table_vectorizer_timescaledb():
                     , timezone=>'America/Chicago'
                     )
             , destination=>ai.destination_source('embedding1')
+            , chunking=>ai.chunking_none()
             );
             """)
             vectorizer_id = cur.fetchone()[0]
@@ -142,6 +143,7 @@ def test_same_table_vectorizer_timescaledb():
                         , timezone=>'America/Chicago'
                         )
                 , destination=>ai.destination_source('embedding2')
+                , chunking=>ai.chunking_none()
                 );
                 """)
             vectorizer2_id = cur.fetchone()[0]
