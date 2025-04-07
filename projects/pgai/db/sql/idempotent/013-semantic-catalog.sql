@@ -17,6 +17,8 @@ $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-- TODO: function to validate embedding_sentence_transformers confg
+
 -------------------------------------------------------------------------------
 -- _semantic_catalog_make_trigger
 create or replace function ai._semantic_catalog_make_triggers(semantic_catalog_id int4) returns void
@@ -144,6 +146,8 @@ declare
     _tbl text;
     _sql text;
 begin
+    -- TODO: validate embedding config
+
     _dims = (embedding->'dimensions')::int4;
     assert _dims is not null, 'embedding config is missing dimensions';
     
@@ -390,6 +394,182 @@ begin
         execute _sql;
     end loop;
     
+    return _id;
+end
+$func$ language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- semantic_catalog_obj_add_remote
+create or replace function ai.semantic_catalog_obj_add_remote
+( classid oid
+, objid oid
+, objsubid integer
+, objtype text
+, objnames text[]
+, objargs text[]
+, description text
+, catalog_name text default 'default'
+)
+returns int8
+as $func$
+declare
+    _sql text;
+    _id int8;
+begin
+    select format
+    ( $sql$
+        insert into ai.semantic_catalog_obj_%s
+        ( classid
+        , objid
+        , objsubid
+        , objtype
+        , objnames
+        , objargs
+        , description
+        )
+        values
+        ( $1
+        , $2
+        , $3
+        , $4
+        , $5
+        , $6
+        , $7
+        )
+        returning id
+      $sql$
+    , x.id
+    ) into strict _sql
+    from ai.semantic_catalog x
+    where x.name = catalog_name
+    ;
+    execute _sql using
+      classid
+    , objid
+    , objsubid
+    , objtype
+    , objnames
+    , objargs
+    , description
+    into strict _id;
+    return _id;
+end
+$func$ language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- semantic_catalog_obj_add
+create or replace function ai.semantic_catalog_obj_add
+( objtype text
+, objnames text[]
+, objargs text[]
+, description text
+, catalog_name text default 'default'
+)
+returns int8
+as $func$
+declare
+    _classid oid;
+    _objid oid;
+    _objsubid integer;
+begin
+    select
+      x.classid
+    , x.objid
+    , x.subobjid
+    into strict
+      _classid
+    , _objid
+    , _objsubid
+    from pg_get_object_address(objtype, objnames, objargs) x
+    ;
+    return ai.semantic_catalog_obj_add_remote
+    ( _classid
+    , _objid
+    , _objsubid
+    , objtype
+    , objnames
+    , objargs
+    , description
+    , catalog_name
+    );
+end
+$func$ language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- semantic_catalog_sql_add
+create or replace function ai.semantic_catalog_sql_add
+( sql text
+, description text
+, catalog_name text default 'default'
+)
+returns int8
+as $func$
+declare
+    _sql text;
+    _id int8;
+begin
+    select format
+    ( $sql$
+        insert into ai.semantic_catalog_sql_%s
+        ( sql
+        , description
+        )
+        values
+        ( $1
+        , $2
+        )
+        returning id
+      $sql$
+    , x.id
+    ) into strict _sql
+    from ai.semantic_catalog x
+    where x.name = catalog_name
+    ;
+    execute _sql using
+      sql
+    , description
+    into strict _id;
+    return _id;
+end
+$func$ language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- semantic_catalog_fact_add
+create or replace function ai.semantic_catalog_fact_add
+( description text
+, catalog_name text default 'default'
+)
+returns int8
+as $func$
+declare
+    _sql text;
+    _id int8;
+begin
+    select format
+    ( $sql$
+        insert into ai.semantic_catalog_fact_%s
+        ( description
+        )
+        values
+        ( $1
+        )
+        returning id
+      $sql$
+    , x.id
+    ) into strict _sql
+    from ai.semantic_catalog x
+    where x.name = catalog_name
+    ;
+    execute _sql using description
+    into strict _id;
     return _id;
 end
 $func$ language plpgsql volatile security invoker
