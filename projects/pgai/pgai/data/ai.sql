@@ -882,7 +882,7 @@ begin
 end;
 $block$;
 
--- There will be recreated by the idempotent migrations in new form that work despite the dropped columns
+-- These will be recreated by the idempotent migrations in new form that work despite the dropped columns
 drop view if exists ai.vectorizer_status; 
 drop event trigger if exists _vectorizer_handle_drops;
 drop function if exists ai._vectorizer_handle_drops;

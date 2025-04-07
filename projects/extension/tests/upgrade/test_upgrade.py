@@ -112,6 +112,7 @@ def init_db_script(dbname: str, script: str) -> None:
 
 
 def snapshot(dbname: str, name: str, suffix: str = "") -> None:
+    vacuum_vectorizer_table(dbname)
     cmd = " ".join(
         [
             "psql",
@@ -196,6 +197,12 @@ def install_pgai_library(db_url: str) -> None:
     if where_am_i() == "host":
         cmd = f"docker exec -w {docker_dir()} pgai-ext {cmd}"
     subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
+
+
+def vacuum_vectorizer_table(dbname: str) -> None:
+    with psycopg.connect(db_url(user=USER, dbname=dbname), autocommit=True) as con:
+        with con.cursor() as cur:
+            cur.execute("VACUUM FULL ai.vectorizer;")
 
 
 def test_unpackaged_upgrade():
