@@ -8,30 +8,17 @@ from collections.abc import Sequence
 from typing import Any
 
 import click
-import docling.utils.model_downloader
 import structlog
 from ddtrace import tracer
 from dotenv import load_dotenv
 from pytimeparse import parse  # type: ignore
 
-import pgai
-
 from .__init__ import __version__
-from .vectorizer import Processor
-from .vectorizer.parsing import DOCLING_CACHE_DIR
 
 load_dotenv()
 
 structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
 log = structlog.get_logger()
-
-
-class VectorizerNotFoundError(Exception):
-    pass
-
-
-class ApiKeyNotFoundError(Exception):
-    pass
 
 
 def asbool(value: str | None):
@@ -97,6 +84,10 @@ def shutdown_handler(signum: int, _frame: Any):
 
 @click.command(name="download-models")
 def download_models():
+    import docling.utils.model_downloader
+
+    from .vectorizer.parsing import DOCLING_CACHE_DIR
+
     docling.utils.model_downloader.download_models(
         progress=True,
         output_dir=DOCLING_CACHE_DIR,  # pyright: ignore [reportUndefinedVariable]
@@ -192,6 +183,8 @@ async def async_run_vectorizer_worker(
     concurrency: int | None,
     exit_on_error: bool | None,
 ) -> None:
+    from .vectorizer import Processor
+
     # gracefully handle being asked to shut down
     signal.signal(signal.SIGINT, shutdown_handler)
     signal.signal(signal.SIGTERM, shutdown_handler)
@@ -247,4 +240,6 @@ cli.add_command(vectorizer)
     help="If True, raise an error when the extension already exists and is at the latest version.",  # noqa: E501
 )
 def install(db_url: str, strict: bool) -> None:
+    import pgai
+
     pgai.install(db_url, strict=strict)
