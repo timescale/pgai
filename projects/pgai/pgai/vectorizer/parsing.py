@@ -3,16 +3,6 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Literal
 
-import pymupdf  # type: ignore
-import pymupdf4llm  # type: ignore
-from docling.datamodel.base_models import (
-    DocumentStream,  # type: ignore
-    InputFormat,
-)
-from docling.datamodel.pipeline_options import (
-    PdfPipelineOptions,
-)
-from docling.document_converter import DocumentConverter, PdfFormatOption
 from pydantic import BaseModel
 from typing_extensions import override
 
@@ -93,6 +83,10 @@ class ParsingPyMuPDF(BaseDocumentParsing):
 
     @override
     def parse_doc(self, row: dict[str, Any], payload: LoadedDocument) -> str:  # noqa: ARG002
+        # Note: deferred import to avoid import overhead
+        import pymupdf  # type: ignore
+        import pymupdf4llm  # type: ignore
+
         with pymupdf.open(
             stream=payload.content, filetype=payload.file_type
         ) as pdf_document:  # type: ignore
@@ -110,6 +104,14 @@ class ParsingDocling(BaseDocumentParsing):
 
     @override
     def parse_doc(self, row: dict[str, Any], payload: LoadedDocument) -> str:  # noqa: ARG002
+        # Note: deferred import to avoid import overhead
+        from docling.datamodel.base_models import (
+            DocumentStream,  # type: ignore
+            InputFormat,
+        )
+        from docling.datamodel.pipeline_options import PdfPipelineOptions
+        from docling.document_converter import DocumentConverter, PdfFormatOption
+
         converter = DocumentConverter(
             format_options={
                 InputFormat.PDF: PdfFormatOption(

@@ -9,7 +9,6 @@ from functools import cached_property, partial
 from typing import Any, TypeAlias
 from uuid import UUID
 
-import numpy as np
 import psycopg
 import structlog
 from ddtrace import tracer
@@ -1050,6 +1049,9 @@ class Worker:
             tuple[list[EmbeddingRecord], list[VectorizerErrorRecord]]: A tuple
                 of embedding records and error records.
         """
+        # Note: deferred import to avoid import overhead
+        import numpy as np
+
         records_without_embeddings: list[EmbeddingRecord] = []
         loading_errors: list[tuple[SourceRow, LoadingError]] = []
         documents: list[str] = []

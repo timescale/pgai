@@ -2,8 +2,6 @@ import os
 from collections.abc import Sequence
 from typing import Literal
 
-import ollama
-from ollama import ShowResponse
 from pydantic import BaseModel
 from typing_extensions import TypedDict, override
 
@@ -97,6 +95,9 @@ class Ollama(BaseModel, BaseURLMixin, Embedder):
 
     @override
     async def setup(self):
+        # Note: deferred import to avoid import overhead
+        import ollama
+
         client = ollama.AsyncClient(host=self.base_url)
         try:
             await client.show(self.model)
@@ -109,6 +110,9 @@ class Ollama(BaseModel, BaseURLMixin, Embedder):
 
     @override
     async def call_embed_api(self, documents: list[str]) -> EmbeddingResponse:
+        # Note: deferred import to avoid import overhead
+        import ollama
+
         response = await ollama.AsyncClient(host=self.base_url).embed(
             model=self.model,
             input=documents,
@@ -121,18 +125,14 @@ class Ollama(BaseModel, BaseURLMixin, Embedder):
         )
         return EmbeddingResponse(embeddings=response["embeddings"], usage=usage)
 
-    async def _model(self) -> ShowResponse:
-        """
-        Gets the model details from the Ollama API
-        :return:
-        """
-        return await ollama.AsyncClient(host=self.base_url).show(self.model)
-
     async def _context_length(self) -> int | None:
         """
         Gets the context_length of the configured model, if available
         """
-        model = await self._model()
+        # Note: deferred import to avoid import overhead
+        import ollama
+
+        model = await ollama.AsyncClient(host=self.base_url).show(self.model)
         architecture = model["model_info"].get("general.architecture", None)
         if architecture is None:
             logger.warn(f"unable to determine architecture for model '{self.model}'")

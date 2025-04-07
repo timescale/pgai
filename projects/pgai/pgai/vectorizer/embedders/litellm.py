@@ -1,9 +1,6 @@
 from collections.abc import Sequence
 from typing import Any, Literal
 
-import litellm
-from litellm import EmbeddingResponse as LiteLLMEmbeddingResponse  # type: ignore
-from litellm import InMemoryCache  # type: ignore
 from pydantic import BaseModel
 from typing_extensions import override
 
@@ -15,34 +12,6 @@ from ..embeddings import (
     Usage,
     logger,
 )
-
-
-# TODO: remove this when this issue is fixed upstream: https://github.com/BerriAI/litellm/issues/7667
-# Note: we did consider building an event-loop aware in-memory cache, but the
-# additional complexity doesn't seem to be worth it.
-class NoopCache(InMemoryCache):
-    """
-    A no-op cache
-
-    This class exists because litellm's internals cause http clients to be
-    re-used across different event loops. The httpx client does not like this,
-    which causes exceptions to be thrown. Note: Not all http clients throw
-    exceptions, so we are being overly cautious with this approach.
-    """
-
-    def __init__(self):
-        super().__init__()
-
-    @override
-    def get_cache(self, key: Any, **kwargs: Any):
-        return None
-
-    @override
-    def set_cache(self, key: Any, value: Any, **kwargs: Any):
-        pass
-
-
-litellm.in_memory_llm_clients_cache = NoopCache()
 
 
 class LiteLLM(ApiKeyMixin, BaseModel, Embedder):
@@ -78,6 +47,9 @@ class LiteLLM(ApiKeyMixin, BaseModel, Embedder):
 
     @override
     def _max_chunks_per_batch(self) -> int:
+        # Note: deferred import to avoid import overhead
+        import litellm
+
         _, custom_llm_provider, _, _ = litellm.get_llm_provider(self.model)  # type: ignore
         match custom_llm_provider:
             case "cohere":
@@ -104,12 +76,15 @@ class LiteLLM(ApiKeyMixin, BaseModel, Embedder):
 
     @override
     async def call_embed_api(self, documents: list[str]) -> EmbeddingResponse:
+        # Note: deferred import to avoid import overhead
+        import litellm
+
         # Without `suppress_debug_info`, LiteLLM writes the following into stdout:
         # Provider List: https://docs.litellm.ai/docs/providers
         # This is useless, and confusing, so we suppress it.
         litellm.suppress_debug_info = True
         api_key = None if self.api_key_name is None else self._api_key
-        response: LiteLLMEmbeddingResponse = await litellm.aembedding(  # type: ignore
+        response = await litellm.aembedding(  # type: ignore
             model=self.model,
             input=documents,
             api_key=api_key,

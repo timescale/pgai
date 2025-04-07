@@ -1,13 +1,16 @@
 import re
 from collections.abc import Sequence
 from functools import cached_property
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
-import openai
-import tiktoken
-from openai import resources
 from pydantic import BaseModel
 from typing_extensions import override
+
+if TYPE_CHECKING:
+    import openai
+    import tiktoken
+    from openai import resources
+
 
 from ..embeddings import (
     ApiKeyMixin,
@@ -50,7 +53,10 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
     user: str | None = None
 
     @cached_property
-    def _openai_dimensions(self) -> int | openai.NotGiven:
+    def _openai_dimensions(self) -> "int | openai.NotGiven":
+        # Note: deferred import to avoid import overhead
+        import openai
+
         if self.model == "text-embedding-ada-002":
             if self.dimensions != 1536:
                 raise ValueError("dimensions must be 1536 for text-embedding-ada-002")
@@ -58,13 +64,19 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
         return self.dimensions if self.dimensions is not None else openai.NOT_GIVEN
 
     @cached_property
-    def _openai_user(self) -> str | openai.NotGiven:
+    def _openai_user(self) -> "str | openai.NotGiven":
+        # Note: deferred import to avoid import overhead
+        import openai
+
         return self.user if self.user is not None else openai.NOT_GIVEN
 
     @cached_property
-    def _embedder(self) -> resources.AsyncEmbeddingsWithRawResponse:
+    def _embedder(self) -> "resources.AsyncEmbeddingsWithRawResponse":
         # TODO: if we move to a generator base approach we should try
         # benchmarking with_streaming_response.
+        # Note: deferred import to avoid import overhead
+        import openai
+
         return openai.AsyncOpenAI(
             base_url=self.base_url, api_key=self._api_key, max_retries=3
         ).embeddings.with_raw_response
@@ -128,7 +140,10 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
         return await self.batch_chunks_and_embed(documents, token_counts)
 
     @cached_property
-    def _encoder(self) -> tiktoken.Encoding | None:
+    def _encoder(self) -> "tiktoken.Encoding | None":
+        # Note: deferred import to avoid import overhead
+        import tiktoken
+
         try:
             encoder = tiktoken.encoding_for_model(self.model)
         except KeyError:
