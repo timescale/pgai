@@ -133,8 +133,6 @@ class Vectorizer(BaseModel):
     queue_table: str
     source_schema: str
     source_table: str
-    target_schema: str | None = Field(None, deprecated=True)
-    target_table: str | None = Field(None, deprecated=True)
     source_pk: list[PkAtt]
     queue_failed_table: str | None = None
     errors_schema: str = "ai"
@@ -295,7 +293,6 @@ class VectorizerQueryBuilder:
     def target_table_ident(self) -> sql.Identifier:
         """
         Returns the SQL identifier for the fully qualified name of the target table.
-        Uses the destination config's polymorphic method to determine the target table.
         """
         assert isinstance(self.vectorizer.config.destination, DefaultDestination)
         return sql.Identifier(

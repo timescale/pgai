@@ -17,7 +17,7 @@ begin
         _view_name := _vectorizer.view_name;
 
         -- Create new config:
-        -- 1. Add destination config
+        -- Add destination config
         _config := _vectorizer.config operator(pg_catalog.||) jsonb_build_object(
             'destination', json_object(
                 'implementation': 'default',

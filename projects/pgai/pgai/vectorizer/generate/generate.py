@@ -63,7 +63,6 @@ def generate_vectorizer_configs(
     """Generate all vectorizer configuration classes."""
     pgai.install(conn_str)
     with psycopg.connect(conn_str) as conn:
-        # conn.execute("Create extension if not exists ai cascade;")
         available_functions = list_vectorizer_functions(conn)
         functions = get_function_metadata(conn, available_functions)
         generate_config_classes(functions, output_file)
