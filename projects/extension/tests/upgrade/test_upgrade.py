@@ -202,7 +202,18 @@ def install_pgai_library(db_url: str) -> None:
 def vacuum_vectorizer_table(dbname: str) -> None:
     with psycopg.connect(db_url(user=USER, dbname=dbname), autocommit=True) as con:
         with con.cursor() as cur:
-            cur.execute("VACUUM FULL ai.vectorizer;")
+            # Check if the relation exists
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT 1 
+                    FROM pg_catalog.pg_class c
+                    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                    WHERE n.nspname = 'ai' 
+                    AND c.relname = 'vectorizer'
+                )
+            """)
+            if cur.fetchone()[0]:
+                cur.execute("VACUUM FULL ai.vectorizer;")
 
 
 def test_unpackaged_upgrade():
