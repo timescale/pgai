@@ -46,11 +46,38 @@ def test_same_table_vectorizer(
     with vcr_.use_cassette("same_table_vectorizer.yaml"):
         result = run_vectorizer_worker(cli_db_url, vectorizer_id)
 
-    assert result.exit_code == 0
-    assert "finished processing vectorizer" in result.output.lower()
+        assert result.exit_code == 0
+        assert "finished processing vectorizer" in result.output.lower()
 
-    with con.cursor(row_factory=dict_row) as cur:
-        cur.execute("SELECT * FROM blog;")
-        results = cur.fetchone()
-        assert results is not None
-        assert results["embedding"] is not None
+        with con.cursor(row_factory=dict_row) as cur:
+            cur.execute("SELECT * FROM blog;")
+            results = cur.fetchone()
+            assert results is not None
+            assert results["embedding"] is not None
+
+        with con.cursor(row_factory=dict_row) as cur:
+            cur.execute("SELECT id, embedding FROM blog order by id;")
+            results_pre_update = cur.fetchall()
+
+            cur.execute("UPDATE blog set content = 'new content' where id = 1;")
+            con.commit()
+            result = run_vectorizer_worker(cli_db_url, vectorizer_id)
+            assert result.exit_code == 0
+
+            cur.execute("SELECT id, embedding FROM blog order by id;")
+            results_post_update = cur.fetchall()
+
+            assert (
+                results_post_update[0]["embedding"]
+                != results_pre_update[0]["embedding"]
+            )
+            assert (
+                results_post_update[1]["embedding"]
+                == results_pre_update[1]["embedding"]
+            )
+
+            # Check deletes just work
+            cur.execute("DELETE FROM blog where id = 1;")
+            con.commit()
+            result = run_vectorizer_worker(cli_db_url, vectorizer_id)
+            assert result.exit_code == 0
