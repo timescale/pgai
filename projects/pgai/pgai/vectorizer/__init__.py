@@ -1,5 +1,5 @@
 from .create_vectorizer import CreateVectorizer
-from .processor import Processor
+from .processor import Processor, ProcProcessor
 from .vectorizer import Vectorizer, Worker
 
 __all__ = [
@@ -7,4 +7,5 @@ __all__ = [
     "Worker",
     "CreateVectorizer",
     "Processor",
+    "ProcProcessor",
 ]

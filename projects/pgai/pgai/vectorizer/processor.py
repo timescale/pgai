@@ -1,10 +1,15 @@
 import asyncio
 import datetime
+import functools
+import multiprocessing as mp
 import os
 import random
+import signal
+import sys
 import traceback
 from collections.abc import Sequence
 from dataclasses import dataclass
+from queue import Empty
 
 import psycopg
 import structlog
@@ -163,7 +168,9 @@ class Processor:
             random.shuffle(valid_vectorizer_ids)
             return valid_vectorizer_ids
 
-    async def run(self) -> Exception | None:
+    async def run(
+        self, shutdown_event: asyncio.Event | None = None
+    ) -> Exception | None:
         logger.debug("starting vectorizer worker")
 
         valid_vectorizer_ids = []
@@ -172,7 +179,7 @@ class Processor:
         features = None
         worker_tracking = None
 
-        while True:
+        while shutdown_event is None or not shutdown_event.is_set():
             try:
                 if not can_connect or pgai_version is None:
                     with (
@@ -234,11 +241,18 @@ class Processor:
                             break
 
                         logger.info("running vectorizer", vectorizer_id=vectorizer_id)
+
+                        def should_continue(_: int, __: int) -> bool:
+                            if shutdown_event is None:
+                                return True
+                            return not shutdown_event.is_set()
+
                         await vectorizer.run(
                             db_url=self.db_url,
                             features=features,
                             worker_tracking=worker_tracking,
                             concurrency=self.concurrency,
+                            should_continue_processing_hook=should_continue,
                         )
             except psycopg.OperationalError as e:
                 if "connection failed" in str(e):
@@ -266,4 +280,119 @@ class Processor:
 
             poll_interval_str = datetime.timedelta(seconds=self.poll_interval)
             logger.info(f"sleeping for {poll_interval_str} before polling for new work")
-            await asyncio.sleep(self.poll_interval)
+
+            if shutdown_event is None:
+                await asyncio.sleep(self.poll_interval)
+            else:
+                # sleep for the poll interval or until the shutdown event is set
+                try:
+                    await asyncio.wait_for(
+                        shutdown_event.wait(), timeout=self.poll_interval
+                    )
+                    # shutdown event was set, the loop should exit
+                    logger.info("got a graceful shutdown request")
+                except asyncio.TimeoutError:
+                    # timeout means the sleep completed
+                    pass
+
+        if worker_tracking is not None:
+            await worker_tracking.force_last_heartbeat_and_stop()
+        logger.info("exiting processor.run()")
+        return None
+
+
+class ProcProcessor(Processor):
+    @dataclass
+    class StartupMsg:
+        pass
+
+    @dataclass
+    class ShutdownMsg:
+        exception: Exception | None
+
+    QueueType = mp.Queue
+    MessageType = StartupMsg | ShutdownMsg
+
+    async def _create_graceful_shutdown_event_using_signals(self):
+        shutdown_event = asyncio.Event()
+        loop = asyncio.get_running_loop()
+
+        def _shutdown_signal_handler(shutdown_event: asyncio.Event, sig: int):
+            """Signal handler that sets the asyncio event"""
+            shutdown_event.set()
+
+            # SIGINT is forcibly shutdown, SIGTERM is graceful shutdown
+            if sig == signal.SIGINT:
+                signame = signal.Signals(signal.SIGINT).name
+                logger.info(f"received {signame}, exiting")
+                sys.exit(1)
+
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(
+                sig, functools.partial(_shutdown_signal_handler, shutdown_event, sig)
+            )
+        return shutdown_event
+
+    async def _run_inside_new_process(self) -> Exception | None:
+        shutdown_event = await self._create_graceful_shutdown_event_using_signals()
+        return await self.run(shutdown_event)
+
+    @staticmethod
+    def _run_processor_inside_new_process(
+        processor: "ProcProcessor",
+        result_queue: "ProcProcessor.QueueType[ProcProcessor.MessageType]",
+    ) -> Exception | None:
+        import asyncio
+
+        result_queue.put(ProcProcessor.StartupMsg())
+        result: Exception | None = asyncio.run(processor._run_inside_new_process())
+        result_queue.put(ProcProcessor.ShutdownMsg(result))
+        return result
+
+    def run_in_new_process(self):
+        # todo: monitor for process termination
+        self.result_queue: ProcProcessor.QueueType[ProcProcessor.MessageType] = mp.Queue()
+        self.process = mp.Process(
+            target=self._run_processor_inside_new_process,
+            args=(self, self.result_queue),
+        )
+        self.process.start()
+
+    def shutdown_gracefully(self):
+        self.process.terminate()
+        result = self.wait_for_shutdown()
+        self.process.join()
+        return result
+
+    def _process_msg(self, msg: MessageType):
+        if isinstance(msg, ProcProcessor.StartupMsg):
+            self.started = True
+        else:
+            self.shutdown_exception = msg.exception
+
+    async def _process_msgs_from_queue_non_blocking(self):
+        while True:
+            try:
+                msg = self.result_queue.get_nowait()
+                assert msg is not None
+                self._process_msg(msg)
+            except Empty:
+                break
+
+    async def _process_msgs_from_queue_blocking(self):
+        msg = await asyncio.to_thread(self.result_queue.get)
+        self._process_msg(msg)
+        # process the "tail" of the queue
+        await self._process_msgs_from_queue_non_blocking()
+
+    async def wait_for_startup(self):
+        started = getattr(self, "started", False)
+        if started:
+            return
+        await self._process_msgs_from_queue_blocking()
+        assert self.started
+
+    async def wait_for_shutdown(self) -> Exception | None:
+        while not hasattr(self, "shutdown_exception"):
+            await self._process_msgs_from_queue_blocking()
+        return self.shutdown_exception
