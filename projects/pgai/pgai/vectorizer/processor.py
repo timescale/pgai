@@ -351,16 +351,18 @@ class ProcProcessor(Processor):
 
     def run_in_new_process(self):
         # todo: monitor for process termination
-        self.result_queue: ProcProcessor.QueueType[ProcProcessor.MessageType] = mp.Queue()
+        self.result_queue: ProcProcessor.QueueType[ProcProcessor.MessageType] = (
+            mp.Queue()
+        )
         self.process = mp.Process(
             target=self._run_processor_inside_new_process,
             args=(self, self.result_queue),
         )
         self.process.start()
 
-    def shutdown_gracefully(self):
+    async def shutdown_gracefully(self):
         self.process.terminate()
-        result = self.wait_for_shutdown()
+        result = await self.wait_for_shutdown()
         self.process.join()
         return result
 
