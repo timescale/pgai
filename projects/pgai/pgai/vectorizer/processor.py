@@ -381,8 +381,10 @@ class ProcProcessor(Processor):
             except Empty:
                 break
 
-    async def _process_msgs_from_queue_blocking(self):
-        msg = await asyncio.to_thread(self.result_queue.get)
+    async def _process_msgs_from_queue_blocking(self, timeout: float | None = None):
+        msg = await asyncio.wait_for(
+            asyncio.to_thread(self.result_queue.get), timeout=timeout
+        )
         self._process_msg(msg)
         # process the "tail" of the queue
         await self._process_msgs_from_queue_non_blocking()
@@ -391,10 +393,21 @@ class ProcProcessor(Processor):
         started = getattr(self, "started", False)
         if started:
             return
-        await self._process_msgs_from_queue_blocking()
+        await self._process_msgs_from_queue_blocking(300)
         assert self.started
 
     async def wait_for_shutdown(self) -> Exception | None:
         while not hasattr(self, "shutdown_exception"):
-            await self._process_msgs_from_queue_blocking()
+            try:
+                await self._process_msgs_from_queue_blocking(300)
+            except asyncio.TimeoutError:
+                import faulthandler
+                import sys
+
+                print(
+                    "\nTimeout waiting for shutdown. Current thread stacks:",
+                    file=sys.stderr,
+                )
+                faulthandler.dump_traceback(file=sys.stderr, all_threads=True)
+                raise
         return self.shutdown_exception
