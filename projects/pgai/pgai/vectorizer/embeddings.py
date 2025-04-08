@@ -151,6 +151,7 @@ class Embedder(ABC):
             current_span = tracer.current_span()
             if current_span:
                 current_span.set_tag("batches.total", num_batches)
+                current_span.set_tag("tokens.total", sum(token_counts))
             for i, (start, end) in enumerate(batches):
                 batch_num = i + 1
                 batch = documents[start:end]
@@ -163,6 +164,9 @@ class Embedder(ABC):
                     if current_span:
                         current_span.set_tag("batch.id", batch_num)
                         current_span.set_tag("batch.chunks.total", len(batch))
+                        current_span.set_tag(
+                            "batch.tokens.total", sum(token_counts[start:end])
+                        )
                     start_time = time.perf_counter()
                     response_ = await self.call_embed_api(batch)
                     request_duration = time.perf_counter() - start_time
