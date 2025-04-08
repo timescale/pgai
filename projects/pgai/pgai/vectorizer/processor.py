@@ -409,5 +409,14 @@ class ProcProcessor(Processor):
                     file=sys.stderr,
                 )
                 faulthandler.dump_traceback(file=sys.stderr, all_threads=True)
+
+                # Print active async tasks
+                current_tasks = asyncio.all_tasks()
+                print("\nActive async tasks:", file=sys.stderr)
+                for task in current_tasks:
+                    print(f"Task: {task.get_name()}", file=sys.stderr)
+                    print(f"State: {task._state}", file=sys.stderr)
+                    print(f"Stack:\n{task.get_stack()}\n", file=sys.stderr)
+
                 raise
         return self.shutdown_exception
