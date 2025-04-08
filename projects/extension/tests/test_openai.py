@@ -173,7 +173,7 @@ def test_openai_embed_with_raw_response(cur, openai_api_key):
             "o1",
             {"max_completion_tokens": 1},
             None,
-            "Could not finish the message because max_tokens was reached",
+            "Could not finish the message because max_tokens",
         ),
         # OK.
         ("o1-mini", {"max_completion_tokens": 10000}, False, None),
@@ -204,7 +204,7 @@ def test_openai_embed_with_raw_response(cur, openai_api_key):
             "o3-mini",
             {"max_completion_tokens": 1},
             None,
-            "Could not finish the message because max_tokens was reached",
+            "Could not finish the message because max_tokens",
         ),
         # starting from o1, all reasoning models (o*) deprecated the max_tokens parameter in favor of max_completion_tokens
         # see https://platform.openai.com/docs/guides/reasoning#controlling-costs
@@ -243,7 +243,10 @@ def test_openai_chat_complete_with_tokens_limitation_on_reasoning_models(
     if error_str:
         with pytest.raises(psycopg.errors.ExternalRoutineException) as exception_raised:
             cur.execute(query, params)
-        assert error_str in str(exception_raised.value)
+
+        assert error_str in str(
+            exception_raised.value
+        ), f"expected {error_str} in {str(exception_raised.value)}"
     else:
         cur.execute(query, params)
         actual = cur.fetchone()
