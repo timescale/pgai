@@ -302,6 +302,8 @@ class Processor:
 
 
 class ProcProcessor(Processor):
+    wait_timeout = 300
+
     @dataclass
     class StartupMsg:
         pass
@@ -313,7 +315,7 @@ class ProcProcessor(Processor):
     QueueType = mp.Queue
     MessageType = StartupMsg | ShutdownMsg
 
-    async def _create_graceful_shutdown_event_using_signals(self):
+    def _create_graceful_shutdown_event_using_signals(self):
         shutdown_event = asyncio.Event()
         loop = asyncio.get_running_loop()
 
@@ -324,7 +326,7 @@ class ProcProcessor(Processor):
             # SIGINT is forcibly shutdown, SIGTERM is graceful shutdown
             if sig == signal.SIGINT:
                 signame = signal.Signals(signal.SIGINT).name
-                logger.info(f"received {signame}, exiting")
+                logger.info(f"received {signame} in ProcProcessor, exiting")
                 sys.exit(1)
 
         for sig in (signal.SIGINT, signal.SIGTERM):
@@ -333,8 +335,11 @@ class ProcProcessor(Processor):
             )
         return shutdown_event
 
-    async def _run_inside_new_process(self) -> Exception | None:
-        shutdown_event = await self._create_graceful_shutdown_event_using_signals()
+    async def _run_inside_new_process(
+        self, result_queue: "ProcProcessor.QueueType[ProcProcessor.MessageType]"
+    ) -> Exception | None:
+        shutdown_event = self._create_graceful_shutdown_event_using_signals()
+        result_queue.put(ProcProcessor.StartupMsg())
         return await self.run(shutdown_event)
 
     @staticmethod
@@ -344,8 +349,9 @@ class ProcProcessor(Processor):
     ) -> Exception | None:
         import asyncio
 
-        result_queue.put(ProcProcessor.StartupMsg())
-        result: Exception | None = asyncio.run(processor._run_inside_new_process())
+        result: Exception | None = asyncio.run(
+            processor._run_inside_new_process(result_queue)
+        )
         result_queue.put(ProcProcessor.ShutdownMsg(result))
         return result
 
@@ -361,6 +367,9 @@ class ProcProcessor(Processor):
         self.process.start()
 
     async def shutdown_gracefully(self):
+        # need to wait for startup to ensure the signal handler is set
+        await self.wait_for_startup()
+
         self.process.terminate()
         result = await self.wait_for_shutdown()
         self.process.join()
@@ -393,13 +402,13 @@ class ProcProcessor(Processor):
         started = getattr(self, "started", False)
         if started:
             return
-        await self._process_msgs_from_queue_blocking(300)
+        await self._process_msgs_from_queue_blocking(self.wait_timeout)
         assert self.started
 
     async def wait_for_shutdown(self) -> Exception | None:
         while not hasattr(self, "shutdown_exception"):
             try:
-                await self._process_msgs_from_queue_blocking(300)
+                await self._process_msgs_from_queue_blocking(self.wait_timeout)
             except asyncio.TimeoutError:
                 import faulthandler
                 import sys
