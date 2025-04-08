@@ -1,8 +1,6 @@
 from collections.abc import Sequence
 from typing import Literal
 
-import voyageai
-import voyageai.error
 from pydantic import BaseModel
 from typing_extensions import override
 
@@ -54,6 +52,9 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
 
     @override
     async def call_embed_api(self, documents: list[str]) -> EmbeddingResponse:
+        # Note: deferred import to avoid import overhead
+        import voyageai
+
         response = await voyageai.AsyncClient(api_key=self._api_key).embed(
             documents,
             model=self.model,

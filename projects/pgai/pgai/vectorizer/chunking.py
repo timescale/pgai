@@ -1,13 +1,15 @@
 from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
-from langchain_text_splitters import (
-    CharacterTextSplitter,
-    RecursiveCharacterTextSplitter,
-)
 from pydantic import BaseModel
 from typing_extensions import override
+
+
+class SplitTextProtocol(Protocol):
+    def split_text(self, text: str) -> list[str]:
+        """Split text into multiple components."""
+        ...
 
 
 class Chunker(ABC):
@@ -86,7 +88,10 @@ class LangChainCharacterTextSplitter(BaseModel, Chunker):
     is_separator_regex: bool
 
     @cached_property
-    def _chunker(self) -> CharacterTextSplitter:
+    def _chunker(self) -> SplitTextProtocol:
+        # Note: deferred import to avoid import overhead
+        from langchain_text_splitters import CharacterTextSplitter
+
         return CharacterTextSplitter(
             separator=self.separator,
             chunk_size=self.chunk_size,
@@ -133,7 +138,10 @@ class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
     is_separator_regex: bool
 
     @cached_property
-    def _chunker(self) -> RecursiveCharacterTextSplitter:
+    def _chunker(self) -> SplitTextProtocol:
+        # Note: deferred import to avoid import overhead
+        from langchain_text_splitters import RecursiveCharacterTextSplitter
+
         return RecursiveCharacterTextSplitter(
             separators=self.separators,
             chunk_size=self.chunk_size,

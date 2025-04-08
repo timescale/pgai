@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from io import BytesIO
 from typing import Literal
 
-import smart_open  # type: ignore
 from filetype import filetype  # type: ignore
 from pydantic import BaseModel
 
@@ -46,6 +45,9 @@ class UriLoading(BaseModel):
     retries: int = 6
 
     def load(self, row: dict[str, str]) -> LoadedDocument:
+        # Note: deferred import to avoid import overhead
+        import smart_open  # type: ignore
+
         content = BytesIO(
             smart_open.open(row[self.column_name], "rb").read()  # type: ignore
         )

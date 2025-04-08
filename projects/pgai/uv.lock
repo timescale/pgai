@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '4' and platform_machine == 'x86_64' and platform_python_implementation != 'PyPy' and sys_platform == 'darwin'",
@@ -1933,7 +1934,7 @@ wheels = [
 
 [[package]]
 name = "litellm"
-version = "1.58.4"
+version = "1.65.4.post1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -1949,10 +1950,7 @@ dependencies = [
     { name = "tokenizers", version = "0.19.1", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'" },
     { name = "tokenizers", version = "0.21.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3d/8c/82b5f6f7c198cf554ee105a5ebc3bbf4787503421bba59fff665ac40a3bb/litellm-1.58.4.tar.gz", hash = "sha256:40136e177f05aa77ed071adbe7a213385cd3efb8e9a2b21015298e7964e6b73d", size = 6320344 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3a/dc/809174b28bb11bac3260d30c4113825aee2a6554029bf8a581ba54cbd541/litellm-1.58.4-py3-none-any.whl", hash = "sha256:72e06adae450cd96eccf0810c314016c13ea63efffcbfa975719ab08445a292e", size = 6606647 },
-]
+sdist = { url = "https://files.pythonhosted.org/packages/3e/d4/6a572f1b800bef68e1200879b653595791b198f1a39236b5ff6c331d1477/litellm-1.65.4.post1.tar.gz", hash = "sha256:c8c4f9388521f0edbb5693fefcbb7eb0a9227a49c5bcfd3404769dd4c476c8a3", size = 6705855 }
 
 [[package]]
 name = "lxml"
@@ -2706,7 +2704,7 @@ wheels = [
 
 [[package]]
 name = "openai"
-version = "1.60.0"
+version = "1.70.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -2718,9 +2716,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d4/2d/9bdf4435d7669b4d027d6d69b4ac82f6be76153d9e90d3155d4224626a29/openai-1.60.0.tar.gz", hash = "sha256:7fa536cd4b644718645b874d2706e36dbbef38b327e42ca0623275da347ee1a9", size = 347844 }
+sdist = { url = "https://files.pythonhosted.org/packages/87/f5/ae0f3cd226c2993b4ac1cc4b5f6ca099764689f403c14922c9356accec66/openai-1.70.0.tar.gz", hash = "sha256:e52a8d54c3efeb08cf58539b5b21a5abef25368b5432965e4de88cdf4e091b2b", size = 409640 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c0/53/782008d94f5f3141795e65bd7f87afaebb97e7516342299c1b1a08d5aaf8/openai-1.60.0-py3-none-any.whl", hash = "sha256:df06c43be8018274980ac363da07d4b417bd835ead1c66e14396f6f15a0d5dda", size = 456109 },
+    { url = "https://files.pythonhosted.org/packages/e2/39/c4b38317d2c702c4bc763957735aaeaf30dfc43b5b824121c49a4ba7ba0f/openai-1.70.0-py3-none-any.whl", hash = "sha256:f6438d053fd8b2e05fd6bef70871e832d9bbdf55e119d0ac5b92726f1ae6f614", size = 599070 },
 ]
 
 [[package]]
@@ -2959,7 +2957,7 @@ requires-dist = [
     { name = "google-cloud-aiplatform", specifier = ">=1.78.0,<2.0" },
     { name = "langchain-openai", specifier = ">=0.1,<1.0" },
     { name = "langchain-text-splitters", specifier = ">=0.2,<1.0" },
-    { name = "litellm", specifier = ">=1.58.2,<1.59.0" },
+    { name = "litellm", specifier = ">=1.65.0,<1.66.0" },
     { name = "ollama", specifier = ">=0.4.5,<0.5.0" },
     { name = "openai", specifier = ">=1.44,<2.0" },
     { name = "pgvector", specifier = ">=0.3,<1.0" },
@@ -2976,6 +2974,7 @@ requires-dist = [
     { name = "typing-extensions", specifier = ">=4.0,<5.0" },
     { name = "voyageai", specifier = ">=0.3.1,<0.3.2" },
 ]
+provides-extras = ["sqlalchemy"]
 
 [package.metadata.requires-dev]
 dev = [
