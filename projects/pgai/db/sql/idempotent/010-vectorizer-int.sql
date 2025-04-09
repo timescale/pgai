@@ -594,6 +594,47 @@ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-- This code block recreates all trigger functions for vectorizers to make sure
+-- they have the most recent code for the function.
+do $upgrade_block$
+declare
+    _vec record;
+begin
+    -- Find all vectorizers
+    for _vec in (
+        select 
+            v.id,
+            v.source_schema,
+            v.source_table,
+            v.source_pk,
+            v.target_schema,
+            v.target_table,
+            v.trigger_name,
+            v.queue_schema,
+            v.queue_table,
+            v.config
+        from ai.vectorizer v
+    )
+    loop
+        raise notice 'Recreating trigger function for vectorizer ID %s', _vec.id;
+
+        execute format
+        (
+        --weird indent is intentional to make the sql functions look the same as during a fresh install
+        --otherwise the snapshots will not match during upgrade testing.
+            $sql$
+    create or replace function %I.%I() returns trigger 
+    as $trigger_def$ 
+    %s 
+    $trigger_def$ language plpgsql volatile parallel safe security definer 
+    set search_path to pg_catalog, pg_temp
+    $sql$
+            , _vec.queue_schema, _vec.trigger_name,
+            ai._vectorizer_build_trigger_definition(_vec.queue_schema, _vec.queue_table, _vec.target_schema, _vec.target_table, _vec.source_pk)
+        );
+    end loop;
+end;
+$upgrade_block$;
 
 -------------------------------------------------------------------------------
 -- _vectorizer_vector_index_exists
