@@ -93,10 +93,10 @@ async def find_procs(
             filters.append(SQL("\nand n.nspname !~ %(exclude_schema)s"))
             params["exclude_schema"] = exclude_schema
         if include_proc:
-            filters.append(SQL("\nand p.proname ~ %(include_table)s"))
+            filters.append(SQL("\nand p.proname ~ %(include_proc)s"))
             params["include_proc"] = include_proc
         if exclude_proc:
-            filters.append(SQL("\nand p.proname !~ %(exclude_table)s"))
+            filters.append(SQL("\nand p.proname !~ %(exclude_proc)s"))
             params["exclude_proc"] = exclude_proc
         combined_filters = SQL(" ").join(filters) if filters else SQL("")
         query = SQL("""\

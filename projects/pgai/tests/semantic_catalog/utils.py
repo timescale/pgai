@@ -31,12 +31,6 @@ class PostgresContainer:
     def __str__(self):
         return self.connection_string()
 
-    #def connect(self, user: str = "postgres", database: str = "postgres", autocommit: bool = False, **kwargs) -> psycopg.Connection:
-    #    return psycopg.connect(self.connection_string(user, database), autocommit=autocommit, **kwargs)
-
-    #async def async_connect(self, user: str = "postgres", database: str = "postgres", autocommit: bool = False, **kwargs) -> psycopg.AsyncConnection:
-    #    return psycopg.AsyncConnection.connect(self.connection_string(user, database), autocommit=autocommit, **kwargs)
-
     def wait_for(self):
         trigger = "database system is ready to accept connections"
         count = 0

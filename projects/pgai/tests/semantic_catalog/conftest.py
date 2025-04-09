@@ -12,11 +12,13 @@ load_dotenv()
 
 
 def load_postgres_air(container: PostgresContainer):
-    script = Path(__file__).parent.joinpath("postgres_air.sql").read_text()
+    script1 = Path(__file__).parent.joinpath("postgres_air.sql").read_text()
+    script2 = Path(__file__).parent.joinpath("postgres_air_extra.sql").read_text()
     with psycopg.connect(container.connection_string(database="postgres_air")) as con:
         with con.transaction() as _:
             with con.cursor() as cur:
-                cur.execute(script)
+                cur.execute(script1)
+                cur.execute(script2)
 
 
 @pytest.fixture(scope="session")
