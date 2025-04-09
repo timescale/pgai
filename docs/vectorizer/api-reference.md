@@ -55,12 +55,14 @@ Vectorizer offers the following APIs:
 
 **Create and configure vectorizers**
 - [Create vectorizers](#create-vectorizers): automate the process of creating embeddings for table data.
+- [Loading configuration](#loading-configuration): define the source of the data to embed. You can load data from a column in the source table, or from a file referenced in a column of the source table.
+- [Parsing configuration](#parsing-configuration): for documents, define the way the data is parsed after it is loaded.
 - [Chunking configuration](#chunking-configuration): define the way text data is split into smaller, manageable pieces 
   before being processed for embeddings.
-- [Embedding configuration](#embedding-configuration): specify the LLM provider, model, and the parameters to be
-  used when generating the embeddings
 - [Formatting configuration](#formatting-configuration): configure the way data from the source table is formatted
   before it is sent for embedding.
+- [Embedding configuration](#embedding-configuration): specify the LLM provider, model, and the parameters to be
+  used when generating the embeddings
 - [Indexing configuration](#indexing-configuration): specify the way generated embeddings should be indexed for 
   efficient similarity searches.
 - [Scheduling configuration](#scheduling-configuration): configure when and how often the vectorizer should run in order 
