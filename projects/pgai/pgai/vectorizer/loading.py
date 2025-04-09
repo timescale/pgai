@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 from io import BytesIO
-from typing import Literal, Any
+from typing import Any, Literal
 
 from filetype import filetype  # type: ignore
 from pydantic import BaseModel
