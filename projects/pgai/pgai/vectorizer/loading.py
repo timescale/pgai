@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 from io import BytesIO
-from typing import Literal
+from typing import Literal, Any
 
 from filetype import filetype  # type: ignore
 from pydantic import BaseModel
@@ -63,10 +63,13 @@ class UriLoading(BaseModel):
         if is_s3_uri(file_path) and self.aws_role_arn is not None:
             external_id = os.getenv("AWS_ASSUME_ROLE_EXTERNAL_ID")
             sts_client: STSClient = boto3.client("sts")  # type: ignore
+            kwargs: dict[str, Any] = {}
+            if external_id is not None:
+                kwargs["ExternalId"] = external_id
             assumed_role = sts_client.assume_role(
                 RoleArn=self.aws_role_arn,
                 RoleSessionName="timescale-vectorizer",
-                ExternalId=external_id,
+                **kwargs
             )
             # Extract the temporary credentials
             credentials = assumed_role["Credentials"]
