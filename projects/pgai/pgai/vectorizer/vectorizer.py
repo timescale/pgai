@@ -968,6 +968,11 @@ class Worker:
         Args:
             conn (AsyncConnection): The database connection.
         """
+        target_columns: list[str] = list(self.queries.pk_attnames) + [
+            "chunk_seq",
+            "chunk",
+            "embedding",
+        ]
         async with conn.cursor() as cursor:
             await cursor.execute(
                 """
@@ -979,15 +984,13 @@ class Worker:
                     on (k.oid operator(pg_catalog.=) a.attrelid)
                 where n.nspname operator(pg_catalog.=) %s
                 and k.relname operator(pg_catalog.=) %s
-                and a.attname operator(pg_catalog.!=) 'embedding_uuid'
+                AND a.attname = ANY(%s)
                 and a.attnum operator(pg_catalog.>) 0
-                order by a.attnum
-                limit %s
             """,
                 (
                     self.vectorizer.target_schema,
                     self.vectorizer.target_table,
-                    len(self.vectorizer.source_pk) + 3,
+                    target_columns,
                 ),
             )
             self.copy_types = [row[0] for row in await cursor.fetchall()]
