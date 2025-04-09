@@ -1,0 +1,1 @@
+{{ column.name }} {{ column.type }}{% if column.is_not_null %} NOT NULL{% endif %}{% column.default_value is not none %} {{ column.default_value }}

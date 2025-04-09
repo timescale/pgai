@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '4' and platform_machine == 'x86_64' and platform_python_implementation != 'PyPy' and sys_platform == 'darwin'",
@@ -2904,6 +2905,7 @@ dependencies = [
     { name = "exceptiongroup" },
     { name = "filetype" },
     { name = "google-cloud-aiplatform" },
+    { name = "jinja2" },
     { name = "langchain-openai" },
     { name = "langchain-text-splitters" },
     { name = "litellm" },
@@ -2932,6 +2934,7 @@ sqlalchemy = [
 [package.dev-dependencies]
 dev = [
     { name = "build" },
+    { name = "docker" },
     { name = "fastapi", extra = ["standard"] },
     { name = "jinja2" },
     { name = "mitmproxy" },
@@ -2957,6 +2960,7 @@ requires-dist = [
     { name = "exceptiongroup", specifier = ">=1.0,<2.0" },
     { name = "filetype", specifier = "==1.2.0" },
     { name = "google-cloud-aiplatform", specifier = ">=1.78.0,<2.0" },
+    { name = "jinja2", specifier = ">=3.1.5" },
     { name = "langchain-openai", specifier = ">=0.1,<1.0" },
     { name = "langchain-text-splitters", specifier = ">=0.2,<1.0" },
     { name = "litellm", specifier = ">=1.58.2,<1.59.0" },
@@ -2976,10 +2980,12 @@ requires-dist = [
     { name = "typing-extensions", specifier = ">=4.0,<5.0" },
     { name = "voyageai", specifier = ">=0.3.1,<0.3.2" },
 ]
+provides-extras = ["sqlalchemy"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "build", specifier = "==1.2.2.post1" },
+    { name = "docker", specifier = ">=7.1.0" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.115.8" },
     { name = "jinja2", specifier = ">=3.1.5" },
     { name = "mitmproxy", specifier = "==10.3.0" },

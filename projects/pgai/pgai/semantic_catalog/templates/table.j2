@@ -1,0 +1,5 @@
+<table {% if table.id is not none %}id="{% table.id %}"{% endif %}>
+CREATE{% if table.persistence is not none %} {{ table.persistence | uppper }} {% else %} {% endif %}TABLE {{ table.schema }}.{{ table.name }}
+( {% for column in table.columns %}{% if not loop.first %}{{ '\n, ' }}{% endif %}{{ column.name }} {{ column.type }}{% if column.is_not_null %} NOT NULL{% endif %}{% column.default_value is not none %} {{ column.default_value }}{% endif %}{% endfor %}
+);
+</table>
