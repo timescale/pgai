@@ -35,6 +35,7 @@ dependencies = [
     "docling==2.21.0",
     "semver>=3.0.4",
     "ijson>=3.3.0",
+    "boto3-stubs[s3,sts]>=1.37.30",
 ]
 classifiers = [
     "License :: OSI Approved :: PostgreSQL License",

@@ -65,6 +65,16 @@ def test_loading_uri():
                 "retries": 3,
             },
         ),
+        (
+            "select ai.loading_uri('s3_uri', aws_role_arn => 'arn:aws:iam::account:role/role-name-with-path')",
+            {
+                "config_type": "loading",
+                "implementation": "uri",
+                "column_name": "s3_uri",
+                "retries": 6,
+                "aws_role_arn": "arn:aws:iam::account:role/role-name-with-path",
+            },
+        ),
     ]
 
     with psycopg.connect(db_url("test")) as con:
@@ -94,6 +104,11 @@ def test_validate_loading():
         """
         select ai._validate_loading
         ( ai.loading_uri('body'), 'public', 'thing' )
+        """,
+        # setting the aws_role_arn parameter
+        """
+        select ai._validate_loading
+        ( ai.loading_uri('body', aws_role_arn => 'arn:aws:iam::account:role/role-name-with-path'), 'public', 'thing' )
         """,
     ]
     bad = [
@@ -152,6 +167,13 @@ def test_validate_loading():
             ( ai.loading_column('body', -1), 'public', 'thing' )
             """,
             "invalid loading config, retries must be a non-negative integer",
+        ),
+        (
+            """
+            select ai._validate_loading
+            ( ai.loading_uri('body', aws_role_arn => 'foo_bar'), 'public', 'thing' )
+            """,
+            "invalid loading config, aws_role_arn must match arn:aws:iam::*:role/*",
         ),
     ]
     with psycopg.connect(db_url("test"), autocommit=True) as con:

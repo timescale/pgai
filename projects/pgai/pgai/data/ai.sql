@@ -926,6 +926,34 @@ begin
 end;
 $outer_migration_block$;
 
+-------------------------------------------------------------------------------
+-- 027-drop-loading-uri-old-signature.sql
+do $outer_migration_block$ /*027-drop-loading-uri-old-signature.sql*/
+declare
+    _sql text;
+    _migration record;
+    _migration_name text = $migration_name$027-drop-loading-uri-old-signature.sql$migration_name$;
+    _migration_body text =
+$migration_body$
+drop function if exists ai.loading_uri(pg_catalog.name,pg_catalog.int4);
+
+$migration_body$;
+begin
+    select * into _migration from ai.pgai_lib_migration where "name" operator(pg_catalog.=) _migration_name;
+    if _migration is not null then
+        raise notice 'migration %s already applied. skipping.', _migration_name;
+        if _migration.body operator(pg_catalog.!=) _migration_body then
+            raise warning 'the contents of migration "%s" have changed', _migration_name;
+        end if;
+        return;
+    end if;
+    _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
+    execute _sql;
+    insert into ai.pgai_lib_migration ("name", body, applied_at_version)
+    values (_migration_name, _migration_body, $version$__version__$version$);
+end;
+$outer_migration_block$;
+
 --------------------------------------------------------------------------------
 -- 001-chunking.sql
 
@@ -1650,7 +1678,8 @@ set search_path to pg_catalog, pg_temp
 -- loading_uri
 create or replace function ai.loading_uri
 ( column_name pg_catalog.name
-, retries pg_catalog.int4 default 6)
+, retries pg_catalog.int4 default 6
+, aws_role_arn pg_catalog.text default null)
 returns pg_catalog.jsonb
 as $func$
     select json_object
@@ -1658,7 +1687,8 @@ as $func$
     , 'config_type': 'loading'
     , 'column_name': column_name
     , 'retries': retries
-    )
+    , 'aws_role_arn': aws_role_arn
+    absent on null)
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -1699,6 +1729,9 @@ end if;
     
     if (config operator(pg_catalog.->>) 'retries') is null or (config operator(pg_catalog.->>) 'retries')::int < 0 then
         raise exception 'invalid loading config, retries must be a non-negative integer';
+end if;
+    if (config operator(pg_catalog.->>) 'aws_role_arn') is not null and (config operator(pg_catalog.->>) 'aws_role_arn') not like 'arn:aws:iam::%:role/%' then
+        raise exception 'invalid loading config, aws_role_arn must match arn:aws:iam::*:role/*';
 end if;
 
     select y.typname into _column_type
