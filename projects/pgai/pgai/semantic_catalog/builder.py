@@ -40,11 +40,11 @@ async def find_tables(
 
 
 async def find_views(
-        con: psycopg.AsyncConnection,
-        include_schema: str | None = None,
-        exclude_schema: str | None = None,
-        include_view: str | None = None,
-        exclude_view: str | None = None,
+    con: psycopg.AsyncConnection,
+    include_schema: str | None = None,
+    exclude_schema: str | None = None,
+    include_view: str | None = None,
+    exclude_view: str | None = None,
 ) -> list[int]:
     async with con.cursor() as cur:
         filters: list[Composable] = []
@@ -77,11 +77,11 @@ async def find_views(
 
 
 async def find_procs(
-        con: psycopg.AsyncConnection,
-        include_schema: str | None = None,
-        exclude_schema: str | None = None,
-        include_proc: str | None = None,
-        exclude_proc: str | None = None,
+    con: psycopg.AsyncConnection,
+    include_schema: str | None = None,
+    exclude_schema: str | None = None,
+    include_proc: str | None = None,
+    exclude_proc: str | None = None,
 ) -> list[int]:
     async with con.cursor() as cur:
         filters: list[Composable] = []
@@ -110,4 +110,3 @@ async def find_procs(
         """).format(filters=combined_filters)
         await cur.execute(query, params)
         return [int(row[0]) for row in await cur.fetchall()]
-

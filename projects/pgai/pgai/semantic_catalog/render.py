@@ -2,7 +2,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-from pgai.semantic_catalog.models import Table, View, Proc
+from pgai.semantic_catalog.models import Proc, Table, View
 
 template_dir = Path(__file__).parent.joinpath("templates")
 env = Environment(loader=FileSystemLoader(template_dir))

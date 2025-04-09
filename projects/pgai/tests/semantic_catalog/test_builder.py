@@ -1,56 +1,65 @@
 import psycopg
 
-from .utils import PostgresContainer
 import pgai.semantic_catalog.builder as builder
 
+from .utils import PostgresContainer
 
 ALL_TABLES = {
-    'account',
-    'aircraft',
-    'airport',
-    'boarding_pass',
-    'booking',
-    'booking_leg',
-    'flight',
-    'frequent_flyer',
-    'passenger',
-    'phone'
+    "account",
+    "aircraft",
+    "airport",
+    "boarding_pass",
+    "booking",
+    "booking_leg",
+    "flight",
+    "frequent_flyer",
+    "passenger",
+    "phone",
 }
 
-ALL_VIEWS = {'flight_summary', 'passenger_details'}
+ALL_VIEWS = {"flight_summary", "passenger_details"}
 
-ALL_PROCS = {'advance_air_time', 'update_flight_status'}
+ALL_PROCS = {"advance_air_time", "update_flight_status"}
 
 
 async def get_table_names(con: psycopg.AsyncConnection, oids: list[int]) -> set[str]:
     async with con.cursor() as cur:
-        await cur.execute("""
+        await cur.execute(
+            """
             select distinct k.relname
             from pg_class k
             where k.oid = any(%s)
             and k.relkind in ('r', 'p', 'f')
-        """, (oids, ))
+        """,
+            (oids,),
+        )
         return {str(row[0]) for row in await cur.fetchall()}
 
 
 async def get_view_names(con: psycopg.AsyncConnection, oids: list[int]) -> set[str]:
     async with con.cursor() as cur:
-        await cur.execute("""
+        await cur.execute(
+            """
             select distinct k.relname
             from pg_class k
             where k.oid = any(%s)
             and k.relkind in ('v', 'm')
-        """, (oids, ))
+        """,
+            (oids,),
+        )
         return {str(row[0]) for row in await cur.fetchall()}
 
 
 async def get_proc_names(con: psycopg.AsyncConnection, oids: list[int]) -> set[str]:
     async with con.cursor() as cur:
-        await cur.execute("""
+        await cur.execute(
+            """
             select distinct p.proname
             from pg_proc p
             where p.oid = any(%s)
-        """, (oids, ))
+        """,
+            (oids,),
+        )
         return {str(row[0]) for row in await cur.fetchall()}
 
 
@@ -80,9 +89,14 @@ async def test_find_tables(container: PostgresContainer):
         ({"exclude_schema": "_air$", "include_table": ".*"}, set()),
         ({"include_schema": "^postgres_air$", "exclude_table": ".*"}, set()),
         ({"exclude_schema": "^public$", "exclude_table": ".*"}, set()),
-        ({"exclude_schema": "^public$", "include_table": "^a"}, {"account", "aircraft", "airport"}),
+        (
+            {"exclude_schema": "^public$", "include_table": "^a"},
+            {"account", "aircraft", "airport"},
+        ),
     ]
-    async with await psycopg.AsyncConnection.connect(container.connection_string(database="postgres_air")) as con:
+    async with await psycopg.AsyncConnection.connect(
+        container.connection_string(database="postgres_air")
+    ) as con:
         for test in tests:
             args, expected = test
             oids = await builder.find_tables(con, **args)
@@ -118,7 +132,9 @@ async def test_find_views(container: PostgresContainer):
         ({"exclude_schema": "^public$", "exclude_view": ".*"}, set()),
         ({"exclude_schema": "^public$", "include_view": "^f"}, {"flight_summary"}),
     ]
-    async with await psycopg.AsyncConnection.connect(container.connection_string(database="postgres_air")) as con:
+    async with await psycopg.AsyncConnection.connect(
+        container.connection_string(database="postgres_air")
+    ) as con:
         for test in tests:
             args, expected = test
             oids = await builder.find_views(con, **args)
@@ -152,9 +168,14 @@ async def test_find_procs(container: PostgresContainer):
         ({"exclude_schema": "_air$", "include_proc": ".*"}, set()),
         ({"include_schema": "^postgres_air$", "exclude_proc": ".*"}, set()),
         ({"exclude_schema": "^public$", "exclude_proc": ".*"}, set()),
-        ({"exclude_schema": "^public$", "include_proc": "^u"}, {"update_flight_status"}),
+        (
+            {"exclude_schema": "^public$", "include_proc": "^u"},
+            {"update_flight_status"},
+        ),
     ]
-    async with await psycopg.AsyncConnection.connect(container.connection_string(database="postgres_air")) as con:
+    async with await psycopg.AsyncConnection.connect(
+        container.connection_string(database="postgres_air")
+    ) as con:
         for test in tests:
             args, expected = test
             oids = await builder.find_procs(con, **args)

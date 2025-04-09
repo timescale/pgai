@@ -1,6 +1,7 @@
 import psycopg
 from psycopg.rows import dict_row
-from pgai.semantic_catalog.models import Table, View, Procedure
+
+from pgai.semantic_catalog.models import Procedure, Table, View
 
 
 async def load_tables(con: psycopg.AsyncConnection, oids: list[int]) -> list[Table]:
@@ -10,7 +11,8 @@ async def load_tables(con: psycopg.AsyncConnection, oids: list[int]) -> list[Tab
     # TODO: add support for foreign tables
     assert len(oids) > 0, "list of oids must not be empty"
     async with con.cursor(row_factory=dict_row) as cur:
-        await cur.execute("""\
+        await cur.execute(
+            """\
             with x as
             (
                 select
@@ -34,7 +36,8 @@ async def load_tables(con: psycopg.AsyncConnection, oids: list[int]) -> list[Tab
                       order by a.attnum
                     )
                     from pg_attribute a
-                    left join pg_attrdef d on (a.attrelid = d.adrelid and a.attnum = d.adnum)
+                    left outer join pg_attrdef d
+                        on (a.attrelid = d.adrelid and a.attnum = d.adnum)
                     where a.attrelid = k.oid
                     and a.attnum > 0
                     and not a.attisdropped
@@ -72,7 +75,9 @@ async def load_tables(con: psycopg.AsyncConnection, oids: list[int]) -> list[Tab
             )
             select to_jsonb(x)
             from x
-        """, (oids,))
+        """,
+            (oids,),
+        )
         tables: list[Table] = []
         for row in await cur.fetchone():
             tables.append(Table.model_validate(row))
@@ -83,7 +88,8 @@ async def load_views(con: psycopg.AsyncConnection, oids: list[int]) -> list[View
     # TODO: add support for continuous aggregates
     assert len(oids) > 0, "list of oids must not be empty"
     async with con.cursor(row_factory=dict_row) as cur:
-        await cur.execute("""\
+        await cur.execute(
+            """\
             with x as
             (
                 select
@@ -99,17 +105,22 @@ async def load_views(con: psycopg.AsyncConnection, oids: list[int]) -> list[View
             )
             select to_jsonb(x)
             from x
-        """, (oids,))
+        """,
+            (oids,),
+        )
         views: list[View] = []
         for row in await cur.fetchone():
             views.append(View.model_validate(row))
         return views
 
 
-async def load_procedures(con: psycopg.AsyncConnection, oids: list[int]) -> list[Procedure]:
+async def load_procedures(
+    con: psycopg.AsyncConnection, oids: list[int]
+) -> list[Procedure]:
     assert len(oids) > 0, "list of oids must not be empty"
     async with con.cursor(row_factory=dict_row) as cur:
-        await cur.execute("""\
+        await cur.execute(
+            """\
             with x as
             (
                 select
@@ -130,9 +141,10 @@ async def load_procedures(con: psycopg.AsyncConnection, oids: list[int]) -> list
             )
             select to_jsonb(x)
             from x
-        """, (oids,))
+        """,
+            (oids,),
+        )
         procedures: list[Procedure] = []
         for row in await cur.fetchone():
             procedures.append(Procedure.model_validate(row))
         return procedures
-
