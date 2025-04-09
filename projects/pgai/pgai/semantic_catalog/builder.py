@@ -190,9 +190,9 @@ async def generate_table_descriptions(
         print(f"Collected {len(column_descriptions)} column descriptions")
 
 
-async def build(db_url: str):
+async def build(db_url: str, model: str):
     async with await psycopg.AsyncConnection.connect(db_url) as con:
         table_oids = await find_tables(con)
         print(f"found {len(table_oids)} tables")
-        await generate_table_descriptions(con, table_oids, "anthropic:claude-3-7-sonnet-latest")
+        await generate_table_descriptions(con, table_oids, model)
 

@@ -261,8 +261,16 @@ def semantic_catalog():
     show_default=True,
     help="The database URL to connect to",
 )
-def build(db_url: str) -> None:
-    asyncio.run(pgai.semantic_catalog.builder.build(db_url))
+@click.option(
+    "-m",
+    "--model",
+    type=click.STRING,
+    default="anthropic:claude-3-7-sonnet-latest",
+    show_default=True,
+    help="The LLM model to generate descriptions",
+)
+def build(db_url: str, model: str) -> None:
+    asyncio.run(pgai.semantic_catalog.builder.build(db_url, model))
 
 
 cli.add_command(semantic_catalog)
