@@ -35,6 +35,7 @@ dependencies = [
     "docling==2.21.0",
     "semver>=3.0.4",
     "jinja2>=3.1.5",
+    "pydantic-ai>=0.0.22",
 ]
 classifiers = [
     "License :: OSI Approved :: PostgreSQL License",

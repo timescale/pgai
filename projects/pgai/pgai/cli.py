@@ -13,6 +13,7 @@ from ddtrace import tracer
 from dotenv import load_dotenv
 from pytimeparse import parse  # type: ignore
 
+import pgai.semantic_catalog.builder
 from .__init__ import __version__
 
 load_dotenv()
@@ -243,3 +244,25 @@ def install(db_url: str, strict: bool) -> None:
     import pgai
 
     pgai.install(db_url, strict=strict)
+
+
+@click.group(name="semantic-catalog")
+@click.version_option(version=__version__)
+def semantic_catalog():
+    pass
+
+
+@semantic_catalog.command()
+@click.option(
+    "-d",
+    "--db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The database URL to connect to",
+)
+def build(db_url: str) -> None:
+    asyncio.run(pgai.semantic_catalog.builder.build(db_url))
+
+
+cli.add_command(semantic_catalog)

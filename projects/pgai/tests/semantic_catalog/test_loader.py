@@ -1,13 +1,13 @@
 import psycopg
 
-from pgai.semantic_catalog import loader, builder
+from pgai.semantic_catalog import builder, loader
 
-from .utils import PostgresContainer, get_procedures, get_views, get_tables
+from .utils import PostgresContainer, get_procedures, get_tables, get_views
 
 
 async def test_load_tables(container: PostgresContainer):
     async with await psycopg.AsyncConnection.connect(
-            container.connection_string(database="postgres_air")
+        container.connection_string(database="postgres_air")
     ) as con:
         for table_name, expected in get_tables().items():
             oids = await builder.find_tables(con, include_table=table_name)
@@ -19,7 +19,7 @@ async def test_load_tables(container: PostgresContainer):
 
 async def test_load_views(container: PostgresContainer):
     async with await psycopg.AsyncConnection.connect(
-            container.connection_string(database="postgres_air")
+        container.connection_string(database="postgres_air")
     ) as con:
         for view_name, expected in get_views().items():
             oids = await builder.find_views(con, include_view=view_name)
@@ -31,7 +31,7 @@ async def test_load_views(container: PostgresContainer):
 
 async def test_load_procedures(container: PostgresContainer):
     async with await psycopg.AsyncConnection.connect(
-            container.connection_string(database="postgres_air")
+        container.connection_string(database="postgres_air")
     ) as con:
         for proc_name, expected in get_procedures().items():
             oids = await builder.find_procedures(con, include_proc=proc_name)
