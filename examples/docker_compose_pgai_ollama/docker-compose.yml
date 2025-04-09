@@ -9,13 +9,15 @@ services:
     volumes:
       - data:/home/postgres/pgdata/data
     command: [ "-c", "ai.ollama_host=http://ollama:11434" ]
-  vectorizer-worker:
-    image: timescale/pgai-vectorizer-worker:latest
-    environment:
-      PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
-      OLLAMA_HOST: http://ollama:11434
-    command: [ "--poll-interval", "5s", "--log-level", "DEBUG" ]
+  #vectorizer-worker:
+  #  image: timescale/pgai-vectorizer-worker:latest
+  #  environment:
+  #    PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
+  #    OLLAMA_HOST: http://ollama:11434
+  #  command: [ "--poll-interval", "5s", "--log-level", "DEBUG" ]
   ollama:
     image: ollama/ollama
+    ports:
+      - "11434:11434"    
 volumes:
   data:

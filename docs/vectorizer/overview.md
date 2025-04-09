@@ -30,6 +30,14 @@ in your database. To quickly try out embeddings using a pre-built Docker develop
 [Vectorizer quick start](/docs/vectorizer/quick-start.md). For a more detailed technical specification, see the
 [Vectorizer API reference](/docs/vectorizer/api-reference.md).
 
+To make embedding generation performant, and resilient to intermittent LLM
+endpoint failures, we use a background worker to perform the embedding
+generation. When you create Vectorizers in a Timescale Cloud database, the
+worker runs automatically and creates and synchronizes the embeddings in the
+background. When using a database on another cloud provider (AWS RDS, Supabase,
+etc.) or self-hosted Postgres, you can use the [vectorizer worker](/docs/vectorizer/worker.md) to
+process your vectorizers.
+
 Let's explore how the Vectorizer can transform your approach to unstructured,
 textual, data analysis, and semantic search:
 
@@ -171,19 +179,64 @@ The view includes all columns from the blog table plus the following additional 
 | embedding      | VECTOR | The vector representation of the chunk                          |
 | chunk_seq      | INT    | Sequence number of the chunk within the document, starting at 0 |
 
+
+### Querying in SQLAlchemy
+
+Given an example SQLAlchemy model:
+
+```python
+    class Wiki(Base):
+        __tablename__ = "wiki"
+        
+        id: Mapped[int] = mapped_column(primary_key=True)
+        url: Mapped[str]
+        title: Mapped[str]
+        text: Mapped[str]
+
+        # Add vector embeddings for the text field
+        text_embeddings = vectorizer_relationship(
+            target_table='wiki_embeddings',
+            dimensions=384
+        )
+```
+
+You can use the text_embeddings relationship to perform semantic search on the embeddings by ordering the results by distance.
+
+```python
+    async def _find_relevant_chunks(client: ollama.AsyncClient, query: str, limit: int = 2) -> WikiSearchResult:
+        response = await client.embed(model="all-minilm", input=query)
+        embedding = response.embeddings[0]
+        with Session(engine) as session:
+            # Query both the Wiki model and its embeddings
+            result = session.query(
+                Wiki,
+                Wiki.text_embeddings.embedding.cosine_distance(embedding).label('distance')
+            ).join(Wiki.text_embeddings).order_by(
+                'distance'
+            ).limit(limit).all()
+            
+        return result
+```
+
+You can, of course, add any other filters to the query.
+
+### Querying in SQL
+
 To find the closest embeddings to a query, use this canonical SQL query:
 
 ```sql
 SELECT 
    chunk,
-   embedding <=> ai.ollama_embed('nomic-embed-text', <query>) as distance
+   embedding <=> <query embedding> as distance
 FROM blog_contents_embeddings
 ORDER BY distance
 LIMIT 10;
 ```
-The `ollama_embed` function generates an embedding for the provided string. The
-`<=>` operator calculates the distance between the query embedding and each
+
+ The `<=>` operator calculates the distance between the query embedding and each
 row's embedding vector. This is a simple way to do semantic search.
+
+**Tip**: You can use the `ai.ollama_embed` function in our [PostgreSQL extension](/projects/extension/README.md) to generate an embedding for a user-provided query right inside the database.
 
 You can combine this with metadata filters by adding a WHERE clause:
 
