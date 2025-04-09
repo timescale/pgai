@@ -66,13 +66,13 @@ def test_loading_uri():
             },
         ),
         (
-            "select ai.loading_uri('s3_uri', aws_role_arn => 'an_arn')",
+            "select ai.loading_uri('s3_uri', aws_role_arn => 'arn:aws:iam::account:role/role-name-with-path')",
             {
                 "config_type": "loading",
                 "implementation": "uri",
                 "column_name": "s3_uri",
                 "retries": 6,
-                "aws_role_arn": "an_arn",
+                "aws_role_arn": "arn:aws:iam::account:role/role-name-with-path",
             },
         ),
     ]
@@ -104,6 +104,11 @@ def test_validate_loading():
         """
         select ai._validate_loading
         ( ai.loading_uri('body'), 'public', 'thing' )
+        """,
+        # setting the aws_role_arn parameter
+        """
+        select ai._validate_loading
+        ( ai.loading_uri('body', aws_role_arn => 'arn:aws:iam::account:role/role-name-with-path'), 'public', 'thing' )
         """,
     ]
     bad = [
