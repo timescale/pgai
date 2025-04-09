@@ -366,7 +366,7 @@ To add the advanced examples to your developer environment, in the `<pgai-repo>/
 
 1. Connect to your database using `psql`:
 
-   The following command [passes your OpenAI API key as a session parameter](../README.md#run-ai-queries-by-passing-your-api-key-implicitly-as-a-session-parameter):
+   The following command [passes your OpenAI API key as a session parameter](/docs/security/handling-api-keys.md#configure-an-api-key-for-an-interactive-psql-session):
 
    ```bash
    PGOPTIONS="-c ai.openai_api_key=$OPENAI_API_KEY" psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"

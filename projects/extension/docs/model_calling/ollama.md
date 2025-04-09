@@ -36,7 +36,7 @@ You set the network for your Ollama configuration either:
   * System-wide, [add it to the postgres.conf file](https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-CONFIGURATION-FILE)
 
 
-When Ollama is running on the same host machine as the [Docker container](../README.md#use-a-pre-built-docker-container) 
+When Ollama is running on the same host machine as the [Docker container](../install/docker.md) 
 running pgai, the ollama host address is `http://host.docker.internal:11434`.
 
 ## Usage
@@ -325,4 +325,3 @@ The data returned looks like:
  llava:7b | llava:7b | 5758857216 | 8dd30f6b0cb19f555f2c7a7ebda861449ea2cc76bf1f44e262931f45fc81d081 |              | gguf   | llama  | ["llama", "clip"] | 7B             | Q4_0               | 2024-06-18 20:07:30.508198+00 | 5758857216
 (1 row)
 ```
-
