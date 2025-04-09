@@ -1,0 +1,4 @@
+<view{% if view.id is not none %} id="{{ view.id }}"{% endif %}>
+CREATE{% if view.is_materialized %} MATERIALIZED {% else %} {% endif %}VIEW {{ view.schema_name }}.{{ view.view_name }} AS
+{{ view.definition }}
+</view>

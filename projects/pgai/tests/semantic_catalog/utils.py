@@ -1,3 +1,4 @@
+import json
 import time
 from functools import cached_property
 from pathlib import Path
@@ -5,6 +6,9 @@ from pathlib import Path
 import docker
 import psycopg
 from docker.models.containers import Container
+
+from pgai.semantic_catalog import builder, loader
+from pgai.semantic_catalog.models import Table, View, Procedure
 
 CONTAINER_NAME = "pgai-semantic-catalog"
 
@@ -130,3 +134,48 @@ class PostgresContainer:
         if not container.is_ready():
             raise RuntimeError("Postgres container not ready.")
         return container
+
+
+async def gen_tables_json(container: PostgresContainer):
+    stuff = {}
+    async with await psycopg.AsyncConnection.connect(container.connection_string(database="postgres_air")) as con:
+        oids = await builder.find_tables(con)
+        tables = await loader.load_tables(con, oids)
+        for table in tables:
+            stuff[table.table_name] = table.dict(exclude={'id'})
+    Path(__file__).parent.joinpath("tables.json").write_text(json.dumps(stuff, indent=2))
+
+
+async def gen_views_json(container: PostgresContainer):
+    stuff = {}
+    async with await psycopg.AsyncConnection.connect(container.connection_string(database="postgres_air")) as con:
+        oids = await builder.find_views(con)
+        views = await loader.load_views(con, oids)
+        for view in views:
+            stuff[view.view_name] = view.dict(exclude={'id'})
+    Path(__file__).parent.joinpath("views.json").write_text(json.dumps(stuff, indent=2))
+
+
+async def gen_procs_json(container: PostgresContainer):
+    stuff = {}
+    async with await psycopg.AsyncConnection.connect(container.connection_string(database="postgres_air")) as con:
+        oids = await builder.find_procedures(con)
+        procs = await loader.load_procedures(con, oids)
+        for proc in procs:
+            stuff[proc.proc_name] = proc.dict(exclude={'id'})
+    Path(__file__).parent.joinpath("procedures.json").write_text(json.dumps(stuff, indent=2))
+
+
+def get_tables() -> dict[str, Table]:
+    raw: dict = json.loads(Path(__file__).parent.joinpath("tables.json").read_text())
+    return {k: Table(id=None, **v) for k, v in raw.items()}
+
+
+def get_views() -> dict[str, View]:
+    raw: dict = json.loads(Path(__file__).parent.joinpath("views.json").read_text())
+    return {k: View(id=None, **v) for k, v in raw.items()}
+
+
+def get_procedures() -> dict[str, Procedure]:
+    raw: dict = json.loads(Path(__file__).parent.joinpath("procedures.json").read_text())
+    return {k: Procedure(id=None, **v) for k, v in raw.items()}

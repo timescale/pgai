@@ -1,0 +1,17 @@
+<view id="0">
+CREATE VIEW postgres_air.flight_summary AS
+ SELECT flight_no,
+    departure_airport,
+    arrival_airport,
+    scheduled_departure
+   FROM postgres_air.flight;
+</view>
+
+<view id="1">
+CREATE VIEW postgres_air.passenger_details AS
+ SELECT p.first_name,
+    p.last_name,
+    b.booking_ref
+   FROM postgres_air.passenger p
+     JOIN postgres_air.booking b ON p.booking_id = b.booking_id;
+</view>
