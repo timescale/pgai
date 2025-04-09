@@ -140,31 +140,6 @@ class Vectorizer(BaseModel):
     schema_: str = Field(alias="schema", default="ai")
     table: str = "vectorizer"
 
-    @model_validator(mode="before")
-    @classmethod
-    def adapt_target_fields_to_destination_config(
-        cls, data: dict[str, Any]
-    ) -> dict[str, Any]:
-        """
-        Moves the target fields from the root level to the destination config.
-        """
-        # Check if we have old-style config (target fields at root level)
-        target_schema = data.get("target_schema")
-        target_table = data.get("target_table")
-        config = data.get("config")
-        if config:
-            destination = config.get("destination")
-            if target_schema and target_table and not destination:
-                destination = {
-                    "implementation": "default",
-                    "target_schema": target_schema,
-                    "target_table": target_table,
-                }
-
-                data["config"]["destination"] = destination
-
-        return data
-
     async def run(
         self,
         db_url: str,
@@ -1027,7 +1002,7 @@ class Worker:
             "chunk",
             "embedding",
         ]
-        
+
         async with conn.cursor() as cursor:
             await cursor.execute(
                 """

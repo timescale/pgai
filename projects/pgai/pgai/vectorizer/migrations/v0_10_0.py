@@ -14,6 +14,7 @@ from pgai.vectorizer.loading import ColumnLoading
 from pgai.vectorizer.parsing import ParsingNone
 from pgai.vectorizer.processing import ProcessingDefault
 
+from ..destination import DefaultDestination
 from . import register_migration
 
 
@@ -57,6 +58,8 @@ class Config_0_9(BaseModel):
 class Vectorizer_0_9(BaseModel):
     model_config = ConfigDict(extra="allow")
     config: Config_0_9
+    target_table: str
+    target_schema: str
 
 
 @register_migration(
@@ -95,5 +98,11 @@ def migrate_to_0_10_0(old_vectorizer: Vectorizer_0_9) -> dict[str, Any]:
             raise ValueError(
                 f"Unknown chunking implementation: {old_config.chunking.implementation}"
             )
+
+    result["config"]["destination"] = DefaultDestination(
+        implementation="default",
+        target_schema=old_vectorizer.target_schema,
+        target_table=old_vectorizer.target_table,
+    )
 
     return result
