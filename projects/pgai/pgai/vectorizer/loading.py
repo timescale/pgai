@@ -40,10 +40,6 @@ class ColumnLoading(BaseModel):
         return content
 
 
-def is_s3_uri(file_path: str) -> bool:
-    return file_path.startswith("s3://")
-
-
 class UriLoading(BaseModel):
     implementation: Literal["uri"]
     column_name: str
@@ -60,7 +56,7 @@ class UriLoading(BaseModel):
         file_path = row[self.column_name]
 
         transport_params = None
-        if is_s3_uri(file_path) and self.aws_role_arn is not None:
+        if file_path.startswith("s3://") and self.aws_role_arn is not None:
             external_id = os.getenv("AWS_ASSUME_ROLE_EXTERNAL_ID")
             sts_client: STSClient = boto3.client("sts")  # type: ignore
             kwargs: dict[str, Any] = {}
