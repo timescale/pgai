@@ -86,6 +86,8 @@ class Config(BaseModel):
     """
 
     version: str
+    # Set in the migrations if the configuration is migrated to a newer version
+    original_version: str | None = None
     loading: ColumnLoading | UriLoading
     embedding: OpenAI | Ollama | VoyageAI | LiteLLM
     processing: ProcessingDefault

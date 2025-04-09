@@ -77,14 +77,14 @@ def apply_migrations(data: dict[str, Any]) -> dict[str, Any]:
     if config_dict is None:
         logger.warning("Unable to migrate configuration: 'config' field missing")
         return data
-    current_version = config_dict.get("version")
-    if current_version is None:
+    original_version = config_dict.get("version")
+    if original_version is None:
         logger.warning("Unable to migrate configuration: 'version' field missing")
         return data
 
-    current_version = current_version.replace("-dev", "")
+    original_version = original_version.replace("-dev", "")
 
-    current = semver.VersionInfo.parse(current_version)
+    current = semver.VersionInfo.parse(original_version)
     latest = semver.VersionInfo.parse(get_latest_version())
 
     # no migrations needed if already at latest
@@ -98,6 +98,7 @@ def apply_migrations(data: dict[str, Any]) -> dict[str, Any]:
         m for m in migrations if current < semver.VersionInfo.parse(m.version)
     ]
 
+    current_version = original_version
     # migrations are applied sequentially
     for migration in applicable_migrations:
         logger.info(
@@ -115,6 +116,8 @@ def apply_migrations(data: dict[str, Any]) -> dict[str, Any]:
         # don't re-apply migrations
         current_version = migration.version
         result["config"]["version"] = migration.version
+
+    result["config"]["original_version"] = original_version
 
     return result
 

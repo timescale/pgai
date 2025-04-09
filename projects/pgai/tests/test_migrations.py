@@ -151,7 +151,7 @@ def test_multiple_migrations():
     expected_vectorizer = Vectorizer(
         **{  # type: ignore
             **vectorizer_fields,
-            "config": config_0_10_0,
+            "config": config_0_10_0 | {"original_version": "0.0.1"},
         }
     )
 
@@ -168,7 +168,7 @@ def test_migrate_config_from_ext_version_0_9_to_0_10():
     expected_vectorizer = Vectorizer(
         **{  # type: ignore
             **vectorizer_fields,
-            "config": config_0_10_0,
+            "config": config_0_10_0 | {"original_version": "0.9.0"},
         }
     )  # pyright: ignore [reportArgumentType]
 
