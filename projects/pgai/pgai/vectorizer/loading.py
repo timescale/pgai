@@ -65,7 +65,7 @@ class UriLoading(BaseModel):
             assumed_role = sts_client.assume_role(
                 RoleArn=self.aws_role_arn,
                 RoleSessionName="timescale-vectorizer",
-                **kwargs
+                **kwargs,
             )
             # Extract the temporary credentials
             credentials = assumed_role["Credentials"]
