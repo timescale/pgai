@@ -46,8 +46,8 @@ async def load_tables(con: psycopg.AsyncConnection, oids: list[int]) -> list[Tab
                     select jsonb_agg
                     (
                         jsonb_build_object
-                        ( 'name': c.conname
-                        , 'definition': pg_get_constraintdef(c.oid)
+                        ( 'name', c.conname
+                        , 'definition', pg_get_constraintdef(c.oid)
                         )
                         order by c.oid
                     )
@@ -61,11 +61,11 @@ async def load_tables(con: psycopg.AsyncConnection, oids: list[int]) -> list[Tab
                       ( 'name', x.relname
                       , 'definition', pg_get_indexdef(i.indexrelid)
                       )
-                      order by i.oid
+                      order by i.indexrelid
                     )
                     from pg_index i
                     inner join pg_class x on (i.indexrelid = x.oid)
-                    where i.indrelid = k.id
+                    where i.indrelid = k.oid
                     and i.indisprimary = false -- already represented in constraints
                   ) as indexes
                 from pg_class k
@@ -73,13 +73,13 @@ async def load_tables(con: psycopg.AsyncConnection, oids: list[int]) -> list[Tab
                 where k.oid = any(%s::oid[])
                 and k.relkind in ('r', 'p', 'f')
             )
-            select to_jsonb(x)
+            select *
             from x
         """,
             (oids,),
         )
         tables: list[Table] = []
-        for row in await cur.fetchone():
+        for row in await cur.fetchall():
             tables.append(Table.model_validate(row))
         return tables
 
@@ -90,26 +90,21 @@ async def load_views(con: psycopg.AsyncConnection, oids: list[int]) -> list[View
     async with con.cursor(row_factory=dict_row) as cur:
         await cur.execute(
             """\
-            with x as
-            (
-                select
-                  k.oid as id
-                , n.nspname as schema_name
-                , k.relname as view_name
-                , k.relkind = 'm' as is_materialized
-                , pg_get_viewdef(k.oid, true) as definition
-                from pg_class k
-                inner join pg_namespace n on (k.relnamespace = n.oid)
-                where k.oid = any(%s::oid[])
-                and k.relkind in ('v', 'm')
-            )
-            select to_jsonb(x)
-            from x
+            select
+              k.oid as id
+            , n.nspname as schema_name
+            , k.relname as view_name
+            , k.relkind = 'm' as is_materialized
+            , pg_get_viewdef(k.oid, true) as definition
+            from pg_class k
+            inner join pg_namespace n on (k.relnamespace = n.oid)
+            where k.oid = any(%s::oid[])
+            and k.relkind in ('v', 'm')
         """,
             (oids,),
         )
         views: list[View] = []
-        for row in await cur.fetchone():
+        for row in await cur.fetchall():
             views.append(View.model_validate(row))
         return views
 
@@ -121,30 +116,25 @@ async def load_procedures(
     async with con.cursor(row_factory=dict_row) as cur:
         await cur.execute(
             """\
-            with x as
-            (
-                select
-                  p.oid as id
-                , n.nspname as schema_name
-                , p.proname as proc_name
-                , case p.prokind
-                    when 'f' then 'function'
-                    when 'w' then 'function'
-                    when 'p' then 'procedure'
-                    when 'a' then 'aggregate'
-                  end as kind
-                , pg_get_function_identity_arguments(p.oid) as identity_args
-                , pg_get_functiondef(p.oid) as definition
-                from pg_proc p
-                inner join pg_namespace n on (p.pronamespace = n.oid)
-                where p.oid = any(%s::oid[])
-            )
-            select to_jsonb(x)
-            from x
+            select
+              p.oid as id
+            , n.nspname as schema_name
+            , p.proname as proc_name
+            , case p.prokind
+                when 'f' then 'function'
+                when 'w' then 'function'
+                when 'p' then 'procedure'
+                when 'a' then 'aggregate'
+              end as kind
+            , pg_get_function_identity_arguments(p.oid) as identity_args
+            , pg_get_functiondef(p.oid) as definition
+            from pg_proc p
+            inner join pg_namespace n on (p.pronamespace = n.oid)
+            where p.oid = any(%s::oid[])
         """,
             (oids,),
         )
         procedures: list[Procedure] = []
-        for row in await cur.fetchone():
+        for row in await cur.fetchall():
             procedures.append(Procedure.model_validate(row))
         return procedures

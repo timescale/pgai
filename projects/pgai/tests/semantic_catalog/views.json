@@ -1,0 +1,14 @@
+{
+  "flight_summary": {
+    "schema_name": "postgres_air",
+    "view_name": "flight_summary",
+    "is_materialized": false,
+    "definition": " SELECT flight_no,\n    departure_airport,\n    arrival_airport,\n    scheduled_departure\n   FROM postgres_air.flight;"
+  },
+  "passenger_details": {
+    "schema_name": "postgres_air",
+    "view_name": "passenger_details",
+    "is_materialized": false,
+    "definition": " SELECT p.first_name,\n    p.last_name,\n    b.booking_ref\n   FROM postgres_air.passenger p\n     JOIN postgres_air.booking b ON p.booking_id = b.booking_id;"
+  }
+}

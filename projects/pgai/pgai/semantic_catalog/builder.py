@@ -76,7 +76,7 @@ async def find_views(
         return [int(row[0]) for row in await cur.fetchall()]
 
 
-async def find_procs(
+async def find_procedures(
     con: psycopg.AsyncConnection,
     include_schema: str | None = None,
     exclude_schema: str | None = None,

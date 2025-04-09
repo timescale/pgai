@@ -178,6 +178,6 @@ async def test_find_procs(container: PostgresContainer):
     ) as con:
         for test in tests:
             args, expected = test
-            oids = await builder.find_procs(con, **args)
+            oids = await builder.find_procedures(con, **args)
             actual = await get_proc_names(con, oids)
             assert actual == expected, f"find_procs with {args} failed"

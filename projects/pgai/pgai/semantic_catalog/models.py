@@ -43,6 +43,6 @@ class Table(BaseModel):
     schema_name: str
     table_name: str
     persistence: Literal["temporary", "unlogged"] | None = None
-    columns: list[Column]
-    constraints: list[Constraint]
-    indexes: list[Index]
+    columns: list[Column] | None = None
+    constraints: list[Constraint] | None = None
+    indexes: list[Index] | None = None
