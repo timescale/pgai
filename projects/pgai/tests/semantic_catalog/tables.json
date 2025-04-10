@@ -1,39 +1,52 @@
 {
   "aircraft": {
+    "classid": 1259,
+    "objid": 23528,
+    "objsubid": 0,
     "schema_name": "postgres_air",
     "table_name": "aircraft",
     "persistence": null,
     "columns": [
       {
-        "num": 1,
+        "classid": 1259,
+        "objid": 23528,
+        "objsubid": 1,
         "name": "model",
         "type": "text",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 2,
+        "classid": 1259,
+        "objid": 23528,
+        "objsubid": 2,
         "name": "range",
         "type": "numeric",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 3,
+        "classid": 1259,
+        "objid": 23528,
+        "objsubid": 3,
         "name": "class",
         "type": "integer",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 4,
+        "classid": 1259,
+        "objid": 23528,
+        "objsubid": 4,
         "name": "velocity",
         "type": "numeric",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 5,
+        "classid": 1259,
+        "objid": 23528,
+        "objsubid": 5,
         "name": "code",
         "type": "text",
         "is_not_null": true,
@@ -49,82 +62,107 @@
     "indexes": null
   },
   "flight": {
+    "classid": 1259,
+    "objid": 23555,
+    "objsubid": 0,
     "schema_name": "postgres_air",
     "table_name": "flight",
     "persistence": null,
     "columns": [
       {
-        "num": 1,
+        "classid": 1259,
+        "objid": 23555,
+        "objsubid": 1,
         "name": "flight_id",
         "type": "integer",
         "is_not_null": true,
         "default_value": "nextval('postgres_air.flight_flight_id_seq'::regclass)"
       },
       {
-        "num": 2,
+        "classid": 1259,
+        "objid": 23555,
+        "objsubid": 2,
         "name": "flight_no",
         "type": "text",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 3,
+        "classid": 1259,
+        "objid": 23555,
+        "objsubid": 3,
         "name": "scheduled_departure",
         "type": "timestamp with time zone",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 4,
+        "classid": 1259,
+        "objid": 23555,
+        "objsubid": 4,
         "name": "scheduled_arrival",
         "type": "timestamp with time zone",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 5,
+        "classid": 1259,
+        "objid": 23555,
+        "objsubid": 5,
         "name": "departure_airport",
         "type": "character(3)",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 6,
+        "classid": 1259,
+        "objid": 23555,
+        "objsubid": 6,
         "name": "arrival_airport",
         "type": "character(3)",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 7,
+        "classid": 1259,
+        "objid": 23555,
+        "objsubid": 7,
         "name": "status",
         "type": "text",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 8,
+        "classid": 1259,
+        "objid": 23555,
+        "objsubid": 8,
         "name": "aircraft_code",
         "type": "character(3)",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 9,
+        "classid": 1259,
+        "objid": 23555,
+        "objsubid": 9,
         "name": "actual_departure",
         "type": "timestamp with time zone",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 10,
+        "classid": 1259,
+        "objid": 23555,
+        "objsubid": 10,
         "name": "actual_arrival",
         "type": "timestamp with time zone",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 11,
+        "classid": 1259,
+        "objid": 23555,
+        "objsubid": 11,
         "name": "update_ts",
         "type": "timestamp with time zone",
         "is_not_null": false,
@@ -152,68 +190,89 @@
     "indexes": null
   },
   "airport": {
+    "classid": 1259,
+    "objid": 23533,
+    "objsubid": 0,
     "schema_name": "postgres_air",
     "table_name": "airport",
     "persistence": null,
     "columns": [
       {
-        "num": 1,
+        "classid": 1259,
+        "objid": 23533,
+        "objsubid": 1,
         "name": "airport_code",
         "type": "character(3)",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 2,
+        "classid": 1259,
+        "objid": 23533,
+        "objsubid": 2,
         "name": "airport_name",
         "type": "text",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 3,
+        "classid": 1259,
+        "objid": 23533,
+        "objsubid": 3,
         "name": "city",
         "type": "text",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 4,
+        "classid": 1259,
+        "objid": 23533,
+        "objsubid": 4,
         "name": "airport_tz",
         "type": "text",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 5,
+        "classid": 1259,
+        "objid": 23533,
+        "objsubid": 5,
         "name": "continent",
         "type": "text",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 6,
+        "classid": 1259,
+        "objid": 23533,
+        "objsubid": 6,
         "name": "iso_country",
         "type": "text",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 7,
+        "classid": 1259,
+        "objid": 23533,
+        "objsubid": 7,
         "name": "iso_region",
         "type": "text",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 8,
+        "classid": 1259,
+        "objid": 23533,
+        "objsubid": 8,
         "name": "intnl",
         "type": "boolean",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 9,
+        "classid": 1259,
+        "objid": 23533,
+        "objsubid": 9,
         "name": "update_ts",
         "type": "timestamp with time zone",
         "is_not_null": false,
@@ -229,47 +288,62 @@
     "indexes": null
   },
   "account": {
+    "classid": 1259,
+    "objid": 23522,
+    "objsubid": 0,
     "schema_name": "postgres_air",
     "table_name": "account",
     "persistence": null,
     "columns": [
       {
-        "num": 1,
+        "classid": 1259,
+        "objid": 23522,
+        "objsubid": 1,
         "name": "account_id",
         "type": "integer",
         "is_not_null": true,
         "default_value": "nextval('postgres_air.account_account_id_seq'::regclass)"
       },
       {
-        "num": 2,
+        "classid": 1259,
+        "objid": 23522,
+        "objsubid": 2,
         "name": "login",
         "type": "text",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 3,
+        "classid": 1259,
+        "objid": 23522,
+        "objsubid": 3,
         "name": "first_name",
         "type": "text",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 4,
+        "classid": 1259,
+        "objid": 23522,
+        "objsubid": 4,
         "name": "last_name",
         "type": "text",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 5,
+        "classid": 1259,
+        "objid": 23522,
+        "objsubid": 5,
         "name": "frequent_flyer_id",
         "type": "integer",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 6,
+        "classid": 1259,
+        "objid": 23522,
+        "objsubid": 6,
         "name": "update_ts",
         "type": "timestamp with time zone",
         "is_not_null": false,
@@ -289,61 +363,80 @@
     "indexes": null
   },
   "booking": {
+    "classid": 1259,
+    "objid": 23545,
+    "objsubid": 0,
     "schema_name": "postgres_air",
     "table_name": "booking",
     "persistence": null,
     "columns": [
       {
-        "num": 1,
+        "classid": 1259,
+        "objid": 23545,
+        "objsubid": 1,
         "name": "booking_id",
         "type": "bigint",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 2,
+        "classid": 1259,
+        "objid": 23545,
+        "objsubid": 2,
         "name": "booking_ref",
         "type": "text",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 3,
+        "classid": 1259,
+        "objid": 23545,
+        "objsubid": 3,
         "name": "booking_name",
         "type": "text",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 4,
+        "classid": 1259,
+        "objid": 23545,
+        "objsubid": 4,
         "name": "account_id",
         "type": "integer",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 5,
+        "classid": 1259,
+        "objid": 23545,
+        "objsubid": 5,
         "name": "email",
         "type": "text",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 6,
+        "classid": 1259,
+        "objid": 23545,
+        "objsubid": 6,
         "name": "phone",
         "type": "text",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 7,
+        "classid": 1259,
+        "objid": 23545,
+        "objsubid": 7,
         "name": "update_ts",
         "type": "timestamp with time zone",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 8,
+        "classid": 1259,
+        "objid": 23545,
+        "objsubid": 8,
         "name": "price",
         "type": "numeric(7,2)",
         "is_not_null": false,
@@ -372,47 +465,62 @@
     ]
   },
   "booking_leg": {
+    "classid": 1259,
+    "objid": 23550,
+    "objsubid": 0,
     "schema_name": "postgres_air",
     "table_name": "booking_leg",
     "persistence": null,
     "columns": [
       {
-        "num": 1,
+        "classid": 1259,
+        "objid": 23550,
+        "objsubid": 1,
         "name": "booking_leg_id",
         "type": "integer",
         "is_not_null": true,
         "default_value": "nextval('postgres_air.booking_leg_booking_leg_id_seq'::regclass)"
       },
       {
-        "num": 2,
+        "classid": 1259,
+        "objid": 23550,
+        "objsubid": 2,
         "name": "booking_id",
         "type": "integer",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 3,
+        "classid": 1259,
+        "objid": 23550,
+        "objsubid": 3,
         "name": "flight_id",
         "type": "integer",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 4,
+        "classid": 1259,
+        "objid": 23550,
+        "objsubid": 4,
         "name": "leg_num",
         "type": "integer",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 5,
+        "classid": 1259,
+        "objid": 23550,
+        "objsubid": 5,
         "name": "is_returning",
         "type": "boolean",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 6,
+        "classid": 1259,
+        "objid": 23550,
+        "objsubid": 6,
         "name": "update_ts",
         "type": "timestamp with time zone",
         "is_not_null": false,
@@ -436,54 +544,71 @@
     "indexes": null
   },
   "boarding_pass": {
+    "classid": 1259,
+    "objid": 23539,
+    "objsubid": 0,
     "schema_name": "postgres_air",
     "table_name": "boarding_pass",
     "persistence": null,
     "columns": [
       {
-        "num": 1,
+        "classid": 1259,
+        "objid": 23539,
+        "objsubid": 1,
         "name": "pass_id",
         "type": "integer",
         "is_not_null": true,
         "default_value": "nextval('postgres_air.boarding_pass_pass_id_seq'::regclass)"
       },
       {
-        "num": 2,
+        "classid": 1259,
+        "objid": 23539,
+        "objsubid": 2,
         "name": "passenger_id",
         "type": "bigint",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 3,
+        "classid": 1259,
+        "objid": 23539,
+        "objsubid": 3,
         "name": "booking_leg_id",
         "type": "bigint",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 4,
+        "classid": 1259,
+        "objid": 23539,
+        "objsubid": 4,
         "name": "seat",
         "type": "text",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 5,
+        "classid": 1259,
+        "objid": 23539,
+        "objsubid": 5,
         "name": "boarding_time",
         "type": "timestamp with time zone",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 6,
+        "classid": 1259,
+        "objid": 23539,
+        "objsubid": 6,
         "name": "precheck",
         "type": "boolean",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 7,
+        "classid": 1259,
+        "objid": 23539,
+        "objsubid": 7,
         "name": "update_ts",
         "type": "timestamp with time zone",
         "is_not_null": false,
@@ -507,75 +632,98 @@
     "indexes": null
   },
   "frequent_flyer": {
+    "classid": 1259,
+    "objid": 23561,
+    "objsubid": 0,
     "schema_name": "postgres_air",
     "table_name": "frequent_flyer",
     "persistence": null,
     "columns": [
       {
-        "num": 1,
+        "classid": 1259,
+        "objid": 23561,
+        "objsubid": 1,
         "name": "frequent_flyer_id",
         "type": "integer",
         "is_not_null": true,
         "default_value": "nextval('postgres_air.frequent_flyer_frequent_flyer_id_seq'::regclass)"
       },
       {
-        "num": 2,
+        "classid": 1259,
+        "objid": 23561,
+        "objsubid": 2,
         "name": "first_name",
         "type": "text",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 3,
+        "classid": 1259,
+        "objid": 23561,
+        "objsubid": 3,
         "name": "last_name",
         "type": "text",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 4,
+        "classid": 1259,
+        "objid": 23561,
+        "objsubid": 4,
         "name": "title",
         "type": "text",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 5,
+        "classid": 1259,
+        "objid": 23561,
+        "objsubid": 5,
         "name": "card_num",
         "type": "text",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 6,
+        "classid": 1259,
+        "objid": 23561,
+        "objsubid": 6,
         "name": "level",
         "type": "integer",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 7,
+        "classid": 1259,
+        "objid": 23561,
+        "objsubid": 7,
         "name": "award_points",
         "type": "integer",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 8,
+        "classid": 1259,
+        "objid": 23561,
+        "objsubid": 8,
         "name": "email",
         "type": "text",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 9,
+        "classid": 1259,
+        "objid": 23561,
+        "objsubid": 9,
         "name": "phone",
         "type": "text",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 10,
+        "classid": 1259,
+        "objid": 23561,
+        "objsubid": 10,
         "name": "update_ts",
         "type": "timestamp with time zone",
         "is_not_null": false,
@@ -591,68 +739,89 @@
     "indexes": null
   },
   "passenger": {
+    "classid": 1259,
+    "objid": 23567,
+    "objsubid": 0,
     "schema_name": "postgres_air",
     "table_name": "passenger",
     "persistence": null,
     "columns": [
       {
-        "num": 1,
+        "classid": 1259,
+        "objid": 23567,
+        "objsubid": 1,
         "name": "passenger_id",
         "type": "integer",
         "is_not_null": true,
         "default_value": "nextval('postgres_air.passenger_passenger_id_seq'::regclass)"
       },
       {
-        "num": 2,
+        "classid": 1259,
+        "objid": 23567,
+        "objsubid": 2,
         "name": "booking_id",
         "type": "integer",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 3,
+        "classid": 1259,
+        "objid": 23567,
+        "objsubid": 3,
         "name": "booking_ref",
         "type": "text",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 4,
+        "classid": 1259,
+        "objid": 23567,
+        "objsubid": 4,
         "name": "passenger_no",
         "type": "integer",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 5,
+        "classid": 1259,
+        "objid": 23567,
+        "objsubid": 5,
         "name": "first_name",
         "type": "text",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 6,
+        "classid": 1259,
+        "objid": 23567,
+        "objsubid": 6,
         "name": "last_name",
         "type": "text",
         "is_not_null": true,
         "default_value": null
       },
       {
-        "num": 7,
+        "classid": 1259,
+        "objid": 23567,
+        "objsubid": 7,
         "name": "account_id",
         "type": "integer",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 8,
+        "classid": 1259,
+        "objid": 23567,
+        "objsubid": 8,
         "name": "update_ts",
         "type": "timestamp with time zone",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 9,
+        "classid": 1259,
+        "objid": 23567,
+        "objsubid": 9,
         "name": "age",
         "type": "integer",
         "is_not_null": false,
@@ -680,47 +849,62 @@
     "indexes": null
   },
   "phone": {
+    "classid": 1259,
+    "objid": 23573,
+    "objsubid": 0,
     "schema_name": "postgres_air",
     "table_name": "phone",
     "persistence": null,
     "columns": [
       {
-        "num": 1,
+        "classid": 1259,
+        "objid": 23573,
+        "objsubid": 1,
         "name": "phone_id",
         "type": "integer",
         "is_not_null": true,
         "default_value": "nextval('postgres_air.phone_phone_id_seq'::regclass)"
       },
       {
-        "num": 2,
+        "classid": 1259,
+        "objid": 23573,
+        "objsubid": 2,
         "name": "account_id",
         "type": "integer",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 3,
+        "classid": 1259,
+        "objid": 23573,
+        "objsubid": 3,
         "name": "phone",
         "type": "text",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 4,
+        "classid": 1259,
+        "objid": 23573,
+        "objsubid": 4,
         "name": "phone_type",
         "type": "text",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 5,
+        "classid": 1259,
+        "objid": 23573,
+        "objsubid": 5,
         "name": "primary_phone",
         "type": "boolean",
         "is_not_null": false,
         "default_value": null
       },
       {
-        "num": 6,
+        "classid": 1259,
+        "objid": 23573,
+        "objsubid": 6,
         "name": "update_ts",
         "type": "timestamp with time zone",
         "is_not_null": false,

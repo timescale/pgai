@@ -144,7 +144,7 @@ async def gen_tables_json(container: PostgresContainer):
         oids = await builder.find_tables(con)
         tables = await loader.load_tables(con, oids)
         for table in tables:
-            stuff[table.table_name] = table.dict(exclude={"id"})
+            stuff[table.table_name] = table.model_dump()
     Path(__file__).parent.joinpath("tables.json").write_text(
         json.dumps(stuff, indent=2)
     )
@@ -158,7 +158,7 @@ async def gen_views_json(container: PostgresContainer):
         oids = await builder.find_views(con)
         views = await loader.load_views(con, oids)
         for view in views:
-            stuff[view.view_name] = view.dict(exclude={"id"})
+            stuff[view.view_name] = view.model_dump()
     Path(__file__).parent.joinpath("views.json").write_text(json.dumps(stuff, indent=2))
 
 
@@ -170,7 +170,7 @@ async def gen_procs_json(container: PostgresContainer):
         oids = await builder.find_procedures(con)
         procs = await loader.load_procedures(con, oids)
         for proc in procs:
-            stuff[proc.proc_name] = proc.dict(exclude={"id"})
+            stuff[proc.proc_name] = proc.dict()
     Path(__file__).parent.joinpath("procedures.json").write_text(
         json.dumps(stuff, indent=2)
     )
@@ -178,7 +178,7 @@ async def gen_procs_json(container: PostgresContainer):
 
 def get_tables() -> dict[str, Table]:
     raw: dict = json.loads(Path(__file__).parent.joinpath("tables.json").read_text())
-    return {k: Table(id=None, **v) for k, v in raw.items()}
+    return {k: Table(**v) for k, v in raw.items()}
 
 
 def get_views() -> dict[str, View]:

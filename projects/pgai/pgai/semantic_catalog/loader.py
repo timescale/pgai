@@ -16,7 +16,8 @@ async def load_tables(con: psycopg.AsyncConnection, oids: list[int]) -> list[Tab
             with x as
             (
                 select
-                  k.oid as id
+                  'pg_catalog.pg_class'::regclass::oid as classid
+                , k.oid as objid
                 , n.nspname as schema_name
                 , k.relname as table_name
                 , case k.relpersistence
@@ -27,7 +28,9 @@ async def load_tables(con: psycopg.AsyncConnection, oids: list[int]) -> list[Tab
                     select jsonb_agg
                     (
                       jsonb_build_object
-                      ( 'num', a.attnum
+                      ( 'classid', 'pg_catalog.pg_class'::regclass::oid
+                      , 'objid', k.oid
+                      , 'objsubid', a.attnum
                       , 'name', a.attname
                       , 'type', pg_catalog.format_type(a.atttypid, a.atttypmod)
                       , 'is_not_null', a.attnotnull
@@ -91,11 +94,33 @@ async def load_views(con: psycopg.AsyncConnection, oids: list[int]) -> list[View
         await cur.execute(
             """\
             select
-              k.oid as id
+              'pg_catalog.pg_class'::regclass::oid as classid
+            , k.oid as objid
             , n.nspname as schema_name
             , k.relname as view_name
             , k.relkind = 'm' as is_materialized
             , pg_get_viewdef(k.oid, true) as definition
+            , ( -- columns
+                select jsonb_agg
+                (
+                  jsonb_build_object
+                  ( 'classid', 'pg_catalog.pg_class'::regclass::oid
+                  , 'objid', k.oid
+                  , 'objsubid', a.attnum
+                  , 'name', a.attname
+                  , 'type', pg_catalog.format_type(a.atttypid, a.atttypmod)
+                  , 'is_not_null', a.attnotnull
+                  , 'default_value', null::text
+                  )
+                  order by a.attnum
+                )
+                from pg_attribute a
+                left outer join pg_attrdef d
+                    on (a.attrelid = d.adrelid and a.attnum = d.adnum)
+                where a.attrelid = k.oid
+                and a.attnum > 0
+                and not a.attisdropped
+              ) as columns
             from pg_class k
             inner join pg_namespace n on (k.relnamespace = n.oid)
             where k.oid = any(%s::oid[])
@@ -117,7 +142,8 @@ async def load_procedures(
         await cur.execute(
             """\
             select
-              p.oid as id
+              'pg_catalog.pg_proc'::regclass::oid as classid
+            , p.oid as objid
             , n.nspname as schema_name
             , p.proname as proc_name
             , case p.prokind
@@ -128,8 +154,14 @@ async def load_procedures(
               end as kind
             , pg_get_function_identity_arguments(p.oid) as identity_args
             , pg_get_functiondef(p.oid) as definition
+            , x.object_args as objargs
             from pg_proc p
             inner join pg_namespace n on (p.pronamespace = n.oid)
+            cross join lateral pg_identify_object_as_address
+            ( 'pg_catalog.pg_proc'::regclass::oid
+            , p.oid
+            , 0
+            ) x
             where p.oid = any(%s::oid[])
         """,
             (oids,),

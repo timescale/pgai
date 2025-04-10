@@ -4,7 +4,9 @@ import logging
 import os
 import signal
 import sys
+import typing
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 
 import click
@@ -13,7 +15,6 @@ from ddtrace import tracer
 from dotenv import load_dotenv
 from pytimeparse import parse  # type: ignore
 
-import pgai.semantic_catalog.builder
 from .__init__ import __version__
 
 load_dotenv()
@@ -269,8 +270,108 @@ def semantic_catalog():
     show_default=True,
     help="The LLM model to generate descriptions",
 )
-def build(db_url: str, model: str) -> None:
-    asyncio.run(pgai.semantic_catalog.builder.build(db_url, model))
+@click.option(
+    "-c",
+    "--catalog-name",
+    type=click.STRING,
+    default="default",
+    show_default=True,
+    help="The name of the semantic catalog to insert descriptions into",
+)
+@click.option(
+    "--include-schema",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against schema names to be included in output.",
+)
+@click.option(
+    "--exclude-schema",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against schema names to be excluded from output.",
+)
+@click.option(
+    "--include-table",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against table names to be included in output.",
+)
+@click.option(
+    "--exclude-table",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against table names to be excluded from output.",
+)
+@click.option(
+    "--include-view",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against view names to be included in output.",
+)
+@click.option(
+    "--exclude-view",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against view names to be excluded from output.",
+)
+@click.option(
+    "--include-proc",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against procedure/function names to be included in output.",
+)
+@click.option(
+    "--exclude-proc",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against proc names to be excluded from output.",
+)
+@click.option(
+    "-o",
+    "--output",
+    type=click.Path(exists=True, dir_okay=False, writable=True, resolve_path=True),
+    default=None,
+    help="The path to a file to write output to.",
+)
+@click.option(
+    "-a",
+    "--append",
+    type=click.BOOL,
+    default=False,
+    help="Append to the output file instead of overwriting it.",
+)
+def build(
+        db_url: str,
+        model: str,
+        catalog_name: str,
+        include_schema: str | None = None,
+        exclude_schema: str | None = None,
+        include_table: str | None = None,
+        exclude_table: str | None = None,
+        include_view: str | None = None,
+        exclude_view: str | None = None,
+        include_proc: str | None = None,
+        exclude_proc: str | None = None,
+        output: Path | None = None,
+        append: bool = False,
+) -> None:
+    from pgai.semantic_catalog.builder import build
+    # TODO: is async io for stdout/file needed?
+    with (sys.stdout if not output else output.open(mode='a' if append else 'w')) as f:
+        asyncio.run(build(
+            db_url,
+            model,  # noqa
+            catalog_name,
+            f,
+            include_schema,
+            exclude_schema,
+            include_table,
+            exclude_table,
+            include_view,
+            exclude_view,
+            include_proc,
+            exclude_proc,
+        ))
 
 
 cli.add_command(semantic_catalog)

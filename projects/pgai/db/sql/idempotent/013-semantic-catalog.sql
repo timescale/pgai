@@ -418,6 +418,7 @@ declare
     _sql text;
     _id int8;
 begin
+    -- TODO: add on conflict update logic
     select format
     ( $sql$
         insert into ai.semantic_catalog_obj_%s
