@@ -1,5 +1,5 @@
 import os
-from collections.abc import Sequence
+from collections.abc import AsyncGenerator, Sequence
 from typing import Literal
 
 from pydantic import BaseModel
@@ -72,7 +72,9 @@ class Ollama(BaseModel, BaseURLMixin, Embedder):
     keep_alive: str | None = None  # this is only `str` because of the SQL API
 
     @override
-    async def embed(self, documents: list[str]) -> Sequence[EmbeddingVector]:
+    async def embed(
+        self, documents: list[str]
+    ) -> AsyncGenerator[list[EmbeddingVector], None]:
         """
         Embeds a list of documents into vectors using Ollama's embeddings API.
 
@@ -84,7 +86,8 @@ class Ollama(BaseModel, BaseURLMixin, Embedder):
         """
         await logger.adebug(f"Chunks produced: {len(documents)}")
         chunk_lengths = [0 for _ in documents]
-        return await self.batch_chunks_and_embed(documents, chunk_lengths)
+        async for embeddings in self.batch_chunks_and_embed(documents, chunk_lengths):
+            yield embeddings
 
     @override
     def _max_chunks_per_batch(self) -> int:

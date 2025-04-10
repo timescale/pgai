@@ -1,6 +1,6 @@
 import time
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from typing import TypeAlias
 
@@ -82,7 +82,9 @@ class Embedder(ABC):
     """
 
     @abstractmethod
-    async def embed(self, documents: list[str]) -> Sequence[EmbeddingVector]:
+    async def embed(
+        self, documents: list[str]
+    ) -> AsyncGenerator[list[EmbeddingVector], None]:
         """
         Embeds a list of documents into vectors.
 
@@ -91,8 +93,11 @@ class Embedder(ABC):
             to be embedded.
 
         Returns:
-            Sequence[EmbeddingVector]: A sequence of embedding vectors.
+            AsyncGenerator[list[EmbeddingVector], None]: A sequence of
+            embedding vectors.
         """
+        raise NotImplementedError
+        yield ""  # https://github.com/microsoft/pyright/issues/9949
 
     @abstractmethod
     def _max_chunks_per_batch(self) -> int:
@@ -123,7 +128,7 @@ class Embedder(ABC):
 
     async def batch_chunks_and_embed(
         self, documents: list[str], token_counts: list[int]
-    ) -> list[EmbeddingVector]:
+    ) -> AsyncGenerator[list[EmbeddingVector], None]:
         """
         Performs the actual embedding of encoded documents by sending requests
         to the embedding API.
@@ -132,10 +137,10 @@ class Embedder(ABC):
             documents (list[str]): A list of documents.
             token_counts (list[int]): A list of token count for each document, or 0
         Returns:
-            list[EmbeddingVector]: A list of embedding vectors for each document.
+            AsyncGenerator[list[EmbeddingVector], None]: A list of embedding vectors
+            for each document.
         """
         assert len(documents) == len(token_counts)
-        response: list[list[float]] = []
         max_chunks_per_batch = self._max_chunks_per_batch()
         max_tokens_per_batch = self._max_tokens_per_batch()
         batches = batch_indices(
@@ -183,7 +188,7 @@ class Embedder(ABC):
                     )
                     total_duration += request_duration
 
-                    response += response_.embeddings
+                    yield response_.embeddings
 
             embedding_stats.add_request_time(total_duration, len(documents))
             await embedding_stats.print_stats()
@@ -201,8 +206,6 @@ class Embedder(ABC):
                     "embeddings.embedder.all_create_requests.chunks.rate",
                     embedding_stats.chunks_per_second(),
                 )
-
-            return response
 
 
 class BaseURLMixin:
