@@ -3,13 +3,14 @@ from collections.abc import AsyncGenerator
 from functools import cached_property
 from typing import TYPE_CHECKING, Literal
 
+import ijson  # type: ignore
 from pydantic import BaseModel
 from typing_extensions import override
 
 if TYPE_CHECKING:
     import openai
     import tiktoken
-    from openai import resources
+    from openai import AsyncAPIResponse, resources, types
 
 
 from ..embeddings import (
@@ -30,9 +31,28 @@ EMBEDDING_MODEL_CONTEXT_LENGTH = {
     "text-embedding-3-large": 8191,
 }
 
+# ijson reads the input in chunks of buf_size. Since we are wrapping our
+# iterator over the read implementation that ijson requires, we explicitly set
+# the value when calling ijson methods, and use the same value to iterate over
+# the openAI stream response.
+#
+# The value of 64KB is the default from ijson.
+RESPONSE_READ_BUF_SIZE = 64 * 1024
+
 openai_token_length_regex = re.compile(
     r"This model's maximum context length is (\d+) tokens"
 )
+
+
+class ResponseWithRead:
+    def __init__(self, response: "AsyncAPIResponse[types.CreateEmbeddingResponse]"):
+        self.iter = response.iter_bytes(RESPONSE_READ_BUF_SIZE)
+
+    async def read(self, n: int) -> bytes:
+        if n == 0:
+            return b""
+
+        return await anext(self.iter)
 
 
 class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
@@ -71,15 +91,12 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
         return self.user if self.user is not None else openai.NOT_GIVEN
 
     @cached_property
-    def _embedder(self) -> "resources.AsyncEmbeddingsWithRawResponse":
-        # TODO: if we move to a generator base approach we should try
-        # benchmarking with_streaming_response.
-        # Note: deferred import to avoid import overhead
+    def _embedder(self) -> "resources.AsyncEmbeddingsWithStreamingResponse":
         import openai
 
         return openai.AsyncOpenAI(
             base_url=self.base_url, api_key=self._api_key, max_retries=3
-        ).embeddings.with_raw_response
+        ).embeddings.with_streaming_response
 
     @override
     def _max_chunks_per_batch(self) -> int:
@@ -91,20 +108,46 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
 
     @override
     async def call_embed_api(self, documents: list[str]) -> EmbeddingResponse:
-        raw_response = await self._embedder.create(
+        embeddings: list[list[float]] = []
+        current_embedding: list[float] = []
+        total_tokens = 0
+        prompt_tokens = 0
+        async with self._embedder.create(
             input=documents,
             model=self.model,
             dimensions=self._openai_dimensions,
             user=self._openai_user,
             encoding_format="float",
-        )
-        response = raw_response.http_response.json()
-        usage = Usage(
-            prompt_tokens=response["usage"]["prompt_tokens"],
-            total_tokens=response["usage"]["total_tokens"],
-        )
+        ) as streaming_response:
+            # We could simplify by using ijson.item_async:
+            #
+            # async for value in ijson.items(
+            #    ResponseWithRead(raw_response), "data.item.embedding", use_float=True
+            # ):
+            #     embeddings.append(value)
+            #
+            # The problem is that `ijson.items` accepts only one prefix, and we
+            # need to read data from 2, `data.item.embedding` and `usage`.
+            # There's a WIP PR to support this use case:
+            # https://github.com/ICRAR/ijson/pull/127
+            async for prefix, event, value in ijson.parse_async(
+                ResponseWithRead(streaming_response),
+                use_float=True,
+                buf_size=RESPONSE_READ_BUF_SIZE,
+            ):
+                if prefix == "data.item.embedding" and event == "start_array":
+                    current_embedding = []
+                if prefix == "data.item.embedding" and event == "end_array":
+                    embeddings.append(current_embedding)
+                elif prefix == "data.item.embedding.item" and event == "number":
+                    current_embedding.append(value)
+                elif prefix == "usage.prompt_tokens" and event == "number":
+                    prompt_tokens = value
+                elif prefix == "usage.total_tokens" and event == "number":
+                    total_tokens = value
+
         return EmbeddingResponse(
-            embeddings=[r["embedding"] for r in response["data"]], usage=usage
+            embeddings=embeddings, usage=Usage(prompt_tokens, total_tokens)
         )
 
     @override
