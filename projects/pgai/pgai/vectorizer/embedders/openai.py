@@ -1,5 +1,5 @@
 import re
-from collections.abc import Sequence
+from collections.abc import AsyncGenerator
 from functools import cached_property
 from typing import TYPE_CHECKING, Literal
 
@@ -108,7 +108,9 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
         )
 
     @override
-    async def embed(self, documents: list[str]) -> Sequence[EmbeddingVector]:
+    async def embed(
+        self, documents: list[str]
+    ) -> AsyncGenerator[list[EmbeddingVector], None]:
         """
         Embeds a list of documents into vectors using OpenAI's embeddings API.
         The documents are first encoded into tokens before being embedded and
@@ -118,7 +120,8 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
             documents (list[str]): A list of documents to be embedded.
 
         Returns:
-            Sequence[EmbeddingVector]: The embeddings for each document.
+            AsyncGenerator[list[EmbeddingVector], None]: The embeddings for
+            each document.
         """
         await logger.adebug(f"Chunks produced: {len(documents)}")
         encoder = self._encoder
@@ -137,7 +140,8 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
                 token_counts.append(min(context_length, tokenized_length))
         else:
             token_counts = [0 for _ in documents]
-        return await self.batch_chunks_and_embed(documents, token_counts)
+        async for embeddings in self.batch_chunks_and_embed(documents, token_counts):
+            yield embeddings
 
     @cached_property
     def _encoder(self) -> "tiktoken.Encoding | None":

@@ -4,9 +4,10 @@ import os
 import sys
 import threading
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import AsyncGenerator, Callable, Sequence
 from functools import cached_property, partial
-from typing import Any, TypeAlias
+from itertools import islice
+from typing import Any, TypeAlias, TypeVar
 from uuid import UUID
 
 import psycopg
@@ -684,6 +685,22 @@ class ProcessingStats:
         )
 
 
+T = TypeVar("T")
+
+
+def flexible_take(iterable: list[T]) -> Callable[[int], list[T]]:
+    """Creates a function that takes n elements from the iterable each time
+    it's called."""
+    # Convert to iterator if it's not already one
+    iterator = iter(iterable)
+
+    def take(n: int):
+        # Convert to list so we get exactly what was requested
+        return list(islice(iterator, n))
+
+    return take
+
+
 class UUIDEncoder(json.JSONEncoder):
     """A JSON encoder which can dump UUID."""
 
@@ -941,12 +958,13 @@ class Worker:
         """
 
         await self._delete_embeddings(conn, items)
-        records, loading_errors = await self._generate_embeddings(items)
-        if self.features.loading_retries and loading_errors:
-            await self.handle_loading_retries(conn, loading_errors)
-        await self._copy_embeddings(conn, records)
-
-        return len(records)
+        count = 0
+        async for records, loading_errors in self._generate_embeddings(items):
+            if loading_errors:
+                await self.handle_loading_retries(conn, loading_errors)
+            await self._copy_embeddings(conn, records)
+            count += len(records)
+        return count
 
     async def _delete_embeddings(self, conn: AsyncConnection, items: list[SourceRow]):
         """
@@ -1035,9 +1053,8 @@ class Worker:
 
     async def _generate_embeddings(
         self, items: list[SourceRow]
-    ) -> tuple[
-        list[EmbeddingRecord],
-        list[tuple[SourceRow, LoadingError]],
+    ) -> AsyncGenerator[
+        tuple[list[EmbeddingRecord], list[tuple[SourceRow, LoadingError]]], None
     ]:
         """
         Generates the embeddings for the given items.
@@ -1046,8 +1063,12 @@ class Worker:
             items (list[SourceRow]): The items to generate embeddings for.
 
         Returns:
-            tuple[list[EmbeddingRecord], list[VectorizerErrorRecord]]: A tuple
-                of embedding records and error records.
+            AsyncGenerator[
+                tuple[
+                    list[EmbeddingRecord],
+                    list[tuple[SourceRow, LoadingError]],
+                ], None
+            ]: A tuple of embedding records and error records.
         """
         # Note: deferred import to avoid import overhead
         import numpy as np
@@ -1071,19 +1092,20 @@ class Worker:
                 records_without_embeddings.append(pk_values + [chunk_id, formatted])
                 documents.append(formatted)
 
+        if loading_errors:
+            yield [], loading_errors
+
         try:
-            embeddings = await self.vectorizer.config.embedding.embed(documents)
+            rwe_take = flexible_take(records_without_embeddings)
+            async for embeddings in self.vectorizer.config.embedding.embed(documents):
+                records: list[EmbeddingRecord] = []
+                for record, embedding in zip(
+                    rwe_take(len(embeddings)), embeddings, strict=True
+                ):
+                    records.append(record + [np.array(embedding)])
+                yield records, []
         except Exception as e:
             raise EmbeddingProviderError() from e
-
-        assert len(embeddings) == len(records_without_embeddings)
-
-        records: list[EmbeddingRecord] = []
-        for record, embedding in zip(
-            records_without_embeddings, embeddings, strict=True
-        ):
-            records.append(record + [np.array(embedding)])
-        return records, loading_errors
 
     async def handle_loading_retries(
         self,
