@@ -18,7 +18,7 @@ MigrationFunc = Callable[[C], dict[str, Any]]
 @dataclass
 class Migration(Generic[C]):
     version: str  # target version
-    source_config_class: type[C]  # config dataclass for the source version
+    source_vectorizer_class: type[C]  # config dataclass for the source version
     apply: MigrationFunc[C]
     description: str = ""
 
@@ -30,7 +30,7 @@ MigrationDecorator = Callable[[MigrationFunc[C]], MigrationFunc[C]]
 
 
 def register_migration(
-    version: str, source_config_class: type[C], description: str = ""
+    version: str, source_vectorizer_class: type[C], description: str = ""
 ) -> MigrationDecorator[C]:
     """
     Decorator to register a migration function with
@@ -41,7 +41,7 @@ def register_migration(
         migrations.append(
             Migration(
                 version=version,
-                source_config_class=source_config_class,
+                source_vectorizer_class=source_vectorizer_class,
                 apply=func,
                 description=description,
             )
@@ -73,14 +73,18 @@ def apply_migrations(data: dict[str, Any]) -> dict[str, Any]:
         return data
 
     # determine starting version
-    current_version = data.get("version")
-    if current_version is None:
+    config_dict = data.get("config")
+    if config_dict is None:
+        logger.warning("Unable to migrate configuration: 'config' field missing")
+        return data
+    original_version = config_dict.get("version")
+    if original_version is None:
         logger.warning("Unable to migrate configuration: 'version' field missing")
         return data
 
-    current_version = current_version.replace("-dev", "")
+    original_version = original_version.replace("-dev", "")
 
-    current = semver.VersionInfo.parse(current_version)
+    current = semver.VersionInfo.parse(original_version)
     latest = semver.VersionInfo.parse(get_latest_version())
 
     # no migrations needed if already at latest
@@ -94,6 +98,7 @@ def apply_migrations(data: dict[str, Any]) -> dict[str, Any]:
         m for m in migrations if current < semver.VersionInfo.parse(m.version)
     ]
 
+    current_version = original_version
     # migrations are applied sequentially
     for migration in applicable_migrations:
         logger.info(
@@ -103,14 +108,16 @@ def apply_migrations(data: dict[str, Any]) -> dict[str, Any]:
         )
 
         # instantiate config class for this version so we can validate the input
-        config_instance = migration.source_config_class(**result)
+        vectorizer_instance = migration.source_vectorizer_class(**result)
 
-        result = migration.apply(config_instance)
+        result = migration.apply(vectorizer_instance)
 
         # updating the version after each successful migration so we
         # don't re-apply migrations
         current_version = migration.version
-        result["version"] = migration.version
+        result["config"]["version"] = migration.version
+
+    result["config"]["original_version"] = original_version
 
     return result
 
