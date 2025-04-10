@@ -327,7 +327,7 @@ class ProcProcessor(Processor):
             if sig == signal.SIGINT:
                 signame = signal.Signals(signal.SIGINT).name
                 logger.info(f"received {signame} in ProcProcessor, exiting")
-                sys.exit(1)
+                raise KeyboardInterrupt
 
         for sig in (signal.SIGINT, signal.SIGTERM):
             loop.add_signal_handler(
@@ -349,10 +349,14 @@ class ProcProcessor(Processor):
     ) -> Exception | None:
         import asyncio
 
-        result: Exception | None = asyncio.run(
-            processor._run_inside_new_process(result_queue)
-        )
-        result_queue.put(ProcProcessor.ShutdownMsg(result))
+        try:
+            result: Exception | None = asyncio.run(
+                processor._run_inside_new_process(result_queue)
+            )
+        except KeyboardInterrupt as e:
+            result = e
+        finally:
+            result_queue.put(ProcProcessor.ShutdownMsg(result))
         return result
 
     def run_in_new_process(self):
