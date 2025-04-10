@@ -970,10 +970,15 @@ class Worker:
         Args:
             conn (AsyncConnection): The database connection.
         """
+        target_columns: list[str] = list(self.queries.pk_attnames) + [
+            "chunk_seq",
+            "chunk",
+            "embedding",
+        ]
         async with conn.cursor() as cursor:
             await cursor.execute(
                 """
-                select a.atttypid
+                select a.attname, a.atttypid
                 from pg_catalog.pg_class k
                 inner join pg_catalog.pg_namespace n
                     on (k.relnamespace operator(pg_catalog.=) n.oid)
@@ -981,13 +986,17 @@ class Worker:
                     on (k.oid operator(pg_catalog.=) a.attrelid)
                 where n.nspname operator(pg_catalog.=) %s
                 and k.relname operator(pg_catalog.=) %s
-                and a.attname operator(pg_catalog.!=) 'embedding_uuid'
+                AND a.attname = ANY(%s)
                 and a.attnum operator(pg_catalog.>) 0
-                order by a.attnum
             """,
-                (self.vectorizer.target_schema, self.vectorizer.target_table),
+                (
+                    self.vectorizer.target_schema,
+                    self.vectorizer.target_table,
+                    target_columns,
+                ),
             )
-            self.copy_types = [row[0] for row in await cursor.fetchall()]
+            column_name_to_type = {row[0]: row[1] for row in await cursor.fetchall()}
+            self.copy_types = [column_name_to_type[col] for col in target_columns]
         assert self.copy_types is not None
         # len(source_pk) + chunk_seq + chunk + embedding
         assert len(self.copy_types) == len(self.vectorizer.source_pk) + 3
