@@ -19,4 +19,4 @@ projects/pgai/db/tests/dump_restore/dst.snapshot
 projects/extension/tests/*/*.actual
 projects/extension/tests/upgrade/*.snapshot
 dist
-wiki.dump
+projects/pgai/benchmark/results
