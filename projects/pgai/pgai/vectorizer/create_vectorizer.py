@@ -7,7 +7,10 @@ from typing import Any
 # Dynamic imports based on parameter types
 from .configuration import (
     ChunkingCharacterTextSplitterConfig,
+    ChunkingNoneConfig,
     ChunkingRecursiveCharacterTextSplitterConfig,
+    DestinationColumnConfig,
+    DestinationTableConfig,
     EmbeddingLitellmConfig,
     EmbeddingOllamaConfig,
     EmbeddingOpenaiConfig,
@@ -36,7 +39,7 @@ class CreateVectorizer:
     """Parameters for ai.create_vectorizer function"""
 
     source: str
-    destination: str | None = None
+    destination: DestinationColumnConfig | DestinationTableConfig | None = None
     loading: LoadingColumnConfig | LoadingUriConfig | None = None
     parsing: (
         ParsingAutoConfig
@@ -54,6 +57,7 @@ class CreateVectorizer:
     ) = None
     chunking: (
         ChunkingCharacterTextSplitterConfig
+        | ChunkingNoneConfig
         | ChunkingRecursiveCharacterTextSplitterConfig
         | None
     ) = None
@@ -72,10 +76,6 @@ class CreateVectorizer:
         | None
     ) = None
     processing: ProcessingDefaultConfig | None = None
-    target_schema: str | None = None
-    target_table: str | None = None
-    view_schema: str | None = None
-    view_name: str | None = None
     queue_schema: str | None = None
     queue_table: str | None = None
     grant_to: Any | None = None
