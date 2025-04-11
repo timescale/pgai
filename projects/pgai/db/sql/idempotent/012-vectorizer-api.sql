@@ -2,7 +2,7 @@
 -- create_vectorizer
 create or replace function ai.create_vectorizer
 ( source pg_catalog.regclass
-, destination pg_catalog.jsonb default ai.destination_default()
+, destination pg_catalog.jsonb default ai.destination_table()
 , loading pg_catalog.jsonb default null
 , parsing pg_catalog.jsonb default ai.parsing_auto()
 , embedding pg_catalog.jsonb default null

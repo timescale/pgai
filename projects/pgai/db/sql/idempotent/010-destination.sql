@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
--- destination_custom
-create or replace function ai.destination_default
+-- destination_table
+create or replace function ai.destination_table
 (
     destination pg_catalog.name default null
     , target_schema pg_catalog.name default null
@@ -24,8 +24,8 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- destination_source
-create or replace function ai.destination_source
+-- destination_column
+create or replace function ai.destination_column
 (
     embedding_column pg_catalog.name
 ) returns pg_catalog.jsonb

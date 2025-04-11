@@ -87,7 +87,7 @@ def test_create_vectorizer_privileges():
                 select ai.create_vectorizer(
                     'blog'
                   , loading => ai.loading_column('content')
-                  , destination=>ai.destination_default('base_vectorizer')
+                  , destination=>ai.destination_table('base_vectorizer')
                   , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
                   , chunking=>ai.chunking_character_text_splitter(128, 10)
                   , scheduling=>ai.scheduling_none()
@@ -102,7 +102,7 @@ def test_create_vectorizer_privileges():
                   select ai.create_vectorizer(
                     'blog'
                   , loading => ai.loading_column('content')
-                  , destination=> ai.destination_default('member_vectorizer')
+                  , destination=> ai.destination_table('member_vectorizer')
                   , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
                   , chunking=>ai.chunking_character_text_splitter(128, 10)
                   , scheduling=>ai.scheduling_none()

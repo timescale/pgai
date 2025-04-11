@@ -25,7 +25,7 @@ from .chunking import (
     LangChainRecursiveCharacterTextSplitter,
     NoneChunker,
 )
-from .destination import DefaultDestination, SourceDestination
+from .destination import ColumnDestination, TableDestination
 from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
@@ -92,7 +92,7 @@ class Config(BaseModel):
     loading: ColumnLoading | UriLoading
     embedding: OpenAI | Ollama | VoyageAI | LiteLLM
     processing: ProcessingDefault
-    destination: DefaultDestination | SourceDestination = Field(
+    destination: TableDestination | ColumnDestination = Field(
         ..., discriminator="implementation"
     )
     chunking: (
@@ -269,7 +269,7 @@ class VectorizerQueryBuilder:
         """
         Returns the SQL identifier for the fully qualified name of the target table.
         """
-        assert isinstance(self.vectorizer.config.destination, DefaultDestination)
+        assert isinstance(self.vectorizer.config.destination, TableDestination)
         return sql.Identifier(
             self.vectorizer.config.destination.target_schema,
             self.vectorizer.config.destination.target_table,
@@ -545,8 +545,8 @@ class VectorizerQueryBuilder:
 
     @cached_property
     def update_embedding_query(self) -> sql.Composed:
-        """Returns a SQL query to update the embedding column (for SourceDestination)"""
-        assert isinstance(self.vectorizer.config.destination, SourceDestination)
+        """Returns a SQL query to update the embedding column (for ColumnDestination)"""
+        assert isinstance(self.vectorizer.config.destination, ColumnDestination)
         return sql.SQL("UPDATE {} SET {} = %s WHERE ({}) = ({})").format(
             self.source_table_ident,
             sql.Identifier(self.vectorizer.config.destination.embedding_column),
@@ -993,7 +993,7 @@ class Worker:
         Args:
             conn (AsyncConnection): The database connection.
         """
-        assert isinstance(self.vectorizer.config.destination, DefaultDestination)
+        assert isinstance(self.vectorizer.config.destination, TableDestination)
         target_schema = self.vectorizer.config.destination.target_schema
         target_table = self.vectorizer.config.destination.target_table
 
@@ -1038,8 +1038,8 @@ class Worker:
         """
         Inserts embeddings into the target table.
 
-        For DefaultDestination, uses COPY FROM STDIN WITH (FORMAT BINARY).
-        For SourceDestination, uses UPDATE statements for each row.
+        For TableDestination, uses COPY FROM STDIN WITH (FORMAT BINARY).
+        For ColumnDestination, uses UPDATE statements for each row.
 
         Args:
             conn (AsyncConnection): The database connection.

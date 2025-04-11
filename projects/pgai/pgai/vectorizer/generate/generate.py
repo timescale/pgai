@@ -36,8 +36,8 @@ VECTORIZER_FUNCTIONS = [
     "scheduling_none",
     "scheduling_timescaledb",
     "processing_default",
-    "destination_default",
-    "destination_source",
+    "destination_table",
+    "destination_column",
 ]
 
 
