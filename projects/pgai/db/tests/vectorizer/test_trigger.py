@@ -67,7 +67,7 @@ def test_same_table_vectorizer_timescaledb():
                     , initial_start=>'2050-01-06'::timestamptz
                     , timezone=>'America/Chicago'
                     )
-            , destination=>ai.destination_source('embedding1')
+            , destination=>ai.destination_column('embedding1')
             , chunking=>ai.chunking_none()
             );
             """)
@@ -142,7 +142,7 @@ def test_same_table_vectorizer_timescaledb():
                         , initial_start=>'2050-01-06'::timestamptz
                         , timezone=>'America/Chicago'
                         )
-                , destination=>ai.destination_source('embedding2')
+                , destination=>ai.destination_column('embedding2')
                 , chunking=>ai.chunking_none()
                 );
                 """)

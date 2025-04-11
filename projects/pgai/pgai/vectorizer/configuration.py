@@ -76,27 +76,27 @@ class ChunkingRecursiveCharacterTextSplitterConfig(SQLArgumentMixin):
 
 
 @dataclass
-class DestinationDefaultConfig(SQLArgumentMixin):
-    """Configuration for ai.destination_default function."""
+class DestinationColumnConfig(SQLArgumentMixin):
+    """Configuration for ai.destination_column function."""
 
     arg_type: ClassVar[str] = "destination"
-    function_name: ClassVar[str] = "ai.destination_default"
+    function_name: ClassVar[str] = "ai.destination_column"
+
+    embedding_column: str
+
+
+@dataclass
+class DestinationTableConfig(SQLArgumentMixin):
+    """Configuration for ai.destination_table function."""
+
+    arg_type: ClassVar[str] = "destination"
+    function_name: ClassVar[str] = "ai.destination_table"
 
     destination: str | None = None
     target_schema: str | None = None
     target_table: str | None = None
     view_schema: str | None = None
     view_name: str | None = None
-
-
-@dataclass
-class DestinationSourceConfig(SQLArgumentMixin):
-    """Configuration for ai.destination_source function."""
-
-    arg_type: ClassVar[str] = "destination"
-    function_name: ClassVar[str] = "ai.destination_source"
-
-    embedding_column: str
 
 
 @dataclass

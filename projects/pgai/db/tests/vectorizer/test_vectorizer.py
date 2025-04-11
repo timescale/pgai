@@ -46,7 +46,7 @@ VECTORIZER_ROW = r"""
         },
         "destination": {
             "config_type": "destination",
-            "implementation": "default",
+            "implementation": "table",
             "target_schema": "website",
             "target_table": "blog_embedding_store",
             "view_name": "blog_embedding",
@@ -1612,7 +1612,7 @@ def test_naming_collisions():
                 , indexing=>ai.indexing_none()
                 , grant_to=>null
                 , enqueue_existing=>false
-                , destination=>ai.destination_default(view_schema=>'ai', view_name=>'note4_embedding2')
+                , destination=>ai.destination_table(view_schema=>'ai', view_name=>'note4_embedding2')
                 );
                 """)
 
@@ -1632,7 +1632,7 @@ def test_naming_collisions():
                 , indexing=>ai.indexing_none()
                 , grant_to=>null
                 , enqueue_existing=>false
-                , destination=>ai.destination_default(view_schema=>'ai',
+                , destination=>ai.destination_table(view_schema=>'ai',
                                                       view_name=>'note4_embedding2',
                                                       target_schema=>'vec',
                                                       target_table=>'note4_embedding_store2')
@@ -1653,7 +1653,7 @@ def test_naming_collisions():
             , indexing=>ai.indexing_none()
             , grant_to=>null
             , enqueue_existing=>false
-            , destination=>ai.destination_default(target_schema=>'vec',
+            , destination=>ai.destination_table(target_schema=>'vec',
                                                   target_table=>'note4_embedding_store2',
                                                   view_schema=>'vec',
                                                   view_name=>'note4_embedding2')
@@ -1692,7 +1692,7 @@ def test_naming_collisions():
             , indexing=>ai.indexing_none()
             , grant_to=>null
             , enqueue_existing=>false
-            , destination=>ai.destination_default(destination=>'fernando')
+            , destination=>ai.destination_table(destination=>'fernando')
             );
             """)
             vectorizer_id = cur.fetchone()[0]
@@ -1960,7 +1960,7 @@ def test_create_vectorizer_privs():
             select ai.create_vectorizer
             ( 'priv_test'::regclass
             , loading => ai.loading_column('foo')
-            , destination=>ai.destination_default(destination=>'red_balloon')
+            , destination=>ai.destination_table(destination=>'red_balloon')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
             , chunking=>ai.chunking_character_text_splitter()
             , scheduling=>ai.scheduling_none()

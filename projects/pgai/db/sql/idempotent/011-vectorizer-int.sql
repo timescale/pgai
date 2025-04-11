@@ -97,11 +97,9 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- _vectorizer_create_destination
-create or replace function ai._vectorizer_create_destination
-(
-    vectorizer_id pg_catalog.int4
-    , source_schema pg_catalog.name
+-- _vectorizer_create_destination_table
+create or replace function ai._vectorizer_create_destination_table
+(   source_schema pg_catalog.name
     , source_table pg_catalog.name
     , source_pk pg_catalog.jsonb
     , dimensions pg_catalog.int4
@@ -114,76 +112,86 @@ declare
     target_table pg_catalog.name;
     view_schema pg_catalog.name;
     view_name pg_catalog.name;
-    implementation pg_catalog.text;
+begin
+     target_schema = coalesce(destination operator(pg_catalog.->>) 'target_schema', source_schema);
+    target_table = case
+        when destination operator(pg_catalog.->>) 'target_table' is not null then destination operator(pg_catalog.->>) 'target_table'
+        when destination operator(pg_catalog.->>) 'destination' is not null then pg_catalog.concat(destination operator(pg_catalog.->>) 'destination', '_store')
+        else pg_catalog.concat(source_table, '_embedding_store')
+    end;
+    view_schema = coalesce(view_schema, source_schema);
+    view_name = case
+        when destination operator(pg_catalog.->>) 'view_name' is not null then destination operator(pg_catalog.->>) 'view_name'
+        when destination operator(pg_catalog.->>) 'destination' is not null then destination operator(pg_catalog.->>) 'destination'
+        else pg_catalog.concat(source_table, '_embedding')
+    end;
+    -- make sure view name is available
+    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
+        raise exception 'an object named %.% already exists. specify an alternate destination explicitly', view_schema, view_name;
+    end if;
+
+    -- make sure target table name is available
+    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', target_schema, target_table)) is not null then
+        raise exception 'an object named %.% already exists. specify an alternate destination or target_table explicitly', target_schema, target_table;
+    end if;
+
+    -- create the target table
+    perform ai._vectorizer_create_target_table
+    ( source_pk
+    , target_schema
+    , target_table
+    , dimensions
+    , grant_to
+    );
+
+    perform ai._vectorizer_create_view
+    ( view_schema
+    , view_name
+    , source_schema
+    , source_table
+    , source_pk
+    , target_schema
+    , target_table
+    , grant_to
+    );
+    return json_object
+    ( 'implementation': 'table'
+    , 'config_type': 'destination'
+    , 'target_schema': target_schema
+    , 'target_table': target_table
+    , 'view_schema': view_schema
+    , 'view_name': view_name
+    );
+end;
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+------------------------------------------------------------------------------- 
+-- _vectorizer_create_destination_column
+create or replace function ai._vectorizer_create_destination_column
+(   source_schema pg_catalog.name
+    , source_table pg_catalog.name
+    , dimensions pg_catalog.int4
+    , destination jsonb
+) returns jsonb as
+$func$
+declare
     embedding_column pg_catalog.name;
 begin
-    implementation = destination operator(pg_catalog.->>) 'implementation';
-    if implementation = 'default' then
-        target_schema = coalesce(destination operator(pg_catalog.->>) 'target_schema', source_schema);
-        target_table = case
-            when destination operator(pg_catalog.->>) 'target_table' is not null then destination operator(pg_catalog.->>) 'target_table'
-            when destination operator(pg_catalog.->>) 'destination' is not null then pg_catalog.concat(destination operator(pg_catalog.->>) 'destination', '_store')
-            else pg_catalog.concat(source_table, '_embedding_store')
-        end;
-        view_schema = coalesce(view_schema, source_schema);
-        view_name = case
-            when destination operator(pg_catalog.->>) 'view_name' is not null then destination operator(pg_catalog.->>) 'view_name'
-            when destination operator(pg_catalog.->>) 'destination' is not null then destination operator(pg_catalog.->>) 'destination'
-            else pg_catalog.concat(source_table, '_embedding')
-        end;
-        -- make sure view name is available
-        if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
-            raise exception 'an object named %.% already exists. specify an alternate destination explicitly', view_schema, view_name;
-        end if;
-
-        -- make sure target table name is available
-        if pg_catalog.to_regclass(pg_catalog.format('%I.%I', target_schema, target_table)) is not null then
-            raise exception 'an object named %.% already exists. specify an alternate destination or target_table explicitly', target_schema, target_table;
-        end if;
-
-        -- create the target table
-        perform ai._vectorizer_create_target_table
-        ( source_pk
-        , target_schema
-        , target_table
-        , dimensions
-        , grant_to
-        );
-
-        perform ai._vectorizer_create_view
-        ( view_schema
-        , view_name
-        , source_schema
-        , source_table
-        , source_pk
-        , target_schema
-        , target_table
-        , grant_to
-        );
-        return json_object
-        ( 'implementation': 'default'
-        , 'config_type': 'destination'
-        , 'target_schema': target_schema
-        , 'target_table': target_table
-        , 'view_schema': view_schema
-        , 'view_name': view_name
-        );
-    elsif implementation = 'source' then
-        embedding_column = destination operator(pg_catalog.->>) 'embedding_column';
-        perform ai._vectorizer_add_embedding_column
-        ( source_schema
-        , source_table
-        , dimensions
-        , embedding_column
-        , grant_to
-        );
-        return json_object
-        ( 'implementation': 'source'
-        , 'config_type': 'destination'
-        , 'embedding_column': embedding_column
-        );
-    end if;
-    raise exception 'invalid destination implementation: %', implementation;
+    embedding_column = destination operator(pg_catalog.->>) 'embedding_column';
+    perform ai._vectorizer_add_embedding_column
+    ( source_schema
+    , source_table
+    , dimensions
+    , embedding_column
+    );
+    return json_object
+    ( 'implementation': 'column'
+    , 'config_type': 'destination'
+    , 'embedding_column': embedding_column
+    );
 end;
 $func$
 language plpgsql volatile security invoker
@@ -197,7 +205,6 @@ create or replace function ai._vectorizer_add_embedding_column
 , source_table pg_catalog.name
 , dimensions pg_catalog.int4
 , embedding_column pg_catalog.name
-, grant_to pg_catalog.name[]
 ) returns void as
 $func$
 declare
@@ -632,7 +639,7 @@ begin
                 SELECT config operator(pg_catalog.->) ''destination'' operator(pg_catalog.->>) ''embedding_column''
                 FROM ai.vectorizer 
                 WHERE source_table = %L AND source_schema = %L
-                AND config operator(pg_catalog.->) ''destination'' operator(pg_catalog.->>) ''implementation'' operator(pg_catalog.=) ''source''
+                AND config operator(pg_catalog.->) ''destination'' operator(pg_catalog.->>) ''implementation'' operator(pg_catalog.=) ''column''
             )
         )', source_table, source_schema);
 
@@ -817,11 +824,11 @@ begin
         raise notice 'Recreating trigger function for vectorizer ID %s', _vec.id;
         
         _destination_type := _vec.config->'destination'->>'implementation';
-        if _destination_type = 'default' then
+        if _destination_type = 'table' then
             _target_schema := _vec.config->'destination'->>'target_schema';
             _target_table := _vec.config->'destination'->>'target_table';
         else
-            raise notice 'Skipping vectorizer ID %s because it has a non-default destination', _vec.id;
+            raise notice 'Skipping vectorizer ID %s because it has a non-table destination', _vec.id;
             continue;
         end if;
 
@@ -1190,7 +1197,7 @@ begin
     set local search_path = pg_catalog, pg_temp;
 
     -- if the conditions are right, create the vectorizer index
-    if ai._vectorizer_should_create_vector_index(_vec) and _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation' operator(pg_catalog.=) 'default' then
+    if ai._vectorizer_should_create_vector_index(_vec) and _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation' operator(pg_catalog.=) 'table' then
         commit;
         set local search_path = pg_catalog, pg_temp;
         perform ai._vectorizer_create_vector_index
@@ -1198,7 +1205,7 @@ begin
         , _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_table'
         , pg_catalog.jsonb_extract_path(_vec.config, 'indexing')
         );
-    elsif ai._vectorizer_should_create_vector_index(_vec) and _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation' operator(pg_catalog.=) 'source' then
+    elsif ai._vectorizer_should_create_vector_index(_vec) and _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation' operator(pg_catalog.=) 'column' then
         commit;
         set local search_path = pg_catalog, pg_temp;
         perform ai._vectorizer_create_vector_index

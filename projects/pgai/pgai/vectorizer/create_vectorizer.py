@@ -9,8 +9,8 @@ from .configuration import (
     ChunkingCharacterTextSplitterConfig,
     ChunkingNoneConfig,
     ChunkingRecursiveCharacterTextSplitterConfig,
-    DestinationDefaultConfig,
-    DestinationSourceConfig,
+    DestinationColumnConfig,
+    DestinationTableConfig,
     EmbeddingLitellmConfig,
     EmbeddingOllamaConfig,
     EmbeddingOpenaiConfig,
@@ -39,7 +39,7 @@ class CreateVectorizer:
     """Parameters for ai.create_vectorizer function"""
 
     source: str
-    destination: DestinationDefaultConfig | DestinationSourceConfig | None = None
+    destination: DestinationColumnConfig | DestinationTableConfig | None = None
     loading: LoadingColumnConfig | LoadingUriConfig | None = None
     parsing: (
         ParsingAutoConfig

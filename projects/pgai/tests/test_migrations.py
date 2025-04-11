@@ -84,7 +84,7 @@ config_0_10_0 = {
     },
     "destination": {
         "config_type": "destination",
-        "implementation": "default",
+        "implementation": "table",
         "target_schema": "public",
         "target_table": "target",
     },

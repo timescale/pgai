@@ -2,7 +2,7 @@
 -- create_vectorizer
 create or replace function ai.create_vectorizer
 ( source pg_catalog.regclass
-, destination pg_catalog.jsonb default ai.destination_default()
+, destination pg_catalog.jsonb default ai.destination_table()
 , loading pg_catalog.jsonb default null
 , parsing pg_catalog.jsonb default ai.parsing_auto()
 , embedding pg_catalog.jsonb default null
@@ -152,16 +152,26 @@ begin
     , grant_to
     );
 
-    -- create the target table
-    destination = ai._vectorizer_create_destination
-    ( _vectorizer_id
-    , _source_schema
-    , _source_table
-    , _source_pk
-    , _dimensions
-    , destination
-    , grant_to
-    );
+    -- create the target table or column
+    if destination operator(pg_catalog.->>) 'implementation' = 'table' then
+        destination = ai._vectorizer_create_destination_table
+        ( _source_schema
+        , _source_table
+        , _source_pk
+        , _dimensions
+        , destination
+        , grant_to
+        );
+    elseif destination operator(pg_catalog.->>) 'implementation' = 'column' then
+        destination = ai._vectorizer_create_destination_column
+        ( _source_schema
+        , _source_table
+        , _dimensions
+        , destination
+        );
+    else
+        raise exception 'invalid implementation for destination';
+    end if;
 
     -- create queue table
     perform ai._vectorizer_create_queue_table
@@ -485,7 +495,7 @@ begin
     ) into strict _sql;
     execute _sql;
 
-    if drop_all and _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation' operator(pg_catalog.=) 'default' then
+    if drop_all and _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation' operator(pg_catalog.=) 'table' then
         -- drop the view if exists
         select pg_catalog.format
         ( $sql$drop view if exists %I.%I$sql$

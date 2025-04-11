@@ -200,6 +200,11 @@ def install_pgai_library(db_url: str) -> None:
 
 
 def vacuum_vectorizer_table(dbname: str) -> None:
+    """
+    This ensures the vectorizer table is vacuumed before taking a snapshot.
+    Due to addition and deletion of columns the size might otherwise differ between
+    versions.
+    """
     with psycopg.connect(db_url(user=USER, dbname=dbname), autocommit=True) as con:
         with con.cursor() as cur:
             # Check if the relation exists

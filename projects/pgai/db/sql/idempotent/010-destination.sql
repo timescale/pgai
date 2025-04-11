@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
--- destination_custom
-create or replace function ai.destination_default
+-- destination_table
+create or replace function ai.destination_table
 (
     destination pg_catalog.name default null
     , target_schema pg_catalog.name default null
@@ -10,7 +10,7 @@ create or replace function ai.destination_default
 ) returns pg_catalog.jsonb
 as $func$
     select json_object
-    ( 'implementation': 'default'
+    ( 'implementation': 'table'
     , 'config_type': 'destination'
     , 'destination': destination
     , 'target_schema': target_schema
@@ -24,14 +24,14 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- destination_source
-create or replace function ai.destination_source
+-- destination_column
+create or replace function ai.destination_column
 (
     embedding_column pg_catalog.name
 ) returns pg_catalog.jsonb
 as $func$
     select json_object
-    ( 'implementation': 'source'
+    ( 'implementation': 'column'
     , 'config_type': 'destination'
     , 'embedding_column': embedding_column
     absent on null
@@ -58,9 +58,9 @@ begin
         raise exception 'invalid config_type for destination config';
     end if;
 
-    if destination->>'implementation' = 'source' then
+    if destination->>'implementation' = 'column' then
         if chunking->>'implementation' != 'none' then
-            raise exception 'chunking must be none for source destination';
+            raise exception 'chunking must be none for column destination';
         end if;
     end if;
 end

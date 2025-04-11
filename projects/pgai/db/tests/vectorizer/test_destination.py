@@ -17,16 +17,16 @@ def db_url(user: str) -> str:
     "destination_config,expected_config",
     [
         (
-            "select ai.destination_default(target_schema => 'my_schema', target_table => 'my_table')",
+            "select ai.destination_table(target_schema => 'my_schema', target_table => 'my_table')",
             {
                 "config_type": "destination",
-                "implementation": "default",
+                "implementation": "table",
                 "target_schema": "my_schema",
                 "target_table": "my_table",
             },
         ),
         (
-            "select ai.destination_default("
+            "select ai.destination_table("
             "target_schema => 'my_schema'"
             ", target_table => 'my_table'"
             ", view_schema => 'my_schema'"
@@ -34,7 +34,7 @@ def db_url(user: str) -> str:
             ")",
             {
                 "config_type": "destination",
-                "implementation": "default",
+                "implementation": "table",
                 "target_schema": "my_schema",
                 "target_table": "my_table",
                 "view_schema": "my_schema",
@@ -43,7 +43,7 @@ def db_url(user: str) -> str:
         ),
     ],
 )
-def test_destination_default(destination_config, expected_config):
+def test_destination_table(destination_config, expected_config):
     with psycopg.connect(db_url("test")) as con:
         with con.cursor() as cur:
             cur.execute(destination_config)
@@ -57,24 +57,24 @@ def test_destination_default(destination_config, expected_config):
     "destination_config,expected_config",
     [
         (
-            "select ai.destination_source('embedding')",
+            "select ai.destination_column('embedding')",
             {
-                "implementation": "source",
+                "implementation": "column",
                 "embedding_column": "embedding",
                 "config_type": "destination",
             },
         ),
         (
-            "select ai.destination_source('vector_embedding')",
+            "select ai.destination_column('vector_embedding')",
             {
-                "implementation": "source",
+                "implementation": "column",
                 "embedding_column": "vector_embedding",
                 "config_type": "destination",
             },
         ),
     ],
 )
-def test_destination_source(destination_config, expected_config):
+def test_destination_column(destination_config, expected_config):
     with psycopg.connect(db_url("test")) as con:
         with con.cursor() as cur:
             cur.execute(destination_config)
@@ -87,16 +87,16 @@ def test_destination_source(destination_config, expected_config):
 @pytest.mark.parametrize(
     "destination,chunking",
     [
-        ("ai.destination_default('my_schema', 'my_table')", "ai.chunking_none()"),
+        ("ai.destination_table('my_schema', 'my_table')", "ai.chunking_none()"),
         (
-            "ai.destination_default('my_schema', 'my_table')",
+            "ai.destination_table('my_schema', 'my_table')",
             "ai.chunking_character_text_splitter()",
         ),
         (
-            "ai.destination_default('my_schema', 'my_table')",
+            "ai.destination_table('my_schema', 'my_table')",
             "ai.chunking_recursive_character_text_splitter()",
         ),
-        ("ai.destination_source('embedding')", "ai.chunking_none()"),
+        ("ai.destination_column('embedding')", "ai.chunking_none()"),
     ],
 )
 def test_validate_destination_valid(destination, chunking):
@@ -120,14 +120,14 @@ def test_validate_destination_valid(destination, chunking):
             "invalid config_type for destination config",
         ),
         (
-            "ai.destination_source('embedding')",
+            "ai.destination_column('embedding')",
             "ai.chunking_character_text_splitter()",
-            "chunking must be none for source destination",
+            "chunking must be none for column destination",
         ),
         (
-            "ai.destination_source('embedding')",
+            "ai.destination_column('embedding')",
             "ai.chunking_recursive_character_text_splitter()",
-            "chunking must be none for source destination",
+            "chunking must be none for column destination",
         ),
     ],
 )

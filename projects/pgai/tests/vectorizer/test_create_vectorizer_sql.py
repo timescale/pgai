@@ -4,7 +4,7 @@ from datetime import timedelta
 from pgai.vectorizer import CreateVectorizer
 from pgai.vectorizer.configuration import (
     ChunkingCharacterTextSplitterConfig,
-    DestinationDefaultConfig,
+    DestinationTableConfig,
     EmbeddingOpenaiConfig,
     IndexingHnswConfig,
     LoadingColumnConfig,
@@ -21,7 +21,7 @@ def test_basic_vectorizer_configuration():
             dimensions=1536,
             api_key_name="openai_api_key",
         ),
-        destination=DestinationDefaultConfig(
+        destination=DestinationTableConfig(
             target_schema="vectorizer",
             target_table="document_embeddings",
         ),
@@ -29,7 +29,7 @@ def test_basic_vectorizer_configuration():
 
     expected_sql = """SELECTai.create_vectorizer(
      'public.documents'::regclass
-     ,destination=>ai.destination_default(target_schema=>'vectorizer', target_table=>'document_embeddings')
+     ,destination=>ai.destination_table(target_schema=>'vectorizer', target_table=>'document_embeddings')
      ,embedding=>ai.embedding_openai(model=>'text-embedding-ada-002', dimensions=>'1536', api_key_name=>'openai_api_key')
     )"""
 
@@ -50,7 +50,7 @@ def test_complex_vectorizer_configuration():
         processing=ProcessingDefaultConfig(batch_size=100, concurrency=4),
         scheduling=SchedulingTimescaledbConfig(schedule_interval=timedelta(hours=1)),
         enqueue_existing=True,
-        destination=DestinationDefaultConfig(
+        destination=DestinationTableConfig(
             target_schema="vectors",
             target_table="chunked_embeddings",
         ),
@@ -58,7 +58,7 @@ def test_complex_vectorizer_configuration():
 
     expected_sql = """SELECT ai.create_vectorizer(
     'public.large_documents'::regclass
-    ,destination=>ai.destination_default(target_schema=>'vectors',target_table=>'chunked_embeddings')
+    ,destination=>ai.destination_table(target_schema=>'vectors',target_table=>'chunked_embeddings')
     ,loading=>ai.loading_column(column_name=>'content')
     ,embedding=>ai.embedding_openai(model=>'text-embedding-ada-002',dimensions=>'1536')
     ,chunking=>ai.chunking_character_text_splitter(chunk_size=>'1000',chunk_overlap=>'100')

@@ -18,7 +18,7 @@ def configure_same_table_vectorizer(
         cur.execute(f"""
             SELECT ai.create_vectorizer(
                 '{table_name}'::regclass,
-                destination => ai.destination_source('embedding'),
+                destination => ai.destination_column('embedding'),
                 embedding => ai.embedding_openai('text-embedding-ada-002', 1536),
                 chunking => ai.chunking_none(),
                 loading => ai.loading_column('content')
@@ -35,7 +35,7 @@ def test_same_table_vectorizer(
     vcr_: Any,
 ):
     """
-    Test that destination_source works and adds the embeddings to the original table
+    Test that destination_column works and adds the embeddings to the original table
     """
     _, con = cli_db
     table_name = setup_source_table(con, 2)
