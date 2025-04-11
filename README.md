@@ -16,15 +16,17 @@
 </div>
 </div>
 <br/>
-Supercharge your PostgreSQL database with AI capabilities. Supports:  
 
-- Automatic creation and synchronization of vector embeddings for your data  
-- Seamless vector and semantic search  
-- Retrieval Augmented Generation (RAG) directly in SQL
-- Ability to call out to leading LLMs like OpenAI, Ollama, Cohere, and more via SQL.
-- Built-in utilities for dataset loading and processing 
+Production-Ready AI with PostgreSQL
+A Python library for building robust AI applications on PostgreSQL.
 
-All with the reliability, scalability, and ACID compliance of PostgreSQL. 
+- 🔄 Automatically create vector embeddings from your data and keep them synced.
+
+- 🔍 Powerful vector and semantic search
+
+- 🛡️ Production-ready out-of-the-box: batches work for performant embedding generation and handles model failures, rate limits, and latency spikes.
+
+Built to make LLM-powered apps reliable in production.
 
 <div align=center>
 
@@ -32,19 +34,11 @@ All with the reliability, scalability, and ACID compliance of PostgreSQL.
 
 </div>
 
+### install via pip
 
-### Docker
-
-See the [install via docker](/docs/install/docker.md) guide for docker compose files and detailed container instructions.
-
-### Timescale Cloud
-
-Try pgai on cloud by creating a [free trial account](https://tsdb.co/gh-pgai-signup) on Timescale Cloud. 
-
-
-### Installing pgai into an existing PostgreSQL instance (Linux / MacOS)
-
-See the [install from source](/docs/install/source.md) guide for instructions on how to install pgai from source.                  
+```
+pip install pgai
+```              
 
 # Quick Start
 
@@ -66,7 +60,7 @@ Please note that using Ollama requires a large (>4GB) download of the docker ima
     ```
 
 
-    This will start Ollama and a PostgreSQL instance with the pgai extension installed. 
+    This will start Ollama and a PostgreSQL instance. 
   
 1. **Download the Ollama models.** We'll use the `all-minilm` model for embeddings and the `tinyllama` model for reasoning.
 
@@ -75,61 +69,89 @@ Please note that using Ollama requires a large (>4GB) download of the docker ima
     docker compose exec ollama ollama pull tinyllama
     ```
 
-### Create a table, run a vectorizer, and perform semantic search
+### Create a FastAPI app that performs semantic search and RAG over wikipedia articles
 
-1. **Connect to the database in your local developer environment**
-   The easiest way connect to the database is with the following command:
-   `docker compose exec -it db psql`. 
-   
-   Alternatively, you can connect to the database with the following connection string: `postgres://postgres:postgres@localhost:5432/postgres`.
+You can take a look at a simple [fastAPI Application](/examples/simple_fastapi_app/main.py) to see how to
+setup an app to perform RAG with pgai Vectorizer. We'll walk you through the main parts of the code below. 
 
-1. **Enable pgai on your database**
-
-    ```sql
-    CREATE EXTENSION IF NOT EXISTS ai CASCADE;
+1. **Enable pgai vectorizer on your database**
+    During app startup we run the following Python to install the necessary database object in your PostgreSQL database.
+    
+    ```python
+    pgai.install(DB_URL)
     ```
     
-1. **Create a table with the data you want to embed from a huggingface dataset**
+1. **Create a SQLAlchemy model for your dataset**
 
-    We'll create a table named `wiki` from a few rows of the english-language `wikimedia/wikipedia` dataset.
+    We'll create a model for a table named `wiki` from a few rows of the english-language `wikimedia/wikipedia` dataset.
     
     First, we'll create the table:
 
-    ```sql
-    CREATE TABLE wiki (
-        id      TEXT PRIMARY KEY,
-        url     TEXT,
-        title   TEXT,
-        text    TEXT
-    );
+    ```python
+    class Wiki(Base):
+        __tablename__ = "wiki"
+        
+        id: Mapped[int] = mapped_column(primary_key=True)
+        url: Mapped[str]
+        title: Mapped[str]
+        text: Mapped[str]
+
+        # Add vector embeddings for the text field
+        text_embeddings = vectorizer_relationship(
+            target_table='wiki_embeddings',
+            dimensions=384
+        )
     ```
+    
+    Note the `text_embeddings` relationship. This is what defines the vectorizer
+    in the model.
+    
 
     Then, we'll load the data from the huggingface dataset:
-
-    ```sql
-    SELECT ai.load_dataset('wikimedia/wikipedia', '20231101.en', table_name=>'wiki', batch_size=>5, max_batches=>1, if_table_exists=>'append');
+    
+    ```python
+    def load_wiki_articles():
+        # to keep the demo fast, we have some simple limits
+        num_articles = 10
+        max_text_length = 1000
+        
+        # Load and insert Wikipedia dataset from Hugging Face
+        wiki_dataset = load_dataset("wikimedia/wikipedia", "20231101.en", split=f"train", streaming=True)
+        
+        with Session(engine) as session:
+            for article in wiki_dataset.take(num_articles):
+                wiki = Wiki(
+                    url=article['url'],
+                    title=article['title'],
+                    text=article['text'][:max_text_length]
+                )
+                session.add(wiki)
+            session.commit()
     ```
     
-    Related documentation: [load dataset from huggingface](/docs/utils/load_dataset_from_huggingface.md).
-
 1. **Create a vectorizer for `wiki`**
 
-    To enable semantic search on the `wiki` table, we need to create vector embeddings for the `text` column.
+    To enable semantic search on the `text` column of the `wiki` table, we need to create vector embeddings for that column.
     We use a vectorizer to automatically create these embeddings and keep them in sync with the data in the  `wiki` table.
     
-    ```sql
-    SELECT ai.create_vectorizer(
-         'wiki'::regclass,
-         loading => ai.loading_column('text'),
-         destination => 'wiki_embeddings',
-         embedding => ai.embedding_ollama('all-minilm', 384)
-    );
+    ```python
+    def create_vectorizer():
+        vectorizer_statement = CreateVectorizer(
+            source="wiki",
+            target_table='wiki_embeddings',
+            loading=LoadingColumnConfig(column_name='text'),
+            embedding=EmbeddingOllamaConfig(model='all-minilm', dimensions=384, base_url="http://localhost:11434")
+        ).to_sql()
+                
+        with Session(engine) as session:
+            session.execute(sqlalchemy.text(vectorizer_statement))
+            session.commit()
     ```
     
      Related documentation: [vectorizer usage guide](/docs/vectorizer/overview.md) and [vectorizer API reference](/docs/vectorizer/api-reference.md).
     
     
-1. **Check the progress of the vectorizer embedding creation**
+1. **TODO Check the progress of the vectorizer embedding creation**
 
     ```sql
     select * from ai.vectorizer_status;
@@ -150,289 +172,167 @@ Please note that using Ollama requires a large (>4GB) download of the docker ima
     We'll search the embeddings for the concept of "properties of light" even though these words are not in the text of the articles. This is possible because vector embeddings capture the semantic meaning of the text.
     
     Semantic search is a powerful feature in its own right, but it is also a key component of Retrieval Augmented Generation (RAG).
-
-    ```sql
-    SELECT title, chunk
-    FROM wiki_embeddings 
-    ORDER BY embedding <=> ai.ollama_embed('all-minilm', 'properties of light')
-    LIMIT 1;
-    ```
-    <details>
-    <summary>Click to see the output</summary>
-
-    | title | chunk |
-    |-------|-------|
-    | Albedo |  Water reflects light very differently from typical terrestrial materials. The reflectivity of a water surface is calculated using the Fresnel equations.... |
-    </details>
-     
-    This query selects from the `wiki_embeddings` view, which is created by the vectorizer and joins the embeddings with the original data in the `wiki` table to give us the ability to search using the embeddings but still be able to access (or filter on) all the data in the original table (e.g. the `title` column).
     
-    Note the `ai.ollama_embed` function is used to call the `all-minilm` model. This is part of pgai's  [model calling capabilities](#model-calling).
+    We first define a function to find the relevant chunks for a given query:
+
+    ```python
+    WikiSearchResult = List[Tuple[Wiki, float]]
+    
+    async def _find_relevant_chunks(client: ollama.AsyncClient, query: str, limit: int = 2) -> WikiSearchResult:
+        response = await client.embed(model="all-minilm", input=query)
+        embedding = response.embeddings[0]
+        with Session(engine) as session:
+            # Query both the Wiki model and its embeddings
+            result = session.query(
+                Wiki,
+                Wiki.text_embeddings.embedding.cosine_distance(embedding).label('distance')
+            ).join(Wiki.text_embeddings).order_by(
+                'distance'
+            ).limit(limit).all()
+            
+        return result
+    ```
+     
+    This query selects from the `Wiki` model using the `text_embeddings` relationship to search through the embeddings. Note: that we can easily combine a search on the embeddings with a filter on any column on the `Wiki` model (e.g. the `title` column).
+    
+    This is used in the `/search` endpoint as follows:
+    ```python
+    @app.get("/search")
+    async def search(query: str):
+        client = ollama.AsyncClient(host="http://localhost:11434")
+        
+        result = await _find_relevant_chunks(client, query)
+        # Convert results to a list of dictionaries
+        return [
+            {
+                "id": article.id,
+                "url": article.url,
+                "title": article.title,
+                "text": article.text,
+                "distance": distance
+            }
+            for article, distance in result
+        ]
+    ```
+    
+    Now you can search through these articles with a query to the search endpoint:
+    
+    ```bash
+    curl -X 'GET' \
+        'http://0.0.0.0:8000/search?query=Properties%20of%20Light' \
+        -H 'accept: application/json'
+    ```
     
  1. **Modify your data and have the vectorizer automatically update the embeddings**
  
-    We'll add a row about pgai to the `wiki` table and have the vectorizer automatically update the embeddings.
+    We'll add a row about pgai to the `wiki` table and have the vectorizer automatically update the embeddings. This simulates changes to the underlying data.
     
-    ```sql
-    INSERT INTO wiki (id, url, title, text) VALUES (11,'https://en.wikipedia.org/wiki/Pgai', 'pgai - Power your AI applications with PostgreSQL', 'pgai is a tool to make developing RAG and other AI applications easier. It makes it simple to give an LLM access to data in your PostgreSQL database by enabling semantic search on your data and using the results as part of the Retrieval Augmented Generation (RAG) pipeline. This allows the LLM to answer questions about your data without needing to being trained on your data.');
+    ```python
+    @app.post("/insert_pgai_article")
+    async def insert_pgai_article():
+        with Session(engine) as session:
+            session.add(Wiki(
+                url="https://en.wikipedia.org/wiki/Pgai",
+                title="pgai - Power your AI applications with PostgreSQL",
+                text="pgai is a tool to make developing RAG and other AI applications easier. It makes it simple to give an LLM access to data in your PostgreSQL database by enabling semantic search on your data and using the results as part of the Retrieval Augmented Generation (RAG) pipeline. This allows the LLM to answer questions about your data without needing to being trained on your data.'"
+            ))
+            session.commit()
+        return {"message": "Article inserted successfully"}
     ```
+    
     And now you don't need to do anything to update the embeddings. The vectorizer will automatically create the embeddings for the new row without any intervention from you. After a few seconds, you can run a search query related to the new entry and see it returned as part of the results:
     
-    ```sql
-    SELECT title, chunk
-    FROM wiki_embeddings 
-    ORDER BY embedding <=> ai.ollama_embed('all-minilm', 'AI tools')
-    LIMIT 1;
-    ```
-### Perform Retrieval Augmented Generation (RAG)
-
-In this section, we'll have the LLM answer questions about pgai based on the wiki entry we added by using RAG. The LLM was never trained on the pgai wiki entry, and so it needs data in the database to answer questions about pgai.
-
-You can perform RAG purely from within the database using SQL or use a python script to interact with the database and perform RAG. We often find that using SQL is easier to create a quick prototype and get started but as the project matures people easily switch to using Python to have more control and make use of Python tooling. 
-
-
-<details>
-<summary>Click to perform RAG within SQL</summary>
-
- 1. **Define a function to perform RAG**
- 
-    We'll create a function that uses RAG to allow an LLM to answer questions about pgai based on the wiki entry we added.
-
-    RAG involves two steps:
-    1. Perform a similarity search to find the most relevant chunks of data.
-    2. Use the LLM to generate a response using the relevant chunks as context.
-    
-    ```sql
-    CREATE OR REPLACE FUNCTION generate_rag_response(query_text TEXT)
-    RETURNS TEXT AS $$
-    DECLARE
-        context_chunks TEXT;
-        response JSONB;
-    BEGIN
-        -- Perform similarity search to find relevant wiki article
-        SELECT string_agg(title || ': ' || chunk, E'\n') INTO context_chunks
-        FROM
-        (
-            SELECT title, chunk
-            FROM wiki_embeddings 
-            ORDER BY embedding <=> ai.ollama_embed('all-minilm', query_text)
-            LIMIT 3
-        ) AS relevant_posts;
-
-        raise notice 'Context provided to LLM: %', context_chunks;
-    
-        -- Generate a summary using tinyllama
-        select ai.ollama_generate('tinyllama', 
-        query_text || E'\nUse the following context to respond.\n' || context_chunks) INTO response;
-
-        RETURN response->>'response';
-    END;
-    $$ LANGUAGE plpgsql;
-    ```
-
-1. **Use the RAG function to answer questions about the wiki data**
-
-    ```sql
-    SELECT generate_rag_response('What can I use pgai for?') as response; 
-    ```
-
-    <details>
-    <summary>Click here to see the output</summary>
-
-    | response |
-    |-----------------------|
-    |   PGAI is a tool that makes it easier for developers to create AI applications by providing access to data in a PostgreSQL database using Semantic Search and answering RAG (Recommendation and Answer Generation) questions. This allows the LLM (Language Model) to answer questions about unseen data without being trained on your data, making it an important tool for building accurate and efficient AI applications. The context suggests that PGAI can be useful in a variety of industries or use cases where data access is critical, such as healthcare, finance, or customer service. |
-    </details>
-
-</details>
-
-<details>
-<summary>Click to perform RAG with Python</summary>
-
-1. **Install python dependencies**
-
     ```bash
-    pip install psycopg pgvector ollama
+    curl -X 'GET' \
+        'http://0.0.0.0:8000/search?query=AI%20Tools' \
+        -H 'accept: application/json'
     ```
 
-1. **Run the Python script to perform RAG**
+1. **Perform Retrieval Augmented Generation (RAG)**
 
-    ```python 
-    import psycopg
-    from pgvector.psycopg import register_vector
-    from typing import Optional, List, NamedTuple
-    from ollama import Client
-    from dataclasses import dataclass
+    In this section, we'll have the LLM answer questions about pgai based on the wiki entry we added by using RAG. The LLM was never trained on the pgai wiki entry, and so it needs data in the database to answer questions about pgai.
 
-    @dataclass
-    class ChunkData:
-        """Represents a chunk of text with its title and content."""
-        title: str
-        chunk: str
-
-    def create_db_connection() -> psycopg.Connection:
-        """Create and return a database connection."""
-        conn = psycopg.connect(
-            "postgres://postgres:postgres@localhost:5432/postgres"
-            # Modify connection string as needed for your setup
-        )
-        register_vector(conn)
-        return conn
-
-    def get_embedding(client: Client, text: str) -> list[float]:
-        """Get embeddings using Ollama's all-minilm model."""
-        response = client.embeddings(model='all-minilm', prompt=text)
-        return response['embedding']
-
-    def get_relevant_chunks(cur: psycopg.Cursor, embedding: list[float], limit: int = 1) -> List[ChunkData]:
-        """
-        Retrieve the most relevant chunks based on vector similarity.
+    The RAG endpoint looks as follows
+    
+    ```python
+    @app.get("/rag")
+    async def generate_rag_response(query_text: str) -> Optional[str]:
+        # Initialize Ollama client
+        client = ollama.AsyncClient(host="http://localhost:11434")
         
-        Args:
-            cur: Database cursor
-            embedding: Query embedding vector
-            limit: Number of chunks to retrieve
+        #find and format the chunks
+        chunks = await _find_relevant_chunks(client, query_text)
+        context = "\n\n".join(f"{article.title}:\n{article.text}" for article, _ in chunks)
+        logger.debug(f"Context: {context}")
         
-        Returns:
-            List of ChunkData objects containing relevant chunks
-        """
-        query = """
-        SELECT title, chunk
-        FROM wiki_embeddings 
-        ORDER BY embedding <=> %s::vector
-        LIMIT %s
-        """
-        
-        cur.execute(query, (embedding, limit))
-        return [ChunkData(title=row[0], chunk=row[1]) for row in cur.fetchall()]
-
-    def format_context(chunks: List[ChunkData]) -> str:
-        """
-        Format the chunks into a single context string.
-        
-        Args:
-            chunks: List of ChunkData objects
-        
-        Returns:
-            Formatted context string
-        """
-        return "\n\n".join(f"{chunk.title}:\n{chunk.chunk}" for chunk in chunks)
-
-    def generate_rag_response(query_text: str) -> Optional[str]:
-        """
-        Generate a RAG response using pgai, Ollama embeddings, and database content.
-        
-        Args:
-            query_text: The question or query to answer
-        
-        Returns:
-            str: The generated response from the LLM
-        """
-        try:
-            # Initialize Ollama client
-            client = Client(host='http://localhost:11434')
-            
-            with create_db_connection() as conn:
-                with conn.cursor() as cur:
-                    # Get embeddings for the query using Ollama SDK
-                    query_embedding = get_embedding(client, query_text)
-                    
-                    # Get relevant chunks
-                    relevant_chunks = get_relevant_chunks(cur, query_embedding)
-                    
-                    # Format context
-                    context = format_context(relevant_chunks)
-                    
-                    # Print context for debugging (optional)
-                    print("Context provided to LLM:")
-                    print("------------------------")
-                    print(context)
-                    print("------------------------")
-                    
-                    # Construct prompt with context
-                    prompt = f"""Question: {query_text}
+        # Construct prompt with context
+        prompt = f"""Question: {query_text}
 
     Please use the following context to provide an accurate response:
 
     {context}
 
     Answer:"""
-                    
-                    # Generate response using Ollama SDK
-                    response = client.generate(
-                        model='tinyllama',
-                        prompt=prompt,
-                        stream=False
-                    )
-                    
-                    return response['response']
-                    
-        except Exception as e:
-            print(f"Error generating RAG response: {e}")
-            return None
-
-    def main():
-        # Example usage
-        questions = [
-            "What can I use pgai for?",
-        ]
+                
+        # Generate response using Ollama SDK
+        response = await client.generate(
+            model='tinyllama',
+            prompt=prompt,
+            stream=False
+        )
         
-        for question in questions:
-            print("\n" + "="*50)
-            print(f"Question: {question}")
-            print("-"*50)
-            
-            response = generate_rag_response(question)
-            if response:
-                print("\nResponse:")
-                print(response)
-            else:
-                print("Failed to generate response")
-
-    if __name__ == "__main__":
-        main()
-
-    ```
-</details>
-
-### Generate a summary of the article in the database
-1. **Generate a summary of the article in the database**
-    
-    We'll generate a summary of the search results using the `ai.ollama_generate` function (this will take a few minutes).
-
-    ```sql
-    SELECT answer->>'response' as summary
-    FROM ai.ollama_generate('tinyllama', 
-    'Summarize the following and output the summary in a single sentence: '|| (SELECT text FROM wiki WHERE title like 'pgai%')) as answer;
+        return response['response']
     ```
 
-    <details>
-    <summary>Click to see the output</summary>
-
-    | summary |
-    |--------------------------------|
-    | Pgai is a tool that simplifies the process of making AI applications easier by providing easy access to data in PostgreSQL and enabling semantic search on the data for the Retrieval Augmented Generation (RAG) pipeline. This allows the AI system to answer questions about unseen data without being trained on it, simplifying the entire process. |
-    </details>
-    
-
-    This is just one example of [model calling capabilities](#model-calling). Model calling can be used for a variety of tasks, including classification, summarization, moderation, and other forms of data enrichment. 
-    
 # Features 
 
-## Work with embeddings generated from your data
-* Automatically create and sync vector embeddings for your data ([learn more](#automatically-create-and-sync-llm-embeddings-for-your-data))
-* Search your data using vector and semantic search ([learn more](#search-your-data-using-vector-and-semantic-search))
-* Implement Retrieval Augmented Generation inside a single SQL statement ([learn more](#implement-retrieval-augmented-generation-inside-a-single-sql-statement))
+Our pgai Python library lets you work with embeddings generated from your data:
+
+* Automatically create and sync vector embeddings for your data using the  ([learn more](/docs/vectorizer/overview.md))
+* Search your data using vector and semantic search ([learn more](/docs/vectorizer/overview.md#query-an-embedding))
+* Implement Retrieval Augmented Generation as shown above in the [Quick Start](#quick-start)
 * Perform high-performance, cost-efficient ANN search on large vector workloads with [pgvectorscale](https://github.com/timescale/pgvectorscale), which complements pgvector.
 
-## Leverage LLMs for data processing tasks
-* Retrieve LLM chat completions from models like Claude Sonnet 3.5, OpenAI GPT4o, Cohere Command, and Llama 3 (via Ollama). ([learn more](#usage-of-pgai))
-* Reason over your data and facilitate use cases like classification, summarization, and data enrichment on your existing relational data in PostgreSQL ([see an example](/docs/model_calling/openai.md)).
+We also offer a [PostgreSQL extension](/projects/extension/README.md) that can perform LLM model calling directly from SQL. This is often useful for use cases like classification, summarization, and data enrichment on your existing data.
 
-## Useful utilities
-* Load datasets from Hugging Face into your database with [ai.load_dataset](/docs/utils/load_dataset_from_huggingface.md).
-* Use chunking algorithms to split text with [SQL functions](/docs/utils/chunking.md).
+## A configurable vectorizer pipeline
 
+The vectorizer is designed to be flexible and customizable. Each vectorizer defines a pipeline for creating embeddings from your data. The pipeline is defined by a series of components that are applied in sequence to the data:
+
+- **[Loading](/docs/vectorizer/api-reference.md#loading-configuration):** First, you define the source of the data to embed. It can be the data stored directly in a column of the source table or a URI referenced in a column of the source table that points to a file, s3 bucket, etc.
+- **[Parsing](/docs/vectorizer/api-reference.md#parsing-configuration):** Then, you define the way the data is parsed if it is a non-text document such as a PDF, HTML, or markdown file.
+- **[Chunking](/docs/vectorizer/api-reference.md#chunking-configuration):** Next, you define the way text data is split into chunks.
+- **[Formatting](/docs/vectorizer/api-reference.md#formatting-configuration):** Then, for each chunk, you define the way the data is formatted before it is sent for embedding. For example, you can add the title of the document as the first line of the chunk.
+- **[Embedding](/docs/vectorizer/api-reference.md#embedding-configuration):** Finally, you specify the LLM provider, model, and the parameters to be used when generating the embeddings.
+
+## Supported embedding models
+
+The following models are supported for embedding:
+
+- [Ollama](/docs/vectorizer/api-reference.md#aiembedding_ollama)
+- [OpenAI](/docs/vectorizer/api-reference.md#aiembedding_openai)
+- [Voyage AI](/docs/vectorizer/api-reference.md#aiembedding_voyageai)
+- [Cohere](/docs/vectorizer/api-reference.md#aiembedding_litellm)
+- [Huggingface](/docs/vectorizer/api-reference.md#aiembedding_litellm)
+- [Mistral](/docs/vectorizer/api-reference.md#aiembedding_litellm)
+- [Azure OpenAI](/docs/vectorizer/api-reference.md#aiembedding_litellm)
+- [AWS Bedrock](/docs/vectorizer/api-reference.md#aiembedding_litellm)
+- [Vertex AI](/docs/vectorizer/api-reference.md#aiembedding_litellm)
+
+## The importance of a declarative approach to embedding generation
+
+When you define a vectorizer, you define how an embedding is generated from you
+data in a *declarative* way (much like an index).  That allows the system to
+manage the process of generating and updating the embeddings in the background
+for you. The declarative nature of the vectorizer is the "magic sauce" that
+allows the system to handle intermittent failures of the LLM and make the system
+robust and scalable.
+
+The approach is similar to the way that indexes work in PostgreSQL. When you
+create an index, you are essentially declaring that you want to be able to
+search for data in a certain way. The system then manages the process of
+updating the index as the data changes.
+ 
 # Resources
 ## Why we built it
 - [Vector Databases Are the Wrong Abstraction](https://www.timescale.com/blog/vector-databases-are-the-wrong-abstraction/)
@@ -450,137 +350,10 @@ You can perform RAG purely from within the database using SQL or use a python sc
 - [Which RAG Chunking and Formatting Strategy Is Best for Your App With Pgvector](https://www.timescale.com/blog/which-rag-chunking-and-formatting-strategy-is-best/)
 - [Parsing All the Data With Open-Source Tools: Unstructured and Pgai](https://www.timescale.com/blog/parsing-all-the-data-with-open-source-tools-unstructured-and-pgai/)
 
-## Tutorials about pgai model calling
-- [In-Database AI Agents: Teaching Claude to Use Tools With Pgai](https://www.timescale.com/blog/in-database-ai-agents-teaching-claude-to-use-tools-with-pgai/)
-- [Build Search and RAG Systems on PostgreSQL Using Cohere and Pgai](https://www.timescale.com/blog/build-search-and-rag-systems-on-postgresql-using-cohere-and-pgai/)
-- [Use Open-Source LLMs in PostgreSQL With Ollama and Pgai](https://www.timescale.com/blog/use-open-source-llms-in-postgresql-with-ollama-and-pgai/)
 
 ## Contributing
 We welcome contributions to pgai! See the [Contributing](/CONTRIBUTING.md) page for more information.
 
-# Automated embedding and semantic search
-
-* [Automatically create and sync vector embeddings for your data](#automatically-create-and-sync-llm-embeddings-for-your-data)
-* [Search your data using vector and semantic search](#search-your-data-using-vector-and-semantic-search)
-* [Implement Retrieval Augmented Generation inside a single SQL statement](#implement-retrieval-augmented-generation-inside-a-single-sql-statement)
-
-### Automatically create and sync LLM embeddings for your data
-
-The [pgvector](https://github.com/pgvector/pgvector) and
-[pgvectorscale](https://github.com/timescale/pgvectorscale) extensions allow you
-to store vector embeddings in your database and perform fast and efficient
-vector search.  The [pgai Vectorizer](/docs/vectorizer/overview.md) builds on top of
-these extensions to automatically create and synchronize embeddings for any
-text data in your database.
-
-With one line of code, you can define a vectorizer that creates embeddings for data in a table:
-```sql
-SELECT ai.create_vectorizer(
-    <table_name>::regclass,
-    destination => <embedding_table_name>,
-    loading => ai.loading_column(<column_name>),
-    embedding => ai.embedding_ollama(<model_name>, <dimensions>)
-);
-```
-This newly created vectorizer will automatically track any changes to the
-data in the source table and update the destination embedding table
-with the new embeddings asynchronously.
-
-[Automate AI embedding with pgai Vectorizer](/docs/vectorizer/overview.md) shows you how
-to implement embeddings in your own data. On a self-hosted Postgres
-installation, you use a [Vectorizer Worker](/docs/vectorizer/worker.md) to
-asynchronously processes your vectorizers. When you create Vectorizers in a
-Timescale Cloud database, embeddings are automatically created and synchronized
-in the background.
-
-Note: Timescale Cloud currently supports embedding natively with OpenAI. To use Ollama on the data in your Timescale Cloud service, set [scheduling => ai.scheduling_none()](/docs/vectorizer/api-reference.md#scheduling-configuration) in the configuration for your service, then [install the vectorizer worker locally](/docs/vectorizer/worker.md#install-and-configure-vectorizer-worker) and configure it to connect to your Timescale Cloud service.
-
-### Search your data using vector and semantic search
-
-pgai exposes a set of functions to directly interact with the LLM models through SQL, enabling
-you to do semantic search directly in your database:
-
-```sql
-SELECT
-   chunk,
-   embedding <=> ai.ollama_embed(<embedding_model>, 'some-query') as distance
-FROM <embedding_table>
-ORDER BY distance
-LIMIT 5;
-```
-
-This is a perfectly normal SQL query. You can combine it with `where` clauses and other SQL features to
-further refine your search. pgai solves the *missing where clause in vector search* problem for real.
-
-### Implement Retrieval Augmented Generation inside a single SQL statement
-
-Similar to [semantic search](#search-your-data-using-vector-and-semantic-search), pgai LLM functions
-enable you to implement RAG directly in your database. For example:
-
-1. Create a RAG function:
-    ```sql
-    CREATE OR REPLACE FUNCTION generate_rag_response(query_text TEXT)
-    RETURNS TEXT AS $$
-    DECLARE
-       context_chunks TEXT;
-       response TEXT;
-    BEGIN
-       -- Perform similarity search to find relevant blog posts
-       SELECT string_agg(title || ': ' || chunk, E'\n') INTO context_chunks
-       FROM
-       (
-           SELECT title, chunk
-           FROM blogs_embedding
-           ORDER BY embedding <=> ai.ollama_embed('nomic-embed-text', query_text)
-           LIMIT 3
-       ) AS relevant_posts;
-
-       -- Generate a summary using llama3
-       SELECT ai.ollama_chat_complete
-       ( 'llama3'
-       , jsonb_build_array
-         ( jsonb_build_object('role', 'system', 'content', 'you are a helpful assistant')
-         , jsonb_build_object
-           ('role', 'user'
-           , 'content', query_text || E'\nUse the following context to respond.\n' || context_chunks
-           )
-         )
-       )->'message'->>'content' INTO response;
-
-       RETURN response;
-    END;
-    $$ LANGUAGE plpgsql;
-    ```
-
-1. Execute your function in a SQL query:
-
-    ```sql
-    SELECT generate_rag_response('Give me some startup advice');
-    ```
-
-## Model calling
-
-Model calling is a feature of pgai that allows you to call LLM models from SQL. This lets you leverage the power of LLMs for a variety of tasks, including classification, summarization, moderation, and other forms of data enrichment.
-
-The following models are supported (click on the model to learn more):
-
-| **Model**                                            | **Tokenize** | **Embed** | **Chat Complete** | **Generate** | **Moderate** | **Classify** | **Rerank** |
-|------------------------------------------------------|:------------:|:---------:|:-----------------:|:------------:|:------------:|:------------:|:----------:|
-| **[Ollama](/docs/model_calling/ollama.md)**                       |              |    ✔️     |        ✔️         |      ✔️      |              |              |            |
-| **[OpenAI](/docs/model_calling/openai.md)**                       |     ✔️️      |    ✔️     |        ✔️         |              |      ✔️      |              |            |
-| **[Anthropic](/docs/model_calling/anthropic.md)**                 |              |           |                   |      ✔️      |              |              |            |
-| **[Cohere](/docs/model_calling/cohere.md)**                       |      ✔️      |    ✔️     |        ✔️         |              |              |      ✔️      |     ✔️     |
-| **[Voyage AI](/docs/model_calling/voyageai.md)**                  |              |    ✔️     |                   |              |              |              |            |
-| **[Huggingface (with LiteLLM)](/docs/model_calling/litellm.md)**  |              |    ✔️     |                   |              |              |              |            |
-| **[Mistral (with LiteLLM)](/docs/model_calling/litellm.md)**      |              |    ✔️     |                   |              |              |              |            |
-| **[Azure OpenAI (with LiteLLM)](/docs/model_calling/litellm.md)** |              |    ✔️     |                   |              |              |              |            |
-| **[AWS Bedrock (with LiteLLM)](/docs/model_calling/litellm.md)**  |              |    ✔️     |                   |              |              |              |            |
-| **[Vertex AI (with LiteLLM)](/docs/model_calling/litellm.md)**    |              |    ✔️     |                   |              |              |              |            |
-
-Some examples:
-- Learn how to [moderate](/docs/model_calling/moderate.md) content directly in the database using triggers and background jobs. 
-- [load datasets directly from Hugging Face](/docs/utils/load_dataset_from_huggingface.md) into your database.
-- Leverage LLMs for data processing tasks such as classification, summarization, and data enrichment ([see the OpenAI example](/docs/model_calling/openai.md)).
 
 ## Get involved
 
