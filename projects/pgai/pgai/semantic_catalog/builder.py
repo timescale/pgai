@@ -1,23 +1,23 @@
-from typing import TextIO, Callable
-import itertools
+from collections.abc import Callable
+from typing import Literal, TextIO
 
 import psycopg
-from psycopg.sql import SQL, Composable, Literal
+from psycopg.sql import SQL, Composable
 from pydantic_ai import Agent
-from pydantic_ai.usage import Usage
-from pydantic_ai.models import Model, KnownModelName
+from pydantic_ai.models import KnownModelName, Model
 from pydantic_ai.settings import ModelSettings
+from pydantic_ai.usage import Usage
 
 from pgai.semantic_catalog import loader, render
-from pgai.semantic_catalog.models import Table, Description, View, Procedure
+from pgai.semantic_catalog.models import Description, Procedure, Table, View
 
 
 async def find_tables(
-        con: psycopg.AsyncConnection,
-        include_schema: str | None = None,
-        exclude_schema: str | None = None,
-        include_table: str | None = None,
-        exclude_table: str | None = None,
+    con: psycopg.AsyncConnection,
+    include_schema: str | None = None,
+    exclude_schema: str | None = None,
+    include_table: str | None = None,
+    exclude_table: str | None = None,
 ) -> list[int]:
     async with con.cursor() as cur:
         filters: list[Composable] = []
@@ -50,11 +50,11 @@ async def find_tables(
 
 
 async def find_views(
-        con: psycopg.AsyncConnection,
-        include_schema: str | None = None,
-        exclude_schema: str | None = None,
-        include_view: str | None = None,
-        exclude_view: str | None = None,
+    con: psycopg.AsyncConnection,
+    include_schema: str | None = None,
+    exclude_schema: str | None = None,
+    include_view: str | None = None,
+    exclude_view: str | None = None,
 ) -> list[int]:
     async with con.cursor() as cur:
         filters: list[Composable] = []
@@ -87,11 +87,11 @@ async def find_views(
 
 
 async def find_procedures(
-        con: psycopg.AsyncConnection,
-        include_schema: str | None = None,
-        exclude_schema: str | None = None,
-        include_proc: str | None = None,
-        exclude_proc: str | None = None,
+    con: psycopg.AsyncConnection,
+    include_schema: str | None = None,
+    exclude_schema: str | None = None,
+    include_proc: str | None = None,
+    exclude_proc: str | None = None,
 ) -> list[int]:
     async with con.cursor() as cur:
         filters: list[Composable] = []
@@ -123,16 +123,16 @@ async def find_procedures(
 
 
 async def generate_table_descriptions(
-        con: psycopg.AsyncConnection,
-        oids: list[int],
-        model: KnownModelName | Model,
-        callback: Callable[[Description], None],
-        model_settings: ModelSettings | None = None,
-        batch_size: int = 5,
+    con: psycopg.AsyncConnection,
+    oids: list[int],
+    model: KnownModelName | Model,
+    callback: Callable[[Description], None],
+    model_settings: ModelSettings | None = None,
+    batch_size: int = 5,
 ) -> Usage:
     def batches():
         for i in range(0, len(oids), batch_size):
-            yield oids[i:i + batch_size]
+            yield oids[i : i + batch_size]
 
     table_index: dict[int, Table] = {}
 
@@ -141,9 +141,9 @@ async def generate_table_descriptions(
         model_settings=model_settings,
         name="table-describer",
         system_prompt=(
-            "You are a SQL expert who generates natural language descriptions of tables in a PostgreSQL database. "
+            "You are a SQL expert who generates natural language descriptions of tables in a PostgreSQL database. "  # noqa: E501
             "The descriptions that you generate should be a concise, single sentence."
-        )
+        ),
     )
 
     @agent.tool_plain
@@ -158,18 +158,22 @@ async def generate_table_descriptions(
         if table is None:
             # TODO: handle this somehow
             return
-        callback(Description(
-            classid=table.classid,
-            objid=table.objid,
-            objsubid=0,
-            objtype="table",
-            objnames=[table.schema_name, table.table_name],
-            objargs=[],
-            description=description,
-        ))
+        callback(
+            Description(
+                classid=table.classid,
+                objid=table.objid,
+                objsubid=0,
+                objtype="table",
+                objnames=[table.schema_name, table.table_name],
+                objargs=[],
+                description=description,
+            )
+        )
 
     @agent.tool_plain
-    def record_column_description(table_id: int, column_name: str, description: str) -> None:
+    def record_column_description(
+        table_id: int, column_name: str, description: str
+    ) -> None:
         """Records the description of a column
 
         Args:
@@ -185,15 +189,17 @@ async def generate_table_descriptions(
         if column is None:
             # TODO: handle this somehow
             return
-        callback(Description(
-            classid=column.classid,
-            objid=column.objid,
-            objsubid=column.objsubid,
-            objtype="table column",
-            objnames=[table.schema_name, table.table_name, column_name],
-            objargs=[],
-            description=description,
-        ))
+        callback(
+            Description(
+                classid=column.classid,
+                objid=column.objid,
+                objsubid=column.objsubid,
+                objtype="table column",
+                objnames=[table.schema_name, table.table_name, column_name],
+                objargs=[],
+                description=description,
+            )
+        )
 
     usage: Usage | None = None
     for batch in batches():
@@ -201,27 +207,30 @@ async def generate_table_descriptions(
         table_index = {table.objid: table for table in tables}
         rendered: str = render.render_tables(tables)
         prompt = (
-                     "Below are representations of one or more PostgreSQL tables. "
-                     "Generate a natural language description for each table and column represented. "
-                     "Use tools to record your description. Respond ONLY with 'done' when finished. "
-                     "\n\n"
-                 ) + rendered
+            (
+                "Below are representations of one or more PostgreSQL tables. "
+                "Generate a natural language description for each table and column represented. "  # noqa: E501
+                "Use tools to record your description. Respond ONLY with 'done' when finished. "  # noqa: E501
+                "\n\n"
+            )
+            + rendered
+        )
         result = await agent.run(user_prompt=prompt)
         usage = result.usage() if usage is None else usage + result.usage()
     return usage
 
 
 async def generate_view_descriptions(
-        con: psycopg.AsyncConnection,
-        oids: list[int],
-        model: KnownModelName | Model,
-        callback: Callable[[Description], None],
-        model_settings: ModelSettings | None = None,
-        batch_size: int = 5,
+    con: psycopg.AsyncConnection,
+    oids: list[int],
+    model: KnownModelName | Model,
+    callback: Callable[[Description], None],
+    model_settings: ModelSettings | None = None,
+    batch_size: int = 5,
 ) -> Usage:
     def batches():
         for i in range(0, len(oids), batch_size):
-            yield oids[i:i + batch_size]
+            yield oids[i : i + batch_size]
 
     view_index: dict[int, View] = {}
 
@@ -230,9 +239,9 @@ async def generate_view_descriptions(
         model_settings=model_settings,
         name="view-describer",
         system_prompt=(
-            "You are a SQL expert who generates natural language descriptions of views in a PostgreSQL database. "
+            "You are a SQL expert who generates natural language descriptions of views in a PostgreSQL database. "  # noqa: E501
             "The descriptions that you generate should be a concise, single sentence."
-        )
+        ),
     )
 
     @agent.tool_plain
@@ -247,18 +256,22 @@ async def generate_view_descriptions(
         if view is None:
             # TODO: handle this somehow
             return
-        callback(Description(
-            classid=view.classid,
-            objid=view.objid,
-            objsubid=0,
-            objtype="view",
-            objnames=[view.schema_name, view.view_name],
-            objargs=[],
-            description=description,
-        ))
+        callback(
+            Description(
+                classid=view.classid,
+                objid=view.objid,
+                objsubid=0,
+                objtype="view",
+                objnames=[view.schema_name, view.view_name],
+                objargs=[],
+                description=description,
+            )
+        )
 
     @agent.tool_plain
-    def record_column_description(view_id: int, column_name: str, description: str) -> None:
+    def record_column_description(
+        view_id: int, column_name: str, description: str
+    ) -> None:
         """Records the description of a column
 
         Args:
@@ -274,15 +287,17 @@ async def generate_view_descriptions(
         if column is None:
             # TODO: handle this somehow
             return
-        callback(Description(
-            classid=column.classid,
-            objid=column.objid,
-            objsubid=column.objsubid,
-            objtype="view column",
-            objnames=[view.schema_name, view.view_name, column_name],
-            objargs=[],
-            description=description,
-        ))
+        callback(
+            Description(
+                classid=column.classid,
+                objid=column.objid,
+                objsubid=column.objsubid,
+                objtype="view column",
+                objnames=[view.schema_name, view.view_name, column_name],
+                objargs=[],
+                description=description,
+            )
+        )
 
     usage: Usage | None = None
     for batch in batches():
@@ -290,27 +305,30 @@ async def generate_view_descriptions(
         view_index = {view.objid: view for view in views}
         rendered: str = render.render_views(views)
         prompt = (
-                     "Below are representations of one or more PostgreSQL views. "
-                     "Generate a natural language description for each view and column represented. "
-                     "Use tools to record your description. Respond ONLY with 'done' when finished. "
-                     "\n\n"
-                 ) + rendered
+            (
+                "Below are representations of one or more PostgreSQL views. "
+                "Generate a natural language description for each view and column represented. "  # noqa: E501
+                "Use tools to record your description. Respond ONLY with 'done' when finished. "  # noqa: E501
+                "\n\n"
+            )
+            + rendered
+        )
         result = await agent.run(user_prompt=prompt)
         usage = result.usage() if usage is None else usage + result.usage()
     return usage
 
 
 async def generate_procedure_descriptions(
-        con: psycopg.AsyncConnection,
-        oids: list[int],
-        model: KnownModelName | Model,
-        callback: Callable[[Description], None],
-        model_settings: ModelSettings | None = None,
-        batch_size: int = 5,
+    con: psycopg.AsyncConnection,
+    oids: list[int],
+    model: KnownModelName | Model,
+    callback: Callable[[Description], None],
+    model_settings: ModelSettings | None = None,
+    batch_size: int = 5,
 ) -> Usage:
     def batches():
         for i in range(0, len(oids), batch_size):
-            yield oids[i:i + batch_size]
+            yield oids[i : i + batch_size]
 
     proc_index: dict[int, Procedure] = {}
 
@@ -319,9 +337,9 @@ async def generate_procedure_descriptions(
         model_settings=model_settings,
         name="procedure-describer",
         system_prompt=(
-            "You are a SQL expert who generates natural language descriptions of procedures and functions in a PostgreSQL database. "  # noqa
+            "You are a SQL expert who generates natural language descriptions of procedures and functions in a PostgreSQL database. "  # noqa: E501
             "The descriptions that you generate should be a concise, single sentence."
-        )
+        ),
     )
 
     @agent.tool_plain
@@ -331,20 +349,22 @@ async def generate_procedure_descriptions(
         Args:
             id (int): The ID of the procedure or function (specified in the XML tag)
             description (str): a concise, single sentence description of the procedure/function
-        """
+        """  # noqa: E501
         proc = proc_index.get(id)
         if proc is None:
             # TODO: handle this somehow
             return
-        callback(Description(
-            classid=proc.classid,
-            objid=proc.objid,
-            objsubid=0,
-            objtype=proc.kind,
-            objnames=[proc.schema_name, proc.proc_name],
-            objargs=proc.objargs,
-            description=description,
-        ))
+        callback(
+            Description(
+                classid=proc.classid,
+                objid=proc.objid,
+                objsubid=0,
+                objtype=proc.kind,
+                objnames=[proc.schema_name, proc.proc_name],
+                objargs=proc.objargs,
+                description=description,
+            )
+        )
 
     usage: Usage | None = None
     for batch in batches():
@@ -352,49 +372,45 @@ async def generate_procedure_descriptions(
         proc_index = {proc.objid: proc for proc in procs}
         rendered: str = render.render_procedures(procs)
         prompt = (
-                     "Below are representations of one or more PostgreSQL procedures/functions. "
-                     "Generate a natural language description for each procedure/function represented. "
-                     "Use the tool to record your description. Respond ONLY with 'done' when finished. "
-                     "\n\n"
-                 ) + rendered
+            (
+                "Below are representations of one or more PostgreSQL procedures/functions. "  # noqa
+                "Generate a natural language description for each procedure/function represented. "  # noqa
+                "Use the tool to record your description. Respond ONLY with 'done' when finished. "  # noqa
+                "\n\n"
+            )
+            + rendered
+        )
         result = await agent.run(user_prompt=prompt)
         usage = result.usage() if usage is None else usage + result.usage()
     return usage
 
 
-def description_to_sql(con: psycopg.AsyncConnection, catalog_name: str, description: Description) -> str:
-    sql = (
-        SQL("select ai.semantic_catalog_obj_add_remote({}, {}, {}, {}, array[{}]::text[], array[{}]::text[], {}, {});\n")  # noqa
-        .format(
-            Literal(description.classid),
-            Literal(description.objid),
-            Literal(description.objsubid),
-            Literal(description.objtype),
-            SQL(", ").join([Literal(x) for x in description.objnames]),
-            SQL(", ").join([Literal(x) for x in description.objargs]),
-            Literal(description.description),
-            Literal(catalog_name)
-        ))
-    return sql.as_string(con)
-
-
 async def build(
-        db_url: str,
-        model: KnownModelName | Model,
-        catalog_name: str,
-        output: TextIO,
-        include_schema: str | None = None,
-        exclude_schema: str | None = None,
-        include_table: str | None = None,
-        exclude_table: str | None = None,
-        include_view: str | None = None,
-        exclude_view: str | None = None,
-        include_proc: str | None = None,
-        exclude_proc: str | None = None,
-        batch_size: int = 5,
+    db_url: str,
+    model: KnownModelName | Model,
+    catalog_name: str,
+    output: TextIO,
+    include_schema: str | None = None,
+    exclude_schema: str | None = None,
+    include_table: str | None = None,
+    exclude_table: str | None = None,
+    include_view: str | None = None,
+    exclude_view: str | None = None,
+    include_proc: str | None = None,
+    exclude_proc: str | None = None,
+    batch_size: int = 5,
+    format: Literal["sql", "comment"] = "sql",
 ) -> Usage:
+    assert format in {"sql", "comment"}
+
     def callback(description: Description):
-        output.write(description_to_sql(con, catalog_name, description))
+        match format:
+            case "sql":
+                output.write(
+                    render.render_description_to_sql(con, catalog_name, description)
+                )
+            case "comment":
+                output.write(render.render_description_to_comment(con, description))
 
     async with await psycopg.AsyncConnection.connect(db_url) as con:
         # tables

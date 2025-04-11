@@ -47,7 +47,6 @@ class Index(BaseModel):
 class Table(BaseModel):
     classid: int
     objid: int
-    objsubid: int = 0
     schema_name: str
     table_name: str
     persistence: Literal["temporary", "unlogged"] | None = None

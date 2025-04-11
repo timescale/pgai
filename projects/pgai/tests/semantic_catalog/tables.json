@@ -1,15 +1,14 @@
 {
   "aircraft": {
     "classid": 1259,
-    "objid": 23528,
-    "objsubid": 0,
+    "objid": 27093,
     "schema_name": "postgres_air",
     "table_name": "aircraft",
     "persistence": null,
     "columns": [
       {
         "classid": 1259,
-        "objid": 23528,
+        "objid": 27093,
         "objsubid": 1,
         "name": "model",
         "type": "text",
@@ -18,7 +17,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23528,
+        "objid": 27093,
         "objsubid": 2,
         "name": "range",
         "type": "numeric",
@@ -27,7 +26,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23528,
+        "objid": 27093,
         "objsubid": 3,
         "name": "class",
         "type": "integer",
@@ -36,7 +35,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23528,
+        "objid": 27093,
         "objsubid": 4,
         "name": "velocity",
         "type": "numeric",
@@ -45,7 +44,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23528,
+        "objid": 27093,
         "objsubid": 5,
         "name": "code",
         "type": "text",
@@ -63,15 +62,14 @@
   },
   "flight": {
     "classid": 1259,
-    "objid": 23555,
-    "objsubid": 0,
+    "objid": 27120,
     "schema_name": "postgres_air",
     "table_name": "flight",
     "persistence": null,
     "columns": [
       {
         "classid": 1259,
-        "objid": 23555,
+        "objid": 27120,
         "objsubid": 1,
         "name": "flight_id",
         "type": "integer",
@@ -80,7 +78,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23555,
+        "objid": 27120,
         "objsubid": 2,
         "name": "flight_no",
         "type": "text",
@@ -89,7 +87,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23555,
+        "objid": 27120,
         "objsubid": 3,
         "name": "scheduled_departure",
         "type": "timestamp with time zone",
@@ -98,7 +96,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23555,
+        "objid": 27120,
         "objsubid": 4,
         "name": "scheduled_arrival",
         "type": "timestamp with time zone",
@@ -107,7 +105,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23555,
+        "objid": 27120,
         "objsubid": 5,
         "name": "departure_airport",
         "type": "character(3)",
@@ -116,7 +114,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23555,
+        "objid": 27120,
         "objsubid": 6,
         "name": "arrival_airport",
         "type": "character(3)",
@@ -125,7 +123,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23555,
+        "objid": 27120,
         "objsubid": 7,
         "name": "status",
         "type": "text",
@@ -134,7 +132,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23555,
+        "objid": 27120,
         "objsubid": 8,
         "name": "aircraft_code",
         "type": "character(3)",
@@ -143,7 +141,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23555,
+        "objid": 27120,
         "objsubid": 9,
         "name": "actual_departure",
         "type": "timestamp with time zone",
@@ -152,7 +150,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23555,
+        "objid": 27120,
         "objsubid": 10,
         "name": "actual_arrival",
         "type": "timestamp with time zone",
@@ -161,7 +159,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23555,
+        "objid": 27120,
         "objsubid": 11,
         "name": "update_ts",
         "type": "timestamp with time zone",
@@ -191,15 +189,14 @@
   },
   "airport": {
     "classid": 1259,
-    "objid": 23533,
-    "objsubid": 0,
+    "objid": 27098,
     "schema_name": "postgres_air",
     "table_name": "airport",
     "persistence": null,
     "columns": [
       {
         "classid": 1259,
-        "objid": 23533,
+        "objid": 27098,
         "objsubid": 1,
         "name": "airport_code",
         "type": "character(3)",
@@ -208,7 +205,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23533,
+        "objid": 27098,
         "objsubid": 2,
         "name": "airport_name",
         "type": "text",
@@ -217,7 +214,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23533,
+        "objid": 27098,
         "objsubid": 3,
         "name": "city",
         "type": "text",
@@ -226,7 +223,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23533,
+        "objid": 27098,
         "objsubid": 4,
         "name": "airport_tz",
         "type": "text",
@@ -235,7 +232,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23533,
+        "objid": 27098,
         "objsubid": 5,
         "name": "continent",
         "type": "text",
@@ -244,7 +241,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23533,
+        "objid": 27098,
         "objsubid": 6,
         "name": "iso_country",
         "type": "text",
@@ -253,7 +250,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23533,
+        "objid": 27098,
         "objsubid": 7,
         "name": "iso_region",
         "type": "text",
@@ -262,7 +259,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23533,
+        "objid": 27098,
         "objsubid": 8,
         "name": "intnl",
         "type": "boolean",
@@ -271,7 +268,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23533,
+        "objid": 27098,
         "objsubid": 9,
         "name": "update_ts",
         "type": "timestamp with time zone",
@@ -289,15 +286,14 @@
   },
   "account": {
     "classid": 1259,
-    "objid": 23522,
-    "objsubid": 0,
+    "objid": 27087,
     "schema_name": "postgres_air",
     "table_name": "account",
     "persistence": null,
     "columns": [
       {
         "classid": 1259,
-        "objid": 23522,
+        "objid": 27087,
         "objsubid": 1,
         "name": "account_id",
         "type": "integer",
@@ -306,7 +302,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23522,
+        "objid": 27087,
         "objsubid": 2,
         "name": "login",
         "type": "text",
@@ -315,7 +311,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23522,
+        "objid": 27087,
         "objsubid": 3,
         "name": "first_name",
         "type": "text",
@@ -324,7 +320,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23522,
+        "objid": 27087,
         "objsubid": 4,
         "name": "last_name",
         "type": "text",
@@ -333,7 +329,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23522,
+        "objid": 27087,
         "objsubid": 5,
         "name": "frequent_flyer_id",
         "type": "integer",
@@ -342,7 +338,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23522,
+        "objid": 27087,
         "objsubid": 6,
         "name": "update_ts",
         "type": "timestamp with time zone",
@@ -364,15 +360,14 @@
   },
   "booking": {
     "classid": 1259,
-    "objid": 23545,
-    "objsubid": 0,
+    "objid": 27110,
     "schema_name": "postgres_air",
     "table_name": "booking",
     "persistence": null,
     "columns": [
       {
         "classid": 1259,
-        "objid": 23545,
+        "objid": 27110,
         "objsubid": 1,
         "name": "booking_id",
         "type": "bigint",
@@ -381,7 +376,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23545,
+        "objid": 27110,
         "objsubid": 2,
         "name": "booking_ref",
         "type": "text",
@@ -390,7 +385,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23545,
+        "objid": 27110,
         "objsubid": 3,
         "name": "booking_name",
         "type": "text",
@@ -399,7 +394,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23545,
+        "objid": 27110,
         "objsubid": 4,
         "name": "account_id",
         "type": "integer",
@@ -408,7 +403,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23545,
+        "objid": 27110,
         "objsubid": 5,
         "name": "email",
         "type": "text",
@@ -417,7 +412,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23545,
+        "objid": 27110,
         "objsubid": 6,
         "name": "phone",
         "type": "text",
@@ -426,7 +421,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23545,
+        "objid": 27110,
         "objsubid": 7,
         "name": "update_ts",
         "type": "timestamp with time zone",
@@ -435,7 +430,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23545,
+        "objid": 27110,
         "objsubid": 8,
         "name": "price",
         "type": "numeric(7,2)",
@@ -466,15 +461,14 @@
   },
   "booking_leg": {
     "classid": 1259,
-    "objid": 23550,
-    "objsubid": 0,
+    "objid": 27115,
     "schema_name": "postgres_air",
     "table_name": "booking_leg",
     "persistence": null,
     "columns": [
       {
         "classid": 1259,
-        "objid": 23550,
+        "objid": 27115,
         "objsubid": 1,
         "name": "booking_leg_id",
         "type": "integer",
@@ -483,7 +477,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23550,
+        "objid": 27115,
         "objsubid": 2,
         "name": "booking_id",
         "type": "integer",
@@ -492,7 +486,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23550,
+        "objid": 27115,
         "objsubid": 3,
         "name": "flight_id",
         "type": "integer",
@@ -501,7 +495,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23550,
+        "objid": 27115,
         "objsubid": 4,
         "name": "leg_num",
         "type": "integer",
@@ -510,7 +504,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23550,
+        "objid": 27115,
         "objsubid": 5,
         "name": "is_returning",
         "type": "boolean",
@@ -519,7 +513,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23550,
+        "objid": 27115,
         "objsubid": 6,
         "name": "update_ts",
         "type": "timestamp with time zone",
@@ -545,15 +539,14 @@
   },
   "boarding_pass": {
     "classid": 1259,
-    "objid": 23539,
-    "objsubid": 0,
+    "objid": 27104,
     "schema_name": "postgres_air",
     "table_name": "boarding_pass",
     "persistence": null,
     "columns": [
       {
         "classid": 1259,
-        "objid": 23539,
+        "objid": 27104,
         "objsubid": 1,
         "name": "pass_id",
         "type": "integer",
@@ -562,7 +555,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23539,
+        "objid": 27104,
         "objsubid": 2,
         "name": "passenger_id",
         "type": "bigint",
@@ -571,7 +564,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23539,
+        "objid": 27104,
         "objsubid": 3,
         "name": "booking_leg_id",
         "type": "bigint",
@@ -580,7 +573,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23539,
+        "objid": 27104,
         "objsubid": 4,
         "name": "seat",
         "type": "text",
@@ -589,7 +582,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23539,
+        "objid": 27104,
         "objsubid": 5,
         "name": "boarding_time",
         "type": "timestamp with time zone",
@@ -598,7 +591,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23539,
+        "objid": 27104,
         "objsubid": 6,
         "name": "precheck",
         "type": "boolean",
@@ -607,7 +600,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23539,
+        "objid": 27104,
         "objsubid": 7,
         "name": "update_ts",
         "type": "timestamp with time zone",
@@ -633,15 +626,14 @@
   },
   "frequent_flyer": {
     "classid": 1259,
-    "objid": 23561,
-    "objsubid": 0,
+    "objid": 27126,
     "schema_name": "postgres_air",
     "table_name": "frequent_flyer",
     "persistence": null,
     "columns": [
       {
         "classid": 1259,
-        "objid": 23561,
+        "objid": 27126,
         "objsubid": 1,
         "name": "frequent_flyer_id",
         "type": "integer",
@@ -650,7 +642,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23561,
+        "objid": 27126,
         "objsubid": 2,
         "name": "first_name",
         "type": "text",
@@ -659,7 +651,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23561,
+        "objid": 27126,
         "objsubid": 3,
         "name": "last_name",
         "type": "text",
@@ -668,7 +660,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23561,
+        "objid": 27126,
         "objsubid": 4,
         "name": "title",
         "type": "text",
@@ -677,7 +669,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23561,
+        "objid": 27126,
         "objsubid": 5,
         "name": "card_num",
         "type": "text",
@@ -686,7 +678,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23561,
+        "objid": 27126,
         "objsubid": 6,
         "name": "level",
         "type": "integer",
@@ -695,7 +687,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23561,
+        "objid": 27126,
         "objsubid": 7,
         "name": "award_points",
         "type": "integer",
@@ -704,7 +696,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23561,
+        "objid": 27126,
         "objsubid": 8,
         "name": "email",
         "type": "text",
@@ -713,7 +705,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23561,
+        "objid": 27126,
         "objsubid": 9,
         "name": "phone",
         "type": "text",
@@ -722,7 +714,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23561,
+        "objid": 27126,
         "objsubid": 10,
         "name": "update_ts",
         "type": "timestamp with time zone",
@@ -740,15 +732,14 @@
   },
   "passenger": {
     "classid": 1259,
-    "objid": 23567,
-    "objsubid": 0,
+    "objid": 27132,
     "schema_name": "postgres_air",
     "table_name": "passenger",
     "persistence": null,
     "columns": [
       {
         "classid": 1259,
-        "objid": 23567,
+        "objid": 27132,
         "objsubid": 1,
         "name": "passenger_id",
         "type": "integer",
@@ -757,7 +748,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23567,
+        "objid": 27132,
         "objsubid": 2,
         "name": "booking_id",
         "type": "integer",
@@ -766,7 +757,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23567,
+        "objid": 27132,
         "objsubid": 3,
         "name": "booking_ref",
         "type": "text",
@@ -775,7 +766,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23567,
+        "objid": 27132,
         "objsubid": 4,
         "name": "passenger_no",
         "type": "integer",
@@ -784,7 +775,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23567,
+        "objid": 27132,
         "objsubid": 5,
         "name": "first_name",
         "type": "text",
@@ -793,7 +784,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23567,
+        "objid": 27132,
         "objsubid": 6,
         "name": "last_name",
         "type": "text",
@@ -802,7 +793,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23567,
+        "objid": 27132,
         "objsubid": 7,
         "name": "account_id",
         "type": "integer",
@@ -811,7 +802,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23567,
+        "objid": 27132,
         "objsubid": 8,
         "name": "update_ts",
         "type": "timestamp with time zone",
@@ -820,7 +811,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23567,
+        "objid": 27132,
         "objsubid": 9,
         "name": "age",
         "type": "integer",
@@ -850,15 +841,14 @@
   },
   "phone": {
     "classid": 1259,
-    "objid": 23573,
-    "objsubid": 0,
+    "objid": 27138,
     "schema_name": "postgres_air",
     "table_name": "phone",
     "persistence": null,
     "columns": [
       {
         "classid": 1259,
-        "objid": 23573,
+        "objid": 27138,
         "objsubid": 1,
         "name": "phone_id",
         "type": "integer",
@@ -867,7 +857,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23573,
+        "objid": 27138,
         "objsubid": 2,
         "name": "account_id",
         "type": "integer",
@@ -876,7 +866,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23573,
+        "objid": 27138,
         "objsubid": 3,
         "name": "phone",
         "type": "text",
@@ -885,7 +875,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23573,
+        "objid": 27138,
         "objsubid": 4,
         "name": "phone_type",
         "type": "text",
@@ -894,7 +884,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23573,
+        "objid": 27138,
         "objsubid": 5,
         "name": "primary_phone",
         "type": "boolean",
@@ -903,7 +893,7 @@
       },
       {
         "classid": 1259,
-        "objid": 23573,
+        "objid": 27138,
         "objsubid": 6,
         "name": "update_ts",
         "type": "timestamp with time zone",

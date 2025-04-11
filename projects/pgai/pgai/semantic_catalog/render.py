@@ -1,8 +1,10 @@
 from pathlib import Path
 
+import psycopg
 from jinja2 import Environment, FileSystemLoader
+from psycopg.sql import SQL, Identifier, Literal
 
-from pgai.semantic_catalog.models import Procedure, Table, View
+from pgai.semantic_catalog.models import Description, Procedure, Table, View
 
 template_dir = Path(__file__).parent.joinpath("templates")
 env = Environment(loader=FileSystemLoader(template_dir))
@@ -33,3 +35,166 @@ def render_procedure(proc: Procedure) -> str:
 
 def render_procedures(procedures: list[Procedure]) -> str:
     return "\n\n".join(map(render_procedure, procedures)).strip()
+
+
+def render_description_to_sql(
+    con: psycopg.AsyncConnection, catalog_name: str, description: Description
+) -> str:
+    match description.objtype:
+        case "table":
+            assert len(description.objnames) == 2
+            return (
+                SQL("select ai.sc_set_table_desc({}, {}, {}, {}, {}, {});\n")
+                .format(
+                    Literal(description.classid),
+                    Literal(description.objid),
+                    Literal(description.objnames[0]),
+                    Literal(description.objnames[1]),
+                    Literal(description.description),
+                    Literal(catalog_name),
+                )
+                .as_string(con)
+            )
+        case "view":
+            assert len(description.objnames) == 2
+            return (
+                SQL("select ai.sc_set_view_desc({}, {}, {}, {}, {}, {});\n")
+                .format(
+                    Literal(description.classid),
+                    Literal(description.objid),
+                    Literal(description.objnames[0]),
+                    Literal(description.objnames[1]),
+                    Literal(description.description),
+                    Literal(catalog_name),
+                )
+                .as_string(con)
+            )
+        case "table column":
+            assert len(description.objnames) == 3
+            return (
+                SQL(
+                    "select ai.sc_set_table_col_desc({}, {}, {}, {}, {}, {}, {}, {});\n"
+                )  # noqa
+                .format(
+                    Literal(description.classid),
+                    Literal(description.objid),
+                    Literal(description.objsubid),
+                    Literal(description.objnames[0]),
+                    Literal(description.objnames[1]),
+                    Literal(description.objnames[2]),
+                    Literal(description.description),
+                    Literal(catalog_name),
+                )
+                .as_string(con)
+            )
+        case "view column":
+            assert len(description.objnames) == 3
+            return (
+                SQL("select ai.sc_set_view_col_desc({}, {}, {}, {}, {}, {}, {}, {});\n")  # noqa
+                .format(
+                    Literal(description.classid),
+                    Literal(description.objid),
+                    Literal(description.objsubid),
+                    Literal(description.objnames[0]),
+                    Literal(description.objnames[1]),
+                    Literal(description.objnames[2]),
+                    Literal(description.description),
+                    Literal(catalog_name),
+                )
+                .as_string(con)
+            )
+        case "procedure":
+            assert len(description.objnames) >= 2
+            return (
+                SQL("select ai.sc_set_proc_desc({}, {}, {}, {}, {}, {});\n")
+                .format(
+                    Literal(description.classid),
+                    Literal(description.objid),
+                    Literal(description.objnames[0]),
+                    Literal(description.objnames[1]),
+                    Literal(description.objargs),
+                    Literal(description.description),
+                )
+                .as_string(con)
+            )
+        case "function":
+            assert len(description.objnames) >= 2
+            return (
+                SQL("select ai.sc_set_func_desc({}, {}, {}, {}, {}, {});\n")
+                .format(
+                    Literal(description.classid),
+                    Literal(description.objid),
+                    Literal(description.objnames[0]),
+                    Literal(description.objnames[1]),
+                    Literal(description.objargs),
+                    Literal(description.description),
+                )
+                .as_string(con)
+            )
+        case "aggregate":
+            assert len(description.objnames) >= 2
+            return (
+                SQL("select ai.sc_set_agg_desc({}, {}, {}, {}, {}, {});\n")
+                .format(
+                    Literal(description.classid),
+                    Literal(description.objid),
+                    Literal(description.objnames[0]),
+                    Literal(description.objnames[1]),
+                    Literal(description.objargs),
+                    Literal(description.description),
+                )
+                .as_string(con)
+            )
+        case _:
+            raise ValueError(f"unknown description objtype: {description.objtype}")
+
+
+def render_description_to_comment(
+    con: psycopg.AsyncConnection, description: Description
+) -> str:
+    match description.objtype:
+        case "table" | "view":
+            assert len(description.objnames) >= 2
+            type = SQL("TABLE") if description.objtype == "table" else SQL("VIEW")
+            return (
+                SQL("COMMENT ON {} {}.{} IS {};\n")
+                .format(
+                    type,
+                    Identifier(description.objnames[0]),
+                    Identifier(description.objnames[1]),
+                    Literal(description.description),
+                )
+                .as_string(con)
+            )
+        case "table column" | "view column":
+            assert len(description.objnames) == 3
+            return (
+                SQL("COMMENT ON COLUMN {}.{}.{} IS {};\n")
+                .format(
+                    Identifier(description.objnames[0]),
+                    Identifier(description.objnames[1]),
+                    Identifier(description.objnames[2]),
+                    Literal(description.description),
+                )
+                .as_string(con)
+            )
+        case "procedure" | "function" | "aggregate":
+            assert len(description.objnames) >= 2
+            type = {
+                "procedure": SQL("PROCEDURE"),
+                "function": SQL("FUNCTION"),
+                "aggregate": SQL("AGGREGATE"),
+            }[description.objtype]
+            return (
+                SQL("COMMENT ON {} {}.{}({}) IS {};\n")
+                .format(
+                    type,
+                    Identifier(description.objnames[0]),
+                    Identifier(description.objnames[1]),
+                    SQL(", ".join(description.objargs)),
+                    Literal(description.description),
+                )
+                .as_string(con)
+            )
+        case _:
+            raise ValueError(f"unknown description objtype: {description.objtype}")

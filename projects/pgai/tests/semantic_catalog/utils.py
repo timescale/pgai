@@ -176,18 +176,51 @@ async def gen_procs_json(container: PostgresContainer):
     )
 
 
-def get_tables() -> dict[str, Table]:
+def get_table_dict() -> dict[str, Table]:
     raw: dict = json.loads(Path(__file__).parent.joinpath("tables.json").read_text())
     return {k: Table(**v) for k, v in raw.items()}
 
 
-def get_views() -> dict[str, View]:
+def get_tables() -> list[Table]:
+    d = get_table_dict()
+    keys = [k for k in d]
+    keys.sort()
+    vals: list[Table] = []
+    for k in keys:
+        val = d[k]
+        vals.append(val)
+    return vals
+
+
+def get_view_dict() -> dict[str, View]:
     raw: dict = json.loads(Path(__file__).parent.joinpath("views.json").read_text())
     return {k: View(id=None, **v) for k, v in raw.items()}
 
 
-def get_procedures() -> dict[str, Procedure]:
+def get_views() -> list[View]:
+    d = get_view_dict()
+    keys = [k for k in d]
+    keys.sort()
+    vals: list[View] = []
+    for k in keys:
+        val = d[k]
+        vals.append(val)
+    return vals
+
+
+def get_procedure_dict() -> dict[str, Procedure]:
     raw: dict = json.loads(
         Path(__file__).parent.joinpath("procedures.json").read_text()
     )
     return {k: Procedure(id=None, **v) for k, v in raw.items()}
+
+
+def get_procedures() -> list[Procedure]:
+    d = get_procedure_dict()
+    keys = [k for k in d]
+    keys.sort()
+    vals: list[Procedure] = []
+    for k in keys:
+        val = d[k]
+        vals.append(val)
+    return vals

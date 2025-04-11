@@ -4,10 +4,9 @@ import logging
 import os
 import signal
 import sys
-import typing
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import click
 import structlog
@@ -288,7 +287,7 @@ def semantic_catalog():
     "--exclude-schema",
     type=click.STRING,
     default=None,
-    help="A regular expression to match against schema names to be excluded from output.",
+    help="A regular expression to match against schema names to be excluded from output.",  # noqa: E501
 )
 @click.option(
     "--include-table",
@@ -300,7 +299,7 @@ def semantic_catalog():
     "--exclude-table",
     type=click.STRING,
     default=None,
-    help="A regular expression to match against table names to be excluded from output.",
+    help="A regular expression to match against table names to be excluded from output.",  # noqa: E501
 )
 @click.option(
     "--include-view",
@@ -318,7 +317,7 @@ def semantic_catalog():
     "--include-proc",
     type=click.STRING,
     default=None,
-    help="A regular expression to match against procedure/function names to be included in output.",
+    help="A regular expression to match against procedure/function names to be included in output.",  # noqa: E501
 )
 @click.option(
     "--exclude-proc",
@@ -329,7 +328,9 @@ def semantic_catalog():
 @click.option(
     "-o",
     "--output",
-    type=click.Path(exists=True, dir_okay=False, writable=True, resolve_path=True),
+    type=click.Path(
+        exists=False, dir_okay=False, writable=True, resolve_path=True, path_type=Path
+    ),
     default=None,
     help="The path to a file to write output to.",
 )
@@ -340,38 +341,51 @@ def semantic_catalog():
     default=False,
     help="Append to the output file instead of overwriting it.",
 )
+@click.option(
+    "-f",
+    "--format",
+    type=click.Choice(["sql", "comment"], case_sensitive=False),
+    default="sql",
+    help="Output format (sql, comment)",
+)
 def build(
-        db_url: str,
-        model: str,
-        catalog_name: str,
-        include_schema: str | None = None,
-        exclude_schema: str | None = None,
-        include_table: str | None = None,
-        exclude_table: str | None = None,
-        include_view: str | None = None,
-        exclude_view: str | None = None,
-        include_proc: str | None = None,
-        exclude_proc: str | None = None,
-        output: Path | None = None,
-        append: bool = False,
+    db_url: str,
+    model: str,
+    catalog_name: str,
+    include_schema: str | None = None,
+    exclude_schema: str | None = None,
+    include_table: str | None = None,
+    exclude_table: str | None = None,
+    include_view: str | None = None,
+    exclude_view: str | None = None,
+    include_proc: str | None = None,
+    exclude_proc: str | None = None,
+    output: Path | None = None,
+    append: bool = False,
+    format: Literal["sql", "comment"] = "sql",
 ) -> None:
     from pgai.semantic_catalog.builder import build
+
+    # TODO: add progress feedback with Rich and add --quiet to turn it off
     # TODO: is async io for stdout/file needed?
-    with (sys.stdout if not output else output.open(mode='a' if append else 'w')) as f:
-        asyncio.run(build(
-            db_url,
-            model,  # noqa
-            catalog_name,
-            f,
-            include_schema,
-            exclude_schema,
-            include_table,
-            exclude_table,
-            include_view,
-            exclude_view,
-            include_proc,
-            exclude_proc,
-        ))
+    with sys.stdout if not output else output.open(mode="a" if append else "w") as f:
+        asyncio.run(
+            build(
+                db_url,
+                model,  # noqa
+                catalog_name,
+                output=f,
+                include_schema=include_schema,
+                exclude_schema=exclude_schema,
+                include_table=include_table,
+                exclude_table=exclude_table,
+                include_view=include_view,
+                exclude_view=exclude_view,
+                include_proc=include_proc,
+                exclude_proc=exclude_proc,
+                format=format,
+            )
+        )
 
 
 cli.add_command(semantic_catalog)

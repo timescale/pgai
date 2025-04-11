@@ -2,15 +2,15 @@ import psycopg
 
 from pgai.semantic_catalog import builder, loader
 
-from .utils import PostgresContainer, get_procedures, get_tables, get_views
+from .utils import PostgresContainer, get_procedure_dict, get_table_dict, get_view_dict
 
 
 async def test_load_tables(container: PostgresContainer):
     async with await psycopg.AsyncConnection.connect(
         container.connection_string(database="postgres_air")
     ) as con:
-        for table_name, expected in get_tables().items():
-            oids = await builder.find_tables(con, include_table=table_name)
+        for table_name, expected in get_table_dict().items():
+            oids = await builder.find_tables(con, include_table=f"^{table_name}$")
             actual = await loader.load_tables(con, oids)
             assert len(actual) == 1
             actual = actual[0]
@@ -27,8 +27,8 @@ async def test_load_views(container: PostgresContainer):
     async with await psycopg.AsyncConnection.connect(
         container.connection_string(database="postgres_air")
     ) as con:
-        for view_name, expected in get_views().items():
-            oids = await builder.find_views(con, include_view=view_name)
+        for view_name, expected in get_view_dict().items():
+            oids = await builder.find_views(con, include_view=f"^{view_name}$")
             assert len(oids) == 1
             actual = await loader.load_views(con, oids)
             assert len(actual) == 1
@@ -46,8 +46,8 @@ async def test_load_procedures(container: PostgresContainer):
     async with await psycopg.AsyncConnection.connect(
         container.connection_string(database="postgres_air")
     ) as con:
-        for proc_name, expected in get_procedures().items():
-            oids = await builder.find_procedures(con, include_proc=proc_name)
+        for proc_name, expected in get_procedure_dict().items():
+            oids = await builder.find_procedures(con, include_proc=f"^{proc_name}$")
             assert len(oids) == 1
             actual = await loader.load_procedures(con, oids)
             assert len(actual) == 1

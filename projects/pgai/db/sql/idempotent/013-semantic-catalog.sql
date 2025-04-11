@@ -133,8 +133,8 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- semantic_catalog_add_embedding_config
-create or replace function ai.semantic_catalog_add_embedding_config
+-- sc_add_embedding_config
+create or replace function ai.sc_add_embedding_config
 ( embedding jsonb
 , catalog_name text default 'default'
 ) returns void
@@ -199,8 +199,8 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- semantic_catalog_drop_embedding_config
-create or replace function ai.semantic_catalog_drop_embedding_config
+-- sc_drop_embedding_config
+create or replace function ai.sc_drop_embedding_config
 ( column_name name
 , catalog_name text default 'default'
 ) returns void
@@ -401,8 +401,8 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- semantic_catalog_obj_add_remote
-create or replace function ai.semantic_catalog_obj_add_remote
+-- sc_set_obj_desc
+create or replace function ai.sc_set_obj_desc
 ( classid oid
 , objid oid
 , objsubid integer
@@ -418,7 +418,6 @@ declare
     _sql text;
     _id int8;
 begin
-    -- TODO: add on conflict update logic
     select format
     ( $sql$
         insert into ai.semantic_catalog_obj_%s
@@ -439,6 +438,8 @@ begin
         , $6
         , $7
         )
+        on conflict (classid, objid, objsubid) 
+        do update set description = $7
         returning id
       $sql$
     , x.id
@@ -462,8 +463,204 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- semantic_catalog_obj_add
-create or replace function ai.semantic_catalog_obj_add
+-- sc_set_table_desc
+create or replace function ai.sc_set_table_desc
+( classid oid
+, objid oid
+, schema_name name
+, table_name name
+, description text
+, catalog_name text default 'default'
+)
+returns int8
+as $func$
+    select *
+    from ai.sc_set_obj_desc
+    ( classid
+    , objid
+    , 0
+    , 'table'
+    , array[schema_name, table_name]
+    , array[]
+    , description
+    , catalog_name
+    );
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- sc_set_table_col_desc
+create or replace function ai.sc_set_table_col_desc
+( classid oid
+, objid oid
+, objsubid int4
+, schema_name name
+, table_name name
+, column_name name
+, description text
+, catalog_name text default 'default'
+)
+returns int8
+as $func$
+    select *
+    from ai.sc_set_obj_desc
+    ( classid
+    , objid
+    , objsubid
+    , 'table column'
+    , array[schema_name, table_name, column_name]
+    , array[]
+    , description
+    , catalog_name
+    );
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- sc_set_view_desc
+create or replace function ai.sc_set_view_desc
+( classid oid
+, objid oid
+, schema_name name
+, view_name name
+, description text
+, catalog_name text default 'default'
+)
+returns int8
+as $func$
+    select *
+    from ai.sc_set_obj_desc
+    ( classid
+    , objid
+    , 0
+    , 'view'
+    , array[schema_name, view_name]
+    , array[]
+    , description
+    , catalog_name
+    );
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- sc_set_view_col_desc
+create or replace function ai.sc_set_view_col_desc
+( classid oid
+, objid oid
+, objsubid int4
+, schema_name name
+, view_name name
+, column_name name
+, description text
+, catalog_name text default 'default'
+)
+returns int8
+as $func$
+    select *
+    from ai.sc_set_obj_desc
+    ( classid
+    , objid
+    , objsubid
+    , 'view column'
+    , array[schema_name, view_name, column_name]
+    , array[]
+    , description
+    , catalog_name
+    );
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- sc_set_proc_desc
+create or replace function ai.sc_set_proc_desc
+( classid oid
+, objid oid
+, schema_name name
+, proc_name name
+, objargs text[]
+, description text
+, catalog_name text default 'default'
+)
+returns int8
+as $func$
+    select *
+    from ai.sc_set_obj_desc
+    ( classid
+    , objid
+    , 0
+    , 'procedure'
+    , array[schema_name, proc_name]
+    , coalesce(objargs, array[])
+    , description
+    , catalog_name
+    );
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- sc_set_func_desc
+create or replace function ai.sc_set_func_desc
+( classid oid
+, objid oid
+, schema_name name
+, func_name name
+, objargs text[]
+, description text
+, catalog_name text default 'default'
+)
+returns int8
+as $func$
+    select *
+    from ai.sc_set_obj_desc
+    ( classid
+    , objid
+    , 0
+    , 'function'
+    , array[schema_name, func_name]
+    , coalesce(objargs, array[])
+    , description
+    , catalog_name
+    );
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- sc_set_agg_desc
+create or replace function ai.sc_set_agg_desc
+( classid oid
+, objid oid
+, schema_name name
+, agg_name name
+, objargs text[]
+, description text
+, catalog_name text default 'default'
+)
+returns int8
+as $func$
+    select *
+    from ai.sc_set_obj_desc
+    ( classid
+    , objid
+    , 0
+    , 'aggregate'
+    , array[schema_name, agg_name]
+    , coalesce(objargs, array[])
+    , description
+    , catalog_name
+    );
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- sc_set_obj_desc
+create or replace function ai.sc_set_obj_desc
 ( objtype text
 , objnames text[]
 , objargs text[]
@@ -487,7 +684,7 @@ begin
     , _objsubid
     from pg_get_object_address(objtype, objnames, objargs) x
     ;
-    return ai.semantic_catalog_obj_add_remote
+    return ai.sc_set_obj_desc
     ( _classid
     , _objid
     , _objsubid
@@ -503,8 +700,273 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- semantic_catalog_sql_add
-create or replace function ai.semantic_catalog_sql_add
+-- sc_set_table_desc
+create or replace function ai.sc_set_table_desc
+( t regclass
+, description text
+, catalog_name text default 'default'
+)
+returns int8
+as $func$
+    select ai.sc_set_obj_desc
+    ( 'pg_catalog.pg_class'::regclass::oid
+    , t
+    , 0
+    , x.type
+    , x.object_names
+    , x.object_args
+    , description
+    , catalog_name
+    )
+    from pg_class k
+    cross join pg_identify_object_as_address
+    ( 'pg_catalog.pg_class'::regclass::oid
+    , t
+    , 0
+    ) x
+    where k.oid = t
+    and k.relkind in ('r', 'p', 'f')
+    ;
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- sc_set_table_col_desc
+create or replace function ai.sc_set_table_col_desc
+( t regclass
+, column_name name
+, description text
+, catalog_name text default 'default'
+)
+returns int8
+as $func$
+    select ai.sc_set_obj_desc
+    ( 'pg_catalog.pg_class'::regclass::oid
+    , t
+    , a.attnum
+    , x.type
+    , x.object_names
+    , x.object_args
+    , description
+    , catalog_name
+    )
+    from pg_class k
+    inner join pg_attribute a on (k.oid = a.attrelid)
+    cross join lateral pg_identify_object_as_address
+    ( 'pg_catalog.pg_class'::regclass::oid
+    , t
+    , a.attnum
+    ) x
+    where k.oid = t
+    and k.relkind in ('r', 'p', 'f')
+    and a.attname = column_name
+    ;
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- sc_set_view_desc
+create or replace function ai.sc_set_view_desc
+( v regclass
+, description text
+, catalog_name text default 'default'
+)
+returns int8
+as $func$
+    select ai.sc_set_obj_desc
+    ( 'pg_catalog.pg_class'::regclass::oid
+    , v
+    , 0
+    , x.type
+    , x.object_names
+    , x.object_args
+    , description
+    , catalog_name
+    )
+    from pg_class k
+    cross join pg_identify_object_as_address
+    ( 'pg_catalog.pg_class'::regclass::oid
+    , v
+    , 0
+    ) x
+    where k.oid = v
+    and k.relkind in ('v', 'm')
+    ;
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- sc_set_view_col_desc
+create or replace function ai.sc_set_view_col_desc
+( v regclass
+, column_name name
+, description text
+, catalog_name text default 'default'
+)
+returns int8
+as $func$
+    select ai.sc_set_obj_desc
+    ( 'pg_catalog.pg_class'::regclass::oid
+    , v
+    , a.attnum
+    , x.type
+    , x.object_names
+    , x.object_args
+    , description
+    , catalog_name
+    )
+    from pg_class k
+    inner join pg_attribute a on (k.oid = a.attrelid)
+    cross join lateral pg_identify_object_as_address
+    ( 'pg_catalog.pg_class'::regclass::oid
+    , v
+    , a.attnum
+    ) x
+    where k.oid = v
+    and k.relkind in ('v', 'm')
+    and a.attname = column_name
+    ;
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- sc_set_view_col_desc
+create or replace function ai.sc_set_view_col_desc
+( v regclass
+, column_name name
+, description text
+, catalog_name text default 'default'
+)
+returns int8
+as $func$
+    select ai.sc_set_obj_desc
+    ( 'pg_catalog.pg_class'::regclass::oid
+    , v
+    , a.attnum
+    , x.type
+    , x.object_names
+    , x.object_args
+    , description
+    , catalog_name
+    )
+    from pg_class k
+    inner join pg_attribute a on (k.oid = a.attrelid)
+    cross join lateral pg_identify_object_as_address
+    ( 'pg_catalog.pg_class'::regclass::oid
+    , v
+    , a.attnum
+    ) x
+    where k.oid = v
+    and k.relkind in ('v', 'm')
+    and a.attname = column_name
+    ;
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- sc_set_proc_desc
+create or replace function ai.sc_set_proc_desc
+( p regprocedure
+, description text
+, catalog_name text default 'default'
+)
+returns int8
+as $func$
+    select ai.sc_set_obj_desc
+    ( 'pg_catalog.pg_proc'::regclass::oid
+    , p
+    , 0
+    , x.type
+    , x.object_names
+    , x.object_args
+    , description
+    , catalog_name
+    )
+    from pg_proc o
+    cross join pg_identify_object_as_address
+    ( 'pg_catalog.pg_proc'::regclass::oid
+    , p
+    , 0
+    ) x
+    where o.oid = p
+    and o.prokind = 'p'
+    ;
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- sc_set_func_desc
+create or replace function ai.sc_set_func_desc
+( f regprocedure
+, description text
+, catalog_name text default 'default'
+)
+returns int8
+as $func$
+    select ai.sc_set_obj_desc
+    ( 'pg_catalog.pg_proc'::regclass::oid
+    , f
+    , 0
+    , x.type
+    , x.object_names
+    , x.object_args
+    , description
+    , catalog_name
+    )
+    from pg_proc o
+    cross join pg_identify_object_as_address
+    ( 'pg_catalog.pg_proc'::regclass::oid
+    , f
+    , 0
+    ) x
+    where o.oid = f
+    and o.prokind in ('f', 'w')
+    ;
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- sc_set_agg_desc
+create or replace function ai.sc_set_agg_desc
+( a regprocedure
+, description text
+, catalog_name text default 'default'
+)
+returns int8
+as $func$
+    select ai.sc_set_obj_desc
+    ( 'pg_catalog.pg_proc'::regclass::oid
+    , a
+    , 0
+    , x.type
+    , x.object_names
+    , x.object_args
+    , description
+    , catalog_name
+    )
+    from pg_proc o
+    cross join pg_identify_object_as_address
+    ( 'pg_catalog.pg_proc'::regclass::oid
+    , a
+    , 0
+    ) x
+    where o.oid = a
+    and o.prokind = 'a'
+    ;
+$func$ language sql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- sc_add_sql_desc
+create or replace function ai.sc_add_sql_desc
 ( sql text
 , description text
 , catalog_name text default 'default'
@@ -543,8 +1005,8 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- semantic_catalog_fact_add
-create or replace function ai.semantic_catalog_fact_add
+-- sc_add_fact
+create or replace function ai.sc_add_fact
 ( description text
 , catalog_name text default 'default'
 )
