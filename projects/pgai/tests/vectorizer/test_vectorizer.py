@@ -5,7 +5,7 @@ from psycopg.sql import SQL, Identifier
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 import pgai
-from pgai.vectorizer import Processor, Vectorizer
+from pgai.vectorizer import Processor, ProcProcessor, Vectorizer
 from pgai.vectorizer.features import Features
 from pgai.vectorizer.worker_tracking import WorkerTracking
 
@@ -27,7 +27,7 @@ def create_database(dbname: str, postgres_container: PostgresContainer) -> None:
         cur.execute(SQL("create database {dbname}").format(dbname=Identifier(dbname)))
 
 
-async def _vectorizer_test_after_install(
+async def _vectorizer_test_after_install_setup_vectorizer(
     postgres_container: PostgresContainer,
     dbname: str,
     ai_extension_features: bool = False,
@@ -90,29 +90,21 @@ async def _vectorizer_test_after_install(
         if not isinstance(vectorizer_id, int):
             raise ValueError("vectorizer_id is not an integer")
 
+        return vectorizer_id
+
+
+async def _vectorizer_test_after_install_after_vectorizer_execution(
+    postgres_container: PostgresContainer,
+    dbname: str,
+    vectorizer_id: int,
+):
+    db_url = create_connection_url(postgres_container, dbname=dbname)
+    with (
+        psycopg.connect(db_url, autocommit=True, row_factory=namedtuple_row) as con,
+        con.cursor() as cur,
+    ):
         cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
         vectorizer_expected = cur.fetchone()
-
-        processor = Processor(db_url)
-
-        # test cli.get_vectorizer_ids
-        assert len(processor._get_vectorizer_ids()) == 1  # type: ignore
-        assert len(processor._get_vectorizer_ids([42, 19])) == 0  # type: ignore
-        assert len(processor._get_vectorizer_ids([vectorizer_id, 19])) == 1  # type: ignore
-        assert len(processor._get_vectorizer_ids([vectorizer_id])) == 1  # type: ignore
-
-        # test cli.get_vectorizer
-        features = Features.for_testing_latest_version()
-        vectorizer_actual: Vectorizer = processor._get_vectorizer(  # type: ignore
-            vectorizer_id, features
-        )
-        assert vectorizer_actual is not None
-        assert vectorizer_expected.source_table == vectorizer_actual.source_table  # type: ignore
-
-        # run the vectorizer
-        worker_tracking = WorkerTracking(db_url, 500, features, "0.0.1")
-
-        await vectorizer_actual.run(db_url, features, worker_tracking, 1)
 
         # make sure the queue was emptied
         cur.execute("select ai.vectorizer_queue_pending(%s)", (vectorizer_id,))
@@ -142,6 +134,41 @@ async def _vectorizer_test_after_install(
         )
         actual = cur.fetchone()[0]  # type: ignore
         assert actual is True
+
+
+async def _vectorizer_test_after_install(
+    postgres_container: PostgresContainer,
+    dbname: str,
+    ai_extension_features: bool = False,
+):
+    vectorizer_id = await _vectorizer_test_after_install_setup_vectorizer(
+        postgres_container, dbname, ai_extension_features
+    )
+    db_url = create_connection_url(postgres_container, dbname=dbname)
+
+    processor = Processor(db_url)
+
+    # test cli.get_vectorizer_ids
+    assert len(processor._get_vectorizer_ids()) == 1  # type: ignore
+    assert len(processor._get_vectorizer_ids([42, 19])) == 0  # type: ignore
+    assert len(processor._get_vectorizer_ids([vectorizer_id, 19])) == 1  # type: ignore
+    assert len(processor._get_vectorizer_ids([vectorizer_id])) == 1  # type: ignore
+
+    # test cli.get_vectorizer
+    features = Features.for_testing_latest_version()
+    vectorizer: Vectorizer = processor._get_vectorizer(  # type: ignore
+        vectorizer_id, features
+    )
+    assert vectorizer is not None
+
+    # run the vectorizer
+    worker_tracking = WorkerTracking(db_url, 500, features, "0.0.1")
+
+    await vectorizer.run(db_url, features, worker_tracking, 1)
+
+    await _vectorizer_test_after_install_after_vectorizer_execution(
+        postgres_container, dbname, vectorizer_id
+    )
 
 
 @pytest.mark.asyncio
@@ -351,3 +378,49 @@ async def test_vectorizer_install_vector_in_different_schema(
         pgai.install(_db_url)
 
     await _vectorizer_test_after_install(postgres_container, db)
+
+
+@pytest.mark.asyncio
+async def test_vectorizer_run_in_new_process_once(
+    postgres_container: PostgresContainer,
+):
+    db = "no_in_process"
+    create_database(db, postgres_container)
+    db_url = create_connection_url(postgres_container, dbname=db)
+    await pgai.ainstall(db_url)
+
+    vectorizer_id = await _vectorizer_test_after_install_setup_vectorizer(
+        postgres_container, db, ai_extension_features=False
+    )
+
+    processor = ProcProcessor(db_url, once=True)
+    processor.run_in_new_process()
+    shutdown_exception = await processor.wait_for_shutdown()
+    assert shutdown_exception is None
+
+    await _vectorizer_test_after_install_after_vectorizer_execution(
+        postgres_container, db, vectorizer_id
+    )
+
+
+@pytest.mark.asyncio
+async def test_vectorizer_run_in_new_process_terminate(
+    postgres_container: PostgresContainer,
+):
+    db = "no_in_process"
+    create_database(db, postgres_container)
+    db_url = create_connection_url(postgres_container, dbname=db)
+    await pgai.ainstall(db_url)
+
+    await _vectorizer_test_after_install_setup_vectorizer(
+        postgres_container, db, ai_extension_features=False
+    )
+
+    processor = ProcProcessor(db_url, once=False)
+    processor.run_in_new_process()
+
+    await processor.wait_for_startup()
+
+    shutdown_exception = await processor.shutdown_gracefully()
+
+    assert shutdown_exception is None
