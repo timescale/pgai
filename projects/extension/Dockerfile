@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.3-labs
 ARG PG_MAJOR=17
-ARG PGVECTORSCALE_VERSION=0.5.1
+ARG PGVECTORSCALE_VERSION=0.7.0
 
 ###############################################################################
 # base image
@@ -47,7 +47,7 @@ RUN set -e; \
 FROM base AS pgai-test-db
 ENV PG_MAJOR=${PG_MAJOR}
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
-RUN pip install uv==0.5.20
+RUN pip install uv==0.6.14
 WORKDIR /pgai
 COPY . .
 RUN just build install-all
@@ -63,7 +63,7 @@ FROM pgai-test-db as pgai-lib-db-dev
 ENV WHERE_AM_I=docker
 USER root
 
-RUN pip install --break-system-packages uv==0.6.3
+RUN pip install --break-system-packages uv==0.6.14
 RUN mkdir /py/ && uv venv --directory /py/
 ENV PATH="/py/.venv/bin:$PATH"
 ENV VIRTUAL_ENV=/py/.venv
@@ -76,7 +76,7 @@ FROM base
 ENV WHERE_AM_I=docker
 USER root
 
-RUN pip install --break-system-packages uv==0.6.3
+RUN pip install --break-system-packages uv==0.6.14
 
 # install only our python dependencies for dev/test
 COPY pyproject.toml uv.lock /py/

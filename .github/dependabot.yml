@@ -5,9 +5,11 @@
 
 version: 2
 updates:
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directories:
       - "projects/pgai"
+      - "projects/extension"
+      - "examples/discord_bot"
     schedule:
       interval: "monthly"
     commit-message:
@@ -17,7 +19,10 @@ updates:
         patterns:
           - "*"
   - package-ecosystem: "docker"
-    directory: "/"
+    directories:
+      - "projects/pgai"
+      - "projects/extension"
+      - "examples/discord_bot"
     schedule:
       interval: "monthly"
     commit-message:

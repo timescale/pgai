@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling==1.26.3"]
+requires = ["hatchling==1.27.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -20,7 +20,7 @@ dependencies = [
     "ollama>=0.4.5,<0.5.0",
     "openai>=1.44,<2.0",
     "python-dotenv>=1.0,<2.0",
-    "structlog>=24.0,<25.0",
+    "structlog>=24.0,<26.0",
     "pgvector>=0.3,<1.0",
     "tiktoken>=0.7,<1.0",
     "typing_extensions>=4.0,<5.0",
@@ -30,10 +30,10 @@ dependencies = [
     "litellm>=1.65.0,<1.66.0",
     "google-cloud-aiplatform[tokenization]>=1.78.0,<2.0",
     "boto3>=1.35.0,<2.0",
-    "smart-open==7.1.0",
-    "pymupdf4llm==0.0.17",
-    "filetype==1.2.0",
-    "docling==2.21.0",
+    "smart-open>=7.1.0,<8.0",
+    "pymupdf4llm>=0.0.17,<0.1",
+    "filetype>=1.2.0,<2.0",
+    "docling>=2.21.0,<3.0",
     "semver>=3.0.4",
     "ijson>=3.3.0",
     "boto3-stubs[s3,sts]>=1.37.30",
@@ -138,18 +138,18 @@ allow-direct-references = true
 
 [tool.uv]
 dev-dependencies = [
-    "ruff==0.6.9",
-    "pytest==8.3.2",
-    "pytest-asyncio==0.25.3",
-    "python-dotenv==1.0.1",
+    "ruff>=0.6.9,<1.0",
+    "pytest>=8.3.2,<9.0",
+    "pytest-asyncio>=0.25.3,<1.0",
+    "python-dotenv>=1.0.1,<2.0",
     "vcrpy==7.0.0",
-    "pyright>=1.1.394",
-    "psycopg[binary]==3.2.7",
-    "testcontainers==4.8.1",
+    "pyright>=1.1.394,<2.0",
+    "psycopg[binary]>=3.2.1,<4.0",
+    "testcontainers>=4.8.1,<5.0",
     "build==1.2.2.post1",
-    "twine==5.1.1",
+    "twine>=5.1.1,<7.0",
     "mitmproxy==12.0.0; python_version >= '3.12'",
-    "mitmproxy==10.3.0; python_version < '3.12'",
+    "mitmproxy==10.3.0; python_version < '3.12'", # 11.1.0 requires Python 3.12+
     "Jinja2>=3.1.5",
     "fastapi[standard]>=0.115.8",
     "pgspot>=0.9.0",

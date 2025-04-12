@@ -8,30 +8,30 @@ dynamic = ["version"]
 requires-python = ">=3.10"
 
 dependencies= [
-    "openai==1.69.0",
-    "tiktoken==0.7.0",
-    "ollama==0.4.5",
-    "anthropic==0.49.0",
-    "cohere==5.13.11",
-    "backoff==2.2.1",
-    "voyageai==0.3.1",
-    "datasets==3.1.0",
-    "litellm==1.58.2",
-    "google-cloud-aiplatform==1.74.0", # required for vertexAI (don't know why litellm doesn't include this)
-    "langchain-text-splitters>=0.3.5",
-    "jinja2>=3.1.6",
-    "boto3>=1.37.33",
+    "openai>=1.69.0,<2.0",
+    "tiktoken>=0.7.0,<1.0",
+    "ollama>=0.4.5,<0.5",
+    "anthropic>=0.49.0,<1.0",
+    "cohere>=5.13.11,<6.0",
+    "backoff>=2.2.1,<3.0",
+    "voyageai>=0.3.1,<0.3.2", # 0.3.2 fails the tests somehow (copied from pgai/pyproject.toml)
+    "datasets>=3.1.0,<4.0",
+    "litellm>=1.58.2,<2.0",
+    "google-cloud-aiplatform>=1.74.0,<2.0", # required for vertexAI (don't know why litellm doesn't include this)
+    "langchain-text-splitters>=0.3.5,<1.0",
+    "jinja2>=3.1.6,<4.0",
+    "boto3>=1.37.33,<2.0",
 ]
 
 [dependency-groups]
 dev = [
-    "ruff==0.6.9",
-    "pytest==8.3.2",
-    "python-dotenv==1.0.1",
-    "fastapi==0.115.6",
-    "fastapi-cli==0.0.5",
-    "psycopg[binary]==3.2.1",
-    "uv==0.5.20",
+    "ruff>=0.6.9,<1.0",
+    "pytest>=8.3.2,<9.0",
+    "python-dotenv>=1.0.1,<2.0",
+    "fastapi>=0.115.6,<0.116",
+    "fastapi-cli>=0.0.5,<0.1",
+    "psycopg[binary]>=3.2.1,<4.0",
+    "uv>=0.5.20,<1.0",
     "pgspot>=0.9.0",
     "requests==2.32.3",
     "semver>=3.0.4",
@@ -125,5 +125,3 @@ addopts = [
     # Print basic test output without full source code or traceback.
     "--tb=short",
 ]
-
-
