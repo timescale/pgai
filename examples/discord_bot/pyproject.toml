@@ -9,7 +9,7 @@ dependencies = [
     "pgai[sqlalchemy] @ git+https://github.com/timescale/pgai@main#egg=pgai&subdirectory=projects/pgai",
     "py-cord>=2.6.1",
     "sqlalchemy[asyncio]>=2.0.36",
-    "python-dotenv==1.0.1",
+    "python-dotenv>=1.0.1,<2.0",
     "audioop-lts>=0.2.1", # See issue: https://github.com/Rapptz/discord.py/issues/9742
 ]
 
@@ -57,8 +57,8 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.uv]
 dev-dependencies = [
-    "ruff==0.6.9",
-    "pytest==8.3.2",
-    "pyright==1.1.385",
-    "testcontainers==4.8.1"
+    "ruff>=0.6.9,<1.0",
+    "pytest>=8.3.2,<9.0",
+    "pyright>=1.1.385,<2.0",
+    "testcontainers>=4.8.1,<5.0"
 ]
