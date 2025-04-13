@@ -191,7 +191,7 @@ async def insert_pgai_article():
     return {"message": "Article inserted successfully"}
 
 @app.get("/rag")
-async def generate_rag_response(query: str) -> Optional[str]:
+async def rag(query: str) -> Optional[str]:
     """
     Generate a RAG response using pgai, Ollama embeddings, and database content.
     
