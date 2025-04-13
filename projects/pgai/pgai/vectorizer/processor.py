@@ -56,6 +56,7 @@ class Processor:
         self.once = once
         self.exit_on_error = exit_on_error
         self.concurrency = concurrency
+        self.shutdown_requested = asyncio.Event()
 
         self.dynamic_mode = len(self.vectorizer_ids) == 0
         if once and exit_on_error is None:
@@ -173,6 +174,12 @@ class Processor:
             random.shuffle(valid_vectorizer_ids)
             return valid_vectorizer_ids
 
+    async def request_graceful_shutdown(self):
+        """
+        Request a graceful shutdown of the processor.
+        """
+        self.shutdown_requested.set()
+
     async def run(self) -> Exception | None:
         logger.debug("starting vectorizer worker")
 
@@ -182,7 +189,7 @@ class Processor:
         features = None
         worker_tracking = None
 
-        while True:
+        while not self.shutdown_requested.is_set():
             vectorizer_id = None
             try:
                 if not can_connect or pgai_version is None:
@@ -245,11 +252,16 @@ class Processor:
                             break
 
                         logger.info("running vectorizer", vectorizer_id=vectorizer_id)
+
+                        def should_continue(_: int, __: int) -> bool:
+                            return not self.shutdown_requested.is_set()
+
                         await vectorizer.run(
                             db_url=self.db_url,
                             features=features,
                             worker_tracking=worker_tracking,
                             concurrency=self.concurrency,
+                            should_continue_processing_hook=should_continue,
                         )
             except psycopg.OperationalError as e:
                 if "connection failed" in str(e):
@@ -295,4 +307,17 @@ class Processor:
 
             poll_interval_str = datetime.timedelta(seconds=self.poll_interval)
             logger.info(f"sleeping for {poll_interval_str} before polling for new work")
-            await asyncio.sleep(self.poll_interval)
+            try:
+                await asyncio.wait_for(
+                    self.shutdown_requested.wait(), timeout=self.poll_interval
+                )
+                # shutdown event was set, the loop should exit
+                logger.info("got a graceful shutdown request")
+            except asyncio.TimeoutError:
+                # timeout means the sleep completed
+                pass
+
+        if worker_tracking is not None:
+            await worker_tracking.force_last_heartbeat_and_stop()
+        logger.info("exiting processor.run()")
+        return None
