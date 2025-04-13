@@ -1,3 +1,5 @@
+import asyncio
+
 import psycopg
 import pytest
 from psycopg.rows import namedtuple_row
@@ -351,3 +353,82 @@ async def test_vectorizer_install_vector_in_different_schema(
         pgai.install(_db_url)
 
     await _vectorizer_test_after_install(postgres_container, db)
+
+
+async def _vectorizer_setup_simplevectorizer(
+    postgres_container: PostgresContainer,
+    dbname: str,
+):
+    db_url = create_connection_url(postgres_container, dbname=dbname)
+    with (
+        psycopg.connect(db_url, autocommit=True, row_factory=namedtuple_row) as con,
+        con.cursor() as cur,
+    ):
+        table_name = "notes_simple"
+        cur.execute(f"drop table if exists {table_name}")
+        cur.execute(f"""
+                create table {table_name}
+                ( id bigint not null primary key generated always as identity
+                , note text not null
+                )
+        """)
+        # insert 5 rows into source
+        cur.execute(f"""
+                insert into {table_name} (note)
+                select 'how much wood would a woodchuck chuck if a woodchuck could chuck wood'
+                from generate_series(1, 5)
+            """)  # noqa
+        # insert 5 rows into source
+        cur.execute(f"""
+                insert into {table_name} (note)
+                select 'if a woodchuck could chuck wood, a woodchuck would chuck as much wood as he could'
+                from generate_series(1, 5)
+            """)  # noqa
+
+        cur.execute(f"""
+                select ai.create_vectorizer
+                ( '{table_name}'::regclass
+                , loading=>ai.loading_column('note')
+                , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
+                , formatting=>ai.formatting_python_template('$id: $chunk')
+                , chunking=>ai.chunking_character_text_splitter()
+                , grant_to=>null
+                , enqueue_existing=>true
+                )
+            """)
+
+
+@pytest.mark.asyncio
+async def test_vectorizer_run_once_with_shutdown(
+    postgres_container: PostgresContainer,
+):
+    db = "run_once_with_shutdown"
+    create_database(db, postgres_container)
+    db_url = create_connection_url(postgres_container, dbname=db)
+    await pgai.ainstall(db_url)
+
+    await _vectorizer_setup_simplevectorizer(postgres_container, db)
+
+    processor = Processor(db_url, once=True)
+    task = asyncio.create_task(processor.run())
+    await processor.request_graceful_shutdown()
+    result = await asyncio.wait_for(task, timeout=300)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_vectorizer_run_with_shutdown(
+    postgres_container: PostgresContainer,
+):
+    db = "run_with_shutdown"
+    create_database(db, postgres_container)
+    db_url = create_connection_url(postgres_container, dbname=db)
+    await pgai.ainstall(db_url)
+
+    await _vectorizer_setup_simplevectorizer(postgres_container, db)
+
+    processor = Processor(db_url)
+    task = asyncio.create_task(processor.run())
+    await processor.request_graceful_shutdown()
+    result = await asyncio.wait_for(task, timeout=300)
+    assert result is None
