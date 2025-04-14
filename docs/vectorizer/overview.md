@@ -32,7 +32,7 @@ in your database. To quickly try out embeddings using a pre-built Docker develop
 
 To make embedding generation performant, and resilient to intermittent LLM
 endpoint failures, we use a background worker to perform the embedding
-generation. When you create Vectorizers in a Timescale Cloud database, the
+generation. When you create Vectorizers in a [Timescale Cloud](https://tsdb.co/gh-pgai-signup) database, the
 worker runs automatically and creates and synchronizes the embeddings in the
 background. When using a database on another cloud provider (AWS RDS, Supabase,
 etc.) or self-hosted Postgres, you can use the [vectorizer worker](/docs/vectorizer/worker.md) to
@@ -180,48 +180,6 @@ The view includes all columns from the blog table plus the following additional 
 | chunk_seq      | INT    | Sequence number of the chunk within the document, starting at 0 |
 
 
-### Querying in SQLAlchemy
-
-Given an example SQLAlchemy model:
-
-```python
-    class Wiki(Base):
-        __tablename__ = "wiki"
-        
-        id: Mapped[int] = mapped_column(primary_key=True)
-        url: Mapped[str]
-        title: Mapped[str]
-        text: Mapped[str]
-
-        # Add vector embeddings for the text field
-        text_embeddings = vectorizer_relationship(
-            target_table='wiki_embeddings',
-            dimensions=384
-        )
-```
-
-You can use the text_embeddings relationship to perform semantic search on the embeddings by ordering the results by distance.
-
-```python
-    async def _find_relevant_chunks(client: ollama.AsyncClient, query: str, limit: int = 2) -> WikiSearchResult:
-        response = await client.embed(model="all-minilm", input=query)
-        embedding = response.embeddings[0]
-        with Session(engine) as session:
-            # Query both the Wiki model and its embeddings
-            result = session.query(
-                Wiki,
-                Wiki.text_embeddings.embedding.cosine_distance(embedding).label('distance')
-            ).join(Wiki.text_embeddings).order_by(
-                'distance'
-            ).limit(limit).all()
-            
-        return result
-```
-
-You can, of course, add any other filters to the query.
-
-### Querying in SQL
-
 To find the closest embeddings to a query, use this canonical SQL query:
 
 ```sql
@@ -266,6 +224,49 @@ ORDER BY
    distance 
 LIMIT 10;
 ```
+
+<details>
+<summary>Click to see SQLAlchemy examples for querying the embeddings</summary>
+
+Given an example SQLAlchemy model:
+
+```python
+    class Wiki(Base):
+        __tablename__ = "wiki"
+        
+        id: Mapped[int] = mapped_column(primary_key=True)
+        url: Mapped[str]
+        title: Mapped[str]
+        text: Mapped[str]
+
+        # Add vector embeddings for the text field
+        text_embeddings = vectorizer_relationship(
+            target_table='wiki_embeddings',
+            dimensions=384
+        )
+```
+
+You can use the text_embeddings relationship to perform semantic search on the embeddings by ordering the results by distance.
+
+```python
+    async def _find_relevant_chunks(client: ollama.AsyncClient, query: str, limit: int = 2) -> WikiSearchResult:
+        response = await client.embed(model="all-minilm", input=query)
+        embedding = response.embeddings[0]
+        with Session(engine) as session:
+            # Query both the Wiki model and its embeddings
+            result = session.query(
+                Wiki,
+                Wiki.text_embeddings.embedding.cosine_distance(embedding).label('distance')
+            ).join(Wiki.text_embeddings).order_by(
+                'distance'
+            ).limit(limit).all()
+            
+        return result
+```
+
+You can, of course, add any other filters to the query.
+
+</details>
 
 ## Inject context into vectorizer chunks
 
