@@ -19,13 +19,13 @@
 
 A Python library that turns PostgreSQL into the retrieval engine behind robust, production-ready RAG and Agentic applications.
 
-- 🔄 Automatically create vector embeddings from your data and keep them synced.
+- 🔄 Automatically create vector embeddings from data in PostgreSQL tables as well as documents in S3.  The embeddings are automatically updated as the data changes.
 
-- 🔍 Powerful vector and semantic search
+- 🔍 Powerful vector and semantic search with pgvector and pgvectorscale.
 
 - 🛡️ Production-ready out-of-the-box: Supports batch processing for efficient embedding generation, with built-in handling for model failures, rate limits, and latency spikes.
 
-Built to make LLM-powered apps reliable in production.
+Works with any PostgreSQL database, including Timescale Cloud, Amazon RDS, Supabase and more.
 
 <div align=center>
 
@@ -86,7 +86,7 @@ By going to ` http://0.0.0.0:8000/docs` you can see the API documentation and tr
 We'll walk you through the main parts of the code below. 
 
 1. **Enable pgai vectorizer on your database**
-    During app startup we run the following Python to install the necessary database object in your PostgreSQL database. All the database objects are installed in the `ai` schema.
+    During app startup we run the following Python to install the necessary database object in your PostgreSQL database. All the database objects are installed in the `ai` schema. Note that in production use cases, this can also be done via a database migration.
     
     ```python
     pgai.install(DB_URL)
@@ -99,7 +99,7 @@ We'll walk you through the main parts of the code below.
     task = asyncio.create_task(processor.run())
     ```
     
-    You can also run the vectorizer worker outside the FastAPI app, in a separate process or separate container. Please see the [vectorizer worker](/docs/vectorizer/worker.md) documentation for more information.
+    In this example, we run the Vectorizer worker inside the FastAPI app for simplicity. You can also run the vectorizer worker outside the FastAPI app, in a separate process or separate container. Please see the [vectorizer worker](/docs/vectorizer/worker.md) documentation for more information.
     
 1. **Create the table and load the test dataset**
 
@@ -180,6 +180,7 @@ We'll walk you through the main parts of the code below.
                 raise e
     ```
     </details>
+    
     To learn more about vectorizers, see the [vectorizer usage guide](/docs/vectorizer/overview.md).
     
     The `CreateVectorizer` call is a convenience [sql statement builder](/docs/vectorizer/python-integration.md) that helps you build the sql statement to create the vectorizer. You can find the full reference for the sql `create_vectorizer` call in the [vectorizer API reference](/docs/vectorizer/api-reference.md#create-vectorizers).
@@ -216,7 +217,7 @@ We'll walk you through the main parts of the code below.
     ```
     </details>
     
-1. **Search the embeddings**
+1. **Search the embeddings using pgvector**
 
     We'll search the embeddings for the concept of "properties of light" even though these words are not in the text of the articles. This is possible because vector embeddings capture the semantic meaning of the text.
     
