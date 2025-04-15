@@ -836,41 +836,6 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- sc_set_view_col_desc
-create or replace function ai.sc_set_view_col_desc
-( v regclass
-, column_name name
-, description text
-, catalog_name text default 'default'
-)
-returns int8
-as $func$
-    select ai.sc_set_obj_desc
-    ( 'pg_catalog.pg_class'::regclass::oid
-    , v
-    , a.attnum
-    , x.type
-    , x.object_names
-    , x.object_args
-    , description
-    , catalog_name
-    )
-    from pg_class k
-    inner join pg_attribute a on (k.oid = a.attrelid)
-    cross join lateral pg_identify_object_as_address
-    ( 'pg_catalog.pg_class'::regclass::oid
-    , v
-    , a.attnum
-    ) x
-    where k.oid = v
-    and k.relkind in ('v', 'm')
-    and a.attname = column_name
-    ;
-$func$ language sql volatile security invoker
-set search_path to pg_catalog, pg_temp
-;
-
--------------------------------------------------------------------------------
 -- sc_set_proc_desc
 create or replace function ai.sc_set_proc_desc
 ( p regprocedure
