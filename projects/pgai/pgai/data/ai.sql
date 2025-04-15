@@ -835,6 +835,97 @@ begin
 end;
 $outer_migration_block$;
 
+-------------------------------------------------------------------------------
+-- 026-change_trigger_definition.sql
+do $outer_migration_block$ /*026-change_trigger_definition.sql*/
+declare
+    _sql text;
+    _migration record;
+    _migration_name text = $migration_name$026-change_trigger_definition.sql$migration_name$;
+    _migration_body text =
+$migration_body$
+-- This code block recreates all triggers for vectorizers to make sure
+-- they have the most recent version of the trigger function
+do $upgrade_block$
+declare
+    _vec record;
+begin
+    -- Find all vectorizers
+    for _vec in (
+        select 
+            v.id,
+            v.source_schema,
+            v.source_table,
+            v.source_pk,
+            v.target_schema,
+            v.target_table,
+            v.trigger_name,
+            v.queue_schema,
+            v.queue_table,
+            v.config
+        from ai.vectorizer v
+    )
+    loop
+        raise notice 'Recreating trigger function for vectorizer ID %s', _vec.id;
+
+        execute format
+        (
+        --weird indent is intentional to make the sql functions look the same as during a fresh install
+        --otherwise the snapshots will not match during upgrade testing.
+            $sql$
+    create or replace function %I.%I() returns trigger 
+    as $trigger_def$
+    begin
+       raise 'This trigger function should be redefined in the idempotent code';
+    end 
+    $trigger_def$ language plpgsql volatile parallel safe security definer 
+    set search_path to pg_catalog, pg_temp
+    $sql$
+            , _vec.queue_schema, _vec.trigger_name
+        );
+
+        execute format(
+            'drop trigger if exists %I on %I.%I',
+            _vec.trigger_name, _vec.source_schema, _vec.source_table
+        );
+
+        execute format(
+            'drop trigger if exists %I on %I.%I',
+            format('%s_truncate',_vec.trigger_name) , _vec.source_schema, _vec.source_table
+        );
+
+        execute format(
+            'create trigger %I after insert or update or delete on %I.%I for each row execute function %I.%I()',
+            _vec.trigger_name, _vec.source_schema, _vec.source_table, _vec.queue_schema, _vec.trigger_name
+        );
+
+        execute format(
+            'create trigger %I after truncate on %I.%I for each statement execute function %I.%I()',
+            format('%s_truncate',_vec.trigger_name) , _vec.source_schema, _vec.source_table, _vec.queue_schema, _vec.trigger_name
+        );
+        
+        raise info 'Successfully recreated trigger for vectorizer ID %', _vec.id;
+    end loop;
+end;
+$upgrade_block$;
+
+$migration_body$;
+begin
+    select * into _migration from ai.pgai_lib_migration where "name" operator(pg_catalog.=) _migration_name;
+    if _migration is not null then
+        raise notice 'migration %s already applied. skipping.', _migration_name;
+        if _migration.body operator(pg_catalog.!=) _migration_body then
+            raise warning 'the contents of migration "%s" have changed', _migration_name;
+        end if;
+        return;
+    end if;
+    _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
+    execute _sql;
+    insert into ai.pgai_lib_migration ("name", body, applied_at_version)
+    values (_migration_name, _migration_body, $version$__version__$version$);
+end;
+$outer_migration_block$;
+
 --------------------------------------------------------------------------------
 -- 001-chunking.sql
 
@@ -2346,8 +2437,8 @@ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
--- This code block recreates all triggers for vectorizers to make sure
--- they have the most recent version of the trigger function
+-- This code block recreates all trigger functions for vectorizers to make sure
+-- they have the most recent code for the function.
 do $upgrade_block$
 declare
     _vec record;
@@ -2384,28 +2475,6 @@ begin
             , _vec.queue_schema, _vec.trigger_name,
             ai._vectorizer_build_trigger_definition(_vec.queue_schema, _vec.queue_table, _vec.target_schema, _vec.target_table, _vec.source_pk)
         );
-
-        execute format(
-            'drop trigger if exists %I on %I.%I',
-            _vec.trigger_name, _vec.source_schema, _vec.source_table
-        );
-
-        execute format(
-            'drop trigger if exists %I on %I.%I',
-            format('%s_truncate',_vec.trigger_name) , _vec.source_schema, _vec.source_table
-        );
-
-        execute format(
-            'create trigger %I after insert or update or delete on %I.%I for each row execute function %I.%I()',
-            _vec.trigger_name, _vec.source_schema, _vec.source_table, _vec.queue_schema, _vec.trigger_name
-        );
-
-        execute format(
-            'create trigger %I after truncate on %I.%I for each statement execute function %I.%I()',
-            format('%s_truncate',_vec.trigger_name) , _vec.source_schema, _vec.source_table, _vec.queue_schema, _vec.trigger_name
-        );
-        
-        raise info 'Successfully recreated trigger for vectorizer ID %', _vec.id;
     end loop;
 end;
 $upgrade_block$;
