@@ -7,7 +7,7 @@ from psycopg.sql import SQL, Identifier
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 import pgai
-from pgai.vectorizer import Processor, Vectorizer
+from pgai.vectorizer import Vectorizer, Worker
 from pgai.vectorizer.features import Features
 from pgai.vectorizer.worker_tracking import WorkerTracking
 
@@ -95,7 +95,7 @@ async def _vectorizer_test_after_install(
         cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
         vectorizer_expected = cur.fetchone()
 
-        processor = Processor(db_url)
+        processor = Worker(db_url)
 
         # test cli.get_vectorizer_ids
         assert len(processor._get_vectorizer_ids()) == 1  # type: ignore
@@ -218,7 +218,7 @@ async def test_vectorizer_weird_pk(postgres_container: PostgresContainer):
         vectorizer_expected = cur.fetchone()
 
         # test processor._get_vectorizer
-        processor = Processor(db_url)
+        processor = Worker(db_url)
         features = Features.for_testing_latest_version()
         vectorizer_actual: Vectorizer = processor._get_vectorizer(  # type: ignore
             vectorizer_id, features
@@ -421,7 +421,7 @@ async def test_vectorizer_run_once_with_shutdown(
 
     await _vectorizer_setup_simplevectorizer(postgres_container, db)
 
-    processor = Processor(db_url, once=True)
+    processor = Worker(db_url, once=True)
     task = asyncio.create_task(processor.run())
     await processor.request_graceful_shutdown()
     result = await asyncio.wait_for(task, timeout=300)
@@ -439,7 +439,7 @@ async def test_vectorizer_run_with_shutdown(
 
     await _vectorizer_setup_simplevectorizer(postgres_container, db)
 
-    processor = Processor(db_url)
+    processor = Worker(db_url)
     task = asyncio.create_task(processor.run())
     await processor.request_graceful_shutdown()
     result = await asyncio.wait_for(task, timeout=300)

@@ -11,7 +11,7 @@ import psycopg
 import structlog
 from psycopg.rows import dict_row, namedtuple_row
 
-from ..__init__ import __version__
+from .. import __version__
 from .embeddings import ApiKeyMixin
 from .features import Features
 from .vectorizer import Vectorizer
@@ -40,7 +40,7 @@ class ApiKeyNotFoundError(Exception):
     pass
 
 
-class Processor:
+class Worker:
     def __init__(
         self,
         db_url: str,
