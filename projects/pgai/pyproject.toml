@@ -32,9 +32,9 @@ dependencies = [
     "smart-open==7.1.0",
     "pymupdf4llm==0.0.17",
     "filetype==1.2.0",
-    "docling==2.21.0",
     "semver>=3.0.4",
     "ijson>=3.3.0",
+    "docling>=2.30.0",
 ]
 classifiers = [
     "License :: OSI Approved :: PostgreSQL License",
@@ -125,6 +125,16 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.uv.sources]
+torch = { index = "pytorch" }
+
+[[tool.uv.index]]
+# Optional name for the index.
+name = "pytorch"
+# Required URL for the index.
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [tool.uv]
 dev-dependencies = [
