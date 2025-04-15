@@ -346,8 +346,8 @@ def semantic_catalog():
 @click.option(
     "-f",
     "--format",
-    type=click.Choice(["sql", "comment"], case_sensitive=False),
-    default="sql",
+    type=click.Choice(["semantic-catalog", "comment"], case_sensitive=False),
+    default="semantic-catalog",
     help="Output format (sql, comment)",
 )
 def build(
@@ -364,7 +364,7 @@ def build(
     exclude_proc: str | None = None,
     output: Path | None = None,
     append: bool = False,
-    format: Literal["sql", "comment"] = "sql",
+    format: Literal["semantic-catalog", "comment"] = "semantic-catalog",
 ) -> None:
     from pgai.semantic_catalog.builder import build
 
