@@ -576,6 +576,10 @@ select
 , pg_catalog.format('%I.%I', v.source_schema, v.source_table) as source_table
 , pg_catalog.format('%I.%I', v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_schema', v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_table') as target_table
 , pg_catalog.format('%I.%I', v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'view_schema', v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'view_name') as "view"
+, case when v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation' = 'column' then
+    pg_catalog.format('%I.%I', v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'embedding_column')
+    else 'embedding'
+    end as embedding_column
 , case when v.queue_table is not null and
     pg_catalog.has_table_privilege
     ( current_user

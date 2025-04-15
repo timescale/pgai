@@ -224,13 +224,14 @@ begin
     ) into _column_exists;
 
     if _column_exists then
-        raise exception 'embedding column %I already exists in %I.%I', embedding_column, source_schema, source_table;
+        raise notice 'embedding column %I already exists in %I.%I skipping creation', embedding_column, source_schema, source_table;
+        return;
     else
         -- Add embedding column to source table
         select pg_catalog.format(
             $sql$
             alter table %I.%I 
-            add column %I @extschema:vector@.vector(%L) storage main
+            add column %I @extschema:vector@.vector(%L) storage main default null
             $sql$,
             source_schema, source_table, embedding_column, dimensions
         ) into strict _sql;
@@ -827,9 +828,9 @@ begin
         if _destination_type = 'table' then
             _target_schema := _vec.config->'destination'->>'target_schema';
             _target_table := _vec.config->'destination'->>'target_table';
-        else
-            raise notice 'Skipping vectorizer ID %s because it has a non-table destination', _vec.id;
-            continue;
+        else -- destination column works with no target table in the trigger def
+            _target_schema := null;
+            _target_table := null;
         end if;
 
         execute format
@@ -1176,6 +1177,7 @@ declare
     _sql pg_catalog.text;
     _found pg_catalog.bool;
     _count pg_catalog.int8;
+    _should_create_vector_index pg_catalog.bool;
 begin
     set local search_path = pg_catalog, pg_temp;
     if config is null then
@@ -1196,8 +1198,10 @@ begin
     commit;
     set local search_path = pg_catalog, pg_temp;
 
+    _should_create_vector_index = ai._vectorizer_should_create_vector_index(_vec);
+
     -- if the conditions are right, create the vectorizer index
-    if ai._vectorizer_should_create_vector_index(_vec) and _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation' operator(pg_catalog.=) 'table' then
+    if _should_create_vector_index and _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation' operator(pg_catalog.=) 'table' then
         commit;
         set local search_path = pg_catalog, pg_temp;
         perform ai._vectorizer_create_vector_index
@@ -1205,7 +1209,7 @@ begin
         , _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_table'
         , pg_catalog.jsonb_extract_path(_vec.config, 'indexing')
         );
-    elsif ai._vectorizer_should_create_vector_index(_vec) and _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation' operator(pg_catalog.=) 'column' then
+    elsif _should_create_vector_index and _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation' operator(pg_catalog.=) 'column' then
         commit;
         set local search_path = pg_catalog, pg_temp;
         perform ai._vectorizer_create_vector_index
