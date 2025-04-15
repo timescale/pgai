@@ -93,7 +93,9 @@ class ParsingPyMuPDF(BaseDocumentParsing):
             return pymupdf4llm.to_markdown(pdf_document)  # type: ignore
 
 
-DOCLING_CACHE_DIR = Path.home().joinpath(".cache/docling/models")
+DEFAULT_CACHE_DIR = Path.home().joinpath(".cache/docling/models")
+cache_dir = os.getenv("VECTORIZER_DOCLING_CACHE_DIR")
+DOCLING_CACHE_DIR = DEFAULT_CACHE_DIR if cache_dir is None else Path(cache_dir)
 
 
 class ParsingDocling(BaseDocumentParsing):
