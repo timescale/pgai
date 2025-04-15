@@ -405,13 +405,13 @@ async def build(
     include_proc: str | None = None,
     exclude_proc: str | None = None,
     batch_size: int = 5,
-    format: Literal["sql", "comment"] = "sql",
+    format: Literal["semantic-catalog", "comment"] = "semantic-catalog",
 ) -> Usage:
-    assert format in {"sql", "comment"}
+    assert format in {"semantic-catalog", "comment"}
 
     def callback(description: ObjectDescription):
         match format:
-            case "sql":
+            case "semantic-catalog":
                 output.write(
                     render.render_description_to_sql(con, catalog_name, description)
                 )
