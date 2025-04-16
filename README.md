@@ -17,15 +17,15 @@
 </div>
 <br/>
 
-A Python library that turns PostgreSQL into the retrieval engine behind robust, production-ready RAG and Agentic applications.
+A Python library that transforms PostgreSQL into a robust, production-ready retrieval engine for RAG and Agentic applications.
 
-- 🔄 Automatically create vector embeddings from data in PostgreSQL tables as well as documents in S3.  The embeddings are automatically updated as the data changes.
+- 🔄 Automatically create and synchronize vector embeddings from PostgreSQL data and S3 documents. Embeddings update automatically as data changes.
 
 - 🔍 Powerful vector and semantic search with pgvector and pgvectorscale.
 
 - 🛡️ Production-ready out-of-the-box: Supports batch processing for efficient embedding generation, with built-in handling for model failures, rate limits, and latency spikes.
 
-Works with any PostgreSQL database, including Timescale Cloud, Amazon RDS, Supabase and more.
+- 🐘 Works with any PostgreSQL database, including Timescale Cloud, Amazon RDS, Supabase and more.
 
 <div align=center>
 
@@ -39,351 +39,265 @@ Works with any PostgreSQL database, including Timescale Cloud, Amazon RDS, Supab
 pip install pgai
 ```              
 
+
 # Quick Start
 
-This section will walk you through the steps to get started with pgai and Ollama using docker and show you the major features of pgai. 
+This quickstart demonstrates how pgai Vectorizer enables semantic search and RAG over PostgreSQL data by automatically creating and synchronizing embeddings as data changes.
 
-Please note that using Ollama requires a large (>4GB) download of the docker image and model. If you don't want to download so much data, you may want to use the [OpenAI quick start](/docs/vectorizer/quick-start-openai.md) or [VoyageAI quick start](/docs/vectorizer/quick-start-voyage.md) instead.
+The key "secret sauce" of pgai Vectorizer is its declarative approach to
+embedding generation. Simply define your pipeline and let Vectorizer handle the
+operational complexity of keeping embeddings in sync, even when embedding
+endpoints are unreliable. You can define a simple version of the pipeline as
+follows:
 
-### Setup
-
-Install PostgreSQL and Ollama if you don't already have them. 
-
-1. **Download the [docker compose file](/examples/docker_compose_pgai_ollama/docker-compose.yml) file.**
-
-    ```
-    curl -O https://raw.githubusercontent.com/timescale/pgai/main/examples/docker_compose_pgai_ollama/docker-compose.yml
-    ```
-
-1. **Start the docker compose file.**
-    ```
-    docker compose up -d
-    ```
-
-
-    This will start Ollama and a PostgreSQL instance. 
-  
-1. **Download the Ollama models.** We'll use the `all-minilm` model for embeddings and the `tinyllama` model for reasoning.
-
-    ```
-    docker compose exec ollama ollama pull all-minilm
-    docker compose exec ollama ollama pull tinyllama
-    ```
-
-### Create a FastAPI app that performs semantic search and RAG over wikipedia articles
-
-You can take a look at a simple [fastAPI Application](/examples/simple_fastapi_app/with_psycopg.py) to see how to
-setup an app to perform RAG with pgai Vectorizer. 
-
-To run the app, first download the file and then you can use the following command:
-
-```
-fastapi dev with_psycopg.py
+```sql
+SELECT ai.create_vectorizer(
+     'wiki'::regclass,
+     loading => ai.loading_column(column_name=>'text'),
+     destination => ai.destination_table(target_table=>'wiki_embedding_storage'),
+     embedding => ai.embedding_openai(model=>'text-embedding-ada-002', dimensions=>'1536')
+    )
 ```
 
-By going to ` http://0.0.0.0:8000/docs` you can see the API documentation and try out the endpoints provided by the app.
+The vectorizer will automatically create embeddings for all the rows in the
+`wiki` table, and, more importantly, will keep the embeddings synced with the
+underlying data as it changes.  **Think of it almost like declaring an index** on
+the `wiki` table, but instead of the database managing the index datastructure
+for you, the Vectorizer is managing the embeddings. 
 
-We'll walk you through the main parts of the code below. 
+## Running the quick start
 
-1. **Enable pgai vectorizer on your database**
-    During app startup we run the following Python to install the necessary database object in your PostgreSQL database. All the database objects are installed in the `ai` schema. Note that in production use cases, this can also be done via a database migration.
-    
-    ```python
-    pgai.install(DB_URL)
-    ```
-    
-    We also run the vectorizer worker as part of the FastAPI app lifecycle. 
-    
-    ```python
-    worker = Worker(DB_URL)
-    task = asyncio.create_task(worker.run())
-    ```
-    
-    In this example, we run the Vectorizer worker inside the FastAPI app for simplicity. You can also run the vectorizer worker outside the FastAPI app, in a separate process or separate container. Please see the [vectorizer worker](/docs/vectorizer/worker.md) documentation for more information.
-    
-1. **Create the table and load the test dataset**
+**Prerequisites:**
+- A PostgreSQL database ([docker instructions](https://docs.timescale.com/self-hosted/latest/install/installation-docker/)).
+- An OpenAI API key (we use openai for embedding in the quick start, but you can use [multiple providers](#supported-embedding-models)).
 
-    We'll create a table named `wiki` from a few rows of the english-language `wikimedia/wikipedia` dataset.
-    
-    First, we'll create the table using the `create_wiki_table` function:
+Create a `.env` file with the following:
 
-    <details>
-    <summary>Click to see the python code for `create_wiki_table`</summary>
-    
-    ```python
-    async def create_wiki_table():
-        async with pool.connection() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute("""
-                    CREATE TABLE IF NOT EXISTS wiki (
-                        id SERIAL PRIMARY KEY,
-                        url TEXT NOT NULL,
-                        title TEXT NOT NULL,
-                        text TEXT NOT NULL
-                    )
-                """)
-            await conn.commit()
-    ```
-    </details>
+```
+OPENAI_API_KEY=<your-openai-api-key>
+DB_URL=<your-database-url>
+```
 
-    Then, we'll load the data from the huggingface dataset using the `load_wiki_articles` function:
-    
-    <details>
-    <summary>Click to see the python code for `load_wiki_articles`</summary>
-    
-    ```python
-    async def load_wiki_articles():
-        # to keep the demo fast, we have some simple limits
-        num_articles = 10
-        max_text_length = 1000
-        
-        wiki_dataset = load_dataset("wikimedia/wikipedia", "20231101.en", split=f"train", streaming=True)
-        
-        async with pool.connection() as conn:
-            async with conn.cursor() as cur:
-                for article in wiki_dataset.take(num_articles):
-                    await cur.execute(
-                        "INSERT INTO wiki (url, title, text) VALUES (%s, %s, %s)",
-                        (article['url'], article['title'], article['text'][:max_text_length])
-                    )
-                await conn.commit()
-    ```
-    </details>
-1. **Create a vectorizer for `wiki`**
+You can download the full [python code](examples/quickstart/main.py) and [requirements.txt](examples/quickstart/requirements.txt) from the quickstart example and run it in the same directory as the `.env` file.
 
-    To enable semantic search on the `text` column of the `wiki` table, we need to create vector embeddings for that column.
-    We use a vectorizer to automatically create these embeddings and keep them in sync with the data in the  `wiki` table.
-    We do this in the `create_vectorizer` function:
-    
-    <details>
-    <summary>Click to see the python code for `create_vectorizer`</summary>
-    
-    ```python
-    async def create_vectorizer():
-        vectorizer_statement = CreateVectorizer(
-            source="wiki",
-            target_table='wiki_embedding_storage',
-            loading=LoadingColumnConfig(column_name='text'),
-            embedding=EmbeddingOllamaConfig(model='all-minilm', dimensions=384, base_url="http://localhost:11434")
-        ).to_sql()
-        
-        try:
-            async with pool.connection() as conn:
-                async with conn.cursor() as cur:
-                    await cur.execute(vectorizer_statement)
-                await conn.commit()
-        except Exception as e:
-            if "already exists" in str(e):
-                # ignore if the vectorizer already exists
-                pass
-            else:
-                raise e
-    ```
-    </details>
-    
-    To learn more about vectorizers, see the [vectorizer usage guide](/docs/vectorizer/overview.md).
-    
-    The `CreateVectorizer` call is a convenience [sql statement builder](/docs/vectorizer/python-integration.md) that helps you build the sql statement to create the vectorizer. You can find the full reference for the sql `create_vectorizer` call in the [vectorizer API reference](/docs/vectorizer/api-reference.md#create-vectorizers).
-    
-1. **Check the progress of the vectorizer embedding creation**
+<details>
+<summary>Click here for a bash script to run the quickstart</summary>
 
-    In order for the system to be able to perform batch processing when creating the embeddings, and to be able to 
-    recover form intermittent model failures, the vectorizer worker creates embeddings asynchronously in the background.
-    To check the progress of the vectorizer embedding creation, we can query the `vectorizer_status` view. We do this in the
-    `vectorizer_status` function (and endpoint):
-    
-    <details>
-    <summary>Click to see the python code for `vectorizer_status`</summary>
-    
-    ```python
-    @app.get("/vectorizer_status")
-    async def vectorizer_status():
-        async with pool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cur:
-                await cur.execute("SELECT * FROM ai.vectorizer_status")
-                return await cur.fetchall()
-    ```
-    </details>
-    
-    You can see the progress by going to the `/vectorizer_status` endpoint. All the embeddings have been created when the `pending_items` column is 0. This should be very quick in this demo.
-    
-    <details>
-    <summary>Click to see the curl command to query the `/vectorizer_status` endpoint</summary>
-    
-    ```bash
-    curl -X 'GET' \
-        'http://0.0.0.0:8000/vectorizer_status' \
-        -H 'accept: application/json'
-    ```
-    </details>
-    
-1. **Search the embeddings using pgvector**
+```bash
+curl -O https://raw.githubusercontent.com/timescale/pgai/main/examples/quickstart/main.py
+curl -O https://raw.githubusercontent.com/timescale/pgai/main/examples/quickstart/requirements.txt
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python main.py
+```
+</details>
+Sample output:
 
-    We'll search the embeddings for the concept of "properties of light" even though these words are not in the text of the articles. This is possible because vector embeddings capture the semantic meaning of the text.
-    
-    Semantic search is a powerful feature in its own right, but it is also a key component of Retrieval Augmented Generation (RAG).
-    
-    We first define a function called `_find_relevant_chunks` to find the relevant chunks for a given query. Since we are searching by semantic meaning, a large block of text needs to be broken down into smaller chunks so that the meaning of each chunk is coherent. The vectorizer does this automatically when creating the embeddings and when you search, you get back the chunks that are most relevant to the query.
+<details>
+<summary>Click to expand sample output</summary>
 
-    <details>
-    <summary>Click to see the python code for `_find_relevant_chunks`</summary>
-    
-    ```python
-    @dataclass
-    class WikiSearchResult:
-        id: int
-        url: str
-        title: str
-        text: str
-        chunk: str
-        distance: float
+```
+Search results 1:
+[WikiSearchResult(id=7,
+                  url='https://en.wikipedia.org/wiki/Aristotle',
+                  title='Aristotle',
+                  text='Aristotle (;  Aristotélēs, ; 384–322\xa0BC) was an '
+                       'Ancient Greek philosopher and polymath. His writings '
+                       'cover a broad range of subjects spanning the natural '
+                       'sciences, philosophy, linguistics, economics, '
+                       'politics, psychology and the arts. As the founder of '
+                       'the Peripatetic school of philosophy in the Lyceum in '
+                       'Athens, he began the wider Aristotelian tradition that '
+                       'followed, which set the groundwork for the development '
+                       'of modern science.\n'
+                       '\n'
+                       "Little is known about Aristotle's life. He was born in "
+                       'the city of Stagira in northern Greece during the '
+                       'Classical period. His father, Nicomachus, died when '
+                       'Aristotle was a child, and he was brought up by a '
+                       "guardian. At 17 or 18 he joined Plato's Academy in "
+                       'Athens and remained there till the age of 37 (). '
+                       'Shortly after Plato died, Aristotle left Athens and, '
+                       'at the request of Philip II of Macedon, tutored his '
+                       'son Alexander the Great beginning in 343 BC. He '
+                       'established a library in the Lyceum which helped him '
+                       'to produce many of his hundreds of books on papyru',
+                  chunk='Aristotle (;  Aristotélēs, ; 384–322\xa0BC) was an '
+                        'Ancient Greek philosopher and polymath. His writings '
+                        'cover a broad range of subjects spanning the natural '
+                        'sciences, philosophy, linguistics, economics, '
+                        'politics, psychology and the arts. As the founder of '
+                        'the Peripatetic school of philosophy in the Lyceum in '
+                        'Athens, he began the wider Aristotelian tradition '
+                        'that followed, which set the groundwork for the '
+                        'development of modern science.',
+                  distance=0.22242502364217387)]
+Search results 2:
+[WikiSearchResult(id=41,
+                  url='https://en.wikipedia.org/wiki/pgai',
+                  title='pgai',
+                  text='pgai is a Python library that turns PostgreSQL into '
+                       'the retrieval engine behind robust, production-ready '
+                       'RAG and Agentic applications. It does this by '
+                       'automatically creating vector embeddings for your data '
+                       'based on the vectorizer you define.',
+                  chunk='pgai is a Python library that turns PostgreSQL into '
+                        'the retrieval engine behind robust, production-ready '
+                        'RAG and Agentic applications. It does this by '
+                        'automatically creating vector embeddings for your '
+                        'data based on the vectorizer you define.',
+                  distance=0.13639101792546204)]
+RAG response:
+The main thing pgai does right now is generating vector embeddings for data in PostgreSQL databases based on the vectorizer defined by the user, enabling the creation of robust RAG and Agentic applications.
+```
+</details>
 
-    async def _find_relevant_chunks(client: ollama.AsyncClient, query: str, limit: int = 2) -> List[WikiSearchResult]:
-        response = await client.embed(model="all-minilm", input=query)
-        embedding = np.array(response.embeddings[0])
-        
-        async with pool.connection() as conn:
-            async with conn.cursor(row_factory=class_row(WikiSearchResult)) as cur:
-                await cur.execute("""
-                    SELECT w.id, w.url, w.title, w.text, w.chunk, w.embedding <=> %s as distance
-                    FROM wiki_embedding w
-                    ORDER BY distance
-                    LIMIT %s
-                """, (embedding, limit))
-                
-                return await cur.fetchall()
-    ```
-    </details>
-    
-    This query selects from the `wiki_embedding` view that was created by the vectorizer and which contains all the columns from the `wiki` table plus the `embedding` column which contains the vector embeddings and the `chunk` column which contains the chunked text corresponding to the embedding. In this query, we are returning both the full text of the article and the chunk that is most relevant to the query (different applications may want to return only one or the other).
 
-     The `embedding <=> %s` is a PostgreSQL operator that computes the cosine distance between the stored embedding and the query embedding.
-     the greater the distance, the more dissimilar the two vectors are and so we order the results by distance to get the most similar chunks.
-    
-    This is used in the `/search` endpoint.
-    
-    <details>
-    <summary>Click to see the python code for `/search`</summary>
-    
-    ```python
-    @app.get("/search")
-    async def search(query: str):
-        client = ollama.AsyncClient(host="http://localhost:11434")
-        results = await _find_relevant_chunks(client, query)
-        return [asdict(result) for result in results]  
-    ```
-    </details>
-    
-    Now you can search through these articles with a query to the search endpoint.
-    
-    <details>
-    <summary>Click to see the curl command to query the `/search` endpoint</summary>
-    
-    ```bash
-    curl -X 'GET' \
-        'http://0.0.0.0:8000/search?query=Properties%20of%20Light' \
-        -H 'accept: application/json'
-    ```
-    </details>
-    
- 1. **Modify your data and have the vectorizer automatically update the embeddings**
- 
-    We'll create an endpoint called `insert_pgai_article` to add a row about pgai to the `wiki` table and have the vectorizer automatically update the embeddings. This simulates changes to the underlying data.
-    
-    <details>
-    <summary>Click to see the python code for `insert_pgai_article`</summary>
-    
-    ```python
-    @app.post("/insert_pgai_article")
-    async def insert_pgai_article():
-        async with pool.connection() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute("""
-                    INSERT INTO wiki (url, title, text)
-                    VALUES (%s, %s, %s)
-                """, (
-                    "https://en.wikipedia.org/wiki/Pgai",
-                    "pgai - Power your AI applications with PostgreSQL",
-                    "pgai is a tool to make developing RAG and other AI applications easier..."
-                ))
-                await conn.commit()
-        return {"message": "Article inserted successfully"}
-    ```
-    </details>
-    
-    Note: This endpoint simply inserts the text data into the wiki table without having to do anything to create the embeddings. The vectorizer will automatically create the embeddings for the new row without any intervention from you.  The vectorizer will also automatically update the embeddings for the new row when the data changes.
-    
-    After a few seconds, you can run a search query related to the new entry and see it returned as part of the results:
-    
-    <details>
-    <summary>Click to see the curl command to query the `/search` endpoint</summary>
-    
-    ```bash
-    curl -X 'GET' \
-        'http://0.0.0.0:8000/search?query=AI%20Tools' \
-        -H 'accept: application/json'
-    ```
-    </details>
-1. **Perform Retrieval Augmented Generation (RAG)**
+## Code walkthrough
 
-    In this section, we'll have the LLM answer questions about pgai based on the wiki entry we added by using RAG. The LLM was never trained on the pgai wiki entry, and so it needs data in the database to answer questions about pgai.
+### Install the pgai database components
 
-    The `rag` endpoint looks as follows:
-    
-    <details>
-    <summary>Click to see the python code for `/rag`</summary>
-    
-    ```python
-    @app.get("/rag")
-    async def rag(query: str) -> Optional[str]:
-        # Initialize Ollama client
-        client = ollama.AsyncClient(host="http://localhost:11434")
-        
-        #find and format the chunks
-        chunks = await _find_relevant_chunks(client, query)
-        context = "\n\n".join(f"{article.title}:\n{article.text}" for article, _ in chunks)
-        logger.debug(f"Context: {context}")
-        
-        # Construct prompt with context
-        prompt = f"""Question: {query}
+```python
+pgai.install(DB_URL)
+```
 
-    Please use the following context to provide an accurate response:
+### Create the vectorizer
 
-    {context}
+This defines the vectorizer, which tells the system how to create the embeddings from the `text` column in the `wiki` table. The vectorizer creates a view `wiki_embedding` that we can query for the embeddings (as we'll see below).
 
-    Answer:"""
-                
-        # Generate response using Ollama SDK
-        response = await client.generate(
-            model='tinyllama',
-            prompt=prompt,
-            stream=False
-        )
-        
-        return response['response']
-    ```
-    </details>
+```python
+async def create_vectorizer(conn: psycopg.AsyncConnection):
+    async with conn.cursor() as cur:    
+        await cur.execute("""
+            SELECT ai.create_vectorizer(
+                'wiki'::regclass,
+                if_not_exists => true,
+                loading => ai.loading_column(column_name=>'text'),
+                embedding => ai.embedding_openai(model=>'text-embedding-ada-002', dimensions=>'1536'),
+                destination => ai.destination_table(view_name=>'wiki_embedding')
+            )
+        """)   
+    await conn.commit()
+```
+
+### Run the vectorizer worker
+
+
+In this example, we run the vectorizer worker once to create the embeddings for the existing data.
+
+```python
+worker = Worker(DB_URL, once=True)
+worker.run()
+```
+
+In a real application, we would not call the worker manually like this every time we want to create the embeddings. Instead, we would run the worker in the background and it would run continuously, polling for work from the vectorizer. 
+
+You can run the worker in the background from the application, the cli, or docker. See the [vectorizer worker](/docs/vectorizer/worker.md) documentation for more details.
+
+
+### Search the wiki articles using semantic search
+
+This is standard pgvector semantic search in PostgreSQL. The search is performed against the `wiki_embedding` view, which is created by the vectorizer and includes all the columns from the `wiki` table plus the `embedding` column and the chunk text. This function returns both the entire `text` column from the `wiki` table and smaller chunks of the text that are most relevant to the query.
+
+
+```python
+@dataclass
+class WikiSearchResult:
+    id: int
+    url: str
+    title: str
+    text: str
+    chunk: str
+    distance: float
+
+async def _find_relevant_chunks(client: AsyncOpenAI, query: str, limit: int = 1) -> List[WikiSearchResult]:
+    # Generate embedding for the query using OpenAI's API
+    response = await client.embeddings.create(
+        model="text-embedding-ada-002",
+        input=query,
+        encoding_format="float",
+    )
     
-    You can see the RAG response by querying the `/rag` endpoint.
+    embedding = np.array(response.data[0].embedding)
     
-    <details>
-    <summary>Click to see the curl command to query the `/rag` endpoint</summary>
-    
-    ```bash
-    curl -X 'GET' \
-        'http://0.0.0.0:8000/rag?query=What%20is%20pgai' \
-        -H 'accept: application/json'
-    ```
-    </details>
+    # Query the database for the most similar chunks using pgvector's cosine distance operator (<=>)
+    async with pool.connection() as conn:
+        async with conn.cursor(row_factory=class_row(WikiSearchResult)) as cur:
+            await cur.execute("""
+                SELECT w.id, w.url, w.title, w.text, w.chunk, w.embedding <=> %s as distance
+                FROM wiki_embedding w
+                ORDER BY distance
+                LIMIT %s
+            """, (embedding, limit))
+            
+            return await cur.fetchall()
+```
+
+### Insert a new article into the wiki table
+
+This code is notable for what it is not doing. This is a simple insert of a new article into the `wiki` table. We did not need to do anything different to create the embeddings, the vectorizer worker will take care of updating the embeddings as the data changes.
+
+```python
+def insert_article_about_pgai(conn: psycopg.AsyncConnection):
+    async with conn.cursor(row_factory=class_row(WikiSearchResult)) as cur:
+        await cur.execute("""
+            INSERT INTO wiki (url, title, text) VALUES
+            ('https://en.wikipedia.org/wiki/pgai', 'pgai', 'pgai is a Python library that turns PostgreSQL into the retrieval engine behind robust, production-ready RAG and Agentic applications. It does this by automatically creating vector embeddings for your data based on the vectorizer you define.')
+        """)
+    await conn.commit() 
+```
+
+### Perform RAG with the LLM
+
+This code performs RAG with the LLM. It uses the `_find_relevant_chunks` function defined above to find the most relevant chunks of text from the `wiki` table and then uses the LLM to generate a response.
+
+```python
+    query = "What is the main thing pgai does right now?"
+    relevant_chunks = await _find_relevant_chunks(client, query)
+    context = "\n\n".join(
+        f"{chunk.title}:\n{chunk.text}" 
+        for chunk in relevant_chunks
+    )
+    prompt = f"""Question: {query}
+
+Please use the following context to provide an accurate response:   
+
+{context}
+
+Answer:"""
+
+    response = await client.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [{ role: "user", content: prompt }],
+    })
+    print("RAG response:")
+    print(response.choices[0].message.content)
+```
+
+## Next steps
+
+Look for other quickstarts:
+- Quickstart with FastAPI and psycopg [here](/examples/simple_fastapi_app/README.md)
+
+Explore more about the vectorizer:
+- Learn more about the [vectorizer](/docs/vectorizer/overview.md) and the [vectorizer worker](/docs/vectorizer/worker.md)
+- dive into the vectorizer api [reference](/docs/vectorizer/api-reference.md)
 
 # Features 
 
 Our pgai Python library lets you work with embeddings generated from your data:
 
-* Automatically create and sync vector embeddings for your data using the vectorizer ([learn more](/docs/vectorizer/overview.md))
-* Search your data using vector and semantic search ([learn more](/docs/vectorizer/overview.md#query-an-embedding))
-* Implement Retrieval Augmented Generation as shown above in the [Quick Start](#quick-start)
-* Perform high-performance, cost-efficient ANN search on large vector workloads with [pgvectorscale](https://github.com/timescale/pgvectorscale), which complements pgvector.
+* Automatically create and sync vector embeddings for your data using the [vectorizer](/docs/vectorizer/overview.md).
+* [Load data](/docs/vectorizer/api-reference.md#loading-configuration) from a column in your table or from a file, s3 bucket, etc.
+* Create multiple embeddings for the same data with different models and parameters for testing and experimentation.
+* [Customize](#a-configurable-vectorizer-pipeline) how your embedding pipeline parses, chunks, formats, and embeds your data.
+
+You can use the vector embeddings to:
+- [Perform semantic search](/docs/vectorizer/overview.md#query-an-embedding) using pgvector.
+- Implement Retrieval Augmented Generation (RAG)
+- Perform high-performance, cost-efficient ANN search on large vector workloads with [pgvectorscale](https://github.com/timescale/pgvectorscale), which complements pgvector.
+
 
 We also offer a [PostgreSQL extension](/projects/extension/README.md) that can perform LLM model calling directly from SQL. This is often useful for use cases like classification, summarization, and data enrichment on your existing data.
 
@@ -411,19 +325,29 @@ The following models are supported for embedding:
 - [AWS Bedrock](/docs/vectorizer/api-reference.md#aiembedding_litellm)
 - [Vertex AI](/docs/vectorizer/api-reference.md#aiembedding_litellm)
 
-## The importance of a declarative approach to embedding generation
+## The devil is in the error handling
 
-When you define a vectorizer, you define how an embedding is generated from you
-data in a *declarative* way (much like an index).  That allows the system to
-manage the process of generating and updating the embeddings in the background
-for you. The declarative nature of the vectorizer is the "magic sauce" that
-allows the system to handle intermittent failures of the LLM and make the system
-robust and scalable.
+Simply creating vector embeddings is easy and straightforward. The challenge is
+that LLMs are somewhat unreliable and the endpoints exhibit intermittent
+failures and/or degraded performance. A critical part of properly handling
+failures is that your primary data-modification operations (INSERT, UPDATE,
+DELETE) should not be dependent on the embedding operation. Otherwise, your
+application will be down every time the endpoint is slow or fails and your user
+experience will suffer.
 
-The approach is similar to the way that indexes work in PostgreSQL. When you
-create an index, you are essentially declaring that you want to be able to
-search for data in a certain way. The system then manages the process of
-updating the index as the data changes.
+Normally, you would need to implement a custom MLops pipeline to properly handle
+endpoint failures. This commonly involves queuing system like Kafka, specialized
+workers, and other infrastructure for handling the queue and retrying failed
+requests. This is a lot of work and it is easy to get wrong.
+
+With pgai, you can skip all that and focus on building your application because
+the vectorizer is managing the embeddings for you. We have built in queueing and
+retry logic to handle the various failure modes you can encounter. Because we do
+this work in the background, the primary data modification operations are not
+dependent on the embedding operation. This is why pgai is production-ready out of the box.
+
+Many specialized vector databases create embeddings for you. However, they typically fail when embedding endpoints are down or degraded, placing the burden of error handling and retries back on you.
+
  
 # Resources
 ## Why we built it
