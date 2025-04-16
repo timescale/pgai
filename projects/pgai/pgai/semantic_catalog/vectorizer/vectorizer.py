@@ -81,6 +81,7 @@ async def _get_obj_batch(
               ) as content
             from ai.{table}
             where {name} is null
+            order by random()
             limit %s
             for update skip locked
         """).format(
@@ -106,6 +107,7 @@ async def _get_sql_batch(
               ) as content
             from ai.{table} x
             where x.{name} is null
+            order by random()
             limit %s
             for update skip locked
         """).format(
@@ -127,6 +129,7 @@ async def _get_fact_batch(
             , description as content
             from ai.{table}
             where {name} is null
+            order by random()
             limit %s
             for update skip locked
         """).format(
