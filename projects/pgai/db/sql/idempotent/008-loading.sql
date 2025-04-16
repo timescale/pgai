@@ -19,7 +19,8 @@ set search_path to pg_catalog, pg_temp
 -- loading_uri
 create or replace function ai.loading_uri
 ( column_name pg_catalog.name
-, retries pg_catalog.int4 default 6)
+, retries pg_catalog.int4 default 6
+, aws_role_arn pg_catalog.text default null)
 returns pg_catalog.jsonb
 as $func$
     select json_object
@@ -27,7 +28,8 @@ as $func$
     , 'config_type': 'loading'
     , 'column_name': column_name
     , 'retries': retries
-    )
+    , 'aws_role_arn': aws_role_arn
+    absent on null)
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -68,6 +70,9 @@ end if;
     
     if (config operator(pg_catalog.->>) 'retries') is null or (config operator(pg_catalog.->>) 'retries')::int < 0 then
         raise exception 'invalid loading config, retries must be a non-negative integer';
+end if;
+    if (config operator(pg_catalog.->>) 'aws_role_arn') is not null and (config operator(pg_catalog.->>) 'aws_role_arn') not like 'arn:aws:iam::%:role/%' then
+        raise exception 'invalid loading config, aws_role_arn must match arn:aws:iam::*:role/*';
 end if;
 
     select y.typname into _column_type
