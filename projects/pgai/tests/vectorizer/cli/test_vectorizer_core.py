@@ -9,7 +9,7 @@ from psycopg import Connection
 from psycopg.rows import dict_row
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
-from pgai.vectorizer import Vectorizer, Worker
+from pgai.vectorizer import Executor, Vectorizer
 from pgai.vectorizer.features.features import Features
 from pgai.vectorizer.worker_tracking import WorkerTracking
 from tests.vectorizer.cli.conftest import (
@@ -343,7 +343,7 @@ def test_disabled_vectorizer_is_skipped_before_next_batch(
         "test_disabled_vectorizer_is_skipped_before_next_batch.yaml"
     ):
         results = asyncio.run(
-            Worker(
+            Executor(
                 cli_db_url,
                 vectorizer,
                 features,
@@ -419,7 +419,7 @@ def test_disabled_vectorizer_is_backwards_compatible(
     # When the vectorizer is executed.
     with vcr_.use_cassette("test_disabled_vectorizer_is_backwards_compatible.yaml"):
         results = asyncio.run(
-            Worker(cli_db_url, vectorizer, features, worker_tracking).run()
+            Executor(cli_db_url, vectorizer, features, worker_tracking).run()
         )
 
     # Then the disable is ignored and the vectorizer successfully exits after

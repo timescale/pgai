@@ -166,7 +166,7 @@ class Vectorizer(BaseModel):
         concurrency = concurrency or self.config.processing.concurrency
         tasks = [
             asyncio.create_task(
-                Worker(
+                Executor(
                     db_url,
                     self,
                     features,
@@ -734,11 +734,11 @@ class UUIDEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, o)
 
 
-class Worker:
+class Executor:
     """
     Responsible for processing items from the work queue and generating embeddings.
 
-    The Worker fetches tasks from a database queue table, processes them using
+    The Executor fetches tasks from a database queue table, processes them using
     the vectorizer, and writes the resulting embeddings or errors back to the
     database.
 

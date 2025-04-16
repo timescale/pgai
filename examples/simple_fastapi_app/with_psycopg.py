@@ -5,7 +5,7 @@ import pgai
 import psycopg
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from pgai.vectorizer import Processor
+from pgai.vectorizer import Worker
 from fastapi.logger import logger as fastapi_logger
 from pgai.vectorizer import CreateVectorizer
 from pgai.vectorizer.configuration import EmbeddingOllamaConfig, LoadingColumnConfig
@@ -77,9 +77,9 @@ async def lifespan(_app: FastAPI):
     # Initialize the pool after the pgai tables and functions are installed
     await pool.open()
     
-    # start the processor in a new process running in the background
-    processor = Processor(DB_URL)
-    task = asyncio.create_task(processor.run())
+    # start the Worker in a new task running in the background
+    worker = Worker(DB_URL)
+    task = asyncio.create_task(worker.run())
     
     await create_wiki_table()
     
@@ -96,16 +96,16 @@ async def lifespan(_app: FastAPI):
     print("Closing pool")
     await pool.close()
     
-    print("gracefully shutting down processor...")
-    await processor.request_graceful_shutdown()
+    print("gracefully shutting down worker...")
+    await worker.request_graceful_shutdown()
     try:
         result = await asyncio.wait_for(task, timeout=20)
         if result is not None:
-            print("Processor shutdown with exception:", result)
+            print("Worker shutdown with exception:", result)
         else:
-            print("Processor shutdown successfully")
+            print("Worker shutdown successfully")
     except asyncio.TimeoutError:
-        print("Processor did not shutdown in time, killing it")
+        print("Worker did not shutdown in time, killing it")
     
     print("Shutting down complete")
 

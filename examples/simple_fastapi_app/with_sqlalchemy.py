@@ -1,6 +1,7 @@
 import fastapi
 import ollama
 import pgai
+import asyncio
 import sqlalchemy
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -8,7 +9,7 @@ from pgai.sqlalchemy import vectorizer_relationship
 from datasets import load_dataset
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from pgai.vectorizer import ProcProcessor
+from pgai.vectorizer import Worker
 from fastapi.logger import logger as fastapi_logger
 
 from pgai.vectorizer import CreateVectorizer
@@ -53,9 +54,9 @@ async def lifespan(_app: FastAPI):
     # install pgai tables and functions into the database
     pgai.install(DB_URL)
     
-    # start the processor in a new process running in the background
-    processor = ProcProcessor(DB_URL)
-    processor.run_in_new_process()
+    # start the Worker in a new task running in the background
+    worker = Worker(DB_URL)
+    task = asyncio.create_task(worker.run())
     
     # Create the table
     Base.metadata.create_all(bind=engine)
@@ -64,13 +65,21 @@ async def lifespan(_app: FastAPI):
     if wiki_table_is_empty():
         load_wiki_articles()
         
-    # continue the main process
+    # continue the main FastAPI app
     yield
     
-    print("Shutting down...")
-    shutdown_exception = await processor.shutdown_gracefully()
-    if shutdown_exception is not None:
-        print("Shutdown exception:", shutdown_exception)
+    print("gracefully shutting down worker...")
+    await worker.request_graceful_shutdown()
+    try:
+        result = await asyncio.wait_for(task, timeout=20)
+        if result is not None:
+            print("Worker shutdown with exception:", result)
+        else:
+            print("Worker shutdown successfully")
+    except asyncio.TimeoutError:
+        print("Worker did not shutdown in time, killing it")
+
+    print("Shutting down complete")
 
 app = FastAPI(lifespan=lifespan)
 

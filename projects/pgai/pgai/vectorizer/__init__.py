@@ -1,10 +1,10 @@
 from .create_vectorizer import CreateVectorizer
-from .processor import Processor
-from .vectorizer import Vectorizer, Worker
+from .vectorizer import Executor, Vectorizer
+from .worker import Worker
 
 __all__ = [
     "Vectorizer",
-    "Worker",
+    "Executor",
     "CreateVectorizer",
-    "Processor",
+    "Worker",
 ]
