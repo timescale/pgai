@@ -43,5 +43,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_vectorizer(1, drop_all=True)
+    op.drop_vectorizer(name="public.blog_embedding_store", drop_all=True)
     op.drop_table('blog', schema='public')

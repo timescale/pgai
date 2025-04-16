@@ -1034,6 +1034,77 @@ begin
 end;
 $outer_migration_block$;
 
+-------------------------------------------------------------------------------
+-- 029-add-vectorizer-name-column.sql
+do $outer_migration_block$ /*029-add-vectorizer-name-column.sql*/
+declare
+    _sql text;
+    _migration record;
+    _migration_name text = $migration_name$029-add-vectorizer-name-column.sql$migration_name$;
+    _migration_body text =
+$migration_body$
+alter table ai.vectorizer add column name text;
+
+do language plpgsql $block$
+declare
+    _vectorizer RECORD;
+    _destination_type text;
+    _target_schema text;
+    _target_table text;
+    _embedding_column text;
+    _config jsonb;
+    _name text;
+    _destination_config jsonb;
+begin
+    -- Loop through all vectorizers
+    for _vectorizer in select id, config from ai.vectorizer
+    loop
+        -- Extract the chunking config and chunk_column
+        _config := _vectorizer.config;
+        _destination_config := _config operator(pg_catalog.->) 'destination';
+        _destination_type := _destination_config operator(pg_catalog.->>) 'implementation';
+        if _destination_type = 'table' then
+            _target_schema := _destination_config operator(pg_catalog.->) 'target_schema';
+            _target_table := _destination_config operator(pg_catalog.->) 'target_table';
+            _name := _target_schema operator(pg_catalog.||) '.' operator(pg_catalog.||) _target_table;
+        elseif _destination_type = 'column' then
+            _embedding_column := _destination_config operator(pg_catalog.->) 'embedding_column';
+            _name := _vectorizer.source_schema operator(pg_catalog.||) '.' operator(pg_catalog.||) _vectorizer.source_table operator(pg_catalog.||) '.' operator(pg_catalog.||) _embedding_column;
+        end if;
+
+        -- Update the vectorizer with new config
+        update ai.vectorizer 
+        set name = _name
+        where id operator(pg_catalog.=) _vectorizer.id;
+    end loop;
+end;
+$block$;
+
+alter table ai.vectorizer alter column name set not null;
+alter table ai.vectorizer add constraint vectorizer_name_unique unique (name);
+
+drop function if exists ai.disable_vectorizer_schedule(int4);
+drop function if exists ai.enable_vectorizer_schedule(int4);
+drop function if exists ai.drop_vectorizer(int4, bool);
+drop function if exists ai.vectorizer_queue_pending(int4, bool);
+drop function if exists ai.vectorizer_embed(int4, text, text);
+$migration_body$;
+begin
+    select * into _migration from ai.pgai_lib_migration where "name" operator(pg_catalog.=) _migration_name;
+    if _migration is not null then
+        raise notice 'migration %s already applied. skipping.', _migration_name;
+        if _migration.body operator(pg_catalog.!=) _migration_body then
+            raise warning 'the contents of migration "%s" have changed', _migration_name;
+        end if;
+        return;
+    end if;
+    _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
+    execute _sql;
+    insert into ai.pgai_lib_migration ("name", body, applied_at_version)
+    values (_migration_name, _migration_body, $version$__version__$version$);
+end;
+$outer_migration_block$;
+
 --------------------------------------------------------------------------------
 -- 001-chunking.sql
 
@@ -3299,6 +3370,7 @@ language plpgsql security invoker
 -- create_vectorizer
 create or replace function ai.create_vectorizer
 ( source pg_catalog.regclass
+, name pg_catalog.text default null
 , destination pg_catalog.jsonb default ai.destination_table()
 , loading pg_catalog.jsonb default null
 , parsing pg_catalog.jsonb default ai.parsing_auto()
@@ -3470,6 +3542,14 @@ begin
         raise exception 'invalid implementation for destination';
     end if;
 
+    if name is null then
+        if destination operator(pg_catalog.->>) 'implementation' = 'table' then
+            name = pg_catalog.format('%s.%s', destination operator(pg_catalog.->>) 'target_schema', destination operator(pg_catalog.->>) 'target_table');
+        elseif destination operator(pg_catalog.->>) 'implementation' = 'column' then
+            name = pg_catalog.format('%s.%s.%s', _source_schema, _source_table, destination operator(pg_catalog.->>) 'embedding_column');
+        end if;
+    end if;
+
     -- create queue table
     perform ai._vectorizer_create_queue_table
     ( queue_schema
@@ -3519,6 +3599,7 @@ begin
     , queue_table
     , queue_failed_table
     , config
+    , name
     )
     values
     ( _vectorizer_id
@@ -3541,6 +3622,7 @@ begin
       , 'processing', processing
       , 'destination', destination
       )
+    , create_vectorizer.name
     );
 
     -- grant select on the vectorizer table
@@ -3577,7 +3659,10 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- disable_vectorizer_schedule
-create or replace function ai.disable_vectorizer_schedule(vectorizer_id pg_catalog.int4) returns void
+create or replace function ai.disable_vectorizer_schedule
+( vectorizer_id pg_catalog.int4 default null
+, name pg_catalog.text default null
+) returns void
 as $func$
 declare
     _vec ai.vectorizer%rowtype;
@@ -3585,11 +3670,23 @@ declare
     _job_id pg_catalog.int8;
     _sql pg_catalog.text;
 begin
-    update ai.vectorizer v
-    set disabled = true
-    where v.id operator(pg_catalog.=) vectorizer_id
-    returning * into strict _vec
-    ;
+    if disable_vectorizer_schedule.name is null and vectorizer_id is null then
+        raise exception 'either vectorizer_id or name must be provided';
+    end if;
+
+    if vectorizer_id is not null then
+        update ai.vectorizer v
+        set disabled = true
+        where v.id operator(pg_catalog.=) vectorizer_id
+        returning * into strict _vec
+        ;
+    else
+        update ai.vectorizer v
+        set disabled = true
+        where v.name operator(pg_catalog.=) disable_vectorizer_schedule.name
+        returning * into strict _vec
+        ;
+    end if;
     -- enable the scheduled job if exists
     _schedule = _vec.config operator(pg_catalog.->) 'scheduling';
     if _schedule is not null then
@@ -3618,7 +3715,10 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- enable_vectorizer_schedule
-create or replace function ai.enable_vectorizer_schedule(vectorizer_id pg_catalog.int4) returns void
+create or replace function ai.enable_vectorizer_schedule
+( vectorizer_id pg_catalog.int4 default null
+, name pg_catalog.text default null
+) returns void
 as $func$
 declare
     _vec ai.vectorizer%rowtype;
@@ -3626,11 +3726,23 @@ declare
     _job_id pg_catalog.int8;
     _sql pg_catalog.text;
 begin
-    update ai.vectorizer v
-    set disabled = false
-    where v.id operator(pg_catalog.=) vectorizer_id
-    returning * into strict _vec
-    ;
+    if enable_vectorizer_schedule.name is null and vectorizer_id is null then
+        raise exception 'either vectorizer_id or name must be provided';
+    end if;
+
+    if vectorizer_id is not null then
+        update ai.vectorizer v
+        set disabled = false
+        where v.id operator(pg_catalog.=) vectorizer_id
+        returning * into strict _vec
+        ;
+    else
+        update ai.vectorizer v
+        set disabled = false
+        where v.name operator(pg_catalog.=) enable_vectorizer_schedule.name
+        returning * into strict _vec
+        ;
+    end if;
     -- enable the scheduled job if exists
     _schedule = _vec.config operator(pg_catalog.->) 'scheduling';
     if _schedule is not null then
@@ -3660,7 +3772,8 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- drop_vectorizer
 create or replace function ai.drop_vectorizer
-( vectorizer_id pg_catalog.int4
+( vectorizer_id pg_catalog.int4 default null
+, name pg_catalog.text default null
 , drop_all pg_catalog.bool default false
 ) returns void
 as $func$
@@ -3683,11 +3796,21 @@ declare
     _trigger pg_catalog.pg_trigger%rowtype;
     _sql pg_catalog.text;
 begin
-    -- grab the vectorizer we need to drop
-    select v.* into strict _vec
-    from ai.vectorizer v
-    where v.id operator(pg_catalog.=) vectorizer_id
-    ;
+    if drop_vectorizer.name is null and vectorizer_id is null then
+        raise exception 'either vectorizer_id or name must be provided';
+    end if;
+
+    if vectorizer_id is not null then
+        select v.* into strict _vec
+        from ai.vectorizer v
+        where v.id operator(pg_catalog.=) vectorizer_id
+        ;
+    else
+        select v.* into strict _vec
+        from ai.vectorizer v
+        where v.name operator(pg_catalog.=) drop_vectorizer.name
+        ;
+    end if;
 
     -- delete the scheduled job if exists
     _schedule = _vec.config operator(pg_catalog.->) 'scheduling';
@@ -3810,10 +3933,17 @@ begin
         execute _sql;
     end if;
 
-    -- delete the vectorizer row
-    delete from ai.vectorizer v
-    where v.id operator(pg_catalog.=) vectorizer_id
-    ;
+    if vectorizer_id is not null then
+        -- delete the vectorizer row
+        delete from ai.vectorizer v
+        where v.id operator(pg_catalog.=) vectorizer_id
+        ;
+    else
+        -- delete the vectorizer row
+        delete from ai.vectorizer v
+        where v.name operator(pg_catalog.=) drop_vectorizer.name
+        ;
+    end if;
 
 end;
 $func$ language plpgsql volatile security invoker
@@ -3823,7 +3953,8 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- vectorizer_queue_pending
 create or replace function ai.vectorizer_queue_pending
-( vectorizer_id pg_catalog.int4
+( vectorizer_id pg_catalog.int4 default null
+, name pg_catalog.text default null
 , exact_count pg_catalog.bool default false
 ) returns pg_catalog.int8
 as $func$
@@ -3833,13 +3964,26 @@ declare
     _sql pg_catalog.text;
     _queue_depth pg_catalog.int8;
 begin
-    select v.queue_schema, v.queue_table into _queue_schema, _queue_table
-    from ai.vectorizer v
-    where v.id operator(pg_catalog.=) vectorizer_id
-    ;
+    if vectorizer_queue_pending.name is null and vectorizer_id is null then
+        raise exception 'either vectorizer_id or name must be provided';
+    end if;
+
+    if vectorizer_id is not null then
+        select v.queue_schema, v.queue_table into _queue_schema, _queue_table
+        from ai.vectorizer v
+        where v.id operator(pg_catalog.=) vectorizer_id
+        ;
+    else
+        select v.queue_schema, v.queue_table into _queue_schema, _queue_table
+        from ai.vectorizer v
+        where v.name operator(pg_catalog.=) vectorizer_queue_pending.name
+        ;
+    end if;
+
     if _queue_schema is null or _queue_table is null then
         raise exception 'vectorizer has no queue table';
     end if;
+
     if exact_count then
         select format
         ( $sql$select count(1) from %I.%I$sql$
@@ -3938,20 +4082,38 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- vectorizer_embed
 create or replace function ai.vectorizer_embed
-( vectorizer_id pg_catalog.int4
-, input_text pg_catalog.text
+( vectorizer_id pg_catalog.int4 default null
+, name pg_catalog.text default null
+, input_text pg_catalog.text default null
 , input_type pg_catalog.text default null
 ) returns @extschema:vector@.vector
 as $func$
-    select ai.vectorizer_embed
-    ( v.config operator(pg_catalog.->) 'embedding'
-    , input_text
-    , input_type
-    )
-    from ai.vectorizer v
-    where v.id operator(pg_catalog.=) vectorizer_id
-    ;
-$func$ language sql stable security invoker
+begin
+    if vectorizer_embed.name is null and vectorizer_id is null then
+        raise exception 'either vectorizer_id or name must be provided';
+    end if;
+
+    if vectorizer_id is not null then
+        select ai.vectorizer_embed
+        ( v.config operator(pg_catalog.->) 'embedding'
+        , input_text
+        , input_type
+        )
+        from ai.vectorizer v
+        where v.id operator(pg_catalog.=) vectorizer_id
+        ;
+    else
+        select ai.vectorizer_embed
+        ( v.config operator(pg_catalog.->) 'embedding'
+        , input_text
+        , input_type
+        )
+        from ai.vectorizer v
+        where v.name operator(pg_catalog.=) vectorizer_embed.name
+        ;
+    end if;
+end
+$func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
