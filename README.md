@@ -380,7 +380,7 @@ We'll walk you through the main parts of the code below.
 
 Our pgai Python library lets you work with embeddings generated from your data:
 
-* Automatically create and sync vector embeddings for your data using the  ([learn more](/docs/vectorizer/overview.md))
+* Automatically create and sync vector embeddings for your data using the vectorizer ([learn more](/docs/vectorizer/overview.md))
 * Search your data using vector and semantic search ([learn more](/docs/vectorizer/overview.md#query-an-embedding))
 * Implement Retrieval Augmented Generation as shown above in the [Quick Start](#quick-start)
 * Perform high-performance, cost-efficient ANN search on large vector workloads with [pgvectorscale](https://github.com/timescale/pgvectorscale), which complements pgvector.
