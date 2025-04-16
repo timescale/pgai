@@ -213,20 +213,25 @@ async def load_objects(
     procedures = await load_procedures(con, list(p)) if len(p) > 0 else []
     for table in tables:
         d = td.get(table.objid, None)
+        # TODO: if none try to fetch it?
         table.description = d
         table.id = d.id if d is not None else -1
         if table.columns:
             for column in table.columns:
+                # TODO: if none try to fetch it?
                 column.description = cd.get((column.objid, column.objsubid), None)
     for view in views:
         d = vd.get(view.objid, None)
+        # TODO: if none try to fetch it?
         view.description = d
         view.id = d.id if d is not None else -1
         if view.columns:
             for column in view.columns:
+                # TODO: if none try to fetch it?
                 column.description = cd.get((column.objid, column.objsubid), None)
     for procedure in procedures:
         d = pd.get(procedure.objid, None)
+        # TODO: if none try to fetch it?
         procedure.description = d
         procedure.id = d.id if d is not None else -1
     results: list[Table | View | Procedure] = []
