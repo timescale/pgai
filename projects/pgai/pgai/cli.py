@@ -193,7 +193,7 @@ async def async_run_vectorizer_worker(
         wrapper_class=structlog.make_filtering_bound_logger(get_log_level(log_level))
     )
 
-    processor = Worker(
+    worker = Worker(
         db_url,
         datetime.timedelta(seconds=poll_interval),
         once,
@@ -201,7 +201,7 @@ async def async_run_vectorizer_worker(
         exit_on_error,
         concurrency,
     )
-    exception = await processor.run()
+    exception = await worker.run()
     if exception is not None:
         sys.exit(1)
 

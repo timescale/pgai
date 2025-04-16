@@ -95,17 +95,17 @@ async def _vectorizer_test_after_install(
         cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
         vectorizer_expected = cur.fetchone()
 
-        processor = Worker(db_url)
+        worker = Worker(db_url)
 
         # test cli.get_vectorizer_ids
-        assert len(processor._get_vectorizer_ids()) == 1  # type: ignore
-        assert len(processor._get_vectorizer_ids([42, 19])) == 0  # type: ignore
-        assert len(processor._get_vectorizer_ids([vectorizer_id, 19])) == 1  # type: ignore
-        assert len(processor._get_vectorizer_ids([vectorizer_id])) == 1  # type: ignore
+        assert len(worker._get_vectorizer_ids()) == 1  # type: ignore
+        assert len(worker._get_vectorizer_ids([42, 19])) == 0  # type: ignore
+        assert len(worker._get_vectorizer_ids([vectorizer_id, 19])) == 1  # type: ignore
+        assert len(worker._get_vectorizer_ids([vectorizer_id])) == 1  # type: ignore
 
         # test cli.get_vectorizer
         features = Features.for_testing_latest_version()
-        vectorizer_actual: Vectorizer = processor._get_vectorizer(  # type: ignore
+        vectorizer_actual: Vectorizer = worker._get_vectorizer(  # type: ignore
             vectorizer_id, features
         )
         assert vectorizer_actual is not None
@@ -217,10 +217,10 @@ async def test_vectorizer_weird_pk(postgres_container: PostgresContainer):
         cur.execute("select * from ai.vectorizer where id = %s", (vectorizer_id,))
         vectorizer_expected = cur.fetchone()
 
-        # test processor._get_vectorizer
-        processor = Worker(db_url)
+        # test worker._get_vectorizer
+        worker = Worker(db_url)
         features = Features.for_testing_latest_version()
-        vectorizer_actual: Vectorizer = processor._get_vectorizer(  # type: ignore
+        vectorizer_actual: Vectorizer = worker._get_vectorizer(  # type: ignore
             vectorizer_id, features
         )
         assert vectorizer_actual is not None
@@ -421,9 +421,9 @@ async def test_vectorizer_run_once_with_shutdown(
 
     await _vectorizer_setup_simplevectorizer(postgres_container, db)
 
-    processor = Worker(db_url, once=True)
-    task = asyncio.create_task(processor.run())
-    await processor.request_graceful_shutdown()
+    worker = Worker(db_url, once=True)
+    task = asyncio.create_task(worker.run())
+    await worker.request_graceful_shutdown()
     result = await asyncio.wait_for(task, timeout=300)
     assert result is None
 
@@ -439,8 +439,8 @@ async def test_vectorizer_run_with_shutdown(
 
     await _vectorizer_setup_simplevectorizer(postgres_container, db)
 
-    processor = Worker(db_url)
-    task = asyncio.create_task(processor.run())
-    await processor.request_graceful_shutdown()
+    worker = Worker(db_url)
+    task = asyncio.create_task(worker.run())
+    await worker.request_graceful_shutdown()
     result = await asyncio.wait_for(task, timeout=300)
     assert result is None

@@ -738,7 +738,7 @@ class Executor:
     """
     Responsible for processing items from the work queue and generating embeddings.
 
-    The Worker fetches tasks from a database queue table, processes them using
+    The Executor fetches tasks from a database queue table, processes them using
     the vectorizer, and writes the resulting embeddings or errors back to the
     database.
 
