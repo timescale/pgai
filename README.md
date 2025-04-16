@@ -95,8 +95,8 @@ We'll walk you through the main parts of the code below.
     We also run the vectorizer worker as part of the FastAPI app lifecycle. 
     
     ```python
-    processor = Processor(DB_URL)
-    task = asyncio.create_task(processor.run())
+    worker = Worker(DB_URL)
+    task = asyncio.create_task(worker.run())
     ```
     
     In this example, we run the Vectorizer worker inside the FastAPI app for simplicity. You can also run the vectorizer worker outside the FastAPI app, in a separate process or separate container. Please see the [vectorizer worker](/docs/vectorizer/worker.md) documentation for more information.
