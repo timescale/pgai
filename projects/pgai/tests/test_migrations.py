@@ -82,6 +82,12 @@ config_0_10_0 = {
         "implementation": "timescaledb",
         "schedule_interval": "00:05:00",
     },
+    "destination": {
+        "config_type": "destination",
+        "implementation": "table",
+        "target_schema": "public",
+        "target_table": "target",
+    },
 }
 
 vectorizer_fields = {

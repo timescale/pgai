@@ -28,9 +28,9 @@ begin
         --otherwise the snapshots will not match during upgrade testing.
             $sql$
     create or replace function %I.%I() returns trigger 
-    as $trigger_def$
+    as $trigger_def$ 
     begin
-       raise 'This trigger function should be redefined in the idempotent code';
+    raise 'This trigger function should be redefined in the idempotent code'; 
     end 
     $trigger_def$ language plpgsql volatile parallel safe security definer 
     set search_path to pg_catalog, pg_temp

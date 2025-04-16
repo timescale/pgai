@@ -874,9 +874,9 @@ begin
         --otherwise the snapshots will not match during upgrade testing.
             $sql$
     create or replace function %I.%I() returns trigger 
-    as $trigger_def$
+    as $trigger_def$ 
     begin
-       raise 'This trigger function should be redefined in the idempotent code';
+    raise 'This trigger function should be redefined in the idempotent code'; 
     end 
     $trigger_def$ language plpgsql volatile parallel safe security definer 
     set search_path to pg_catalog, pg_temp
@@ -937,6 +937,86 @@ declare
 $migration_body$
 drop function if exists ai.loading_uri(pg_catalog.name,pg_catalog.int4);
 
+$migration_body$;
+begin
+    select * into _migration from ai.pgai_lib_migration where "name" operator(pg_catalog.=) _migration_name;
+    if _migration is not null then
+        raise notice 'migration %s already applied. skipping.', _migration_name;
+        if _migration.body operator(pg_catalog.!=) _migration_body then
+            raise warning 'the contents of migration "%s" have changed', _migration_name;
+        end if;
+        return;
+    end if;
+    _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
+    execute _sql;
+    insert into ai.pgai_lib_migration ("name", body, applied_at_version)
+    values (_migration_name, _migration_body, $version$__version__$version$);
+end;
+$outer_migration_block$;
+
+-------------------------------------------------------------------------------
+-- 028-remove-destination-columns.sql
+do $outer_migration_block$ /*028-remove-destination-columns.sql*/
+declare
+    _sql text;
+    _migration record;
+    _migration_name text = $migration_name$028-remove-destination-columns.sql$migration_name$;
+    _migration_body text =
+$migration_body$
+do language plpgsql $block$
+declare
+    _vectorizer RECORD;
+    _target_schema text;
+    _target_table text;
+    _view_schema text;
+    _view_name text;
+    _config jsonb;
+begin
+    -- Loop through all vectorizers
+    for _vectorizer in select id, target_schema, target_table, view_schema, view_name, config from ai.vectorizer
+    loop
+        -- Extract the chunking config and chunk_column
+        _target_schema := _vectorizer.target_schema;
+        _target_table := _vectorizer.target_table;
+        _view_schema := _vectorizer.view_schema;
+        _view_name := _vectorizer.view_name;
+
+        -- Create new config:
+        -- Add destination config
+        _config := _vectorizer.config operator(pg_catalog.||) jsonb_build_object(
+            'destination', json_object(
+                'implementation': 'table',
+                'config_type': 'destination',
+                'target_schema': _target_schema,
+                'target_table': _target_table,
+                'view_schema': _view_schema,
+                'view_name': _view_name
+        ));
+
+        -- Update the vectorizer with new config
+        update ai.vectorizer 
+        set config = _config
+        where id operator(pg_catalog.=) _vectorizer.id;
+    end loop;
+end;
+$block$;
+
+-- These will be recreated by the idempotent migrations in new form that work despite the dropped columns
+drop view if exists ai.vectorizer_status; 
+drop event trigger if exists _vectorizer_handle_drops;
+drop function if exists ai._vectorizer_handle_drops;
+
+alter table ai.vectorizer 
+    drop column target_schema,
+    drop column target_table,
+    drop column view_schema,
+    drop column view_name;
+
+
+drop FUNCTION IF EXISTS ai._vectorizer_build_trigger_definition(name,name,name,name,jsonb);
+drop FUNCTION IF EXISTS ai.create_vectorizer(regclass,name,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,name,name,name,name,name,name,name[],boolean);
+drop function if exists ai._vectorizer_vector_index_exists(name,name,jsonb);
+drop function if exists ai._vectorizer_create_vector_index(name,name,jsonb);
 $migration_body$;
 begin
     select * into _migration from ai.pgai_lib_migration where "name" operator(pg_catalog.=) _migration_name;
@@ -1873,7 +1953,80 @@ set search_path to pg_catalog, pg_temp;
 
 
 --------------------------------------------------------------------------------
--- 010-vectorizer-int.sql
+-- 010-destination.sql
+-------------------------------------------------------------------------------
+-- destination_table
+create or replace function ai.destination_table
+(
+    destination pg_catalog.name default null
+    , target_schema pg_catalog.name default null
+    , target_table pg_catalog.name default null
+    , view_schema pg_catalog.name default null
+    , view_name pg_catalog.name default null
+) returns pg_catalog.jsonb
+as $func$
+    select json_object
+    ( 'implementation': 'table'
+    , 'config_type': 'destination'
+    , 'destination': destination
+    , 'target_schema': target_schema
+    , 'target_table': target_table
+    , 'view_schema': view_schema
+    , 'view_name': view_name
+    absent on null
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- destination_column
+create or replace function ai.destination_column
+(
+    embedding_column pg_catalog.name
+) returns pg_catalog.jsonb
+as $func$
+    select json_object
+    ( 'implementation': 'column'
+    , 'config_type': 'destination'
+    , 'embedding_column': embedding_column
+    absent on null
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- validate_destination
+create or replace function ai._validate_destination
+( destination pg_catalog.jsonb
+, chunking pg_catalog.jsonb ) returns void
+as $func$
+declare
+    _config_type pg_catalog.text;
+begin
+    if pg_catalog.jsonb_typeof(destination) operator(pg_catalog.!=) 'object' then
+        raise exception 'destination config is not a jsonb object';
+    end if;
+
+    _config_type = destination operator(pg_catalog.->>) 'config_type';
+    if _config_type is null or _config_type operator(pg_catalog.!=) 'destination' then
+        raise exception 'invalid config_type for destination config';
+    end if;
+
+    if destination->>'implementation' = 'column' then
+        if chunking->>'implementation' != 'none' then
+            raise exception 'chunking must be none for column destination';
+        end if;
+    end if;
+end
+$func$ language plpgsql stable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+
+--------------------------------------------------------------------------------
+-- 011-vectorizer-int.sql
 
 -------------------------------------------------------------------------------
 -- _vectorizer_source_pk
@@ -1972,6 +2125,152 @@ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-------------------------------------------------------------------------------
+-- _vectorizer_create_destination_table
+create or replace function ai._vectorizer_create_destination_table
+(   source_schema pg_catalog.name
+    , source_table pg_catalog.name
+    , source_pk pg_catalog.jsonb
+    , dimensions pg_catalog.int4
+    , destination jsonb
+    , grant_to pg_catalog.name[]
+) returns jsonb as
+$func$
+declare
+    target_schema pg_catalog.name;
+    target_table pg_catalog.name;
+    view_schema pg_catalog.name;
+    view_name pg_catalog.name;
+begin
+     target_schema = coalesce(destination operator(pg_catalog.->>) 'target_schema', source_schema);
+    target_table = case
+        when destination operator(pg_catalog.->>) 'target_table' is not null then destination operator(pg_catalog.->>) 'target_table'
+        when destination operator(pg_catalog.->>) 'destination' is not null then pg_catalog.concat(destination operator(pg_catalog.->>) 'destination', '_store')
+        else pg_catalog.concat(source_table, '_embedding_store')
+    end;
+    view_schema = coalesce(view_schema, source_schema);
+    view_name = case
+        when destination operator(pg_catalog.->>) 'view_name' is not null then destination operator(pg_catalog.->>) 'view_name'
+        when destination operator(pg_catalog.->>) 'destination' is not null then destination operator(pg_catalog.->>) 'destination'
+        else pg_catalog.concat(source_table, '_embedding')
+    end;
+    -- make sure view name is available
+    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
+        raise exception 'an object named %.% already exists. specify an alternate destination explicitly', view_schema, view_name;
+    end if;
+
+    -- make sure target table name is available
+    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', target_schema, target_table)) is not null then
+        raise exception 'an object named %.% already exists. specify an alternate destination or target_table explicitly', target_schema, target_table;
+    end if;
+
+    -- create the target table
+    perform ai._vectorizer_create_target_table
+    ( source_pk
+    , target_schema
+    , target_table
+    , dimensions
+    , grant_to
+    );
+
+    perform ai._vectorizer_create_view
+    ( view_schema
+    , view_name
+    , source_schema
+    , source_table
+    , source_pk
+    , target_schema
+    , target_table
+    , grant_to
+    );
+    return json_object
+    ( 'implementation': 'table'
+    , 'config_type': 'destination'
+    , 'target_schema': target_schema
+    , 'target_table': target_table
+    , 'view_schema': view_schema
+    , 'view_name': view_name
+    );
+end;
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+------------------------------------------------------------------------------- 
+-- _vectorizer_create_destination_column
+create or replace function ai._vectorizer_create_destination_column
+(   source_schema pg_catalog.name
+    , source_table pg_catalog.name
+    , dimensions pg_catalog.int4
+    , destination jsonb
+) returns jsonb as
+$func$
+declare
+    embedding_column pg_catalog.name;
+begin
+    embedding_column = destination operator(pg_catalog.->>) 'embedding_column';
+    perform ai._vectorizer_add_embedding_column
+    ( source_schema
+    , source_table
+    , dimensions
+    , embedding_column
+    );
+    return json_object
+    ( 'implementation': 'column'
+    , 'config_type': 'destination'
+    , 'embedding_column': embedding_column
+    );
+end;
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _vectorizer_add_embedding_column
+create or replace function ai._vectorizer_add_embedding_column
+( source_schema pg_catalog.name
+, source_table pg_catalog.name
+, dimensions pg_catalog.int4
+, embedding_column pg_catalog.name
+) returns void as
+$func$
+declare
+    _sql pg_catalog.text;
+    _column_exists pg_catalog.bool;
+begin
+    -- Check if embedding column already exists
+    select exists(
+        select 1 
+        from pg_catalog.pg_attribute a
+        join pg_catalog.pg_class c on a.attrelid = c.oid
+        join pg_catalog.pg_namespace n on c.relnamespace = n.oid
+        where n.nspname = source_schema
+        and c.relname = source_table
+        and a.attname = embedding_column
+        and not a.attisdropped
+    ) into _column_exists;
+
+    if _column_exists then
+        raise notice 'embedding column %I already exists in %I.%I skipping creation', embedding_column, source_schema, source_table;
+        return;
+    else
+        -- Add embedding column to source table
+        select pg_catalog.format(
+            $sql$
+            alter table %I.%I 
+            add column %I @extschema:vector@.vector(%L) storage main default null
+            $sql$,
+            source_schema, source_table, embedding_column, dimensions
+        ) into strict _sql;
+
+        execute _sql;
+    end if;
+end;
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp;
 -------------------------------------------------------------------------------
 -- _vectorizer_create_target_table
 create or replace function ai._vectorizer_create_target_table
@@ -2151,7 +2450,6 @@ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
--------------------------------------------------------------------------------
 -- _vectorizer_create_queue_table
 create or replace function ai._vectorizer_create_queue_table
 ( queue_schema pg_catalog.name
@@ -2320,6 +2618,8 @@ create or replace function ai._vectorizer_build_trigger_definition
 , queue_table pg_catalog.name
 , target_schema pg_catalog.name
 , target_table pg_catalog.name
+, source_schema pg_catalog.name
+, source_table pg_catalog.name
 , source_pk pg_catalog.jsonb
 ) returns pg_catalog.text as
 $func$
@@ -2329,6 +2629,8 @@ declare
     _pk_columns pg_catalog.text;
     _pk_values pg_catalog.text;
     _func_def pg_catalog.text;
+    _relevant_columns_check pg_catalog.text;
+    _truncate_statement pg_catalog.text;
 begin
     -- Pre-calculate all the parts we need
     select pg_catalog.string_agg(pg_catalog.format('%I', x.attname), ', ' order by x.attnum)
@@ -2339,59 +2641,109 @@ begin
     into strict _pk_values
     from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name);
 
-    -- Create delete statement for deleted rows
-    _delete_statement := format('delete from %I.%I where %s', target_schema, target_table,
-        (select string_agg(format('%I = old.%I', attname, attname), ' and ')
-        from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name)));
+    if target_schema is not null and target_table is not null then
+        -- Create delete statement for deleted rows
+        _delete_statement := format('delete from %I.%I where %s', target_schema, target_table,
+            (select string_agg(format('%I = old.%I', attname, attname), ' and ')
+            from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name)));
 
-    -- Create the primary key change check expression
-    select string_agg(
-        format('old.%I IS DISTINCT FROM new.%I', attname, attname),
-        ' OR '
-    )
-    into strict _pk_change_check
-    from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name);
-    _func_def := $def$
-    begin
-        if (TG_LEVEL = 'ROW') then
-            if (TG_OP = 'DELETE') then
-                $DELETE_STATEMENT$;
-            elsif (TG_OP = 'UPDATE') then
-                if $PK_CHANGE_CHECK$ then
+        -- Create the primary key change check expression
+        select string_agg(
+            format('old.%I IS DISTINCT FROM new.%I', attname, attname),
+            ' OR '
+        )
+        into strict _pk_change_check
+        from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name);
+
+        _truncate_statement := format('truncate table %I.%I; truncate table %I.%I',
+                                target_schema, target_table, queue_schema, queue_table);
+    end if;
+
+    _relevant_columns_check := 
+        pg_catalog.format('EXISTS (
+            SELECT 1 FROM pg_catalog.jsonb_each(to_jsonb(old)) AS o(key, value)
+            JOIN pg_catalog.jsonb_each(to_jsonb(new)) AS n(key, value) 
+            ON o.key = n.key
+            WHERE o.value IS DISTINCT FROM n.value
+            AND o.key != ALL(
+                SELECT config operator(pg_catalog.->) ''destination'' operator(pg_catalog.->>) ''embedding_column''
+                FROM ai.vectorizer 
+                WHERE source_table = %L AND source_schema = %L
+                AND config operator(pg_catalog.->) ''destination'' operator(pg_catalog.->>) ''implementation'' operator(pg_catalog.=) ''column''
+            )
+        )', source_table, source_schema);
+
+    if target_schema is not null and target_table is not null then
+        _func_def := $def$
+        begin
+            if (TG_LEVEL = 'ROW') then
+                if (TG_OP = 'DELETE') then
                     $DELETE_STATEMENT$;
+                elsif (TG_OP = 'UPDATE') then
+                    -- Check if the primary key has changed and queue the update
+                    if $PK_CHANGE_CHECK$ then
+                        $DELETE_STATEMENT$;
+                        insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
+                            values ($PK_VALUES$);
+                    -- check if a relevant column has changed and queue the update
+                    elsif $RELEVANT_COLUMNS_CHECK$ then
+                        insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
+                        values ($PK_VALUES$);
+                    end if;
+
+                    return new;
+                else
+                    insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
+                    values ($PK_VALUES$);
+                    return new;
                 end if;
-                
-                insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
-                values ($PK_VALUES$);
-                return new;
-            else
-                insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
-                values ($PK_VALUES$);
-                return new;
+
+            elsif (TG_LEVEL = 'STATEMENT') then
+                if (TG_OP = 'TRUNCATE') then
+                    $TRUNCATE_STATEMENT$;
+                end if;
+                return null;
             end if;
 
-        elsif (TG_LEVEL = 'STATEMENT') then
-            if (TG_OP = 'TRUNCATE') then
-                execute format('truncate table %I.%I', '$TARGET_SCHEMA$', '$TARGET_TABLE$');
-                execute format('truncate table %I.%I', '$QUEUE_SCHEMA$', '$QUEUE_TABLE$');
+            return null;
+        end;
+        $def$;
+
+        -- Replace placeholders
+        _func_def := replace(_func_def, '$DELETE_STATEMENT$', _delete_statement);
+        _func_def := replace(_func_def, '$PK_CHANGE_CHECK$', _pk_change_check);
+        _func_def := replace(_func_def, '$QUEUE_SCHEMA$', quote_ident(queue_schema));
+        _func_def := replace(_func_def, '$QUEUE_TABLE$', quote_ident(queue_table));
+        _func_def := replace(_func_def, '$PK_COLUMNS$', _pk_columns);
+        _func_def := replace(_func_def, '$PK_VALUES$', _pk_values);
+        _func_def := replace(_func_def, '$TARGET_SCHEMA$', quote_ident(target_schema));
+        _func_def := replace(_func_def, '$TARGET_TABLE$', quote_ident(target_table));
+        _func_def := replace(_func_def, '$RELEVANT_COLUMNS_CHECK$', _relevant_columns_check);
+        _func_def := replace(_func_def, '$TRUNCATE_STATEMENT$', _truncate_statement);
+    
+    else
+        _func_def := $def$
+        begin
+            if (TG_LEVEL = 'ROW') then
+                if (TG_OP = 'UPDATE') then
+                    if $RELEVANT_COLUMNS_CHECK$ then
+                        insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
+                        values ($PK_VALUES$);
+                    end if;
+                elseif (TG_OP = 'INSERT') then
+                    insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
+                    values ($PK_VALUES$);
+                end if;
             end if;
             return null;
-        end if;
-        
-        return null;
-    end;
-    $def$;
-
-    -- Replace placeholders
-    _func_def := replace(_func_def, '$DELETE_STATEMENT$', _delete_statement);
-    _func_def := replace(_func_def, '$PK_CHANGE_CHECK$', _pk_change_check);
-    _func_def := replace(_func_def, '$QUEUE_SCHEMA$', quote_ident(queue_schema));
-    _func_def := replace(_func_def, '$QUEUE_TABLE$', quote_ident(queue_table));
-    _func_def := replace(_func_def, '$PK_COLUMNS$', _pk_columns);
-    _func_def := replace(_func_def, '$PK_VALUES$', _pk_values);
-    _func_def := replace(_func_def, '$TARGET_SCHEMA$', quote_ident(target_schema));
-    _func_def := replace(_func_def, '$TARGET_TABLE$', quote_ident(target_table));
-
+        end;
+        $def$;
+        _func_def := replace(_func_def, '$RELEVANT_COLUMNS_CHECK$', _relevant_columns_check);
+        _func_def := replace(_func_def, '$QUEUE_SCHEMA$', quote_ident(queue_schema));
+        _func_def := replace(_func_def, '$QUEUE_TABLE$', quote_ident(queue_table));
+        _func_def := replace(_func_def, '$PK_COLUMNS$', _pk_columns);
+        _func_def := replace(_func_def, '$PK_VALUES$', _pk_values);
+    end if;
     return _func_def;
 end;
 $func$ language plpgsql immutable security invoker
@@ -2424,7 +2776,13 @@ begin
     $sql$
     , queue_schema
     , trigger_name
-    , ai._vectorizer_build_trigger_definition(queue_schema, queue_table, target_schema, target_table, source_pk)
+    , ai._vectorizer_build_trigger_definition(queue_schema,
+                                              queue_table,
+                                              target_schema,
+                                              target_table,
+                                              source_schema,
+                                              source_table,
+                                              source_pk)
     );
 
     -- Revoke public permissions
@@ -2475,6 +2833,9 @@ set search_path to pg_catalog, pg_temp
 do $upgrade_block$
 declare
     _vec record;
+    _target_schema pg_catalog.name;
+    _target_table pg_catalog.name;
+    _destination_type pg_catalog.text;
 begin
     -- Find all vectorizers
     for _vec in (
@@ -2483,8 +2844,6 @@ begin
             v.source_schema,
             v.source_table,
             v.source_pk,
-            v.target_schema,
-            v.target_table,
             v.trigger_name,
             v.queue_schema,
             v.queue_table,
@@ -2493,6 +2852,15 @@ begin
     )
     loop
         raise notice 'Recreating trigger function for vectorizer ID %s', _vec.id;
+        
+        _destination_type := _vec.config->'destination'->>'implementation';
+        if _destination_type = 'table' then
+            _target_schema := _vec.config->'destination'->>'target_schema';
+            _target_table := _vec.config->'destination'->>'target_table';
+        else -- destination column works with no target table in the trigger def
+            _target_schema := null;
+            _target_table := null;
+        end if;
 
         execute format
         (
@@ -2506,7 +2874,13 @@ begin
     set search_path to pg_catalog, pg_temp
     $sql$
             , _vec.queue_schema, _vec.trigger_name,
-            ai._vectorizer_build_trigger_definition(_vec.queue_schema, _vec.queue_table, _vec.target_schema, _vec.target_table, _vec.source_pk)
+            ai._vectorizer_build_trigger_definition(_vec.queue_schema,
+                                                    _vec.queue_table,
+                                                    _target_schema,
+                                                    _target_table,
+                                                    _vec.source_schema,
+                                                    _vec.source_table,
+                                                    _vec.source_pk)
         );
     end loop;
 end;
@@ -2518,6 +2892,7 @@ create or replace function ai._vectorizer_vector_index_exists
 ( target_schema pg_catalog.name
 , target_table pg_catalog.name
 , indexing pg_catalog.jsonb
+, column_name pg_catalog.name default 'embedding'
 ) returns pg_catalog.bool as
 $func$
 declare
@@ -2540,7 +2915,7 @@ begin
     inner join pg_index i on (k.oid operator(pg_catalog.=) i.indrelid)
     inner join pg_catalog.pg_attribute a
         on (k.oid operator(pg_catalog.=) a.attrelid
-        and a.attname operator(pg_catalog.=) 'embedding'
+        and a.attname operator(pg_catalog.=) column_name
         and a.attnum operator(pg_catalog.=) i.indkey[0]
         )
     where n.nspname operator(pg_catalog.=) target_schema
@@ -2564,6 +2939,9 @@ declare
     _sql pg_catalog.text;
     _count pg_catalog.int8;
     _min_rows pg_catalog.int8;
+    _schema_name pg_catalog.name;
+    _table_name pg_catalog.name;
+    _column_name pg_catalog.name;
 begin
     -- grab the indexing config
     _indexing = pg_catalog.jsonb_extract_path(vectorizer.config, 'indexing');
@@ -2578,8 +2956,11 @@ begin
         return false;
     end if;
 
+    _schema_name = coalesce(vectorizer.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_schema', vectorizer.source_schema);
+    _table_name = coalesce(vectorizer.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_table', vectorizer.source_table);
+    _column_name = coalesce(vectorizer.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'embedding_column', 'embedding');
     -- see if the index already exists. if so, exit
-    if ai._vectorizer_vector_index_exists(vectorizer.target_schema, vectorizer.target_table, _indexing) then
+    if ai._vectorizer_vector_index_exists(_schema_name, _table_name, _indexing, _column_name) then
         return false;
     end if;
 
@@ -2595,7 +2976,7 @@ begin
         ;
         execute _sql into _count;
         if _count operator(pg_catalog.>) 0 then
-            raise notice 'queue for %.% is not empty. skipping vector index creation', vectorizer.target_schema, vectorizer.target_table;
+            raise notice 'queue for %.% is not empty. skipping vector index creation', _schema_name, _table_name;
             return false;
         end if;
     end if;
@@ -2606,8 +2987,8 @@ begin
         -- count the rows in the target table
         select pg_catalog.format
         ( $sql$select pg_catalog.count(*) from (select 1 from %I.%I limit %L) x$sql$
-        , vectorizer.target_schema
-        , vectorizer.target_table
+        , _schema_name
+        , _table_name
         , _min_rows
         ) into strict _sql
         ;
@@ -2628,6 +3009,7 @@ create or replace function ai._vectorizer_create_vector_index
 ( target_schema pg_catalog.name
 , target_table pg_catalog.name
 , indexing pg_catalog.jsonb
+, column_name pg_catalog.name default 'embedding'
 ) returns void as
 $func$
 declare
@@ -2658,7 +3040,7 @@ begin
 
     -- double-check that the index doesn't exist now that we're holding the advisory lock
     -- nobody likes redundant indexes
-    if ai._vectorizer_vector_index_exists(target_table, target_schema, indexing) then
+    if ai._vectorizer_vector_index_exists(target_schema, target_table, indexing, column_name) then
         raise notice 'the vector index on %.% already exists', target_schema, target_table;
         return;
     end if;
@@ -2691,8 +3073,9 @@ begin
             ;
 
             select pg_catalog.format
-            ( $sql$create index on %I.%I using diskann (embedding)%s$sql$
+            ( $sql$create index on %I.%I using diskann (%I)%s$sql$
             , target_schema, target_table
+            , column_name
             , case when _with_count operator(pg_catalog.>) 0
                 then pg_catalog.format(' with (%s)', _with)
                 else ''
@@ -2717,8 +3100,9 @@ begin
             ;
 
             select pg_catalog.format
-            ( $sql$create index on %I.%I using hnsw (embedding %I.%s)%s$sql$
+            ( $sql$create index on %I.%I using hnsw (%I %I.%s)%s$sql$
             , target_schema, target_table
+            , column_name
             , _ext_schema
             , indexing operator(pg_catalog.->>) 'opclass'
             , case when _with_count operator(pg_catalog.>) 0
@@ -2822,6 +3206,7 @@ declare
     _sql pg_catalog.text;
     _found pg_catalog.bool;
     _count pg_catalog.int8;
+    _should_create_vector_index pg_catalog.bool;
 begin
     set local search_path = pg_catalog, pg_temp;
     if config is null then
@@ -2842,14 +3227,25 @@ begin
     commit;
     set local search_path = pg_catalog, pg_temp;
 
+    _should_create_vector_index = ai._vectorizer_should_create_vector_index(_vec);
+
     -- if the conditions are right, create the vectorizer index
-    if ai._vectorizer_should_create_vector_index(_vec) then
+    if _should_create_vector_index and _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation' operator(pg_catalog.=) 'table' then
         commit;
         set local search_path = pg_catalog, pg_temp;
         perform ai._vectorizer_create_vector_index
-        (_vec.target_schema
-        , _vec.target_table
+        (_vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_schema'
+        , _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_table'
         , pg_catalog.jsonb_extract_path(_vec.config, 'indexing')
+        );
+    elsif _should_create_vector_index and _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation' operator(pg_catalog.=) 'column' then
+        commit;
+        set local search_path = pg_catalog, pg_temp;
+        perform ai._vectorizer_create_vector_index
+        (_vec.source_schema
+        , _vec.source_table
+        , pg_catalog.jsonb_extract_path(_vec.config, 'indexing')
+        , _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'embedding_column'
         );
     end if;
 
@@ -2898,12 +3294,12 @@ language plpgsql security invoker
 
 
 --------------------------------------------------------------------------------
--- 011-vectorizer-api.sql
+-- 012-vectorizer-api.sql
 -------------------------------------------------------------------------------
 -- create_vectorizer
 create or replace function ai.create_vectorizer
 ( source pg_catalog.regclass
-, destination pg_catalog.name default null
+, destination pg_catalog.jsonb default ai.destination_table()
 , loading pg_catalog.jsonb default null
 , parsing pg_catalog.jsonb default ai.parsing_auto()
 , embedding pg_catalog.jsonb default null
@@ -2912,10 +3308,6 @@ create or replace function ai.create_vectorizer
 , formatting pg_catalog.jsonb default ai.formatting_python_template()
 , scheduling pg_catalog.jsonb default ai.scheduling_default()
 , processing pg_catalog.jsonb default ai.processing_default()
-, target_schema pg_catalog.name default null
-, target_table pg_catalog.name default null
-, view_schema pg_catalog.name default null
-, view_name pg_catalog.name default null
 , queue_schema pg_catalog.name default null
 , queue_table pg_catalog.name default null
 , grant_to pg_catalog.name[] default ai.grant_to()
@@ -2992,32 +3384,10 @@ begin
     end if;
 
     _vectorizer_id = pg_catalog.nextval('ai.vectorizer_id_seq'::pg_catalog.regclass);
-    target_schema = coalesce(target_schema, _source_schema);
-    target_table = case
-        when target_table is not null then target_table
-        when destination is not null then pg_catalog.concat(destination, '_store')
-        else pg_catalog.concat(_source_table, '_embedding_store')
-    end;
-    view_schema = coalesce(view_schema, _source_schema);
-    view_name = case
-        when view_name is not null then view_name
-        when destination is not null then destination
-        else pg_catalog.concat(_source_table, '_embedding')
-    end;
     _trigger_name = pg_catalog.concat('_vectorizer_src_trg_', _vectorizer_id);
     queue_schema = coalesce(queue_schema, 'ai');
     queue_table = coalesce(queue_table, pg_catalog.concat('_vectorizer_q_', _vectorizer_id));
     _queue_failed_table = pg_catalog.concat('_vectorizer_q_failed_', _vectorizer_id);
-
-    -- make sure view name is available
-    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
-        raise exception 'an object named %.% already exists. specify an alternate destination explicitly', view_schema, view_name;
-    end if;
-
-    -- make sure target table name is available
-    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', target_schema, target_table)) is not null then
-        raise exception 'an object named %.% already exists. specify an alternate destination or target_table explicitly', target_schema, target_table;
-    end if;
 
     -- make sure queue table name is available
     if pg_catalog.to_regclass(pg_catalog.format('%I.%I', queue_schema, queue_table)) is not null then
@@ -3034,6 +3404,9 @@ begin
         _source_schema,
         _source_table
     );
+
+    -- validate the destination config
+    perform ai._validate_destination(destination, chunking);
 
     -- validate the embedding config
     perform ai._validate_embedding(embedding);
@@ -3076,14 +3449,26 @@ begin
     , grant_to
     );
 
-    -- create the target table
-    perform ai._vectorizer_create_target_table
-    ( _source_pk
-    , target_schema
-    , target_table
-    , _dimensions
-    , grant_to
-    );
+    -- create the target table or column
+    if destination operator(pg_catalog.->>) 'implementation' = 'table' then
+        destination = ai._vectorizer_create_destination_table
+        ( _source_schema
+        , _source_table
+        , _source_pk
+        , _dimensions
+        , destination
+        , grant_to
+        );
+    elseif destination operator(pg_catalog.->>) 'implementation' = 'column' then
+        destination = ai._vectorizer_create_destination_column
+        ( _source_schema
+        , _source_table
+        , _dimensions
+        , destination
+        );
+    else
+        raise exception 'invalid implementation for destination';
+    end if;
 
     -- create queue table
     perform ai._vectorizer_create_queue_table
@@ -3108,22 +3493,11 @@ begin
     , queue_table
     , _source_schema
     , _source_table
-    , target_schema
-    , target_table
+    , destination operator(pg_catalog.->>) 'target_schema'
+    , destination operator(pg_catalog.->>) 'target_table'
     , _source_pk
     );
 
-    -- create view
-    perform ai._vectorizer_create_view
-    ( view_schema
-    , view_name
-    , _source_schema
-    , _source_table
-    , _source_pk
-    , target_schema
-    , target_table
-    , grant_to
-    );
 
     -- schedule the async ext job
     select ai._vectorizer_schedule_job
@@ -3140,10 +3514,6 @@ begin
     , source_schema
     , source_table
     , source_pk
-    , target_schema
-    , target_table
-    , view_schema
-    , view_name
     , trigger_name
     , queue_schema
     , queue_table
@@ -3155,10 +3525,6 @@ begin
     , _source_schema
     , _source_table
     , _source_pk
-    , target_schema
-    , target_table
-    , view_schema
-    , view_name
     , _trigger_name
     , queue_schema
     , queue_table
@@ -3173,6 +3539,7 @@ begin
       , 'formatting', formatting
       , 'scheduling', scheduling
       , 'processing', processing
+      , 'destination', destination
       )
     );
 
@@ -3425,20 +3792,20 @@ begin
     ) into strict _sql;
     execute _sql;
 
-    if drop_all then
+    if drop_all and _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation' operator(pg_catalog.=) 'table' then
         -- drop the view if exists
         select pg_catalog.format
         ( $sql$drop view if exists %I.%I$sql$
-        , _vec.view_schema
-        , _vec.view_name
+        , _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'view_schema'
+        , _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'view_name'
         ) into strict _sql;
         execute _sql;
 
         -- drop the target table if exists
         select pg_catalog.format
         ( $sql$drop table if exists %I.%I$sql$
-        , _vec.target_schema
-        , _vec.target_table
+        , _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_schema'
+        , _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_table'
         ) into strict _sql;
         execute _sql;
     end if;
@@ -3504,8 +3871,12 @@ create or replace view ai.vectorizer_status as
 select
   v.id
 , pg_catalog.format('%I.%I', v.source_schema, v.source_table) as source_table
-, pg_catalog.format('%I.%I', v.target_schema, v.target_table) as target_table
-, pg_catalog.format('%I.%I', v.view_schema, v.view_name) as "view"
+, pg_catalog.format('%I.%I', v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_schema', v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_table') as target_table
+, pg_catalog.format('%I.%I', v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'view_schema', v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'view_name') as "view"
+, case when v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation' = 'column' then
+    pg_catalog.format('%I.%I', v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'embedding_column')
+    else 'embedding'
+    end as embedding_column
 , case when v.queue_table is not null and
     pg_catalog.has_table_privilege
     ( current_user
@@ -3586,7 +3957,7 @@ set search_path to pg_catalog, pg_temp
 
 
 --------------------------------------------------------------------------------
--- 012-worker-tracking.sql
+-- 013-worker-tracking.sql
 CREATE OR REPLACE FUNCTION ai._worker_start(version text, expected_heartbeat_interval interval) RETURNS uuid AS $$
 DECLARE
     worker_id uuid;

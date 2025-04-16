@@ -2,7 +2,7 @@
 -- create_vectorizer
 create or replace function ai.create_vectorizer
 ( source pg_catalog.regclass
-, destination pg_catalog.name default null
+, destination pg_catalog.jsonb default ai.destination_table()
 , loading pg_catalog.jsonb default null
 , parsing pg_catalog.jsonb default ai.parsing_auto()
 , embedding pg_catalog.jsonb default null
@@ -11,10 +11,6 @@ create or replace function ai.create_vectorizer
 , formatting pg_catalog.jsonb default ai.formatting_python_template()
 , scheduling pg_catalog.jsonb default ai.scheduling_default()
 , processing pg_catalog.jsonb default ai.processing_default()
-, target_schema pg_catalog.name default null
-, target_table pg_catalog.name default null
-, view_schema pg_catalog.name default null
-, view_name pg_catalog.name default null
 , queue_schema pg_catalog.name default null
 , queue_table pg_catalog.name default null
 , grant_to pg_catalog.name[] default ai.grant_to()
@@ -91,32 +87,10 @@ begin
     end if;
 
     _vectorizer_id = pg_catalog.nextval('ai.vectorizer_id_seq'::pg_catalog.regclass);
-    target_schema = coalesce(target_schema, _source_schema);
-    target_table = case
-        when target_table is not null then target_table
-        when destination is not null then pg_catalog.concat(destination, '_store')
-        else pg_catalog.concat(_source_table, '_embedding_store')
-    end;
-    view_schema = coalesce(view_schema, _source_schema);
-    view_name = case
-        when view_name is not null then view_name
-        when destination is not null then destination
-        else pg_catalog.concat(_source_table, '_embedding')
-    end;
     _trigger_name = pg_catalog.concat('_vectorizer_src_trg_', _vectorizer_id);
     queue_schema = coalesce(queue_schema, 'ai');
     queue_table = coalesce(queue_table, pg_catalog.concat('_vectorizer_q_', _vectorizer_id));
     _queue_failed_table = pg_catalog.concat('_vectorizer_q_failed_', _vectorizer_id);
-
-    -- make sure view name is available
-    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
-        raise exception 'an object named %.% already exists. specify an alternate destination explicitly', view_schema, view_name;
-    end if;
-
-    -- make sure target table name is available
-    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', target_schema, target_table)) is not null then
-        raise exception 'an object named %.% already exists. specify an alternate destination or target_table explicitly', target_schema, target_table;
-    end if;
 
     -- make sure queue table name is available
     if pg_catalog.to_regclass(pg_catalog.format('%I.%I', queue_schema, queue_table)) is not null then
@@ -133,6 +107,9 @@ begin
         _source_schema,
         _source_table
     );
+
+    -- validate the destination config
+    perform ai._validate_destination(destination, chunking);
 
     -- validate the embedding config
     perform ai._validate_embedding(embedding);
@@ -175,14 +152,26 @@ begin
     , grant_to
     );
 
-    -- create the target table
-    perform ai._vectorizer_create_target_table
-    ( _source_pk
-    , target_schema
-    , target_table
-    , _dimensions
-    , grant_to
-    );
+    -- create the target table or column
+    if destination operator(pg_catalog.->>) 'implementation' = 'table' then
+        destination = ai._vectorizer_create_destination_table
+        ( _source_schema
+        , _source_table
+        , _source_pk
+        , _dimensions
+        , destination
+        , grant_to
+        );
+    elseif destination operator(pg_catalog.->>) 'implementation' = 'column' then
+        destination = ai._vectorizer_create_destination_column
+        ( _source_schema
+        , _source_table
+        , _dimensions
+        , destination
+        );
+    else
+        raise exception 'invalid implementation for destination';
+    end if;
 
     -- create queue table
     perform ai._vectorizer_create_queue_table
@@ -207,22 +196,11 @@ begin
     , queue_table
     , _source_schema
     , _source_table
-    , target_schema
-    , target_table
+    , destination operator(pg_catalog.->>) 'target_schema'
+    , destination operator(pg_catalog.->>) 'target_table'
     , _source_pk
     );
 
-    -- create view
-    perform ai._vectorizer_create_view
-    ( view_schema
-    , view_name
-    , _source_schema
-    , _source_table
-    , _source_pk
-    , target_schema
-    , target_table
-    , grant_to
-    );
 
     -- schedule the async ext job
     select ai._vectorizer_schedule_job
@@ -239,10 +217,6 @@ begin
     , source_schema
     , source_table
     , source_pk
-    , target_schema
-    , target_table
-    , view_schema
-    , view_name
     , trigger_name
     , queue_schema
     , queue_table
@@ -254,10 +228,6 @@ begin
     , _source_schema
     , _source_table
     , _source_pk
-    , target_schema
-    , target_table
-    , view_schema
-    , view_name
     , _trigger_name
     , queue_schema
     , queue_table
@@ -272,6 +242,7 @@ begin
       , 'formatting', formatting
       , 'scheduling', scheduling
       , 'processing', processing
+      , 'destination', destination
       )
     );
 
@@ -524,20 +495,20 @@ begin
     ) into strict _sql;
     execute _sql;
 
-    if drop_all then
+    if drop_all and _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation' operator(pg_catalog.=) 'table' then
         -- drop the view if exists
         select pg_catalog.format
         ( $sql$drop view if exists %I.%I$sql$
-        , _vec.view_schema
-        , _vec.view_name
+        , _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'view_schema'
+        , _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'view_name'
         ) into strict _sql;
         execute _sql;
 
         -- drop the target table if exists
         select pg_catalog.format
         ( $sql$drop table if exists %I.%I$sql$
-        , _vec.target_schema
-        , _vec.target_table
+        , _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_schema'
+        , _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_table'
         ) into strict _sql;
         execute _sql;
     end if;
@@ -603,8 +574,12 @@ create or replace view ai.vectorizer_status as
 select
   v.id
 , pg_catalog.format('%I.%I', v.source_schema, v.source_table) as source_table
-, pg_catalog.format('%I.%I', v.target_schema, v.target_table) as target_table
-, pg_catalog.format('%I.%I', v.view_schema, v.view_name) as "view"
+, pg_catalog.format('%I.%I', v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_schema', v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_table') as target_table
+, pg_catalog.format('%I.%I', v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'view_schema', v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'view_name') as "view"
+, case when v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation' = 'column' then
+    pg_catalog.format('%I.%I', v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'embedding_column')
+    else 'embedding'
+    end as embedding_column
 , case when v.queue_table is not null and
     pg_catalog.has_table_privilege
     ( current_user

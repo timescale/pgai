@@ -55,6 +55,14 @@ class ChunkingCharacterTextSplitterConfig(SQLArgumentMixin):
 
 
 @dataclass
+class ChunkingNoneConfig(SQLArgumentMixin):
+    """Configuration for ai.chunking_none function."""
+
+    arg_type: ClassVar[str] = "chunking"
+    function_name: ClassVar[str] = "ai.chunking_none"
+
+
+@dataclass
 class ChunkingRecursiveCharacterTextSplitterConfig(SQLArgumentMixin):
     """Configuration for ai.chunking_recursive_character_text_splitter function."""
 
@@ -65,6 +73,30 @@ class ChunkingRecursiveCharacterTextSplitterConfig(SQLArgumentMixin):
     chunk_overlap: int | None = None
     separators: list[str] | None = None
     is_separator_regex: bool | None = None
+
+
+@dataclass
+class DestinationColumnConfig(SQLArgumentMixin):
+    """Configuration for ai.destination_column function."""
+
+    arg_type: ClassVar[str] = "destination"
+    function_name: ClassVar[str] = "ai.destination_column"
+
+    embedding_column: str
+
+
+@dataclass
+class DestinationTableConfig(SQLArgumentMixin):
+    """Configuration for ai.destination_table function."""
+
+    arg_type: ClassVar[str] = "destination"
+    function_name: ClassVar[str] = "ai.destination_table"
+
+    destination: str | None = None
+    target_schema: str | None = None
+    target_table: str | None = None
+    view_schema: str | None = None
+    view_name: str | None = None
 
 
 @dataclass
@@ -186,6 +218,7 @@ class LoadingColumnConfig(SQLArgumentMixin):
     function_name: ClassVar[str] = "ai.loading_column"
 
     column_name: str
+    retries: int | None = None
 
 
 @dataclass
@@ -196,6 +229,7 @@ class LoadingUriConfig(SQLArgumentMixin):
     function_name: ClassVar[str] = "ai.loading_uri"
 
     column_name: str
+    retries: int | None = None
 
 
 @dataclass
