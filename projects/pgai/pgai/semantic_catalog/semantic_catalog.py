@@ -152,10 +152,10 @@ class SemanticCatalog:
     def render_objects(self, objects: list[Table | View | Procedure]) -> str:
         return render.render_objects(objects)
 
-    async def render_sql_examples(self, sql_examples: list[SQLExample]) -> str:
+    def render_sql_examples(self, sql_examples: list[SQLExample]) -> str:
         return "\n\n".join(map(render.render_sql_example, sql_examples))
 
-    async def render_facts(self, facts: list[Fact]) -> str:
+    def render_facts(self, facts: list[Fact]) -> str:
         return "\n\n".join(map(render.render_fact, facts))
 
 
