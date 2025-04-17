@@ -76,6 +76,16 @@ def test_same_table_vectorizer(
                 == results_pre_update[1]["embedding"]
             )
 
+            cur.execute("SELECT * FROM ai.vectorizer_status;")
+            row = cur.fetchone()
+            assert row is not None
+            assert row["source_table"] == "public" + "." + table_name
+            assert row["target_table"] is None
+            assert row["view"] is None
+            assert row["embedding_column"] == "embedding"
+            assert row["pending_items"] == 0
+            assert not row["disabled"]
+
             # Check deletes just work
             cur.execute("DELETE FROM blog where id = 1;")
             con.commit()
