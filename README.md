@@ -41,6 +41,49 @@ pip install pgai
 
 # Quick Start
 
+```python
+import pgai
+pgai.install(DB_URL)
+
+# Create a source table
+cur.execute("""
+    CREATE TABLE blog (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        text TEXT NOT NULL
+    )
+""")
+
+# Create a vectorizer
+cur.execute("""
+    SELECT ai.create_vectorizer(
+        'blog'::regclass,
+        loading => ai.loading_column(column_name => 'text'),
+        embedding => ai.embedding_openai(
+            model => 'text-embedding-ada-002',
+            dimensions => 1536,
+        ),
+    )"""
+)
+
+# Insert some data
+cur.execute("""
+    INSERT INTO blog (title, text) VALUES
+    ('My first blog post', 'This is the text of my first blog post.'),
+    """
+)
+pgai.vectorizer.run_once()
+
+# Query embeddings
+cur.execute("""
+    SELECT * FROM blog_embedding_store
+    WHERE embedding <=> '[0.1, 0.2, 0.3]'::vector
+    ORDER BY embedding <=> '[0.1, 0.2, 0.3]'::vector
+    LIMIT 10
+""")
+```
+
+
 This section will walk you through the steps to get started with pgai and Ollama using docker and show you the major features of pgai. 
 
 Please note that using Ollama requires a large (>4GB) download of the docker image and model. If you don't want to download so much data, you may want to use the [OpenAI quick start](/docs/vectorizer/quick-start-openai.md) or [VoyageAI quick start](/docs/vectorizer/quick-start-voyage.md) instead.
