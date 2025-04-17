@@ -133,46 +133,49 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- sc_add_embedding_config
-create or replace function ai.sc_add_embedding_config
-( embedding jsonb
+-- sc_add_embedding
+create or replace function ai.sc_add_embedding
+( config jsonb
+, embedding_name name default null
 , catalog_name text default 'default'
-) returns text
+) returns ai.semantic_catalog_embedding
 as $func$
 declare
-    _cat ai.semantic_catalog;
+    _config jsonb = sc_add_embedding.config;
+    _embedding_name name = sc_add_embedding.embedding_name;
+    _catalog_name text = sc_add_embedding.catalog_name;
+    _catalog_id int4;
     _dims int4;
-    _col_id int4;
     _tbl text;
     _sql text;
+    _embedding ai.semantic_catalog_embedding;
 begin
     -- TODO: validate embedding config
 
-    _dims = (embedding->'dimensions')::int4;
+    _dims = (_config->'dimensions')::int4;
     assert _dims is not null, 'embedding config is missing dimensions';
     
-    -- grab the catalog row
-    select * into strict _cat
-    from ai.semantic_catalog
-    where name = catalog_name
+    -- grab the catalog id
+    select c.id into strict _catalog_id
+    from ai.semantic_catalog c
+    where c.catalog_name = _catalog_name
     ;
     
-    -- find the next available emb column id
-    select coalesce(max(((regexp_match(x.key, '[0-9]+$'))[1])::int4) + 1, 1)
-    into strict _col_id
-    from jsonb_each(_cat.config->'embeddings') x
-    ;
-    raise debug '%', _col_id;
+    if _embedding_name is null then
+        select 'emb' ||
+        greatest
+        ( count(*)::int4
+        , max((regexp_match(e.embedding_name, '[0-9]+$'))[1]::int4)
+        ) + 1
+        into strict _embedding_name
+        from ai.semantic_catalog_embedding e
+        where e.semantic_catalog_id = _catalog_id
+        ;
+    end if;
     
-    -- add the embedding config
-    update ai.semantic_catalog
-    set config = jsonb_set
-    ( config
-    , array['embeddings', 'emb'||_col_id]
-    , embedding
-    , true
-    )
-    where id = _cat.id
+    insert into ai.semantic_catalog_embedding (semantic_catalog_id, embedding_name, config)
+    values (_catalog_id, _embedding_name, _config)
+    returning * into strict _embedding
     ;
     
     -- add the columns
@@ -184,58 +187,47 @@ begin
             alter table ai.semantic_catalog_%s_%s add column %s @extschema:vector@.vector(%s)
         $sql$
         , _tbl
-        , _cat.id
-        , 'emb' || _col_id
+        , _catalog_id
+        , _embedding_name
         , _dims
         );
         raise debug '%', _sql;
         execute _sql;
     end loop;
     
-    perform ai._semantic_catalog_make_triggers(_cat.id);
+    perform ai._semantic_catalog_make_triggers(_catalog_id);
     
-    return 'emb' || _col_id;
+    return _embedding;
 end;
 $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
--- sc_drop_embedding_config
-create or replace function ai.sc_drop_embedding_config
-( column_name name
+-- sc_drop_embedding
+create or replace function ai.sc_drop_embedding
+( embedding_name name
 , catalog_name text default 'default'
 ) returns void
 as $func$
 declare
-    _id int4;
-    _exists boolean;
+    _embedding_name name = sc_drop_embedding.embedding_name;
+    _catalog_name text = sc_drop_embedding.catalog_name;
+    _embedding ai.semantic_catalog_embedding;
+    _catalog_id int4;
     _tbl text;
     _sql text;
 begin
-    -- find the catalog id and ensure the embedding config exists
-    select 
-      x.id
-    , x.config->'embeddings' ? column_name
-    into strict
-      _id
-    , _exists
-    from ai.semantic_catalog x
-    where x.name = catalog_name
-    ;
-    if not _exists then
-        raise exception 'column not found';
-    end if;
 
-    -- delete the embedding config
-    update ai.semantic_catalog
-    set config = jsonb_set
-    ( config
-    , array['embeddings']
-    , (config->'embeddings') - column_name
-    , true
-    )
-    where name = catalog_name
+    select c.id into strict _catalog_id
+    from ai.semantic_catalog c
+    where c.catalog_name = _catalog_name
+    ;
+
+    delete from ai.semantic_catalog_embedding e
+    where e.semantic_catalog_id = _catalog_id
+    and e.embedding_name = _embedding_name
+    returning * into strict _embedding
     ;
     
     -- drop the columns
@@ -247,14 +239,14 @@ begin
             alter table ai.semantic_catalog_%s_%s drop column %s
         $sql$
         , _tbl
-        , _id
-        , column_name
+        , _catalog_id
+        , _embedding_name
         );
         raise debug '%', _sql;
         execute _sql;
     end loop;
     
-    perform ai._semantic_catalog_make_triggers(_id);
+    perform ai._semantic_catalog_make_triggers(_catalog_id);
 end;
 $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
@@ -264,22 +256,20 @@ set search_path to pg_catalog, pg_temp
 -- create_semantic_catalog
 create or replace function ai.create_semantic_catalog
 ( catalog_name text default 'default'
-, embedding jsonb default ai.embedding_sentence_transformers()
+, embedding_name name default null
+, embedding_config jsonb default ai.embedding_sentence_transformers()
 ) returns int4
 as $func$
 declare
-    _id int4;
+    _catalog_name text = create_semantic_catalog.catalog_name;
+    _embedding_name name = create_semantic_catalog.embedding_name;
+    _embedding_config jsonb = create_semantic_catalog.embedding_config;
+    _catalog_id int4;
     _sql text;
 begin
-    insert into ai.semantic_catalog
-    ( name
-    , config
-    )
-    values 
-    ( catalog_name
-    , jsonb_build_object('embeddings', jsonb_build_object())
-    )
-    returning id into strict _id;
+    insert into ai.semantic_catalog(catalog_name)
+    values (catalog_name)
+    returning id into strict _catalog_id;
     
     -- create the table for database objects
     _sql = format
@@ -297,7 +287,7 @@ begin
         , unique (objtype, objnames, objargs)
         )
       $sql$
-    , _id
+    , _catalog_id
     );
     raise debug '%', _sql;
     execute _sql;
@@ -311,7 +301,7 @@ begin
         , description text not null
         )
       $sql$
-    , _id
+    , _catalog_id
     );
     raise debug '%', _sql;
     execute _sql;
@@ -324,14 +314,18 @@ begin
         , description text not null
         )
       $sql$
-    , _id
+    , _catalog_id
     );
     raise debug '%', _sql;
     execute _sql;
     
-    perform ai.sc_add_embedding_config(embedding, catalog_name);
+    perform ai.sc_add_embedding
+    ( embedding_name=>_embedding_name
+    , config=>_embedding_config
+    , catalog_name=>_catalog_name
+    );
     
-    return _id;
+    return _catalog_id;
 end;
 $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
@@ -342,14 +336,14 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.drop_semantic_catalog(catalog_name text) returns int4
 as $func$
 declare
-    _name text = drop_semantic_catalog.catalog_name;
-    _id int4;
+    _catalog_name text = drop_semantic_catalog.catalog_name;
+    _catalog_id int4;
     _sql text;
     _tbl text;
 begin
-    delete from ai.semantic_catalog 
-    where name = _name
-    returning id into strict _id
+    delete from ai.semantic_catalog c
+    where c.catalog_name = _catalog_name
+    returning c.id into strict _catalog_id
     ;
 
     -- drop the table for database objects
@@ -357,7 +351,7 @@ begin
     ( $sql$
         drop table if exists ai.semantic_catalog_obj_%s
       $sql$
-    , _id
+    , _catalog_id
     );
     raise debug '%', _sql;
     execute _sql;
@@ -367,7 +361,7 @@ begin
     ( $sql$
         drop table if exists ai.semantic_catalog_sql_%s
       $sql$
-    , _id
+    , _catalog_id
     );
     raise debug '%', _sql;
     execute _sql;
@@ -377,7 +371,7 @@ begin
     ( $sql$
         drop table if exists ai.semantic_catalog_fact_%s
       $sql$
-    , _id
+    , _catalog_id
     );
     raise debug '%', _sql;
     execute _sql;
@@ -390,13 +384,13 @@ begin
             drop function if exists ai.semantic_catalog_%s_%s_trig()
           $sql$
         , _tbl
-        , _id
+        , _catalog_id
         );
         raise debug '%', _sql;
         execute _sql;
     end loop;
     
-    return _id;
+    return _catalog_id;
 end
 $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
@@ -417,6 +411,7 @@ create or replace function ai.sc_set_obj_desc
 returns int8
 as $func$
 declare
+    _catalog_name text = sc_set_obj_desc.catalog_name;
     _sql text;
     _id int8;
 begin
@@ -447,7 +442,7 @@ begin
     , x.id
     ) into strict _sql
     from ai.semantic_catalog x
-    where x.name = catalog_name
+    where x.catalog_name = _catalog_name
     ;
     execute _sql using
       classid
@@ -941,6 +936,7 @@ create or replace function ai.sc_add_sql_desc
 returns int8
 as $func$
 declare
+    _catalog_name text = sc_add_sql_desc.catalog_name;
     _sql text;
     _id int8;
 begin
@@ -959,7 +955,7 @@ begin
     , x.id
     ) into strict _sql
     from ai.semantic_catalog x
-    where x.name = catalog_name
+    where x.name = _catalog_name
     ;
     execute _sql using
       sql
@@ -980,6 +976,7 @@ create or replace function ai.sc_add_fact
 returns int8
 as $func$
 declare
+    _catalog_name text = sc_add_fact.catalog_name;
     _sql text;
     _id int8;
 begin
@@ -996,7 +993,7 @@ begin
     , x.id
     ) into strict _sql
     from ai.semantic_catalog x
-    where x.name = catalog_name
+    where x.name = _catalog_name
     ;
     execute _sql using description
     into strict _id;

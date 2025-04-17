@@ -2,7 +2,7 @@ from .semantic_catalog import (
     CatalogConnection,
     SemanticCatalog,
     TargetConnection,
-    create_semantic_catalog,
+    create,
     from_id,
     from_name,
 )
@@ -10,7 +10,7 @@ from .semantic_catalog import (
 __all__ = [
     "from_name",
     "from_id",
-    "create_semantic_catalog",
+    "create",
     "SemanticCatalog",
     "TargetConnection",
     "CatalogConnection",
