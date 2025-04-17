@@ -32,6 +32,20 @@ def execute_vectorizer(plpy, vectorizer_id: int) -> None:
     embedding_api_key = (
         vectorizer.get("config", {}).get("embedding", {}).get("api_key_name", None)
     )
+    destination = vectorizer.get("config", {}).get("destination", None)
+    if destination is not None:
+        vectorizer["target_schema"] = destination.get(
+            "target_schema", vectorizer["source_schema"]
+        )
+        vectorizer["target_table"] = destination.get(
+            "target_table", vectorizer["source_table"]
+        )
+        vectorizer["view_schema"] = destination.get(
+            "view_schema", vectorizer["source_schema"]
+        )
+        vectorizer["view_name"] = destination.get(
+            "view_name", vectorizer["source_table"]
+        )
     vectorizer["secrets"] = [embedding_api_key] if embedding_api_key else []
 
     the_url = urljoin(
