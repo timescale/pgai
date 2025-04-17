@@ -13,6 +13,15 @@ class SentenceTransformersConfig(BaseModel):
     model: str
     dimensions: int
 
+    @classmethod
+    def create(cls, model: str, dimensions: int):
+        return cls(
+            implementation="sentence_transformers",
+            config_type="embedding",
+            model=model,
+            dimensions=dimensions,
+        )
+
 
 class OllamaConfig(BaseModel):
     implementation: Literal["ollama"]
@@ -20,6 +29,16 @@ class OllamaConfig(BaseModel):
     model: str
     dimensions: int
     base_url: str | None = None
+
+    @classmethod
+    def create(cls, model: str, dimensions: int, base_url: str | None = None):
+        return cls(
+            implementation="ollama",
+            config_type="embedding",
+            model=model,
+            dimensions=dimensions,
+            base_url=base_url,
+        )
 
 
 class OpenAIConfig(BaseModel):
@@ -29,6 +48,23 @@ class OpenAIConfig(BaseModel):
     dimensions: int
     base_url: str | None = None
     api_key_name: str | None = None
+
+    @classmethod
+    def create(
+        cls,
+        model: str,
+        dimensions: int,
+        base_url: str | None = None,
+        api_key_name: str | None = None,
+    ):
+        return cls(
+            implementation="openai",
+            config_type="embedding",
+            model=model,
+            dimensions=dimensions,
+            base_url=base_url,
+            api_key_name=api_key_name,
+        )
 
 
 EmbeddingConfig = Annotated[
@@ -59,7 +95,7 @@ class EmbedRow(BaseModel):
 
 
 async def _get_obj_batch(
-    con: psycopg.AsyncConnection, id: int, name: str, batch_size: int
+    con: psycopg.AsyncConnection, catalog_id: int, embedding_name: str, batch_size: int
 ) -> list[EmbedRow]:
     async with con.cursor(row_factory=dict_row) as cur:
         await cur.execute(
@@ -85,7 +121,8 @@ async def _get_obj_batch(
             limit %s
             for update skip locked
         """).format(
-                table=Identifier(f"semantic_catalog_obj_{id}"), name=Identifier(name)
+                table=Identifier(f"semantic_catalog_obj_{catalog_id}"),
+                name=Identifier(embedding_name),
             ),
             (batch_size,),
         )
@@ -93,7 +130,7 @@ async def _get_obj_batch(
 
 
 async def _get_sql_batch(
-    con: psycopg.AsyncConnection, id: int, name: str, batch_size: int
+    con: psycopg.AsyncConnection, catalog_id: int, embedding_name: str, batch_size: int
 ) -> list[EmbedRow]:
     async with con.cursor(row_factory=dict_row) as cur:
         await cur.execute(
@@ -111,7 +148,8 @@ async def _get_sql_batch(
             limit %s
             for update skip locked
         """).format(
-                table=Identifier(f"semantic_catalog_sql_{id}"), name=Identifier(name)
+                table=Identifier(f"semantic_catalog_sql_{catalog_id}"),
+                name=Identifier(embedding_name),
             ),
             (batch_size,),
         )
@@ -119,7 +157,7 @@ async def _get_sql_batch(
 
 
 async def _get_fact_batch(
-    con: psycopg.AsyncConnection, id: int, name: str, batch_size: int
+    con: psycopg.AsyncConnection, catalog_id: int, embedding_name: str, batch_size: int
 ) -> list[EmbedRow]:
     async with con.cursor(row_factory=dict_row) as cur:
         await cur.execute(
@@ -133,7 +171,8 @@ async def _get_fact_batch(
             limit %s
             for update skip locked
         """).format(
-                table=Identifier(f"semantic_catalog_fact_{id}"), name=Identifier(name)
+                table=Identifier(f"semantic_catalog_fact_{catalog_id}"),
+                name=Identifier(embedding_name),
             ),
             (batch_size,),
         )
@@ -141,22 +180,30 @@ async def _get_fact_batch(
 
 
 async def _get_batch(
-    con: psycopg.AsyncConnection, id: int, name: str, table: str, batch_size: int
+    con: psycopg.AsyncConnection,
+    catalog_id: int,
+    embedding_name: str,
+    table: str,
+    batch_size: int,
 ) -> list[EmbedRow]:
     assert table in {"obj", "sql", "fact"}
     match table:
         case "obj":
-            return await _get_obj_batch(con, id, name, batch_size)
+            return await _get_obj_batch(con, catalog_id, embedding_name, batch_size)
         case "sql":
-            return await _get_sql_batch(con, id, name, batch_size)
+            return await _get_sql_batch(con, catalog_id, embedding_name, batch_size)
         case "fact":
-            return await _get_fact_batch(con, id, name, batch_size)
+            return await _get_fact_batch(con, catalog_id, embedding_name, batch_size)
         case _:
             raise ValueError(f"Unrecognized table: {table}")
 
 
 async def _save_batch(
-    con: psycopg.AsyncConnection, id: int, name: str, table: str, batch: list[EmbedRow]
+    con: psycopg.AsyncConnection,
+    catalog_id: int,
+    embedding_name: str,
+    table: str,
+    batch: list[EmbedRow],
 ):
     assert table in {"obj", "sql", "fact"}
     async with con.cursor() as cur:
@@ -164,15 +211,18 @@ async def _save_batch(
             await cur.execute(
                 SQL("""\
                 update ai.{} set {} = %s where id = %s
-            """).format(Identifier(f"semantic_catalog_{table}_{id}"), Identifier(name)),
+            """).format(
+                    Identifier(f"semantic_catalog_{table}_{catalog_id}"),
+                    Identifier(embedding_name),
+                ),
                 (row.vector, row.id),
             )
 
 
 async def vectorize(
     con: psycopg.AsyncConnection,
-    id: int,
-    name: str,
+    catalog_id: int,
+    embedding_name: str,
     config: EmbeddingConfig,
     batch_size: int = 32,
 ) -> None:
@@ -180,7 +230,9 @@ async def vectorize(
         while True:
             async with con.transaction() as _:
                 # TODO: check the db and assert that the embed config still exists and hasn't changed # noqa: E501
-                batch = await _get_batch(con, id, name, table, batch_size)
+                batch = await _get_batch(
+                    con, catalog_id, embedding_name, table, batch_size
+                )
                 if not batch:
                     break
                 match config:
@@ -196,7 +248,7 @@ async def vectorize(
                         from .openai import embed_batch
 
                         await embed_batch(config, batch)
-                await _save_batch(con, id, name, table, batch)
+                await _save_batch(con, catalog_id, embedding_name, table, batch)
 
 
 async def vectorize_query(config: EmbeddingConfig, query: str) -> Sequence[float]:
