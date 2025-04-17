@@ -2091,6 +2091,65 @@ begin
         end if;
     end if;
 end
+$func$ language plpgsql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+
+-------------------------------------------------------------------------------
+-- evaluate_destination
+create or replace function ai._evaluate_destination
+( destination pg_catalog.jsonb,
+source_schema pg_catalog.name,
+source_table pg_catalog.name
+) returns jsonb
+as $func$
+declare
+    target_schema pg_catalog.name;
+    target_table pg_catalog.name;
+    view_schema pg_catalog.name;
+    view_name pg_catalog.name;
+begin
+    if destination operator(pg_catalog.->>) 'implementation' = 'table' then
+        target_schema = coalesce(destination operator(pg_catalog.->>) 'target_schema', source_schema);
+        target_table = case
+            when destination operator(pg_catalog.->>) 'target_table' is not null then destination operator(pg_catalog.->>) 'target_table'
+            when destination operator(pg_catalog.->>) 'destination' is not null then pg_catalog.concat(destination operator(pg_catalog.->>) 'destination', '_store')
+            else pg_catalog.concat(source_table, '_embedding_store')
+        end;
+        view_schema = coalesce(view_schema, source_schema);
+        view_name = case
+            when destination operator(pg_catalog.->>) 'view_name' is not null then destination operator(pg_catalog.->>) 'view_name'
+            when destination operator(pg_catalog.->>) 'destination' is not null then destination operator(pg_catalog.->>) 'destination'
+            else pg_catalog.concat(source_table, '_embedding')
+        end;
+         -- make sure view name is available
+        if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
+            raise exception 'an object named %.% already exists. specify an alternate destination explicitly', view_schema, view_name;
+        end if;
+    
+        -- make sure target table name is available
+        if pg_catalog.to_regclass(pg_catalog.format('%I.%I', target_schema, target_table)) is not null then
+            raise exception 'an object named %.% already exists. specify an alternate destination or target_table explicitly', target_schema, target_table;
+        end if;
+        return json_object
+        ( 'implementation': 'table'
+        , 'config_type': 'destination'
+        , 'target_schema': target_schema
+        , 'target_table': target_table
+        , 'view_schema': view_schema
+        , 'view_name': view_name
+        );
+    elseif destination operator(pg_catalog.->>) 'implementation' = 'column' then
+        return json_object
+        ( 'implementation': 'column'
+        , 'config_type': 'destination'
+        , 'embedding_column': destination operator(pg_catalog.->>) 'embedding_column'
+        );
+    else
+        raise exception 'invalid implementation for destination config';
+    end if;
+end
 $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -2205,7 +2264,7 @@ create or replace function ai._vectorizer_create_destination_table
     , dimensions pg_catalog.int4
     , destination jsonb
     , grant_to pg_catalog.name[]
-) returns jsonb as
+) returns void as
 $func$
 declare
     target_schema pg_catalog.name;
@@ -2213,27 +2272,11 @@ declare
     view_schema pg_catalog.name;
     view_name pg_catalog.name;
 begin
-     target_schema = coalesce(destination operator(pg_catalog.->>) 'target_schema', source_schema);
-    target_table = case
-        when destination operator(pg_catalog.->>) 'target_table' is not null then destination operator(pg_catalog.->>) 'target_table'
-        when destination operator(pg_catalog.->>) 'destination' is not null then pg_catalog.concat(destination operator(pg_catalog.->>) 'destination', '_store')
-        else pg_catalog.concat(source_table, '_embedding_store')
-    end;
-    view_schema = coalesce(view_schema, source_schema);
-    view_name = case
-        when destination operator(pg_catalog.->>) 'view_name' is not null then destination operator(pg_catalog.->>) 'view_name'
-        when destination operator(pg_catalog.->>) 'destination' is not null then destination operator(pg_catalog.->>) 'destination'
-        else pg_catalog.concat(source_table, '_embedding')
-    end;
-    -- make sure view name is available
-    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
-        raise exception 'an object named %.% already exists. specify an alternate destination explicitly', view_schema, view_name;
-    end if;
 
-    -- make sure target table name is available
-    if pg_catalog.to_regclass(pg_catalog.format('%I.%I', target_schema, target_table)) is not null then
-        raise exception 'an object named %.% already exists. specify an alternate destination or target_table explicitly', target_schema, target_table;
-    end if;
+    target_schema = destination operator(pg_catalog.->>) 'target_schema';
+    target_table = destination operator(pg_catalog.->>) 'target_table';
+    view_schema = destination operator(pg_catalog.->>) 'view_schema';
+    view_name = destination operator(pg_catalog.->>) 'view_name';
 
     -- create the target table
     perform ai._vectorizer_create_target_table
@@ -2254,14 +2297,6 @@ begin
     , target_table
     , grant_to
     );
-    return json_object
-    ( 'implementation': 'table'
-    , 'config_type': 'destination'
-    , 'target_schema': target_schema
-    , 'target_table': target_table
-    , 'view_schema': view_schema
-    , 'view_name': view_name
-    );
 end;
 $func$
 language plpgsql volatile security invoker
@@ -2275,7 +2310,7 @@ create or replace function ai._vectorizer_create_destination_column
     , source_table pg_catalog.name
     , dimensions pg_catalog.int4
     , destination jsonb
-) returns jsonb as
+) returns void as
 $func$
 declare
     embedding_column pg_catalog.name;
@@ -2286,11 +2321,6 @@ begin
     , source_table
     , dimensions
     , embedding_column
-    );
-    return json_object
-    ( 'implementation': 'column'
-    , 'config_type': 'destination'
-    , 'embedding_column': embedding_column
     );
 end;
 $func$
@@ -3384,6 +3414,7 @@ create or replace function ai.create_vectorizer
 , queue_table pg_catalog.name default null
 , grant_to pg_catalog.name[] default ai.grant_to()
 , enqueue_existing pg_catalog.bool default true
+, if_not_exists pg_catalog.bool default false
 ) returns pg_catalog.int4
 as $func$
 declare
@@ -3395,6 +3426,7 @@ declare
     _dimensions pg_catalog.int4;
     _source_pk pg_catalog.jsonb;
     _vectorizer_id pg_catalog.int4;
+    _existing_vectorizer_id pg_catalog.int4;
     _sql pg_catalog.text;
     _job_id pg_catalog.int8;
     _queue_failed_table pg_catalog.name;
@@ -3514,6 +3546,29 @@ begin
         raise exception 'automatic indexing is not supported without scheduling. set indexing=>ai.indexing_none() when scheduling=>ai.scheduling_none()';
     end if;
 
+    -- evaluate the destination config
+    destination = ai._evaluate_destination(destination, _source_schema, _source_table);
+
+    if name is null then
+        if destination operator(pg_catalog.->>) 'implementation' = 'table' then
+            name = pg_catalog.format('%s.%s', destination operator(pg_catalog.->>) 'target_schema', destination operator(pg_catalog.->>) 'target_table');
+        elseif destination operator(pg_catalog.->>) 'implementation' = 'column' then
+            name = pg_catalog.format('%s.%s.%s', _source_schema, _source_table, destination operator(pg_catalog.->>) 'embedding_column');
+        end if;
+    end if;
+
+    -- validate the name is available
+    select id from ai.vectorizer
+    where ai.vectorizer.name operator(pg_catalog.=) create_vectorizer.name
+    into _existing_vectorizer_id
+    ;
+    if _existing_vectorizer_id is not null then
+        if if_not_exists is false then
+            raise exception 'a vectorizer named % already exists.', name;
+        end if;
+        return _existing_vectorizer_id;
+    end if;
+
     -- grant select to source table
     perform ai._vectorizer_grant_to_source
     ( _source_schema
@@ -3523,7 +3578,7 @@ begin
 
     -- create the target table or column
     if destination operator(pg_catalog.->>) 'implementation' = 'table' then
-        destination = ai._vectorizer_create_destination_table
+        perform ai._vectorizer_create_destination_table
         ( _source_schema
         , _source_table
         , _source_pk
@@ -3532,7 +3587,7 @@ begin
         , grant_to
         );
     elseif destination operator(pg_catalog.->>) 'implementation' = 'column' then
-        destination = ai._vectorizer_create_destination_column
+        perform ai._vectorizer_create_destination_column
         ( _source_schema
         , _source_table
         , _dimensions
@@ -3540,14 +3595,6 @@ begin
         );
     else
         raise exception 'invalid implementation for destination';
-    end if;
-
-    if name is null then
-        if destination operator(pg_catalog.->>) 'implementation' = 'table' then
-            name = pg_catalog.format('%s.%s', destination operator(pg_catalog.->>) 'target_schema', destination operator(pg_catalog.->>) 'target_table');
-        elseif destination operator(pg_catalog.->>) 'implementation' = 'column' then
-            name = pg_catalog.format('%s.%s.%s', _source_schema, _source_table, destination operator(pg_catalog.->>) 'embedding_column');
-        end if;
     end if;
 
     -- create queue table

@@ -16,6 +16,7 @@ create or replace function ai.create_vectorizer
 , queue_table pg_catalog.name default null
 , grant_to pg_catalog.name[] default ai.grant_to()
 , enqueue_existing pg_catalog.bool default true
+, if_not_exists pg_catalog.bool default false
 ) returns pg_catalog.int4
 as $func$
 declare
@@ -27,6 +28,7 @@ declare
     _dimensions pg_catalog.int4;
     _source_pk pg_catalog.jsonb;
     _vectorizer_id pg_catalog.int4;
+    _existing_vectorizer_id pg_catalog.int4;
     _sql pg_catalog.text;
     _job_id pg_catalog.int8;
     _queue_failed_table pg_catalog.name;
@@ -146,6 +148,29 @@ begin
         raise exception 'automatic indexing is not supported without scheduling. set indexing=>ai.indexing_none() when scheduling=>ai.scheduling_none()';
     end if;
 
+    -- evaluate the destination config
+    destination = ai._evaluate_destination(destination, _source_schema, _source_table);
+
+    if name is null then
+        if destination operator(pg_catalog.->>) 'implementation' = 'table' then
+            name = pg_catalog.format('%s.%s', destination operator(pg_catalog.->>) 'target_schema', destination operator(pg_catalog.->>) 'target_table');
+        elseif destination operator(pg_catalog.->>) 'implementation' = 'column' then
+            name = pg_catalog.format('%s.%s.%s', _source_schema, _source_table, destination operator(pg_catalog.->>) 'embedding_column');
+        end if;
+    end if;
+
+    -- validate the name is available
+    select id from ai.vectorizer
+    where ai.vectorizer.name operator(pg_catalog.=) create_vectorizer.name
+    into _existing_vectorizer_id
+    ;
+    if _existing_vectorizer_id is not null then
+        if if_not_exists is false then
+            raise exception 'a vectorizer named % already exists.', name;
+        end if;
+        return _existing_vectorizer_id;
+    end if;
+
     -- grant select to source table
     perform ai._vectorizer_grant_to_source
     ( _source_schema
@@ -155,7 +180,7 @@ begin
 
     -- create the target table or column
     if destination operator(pg_catalog.->>) 'implementation' = 'table' then
-        destination = ai._vectorizer_create_destination_table
+        perform ai._vectorizer_create_destination_table
         ( _source_schema
         , _source_table
         , _source_pk
@@ -164,7 +189,7 @@ begin
         , grant_to
         );
     elseif destination operator(pg_catalog.->>) 'implementation' = 'column' then
-        destination = ai._vectorizer_create_destination_column
+        perform ai._vectorizer_create_destination_column
         ( _source_schema
         , _source_table
         , _dimensions
@@ -172,14 +197,6 @@ begin
         );
     else
         raise exception 'invalid implementation for destination';
-    end if;
-
-    if name is null then
-        if destination operator(pg_catalog.->>) 'implementation' = 'table' then
-            name = pg_catalog.format('%s.%s', destination operator(pg_catalog.->>) 'target_schema', destination operator(pg_catalog.->>) 'target_table');
-        elseif destination operator(pg_catalog.->>) 'implementation' = 'column' then
-            name = pg_catalog.format('%s.%s.%s', _source_schema, _source_table, destination operator(pg_catalog.->>) 'embedding_column');
-        end if;
     end if;
 
     -- create queue table

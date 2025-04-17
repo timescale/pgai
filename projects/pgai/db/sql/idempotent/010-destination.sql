@@ -64,6 +64,65 @@ begin
         end if;
     end if;
 end
+$func$ language plpgsql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+
+-------------------------------------------------------------------------------
+-- evaluate_destination
+create or replace function ai._evaluate_destination
+( destination pg_catalog.jsonb,
+source_schema pg_catalog.name,
+source_table pg_catalog.name
+) returns jsonb
+as $func$
+declare
+    target_schema pg_catalog.name;
+    target_table pg_catalog.name;
+    view_schema pg_catalog.name;
+    view_name pg_catalog.name;
+begin
+    if destination operator(pg_catalog.->>) 'implementation' = 'table' then
+        target_schema = coalesce(destination operator(pg_catalog.->>) 'target_schema', source_schema);
+        target_table = case
+            when destination operator(pg_catalog.->>) 'target_table' is not null then destination operator(pg_catalog.->>) 'target_table'
+            when destination operator(pg_catalog.->>) 'destination' is not null then pg_catalog.concat(destination operator(pg_catalog.->>) 'destination', '_store')
+            else pg_catalog.concat(source_table, '_embedding_store')
+        end;
+        view_schema = coalesce(view_schema, source_schema);
+        view_name = case
+            when destination operator(pg_catalog.->>) 'view_name' is not null then destination operator(pg_catalog.->>) 'view_name'
+            when destination operator(pg_catalog.->>) 'destination' is not null then destination operator(pg_catalog.->>) 'destination'
+            else pg_catalog.concat(source_table, '_embedding')
+        end;
+         -- make sure view name is available
+        if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
+            raise exception 'an object named %.% already exists. specify an alternate destination explicitly', view_schema, view_name;
+        end if;
+    
+        -- make sure target table name is available
+        if pg_catalog.to_regclass(pg_catalog.format('%I.%I', target_schema, target_table)) is not null then
+            raise exception 'an object named %.% already exists. specify an alternate destination or target_table explicitly', target_schema, target_table;
+        end if;
+        return json_object
+        ( 'implementation': 'table'
+        , 'config_type': 'destination'
+        , 'target_schema': target_schema
+        , 'target_table': target_table
+        , 'view_schema': view_schema
+        , 'view_name': view_name
+        );
+    elseif destination operator(pg_catalog.->>) 'implementation' = 'column' then
+        return json_object
+        ( 'implementation': 'column'
+        , 'config_type': 'destination'
+        , 'embedding_column': destination operator(pg_catalog.->>) 'embedding_column'
+        );
+    else
+        raise exception 'invalid implementation for destination config';
+    end if;
+end
 $func$ language plpgsql stable security invoker
 set search_path to pg_catalog, pg_temp
 ;
