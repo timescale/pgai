@@ -430,7 +430,7 @@ def vectorize(
                 case None:
                     await sc.vectorize_all(con, batch_size=batch_size)
                 case _:
-                    config = await sc.get_embedding_config(con, embed_config)
+                    config = await sc.get_embedding(con, embed_config)
                     if config is None:
                         raise ValueError(
                             f"No embedding configuration found for {catalog_name}"
