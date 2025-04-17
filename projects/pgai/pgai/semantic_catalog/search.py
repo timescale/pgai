@@ -10,8 +10,8 @@ from pgai.semantic_catalog.vectorizer import EmbeddingConfig, vectorize_query
 
 async def search_objects(
     con: psycopg.AsyncConnection,
-    id: int,
-    name: str,
+    catalog_id: int,
+    embedding_name: str,
     config: EmbeddingConfig,
     query: str,
     limit: int = 5,
@@ -24,9 +24,9 @@ async def search_objects(
             order by x.{column} <=> %s::vector({dimensions})
             limit %s
         """).format(
-            table=Identifier(f"semantic_catalog_obj_{id}"),
+            table=Identifier(f"semantic_catalog_obj_{catalog_id}"),
             dimensions=SQL(str(int(config.dimensions))),  # pyright: ignore [reportArgumentType]
-            column=Identifier(name),
+            column=Identifier(embedding_name),
         )
         await cur.execute(sql, (v, limit))
         results: list[ObjectDescription] = []
@@ -37,8 +37,8 @@ async def search_objects(
 
 async def search_sql_examples(
     con: psycopg.AsyncConnection,
-    id: int,
-    name: str,
+    catalog_id: int,
+    embedding_name: str,
     config: EmbeddingConfig,
     query: str,
     limit: int = 5,
@@ -51,9 +51,9 @@ async def search_sql_examples(
             order by x.{column} <=> %s::vector({dimensions})
             limit %s
         """).format(
-            table=Identifier(f"semantic_catalog_sql_{id}"),
+            table=Identifier(f"semantic_catalog_sql_{catalog_id}"),
             dimensions=SQL(str(int(config.dimensions))),  # pyright: ignore [reportArgumentType]
-            column=Identifier(name),
+            column=Identifier(embedding_name),
         )
         await cur.execute(sql, (v, limit))
         results: list[SQLExample] = []
@@ -64,8 +64,8 @@ async def search_sql_examples(
 
 async def search_facts(
     con: psycopg.AsyncConnection,
-    id: int,
-    name: str,
+    catalog_id: int,
+    embedding_name: str,
     config: EmbeddingConfig,
     query: str,
     limit: int = 5,
@@ -78,9 +78,9 @@ async def search_facts(
             order by x.{column} <=> %s::vector({dimensions})
             limit %s
         """).format(
-            table=Identifier(f"semantic_catalog_fact_{id}"),
+            table=Identifier(f"semantic_catalog_fact_{catalog_id}"),
             dimensions=SQL(str(int(config.dimensions))),  # pyright: ignore [reportArgumentType]
-            column=Identifier(name),
+            column=Identifier(embedding_name),
         )
         await cur.execute(sql, (v, limit))
         results: list[Fact] = []
