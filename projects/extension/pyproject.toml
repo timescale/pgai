@@ -20,6 +20,7 @@ dependencies= [
     "google-cloud-aiplatform==1.74.0", # required for vertexAI (don't know why litellm doesn't include this)
     "langchain-text-splitters>=0.3.5",
     "jinja2>=3.1.6",
+    "boto3>=1.37.33",
 ]
 
 [dependency-groups]
