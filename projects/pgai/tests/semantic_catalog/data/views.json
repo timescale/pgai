@@ -111,6 +111,6 @@
         "default_value": null
       }
     ],
-    "definition": " SELECT name,\n    postgres_air.time_bucket('1 day'::interval, \"time\") AS bucket\n   FROM postgres_air.events\n  GROUP BY name, (postgres_air.time_bucket('1 day'::interval, \"time\"));"
+    "definition": " SELECT name,\n    time_bucket('1 day'::interval, \"time\") AS bucket\n   FROM postgres_air.events\n  GROUP BY name, (time_bucket('1 day'::interval, \"time\"));"
   }
 }
