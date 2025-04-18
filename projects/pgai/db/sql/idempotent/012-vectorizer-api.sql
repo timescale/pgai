@@ -153,9 +153,9 @@ begin
 
     if name is null then
         if destination operator(pg_catalog.->>) 'implementation' = 'table' then
-            name = pg_catalog.format('%s.%s', destination operator(pg_catalog.->>) 'target_schema', destination operator(pg_catalog.->>) 'target_table');
+            name = pg_catalog.format('%s_%s', destination operator(pg_catalog.->>) 'target_schema', destination operator(pg_catalog.->>) 'target_table');
         elseif destination operator(pg_catalog.->>) 'implementation' = 'column' then
-            name = pg_catalog.format('%s.%s.%s', _source_schema, _source_table, destination operator(pg_catalog.->>) 'embedding_column');
+            name = pg_catalog.format('%s_%s_%s', _source_schema, _source_table, destination operator(pg_catalog.->>) 'embedding_column');
         end if;
     end if;
 
@@ -166,8 +166,10 @@ begin
     ;
     if _existing_vectorizer_id is not null then
         if if_not_exists is false then
-            raise exception 'a vectorizer named % already exists.', name;
+            raise exception 'a vectorizer named % already exists.', name
+            using errcode = 'duplicate_object';
         end if;
+        raise notice 'a vectorizer named % already exists, skipping', name;
         return _existing_vectorizer_id;
     end if;
     

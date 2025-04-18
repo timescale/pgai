@@ -1,4 +1,4 @@
-alter table ai.vectorizer add column name text;
+alter table ai.vectorizer add column name name check (name ~ '^[a-z][a-z\-_0-9]*$');
 
 do language plpgsql $block$
 declare

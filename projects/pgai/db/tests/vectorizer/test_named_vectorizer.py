@@ -105,7 +105,7 @@ def test_named_vectorizer():
             pending = cur.fetchone()[0]
             assert pending == 3
 
-            with pytest.raises(psycopg.errors.RaiseException):
+            with pytest.raises(psycopg.errors.DuplicateObject):
                 # create a vectorizer with same name but if not exists set to false
                 cur.execute("""
                 select ai.create_vectorizer
@@ -151,7 +151,7 @@ def test_named_vectorizer():
                 (vectorizer_id_2,),
             )
             vectorizer_name = cur.fetchone()[0]
-            assert vectorizer_name == "website.blog.embedding1"
+            assert vectorizer_name == "website_blog_embedding1"
 
             # create a vectorizer with no name check default name
             cur.execute("""
@@ -178,7 +178,7 @@ def test_named_vectorizer():
                 (vectorizer_id_3,),
             )
             vectorizer_name = cur.fetchone()[0]
-            assert vectorizer_name == "website.blog_embedding_store"
+            assert vectorizer_name == "website_blog_embedding_store"
 
             # try to recreate the vectorizer with the same default name
             # and if not exists set to true
@@ -206,10 +206,10 @@ def test_named_vectorizer():
                 (vectorizer_id_3,),
             )
             vectorizer_name = cur.fetchone()[0]
-            assert vectorizer_name == "website.blog_embedding_store"
+            assert vectorizer_name == "website_blog_embedding_store"
 
             # make sure their is an error if if_not_exists is false
-            with pytest.raises(psycopg.errors.RaiseException):
+            with pytest.raises(psycopg.errors.DuplicateObject):
                 cur.execute("""
                 select ai.create_vectorizer
                 ( 'website.blog'::regclass
