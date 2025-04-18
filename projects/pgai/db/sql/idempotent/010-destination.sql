@@ -126,7 +126,7 @@ begin
     if destination operator(pg_catalog.->>) 'implementation' = 'table' then
          -- make sure view name is available
         if pg_catalog.to_regclass(pg_catalog.format('%I.%I', destination operator(pg_catalog.->>) 'view_schema', destination operator(pg_catalog.->>) 'view_name')) is not null then
-            raise exception 'an object named %.% already exists. specify an alternate destination explicitly', destination operator(pg_catalog.->>) 'view_schema', destination operator(pg_catalog.->>) 'view_name'
+            raise exception 'an object named %.% already exists. specify an alternate destination or view_name explicitly', destination operator(pg_catalog.->>) 'view_schema', destination operator(pg_catalog.->>) 'view_name'
             using errcode = 'duplicate_object';
         end if;
     

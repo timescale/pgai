@@ -1064,12 +1064,12 @@ begin
         _destination_config := _config operator(pg_catalog.->) 'destination';
         _destination_type := _destination_config operator(pg_catalog.->>) 'implementation';
         if _destination_type = 'table' then
-            _target_schema := _destination_config operator(pg_catalog.->) 'target_schema';
-            _target_table := _destination_config operator(pg_catalog.->) 'target_table';
-            _name := _target_schema operator(pg_catalog.||) '.' operator(pg_catalog.||) _target_table;
+            _target_schema := _destination_config operator(pg_catalog.->>) 'target_schema';
+            _target_table := _destination_config operator(pg_catalog.->>) 'target_table';
+            _name := _target_schema operator(pg_catalog.||) '_' operator(pg_catalog.||) _target_table;
         elseif _destination_type = 'column' then
-            _embedding_column := _destination_config operator(pg_catalog.->) 'embedding_column';
-            _name := _vectorizer.source_schema operator(pg_catalog.||) '.' operator(pg_catalog.||) _vectorizer.source_table operator(pg_catalog.||) '.' operator(pg_catalog.||) _embedding_column;
+            _embedding_column := _destination_config operator(pg_catalog.->>) 'embedding_column';
+            _name := _vectorizer.source_schema operator(pg_catalog.||) '_' operator(pg_catalog.||) _vectorizer.source_table operator(pg_catalog.||) '_' operator(pg_catalog.||) _embedding_column;
         end if;
 
         -- Update the vectorizer with new config
@@ -2153,7 +2153,7 @@ begin
     if destination operator(pg_catalog.->>) 'implementation' = 'table' then
          -- make sure view name is available
         if pg_catalog.to_regclass(pg_catalog.format('%I.%I', destination operator(pg_catalog.->>) 'view_schema', destination operator(pg_catalog.->>) 'view_name')) is not null then
-            raise exception 'an object named %.% already exists. specify an alternate destination explicitly', destination operator(pg_catalog.->>) 'view_schema', destination operator(pg_catalog.->>) 'view_name'
+            raise exception 'an object named %.% already exists. specify an alternate destination or view_name explicitly', destination operator(pg_catalog.->>) 'view_schema', destination operator(pg_catalog.->>) 'view_name'
             using errcode = 'duplicate_object';
         end if;
     
@@ -3508,7 +3508,8 @@ begin
 
     -- make sure queue table name is available
     if pg_catalog.to_regclass(pg_catalog.format('%I.%I', queue_schema, queue_table)) is not null then
-        raise exception 'an object named %.% already exists. specify an alternate queue_table explicitly', queue_schema, queue_table;
+        raise exception 'an object named %.% already exists. specify an alternate queue_table explicitly', queue_schema, queue_table
+        using errcode = 'duplicate_object';
     end if;
 
     -- validate the loading config

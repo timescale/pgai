@@ -97,7 +97,8 @@ begin
 
     -- make sure queue table name is available
     if pg_catalog.to_regclass(pg_catalog.format('%I.%I', queue_schema, queue_table)) is not null then
-        raise exception 'an object named %.% already exists. specify an alternate queue_table explicitly', queue_schema, queue_table;
+        raise exception 'an object named %.% already exists. specify an alternate queue_table explicitly', queue_schema, queue_table
+        using errcode = 'duplicate_object';
     end if;
 
     -- validate the loading config
