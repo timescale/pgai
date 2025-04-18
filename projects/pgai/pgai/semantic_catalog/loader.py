@@ -96,15 +96,31 @@ async def load_views(con: psycopg.AsyncConnection, oids: list[int]) -> list[View
     # TODO: add support for continuous aggregates
     assert len(oids) > 0, "list of oids must not be empty"
     async with con.cursor(row_factory=dict_row) as cur:
+        await cur.execute("select 1 from pg_extension where extname = 'timescaledb'")
+        is_timescale = await cur.fetchone() is not None
+        continuous_aggregate = "false"
+        materialized = "k.relkind = 'm'"
+        view_def = "pg_get_viewdef(k.oid, true)"
+        ts_join = ""
+        if is_timescale:
+            continuous_aggregate = "ca.view_definition is not null"
+            materialized = f"{continuous_aggregate} or {materialized}"
+            view_def = f"coalesce(ca.view_definition, {view_def})"
+            ts_join = """
+            left join timescaledb_information.continuous_aggregates ca
+                on (ca.view_schema = n.nspname and ca.view_name = k.relname)
+            """
+
         await cur.execute(
-            """\
+            f"""\
             select
               'pg_catalog.pg_class'::regclass::oid as classid
             , k.oid as objid
             , n.nspname as schema_name
             , k.relname as view_name
-            , k.relkind = 'm' as is_materialized
-            , pg_get_viewdef(k.oid, true) as definition
+            , {materialized} as is_materialized
+            , {continuous_aggregate} as is_continuous_aggregate
+            , {view_def} as definition
             , ( -- columns
                 select jsonb_agg
                 (
@@ -128,6 +144,7 @@ async def load_views(con: psycopg.AsyncConnection, oids: list[int]) -> list[View
               ) as columns
             from pg_class k
             inner join pg_namespace n on (k.relnamespace = n.oid)
+            {ts_join}
             where k.oid = any(%s::oid[])
             and k.relkind in ('v', 'm')
         """,

@@ -32,6 +32,7 @@ class View(BaseModel):
     schema_name: str
     view_name: str
     is_materialized: bool
+    is_continuous_aggregate: bool
     columns: list[Column] | None = None
     definition: str
     description: ObjectDescription | None = None
