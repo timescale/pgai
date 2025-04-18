@@ -1,4 +1,4 @@
-<table>
+<table id="0">
 CREATE TABLE postgres_air.account
 ( account_id integer NOT NULL nextval('postgres_air.account_account_id_seq'::regclass)
 , login text NOT NULL
@@ -11,7 +11,7 @@ ALTER TABLE postgres_air.account ADD CONSTRAINT account_pkey PRIMARY KEY (accoun
 ALTER TABLE postgres_air.account ADD CONSTRAINT frequent_flyer_id_fk FOREIGN KEY (frequent_flyer_id) REFERENCES postgres_air.frequent_flyer(frequent_flyer_id);
 </table>
 
-<table>
+<table id="0">
 CREATE TABLE postgres_air.aircraft
 ( model text
 , range numeric NOT NULL
@@ -22,7 +22,7 @@ CREATE TABLE postgres_air.aircraft
 ALTER TABLE postgres_air.aircraft ADD CONSTRAINT aircraft_pkey PRIMARY KEY (code);
 </table>
 
-<table>
+<table id="0">
 CREATE TABLE postgres_air.airport
 ( airport_code character(3) NOT NULL
 , airport_name text NOT NULL
@@ -37,7 +37,7 @@ CREATE TABLE postgres_air.airport
 ALTER TABLE postgres_air.airport ADD CONSTRAINT airport_pkey PRIMARY KEY (airport_code);
 </table>
 
-<table>
+<table id="0">
 CREATE TABLE postgres_air.boarding_pass
 ( pass_id integer NOT NULL nextval('postgres_air.boarding_pass_pass_id_seq'::regclass)
 , passenger_id bigint
@@ -52,7 +52,7 @@ ALTER TABLE postgres_air.boarding_pass ADD CONSTRAINT booking_leg_id_fk FOREIGN 
 ALTER TABLE postgres_air.boarding_pass ADD CONSTRAINT passenger_id_fk FOREIGN KEY (passenger_id) REFERENCES postgres_air.passenger(passenger_id);
 </table>
 
-<table>
+<table id="0">
 CREATE TABLE postgres_air.booking
 ( booking_id bigint NOT NULL
 , booking_ref text NOT NULL
@@ -69,7 +69,7 @@ ALTER TABLE postgres_air.booking ADD CONSTRAINT booking_account_id_fk FOREIGN KE
 CREATE UNIQUE INDEX booking_booking_ref_key ON postgres_air.booking USING btree (booking_ref);
 </table>
 
-<table>
+<table id="0">
 CREATE TABLE postgres_air.booking_leg
 ( booking_leg_id integer NOT NULL nextval('postgres_air.booking_leg_booking_leg_id_seq'::regclass)
 , booking_id integer NOT NULL
@@ -83,7 +83,7 @@ ALTER TABLE postgres_air.booking_leg ADD CONSTRAINT booking_id_fk FOREIGN KEY (b
 ALTER TABLE postgres_air.booking_leg ADD CONSTRAINT flight_id_fk FOREIGN KEY (flight_id) REFERENCES postgres_air.flight(flight_id);
 </table>
 
-<table>
+<table id="0">
 CREATE TABLE postgres_air.flight
 ( flight_id integer NOT NULL nextval('postgres_air.flight_flight_id_seq'::regclass)
 , flight_no text NOT NULL
@@ -103,7 +103,7 @@ ALTER TABLE postgres_air.flight ADD CONSTRAINT arrival_airport_fk FOREIGN KEY (a
 ALTER TABLE postgres_air.flight ADD CONSTRAINT departure_airport_fk FOREIGN KEY (departure_airport) REFERENCES postgres_air.airport(airport_code);
 </table>
 
-<table>
+<table id="0">
 CREATE TABLE postgres_air.frequent_flyer
 ( frequent_flyer_id integer NOT NULL nextval('postgres_air.frequent_flyer_frequent_flyer_id_seq'::regclass)
 , first_name text NOT NULL
@@ -119,7 +119,7 @@ CREATE TABLE postgres_air.frequent_flyer
 ALTER TABLE postgres_air.frequent_flyer ADD CONSTRAINT frequent_flyer_pkey PRIMARY KEY (frequent_flyer_id);
 </table>
 
-<table>
+<table id="0">
 CREATE TABLE postgres_air.passenger
 ( passenger_id integer NOT NULL nextval('postgres_air.passenger_passenger_id_seq'::regclass)
 , booking_id integer NOT NULL
@@ -137,7 +137,7 @@ ALTER TABLE postgres_air.passenger ADD CONSTRAINT pass_booking_id_fk FOREIGN KEY
 ALTER TABLE postgres_air.passenger ADD CONSTRAINT pass_frequent_flyer_id_fk FOREIGN KEY (account_id) REFERENCES postgres_air.account(account_id);
 </table>
 
-<table>
+<table id="0">
 CREATE TABLE postgres_air.phone
 ( phone_id integer NOT NULL nextval('postgres_air.phone_phone_id_seq'::regclass)
 , account_id integer
