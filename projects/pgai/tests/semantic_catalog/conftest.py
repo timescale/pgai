@@ -22,6 +22,17 @@ def load_postgres_air(container: PostgresContainer):
     ):
         cur.execute(script1)  # pyright: ignore [reportArgumentType]
         cur.execute(script2)  # pyright: ignore [reportArgumentType]
+    script3 = Path(__file__).parent.joinpath("data", "cagg.sql").read_text()
+    with (
+        psycopg.connect(
+            container.connection_string(database="postgres_air"),
+            autocommit=True,
+        ) as con,
+        con.cursor() as cur,
+    ):
+        for query in script3.split(";"):
+            if query.strip():
+                cur.execute(query)  # pyright: ignore [reportArgumentType]
 
 
 @pytest.fixture(scope="session")
