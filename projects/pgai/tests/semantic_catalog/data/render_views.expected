@@ -1,4 +1,4 @@
-<view>
+<view id="0">
 CREATE MATERIALIZED VIEW postgres_air.events_daily WITH (timescaledb.continuous) AS
  SELECT name,
     time_bucket('1 day'::interval, "time") AS bucket
@@ -10,7 +10,7 @@ bucket timestamp without time zone
 */
 </view>
 
-<view>
+<view id="0">
 CREATE VIEW postgres_air.flight_summary AS
  SELECT flight_no,
     departure_airport,
@@ -25,7 +25,7 @@ scheduled_departure timestamp with time zone
 */
 </view>
 
-<view>
+<view id="0">
 CREATE VIEW postgres_air.passenger_details AS
  SELECT p.first_name,
     p.last_name,
