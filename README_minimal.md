@@ -80,53 +80,43 @@ dotenv.load_dotenv()
 DB_URL = os.getenv("DB_URL", "postgresql://postgres:postgres@localhost:5432/postgres")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-def define_schema(conn: psycopg.AsyncConnection):
-    async with conn.cursor() as cur:
-        await cur.execute("""
-            CREATE TABLE IF NOT EXISTS wiki (
-                id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-                url TEXT NOT NULL,
-                title TEXT NOT NULL,
-                text TEXT NOT NULL
-            )
-        """)
-        
-        # define the vectorizer, which tells the system how to create the embeddings
-        # from data in the wiki table.
-        await cur.execute("""
-            SELECT ai.create_vectorizer(
-                'wiki'::regclass,
-                loading => ai.loading_column(column_name=>'text'),
-                destination => ai.destination_table(target_table=>'wiki_embedding_storage'),
-                embedding => ai.embedding_openai(model=>'text-embedding-ada-002', dimensions=>'1536')
-            )
-        """)   
-    await conn.commit()
-
-async def load_wiki_articles_from_huggingface(conn: psycopg.AsyncConnection):
-    # to keep the demo fast, we have some simple limits
-    num_articles = 10
-    max_text_length = 1000
-    wiki_dataset = load_dataset("wikimedia/wikipedia", "20231101.en", split="train", streaming=True)
-    async with conn.cursor() as cur:
-        for article in wiki_dataset.take(num_articles):
-            await cur.execute(
-                "INSERT INTO wiki (url, title, text) VALUES (%s, %s, %s)",
-                (article['url'], article['title'], article['text'][:max_text_length])
-            )
-    await conn.commit()
-
-# define a dataclass to represent the search results
-@dataclass
-class WikiSearchResult:
-    id: int
-    url: str
-    title: str
-    text: str
-    chunk: str
-    distance: float
-
-async def _find_relevant_chunks(client: OpenAI, query: str, limit: int = 1) -> List[WikiSearchResult]:
+def run():
+    async with psycopg.AsyncConnection.connect(DB_URL) as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS wiki (
+                    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+                    url TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    text TEXT NOT NULL
+                )
+            """)
+            
+            # define the vectorizer, which tells the system how to create the embeddings
+            # from data in the wiki table.
+            await cur.execute("""
+                SELECT ai.create_vectorizer(
+                    'wiki'::regclass,
+                    loading => ai.loading_column(column_name=>'text'),
+                    destination => ai.destination_table(target_table=>'wiki_embedding_storage'),
+                    embedding => ai.embedding_openai(model=>'text-embedding-ada-002', dimensions=>'1536')
+                )
+            """)
+            
+            await cur.execute("""
+                INSERT INTO wiki (url, title, text) VALUES
+                ('https://en.wikipedia.org/wiki/pgai', 'pgai', 'pgai is a Python library that turns PostgreSQL into the retrieval engine behind robust, production-ready RAG and Agentic applications. It does this by automatically creating vector embeddings for your data based on the vectorizer you define.')
+            """) 
+        await conn.commit()
+    
+    # Run the vectorizer worker to create the embeddings
+    # Usually, you would run the worker in a loop in the background, but for this quickstart,
+    # we will run it once to create the embeddings.
+    worker = Worker(DB_URL, once=True)
+    worker.run()
+    
+    # perform semantic search
+    query = "What does pgai do?"
     # create the embedding for the query
     response = await client.embeddings.create({
         model: "text-embedding-ada-002",
@@ -145,51 +135,12 @@ async def _find_relevant_chunks(client: OpenAI, query: str, limit: int = 1) -> L
                 LIMIT %s
             """, (embedding, limit))
             
-            return await cur.fetchall()
-
-def run():
-    async with psycopg.AsyncConnection.connect(DB_URL) as conn:
-        async with conn.cursor() as cur:
-            await define_schema(conn)
-            await load_wiki_articles_from_huggingface(conn)
-    
-    # make the worker run once and create the embeddings
-    worker = Worker(DB_URL, once=True)
-    worker.run()
+            relevant_chunks = await cur.fetchall()
    
-    # query the embeddings
-    client = OpenAI()
-    results = await _find_relevant_chunks(client, "Who is the father of computer science?")
-    print("Search results 1:")
-    print(results)
-    
-    # insert a new article into the wiki table
-    # note that we didn't do anything different during the insert of the new article,
-    # to create the embeddings, the vectorizer worker will take care of it.
-    async with psycopg.AsyncConnection.connect(DB_URL) as conn:
-        async with conn.cursor(row_factory=class_row(WikiSearchResult)) as cur:
-            await cur.execute("""
-                INSERT INTO wiki (url, title, text) VALUES
-                ('https://en.wikipedia.org/wiki/pgai', 'pgai', 'pgai is a Python library that turns PostgreSQL into the retrieval engine behind robust, production-ready RAG and Agentic applications. It does this by automatically creating vector embeddings for your data based on the vectorizer you define.')
-            """)
-            await conn.commit()
-    
-    # make the worker run and process the new article. 
-    # in a real application, we would not call the worker manually like this,
-    # instead, the worker would run continuously in the background and poll for work.
-    # You would run it like this:
-    # worker = Worker(DB_URL)
-    # task = asyncio.create_task(worker.run())
-    worker.run()
-    
-    # query the embeddings again to see the new article
-    results = await _find_relevant_chunks(client, "What is pgai?")
-    print("Search results 2:")
-    print(results)
-    
-    # perform RAG with the LLM
-    query = "What is the main thing pgai does right now?"
-    relevant_chunks = await _find_relevant_chunks(client, query)
+    print("Search results:")
+    print(relevant_chunks)
+
+    # Use the results to perform RAG with the LLM
     context = "\n\n".join(
         f"{chunk.title}:\n{chunk.text}" 
         for chunk in relevant_chunks
