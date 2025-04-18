@@ -3,8 +3,13 @@ from typing import Any
 import psycopg
 from psycopg.rows import dict_row
 from psycopg.sql import SQL, Composable
+from pydantic_ai.models import KnownModelName, Model
+from pydantic_ai.messages import ModelMessage
+from pydantic_ai.settings import ModelSettings
+from pydantic_ai.usage import Usage
 
-from pgai.semantic_catalog import loader, render, search
+from pgai.semantic_catalog import gen_sql, loader, render, search
+from pgai.semantic_catalog.gen_sql import DatabaseContext
 from pgai.semantic_catalog.models import (
     Fact,
     ObjectDescription,
@@ -180,6 +185,27 @@ class SemanticCatalog:
 
     def render_facts(self, facts: list[Fact]) -> str:
         return "\n\n".join(map(render.render_fact, facts))
+
+    async def generate_sql(
+        self,
+        catalog_con: psycopg.AsyncConnection,
+        target_con: psycopg.AsyncConnection,
+        model: KnownModelName | Model,
+        embedding_name: str,
+        question: str,
+        model_settings: ModelSettings | None = None,
+    ) -> tuple[str, DatabaseContext, list[ModelMessage], Usage]:
+        emb_cfg = await self.get_embedding(catalog_con, embedding_name)
+        return await gen_sql.generate_sql(
+            catalog_con,
+            target_con,
+            model,
+            self.id,
+            embedding_name,
+            emb_cfg,
+            question,
+            model_settings,
+        )
 
 
 async def from_id(con: CatalogConnection, id: int) -> SemanticCatalog:

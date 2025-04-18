@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from pathlib import Path
 
 import psycopg
@@ -22,7 +23,7 @@ def render_table(table: Table) -> str:
     return template.render(table=table)
 
 
-def render_tables(tables: list[Table]) -> str:
+def render_tables(tables: Iterable[Table]) -> str:
     return "\n\n".join(map(render_table, tables)).strip()
 
 
@@ -31,7 +32,7 @@ def render_view(view: View) -> str:
     return template.render(view=view)
 
 
-def render_views(views: list[View]) -> str:
+def render_views(views: Iterable[View]) -> str:
     return "\n\n".join(map(render_view, views)).strip()
 
 
@@ -40,22 +41,22 @@ def render_procedure(proc: Procedure) -> str:
     return template.render(proc=proc)
 
 
-def render_procedures(procedures: list[Procedure]) -> str:
+def render_procedures(procedures: Iterable[Procedure]) -> str:
     return "\n\n".join(map(render_procedure, procedures)).strip()
 
 
-def render_objects(objects: list[Table | View | Procedure]) -> str:
-    output = ""
-    for obj in objects:
-        match obj:
-            case Table():
-                output += render_table(obj)
-            case View():
-                output += render_view(obj)
-            case Procedure():
-                output += render_procedure(obj)
-        output += "\n\n"
-    return output.rstrip()
+def render_object(object: Table | View | Procedure) -> str:
+    match object:
+        case Table():
+            return render_table(object)
+        case View():
+            return render_view(object)
+        case Procedure():
+            return render_procedure(object)
+
+
+def render_objects(objects: Iterable[Table | View | Procedure]) -> str:
+    return "\n\n".join(map(render_object, objects)).strip()
 
 
 def render_fact(fact: Fact) -> str:
@@ -63,9 +64,17 @@ def render_fact(fact: Fact) -> str:
     return template.render(fact=fact)
 
 
+def render_facts(facts: Iterable[Fact]) -> str:
+    return "\n\n".join(map(render_fact, facts)).strip()
+
+
 def render_sql_example(example: SQLExample) -> str:
     template = env.get_template("sql_example.j2")
     return template.render(example=example)
+
+
+def render_sql_examples(examples: Iterable[SQLExample]) -> str:
+    return "\n\n".join(map(render_sql_example, examples)).strip()
 
 
 def render_description_to_sql(

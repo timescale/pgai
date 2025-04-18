@@ -271,7 +271,7 @@ def semantic_catalog():
     help="The LLM model to generate descriptions",
 )
 @click.option(
-    "-c",
+    "-n",
     "--catalog-name",
     type=click.STRING,
     default="default",
@@ -390,7 +390,6 @@ def build(
 
 
 @semantic_catalog.command()
-@click.argument("catalog-name")
 @click.option(
     "-d",
     "--db-url",
@@ -400,11 +399,18 @@ def build(
     help="The connection URL to the database the semantic catalog is in.",
 )
 @click.option(
-    "-c",
+    "-n",
+    "--catalog-name",
+    type=click.STRING,
+    default="default",
+    help="The name of the semantic catalog to generate embeddings for.",  # noqa: E501
+)
+@click.option(
+    "-e",
     "--embed-config",
     type=click.STRING,
     default=None,
-    help="The name of the embedding configuration to generate vector for. (If None, do all)",  # noqa: E501
+    help="The name of the embedding configuration to generate embeddings for. (If None, do all)",  # noqa: E501
 )
 @click.option(
     "-b",
@@ -414,11 +420,12 @@ def build(
     help="The number of embeddings to generate per batch.",
 )
 def vectorize(
-    catalog_name: str,
     db_url: str,
+    catalog_name: str | None,
     embed_config: str | None,
     batch_size: int | None = None,
 ) -> None:
+    catalog_name = catalog_name or "default"
     batch_size = batch_size if batch_size is not None else 32
 
     async def do():
@@ -436,6 +443,86 @@ def vectorize(
                             f"No embedding configuration found for {catalog_name}"
                         )
                     await sc.vectorize(con, embed_config, config, batch_size=batch_size)
+
+    asyncio.run(do())
+
+
+@semantic_catalog.command()
+@click.option(
+    "-d",
+    "--db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The connection URL to the database the database to generate sql for.",
+)
+@click.option(
+    "-c",
+    "--catalog-db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The connection URL to the database the semantic catalog is in.",
+)
+@click.option(
+    "-m",
+    "--model",
+    type=click.STRING,
+    default="anthropic:claude-3-7-sonnet-latest",
+    show_default=True,
+    help="The LLM model",
+)
+@click.option(
+    "-n",
+    "--catalog-name",
+    type=click.STRING,
+    default="default",
+    help="The name of the semantic catalog to use.",
+)
+@click.option(
+    "-e",
+    "--embed-config",
+    type=click.STRING,
+    default=None,
+    help="The name of the embedding configuration to use",
+)
+@click.option(
+    "-p",
+    "--prompt",
+    type=click.STRING,
+    default=None,
+    help="The question to be answered by the generated SQL statement",
+)
+def generate_sql(
+    db_url: str,
+    catalog_db_url: str | None,
+    model: str,
+    catalog_name: str | None,
+    embed_config: str | None,
+    question: str,
+) -> None:
+    catalog_db_url = catalog_db_url or db_url
+    catalog_name = catalog_name or "default"
+    from pgai.semantic_catalog import from_name
+
+    async def do():
+        if catalog_db_url:
+            async with (
+                await psycopg.AsyncConnection.connect(db_url) as tcon,
+                await psycopg.AsyncConnection.connect(catalog_db_url) as ccon,
+            ):
+                sc = await from_name(ccon, catalog_name)
+                sql, _, _, _ = await sc.generate_sql(
+                    ccon, tcon, model, embed_config, question  # pyright: ignore [reportArgumentType]
+                )
+                print(sql)
+        else:
+            async with await psycopg.AsyncConnection.connect(db_url) as con:
+                sc = await from_name(con, catalog_name)
+                sql, _, _, _ = await sc.generate_sql(
+                    con, con, model, embed_config, question  # pyright: ignore [reportArgumentType]
+                )
+                print(sql)
 
     asyncio.run(do())
 
