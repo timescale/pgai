@@ -42,34 +42,22 @@ pip install pgai
 
 # Quick Start
 
-This quickstart illustrates an east way to enable semantic search and RAG on
+This quickstart illustrates an easy way to enable semantic search and RAG on
 your data. **Semantic search** allows you to search for concepts or ideas rather
-than keywords. In this example, you can search for "properties of light" and
-will get back results about Albedo, even though those words are not in the text
-of the articles. This is possible because LLM-enabled vector embeddings capture
-the meaning of the text.
+than keywords. So it will find results that are meaningfully similar to a given query,
+even if the words used are different. This seemingly magical ability is made possible
+by the LLM-based embedding models create vector embeddings for your data.
 
 Semantic search is a powerful feature in its own right, but it is also a key
-component of **Retrieval Augmented Generation (RAG)**.  RAG is a technique that uses
-a large language model (LLM) to answer questions using your data instead of just
-using the knowledge in the LLM's training data.  It does this by providing your
-data as context to the LLM. How does it know which data to provide? It uses
-semantic search to find the most relevant data.
+component of **Retrieval Augmented Generation (RAG)**.  RAG is a technique that
+uses a large language model (LLM) to answer questions using your data instead of
+just using the knowledge in the LLM's training data.  It does this by providing
+your data as context to the LLM when a question is asked. How does it know which
+data to provide? It uses semantic search to find the most relevant data.
 
 **Prerequisites:**
 - A PostgreSQL database (click here for docker instructions).
 - An OpenAI API key (we use openai for embedding in the quick start, but you can use [multiple providers](#supported-embedding-models)).
-
-This quickstart will run through a simple [fastAPI Application](/examples/simple_fastapi_app/with_psycopg.py) 
-to see how to setup an app to perform RAG with pgai Vectorizer. The app will
-ingest some wikipedia articles, create vector embeddings for them, and allow you
-to perform semantic search and RAG. 
-
-To run the app, first download the file with the following command:
-
-```
-curl -O https://raw.githubusercontent.com/timescale/pgai/main/examples/simple_fastapi_app/with_psycopg.py
-```
 
 Create a `.env` file with the following:
 
@@ -78,33 +66,167 @@ OPENAI_API_KEY=<your-openai-api-key>
 DB_URL=<your-database-url>
 ```
 
-and then you can use the following command:
+run the following code in the same directory as the `.env` file:
+
+```python
+import pgai
+import psycopg
+from dataclasses import dataclass
+import os
+import dotenv
+
+# load the environment variables for the .env file or from the environment variables
+dotenv.load_dotenv()
+DB_URL = os.getenv("DB_URL", "postgresql://postgres:postgres@localhost:5432/postgres")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+def define_schema(conn: psycopg.AsyncConnection):
+    async with conn.cursor() as cur:
+        await cur.execute("""
+            CREATE TABLE IF NOT EXISTS wiki (
+                id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+                url TEXT NOT NULL,
+                title TEXT NOT NULL,
+                text TEXT NOT NULL
+            )
+        """)
+        
+        # define the vectorizer, which tells the system how to create the embeddings
+        # from data in the wiki table.
+        await cur.execute("""
+            SELECT ai.create_vectorizer(
+                'wiki'::regclass,
+                loading => ai.loading_column(column_name=>'text'),
+                destination => ai.destination_table(target_table=>'wiki_embedding_storage'),
+                embedding => ai.embedding_openai(model=>'text-embedding-ada-002', dimensions=>'1536')
+            )
+        """)   
+    await conn.commit()
+
+async def load_wiki_articles_from_huggingface(conn: psycopg.AsyncConnection):
+    # to keep the demo fast, we have some simple limits
+    num_articles = 10
+    max_text_length = 1000
+    wiki_dataset = load_dataset("wikimedia/wikipedia", "20231101.en", split="train", streaming=True)
+    async with conn.cursor() as cur:
+        for article in wiki_dataset.take(num_articles):
+            await cur.execute(
+                "INSERT INTO wiki (url, title, text) VALUES (%s, %s, %s)",
+                (article['url'], article['title'], article['text'][:max_text_length])
+            )
+    await conn.commit()
+
+# define a dataclass to represent the search results
+@dataclass
+class WikiSearchResult:
+    id: int
+    url: str
+    title: str
+    text: str
+    chunk: str
+    distance: float
+
+async def _find_relevant_chunks(client: OpenAI, query: str, limit: int = 1) -> List[WikiSearchResult]:
+    # create the embedding for the query
+    response = await client.embeddings.create({
+        model: "text-embedding-ada-002",
+        input: query,
+        encoding_format: "float",
+    })
+    embedding = np.array(response.data[0].embedding)
+    
+    # query the database for the most similar chunks, using standard pgvector syntax
+    async with psycopg.AsyncConnection.connect(DB_URL) as conn:
+        async with conn.cursor(row_factory=class_row(WikiSearchResult)) as cur:
+            await cur.execute("""
+                SELECT w.id, w.url, w.title, w.text, w.chunk, w.embedding <=> %s as distance
+                FROM wiki_embedding w
+                ORDER BY distance
+                LIMIT %s
+            """, (embedding, limit))
+            
+            return await cur.fetchall()
+
+def run():
+    async with psycopg.AsyncConnection.connect(DB_URL) as conn:
+        async with conn.cursor() as cur:
+            await define_schema(conn)
+            await load_wiki_articles_from_huggingface(conn)
+    
+    # make the worker run once and create the embeddings
+    worker = Worker(DB_URL, once=True)
+    worker.run()
+   
+    # query the embeddings
+    client = OpenAI()
+    results = await _find_relevant_chunks(client, "Who is the father of computer science?")
+    print("Search results 1:")
+    print(results)
+    
+    # insert a new article into the wiki table
+    # note that we didn't do anything different during the insert of the new article,
+    # to create the embeddings, the vectorizer worker will take care of it.
+    async with psycopg.AsyncConnection.connect(DB_URL) as conn:
+        async with conn.cursor(row_factory=class_row(WikiSearchResult)) as cur:
+            await cur.execute("""
+                INSERT INTO wiki (url, title, text) VALUES
+                ('https://en.wikipedia.org/wiki/pgai', 'pgai', 'pgai is a Python library that turns PostgreSQL into the retrieval engine behind robust, production-ready RAG and Agentic applications. It does this by automatically creating vector embeddings for your data based on the vectorizer you define.')
+            """)
+            await conn.commit()
+    
+    # make the worker run and process the new article. 
+    # in a real application, we would not call the worker manually like this,
+    # instead, the worker would run continuously in the background and poll for work.
+    # You would run it like this:
+    # worker = Worker(DB_URL)
+    # task = asyncio.create_task(worker.run())
+    worker.run()
+    
+    # query the embeddings again to see the new article
+    results = await _find_relevant_chunks(client, "What is pgai?")
+    print("Search results 2:")
+    print(results)
+    
+    # perform RAG with the LLM
+    query = "What is the main thing pgai does right now?"
+    relevant_chunks = await _find_relevant_chunks(client, query)
+    context = "\n\n".join(
+        f"{chunk.title}:\n{chunk.text}" 
+        for chunk in relevant_chunks
+    )
+    prompt = f"""Question: {query}
+
+Please use the following context to provide an accurate response:   
+
+{context}
+
+Answer:"""
+
+    response = await client.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [{ role: "user", content: prompt }],
+    })
+    print("RAG response:")
+    print(response.choices[0].message.content)
+    
+    
+asyncio.run(run())
+```
+
+Sample output:
+
+<details>
+<summary>Sample output</summary>
 
 ```
-fastapi dev with_psycopg.py
+TODO
 ```
-
-By going to ` http://0.0.0.0:8000/docs` you can see the API documentation and try out the endpoints provided by the app.
-
-The main endpoints are:
-- `/insert`: Insert a row into the wiki table.
-- `/search`: Search the articles using semantic search.
-- `/rag`: Perform RAG with the LLM.
+</details>
 
 ## The secret sauce 
 
-The secret sauce of this app is the vectorizer, which automates creating vector embeddings for your data. Given a table defined as follows:
-
-```sql
-CREATE TABLE wiki (
-    id SERIAL PRIMARY KEY,
-    url TEXT NOT NULL,
-    title TEXT NOT NULL,
-    text TEXT NOT NULL
-);
-```
-
-We create a vectorizer for the `text` column as follows:
+The secret sauce of this app is the vectorizer, which automates creating vector embeddings for your data.
+In the example above, we create a vectorizer for the `text` column as follows:
 
 ```sql
 SELECT ai.create_vectorizer(
@@ -132,61 +254,12 @@ there is a lot of MLops you need to perform to make sure your data pipeline
 is reliable and robust. With pgai, you can skip all that and focus on building
 your application because the vectorizer is managing the embeddings for you.
 
-## Application walkthrough  
-
-A full code walkthrough of the application is available in the [application docs](/docs/examples/simple_fastapi_app/README.md).
-
-Here we'll cover a simple usage flow of the application.
-
-First, when the app starts, it automatically ingests the first 10 articles from the `wikimedia/wikipedia` [huggingface dataset](https://huggingface.co/datasets/wikimedia/wikipedia).
-
-Now you can search through these articles with a query to the search endpoint.
-
-```bash
-curl -G "http://0.0.0.0:8000/search" \
-    --data-urlencode "query=Properties of Light" \
-    -H "accept: application/json"
-```
-
-We can also use the `/rag` endpoint to answer questions about the articles.
-
-```bash
-curl -G "http://0.0.0.0:8000/rag" \
-    --data-urlencode "query=What is Albedo?" \
-    -H "accept: application/json"
-```
-
-Then we can add a new article to the `wiki` table and have the vectorizer automatically update the embeddings.
-
-```bash
-curl -X 'POST' \
-    'http://0.0.0.0:8000/insert' \
-    TODO TODO TODO
-    -H 'accept: application/json'
-```
-
-In the code, this just does a simple `INSERT` into the `wiki` table. And yet, the vectorizer will automatically create the embeddings for the new row without any intervention from you. 
-
-You can now search for the new article and see it returned as part of the results.
-
-```bash
-curl -G "http://0.0.0.0:8000/search" \
-    --data-urlencode "query=vector embeddings" \
-    -H "accept: application/json"
-```
-
-and we can also use the `/rag` endpoint to answer questions about the new article.
-
-```bash
-curl -G "http://0.0.0.0:8000/rag" \
-    --data-urlencode "query=How does pgai work?" \
-    -H "accept: application/json"
-```
-
-
 ## Next steps
 
-- See a [full code walkthrough of the application](/docs/examples/simple_fastapi_app/README.md)
+Look for other quickstarts:
+- Quickstart with FastAPI and psycopg [here](/examples/simple_fastapi_app/README.md)
+
+Explore more about the vectorizer:
 - Learn more about the [vectorizer](/docs/vectorizer/overview.md) and the [vectorizer worker](/docs/vectorizer/worker.md)
 - dive into the vectorizer api [reference](/docs/vectorizer/api-reference.md)
 
