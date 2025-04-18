@@ -180,6 +180,53 @@ def test_named_vectorizer():
             vectorizer_name = cur.fetchone()[0]
             assert vectorizer_name == "website.blog_embedding_store"
 
+            # try to recreate the vectorizer with the same default name
+            # and if not exists set to true
+            cur.execute("""
+               select ai.create_vectorizer
+               ( 'website.blog'::regclass
+               , loading=>ai.loading_column('body')
+               , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
+               , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
+               , scheduling=>ai.scheduling_timescaledb
+                       ( interval '5m'
+                       , initial_start=>'2050-01-06'::timestamptz
+                       , timezone=>'America/Chicago'
+                       )
+               , destination=>ai.destination_table()
+               , chunking=>ai.chunking_none()
+               , if_not_exists => true
+               );
+               """)
+            vectorizer_id_3 = cur.fetchone()[0]
+            cur.execute(
+                """
+                            select name from ai.vectorizer where id = %s
+                        """,
+                (vectorizer_id_3,),
+            )
+            vectorizer_name = cur.fetchone()[0]
+            assert vectorizer_name == "website.blog_embedding_store"
+
+            # make sure their is an error if if_not_exists is false
+            with pytest.raises(psycopg.errors.RaiseException):
+                cur.execute("""
+                select ai.create_vectorizer
+                ( 'website.blog'::regclass
+                , loading=>ai.loading_column('body')
+                , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
+                , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
+                , scheduling=>ai.scheduling_timescaledb
+                        ( interval '5m'
+                        , initial_start=>'2050-01-06'::timestamptz
+                        , timezone=>'America/Chicago'
+                        )
+                , destination=>ai.destination_table()
+                , chunking=>ai.chunking_none()
+                , if_not_exists => false
+                );
+                """)
+                
             # test functions with vectorizer name can be called without error
             cur.execute(
                 "select ai.disable_vectorizer_schedule(name => %s)",

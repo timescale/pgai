@@ -96,15 +96,6 @@ begin
             when destination operator(pg_catalog.->>) 'destination' is not null then destination operator(pg_catalog.->>) 'destination'
             else pg_catalog.concat(source_table, '_embedding')
         end;
-         -- make sure view name is available
-        if pg_catalog.to_regclass(pg_catalog.format('%I.%I', view_schema, view_name)) is not null then
-            raise exception 'an object named %.% already exists. specify an alternate destination explicitly', view_schema, view_name;
-        end if;
-    
-        -- make sure target table name is available
-        if pg_catalog.to_regclass(pg_catalog.format('%I.%I', target_schema, target_table)) is not null then
-            raise exception 'an object named %.% already exists. specify an alternate destination or target_table explicitly', target_schema, target_table;
-        end if;
         return json_object
         ( 'implementation': 'table'
         , 'config_type': 'destination'
@@ -121,6 +112,29 @@ begin
         );
     else
         raise exception 'invalid implementation for destination config';
+    end if;
+end
+$func$ language plpgsql stable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+create or replace function ai._validate_destination_can_create_objects(destination pg_catalog.jsonb) returns void
+as $func$
+declare
+    _config_type pg_catalog.text;
+begin
+    if destination operator(pg_catalog.->>) 'implementation' = 'table' then
+         -- make sure view name is available
+        if pg_catalog.to_regclass(pg_catalog.format('%I.%I', destination operator(pg_catalog.->>) 'view_schema', destination operator(pg_catalog.->>) 'view_name')) is not null then
+            raise exception 'an object named %.% already exists. specify an alternate destination explicitly', destination operator(pg_catalog.->>) 'view_schema', destination operator(pg_catalog.->>) 'view_name'
+            using errcode = 'duplicate_object';
+        end if;
+    
+        -- make sure target table name is available
+        if pg_catalog.to_regclass(pg_catalog.format('%I.%I', destination operator(pg_catalog.->>) 'target_schema', destination operator(pg_catalog.->>) 'target_table')) is not null then
+            raise exception 'an object named %.% already exists. specify an alternate destination or target_table explicitly', destination operator(pg_catalog.->>) 'target_schema', destination operator(pg_catalog.->>) 'target_table'
+            using errcode = 'duplicate_object';
+        end if;
     end if;
 end
 $func$ language plpgsql stable security invoker

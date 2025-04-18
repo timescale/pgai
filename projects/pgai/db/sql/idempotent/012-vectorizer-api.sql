@@ -170,6 +170,9 @@ begin
         end if;
         return _existing_vectorizer_id;
     end if;
+    
+    -- validate the destination can create objects after the if_not_exists check
+    perform ai._validate_destination_can_create_objects(destination);
 
     -- grant select to source table
     perform ai._vectorizer_grant_to_source
