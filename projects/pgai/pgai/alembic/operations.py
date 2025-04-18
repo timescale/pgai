@@ -47,14 +47,24 @@ def create_vectorizer(operations: Operations, operation: CreateVectorizerOp):
 def drop_vectorizer(operations: Operations, operation: DropVectorizerOp):
     connection = operations.get_bind()
     # Drop the vectorizer
-    connection.execute(
-        text("SELECT ai.drop_vectorizer(:id, :name, drop_all=>:drop_all)"),
-        {
-            "id": operation.vectorizer_id,
-            "name": operation.name,
-            "drop_all": operation.drop_all,
-        },
-    )
+    if operation.vectorizer_id is not None:
+        connection.execute(
+            text("SELECT ai.drop_vectorizer(:id, drop_all=>:drop_all)"),
+            {
+                "id": operation.vectorizer_id,
+                "drop_all": operation.drop_all,
+            },
+        )
+    elif operation.name is not None:
+        connection.execute(
+            text("SELECT ai.drop_vectorizer(:name, drop_all=>:drop_all)"),
+            {
+                "name": operation.name,
+                "drop_all": operation.drop_all,
+            },
+        )
+    else:
+        raise ValueError("Either vectorizer_id or name must be provided")
 
 
 _operations_registered = False

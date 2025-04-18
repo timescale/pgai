@@ -226,7 +226,7 @@ def test_named_vectorizer():
                 , if_not_exists => false
                 );
                 """)
-                
+
             # test functions with vectorizer name can be called without error
             cur.execute(
                 "select ai.disable_vectorizer_schedule(%s)",

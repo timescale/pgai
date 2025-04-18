@@ -1806,7 +1806,7 @@ def test_queue_pending():
 
             # an exact count should yield 10001
             cur.execute(
-                "select ai.vectorizer_queue_pending(%s, null, true)", (vectorizer_id,)
+                "select ai.vectorizer_queue_pending(%s, true)", (vectorizer_id,)
             )
             assert cur.fetchone()[0] == 10001
 

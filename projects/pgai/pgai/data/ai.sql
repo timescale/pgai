@@ -1066,10 +1066,10 @@ begin
         if _destination_type = 'table' then
             _target_schema := _destination_config operator(pg_catalog.->) 'target_schema';
             _target_table := _destination_config operator(pg_catalog.->) 'target_table';
-            _name := _target_schema operator(pg_catalog.||) '.' operator(pg_catalog.||) _target_table;
+            _name := _target_schema operator(pg_catalog.||) '_' operator(pg_catalog.||) _target_table;
         elseif _destination_type = 'column' then
             _embedding_column := _destination_config operator(pg_catalog.->) 'embedding_column';
-            _name := _vectorizer.source_schema operator(pg_catalog.||) '.' operator(pg_catalog.||) _vectorizer.source_table operator(pg_catalog.||) '.' operator(pg_catalog.||) _embedding_column;
+            _name := _vectorizer.source_schema operator(pg_catalog.||) '_' operator(pg_catalog.||) _vectorizer.source_table operator(pg_catalog.||) '_' operator(pg_catalog.||) _embedding_column;
         end if;
 
         -- Update the vectorizer with new config
