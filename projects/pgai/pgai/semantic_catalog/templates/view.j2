@@ -1,4 +1,4 @@
-<view{% if view.id > -1 %} id="{{ view.id }}"{% endif %}>
+<view id="{% if view.id > -1 %}{{ view.id }}{% else %}{{ view.objid }}{% endif %}">
 CREATE{% if view.is_materialized %} MATERIALIZED {% else %} {% endif %}VIEW {{ view.schema_name }}.{{ view.view_name }}{% if view.is_continuous_aggregate %} WITH (timescaledb.continuous){% endif %} AS
 {{ view.definition }}
 /* column types

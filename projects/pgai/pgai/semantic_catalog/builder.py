@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from typing import Literal, TextIO
+from typing import TextIO
 
 import psycopg
 from psycopg.sql import SQL, Composable
@@ -432,18 +432,9 @@ async def build(
     include_proc: str | None = None,
     exclude_proc: str | None = None,
     batch_size: int = 5,
-    format: Literal["semantic-catalog", "comment"] = "semantic-catalog",
 ) -> Usage:
-    assert format in {"semantic-catalog", "comment"}
-
     def callback(description: ObjectDescription):
-        match format:
-            case "semantic-catalog":
-                output.write(
-                    render.render_description_to_sql(con, catalog_name, description)
-                )
-            case "comment":
-                output.write(render.render_description_to_comment(con, description))
+        output.write(render.render_description_to_sql(con, catalog_name, description))
 
     async with await psycopg.AsyncConnection.connect(db_url) as con:
         # tables

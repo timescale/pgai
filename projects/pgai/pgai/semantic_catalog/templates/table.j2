@@ -1,4 +1,4 @@
-<table{% if table.id > -1 %} id="{{ table.id }}"{% endif %}>
+<table id="{% if table.id > -1 %}{{ table.id }}{% else %}{{ table.objid }}{% endif %}">
 CREATE{% if table.persistence is not none %} {{ table.persistence | upper }} {% else %} {% endif %}TABLE {{ table.schema_name }}.{{ table.table_name }}
 ( {% for column in (table.columns if table.columns is not none else []) %}{% if not loop.first %}{{ '\n, ' }}{% endif %}{{ column.name }} {{ column.type }}{% if column.is_not_null %} NOT NULL{% endif %}{% if column.default_value is not none %} {{ column.default_value }}{% endif %}{% endfor %}
 );

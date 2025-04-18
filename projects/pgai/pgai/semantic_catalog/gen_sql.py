@@ -1,0 +1,260 @@
+from dataclasses import dataclass
+from textwrap import dedent
+
+import psycopg
+from pydantic_ai import Agent
+from pydantic_ai.agent import AgentRunResult
+from pydantic_ai.messages import ModelMessage
+from pydantic_ai.models import KnownModelName, Model
+from pydantic_ai.settings import ModelSettings
+from pydantic_ai.usage import Usage, UsageLimits
+
+from pgai.semantic_catalog import loader, render, search
+from pgai.semantic_catalog.models import Fact, Procedure, SQLExample, Table, View
+from pgai.semantic_catalog.vectorizer import EmbeddingConfig
+
+
+@dataclass
+class DatabaseContext:
+    objects: dict[int, Table | View | Procedure]
+    sql_examples: dict[int, SQLExample]
+    facts: dict[int, Fact]
+    rendered_objects: dict[int, str]
+    rendered_sql_examples: dict[int, str]
+    rendered_facts: dict[int, str]
+
+
+def render_database_context(ctx: DatabaseContext) -> str:
+    output = ""
+    if ctx.rendered_objects:
+        output += "\n\n".join(ctx.rendered_objects.values())
+    if ctx.rendered_sql_examples:
+        output += "\n\n"
+        output += "\n\n".join(ctx.rendered_sql_examples.values())
+    if ctx.rendered_facts:
+        output += "\n\n"
+        output += "\n\n".join(ctx.rendered_facts.values())
+    return output.strip()
+
+
+async def fetch_database_context(
+    catalog_con: psycopg.AsyncConnection,
+    target_con: psycopg.AsyncConnection,
+    catalog_id: int,
+    embedding_name: str,
+    embedding_config: EmbeddingConfig,
+    prompt: str,
+    ctx: DatabaseContext | None = None,
+) -> DatabaseContext:
+    ctx = (
+        ctx
+        if ctx
+        else DatabaseContext(
+            objects={},
+            sql_examples={},
+            facts={},
+            rendered_objects={},
+            rendered_sql_examples={},
+            rendered_facts={},
+        )
+    )
+
+    # objects
+    object_descs = {
+        x.id: x
+        for x in await search.search_objects(
+            catalog_con,
+            catalog_id,
+            embedding_name,
+            embedding_config,
+            prompt,
+        )
+    }
+    missing_object_ids = object_descs.keys() - ctx.objects.keys()
+    if missing_object_ids:
+        objects = await loader.load_objects(
+            target_con, [object_descs[id] for id in missing_object_ids]
+        )
+        ctx.objects.update({x.id: x for x in objects})
+        ctx.rendered_objects.update({x.id: render.render_object(x) for x in objects})
+
+    # sql examples
+    for x in await search.search_sql_examples(
+        catalog_con,
+        catalog_id,
+        embedding_name,
+        embedding_config,
+        prompt,
+    ):
+        if x.id in ctx.sql_examples:
+            continue
+        ctx.sql_examples[x.id] = x
+        ctx.rendered_sql_examples[x.id] = render.render_sql_example(x)
+
+    # facts
+    for x in await search.search_facts(
+        catalog_con,
+        catalog_id,
+        embedding_name,
+        embedding_config,
+        prompt,
+    ):
+        if x.id in ctx.facts:
+            continue
+        ctx.facts[x.id] = x
+        ctx.rendered_facts[x.id] = render.render_fact(x)
+
+    return ctx
+
+
+async def validate_sql_statement(
+    target_con: psycopg.AsyncConnection,
+    sql_statement: str,
+) -> str | None:
+    async with (
+        target_con.cursor() as cur,
+        target_con.transaction(force_rollback=True) as _,
+    ):
+        try:
+            await cur.execute(f"explain {sql_statement}")  # pyright: ignore [reportArgumentType]
+        except psycopg.Error as e:
+            return e.diag.message_primary or str(e)
+        else:
+            return None
+
+
+@dataclass
+class GenerateSQLResponse:
+    sql_statement: str
+    context: DatabaseContext
+    messages: list[ModelMessage]
+    usage: Usage
+
+
+async def generate_sql(
+    catalog_con: psycopg.AsyncConnection,
+    target_con: psycopg.AsyncConnection,
+    model: KnownModelName | Model,
+    catalog_id: int,
+    embedding_name: str,
+    embedding_config: EmbeddingConfig,
+    prompt: str,
+    usage_limits: UsageLimits,
+    model_settings: ModelSettings,
+) -> GenerateSQLResponse:
+    ctx: DatabaseContext = await fetch_database_context(
+        catalog_con,
+        target_con,
+        catalog_id,
+        embedding_name,
+        embedding_config,
+        prompt,
+        ctx=None,
+    )
+
+    answer: str | None = None
+
+    agent = Agent(
+        model=model,
+        model_settings=model_settings,
+        name="sql-author",
+        system_prompt=dedent("""\
+        You are an expert at SQL and PostgreSQL.
+        You write valid and accurate SQL statements to address user's prompts.
+        You are provided with context in the form of database object descriptions,
+        example SQL statements, and/or facts. If the context is insufficient to
+        confidently address the user's prompt, you may provide do a semantic search to
+        extend the context. Otherwise, record the SQL statement you author and note the
+        ids of the elements of context that were relevant in producing the answer.
+        """).replace("\n", " "),
+    )
+
+    @agent.tool_plain
+    async def search_for_context(search_prompts: list[str]) -> None:  # pyright: ignore [reportUnusedFunction]
+        """Search for database objects, example SQL statements, and facts that are
+        relevant to the prompts
+
+        :param search_prompts: one or more natural language prompts for a semantic
+            search query
+        :return: None
+        """
+        nonlocal ctx
+        for prompt in search_prompts:
+            ctx = await fetch_database_context(
+                catalog_con,
+                target_con,
+                catalog_id,
+                embedding_name,
+                embedding_config,
+                prompt,
+                ctx,
+            )
+
+    @agent.tool_plain
+    def record_sql_statement(  # pyright: ignore [reportUnusedFunction]
+        sql_statement: str,
+        relevant_object_ids: list[int],
+        relevant_sql_example_ids: list[int],
+        relevant_fact_ids: list[int],
+    ) -> None:
+        """Records a valid SQL statement to address the users' prompt and context that
+        was relevant to the problem
+
+        :param sql_statement: a valid SQL statement that accurately addresses the
+            user's prompt
+        :param relevant_object_ids: the ids of the database objects that were relevant
+            to answering the user's prompt
+        :param relevant_sql_example_ids: the ids of the SQL examples that were relevant
+            to answering the user's prompt
+        :param relevant_fact_ids: the ids of the facts that were relevant to answering
+            the user's prompt
+        :return: None
+        """
+        nonlocal answer
+        answer = sql_statement
+        nonlocal ctx
+        for irrelevant_id in ctx.objects.keys() - relevant_object_ids:
+            ctx.objects.pop(irrelevant_id)
+            ctx.rendered_objects.pop(irrelevant_id)
+        for irrelevant_id in ctx.sql_examples.keys() - relevant_sql_example_ids:
+            ctx.sql_examples.pop(irrelevant_id)
+            ctx.rendered_sql_examples.pop(irrelevant_id)
+        for irrelevant_id in ctx.facts.keys() - relevant_fact_ids:
+            ctx.facts.pop(irrelevant_id)
+            ctx.rendered_facts.pop(irrelevant_id)
+
+    messages: list[ModelMessage] = []
+    usage: Usage = Usage()
+    user_prompt: str | None = None
+    while True:
+        usage_limits.check_before_request(usage)
+        if user_prompt is None:
+            user_prompt = dedent(f"""\
+            Author a valid SQL statement to address the following question.
+            Q: {prompt}
+            """) + render_database_context(ctx)
+        result: AgentRunResult = await agent.run(
+            user_prompt, message_history=messages, usage_limits=usage_limits
+        )
+        messages.extend(result.new_messages())
+        usage = usage + result.usage()
+        if answer:
+            error = await validate_sql_statement(target_con, answer)
+            if error:
+                user_prompt = dedent(f"""\
+                The SQL statement was not valid. Please fix it.
+                <sql>
+                {answer}
+                </sql>
+                ERROR: {error}
+                """)
+            else:
+                break  # we have a valid answer
+        else:
+            user_prompt = None
+    return GenerateSQLResponse(
+        sql_statement=answer,
+        context=ctx,
+        messages=messages,
+        usage=usage,
+    )

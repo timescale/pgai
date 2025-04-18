@@ -1,4 +1,4 @@
-<procedure>
+<procedure id="0">
 CREATE OR REPLACE PROCEDURE postgres_air.advance_air_time(IN p_weeks integer DEFAULT 52, IN p_schema_name text DEFAULT 'postgres_air'::text, IN p_run boolean DEFAULT false)
  LANGUAGE plpgsql
 AS $procedure$
@@ -38,7 +38,7 @@ $procedure$
 ;
 </procedure>
 
-<procedure>
+<procedure id="0">
 CREATE OR REPLACE PROCEDURE postgres_air.update_flight_status(IN flight_id integer, IN status text)
  LANGUAGE plpgsql
 AS $procedure$
