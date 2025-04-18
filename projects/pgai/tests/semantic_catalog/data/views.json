@@ -1,0 +1,116 @@
+{
+  "flight_summary": {
+    "classid": 1259,
+    "objid": 23834,
+    "schema_name": "postgres_air",
+    "view_name": "flight_summary",
+    "is_materialized": false,
+    "is_continuous_aggregate": false,
+    "columns": [
+      {
+        "classid": 1259,
+        "objid": 23834,
+        "objsubid": 1,
+        "name": "flight_no",
+        "type": "text",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 23834,
+        "objsubid": 2,
+        "name": "departure_airport",
+        "type": "character(3)",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 23834,
+        "objsubid": 3,
+        "name": "arrival_airport",
+        "type": "character(3)",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 23834,
+        "objsubid": 4,
+        "name": "scheduled_departure",
+        "type": "timestamp with time zone",
+        "is_not_null": false,
+        "default_value": null
+      }
+    ],
+    "definition": " SELECT flight_no,\n    departure_airport,\n    arrival_airport,\n    scheduled_departure\n   FROM postgres_air.flight;"
+  },
+  "passenger_details": {
+    "classid": 1259,
+    "objid": 23838,
+    "schema_name": "postgres_air",
+    "view_name": "passenger_details",
+    "is_materialized": false,
+    "is_continuous_aggregate": false,
+    "columns": [
+      {
+        "classid": 1259,
+        "objid": 23838,
+        "objsubid": 1,
+        "name": "first_name",
+        "type": "text",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 23838,
+        "objsubid": 2,
+        "name": "last_name",
+        "type": "text",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 23838,
+        "objsubid": 3,
+        "name": "booking_ref",
+        "type": "text",
+        "is_not_null": false,
+        "default_value": null
+      }
+    ],
+    "definition": " SELECT p.first_name,\n    p.last_name,\n    b.booking_ref\n   FROM postgres_air.passenger p\n     JOIN postgres_air.booking b ON p.booking_id = b.booking_id;"
+  },
+  "events_daily": {
+    "classid": 1259,
+    "objid": 23838,
+    "schema_name": "postgres_air",
+    "view_name": "events_daily",
+    "is_materialized": true,
+    "is_continuous_aggregate": true,
+    "columns": [
+      {
+        "classid": 1259,
+        "objid": 23838,
+        "objsubid": 1,
+        "name": "name",
+        "type": "text",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 23838,
+        "objsubid": 2,
+        "name": "bucket",
+        "type": "timestamp without time zone",
+        "is_not_null": false,
+        "default_value": null
+      }
+    ],
+    "definition": " SELECT name,\n    time_bucket('1 day'::interval, \"time\") AS bucket\n   FROM postgres_air.events\n  GROUP BY name, (time_bucket('1 day'::interval, \"time\"));"
+  }
+}
