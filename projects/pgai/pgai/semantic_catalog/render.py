@@ -1,8 +1,9 @@
+from collections.abc import Iterable
 from pathlib import Path
 
 import psycopg
 from jinja2 import Environment, FileSystemLoader
-from psycopg.sql import SQL, Identifier, Literal
+from psycopg.sql import SQL, Literal
 
 from pgai.semantic_catalog.models import (
     Fact,
@@ -22,7 +23,7 @@ def render_table(table: Table) -> str:
     return template.render(table=table)
 
 
-def render_tables(tables: list[Table]) -> str:
+def render_tables(tables: Iterable[Table]) -> str:
     return "\n\n".join(map(render_table, tables)).strip()
 
 
@@ -31,7 +32,7 @@ def render_view(view: View) -> str:
     return template.render(view=view)
 
 
-def render_views(views: list[View]) -> str:
+def render_views(views: Iterable[View]) -> str:
     return "\n\n".join(map(render_view, views)).strip()
 
 
@@ -40,22 +41,22 @@ def render_procedure(proc: Procedure) -> str:
     return template.render(proc=proc)
 
 
-def render_procedures(procedures: list[Procedure]) -> str:
+def render_procedures(procedures: Iterable[Procedure]) -> str:
     return "\n\n".join(map(render_procedure, procedures)).strip()
 
 
-def render_objects(objects: list[Table | View | Procedure]) -> str:
-    output = ""
-    for obj in objects:
-        match obj:
-            case Table():
-                output += render_table(obj)
-            case View():
-                output += render_view(obj)
-            case Procedure():
-                output += render_procedure(obj)
-        output += "\n\n"
-    return output.rstrip()
+def render_object(object: Table | View | Procedure) -> str:
+    match object:
+        case Table():
+            return render_table(object)
+        case View():
+            return render_view(object)
+        case Procedure():
+            return render_procedure(object)
+
+
+def render_objects(objects: Iterable[Table | View | Procedure]) -> str:
+    return "\n\n".join(map(render_object, objects)).strip()
 
 
 def render_fact(fact: Fact) -> str:
@@ -63,9 +64,17 @@ def render_fact(fact: Fact) -> str:
     return template.render(fact=fact)
 
 
+def render_facts(facts: Iterable[Fact]) -> str:
+    return "\n\n".join(map(render_fact, facts)).strip()
+
+
 def render_sql_example(example: SQLExample) -> str:
     template = env.get_template("sql_example.j2")
     return template.render(example=example)
+
+
+def render_sql_examples(examples: Iterable[SQLExample]) -> str:
+    return "\n\n".join(map(render_sql_example, examples)).strip()
 
 
 def render_description_to_sql(
@@ -176,57 +185,6 @@ def render_description_to_sql(
                     Literal(description.objargs),
                     Literal(description.description),
                     Literal(catalog_name),
-                )
-                .as_string(con)
-            )
-        case _:
-            raise ValueError(f"unknown description objtype: {description.objtype}")
-
-
-def render_description_to_comment(
-    con: psycopg.AsyncConnection, description: ObjectDescription
-) -> str:
-    match description.objtype:
-        case "table" | "view":
-            assert len(description.objnames) >= 2
-            type = SQL("TABLE") if description.objtype == "table" else SQL("VIEW")
-            return (
-                SQL("COMMENT ON {} {}.{} IS {};\n")
-                .format(
-                    type,
-                    Identifier(description.objnames[0]),
-                    Identifier(description.objnames[1]),
-                    Literal(description.description),
-                )
-                .as_string(con)
-            )
-        case "table column" | "view column":
-            assert len(description.objnames) == 3
-            return (
-                SQL("COMMENT ON COLUMN {}.{}.{} IS {};\n")
-                .format(
-                    Identifier(description.objnames[0]),
-                    Identifier(description.objnames[1]),
-                    Identifier(description.objnames[2]),
-                    Literal(description.description),
-                )
-                .as_string(con)
-            )
-        case "procedure" | "function" | "aggregate":
-            assert len(description.objnames) >= 2
-            type = {
-                "procedure": SQL("PROCEDURE"),
-                "function": SQL("FUNCTION"),
-                "aggregate": SQL("AGGREGATE"),
-            }[description.objtype]
-            return (
-                SQL("COMMENT ON {} {}.{}({}) IS {};\n")
-                .format(
-                    type,
-                    Identifier(description.objnames[0]),
-                    Identifier(description.objnames[1]),
-                    SQL(", ".join(arg for arg in description.objargs)),  # pyright: ignore [reportArgumentType]
-                    Literal(description.description),
                 )
                 .as_string(con)
             )
