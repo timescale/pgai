@@ -5,6 +5,7 @@
     "schema_name": "postgres_air",
     "view_name": "flight_summary",
     "is_materialized": false,
+    "is_continuous_aggregate": false,
     "columns": [
       {
         "classid": 1259,
@@ -51,6 +52,7 @@
     "schema_name": "postgres_air",
     "view_name": "passenger_details",
     "is_materialized": false,
+    "is_continuous_aggregate": false,
     "columns": [
       {
         "classid": 1259,
@@ -81,5 +83,34 @@
       }
     ],
     "definition": " SELECT p.first_name,\n    p.last_name,\n    b.booking_ref\n   FROM postgres_air.passenger p\n     JOIN postgres_air.booking b ON p.booking_id = b.booking_id;"
+  },
+  "events_daily": {
+    "classid": 1259,
+    "objid": 23838,
+    "schema_name": "postgres_air",
+    "view_name": "events_daily",
+    "is_materialized": true,
+    "is_continuous_aggregate": true,
+    "columns": [
+      {
+        "classid": 1259,
+        "objid": 23838,
+        "objsubid": 1,
+        "name": "name",
+        "type": "text",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 23838,
+        "objsubid": 2,
+        "name": "bucket",
+        "type": "timestamp without time zone",
+        "is_not_null": false,
+        "default_value": null
+      }
+    ],
+    "definition": " SELECT name,\n    postgres_air.time_bucket('1 day'::interval, \"time\") AS bucket\n   FROM postgres_air.events\n  GROUP BY name, (postgres_air.time_bucket('1 day'::interval, \"time\"));"
   }
 }

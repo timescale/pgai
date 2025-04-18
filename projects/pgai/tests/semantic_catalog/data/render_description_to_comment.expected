@@ -85,6 +85,9 @@ COMMENT ON COLUMN "postgres_air"."phone"."phone" IS 'this is a description for c
 COMMENT ON COLUMN "postgres_air"."phone"."phone_type" IS 'this is a description for column phone_type';
 COMMENT ON COLUMN "postgres_air"."phone"."primary_phone" IS 'this is a description for column primary_phone';
 COMMENT ON COLUMN "postgres_air"."phone"."update_ts" IS 'this is a description for column update_ts';
+COMMENT ON VIEW "postgres_air"."events_daily" IS 'this is a description for view events_daily';
+COMMENT ON COLUMN "postgres_air"."events_daily"."name" IS 'this is a description for column name';
+COMMENT ON COLUMN "postgres_air"."events_daily"."bucket" IS 'this is a description for column bucket';
 COMMENT ON VIEW "postgres_air"."flight_summary" IS 'this is a description for view flight_summary';
 COMMENT ON COLUMN "postgres_air"."flight_summary"."flight_no" IS 'this is a description for column flight_no';
 COMMENT ON COLUMN "postgres_air"."flight_summary"."departure_airport" IS 'this is a description for column departure_airport';
