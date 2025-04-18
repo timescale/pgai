@@ -3,8 +3,12 @@ from typing import Any
 import psycopg
 from psycopg.rows import dict_row
 from psycopg.sql import SQL, Composable
+from pydantic_ai.models import KnownModelName, Model
+from pydantic_ai.settings import ModelSettings
+from pydantic_ai.usage import UsageLimits
 
-from pgai.semantic_catalog import loader, render, search
+from pgai.semantic_catalog import gen_sql, loader, render, search
+from pgai.semantic_catalog.gen_sql import GenerateSQLResponse
 from pgai.semantic_catalog.models import (
     Fact,
     ObjectDescription,
@@ -180,6 +184,36 @@ class SemanticCatalog:
 
     def render_facts(self, facts: list[Fact]) -> str:
         return "\n\n".join(map(render.render_fact, facts))
+
+    async def generate_sql(
+        self,
+        catalog_con: psycopg.AsyncConnection,
+        target_con: psycopg.AsyncConnection,
+        model: KnownModelName | Model,
+        prompt: str,
+        usage_limits: UsageLimits,
+        model_settings: ModelSettings,
+        embedding_name: str | None = None,
+    ) -> GenerateSQLResponse:
+        if embedding_name is None:
+            embeddings = await self.list_embeddings(catalog_con)
+            if not embeddings:
+                raise RuntimeError("No embeddings configured for semantic catalog")
+            embedding_name, emb_cfg = embeddings[0]
+        else:
+            emb_cfg = await self.get_embedding(catalog_con, embedding_name)
+        assert emb_cfg is not None, "No embedding configured for semantic catalog"
+        return await gen_sql.generate_sql(
+            catalog_con,
+            target_con,
+            model,
+            self.id,
+            embedding_name,
+            emb_cfg,
+            prompt,
+            usage_limits,
+            model_settings,
+        )
 
 
 async def from_id(con: CatalogConnection, id: int) -> SemanticCatalog:
