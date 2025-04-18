@@ -43,20 +43,20 @@ pip install pgai
 # Quick Start
 
 This quickstart illustrates an east way to enable semantic search and RAG on
-your data. Semantic search allows you to search for concepts or ideas rather
+your data. **Semantic search** allows you to search for concepts or ideas rather
 than keywords. In this example, you can search for "properties of light" and
 will get back results about Albedo, even though those words are not in the text
 of the articles. This is possible because LLM-enabled vector embeddings capture
 the meaning of the text.
 
 Semantic search is a powerful feature in its own right, but it is also a key
-component of Retrieval Augmented Generation (RAG).  RAG is a technique that uses
+component of **Retrieval Augmented Generation (RAG)**.  RAG is a technique that uses
 a large language model (LLM) to answer questions using your data instead of just
 using the knowledge in the LLM's training data.  It does this by providing your
 data as context to the LLM. How does it know which data to provide? It uses
 semantic search to find the most relevant data.
 
-Prerequisites:
+**Prerequisites:**
 - A PostgreSQL database (click here for docker instructions).
 - An OpenAI API key (we use openai for embedding in the quick start, but you can use [multiple providers](#supported-embedding-models)).
 
