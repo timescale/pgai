@@ -229,18 +229,18 @@ def test_named_vectorizer():
                 
             # test functions with vectorizer name can be called without error
             cur.execute(
-                "select ai.disable_vectorizer_schedule(name => %s)",
+                "select ai.disable_vectorizer_schedule(%s)",
                 ("website.blog_embedding_store",),
             )
             cur.execute(
-                "select ai.enable_vectorizer_schedule(name => %s)",
+                "select ai.enable_vectorizer_schedule(%s)",
                 ("website.blog_embedding_store",),
             )
             cur.execute(
-                "select ai.vectorizer_queue_pending(name => %s)",
+                "select ai.vectorizer_queue_pending(%s)",
                 ("website.blog_embedding_store",),
             )
             cur.execute(
-                "select ai.drop_vectorizer(name => %s, drop_all => true)",
+                "select ai.drop_vectorizer(%s, drop_all => true)",
                 ("website.blog_embedding_store",),
             )
