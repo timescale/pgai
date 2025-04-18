@@ -42,6 +42,9 @@ async def find_tables(
                 on (c.relnamespace = n.oid)
             where n.nspname not like 'pg_%%'
             and n.nspname != 'information_schema'
+            and n.nspname not like '_timescaledb_%%'
+            and n.nspname not like 'timescaledb_%%'
+            and n.nspname != 'toolkit_experimental'
             and c.relkind in ('r', 'f', 'p')
             {filters}
         """).format(filters=combined_filters)
@@ -79,6 +82,9 @@ async def find_views(
                 on (c.relnamespace = n.oid)
             where n.nspname not like 'pg_%%'
             and n.nspname != 'information_schema'
+            and n.nspname not like '_timescaledb_%%'
+            and n.nspname not like 'timescaledb_%%'
+            and n.nspname != 'toolkit_experimental'
             and c.relkind in ('v', 'm')
             {filters}
         """).format(filters=combined_filters)
@@ -116,6 +122,9 @@ async def find_procedures(
                 on (p.pronamespace = n.oid)
             where n.nspname not like 'pg_%%'
             and n.nspname != 'information_schema'
+            and n.nspname not like '_timescaledb_%%'
+            and n.nspname not like 'timescaledb_%%'
+            and n.nspname != 'toolkit_experimental'
             {filters}
         """).format(filters=combined_filters)
         await cur.execute(query, params)
