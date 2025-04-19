@@ -25,7 +25,8 @@ A Python library that turns PostgreSQL into the retrieval engine behind robust, 
 
 - 🛡️ Production-ready out-of-the-box: Supports batch processing for efficient embedding generation, with built-in handling for model failures, rate limits, and latency spikes.
 
-Works with any PostgreSQL database, including Timescale Cloud, Amazon RDS, Supabase and more.
+- 🐘 Works with any PostgreSQL database, including Timescale Cloud, Amazon RDS, Supabase and more.
+
 
 <div align=center>
 
@@ -42,18 +43,31 @@ pip install pgai
 
 # Quick Start
 
-This quickstart illustrates an easy way to enable semantic search and RAG on
-your data. **Semantic search** allows you to search for concepts or ideas rather
-than keywords. So it will find results that are meaningfully similar to a given query,
-even if the words used are different. This seemingly magical ability is made possible
-by the LLM-based embedding models create vector embeddings for your data.
+This quickstart shows how to use the pgai Vectorizer to perform semantic search
+and RAG over data residing in a PostgreSQL table. You'll learn how Vectorizer
+helps automatically create embeddings and sync them as data is added / updated /
+deleted from the source table.
 
-Semantic search is a powerful feature in its own right, but it is also a key
-component of **Retrieval Augmented Generation (RAG)**.  RAG is a technique that
-uses a large language model (LLM) to answer questions using your data instead of
-just using the knowledge in the LLM's training data.  It does this by providing
-your data as context to the LLM when a question is asked. How does it know which
-data to provide? It uses semantic search to find the most relevant data.
+The key, secret sauce of pgai Vectorizer is the ability to declaratively define
+the pipeline for creating embeddings and have the vectorizer manage the
+operational complexity of syncing embeddings with the underlying data even when
+the embedding endpoint are slow and unreliable. You can define a simple version
+of the pipeline as follows:
+
+```sql
+SELECT ai.create_vectorizer(
+     'wiki'::regclass,
+     loading => ai.loading_column(column_name=>'text'),
+     destination => ai.destination_table(target_table=>'wiki_embedding_storage'),
+     embedding => ai.embedding_openai(model=>'text-embedding-ada-002', dimensions=>'1536')
+    )
+```
+
+The vectorizer will automatically create embeddings for all the rows in the
+`wiki` table, and, more importantly, will keep the embeddings synced with the
+underlying data as it changes.  **Think of it almost like declaring an index** on
+the `wiki` table, but instead of the database managing the index datastructure
+for you, the vectorizer is managing the embeddings. 
 
 **Prerequisites:**
 - A PostgreSQL database (click here for docker instructions).
@@ -174,37 +188,6 @@ TODO
 ```
 </details>
 
-## The secret sauce 
-
-The secret sauce of this app is the vectorizer, which automates creating vector embeddings for your data.
-In the example above, we create a vectorizer for the `text` column as follows:
-
-```sql
-SELECT ai.create_vectorizer(
-     'wiki'::regclass,
-     loading => ai.loading_column(column_name=>'text'),
-     destination => ai.destination_table(target_table=>'wiki_embedding_storage'),
-     embedding => ai.embedding_openai(model=>'text-embedding-ada-002', dimensions=>'1536')
-    )
-```
-
-That call declares how the vectorizer should create embeddings for the `text`
-column of the `wiki` table. In this case, it will use the
-`text-embedding-ada-002` model from OpenAI to create 1536-dimensional embeddings
-and store them in the `wiki_embedding_storage` table. This is a simple example, 
-but the vectorizer is [extremely configurable](#a-configurable-vectorizer-pipeline).
-
-Once the vectorizer is created, the vectorizer worker will automatically create
-embedddings for all the rows in the `wiki` table, and, more importantly, will
-keep the embeddings in sync with the `wiki` table as it changes. Think of it
-almost like declaring an index on the `wiki` table, but instead of the database
-managing the index datastructure for you, the vectorizer is managing the embeddings. 
-
-The challenge here is that LLMs are slow and somewhat unreliable. Normally, 
-there is a lot of MLops you need to perform to make sure your data pipeline
-is reliable and robust. With pgai, you can skip all that and focus on building
-your application because the vectorizer is managing the embeddings for you.
-
 ## Next steps
 
 Look for other quickstarts:
@@ -218,10 +201,16 @@ Explore more about the vectorizer:
 
 Our pgai Python library lets you work with embeddings generated from your data:
 
-* Automatically create and sync vector embeddings for your data using the  ([learn more](/docs/vectorizer/overview.md))
-* Search your data using vector and semantic search ([learn more](/docs/vectorizer/overview.md#query-an-embedding))
-* Implement Retrieval Augmented Generation as shown above in the [Quick Start](#quick-start)
-* Perform high-performance, cost-efficient ANN search on large vector workloads with [pgvectorscale](https://github.com/timescale/pgvectorscale), which complements pgvector.
+* Automatically create and sync vector embeddings for your data using the [vectorizer](/docs/vectorizer/overview.md).
+* [Load data](/docs/vectorizer/api-reference.md#loading-configuration) from a column in your table or from a file, s3 bucket, etc.
+* Create multiple embeddings for the same data with different models and parameters for testing and experimentation.
+* [Customize](#a-configurable-vectorizer-pipeline) how your embedding pipeline parses, chunks, formats, and embeds your data.
+
+You can use the vector embeddings to:
+- [Perform semantic search](/docs/vectorizer/overview.md#query-an-embedding) using pgvector.
+- Implement Retrieval Augmented Generation (RAG)
+- Perform high-performance, cost-efficient ANN search on large vector workloads with [pgvectorscale](https://github.com/timescale/pgvectorscale), which complements pgvector.
+
 
 We also offer a [PostgreSQL extension](/projects/extension/README.md) that can perform LLM model calling directly from SQL. This is often useful for use cases like classification, summarization, and data enrichment on your existing data.
 
@@ -249,20 +238,33 @@ The following models are supported for embedding:
 - [AWS Bedrock](/docs/vectorizer/api-reference.md#aiembedding_litellm)
 - [Vertex AI](/docs/vectorizer/api-reference.md#aiembedding_litellm)
 
-## The importance of a declarative approach to embedding generation
+## The devil is in the error handling
 
-When you define a vectorizer, you define how an embedding is generated from you
-data in a *declarative* way (much like an index).  That allows the system to
-manage the process of generating and updating the embeddings in the background
-for you. The declarative nature of the vectorizer is the "magic sauce" that
-allows the system to handle intermittent failures of the LLM and make the system
-robust and scalable.
+Simply creating vector embeddings is easy and straightforward. The challenge is
+that LLMs are somewhat unreliable and the endpoints exhibit intermittent
+failures and/or degraded performance. A critical part of properly handling
+failures is that your primary data-modification operations (INSERT, UPDATE,
+DELETE) should not be dependent on the embedding operation. Otherwise, your
+application will be down every time the endpoint is slow or fails and your user
+experience will suffer.
 
-The approach is similar to the way that indexes work in PostgreSQL. When you
-create an index, you are essentially declaring that you want to be able to
-search for data in a certain way. The system then manages the process of
-updating the index as the data changes.
- 
+Normally, you would need to implement a custom MLops pipeline to properly handle
+endpoint failures. This commonly involves queuing system like Kafka, specialized
+workers, and other infrastructure for handling the queue and retrying failed
+requests. This is a lot of work and it is easy to get wrong.
+
+With pgai, you can skip all that and focus on building your application because
+the vectorizer is managing the embeddings for you. We have built in queueing and
+retry logic to handle the various failure modes you can encounter. Because we do
+this work in the background, the primary data modification operations are not
+dependent on the embedding operation. This is what why we say that pgai is built
+for production.
+
+Many specialized vector databases advertise that they create embeddings for you. But,
+you should be careful of what they do if the embedding endpoint is down or degraded.
+In most cases, they will fail the operation and that puts the burden of handling
+failures and retries back on you.
+
 # Resources
 ## Why we built it
 - [Vector Databases Are the Wrong Abstraction](https://www.timescale.com/blog/vector-databases-are-the-wrong-abstraction/)
