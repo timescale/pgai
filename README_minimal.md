@@ -17,9 +17,9 @@
 </div>
 <br/>
 
-A Python library that turns PostgreSQL into the retrieval engine behind robust, production-ready RAG and Agentic applications.
+A Python library that transforms PostgreSQL into a robust, production-ready retrieval engine for RAG and Agentic applications.
 
-- 🔄 Automatically create vector embeddings from data in PostgreSQL tables as well as documents in S3.  The embeddings are automatically updated as the data changes.
+- 🔄 Automatically create and synchronize vector embeddings from PostgreSQL data and S3 documents. Embeddings update automatically as data changes.
 
 - 🔍 Powerful vector and semantic search with pgvector and pgvectorscale.
 
@@ -43,15 +43,9 @@ pip install pgai
 
 # Quick Start
 
-This quickstart shows how to use the pgai Vectorizer to perform semantic search
-and RAG over data residing in a PostgreSQL table. You'll learn how Vectorizer
-helps automatically create embeddings and sync them as data is added / updated /
-deleted from the source table.
+This quickstart demonstrates how pgai Vectorizer enables semantic search and RAG over PostgreSQL data by automatically creating and synchronizing embeddings as data changes.
 
-The key, secret sauce of pgai Vectorizer is the ability to declaratively define
-the pipeline for creating embeddings and have the vectorizer manage the
-operational complexity of syncing embeddings with the underlying data even when
-the embedding endpoint are slow and unreliable. You can define a simple version
+The key "secret sauce" of pgai Vectorizer is its declarative approach to embedding generation. Simply define your pipeline and let Vectorizer handle the operational complexity of keeping embeddings in sync, even when embedding endpoints are unreliable. You can define a simple version
 of the pipeline as follows:
 
 ```sql
@@ -257,13 +251,9 @@ With pgai, you can skip all that and focus on building your application because
 the vectorizer is managing the embeddings for you. We have built in queueing and
 retry logic to handle the various failure modes you can encounter. Because we do
 this work in the background, the primary data modification operations are not
-dependent on the embedding operation. This is what why we say that pgai is built
-for production.
+dependent on the embedding operation. This is why pgai is production-ready out of the box.
 
-Many specialized vector databases advertise that they create embeddings for you. But,
-you should be careful of what they do if the embedding endpoint is down or degraded.
-In most cases, they will fail the operation and that puts the burden of handling
-failures and retries back on you.
+Many specialized vector databases create embeddings for you. However, they typically fail when embedding endpoints are down or degraded, placing the burden of error handling and retries back on you.
 
 # Resources
 ## Why we built it
