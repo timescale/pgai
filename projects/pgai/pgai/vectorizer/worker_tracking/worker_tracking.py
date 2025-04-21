@@ -3,11 +3,11 @@ import datetime
 from uuid import UUID
 
 import psycopg
-import structlog
 
+from ...logger import StructuredMessage, get_logger
 from ..features import Features
 
-log = structlog.get_logger()
+log = get_logger(__name__)
 
 
 class WorkerTracking:
@@ -26,10 +26,12 @@ class WorkerTracking:
 
     async def start(self) -> None:
         if not self.enabled:
-            log.debug("worker tracking disabled", version=self.version)
+            log.debug(
+                StructuredMessage("worker tracking disabled", version=self.version)
+            )
             return
 
-        log.debug("starting worker tracking", version=self.version)
+        log.debug(StructuredMessage("starting worker tracking", version=self.version))
 
         async with (
             await psycopg.AsyncConnection.connect(self.db_url, autocommit=True) as conn,
@@ -89,10 +91,12 @@ class WorkerTracking:
             return
 
         log.debug(
-            "starting heartbeat loop",
-            version=self.version,
-            poll_interval=self.poll_interval,
-            worker_id=self.worker_id,
+            StructuredMessage(
+                "starting heartbeat loop",
+                version=self.version,
+                poll_interval=self.poll_interval,
+                worker_id=self.worker_id,
+            )
         )
 
         failures = 0
@@ -110,8 +114,14 @@ class WorkerTracking:
                         await asyncio.sleep(self.poll_interval)
             except psycopg.OperationalError as e:
                 failures += 1
-                log.error("heartbeat failed", error=e, count=failures)
-        log.error("heartbeat exiting due to too many failures", count=failures)
+                log.error(
+                    StructuredMessage("heartbeat failed", error=e, count=failures)
+                )
+        log.error(
+            StructuredMessage(
+                "heartbeat exiting due to too many failures", count=failures
+            )
+        )
 
     async def save_vectorizer_success(
         self,

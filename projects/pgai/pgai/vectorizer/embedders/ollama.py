@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel
 from typing_extensions import TypedDict, override
 
+from ...logger import StructuredMessage
 from ..embeddings import (
     BaseURLMixin,
     Embedder,
@@ -84,7 +85,11 @@ class Ollama(BaseModel, BaseURLMixin, Embedder):
         Returns:
             Sequence[EmbeddingVector]: The embeddings for each document.
         """
-        await logger.adebug(f"Chunks produced: {len(documents)}")
+        logger.debug(
+            StructuredMessage(
+                f"Chunks produced: {len(documents)}", chunks=len(documents)
+            )
+        )
         chunk_lengths = [0 for _ in documents]
         async for embeddings in self.batch_chunks_and_embed(documents, chunk_lengths):
             yield embeddings
@@ -106,7 +111,7 @@ class Ollama(BaseModel, BaseURLMixin, Embedder):
             await client.show(self.model)
         except ollama.ResponseError as e:
             if f"model '{self.model}' not found" in e.error:
-                logger.warn(
+                logger.warning(
                     f"pulling ollama model '{self.model}', this may take a while"
                 )
                 await client.pull(self.model)
@@ -138,7 +143,7 @@ class Ollama(BaseModel, BaseURLMixin, Embedder):
         model = await ollama.AsyncClient(host=self.base_url).show(self.model)
         architecture = model["model_info"].get("general.architecture", None)
         if architecture is None:
-            logger.warn(f"unable to determine architecture for model '{self.model}'")
+            logger.warning(f"unable to determine architecture for model '{self.model}'")
             return None
         context_key = f"{architecture}.context_length"
         # see https://github.com/ollama/ollama/blob/712d63c3f06f297e22b1ae32678349187dccd2e4/llm/ggml.go#L116-L118 # noqa

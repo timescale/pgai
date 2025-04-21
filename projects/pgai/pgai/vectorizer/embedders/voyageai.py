@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from tokenizers import Tokenizer
 from typing_extensions import override
 
+from ...logger import StructuredMessage
 from ..embeddings import (
     ApiKeyMixin,
     Embedder,
@@ -72,7 +73,11 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
         Returns:
             Sequence[EmbeddingVector]: The embeddings for each document.
         """
-        await logger.adebug(f"Chunks produced: {len(documents)}")
+        logger.debug(
+            StructuredMessage(
+                f"Chunks produced: {len(documents)}", chunks=len(documents)
+            )
+        )
         token_counter = self._token_counter()
         chunk_lengths = (
             [0 for _ in documents]

@@ -6,9 +6,10 @@ from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
 
 import semver
-import structlog
 
-logger = structlog.get_logger()
+from ...logger import get_logger
+
+logger = get_logger(__name__)
 
 # config generic type
 C = TypeVar("C")

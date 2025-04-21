@@ -4,10 +4,11 @@ from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from typing import TypeAlias
 
-import structlog
 from ddtrace import tracer
 
-logger = structlog.get_logger()
+from ..logger import StructuredMessage, get_logger
+
+logger = get_logger(__name__)
 
 EmbeddingVector: TypeAlias = list[float]
 
@@ -161,9 +162,9 @@ class Embedder(ABC):
                 batch_num = i + 1
                 batch = documents[start:end]
 
-                await logger.adebug(f"Batch {batch_num} of {num_batches}")
-                await logger.adebug(f"Chunks for this batch: {len(batch)}")
-                await logger.adebug(f"Request {batch_num} of {num_batches} initiated")
+                logger.debug(f"Batch {batch_num} of {num_batches}")
+                logger.debug(f"Chunks for this batch: {len(batch)}")
+                logger.debug(f"Request {batch_num} of {num_batches} initiated")
                 with tracer.trace("embeddings.do.embedder.create"):
                     current_span = tracer.current_span()
                     if current_span:
@@ -181,7 +182,7 @@ class Embedder(ABC):
                             request_duration,
                         )
 
-                    await logger.adebug(
+                    logger.debug(
                         f"Request {batch_num} of {num_batches} "
                         f"ended after: {request_duration} seconds. "
                         f"Tokens usage: {response_.usage}"
@@ -327,10 +328,12 @@ class EmbeddingStats:
         chunks per second.
         """
         self.wall_time = time.perf_counter() - self.wall_start
-        await logger.adebug(
-            "Embedding stats",
-            total_request_time=self.total_request_time,
-            wall_time=self.wall_time,
-            total_chunks=self.total_chunks,
-            chunks_per_second=self.chunks_per_second(),
+        logger.debug(
+            StructuredMessage(
+                "Embedding stats",
+                total_request_time=self.total_request_time,
+                wall_time=self.wall_time,
+                total_chunks=self.total_chunks,
+                chunks_per_second=self.chunks_per_second(),
+            )
         )

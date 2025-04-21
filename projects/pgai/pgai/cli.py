@@ -8,17 +8,16 @@ from collections.abc import Sequence
 from typing import Any
 
 import click
-import structlog
 from ddtrace import tracer
 from dotenv import load_dotenv
 from pytimeparse import parse  # type: ignore
 
 from .__init__ import __version__
+from .logger import get_logger, set_level
 
 load_dotenv()
 
-structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
-log = structlog.get_logger()
+log = get_logger()
 
 
 def asbool(value: str | None):
@@ -189,9 +188,8 @@ async def async_run_vectorizer_worker(
     signal.signal(signal.SIGINT, shutdown_handler)
     signal.signal(signal.SIGTERM, shutdown_handler)
 
-    structlog.configure(
-        wrapper_class=structlog.make_filtering_bound_logger(get_log_level(log_level))
-    )
+    # Configure the logging level for pgai loggers
+    set_level(get_log_level(log_level))
 
     worker = Worker(
         db_url,
