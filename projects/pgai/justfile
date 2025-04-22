@@ -54,6 +54,10 @@ lint-fix:
 type-check:
 	@uv run --no-project pyright ./
 
+# Check the built sql script
+db-check:
+    @just db/build-check
+
 # Runs ruff to check formatting of the python source files
 format:
 	@uv run --no-project ruff format --diff ./
@@ -66,7 +70,7 @@ format-fix:
 fix: lint-fix format-fix
 
 # CI pipeline. Runs all recipes needed for ensuring the code is ready to be integrated. Triggered by GH Actions
-ci: install lint type-check format test build
+ci: db-check install lint type-check format test build
 
 # Build Docker image with version tag
 docker-build:
