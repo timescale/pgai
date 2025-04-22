@@ -1043,7 +1043,7 @@ declare
     _migration_name text = $migration_name$029-add-vectorizer-name-column.sql$migration_name$;
     _migration_body text =
 $migration_body$
-alter table ai.vectorizer add column name name check (name ~ '^[a-z][a-z\-_0-9]*$');
+alter table ai.vectorizer add column name name check (name ~ '^[a-z][a-z_0-9]*$');
 
 do language plpgsql $block$
 declare
