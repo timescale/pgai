@@ -88,7 +88,7 @@ class Actions:
         frozen_file().write_text("\n".join(lines))
 
     @staticmethod
-    def build() -> None:
+    def build(check: str | None = None) -> None:
         """constructs the sql files for the extension"""
         check_incremental_sql_files(incremental_sql_files())
         check_idempotent_sql_files(idempotent_sql_files())
@@ -121,7 +121,13 @@ class Actions:
                 wf.write("\n\n")
             wf.flush()
             wf.close()
-        shutil.copyfile(osf, lib_sql_file())
+        if check:
+            expected = output_sql_file().read_text()
+            actual = lib_sql_file().read_text()
+            if expected != actual:
+                fatal("built sql file does not match sql file in library")
+        else:
+            shutil.copyfile(osf, lib_sql_file())
 
     @staticmethod
     def clean() -> None:

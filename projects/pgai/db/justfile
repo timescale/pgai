@@ -22,6 +22,8 @@ clean:
 build:
 	@PG_BIN={{PG_BIN}} ./build.py build
 
+build-check:
+	@PG_BIN={{PG_BIN}} ./build.py build check
 
 test-server:
 	@./build.py test-server
