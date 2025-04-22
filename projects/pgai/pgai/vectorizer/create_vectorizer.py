@@ -39,6 +39,7 @@ class CreateVectorizer:
     """Parameters for ai.create_vectorizer function"""
 
     source: str
+    name: str | None = None
     destination: DestinationColumnConfig | DestinationTableConfig | None = None
     loading: LoadingColumnConfig | LoadingUriConfig | None = None
     parsing: (

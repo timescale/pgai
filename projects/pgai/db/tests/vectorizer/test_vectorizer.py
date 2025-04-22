@@ -97,6 +97,7 @@ VECTORIZER_ROW = r"""
     ],
     "queue_table": "_vectorizer_q_1",
     "queue_schema": "ai",
+    "name": "website_blog_embedding_store",
     "queue_failed_table": "_vectorizer_q_failed_1",
     "source_table": "blog",
     "trigger_name": "_vectorizer_src_trg_1",
@@ -1580,12 +1581,13 @@ def test_naming_collisions():
             # try to create another one, fail on view_name / destination collision
             # language=PostgreSQL
             with pytest.raises(
-                psycopg.errors.RaiseException,
-                match=".*specify an alternate destination explicitly*",
+                psycopg.errors.DuplicateObject,
+                match=".*specify an alternate destination or view_name explicitly*",
             ):
                 cur.execute("""
                 select ai.create_vectorizer
                 ( 'vec.note4'::regclass
+                , name => 'dont_collide_on_name'
                 , loading => ai.loading_column('note')
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
                 , chunking=>ai.chunking_character_text_splitter()
@@ -1599,12 +1601,13 @@ def test_naming_collisions():
             # try to create another one, fail on target_table name collision
             # language=PostgreSQL
             with pytest.raises(
-                psycopg.errors.RaiseException,
+                psycopg.errors.DuplicateObject,
                 match=".*specify an alternate destination or target_table explicitly*",
             ):
                 cur.execute("""
                 select ai.create_vectorizer
                 ( 'vec.note4'::regclass
+                , name => 'dont_collide_on_name'
                 , loading => ai.loading_column('note')
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
                 , chunking=>ai.chunking_character_text_splitter()
@@ -1619,12 +1622,13 @@ def test_naming_collisions():
             # try to create another one, fail on queue_table name collision
             # language=PostgreSQL
             with pytest.raises(
-                psycopg.errors.RaiseException,
+                psycopg.errors.DuplicateObject,
                 match=".*specify an alternate queue_table explicitly*",
             ):
                 cur.execute("""
                 select ai.create_vectorizer
                 ( 'vec.note4'::regclass
+                , name => 'dont_collide_on_name'
                 , loading => ai.loading_column('note')
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 3)
                 , chunking=>ai.chunking_character_text_splitter()

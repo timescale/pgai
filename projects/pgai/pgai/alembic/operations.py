@@ -22,18 +22,20 @@ class CreateVectorizerOp(MigrateOperation):
 
 
 class DropVectorizerOp(MigrateOperation):
-    def __init__(self, vectorizer_id: int | None, drop_all: bool):
-        self.vectorizer_id = vectorizer_id
+    def __init__(self, name: str | None, id: int | None, drop_all: bool):
+        self.id = id
+        self.name = name
         self.drop_all = drop_all
 
     @classmethod
     def drop_vectorizer(
         cls,
         operations: Operations,
-        vectorizer_id: int | None,
+        name: str | None = None,
+        id: int | None = None,
         drop_all: bool = True,
     ):
-        op = DropVectorizerOp(vectorizer_id, drop_all)
+        op = DropVectorizerOp(name, id, drop_all)
         return operations.invoke(op)
 
 
@@ -45,10 +47,24 @@ def create_vectorizer(operations: Operations, operation: CreateVectorizerOp):
 def drop_vectorizer(operations: Operations, operation: DropVectorizerOp):
     connection = operations.get_bind()
     # Drop the vectorizer
-    connection.execute(
-        text("SELECT ai.drop_vectorizer(:id, drop_all=>:drop_all)"),
-        {"id": operation.vectorizer_id, "drop_all": operation.drop_all},
-    )
+    if operation.id is not None:
+        connection.execute(
+            text("SELECT ai.drop_vectorizer(:id, drop_all=>:drop_all)"),
+            {
+                "id": operation.id,
+                "drop_all": operation.drop_all,
+            },
+        )
+    elif operation.name is not None:
+        connection.execute(
+            text("SELECT ai.drop_vectorizer(:name, drop_all=>:drop_all)"),
+            {
+                "name": operation.name,
+                "drop_all": operation.drop_all,
+            },
+        )
+    else:
+        raise ValueError("Either vectorizer_id or name must be provided")
 
 
 _operations_registered = False
