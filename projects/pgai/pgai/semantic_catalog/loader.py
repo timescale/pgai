@@ -7,9 +7,12 @@ from pgai.semantic_catalog.models import (
     Table,
     View,
 )
+from pgai.semantic_catalog.sample import sample_table, sample_view
 
 
-async def load_tables(con: psycopg.AsyncConnection, oids: list[int]) -> list[Table]:
+async def load_tables(
+    con: psycopg.AsyncConnection, oids: list[int], sample: bool = False
+) -> list[Table]:
     # TODO: add support for hypertable info
     # TODO: add support for partitioning info
     # TODO: add support for inheritance info
@@ -89,10 +92,17 @@ async def load_tables(con: psycopg.AsyncConnection, oids: list[int]) -> list[Tab
         tables: list[Table] = []
         for row in await cur.fetchall():
             tables.append(Table.model_validate(row))
+        if sample:
+            for table in tables:
+                table.sample = await sample_table(
+                    con, table.schema_name, table.table_name
+                )
         return tables
 
 
-async def load_views(con: psycopg.AsyncConnection, oids: list[int]) -> list[View]:
+async def load_views(
+    con: psycopg.AsyncConnection, oids: list[int], sample: bool = False
+) -> list[View]:
     # TODO: add support for continuous aggregates
     assert len(oids) > 0, "list of oids must not be empty"
     async with con.cursor(row_factory=dict_row) as cur:
@@ -153,6 +163,9 @@ async def load_views(con: psycopg.AsyncConnection, oids: list[int]) -> list[View
         views: list[View] = []
         for row in await cur.fetchall():
             views.append(View.model_validate(row))
+        if sample:
+            for view in views:
+                view.sample = await sample_view(con, view.schema_name, view.view_name)
         return views
 
 
@@ -195,7 +208,9 @@ async def load_procedures(
 
 
 async def load_objects(
-    con: psycopg.AsyncConnection, obj_desc: list[ObjectDescription]
+    con: psycopg.AsyncConnection,
+    obj_desc: list[ObjectDescription],
+    sample: bool = False,
 ) -> list[Table | View | Procedure]:
     # given a list of object descriptions, load the objects' models and match up the
     # descriptions with the models
@@ -225,8 +240,8 @@ async def load_objects(
                 vd[od.objid] = od
             case _:
                 raise ValueError(f"unknown object type {od.objtype}")
-    tables = await load_tables(con, list(t)) if len(t) > 0 else []
-    views = await load_views(con, list(v)) if len(v) > 0 else []
+    tables = await load_tables(con, list(t), sample) if len(t) > 0 else []
+    views = await load_views(con, list(v), sample) if len(v) > 0 else []
     procedures = await load_procedures(con, list(p)) if len(p) > 0 else []
     for table in tables:
         d = td.get(table.objid, None)
