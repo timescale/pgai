@@ -12,4 +12,5 @@ ALTER TABLE {{ table.schema_name }}.{{ table.table_name }} ADD CONSTRAINT {{ con
 {% for column in (table.columns if table.columns is not none else []) -%}
 {% if column.description is not none %}COMMENT ON COLUMN {{ table.schema_name }}.{{ table.table_name }}{{ column.name }} IS $${{ column.description.description }}$$;{% endif -%}
 {% endfor -%}
+{% if table.sample is not none %}{{ table.sample }}{% endif -%}
 </table>
