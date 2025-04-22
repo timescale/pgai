@@ -36,6 +36,7 @@ class View(BaseModel):
     columns: list[Column] | None = None
     definition: str
     description: ObjectDescription | None = None
+    sample: str | None = None
 
 
 class Procedure(BaseModel):
@@ -72,6 +73,7 @@ class Table(BaseModel):
     constraints: list[Constraint] | None = None
     indexes: list[Index] | None = None
     description: ObjectDescription | None = None
+    sample: str | None = None
 
 
 class SQLExample(BaseModel):
