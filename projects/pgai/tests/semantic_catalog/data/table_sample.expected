@@ -1,0 +1,4 @@
+insert into "postgres_air"."airport" ("airport_code", "airport_name", "city", "airport_tz", "continent", "iso_country", "iso_region", "intnl", "update_ts") values
+  ('HND', 'Tokyo Haneda International Airport', 'TOKYO', 'Asia/Tokyo', 'AS', 'JP', 'JP-13', true, NULL)
+, ('NRT', 'Narita International Airport', 'TOKYO', 'Asia/Tokyo', 'AS', 'JP', 'JP-12', true, NULL)
+, ('DEL', 'Indira Gandhi International Airport', 'DELHI', 'Asia/Calcutta', 'AS', 'IN', 'IN-DL', true, NULL);
