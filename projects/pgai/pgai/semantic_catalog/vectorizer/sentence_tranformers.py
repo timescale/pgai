@@ -4,7 +4,8 @@ import numpy as np
 import numpy.typing as npt
 from sentence_transformers import SentenceTransformer
 
-from pgai.semantic_catalog.vectorizer import EmbedRow, SentenceTransformersConfig
+from pgai.semantic_catalog.vectorizer import SentenceTransformersConfig
+from pgai.semantic_catalog.vectorizer.models import EmbedRow
 
 
 async def embed_batch(

@@ -1,3 +1,5 @@
+import logging
+from collections.abc import Sequence
 from typing import Any
 
 import psycopg
@@ -21,8 +23,10 @@ from pgai.semantic_catalog.vectorizer import (
     EmbeddingConfig,
     embedding_config_from_dict,
     vectorize,
+    vectorizer,
 )
 
+logger = logging.getLogger(__name__)
 TargetConnection = psycopg.AsyncConnection
 CatalogConnection = psycopg.AsyncConnection
 
@@ -42,6 +46,7 @@ class SemanticCatalog:
 
     async def drop(self, con: CatalogConnection) -> None:
         async with con.cursor() as cur:
+            logger.info(f"dropping semantic catalog {self.name}")
             await cur.execute(
                 """\
                 select ai.drop_semantic_catalog(%s)
@@ -55,6 +60,9 @@ class SemanticCatalog:
         config: EmbeddingConfig,
         embedding_name: str | None = None,
     ) -> tuple[str, EmbeddingConfig]:
+        logger.debug(
+            f"adding embedding config {embedding_name} to semantic catalog {self.name}"
+        )
         async with con.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 """\
@@ -77,6 +85,9 @@ class SemanticCatalog:
             return str(row["embedding_name"]), embedding_config_from_dict(row["config"])
 
     async def drop_embedding(self, con: CatalogConnection, embedding_name: str):
+        logger.debug(
+            f"dropping embedding config {embedding_name} from semantic catalog {self.name}"  # noqa
+        )
         async with con.cursor() as cur:
             await cur.execute(
                 """\
@@ -134,6 +145,9 @@ class SemanticCatalog:
         config: EmbeddingConfig,
         batch_size: int = 32,
     ) -> None:
+        logger.debug(
+            f"vectorizing embedding config {embedding_name} in semantic catalog {self.name}"  # noqa
+        )
         await vectorize(con, self.id, embedding_name, config, batch_size)
 
     async def vectorize_all(self, con: CatalogConnection, batch_size: int = 32):
@@ -142,31 +156,52 @@ class SemanticCatalog:
             await self.vectorize(con, embedding_name, config, batch_size)
 
     async def search_objects(
-        self, con: CatalogConnection, embedding_name: str, query: str, limit: int = 5
+        self,
+        con: CatalogConnection,
+        embedding_name: str,
+        query: str | Sequence[float],
+        limit: int = 5,
     ) -> list[ObjectDescription]:
         emb_cfg = await self.get_embedding(con, embedding_name)
         if emb_cfg is None:
             raise RuntimeError(f"No embedding named: {embedding_name}")
+        if isinstance(query, str):
+            logger.debug("vectorizing query")
+            query = await vectorizer.vectorize_query(emb_cfg, query)
         return await search.search_objects(
             con, self.id, embedding_name, emb_cfg, query, limit
         )
 
     async def search_sql_examples(
-        self, con: CatalogConnection, embedding_name: str, query: str, limit: int = 5
+        self,
+        con: CatalogConnection,
+        embedding_name: str,
+        query: str | Sequence[float],
+        limit: int = 5,
     ) -> list[SQLExample]:
         emb_cfg = await self.get_embedding(con, embedding_name)
         if emb_cfg is None:
             raise RuntimeError(f"No embedding named: {embedding_name}")
+        if isinstance(query, str):
+            logger.debug("vectorizing query")
+            query = await vectorizer.vectorize_query(emb_cfg, query)
         return await search.search_sql_examples(
             con, self.id, embedding_name, emb_cfg, query, limit
         )
 
     async def search_facts(
-        self, con: CatalogConnection, embedding_name: str, query: str, limit: int = 5
+        self,
+        con: CatalogConnection,
+        embedding_name: str,
+        query: str | Sequence[float],
+        limit: int = 5,
     ) -> list[Fact]:
         emb_cfg = await self.get_embedding(con, embedding_name)
         if emb_cfg is None:
             raise RuntimeError(f"No embedding named: {embedding_name}")
+        if isinstance(query, str):
+            logger.debug("vectorizing query")
+            query = await vectorizer.vectorize_query(emb_cfg, query)
         return await search.search_facts(
             con, self.id, embedding_name, emb_cfg, query, limit
         )
@@ -230,7 +265,7 @@ async def from_id(con: CatalogConnection, id: int) -> SemanticCatalog:
         )
         row = await cur.fetchone()
         if row is None:
-            raise ValueError(f"No semantic catalog found with id: {id}")
+            raise RuntimeError(f"No semantic catalog found with id: {id}")
         return SemanticCatalog(row["id"], row["catalog_name"])
 
 
@@ -246,7 +281,7 @@ async def from_name(con: CatalogConnection, catalog_name: str) -> SemanticCatalo
         )
         row = await cur.fetchone()
         if row is None:
-            raise ValueError(
+            raise RuntimeError(
                 f"No semantic catalog found with catalog_name: {catalog_name}"
             )
         return SemanticCatalog(row["id"], row["catalog_name"])

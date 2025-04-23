@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Sequence
 from typing import Annotated, Any, Literal
 
@@ -5,6 +6,10 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.sql import SQL, Identifier
 from pydantic import BaseModel, Field
+
+from pgai.semantic_catalog.vectorizer.models import EmbedRow
+
+logger = logging.getLogger(__name__)
 
 
 class SentenceTransformersConfig(BaseModel):
@@ -88,12 +93,6 @@ def embedding_config_from_dict(config: dict[str, Any]) -> EmbeddingConfig:
             )
 
 
-class EmbedRow(BaseModel):
-    id: int
-    content: str
-    vector: Sequence[float] | None = None
-
-
 async def _get_obj_batch(
     con: psycopg.AsyncConnection, catalog_id: int, embedding_name: str, batch_size: int
 ) -> list[EmbedRow]:
@@ -126,7 +125,11 @@ async def _get_obj_batch(
             ),
             (batch_size,),
         )
-        return [EmbedRow(**row) for row in await cur.fetchall()]
+        batch = [EmbedRow(**row) for row in await cur.fetchall()]
+        logger.debug(
+            f"got batch of {len(batch)} objects for {embedding_name} of semantic catalog {catalog_id}"  # noqa
+        )
+        return batch
 
 
 async def _get_sql_batch(
@@ -153,7 +156,11 @@ async def _get_sql_batch(
             ),
             (batch_size,),
         )
-        return [EmbedRow(**row) for row in await cur.fetchall()]
+        batch = [EmbedRow(**row) for row in await cur.fetchall()]
+        logger.debug(
+            f"got batch of {len(batch)} sql examples for {embedding_name} of semantic catalog {catalog_id}"  # noqa
+        )
+        return batch
 
 
 async def _get_fact_batch(
@@ -176,7 +183,11 @@ async def _get_fact_batch(
             ),
             (batch_size,),
         )
-        return [EmbedRow(**row) for row in await cur.fetchall()]
+        batch = [EmbedRow(**row) for row in await cur.fetchall()]
+        logger.debug(
+            f"got batch of {len(batch)} facts for {embedding_name} of semantic catalog {catalog_id}"  # noqa
+        )
+        return batch
 
 
 async def _get_batch(
@@ -207,6 +218,9 @@ async def _save_batch(
 ):
     assert table in {"obj", "sql", "fact"}
     async with con.cursor() as cur:
+        logger.debug(
+            f"saving batch of {len(batch)} vectors for {embedding_name} of semantic catalog {catalog_id}"  # noqa
+        )
         for row in batch:
             await cur.execute(
                 SQL("""\
@@ -227,6 +241,9 @@ async def vectorize(
     batch_size: int = 32,
 ) -> None:
     for table in {"obj", "sql", "fact"}:
+        logger.debug(
+            f"vectorizing {table} for {embedding_name} of semantic catalog {catalog_id}"
+        )
         while True:
             async with con.transaction() as _:
                 # TODO: check the db and assert that the embed config still exists and hasn't changed # noqa: E501
@@ -234,7 +251,13 @@ async def vectorize(
                     con, catalog_id, embedding_name, table, batch_size
                 )
                 if not batch:
+                    logger.debug(
+                        f"no items found to vectorize for {embedding_name} of semantic catalog {catalog_id}"  # noqa
+                    )
                     break
+                logger.debug(
+                    f"vectorizing {len(batch)} items for {embedding_name} of semantic catalog {catalog_id}"  # noqa
+                )
                 match config:
                     case SentenceTransformersConfig():
                         from .sentence_tranformers import embed_batch
@@ -249,6 +272,7 @@ async def vectorize(
 
                         await embed_batch(config, batch)
                 await _save_batch(con, catalog_id, embedding_name, table, batch)
+                logger.debug("committing")
 
 
 async def vectorize_query(config: EmbeddingConfig, query: str) -> Sequence[float]:
