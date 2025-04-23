@@ -11,7 +11,7 @@ from docker.models.containers import Container
 from docker.models.images import Image
 from psycopg.sql import SQL, Identifier
 
-from pgai.semantic_catalog import builder, loader
+from pgai.semantic_catalog import describe, loader
 from pgai.semantic_catalog.models import Procedure, Table, View
 
 CONTAINER_NAME = "pgai-semantic-catalog"
@@ -159,7 +159,7 @@ async def gen_tables_json(container: PostgresContainer):
     async with await psycopg.AsyncConnection.connect(
         container.connection_string(database="postgres_air")
     ) as con:
-        oids = await builder.find_tables(con)
+        oids = await describe.find_tables(con)
         tables = await loader.load_tables(con, oids)
         for table in tables:
             stuff[table.table_name] = table.model_dump()
@@ -173,7 +173,7 @@ async def gen_views_json(container: PostgresContainer):
     async with await psycopg.AsyncConnection.connect(
         container.connection_string(database="postgres_air")
     ) as con:
-        oids = await builder.find_views(con)
+        oids = await describe.find_views(con)
         views = await loader.load_views(con, oids)
         for view in views:
             stuff[view.view_name] = view.model_dump()
@@ -187,7 +187,7 @@ async def gen_procs_json(container: PostgresContainer):
     async with await psycopg.AsyncConnection.connect(
         container.connection_string(database="postgres_air")
     ) as con:
-        oids = await builder.find_procedures(con)
+        oids = await describe.find_procedures(con)
         procs = await loader.load_procedures(con, oids)
         for proc in procs:
             stuff[proc.proc_name] = proc.model_dump()
