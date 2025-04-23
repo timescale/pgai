@@ -86,7 +86,13 @@ Vectorizer offers the following APIs:
 
 ## Install or upgrade the database objects necessary for vectorizer
 
-You can install or upgrade the database objects necessary for vectorizer by running the following python code:
+You can install or upgrade the database objects necessary for vectorizer by running the following cli command:
+
+```bash
+pgai install -d DB_URL
+```
+
+or by running the following python code:
 
 ```python
 import pgai

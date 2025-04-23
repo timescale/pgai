@@ -5,6 +5,7 @@ from pathlib import Path, PosixPath
 
 import psycopg
 import pytest
+import semver
 
 from tests.conftest import detailed_notice_handler
 
@@ -232,7 +233,16 @@ def test_unpackaged_upgrade():
     create_user(OTHER_USER)
 
     # All released versions that should be tested
-    released_versions = ["0.9.0", "0.8.0", "0.7.0", "0.6.0", "0.5.0", "0.4.1", "0.4.0"]
+    released_versions = [
+        "0.10.0",
+        "0.9.0",
+        "0.8.0",
+        "0.7.0",
+        "0.6.0",
+        "0.5.0",
+        "0.4.1",
+        "0.4.0",
+    ]
 
     # Setup target to compare against (clean install via pgai library)
     create_database("upgrade_target")
@@ -257,11 +267,19 @@ def test_unpackaged_upgrade():
         # Install the old extension version
         create_extension(test_db, version)
         assert check_version(test_db) == version
-        init_db_script(test_db, "init_vectorizer_only_old_api.sql")
+        if semver.VersionInfo.parse(version) < semver.VersionInfo.parse("0.10.0"):
+            init_db_script(test_db, "init_vectorizer_only_old_api.sql")
+        else:
+            init_db_script(test_db, "init_vectorizer_only.sql")
 
         # Upgrade to the latest version
-        update_extension(test_db, latest_extension_version)
-        assert check_version(test_db) == latest_extension_version
+        if version != latest_extension_version:
+            update_extension(test_db, latest_extension_version)
+            assert check_version(test_db) == latest_extension_version
+        else:
+            print(
+                f"Skipping upgrade to {latest_extension_version} because it is the latest released version"
+            )
 
         # Drop the extension and install using pgai library
         # We are dropping the extension because we want to test the state of the vectorizer
@@ -302,7 +320,7 @@ def fetch_versions(dbname: str) -> list[str]:
                 where name = 'ai'
             ) v
             where parts[4] is null -- ignore versions with a prerelease tag
-            order by parts[1], parts[2], parts[3], parts[4] nulls last
+            order by parts[1]::int, parts[2]::int, parts[3]::int, parts[4] nulls last
             """)
             versions = []
             for row in cur.fetchall():

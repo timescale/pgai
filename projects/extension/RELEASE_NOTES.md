@@ -11,11 +11,12 @@ etc.)
 
 We made this change in a way that will allow current users of the vectorizer to
 continue using the feature without interruption, but they will have to modify how they
-upgrade vectorizer functionality in the future. The upgrade to this extension
-version will detach the vectorizer catalog tables and functions from the
-extension but leave them in your database.  You can then manage them from the
-python library. In particular, you can then upgrade the vectorizer with
-`pgai.install(DB_URL)` as in the new python-library-based [workflow](/docs/vectorizer/api-reference.md#install-or-upgrade-database-dependencies).
+upgrade vectorizer functionality in the future. 
+
+**Upgrading vectorizer functionality to 0.10.0:**
+1. Run `ALTER EXTENSION name UPDATE TO '0.10.0'` to detach the vectorizer catalog tables and functions from the extension. This leaves them in your database in the ai schema, and the vectorizer will continue to work.
+2. You can then manage them from the python library or cli by upgrading the vectorizer with `pgai install -d DB_URL` as described in the new python-library-based [workflow](/docs/vectorizer/api-reference.md#install-or-upgrade-the-database-objects-necessary-for-vectorizer).
+3. If you don't use the model calling capabilities of pgai, you can then remove the pgai extension from your database.
 
 ### New features and improvements
 Split extension into an extension and a library package (#580) ([3fe83c6](https://github.com/timescale/pgai/commit/3fe83c6))
