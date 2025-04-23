@@ -45,6 +45,7 @@ async def fetch_database_context(
     embedding_config: EmbeddingConfig,
     prompt: str,
     ctx: DatabaseContext | None = None,
+    sample_size: int = 3,
 ) -> DatabaseContext:
     ctx = (
         ctx
@@ -73,7 +74,7 @@ async def fetch_database_context(
     missing_object_ids = object_descs.keys() - ctx.objects.keys()
     if missing_object_ids:
         objects = await loader.load_objects(
-            target_con, [object_descs[id] for id in missing_object_ids]
+            target_con, [object_descs[id] for id in missing_object_ids], sample_size
         )
         ctx.objects.update({x.id: x for x in objects})
         ctx.rendered_objects.update({x.id: render.render_object(x) for x in objects})
@@ -141,6 +142,7 @@ async def generate_sql(
     prompt: str,
     usage_limits: UsageLimits,
     model_settings: ModelSettings,
+    sample_size: int = 3,
 ) -> GenerateSQLResponse:
     ctx: DatabaseContext = await fetch_database_context(
         catalog_con,
@@ -150,6 +152,7 @@ async def generate_sql(
         embedding_config,
         prompt,
         ctx=None,
+        sample_size=sample_size,
     )
 
     answer: str | None = None
@@ -188,6 +191,7 @@ async def generate_sql(
                 embedding_config,
                 prompt,
                 ctx,
+                sample_size=sample_size,
             )
 
     @agent.tool_plain

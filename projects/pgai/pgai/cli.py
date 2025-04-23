@@ -342,7 +342,14 @@ def semantic_catalog():
     default=False,
     help="Append to the output file instead of overwriting it.",
 )
-def build(
+@click.option(
+    "-s",
+    "--sample-size",
+    type=click.INT,
+    default=3,
+    help="Number of sample rows to include in the context",
+)
+def describe(
     db_url: str,
     model: str,
     catalog_name: str,
@@ -356,14 +363,15 @@ def build(
     exclude_proc: str | None = None,
     output: Path | None = None,
     append: bool = False,
+    sample_size: int = 3,
 ) -> None:
-    from pgai.semantic_catalog.builder import build
+    from pgai.semantic_catalog.describe import describe
 
     # TODO: add progress feedback with Rich and add --quiet to turn it off
     # TODO: is async io for stdout/file needed?
     with sys.stdout if not output else output.open(mode="a" if append else "w") as f:
         asyncio.run(
-            build(
+            describe(
                 db_url,
                 model,  # pyright: ignore [reportArgumentType]
                 catalog_name,
@@ -376,6 +384,7 @@ def build(
                 exclude_view=exclude_view,
                 include_proc=include_proc,
                 exclude_proc=exclude_proc,
+                sample_size=sample_size,
             )
         )
 
@@ -484,6 +493,13 @@ def vectorize(
     default=None,
     help="The question to be answered by the generated SQL statement",
 )
+@click.option(
+    "-s",
+    "--sample-size",
+    type=click.INT,
+    default=3,
+    help="Number of sample rows to include in the context",
+)
 def generate_sql(
     db_url: str,
     catalog_db_url: str | None,
@@ -491,6 +507,7 @@ def generate_sql(
     catalog_name: str | None,
     embed_config: str | None,
     prompt: str,
+    sample_size: int = 3,
 ) -> None:
     catalog_db_url = catalog_db_url or db_url
     catalog_name = catalog_name or "default"
@@ -514,6 +531,7 @@ def generate_sql(
                     usage_limits=UsageLimits(),
                     model_settings=ModelSettings(),
                     embedding_name=embed_config,
+                    sample_size=sample_size,
                 )
                 print(resp.sql_statement)
         else:
@@ -527,6 +545,7 @@ def generate_sql(
                     usage_limits=UsageLimits(),
                     model_settings=ModelSettings(),
                     embedding_name=embed_config,
+                    sample_size=sample_size,
                 )
                 print(resp.sql_statement)
 
