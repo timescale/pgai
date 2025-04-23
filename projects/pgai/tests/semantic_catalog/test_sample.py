@@ -3,16 +3,8 @@ from pathlib import Path
 import psycopg
 
 from pgai.semantic_catalog.sample import sample_table, sample_view
-from tests.semantic_catalog.utils import PostgresContainer
 
-
-async def load_airports(con: psycopg.AsyncConnection) -> None:
-    airport_data = Path(__file__).parent.joinpath("data", "airport.sql").read_text()
-    async with (
-        con.cursor() as cur,
-        cur.copy("copy postgres_air.airport from stdin with (format csv)") as cpy,
-    ):
-        await cpy.write(airport_data)
+from .utils import PostgresContainer, load_airports
 
 
 async def test_sample_table(container: PostgresContainer) -> None:
