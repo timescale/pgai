@@ -3,7 +3,8 @@ from collections.abc import Sequence
 
 from openai import AsyncClient
 
-from pgai.semantic_catalog.vectorizer import EmbedRow, OpenAIConfig
+from pgai.semantic_catalog.vectorizer import OpenAIConfig
+from pgai.semantic_catalog.vectorizer.models import EmbedRow
 
 
 async def embed_batch(config: OpenAIConfig, batch: list[EmbedRow]) -> None:
@@ -16,6 +17,10 @@ async def embed_batch(config: OpenAIConfig, batch: list[EmbedRow]) -> None:
         model=config.model,
         dimensions=config.dimensions,
     )
+    if len(response.data) != len(batch):
+        raise RuntimeError(
+            f"{len(batch)} items sent to openai but {len(response.data)} embeddings returned"  # noqa
+        )
     for emb in response.data:
         batch[emb.index].vector = emb.embedding
 
@@ -30,4 +35,6 @@ async def embed_query(config: OpenAIConfig, query: str) -> Sequence[float]:
         model=config.model,
         dimensions=config.dimensions,
     )
+    if len(response.data) != 1:
+        raise RuntimeError(f"expected 1 embedding but got {len(response.data)}")
     return response.data[0].embedding

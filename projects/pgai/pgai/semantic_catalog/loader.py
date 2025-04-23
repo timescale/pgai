@@ -1,3 +1,5 @@
+import logging
+
 import psycopg
 from psycopg.rows import dict_row
 
@@ -8,6 +10,8 @@ from pgai.semantic_catalog.models import (
     View,
 )
 from pgai.semantic_catalog.sample import sample_table, sample_view
+
+logger = logging.getLogger(__name__)
 
 
 async def load_tables(
@@ -92,8 +96,16 @@ async def load_tables(
         tables: list[Table] = []
         for row in await cur.fetchall():
             tables.append(Table.model_validate(row))
+        if len(tables) != len(oids):
+            logger.warning(
+                f"{len(oids)} oids were provided but only {len(tables)} tables were loaded"  # noqa
+            )
         if sample_size > 0:
+            logger.debug(
+                f"sampling {sample_size} rows from each of {len(tables)} tables"
+            )
             for table in tables:
+                logger.debug(f"sampling {table.schema_name}.{table.table_name}")
                 table.sample = await sample_table(
                     con, table.schema_name, table.table_name, limit=sample_size
                 )
@@ -163,8 +175,14 @@ async def load_views(
         views: list[View] = []
         for row in await cur.fetchall():
             views.append(View.model_validate(row))
+        if len(views) != len(oids):
+            logger.warning(
+                f"{len(oids)} oids were provided but only {len(views)} views were loaded"  # noqa
+            )
         if sample_size > 0:
+            logger.debug(f"sampling {sample_size} rows from each of {len(views)} views")
             for view in views:
+                logger.debug(f"sampling {view.schema_name}.{view.view_name}")
                 view.sample = await sample_view(
                     con, view.schema_name, view.view_name, limit=sample_size
                 )
@@ -206,7 +224,11 @@ async def load_procedures(
         procedures: list[Procedure] = []
         for row in await cur.fetchall():
             procedures.append(Procedure.model_validate(row))
-        return procedures
+        if len(procedures) != len(oids):
+            logger.warning(
+                f"{len(oids)} oids were provided but only {len(procedures)} procedures were loaded"  # noqa
+            )
+    return procedures
 
 
 async def load_objects(

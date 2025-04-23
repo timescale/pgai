@@ -1,7 +1,10 @@
 import io
+import logging
 
 import psycopg
 from psycopg.sql import SQL, Composed, Identifier, Literal
+
+logger = logging.getLogger(__name__)
 
 
 async def _sample_as_inserts(
@@ -18,6 +21,7 @@ async def _sample_as_inserts(
         rows: list[Composed] = []
         for row in await cur.fetchall():
             rows.append(SQL("({})").format(SQL(", ").join(Literal(val) for val in row)))
+        logger.debug(f"sampled {len(rows)} rows from {schema_name}.{object_name}")
         sql = SQL("insert into {}.{} ({}) values\n  {};").format(
             Identifier(schema_name),
             Identifier(object_name),

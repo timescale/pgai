@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Sequence
 
 import psycopg
@@ -5,7 +6,9 @@ from psycopg.rows import dict_row
 from psycopg.sql import SQL, Identifier
 
 from pgai.semantic_catalog.models import Fact, ObjectDescription, SQLExample
-from pgai.semantic_catalog.vectorizer import EmbeddingConfig, vectorize_query
+from pgai.semantic_catalog.vectorizer import EmbeddingConfig
+
+logger = logging.getLogger(__name__)
 
 
 async def search_objects(
@@ -13,10 +16,10 @@ async def search_objects(
     catalog_id: int,
     embedding_name: str,
     config: EmbeddingConfig,
-    query: str,
+    query: Sequence[float],
     limit: int = 5,
 ) -> list[ObjectDescription]:
-    v: Sequence[float] = await vectorize_query(config, query)
+    logger.debug(f"searching semantic catalog {catalog_id}")
     async with con.cursor(row_factory=dict_row) as cur:
         sql = SQL("""\
             select x.*
@@ -28,10 +31,11 @@ async def search_objects(
             dimensions=SQL(str(int(config.dimensions))),  # pyright: ignore [reportArgumentType]
             column=Identifier(embedding_name),
         )
-        await cur.execute(sql, (v, limit))
+        await cur.execute(sql, (query, limit))
         results: list[ObjectDescription] = []
         for row in await cur.fetchall():
             results.append(ObjectDescription(**row))
+        logger.debug(f"found {len(results)} objects")
         return results
 
 
@@ -40,10 +44,10 @@ async def search_sql_examples(
     catalog_id: int,
     embedding_name: str,
     config: EmbeddingConfig,
-    query: str,
+    query: Sequence[float],
     limit: int = 5,
 ) -> list[SQLExample]:
-    v: Sequence[float] = await vectorize_query(config, query)
+    logger.debug(f"searching semantic catalog {catalog_id}")
     async with con.cursor(row_factory=dict_row) as cur:
         sql = SQL("""\
             select x.*
@@ -55,10 +59,11 @@ async def search_sql_examples(
             dimensions=SQL(str(int(config.dimensions))),  # pyright: ignore [reportArgumentType]
             column=Identifier(embedding_name),
         )
-        await cur.execute(sql, (v, limit))
+        await cur.execute(sql, (query, limit))
         results: list[SQLExample] = []
         for row in await cur.fetchall():
             results.append(SQLExample(**row))
+        logger.debug(f"found {len(results)} examples")
         return results
 
 
@@ -67,10 +72,10 @@ async def search_facts(
     catalog_id: int,
     embedding_name: str,
     config: EmbeddingConfig,
-    query: str,
+    query: Sequence[float],
     limit: int = 5,
 ) -> list[Fact]:
-    v: Sequence[float] = await vectorize_query(config, query)
+    logger.debug(f"searching semantic catalog {catalog_id}")
     async with con.cursor(row_factory=dict_row) as cur:
         sql = SQL("""\
             select x.*
@@ -82,8 +87,9 @@ async def search_facts(
             dimensions=SQL(str(int(config.dimensions))),  # pyright: ignore [reportArgumentType]
             column=Identifier(embedding_name),
         )
-        await cur.execute(sql, (v, limit))
+        await cur.execute(sql, (query, limit))
         results: list[Fact] = []
         for row in await cur.fetchall():
             results.append(Fact(**row))
+        logger.debug(f"found {len(results)} facts")
         return results

@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Callable
 from typing import TextIO
 
@@ -10,6 +11,8 @@ from pydantic_ai.usage import Usage
 
 from pgai.semantic_catalog import TargetConnection, loader, render
 from pgai.semantic_catalog.models import ObjectDescription, Procedure, Table, View
+
+logger = logging.getLogger(__name__)
 
 
 async def find_tables(
@@ -55,7 +58,9 @@ async def find_tables(
             {filters}
         """).format(filters=combined_filters)
         await cur.execute(query, params)
-        return [int(row[0]) for row in await cur.fetchall()]
+        tables = [int(row[0]) for row in await cur.fetchall()]
+        logger.debug(f"found {len(tables)} tables")
+        return tables
 
 
 async def find_views(
@@ -101,7 +106,9 @@ async def find_views(
             {filters}
         """).format(filters=combined_filters)
         await cur.execute(query, params)
-        return [int(row[0]) for row in await cur.fetchall()]
+        views = [int(row[0]) for row in await cur.fetchall()]
+        logger.debug(f"found {len(views)} views")
+        return views
 
 
 async def find_procedures(
@@ -146,7 +153,9 @@ async def find_procedures(
             {filters}
         """).format(filters=combined_filters)
         await cur.execute(query, params)
-        return [int(row[0]) for row in await cur.fetchall()]
+        procs = [int(row[0]) for row in await cur.fetchall()]
+        logger.debug(f"found {len(procs)} procedures")
+        return procs
 
 
 async def generate_table_descriptions(
@@ -186,6 +195,9 @@ async def generate_table_descriptions(
         if table is None:
             # TODO: handle this somehow
             return
+        logger.debug(
+            f"recording description for table {table.schema_name}.{table.table_name}"
+        )
         callback(
             ObjectDescription(
                 classid=table.classid,
@@ -220,6 +232,9 @@ async def generate_table_descriptions(
         if column is None:
             # TODO: handle this somehow
             return
+        logger.debug(
+            f"recording description for column {table.schema_name}.{table.table_name}.{column.name}"  # noqa
+        )
         callback(
             ObjectDescription(
                 classid=column.classid,
@@ -234,10 +249,12 @@ async def generate_table_descriptions(
 
     usage: Usage = Usage()
     for batch in batches():
+        logger.debug(f"loading details for batch of {len(batch)} tables")
         tables: list[Table] = await loader.load_tables(
             con, batch, sample_size=sample_size
         )
         table_index = {table.objid: table for table in tables}
+        logger.debug(f"rendering details for batch of {len(batch)} tables")
         rendered: str = render.render_tables(tables)
         prompt = (
             (
@@ -248,6 +265,7 @@ async def generate_table_descriptions(
             )
             + rendered
         )
+        logger.debug(f"asking llm to generate descriptions for {len(batch)} tables")
         result = await agent.run(user_prompt=prompt)
         usage = usage + result.usage()
     return usage
@@ -290,6 +308,9 @@ async def generate_view_descriptions(
         if view is None:
             # TODO: handle this somehow
             return
+        logger.debug(
+            f"recording description for view {view.schema_name}.{view.view_name}"
+        )
         callback(
             ObjectDescription(
                 classid=view.classid,
@@ -324,6 +345,9 @@ async def generate_view_descriptions(
         if column is None:
             # TODO: handle this somehow
             return
+        logger.debug(
+            f"recording description for view column {view.schema_name}.{view.view_name}.{column.name}"  # noqa
+        )
         callback(
             ObjectDescription(
                 classid=column.classid,
@@ -338,8 +362,10 @@ async def generate_view_descriptions(
 
     usage: Usage = Usage()
     for batch in batches():
+        logger.debug(f"loading details for batch of {len(batch)} views")
         views: list[View] = await loader.load_views(con, batch, sample_size=sample_size)
         view_index = {view.objid: view for view in views}
+        logger.debug(f"rendering details for batch of {len(batch)} views")
         rendered: str = render.render_views(views)
         prompt = (
             (
@@ -350,6 +376,7 @@ async def generate_view_descriptions(
             )
             + rendered
         )
+        logger.debug(f"asking llm to generate descriptions for {len(batch)} views")
         result = await agent.run(user_prompt=prompt)
         usage = usage + result.usage()
     return usage
@@ -391,6 +418,9 @@ async def generate_procedure_descriptions(
         if proc is None:
             # TODO: handle this somehow
             return
+        logger.debug(
+            f"recording description for procedure {proc.schema_name}.{proc.proc_name}"
+        )
         callback(
             ObjectDescription(
                 classid=proc.classid,
@@ -405,8 +435,10 @@ async def generate_procedure_descriptions(
 
     usage: Usage = Usage()
     for batch in batches():
+        logger.debug(f"loading details for batch of {len(batch)} procedures")
         procs: list[Procedure] = await loader.load_procedures(con, batch)
         proc_index = {proc.objid: proc for proc in procs}
+        logger.debug(f"rendering details for batch of {len(batch)} procedures")
         rendered: str = render.render_procedures(procs)
         prompt = (
             (
@@ -417,6 +449,7 @@ async def generate_procedure_descriptions(
             )
             + rendered
         )
+        logger.debug(f"asking llm to generate descriptions for {len(batch)} procedures")
         result = await agent.run(user_prompt=prompt)
         usage = usage + result.usage()
     return usage
