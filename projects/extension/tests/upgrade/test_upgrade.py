@@ -267,9 +267,12 @@ def test_unpackaged_upgrade():
         # Install the old extension version
         create_extension(test_db, version)
         assert check_version(test_db) == version
+        installed_lib = False
         if semver.VersionInfo.parse(version) < semver.VersionInfo.parse("0.10.0"):
             init_db_script(test_db, "init_vectorizer_only_old_api.sql")
         else:
+            install_pgai_library(db_url(USER, test_db))
+            installed_lib = True
             init_db_script(test_db, "init_vectorizer_only.sql")
 
         # Upgrade to the latest version
@@ -288,7 +291,8 @@ def test_unpackaged_upgrade():
         # extension divestment path. Also makes sure that the drop of the extension does not
         # affect the vectorizer db items.
         drop_extension(test_db)
-        install_pgai_library(db_url(USER, test_db))
+        if not installed_lib:
+            install_pgai_library(db_url(USER, test_db))
 
         # Snapshot and compare
         snapshot(test_db, f"unpackaged-actual-from-{version}", "_vectorizer_only")
