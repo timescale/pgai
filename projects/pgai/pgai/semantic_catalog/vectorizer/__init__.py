@@ -1,6 +1,5 @@
 from .vectorizer import (
     EmbeddingConfig,
-    EmbedRow,
     OllamaConfig,
     OpenAIConfig,
     SentenceTransformersConfig,
@@ -16,6 +15,5 @@ __all__ = [
     "EmbeddingConfig",
     "embedding_config_from_dict",
     "vectorize",
-    "EmbedRow",
     "vectorize_query",
 ]
