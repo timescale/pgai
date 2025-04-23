@@ -218,6 +218,7 @@ async def load_procedures(
             , 0
             ) x
             where p.oid = any(%s::oid[])
+            and p.prokind != 'a'
         """,
             (oids,),
         )
