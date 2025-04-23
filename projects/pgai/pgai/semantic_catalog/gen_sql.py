@@ -11,7 +11,7 @@ from pydantic_ai.usage import Usage, UsageLimits
 
 from pgai.semantic_catalog import loader, render, search
 from pgai.semantic_catalog.models import Fact, Procedure, SQLExample, Table, View
-from pgai.semantic_catalog.vectorizer import EmbeddingConfig
+from pgai.semantic_catalog.vectorizer import EmbeddingConfig, vectorizer
 
 
 @dataclass
@@ -60,6 +60,8 @@ async def fetch_database_context(
         )
     )
 
+    emb_prompt = await vectorizer.vectorize_query(embedding_config, prompt)
+
     # objects
     object_descs = {
         x.id: x
@@ -68,7 +70,7 @@ async def fetch_database_context(
             catalog_id,
             embedding_name,
             embedding_config,
-            prompt,
+            emb_prompt,
         )
     }
     missing_object_ids = object_descs.keys() - ctx.objects.keys()
@@ -85,7 +87,7 @@ async def fetch_database_context(
         catalog_id,
         embedding_name,
         embedding_config,
-        prompt,
+        emb_prompt,
     ):
         if x.id in ctx.sql_examples:
             continue
@@ -98,7 +100,7 @@ async def fetch_database_context(
         catalog_id,
         embedding_name,
         embedding_config,
-        prompt,
+        emb_prompt,
     ):
         if x.id in ctx.facts:
             continue
