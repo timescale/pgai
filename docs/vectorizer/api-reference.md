@@ -53,6 +53,9 @@ Making it easier for you to leverage the power of LLMs in your data workflows.
 
 Vectorizer offers the following APIs:
 
+**Install or upgrade database dependencies**
+- [Install or upgrade](#install-or-upgrade-the-database-objects-necessary-for-vectorizer) the database objects necessary for vectorizer.
+
 **Create and configure vectorizers**
 - [Create vectorizers](#create-vectorizers): automate the process of creating embeddings for table data.
 - [Loading configuration](#loading-configuration): define the source of the data to embed. You can load data from a column in the source table, or from a file referenced in a column of the source table.
@@ -80,6 +83,21 @@ Vectorizer offers the following APIs:
 - [View vectorizer status](#view-vectorizer-status): monitoring tools in pgai that provide insights into the state and 
   performance of vectorizers.
 
+
+## Install or upgrade the database objects necessary for vectorizer
+
+You can install or upgrade the database objects necessary for vectorizer by running the following python code:
+
+```python
+import pgai
+
+pgai.install(DB_URL)
+```
+
+This will create the necessary catalog tables and functions in your database. All of the
+database objects will be installed in the `ai` schema.
+
+The version of the database objects corresponds to the version of the `pgai` python package you have installed. To upgrade, first upgrade the python package with `pip install -U pgai` and then run `pgai.install(DB_URL)` again.
 
 ## Create vectorizers
 
