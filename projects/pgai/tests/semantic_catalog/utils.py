@@ -248,3 +248,12 @@ def get_procedures() -> list[Procedure]:
         val = d[k]
         vals.append(val)
     return vals
+
+
+async def load_airports(con: psycopg.AsyncConnection) -> None:
+    airport_data = Path(__file__).parent.joinpath("data", "airport.sql").read_text()
+    async with (
+        con.cursor() as cur,
+        cur.copy("copy postgres_air.airport from stdin with (format csv)") as cpy,
+    ):
+        await cpy.write(airport_data)
