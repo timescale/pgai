@@ -117,8 +117,9 @@ query like this:
 ```sql
 SELECT ai.create_vectorizer( 
    'blog'::regclass,
+   name => 'blog_embeddings',  -- Optional custom name for easier reference
    loading => ai.loading_column('contents'),
-   destination => 'blog_contents_embeddings',
+   destination => ai.destination_table('blog_contents_embeddings'),
    embedding => ai.embedding_ollama('nomic-embed-text', 768)
 );
 ```
@@ -150,7 +151,7 @@ into each chunk:
 SELECT ai.create_vectorizer(   
     'blog'::regclass,
     loading => ai.loading_column('contents'),
-    destination => 'blog_contents_embeddings',
+    destination => ai.destination_table('blog_contents_embeddings'),
     embedding => ai.embedding_ollama('nomic-embed-text', 768),
     formatting => ai.formatting_python_template('$title: $chunk')
 );
@@ -284,7 +285,7 @@ accordingly:
 SELECT ai.create_vectorizer(
     'blog'::regclass,
     loading => ai.loading_column('contents'),
-    destination => 'blog_contents_embeddings',
+    destination => ai.destination_table('blog_contents_embeddings'),
     embedding => ai.embedding_ollama('nomic-embed-text', 768),
     formatting => ai.formatting_python_template('$title - by $author - $chunk')
 );
@@ -304,7 +305,7 @@ example uses a HNSW index:
 SELECT ai.create_vectorizer(
     'blog'::regclass,
     loading => ai.loading_column('contents'),
-    destination => 'blog_contents_embeddings',
+    destination => ai.destination_table('blog_contents_embeddings'),
     embedding => ai.embedding_ollama('nomic-embed-text', 768),
     formatting => ai.formatting_python_template('$title - by $author - $chunk'),
     indexing => ai.indexing_hnsw(min_rows => 100000, opclass => 'vector_l2_ops')
@@ -343,6 +344,57 @@ CREATE TABLE blog_contents_embeddings_store(
     FOREIGN KEY (id) REFERENCES public.blog(id) ON DELETE CASCADE
 );
 ```
+
+## Destination Options for Embeddings
+
+Vectorizer supports two different ways to store your embeddings:
+
+### 1. Table Destination (Default)
+
+The default approach creates a separate table to store embeddings and a view that joins with the source table:
+
+```sql
+SELECT ai.create_vectorizer(
+    'blog'::regclass,
+    name => 'blog_vectorizer',  -- Optional custom name for easier reference
+    loading => ai.loading_column('contents'),
+    destination => ai.destination_table(
+        target_schema => 'public',
+        target_table => 'blog_embeddings_store',
+        view_name => 'blog_embeddings'
+    ),
+    embedding => ai.embedding_ollama('nomic-embed-text', 768)
+);
+```
+
+**When to use table destination:**
+- When you need multiple embeddings per row (chunking)
+- For large text fields that need to be split
+- You are vectorizing documents (which typically require chunking)
+
+### 2. Column Destination
+
+For simpler cases, you can add an embedding column directly to the source table. This can only be used when the vectorizer does not perform chunking because it requires a one-to-one relationship between the source data and the embedding. This is useful in cases where you know the source text is short (as is common if the chunking has already been done upstream in your data pipeline).
+
+The workflow is that your application inserts data into the table with a NULL in the embedding column. The vectorizer will then read the row, generate the embedding and update the row with the correct value in the embedding column.
+```sql
+SELECT ai.create_vectorizer(
+    'product_descriptions'::regclass,
+    name => 'product_descriptions_vectorizer',
+    loading => ai.loading_column('description'),
+    destination => ai.destination_column('description_embedding'),
+    embedding => ai.embedding_openai('text-embedding-3-small', 768),
+    chunking => ai.chunking_none()  -- Required for column destination
+);
+```
+
+**When to use column destination:**
+- When you need exactly one embedding per row
+- For shorter text that doesn't require chunking
+- When your application already takes care of the chunking before inserting into the database
+- When you want to avoid creating additional database objects
+
+**Note:** Column destination requires chunking to be set to `ai.chunking_none()` since it can only store one embedding per row.
 
 ## Monitor a vectorizer
 

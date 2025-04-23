@@ -120,7 +120,7 @@ Please note that using Ollama requires a large (>4GB) download of the docker ima
     ```sql
     SELECT ai.create_vectorizer(
          'wiki'::regclass,
-         destination => 'wiki_embeddings',
+         destination => ai.destination_table('wiki_embeddings'),
          embedding => ai.embedding_ollama('all-minilm', 384),
          chunking => ai.chunking_recursive_character_text_splitter('text')
     );

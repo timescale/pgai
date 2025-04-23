@@ -88,7 +88,7 @@ for generating and managing embeddings for a specific table in your database.
 
 The purpose of `ai.create_vectorizer` is to:
 - Automate the process of creating embeddings for table data.
-- Set up necessary infrastructure such as tables, views, and triggers for embedding management.
+- Set up necessary infrastructure such as tables, views, triggers, or columns for embedding management.
 - Configure the embedding generation process according to user specifications.
 - Integrate with AI providers for embedding creation.
 - Set up scheduling for background processing of embeddings.
@@ -97,12 +97,22 @@ The purpose of `ai.create_vectorizer` is to:
 
 By using `ai.create_vectorizer`, you can quickly set up a sophisticated
 embedding system tailored to your specific needs, without having to manually
-create and manage all the necessary database objects and processes. For example:
+create and manage all the necessary database objects and processes. 
+
+#### Example 1: Table destination (default)
+
+This approach creates a separate table to store embeddings and a view that joins with the source table:
 
 ```sql
 SELECT ai.create_vectorizer(
     'website.blog'::regclass,
+    name => 'website_blog_vectorizer',
     loading => ai.loading_column('contents'),
+    destination => ai.destination_table(
+        target_schema => 'website',
+        target_table => 'blog_embeddings_store',
+        view_name => 'blog_embeddings'
+    ),
     embedding => ai.embedding_ollama('nomic-embed-text', 768),
     chunking => ai.chunking_character_text_splitter(128, 10),
     formatting => ai.formatting_python_template('title: $title published: $published $chunk'),
@@ -111,14 +121,43 @@ SELECT ai.create_vectorizer(
 ```
 
 This function call:
-1. Sets up a vectorizer for the `website.blog` table.
-2. Loads the `contents` column.
-2. Uses the Ollama `nomic-embed-text` model to create 768 dimensional embeddings.
-3. Chunks the content into 128-character pieces with a 10-character overlap.
-4. Formats each chunk with a `title` and a `published` date.
-5. Grants necessary permissions to the roles `bob` and `alice`.
+1. Sets up a vectorizer named 'website_blog_vectorizer' for the `website.blog` table.
+2. Creates a separate table `website.blog_embeddings_store` to store embeddings.
+3. Creates a view `website.blog_embeddings` joining the source and embeddings.
+4. Loads the `contents` column.
+5. Uses the Ollama `nomic-embed-text` model to create 768 dimensional embeddings.
+6. Chunks the content into 128-character pieces with a 10-character overlap.
+7. Formats each chunk with a `title` and a `published` date.
+8. Grants necessary permissions to the roles `bob` and `alice`.
 
-The function returns an integer identifier for the vectorizer created, which you can use
+#### Example 2: Column destination
+
+Column destination place the embedding in a separate column in the source table. It can only be used when the vectorizer does not perform chunking because it requires a one-to-one relationship between the source data and the embedding. This is useful in cases where you know the source text is short (as is common if the chunking has already been done upstream in your data pipeline).
+
+The workflow is that your application inserts data into the table with a NULL in the embedding column. The vectorizer will then read the row, generate the embedding and update the row with the correct value in the embedding column.
+
+```sql
+SELECT ai.create_vectorizer(
+    'website.product_descriptions'::regclass,
+    name => 'product_descriptions_vectorizer',
+    loading => ai.loading_column('description'),
+    destination => ai.destination_column('description_embedding'),
+    embedding => ai.embedding_openai('text-embedding-3-small', 768),
+    chunking => ai.chunking_none(),  -- Required for column destination
+    grant_to => ai.grant_to('marketing_team')
+);
+```
+
+This function call:
+1. Sets up a vectorizer named 'product_descriptions_vectorizer' for the `website.product_descriptions` table.
+2. Adds a column called `description_embedding` directly to the source table.
+3. Loads the `description` column.
+4. Doesn't chunk the content (required for column destination).
+5. Uses OpenAI's embedding model to create 768 dimensional embeddings.
+6. Doesn't chunk the content (required for column destination).
+7. Grants necessary permissions to the role `marketing_team`.
+
+The function returns an integer identifier for the vectorizer created, but you can also reference it by name
 in other management functions.
 
 ### Parameters
@@ -128,7 +167,8 @@ in other management functions.
 | Name             | Type                                                   | Default                           | Required | Description                                                                                        |
 |------------------|--------------------------------------------------------|-----------------------------------|----------|----------------------------------------------------------------------------------------------------|
 | source           | regclass                                               | -                                 | ✔        | The source table that embeddings are generated for.                                                |
-| destination      | name                                                   | -                                 | ✖        | Set the name of the table embeddings are stored in, and the view with both the original data and the embeddings.<br>The view is named `<destination>`, the embedding table is named `<destination>_store`.<br>You set destination to avoid naming conflicts when you configure additional vectorizers for a source table.                              |
+| name             | text                                                   | Auto-generated                    | ✖        | A unique name for the vectorizer. If not provided, it's auto-generated based on the destination type:<br>- For table destination: `[target_schema]_[target_table]`<br>- For column destination: `[source_schema]_[source_table]_[embedding_column]`<br>Must follow snake_case pattern `^[a-z][a-z_0-9]*$`                              |
+| destination      | [Destination configuration](#destination-configuration)| `ai.destination_table()`          | ✖        | Configure how the embeddings will be stored. Two options available:<br>- `ai.destination_table()` (default): Creates a separate table to store embeddings<br>- `ai.destination_column()`: Adds an embedding column directly to the source table                             |
 | embedding        | [Embedding configuration](#embedding-configuration)    | -                                 | ✔        | Set how to embed the data.                                                                         |
 | loading          | [Loading configuration](#loading-configuration)      | -                                 | ✔        | Set the way to load the data from the source table, using functions like `ai.loading_column()`.      |
 | parsing          | [Parsing configuration](#parsing-configuration)      | ai.parsing_auto()                                 | ✖        | Set the way to parse the data, using functions like `ai.parsing_auto()`.      |
@@ -137,10 +177,6 @@ in other management functions.
 | formatting       | [Formatting configuration](#formatting-configuration)  | `ai.formatting_python_template()` | ✖        | Define the data format before embedding, using `ai.formatting_python_template()`.                  |
 | scheduling       | [Scheduling configuration](#scheduling-configuration)  | `ai.scheduling_default()`         | ✖        | Set how often to run the vectorizer. For example, `ai.scheduling_timescaledb()`.                   |
 | processing       | [Processing configuration](#processing-configuration ) | `ai.processing_default()`         | ✖        | Configure the way to process the embeddings.                                                       |
-| target_schema    | name                                                   | -                                 | ✖        | Specify the schema where the embeddings will be stored. This argument takes precedence over `destination`.                                     |
-| target_table     | name                                                   | -                                 | ✖        | Specify name of the table where the embeddings will be stored.                                     |
-| view_schema      | name                                                   | -                                 | ✖        | Specify the schema where the view is created.                                                      |
-| view_name        | name                                                   | -                                 | ✖        | Specify the name of the view to be created. This argument takes precedence over `destination`.                                     |
 | queue_schema     | name                                                   | -                                 | ✖        | Specify the schema where the work queue table is created.                                         |
 | queue_table      | name                                                   | -                                 | ✖        | Specify the name of the work queue table.                                                          |
 | grant_to         | [Grant To configuration][#grant-to-configuration]      | `ai.grant_to_default()`           | ✖        | Specify which users should be able to use objects created by the vectorizer.                       |
@@ -149,7 +185,97 @@ in other management functions.
 
 #### Returns
 
-The `int` id of the vectorizer that you created.
+The `int` id of the vectorizer that you created. You can also reference the vectorizer by its name in management functions.
+
+## Destination configuration
+
+You use the destination configuration functions to define how and where the embeddings will be stored. There are two options available:
+
+- [ai.destination_table](#aidestination_table): Creates a separate table to store embeddings (default behavior)
+- [ai.destination_column](#aidestination_column): Adds an embedding column directly to the source table
+
+### ai.destination_table
+
+You use `ai.destination_table` to store embeddings in a separate table. This is the default behavior, where:
+- A new table is created to store the embeddings
+- A view is created that joins the source table with the embeddings
+- Multiple chunks can be created per row (using chunking)
+
+#### Example usage
+
+```sql
+SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    destination => ai.destination_table(
+        target_schema => 'public',
+        target_table => 'my_table_embeddings_store',
+        view_schema => 'public',
+        view_name => 'my_table_embeddings'
+    ),
+    -- other parameters...
+);
+```
+
+For simpler configuration with defaults:
+
+```sql
+SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    destination => ai.destination_table('my_table_embeddings'),
+    -- other parameters...
+);
+```
+
+#### Parameters
+
+`ai.destination_table` takes the following parameters:
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| destination | name | - | ✖ | The base name for the view and table. The view is named `<destination>`, the embedding table is named `<destination>_store`. |
+| target_schema | name | Source table schema | ✖ | The schema where the embeddings table will be created. |
+| target_table | name | `<source_table>_embedding_store` or `<destination>_store` | ✖ | The name of the table where embeddings will be stored. |
+| view_schema | name | Source table schema | ✖ | The schema where the view will be created. |
+| view_name | name | `<source_table>_embedding` or `<destination>` | ✖ | The name of the view that joins source and embeddings tables. |
+
+#### Returns
+
+A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
+
+### ai.destination_column
+
+You use `ai.destination_column` to store embeddings directly in the source table as a new column. This approach can only be used when the vectorizer does not perform chunking because it requires a one-to-one relationship between the source data and the embedding. This is useful in cases where you know the source text is short (as is common if the chunking has already been done upstream in your data pipeline).
+
+This approach:
+- Adds a vector column directly to the source table
+- Does not create a separate view
+- Requires chunking to be set to `ai.chunking_none()` (no chunking)
+- Stores exactly one embedding per row
+
+The workflow is that your application inserts data into the table with a NULL in the embedding column. The vectorizer will then read the row, generate the embedding and update the row with the correct value in the embedding column.
+
+#### Example usage
+
+```sql
+SELECT ai.create_vectorizer(
+    'my_table'::regclass,
+    destination => ai.destination_column('content_embedding'),
+    chunking => ai.chunking_none(),
+    -- other parameters...
+);
+```
+
+#### Parameters
+
+`ai.destination_column` takes the following parameters:
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| embedding_column | name | - | ✔ | The name of the column to be added to the source table for storing embeddings. |
+
+#### Returns
+
+A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
 
 ## Loading configuration
 
@@ -1331,18 +1457,24 @@ Key points about schedule enable and disable:
   on the original scheduling configuration. For example, if the vectorizer was
   set to run every hour, it will run at the next hour mark after being enabled.
 
+- You can reference vectorizers either by their ID or their name.
+
 Usage example in a maintenance scenario:
 
 ```sql
--- Before starting system maintenance
+-- Before starting system maintenance using IDs
 SELECT ai.disable_vectorizer_schedule(1);
 SELECT ai.disable_vectorizer_schedule(2);
+
+-- Or using names (more human-readable)
+SELECT ai.disable_vectorizer_schedule('public_blog_embeddings');
+SELECT ai.disable_vectorizer_schedule('public_products_embeddings');
 
 -- Perform maintenance tasks...
 
 -- After maintenance is complete
-SELECT ai.enable_vectorizer_schedule(1);
-SELECT ai.enable_vectorizer_schedule(2);
+SELECT ai.enable_vectorizer_schedule('public_blog_embeddings');
+SELECT ai.enable_vectorizer_schedule('public_products_embeddings');
 ```
 
 The available functions are:
@@ -1357,23 +1489,30 @@ You use `ai.enable_vectorizer_schedule` to:
 
 #### Example usage
 
-To resume the automatic scheduling for the vectorizer with ID 1.
+To resume the automatic scheduling for a vectorizer:
 
 ```sql
+-- Using ID
 SELECT ai.enable_vectorizer_schedule(1);
+
+-- Using name (recommended)
+SELECT ai.enable_vectorizer_schedule('public_blog_embeddings');
 ```
 
 #### Parameters
 
-`ai.enable_vectorizer_schedule` takes the following parameters:
+`ai.enable_vectorizer_schedule` takes one of the following parameters:
 
 |Name| Type | Default | Required | Description                                               |
 |-|------|---------|-|-----------------------------------------------------------|
-|vectorizer_id| int  | -       |✔| The identifier of the vectorizer whose schedule you want to enable. |
+|vectorizer_id| int  | -       |✔*| The identifier of the vectorizer whose schedule you want to enable. |
+|name| text  | -       |✔*| The name of the vectorizer whose schedule you want to enable. |
+
+*Either vectorizer_id or name must be provided
 
 #### Returns
 
-`ai.enable_vectorizer_schedule` does not return a value,
+`ai.enable_vectorizer_schedule` does not return a value.
 
 ### ai.disable_vectorizer_schedule
 
@@ -1384,23 +1523,30 @@ You use `ai.disable_vectorizer_schedule` to:
 
 #### Example usage
 
-To stop the automatic scheduling for the vectorizer with ID 1.
+To stop the automatic scheduling for a vectorizer:
 
 ```sql
+-- Using ID
 SELECT ai.disable_vectorizer_schedule(1);
+
+-- Using name (recommended)
+SELECT ai.disable_vectorizer_schedule('public_blog_embeddings');
 ```
 
 #### Parameters
 
-`ai.disable_vectorizer_schedule` takes the following parameters:
+`ai.disable_vectorizer_schedule` takes one of the following parameters:
 
 |Name| Type | Default | Required | Description                                                          |
 |-|------|---------|-|----------------------------------------------------------------------|
-|vectorizer_id| int  | -       |✔| The identifier of the vectorizer whose schedule you want to disable. |
+|vectorizer_id| int  | -       |✔*| The identifier of the vectorizer whose schedule you want to disable. |
+|name| text  | -       |✔*| The name of the vectorizer whose schedule you want to disable. |
+
+*Either vectorizer_id or name must be provided
 
 #### Returns
 
-`ai.disable_vectorizer_schedule` does not return a value,
+`ai.disable_vectorizer_schedule` does not return a value.
 
 
 ## Drop a vectorizer
@@ -1442,22 +1588,26 @@ Best practices are:
 
 - Before dropping a vectorizer, ensure that you will not need the automatic embedding updates it provides.
 - After dropping a vectorizer, you may want to manually clean up the target table and view if they're no longer needed.
-- To ensure that you are dropping the correct vectorizer, keep track of your vectorizer IDs. You can do this by querying 
-  the `ai.vectorizer` table.
+- You can reference vectorizers either by their ID or their name (recommended).
 
 
 Examples: 
-- Remove the vectorizer with ID 1:
+- Remove a vectorizer by ID:
 
   ```sql
-  -- Assuming we have a vectorizer with ID 1
   SELECT ai.drop_vectorizer(1);
   ```
 
-- Remove the vectorizer with ID 1 and drop the target table and view as well:
+- Remove a vectorizer by name (recommended):
 
   ```sql
-  SELECT ai.drop_vectorizer(1, drop_all=>true);
+  SELECT ai.drop_vectorizer('public_blog_embeddings');
+  ```
+
+- Remove a vectorizer and drop the target table and view as well:
+
+  ```sql
+  SELECT ai.drop_vectorizer('public_blog_embeddings', drop_all=>true);
   ```
 
 #### Parameters
@@ -1466,8 +1616,11 @@ Examples:
 
 |Name| Type | Default | Required | Description |
 |-|------|-|-|-|
-|vectorizer_id| int  | -|✔|The identifier of the vectorizer you want to drop|
+|vectorizer_id| int  | -|✔*|The identifier of the vectorizer you want to drop|
+|name| text  | -|✔*|The name of the vectorizer you want to drop|
 |drop_all| bool | false |✖|true to drop the target table and view as well|
+
+*Either vectorizer_id or name must be provided
 
 #### Returns
 
@@ -1561,11 +1714,15 @@ You use `vectorizer_queue_pending` to:
 
 #### Example usage
 
-Return the number of pending items for the vectorizer with ID 1:
+Return the number of pending items for a vectorizer:
 
-  ```sql
-  SELECT ai.vectorizer_queue_pending(1);
-  ```
+```sql
+-- Using ID
+SELECT ai.vectorizer_queue_pending(1);
+
+-- Using name (recommended)
+SELECT ai.vectorizer_queue_pending('public_blog_embeddings');
+```
 
 A queue with a very large number of items may be slow to count. The optional 
 `exact_count` parameter is defaulted to false. When false, the count is limited.
@@ -1576,9 +1733,13 @@ items.
 To get an exact count, regardless of queue size, set the optional parameter to
 `true` like this:
 
-  ```sql
-  SELECT ai.vectorizer_queue_pending(1, exact_count=>true);
-  ```
+```sql
+-- Using ID
+SELECT ai.vectorizer_queue_pending(1, exact_count=>true);
+
+-- Using name (recommended)
+SELECT ai.vectorizer_queue_pending('public_blog_embeddings', exact_count=>true);
+```
 
 #### Parameters
 
@@ -1586,8 +1747,11 @@ To get an exact count, regardless of queue size, set the optional parameter to
 
 | Name          | Type | Default | Required | Description                                             |
 |---------------|------|---------|----------|---------------------------------------------------------|
-| vectorizer_id | int  | -       | ✔        | The identifier of the vectorizer you want to check      |
+| vectorizer_id | int  | -       | ✔*       | The identifier of the vectorizer you want to check      |
+| name          | text | -       | ✔*       | The name of the vectorizer you want to check            |
 | exact_count   | bool | false   | ✖        | If true, return exact count. If false, capped at 10,000 |
+
+*Either vectorizer_id or name must be provided
 
 
 ### Returns

@@ -90,7 +90,7 @@ Now we can create and run a vectorizer. A vectorizer is a pgai concept, it proce
     SELECT ai.create_vectorizer(
          'blog'::regclass,
          loading => ai.loading_column('contents'),
-         destination => 'blog_contents_embeddings',
+         destination => ai.destination_table('blog_contents_embeddings'),
          embedding => ai.embedding_ollama('nomic-embed-text', 768)
     );
     ```

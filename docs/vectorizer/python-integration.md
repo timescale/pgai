@@ -13,11 +13,14 @@ Then you can create a vectorizer from python:
 
 ```python
 from pgai.vectorizer import CreateVectorizer
-from pgai.vectorizer.configuration import EmbeddingOpenaiConfig, ChunkingCharacterTextSplitterConfig, FormattingPythonTemplateConfig, LoadingColumnConfig
+from pgai.vectorizer.configuration import EmbeddingOpenaiConfig, ChunkingCharacterTextSplitterConfig, FormattingPythonTemplateConfig, LoadingColumnConfig, DestinationTableConfig
 
 vectorizer_statement = CreateVectorizer(
     source="blog",
-    target_table='blog_embeddings',
+    name="blog_content_embedder",  # Optional custom name for easier reference
+    destination=DestinationTableConfig(
+        destination='blog_embeddings'
+    ),
     loading=LoadingColumnConfig(column_name='content'),
     embedding=EmbeddingOpenaiConfig(
         model='text-embedding-3-small',
@@ -237,14 +240,18 @@ from pgai.vectorizer.configuration import (
     EmbeddingOpenaiConfig,
     ChunkingCharacterTextSplitterConfig,
     FormattingPythonTemplateConfig,
-    LoadingColumnConfig
+    LoadingColumnConfig,
+    DestinationTableConfig
 )
 
 
 def upgrade() -> None:
     op.create_vectorizer(
         source="blog",
-        target_table='blog_embeddings',
+        name="blog_content_embedder",  # Optional custom name for easier reference
+        destination=DestinationTableConfig(
+            destination='blog_embeddings'
+        ),
         loading=LoadingColumnConfig(column_name='content'),
         embedding=EmbeddingOpenaiConfig(
             model='text-embedding-3-small',
@@ -261,7 +268,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_vectorizer(target_table="blog_embeddings", drop_all=True)
+    op.drop_vectorizer(name="blog_content_embedder", drop_all=True)
 ```
 
 The `create_vectorizer` operation supports all configuration options available in the [SQL API](/docs/vectorizer/api-reference.md).
