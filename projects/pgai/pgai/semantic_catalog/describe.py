@@ -156,6 +156,7 @@ async def generate_table_descriptions(
     callback: Callable[[ObjectDescription], None],
     model_settings: ModelSettings | None = None,
     batch_size: int = 5,
+    sample_size: int = 3,
 ) -> Usage:
     def batches():
         for i in range(0, len(oids), batch_size):
@@ -233,7 +234,9 @@ async def generate_table_descriptions(
 
     usage: Usage = Usage()
     for batch in batches():
-        tables: list[Table] = await loader.load_tables(con, batch)
+        tables: list[Table] = await loader.load_tables(
+            con, batch, sample_size=sample_size
+        )
         table_index = {table.objid: table for table in tables}
         rendered: str = render.render_tables(tables)
         prompt = (
@@ -257,6 +260,7 @@ async def generate_view_descriptions(
     callback: Callable[[ObjectDescription], None],
     model_settings: ModelSettings | None = None,
     batch_size: int = 5,
+    sample_size: int = 3,
 ) -> Usage:
     def batches():
         for i in range(0, len(oids), batch_size):
@@ -334,7 +338,7 @@ async def generate_view_descriptions(
 
     usage: Usage = Usage()
     for batch in batches():
-        views: list[View] = await loader.load_views(con, batch)
+        views: list[View] = await loader.load_views(con, batch, sample_size=sample_size)
         view_index = {view.objid: view for view in views}
         rendered: str = render.render_views(views)
         prompt = (
@@ -418,7 +422,7 @@ async def generate_procedure_descriptions(
     return usage
 
 
-async def build(
+async def describe(
     db_url: str,
     model: KnownModelName | Model,
     catalog_name: str,
@@ -432,6 +436,7 @@ async def build(
     include_proc: str | None = None,
     exclude_proc: str | None = None,
     batch_size: int = 5,
+    sample_size: int = 0,
 ) -> Usage:
     def callback(description: ObjectDescription):
         output.write(render.render_description_to_sql(con, catalog_name, description))
@@ -451,6 +456,7 @@ async def build(
             model,
             callback,
             batch_size=batch_size,
+            sample_size=sample_size,
         )
         output.flush()
 
@@ -468,6 +474,7 @@ async def build(
             model,
             callback,
             batch_size=batch_size,
+            sample_size=sample_size,
         )
         output.flush()
 

@@ -1,6 +1,6 @@
 import psycopg
 
-import pgai.semantic_catalog.builder as builder
+import pgai.semantic_catalog.describe as describe
 
 from .utils import PostgresContainer
 
@@ -763,7 +763,6 @@ TIMESCALE_PROCS: set[str] = {
     "timeweightsummary_out",
     "to_epoch",
     "topn",
-    "total",
     "trim_to",
     "uddsketch",
     "uddsketch_combine",
@@ -863,7 +862,7 @@ async def test_find_tables(container: PostgresContainer):
     ) as con:
         for test in tests:
             args, expected = test
-            oids = await builder.find_tables(con, **args)
+            oids = await describe.find_tables(con, **args)
             actual = await get_table_names(con, oids)
             assert actual == expected, f"find_tables with {args} failed"
 
@@ -907,7 +906,7 @@ async def test_find_views(container: PostgresContainer):
     ) as con:
         for test in tests:
             args, expected = test
-            oids = await builder.find_views(con, **args)
+            oids = await describe.find_views(con, **args)
             actual = await get_view_names(con, oids)
             assert actual == expected, f"find_views with {args} failed"
 
@@ -951,6 +950,6 @@ async def test_find_procs(container: PostgresContainer):
     ) as con:
         for test in tests:
             args, expected = test
-            oids = await builder.find_procedures(con, **args)
+            oids = await describe.find_procedures(con, **args)
             actual = await get_proc_names(con, oids)
             assert actual == expected, f"find_procs with {args} failed"

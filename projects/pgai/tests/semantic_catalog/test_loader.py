@@ -1,6 +1,6 @@
 import psycopg
 
-from pgai.semantic_catalog import builder, loader
+from pgai.semantic_catalog import describe, loader
 
 from .utils import PostgresContainer, get_procedure_dict, get_table_dict, get_view_dict
 
@@ -10,7 +10,7 @@ async def test_load_tables(container: PostgresContainer):
         container.connection_string(database="postgres_air")
     ) as con:
         for table_name, expected in get_table_dict().items():
-            oids = await builder.find_tables(con, include_table=f"^{table_name}$")
+            oids = await describe.find_tables(con, include_table=f"^{table_name}$")
             actual = await loader.load_tables(con, oids)
             assert len(actual) == 1
             actual = actual[0]
@@ -29,7 +29,7 @@ async def test_load_views(container: PostgresContainer):
         container.connection_string(database="postgres_air")
     ) as con:
         for view_name, expected in get_view_dict().items():
-            oids = await builder.find_views(con, include_view=f"^{view_name}$")
+            oids = await describe.find_views(con, include_view=f"^{view_name}$")
             assert len(oids) == 1
             actual = await loader.load_views(con, oids)
             assert len(actual) == 1
@@ -49,7 +49,7 @@ async def test_load_procedures(container: PostgresContainer):
         container.connection_string(database="postgres_air")
     ) as con:
         for proc_name, expected in get_procedure_dict().items():
-            oids = await builder.find_procedures(con, include_proc=f"^{proc_name}$")
+            oids = await describe.find_procedures(con, include_proc=f"^{proc_name}$")
             assert len(oids) == 1
             actual = await loader.load_procedures(con, oids)
             assert len(actual) == 1

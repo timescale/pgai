@@ -194,6 +194,7 @@ class SemanticCatalog:
         usage_limits: UsageLimits,
         model_settings: ModelSettings,
         embedding_name: str | None = None,
+        sample_size: int = 3,
     ) -> GenerateSQLResponse:
         if embedding_name is None:
             embeddings = await self.list_embeddings(catalog_con)
@@ -213,6 +214,7 @@ class SemanticCatalog:
             prompt,
             usage_limits,
             model_settings,
+            sample_size=sample_size,
         )
 
 
