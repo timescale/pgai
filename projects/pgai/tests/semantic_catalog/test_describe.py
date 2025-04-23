@@ -1,8 +1,14 @@
+import io
+
 import psycopg
 
+import pgai
+import pgai.semantic_catalog as semantic_catalog
 import pgai.semantic_catalog.describe as describe
 
-from .utils import PostgresContainer
+from .utils import PostgresContainer, load_airports
+
+DATABASE = "sc_02"
 
 EMPTY_SET: set[str] = set()
 
@@ -198,3 +204,62 @@ async def test_find_procs(container: PostgresContainer):
             oids = await describe.find_procedures(con, **args)
             actual = await get_proc_names(con, oids)
             assert actual == expected, f"find_procs with {args} failed"
+
+
+async def test_describe(container: PostgresContainer):
+    expected = {
+        "postgres_air.airport",
+        "postgres_air.airport.airport_code",
+        "postgres_air.airport.airport_name",
+        "postgres_air.airport.city",
+        "postgres_air.airport.airport_tz",
+        "postgres_air.airport.continent",
+        "postgres_air.airport.iso_country",
+        "postgres_air.airport.iso_region",
+        "postgres_air.airport.intnl",
+        "postgres_air.airport.update_ts",
+        "postgres_air.flight_summary",
+        "postgres_air.flight_summary.flight_no",
+        "postgres_air.flight_summary.departure_airport",
+        "postgres_air.flight_summary.arrival_airport",
+        "postgres_air.flight_summary.scheduled_departure",
+        "postgres_air.advance_air_time",
+    }
+    async with (
+        await psycopg.AsyncConnection.connect(
+            container.connection_string(database="postgres_air")
+        ) as con,
+        con.transaction(force_rollback=True) as _,
+    ):
+        await load_airports(con)
+        buf = io.StringIO()
+        _ = await describe.describe(
+            container.connection_string(database="postgres_air"),
+            model="anthropic:claude-3-7-sonnet-latest",
+            catalog_name="default",
+            output=buf,
+            include_schema="postgres_air",
+            include_table="airport",
+            include_view="flight_summary",
+            include_proc="advance_air_time",
+        )
+        script = buf.getvalue().strip()
+    container.drop_database(DATABASE, force=True)
+    container.create_database(DATABASE)
+    pgai.install(container.connection_string(database=DATABASE))
+    async with (
+        await psycopg.AsyncConnection.connect(
+            container.connection_string(database=DATABASE)
+        ) as con,
+        con.cursor() as cur,
+    ):
+        _ = await semantic_catalog.create(con)
+        for stmt in script.split(";"):
+            await cur.execute(stmt)  # pyright: ignore [reportArgumentType]
+        await cur.execute("""\
+            select array_to_string(objnames, '.')
+            from ai.semantic_catalog_obj_1
+            where description is not null
+        """)
+        actual = {row[0] for row in await cur.fetchall()}
+    assert actual == expected
