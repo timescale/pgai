@@ -97,7 +97,6 @@ begin
         )
     )
     loop
-        raise warning $$dropping ('%', '%')$$, _rec.nspname, _rec.relname;
         select format
         ( $sql$alter extension ai drop %s %I.%I$sql$
         , case _rec.relkind
@@ -113,8 +112,8 @@ begin
         execute _sql;
         
         -- The sequence vectorizer_id_seq is linked to the table vectorizer, so we cannot change the owner independently.
-        -- Changing the owner of the table is sufficient.
-        if _rec.relname != 'vectorizer_id_seq' THEN
+        -- Changing the owner of the table is sufficient. also we handle the vectorizer table separately below(see comments).
+        if _rec.relname != 'vectorizer_id_seq' and _rec.relname != 'vectorizer' THEN
             select format
             ( $sql$alter %s %I.%I owner to %I$sql$
             , case _rec.relkind
@@ -130,6 +129,11 @@ begin
             raise notice '%', _sql;
             execute _sql;
         end if;
+        
+        --for the vectorizer table, we need to change the owner to pg_database_owner and then to the db owner
+        --this seems strange, but it's done to reassign the granted options from pg_database_owner to the db owner
+        execute format('alter table ai.vectorizer owner to pg_database_owner');
+        execute format('alter table ai.vectorizer owner to %I', _db_owner_name);
       
         --see if the default acl is set for the db owner and reset to null if so 
         if _rec.relkind in ('r', 'v') then
@@ -157,8 +161,7 @@ begin
     --check the vectorizer_id_seq acl and reset to null if it is the default (do this after the loop so we can see acl after the tables are changed)
     select  c.relacl = 
        array[
-           makeaclitem(to_regrole(_db_owner_name)::oid, to_regrole(_db_owner_name)::oid, 'SELECT, USAGE, UPDATE', TRUE),
-           makeaclitem(to_regrole('pg_database_owner')::oid, to_regrole(_db_owner_name)::oid, 'SELECT, USAGE, UPDATE', TRUE)
+           makeaclitem(to_regrole(_db_owner_name)::oid, to_regrole(_db_owner_name)::oid, 'SELECT, USAGE, UPDATE', TRUE)
         ] 
     into _acl_is_default
     from pg_catalog.pg_class c
@@ -182,19 +185,6 @@ begin
         execute format('revoke grant option for all on ai.vectorizer from %I', _db_owner_name);
     end if;
     
-    --remove pg_database_owner grant on vectorizer entirely if it's the default grant
-    select c.relacl @> 
-           makeaclitem(
-            to_regrole('pg_database_owner')::oid, 
-            to_regrole(_db_owner_name)::oid, 
-            'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER' || _maintain, 
-            TRUE) into _acl_is_default
-    from pg_catalog.pg_class c
-    where c.oid = to_regclass('ai.vectorizer');
-    
-    if _acl_is_default is not null and _acl_is_default then
-        execute format('revoke all on ai.vectorizer from pg_database_owner');
-    end if;
 
 -------------------------------------------------------------------------------
 -- triggers
