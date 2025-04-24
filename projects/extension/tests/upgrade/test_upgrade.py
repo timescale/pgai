@@ -221,6 +221,7 @@ def vacuum_vectorizer_table(dbname: str) -> None:
             if cur.fetchone()[0]:
                 cur.execute("VACUUM FULL ai.vectorizer;")
 
+
 @pytest.mark.parametrize("extension_creator", [USER, "postgres"])
 def test_unpackaged_upgrade(extension_creator):
     """Test upgrading from extension to pgai library for all released versions.
