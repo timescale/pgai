@@ -955,7 +955,7 @@ begin
     , x.id
     ) into strict _sql
     from ai.semantic_catalog x
-    where x.name = _catalog_name
+    where x.catalog_name = _catalog_name
     ;
     execute _sql using
       sql
@@ -993,7 +993,7 @@ begin
     , x.id
     ) into strict _sql
     from ai.semantic_catalog x
-    where x.name = _catalog_name
+    where x.catalog_name = _catalog_name
     ;
     execute _sql using description
     into strict _id;
