@@ -1,6 +1,8 @@
 import io
+import os
 
 import psycopg
+import pytest
 
 import pgai
 import pgai.semantic_catalog as semantic_catalog
@@ -207,6 +209,8 @@ async def test_find_procs(container: PostgresContainer):
 
 
 async def test_describe(container: PostgresContainer):
+    if "ANTHROPTIC_API_KEY" not in os.environ:
+        pytest.skip("No anthroptic api key provided")
     expected = {
         "postgres_air.airport",
         "postgres_air.airport.airport_code",
