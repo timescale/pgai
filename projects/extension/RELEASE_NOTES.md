@@ -1,6 +1,14 @@
 
 # Pgai extension release notes
 
+## 0.10.1 (2025-04-24)
+
+Patch release to fix cloud extension update issues when using the `postgres` user.
+
+### Fixes
+
+- fix cloud extension update issues when using the `postgres` user (#647) ([ad46c71](https://github.com/timescale/pgai/commit/ad46c71))
+
 ## 0.10.0 (2025-04-23)
 
 This release contains a major breaking change. The vectorizer code has been
