@@ -69,8 +69,8 @@ def create_database(dbname: str) -> None:
             cur.execute(f"create database {dbname} with owner {USER}")
 
 
-def create_extension(dbname: str, version: str) -> None:
-    with psycopg.connect(db_url(user=USER, dbname=dbname), autocommit=True) as con:
+def create_extension(dbname: str, version: str, user: str = USER) -> None:
+    with psycopg.connect(db_url(user=user, dbname=dbname), autocommit=True) as con:
         with con.cursor() as cur:
             cur.execute(f"create extension ai version '{version}' cascade")
 
@@ -221,8 +221,8 @@ def vacuum_vectorizer_table(dbname: str) -> None:
             if cur.fetchone()[0]:
                 cur.execute("VACUUM FULL ai.vectorizer;")
 
-
-def test_unpackaged_upgrade():
+@pytest.mark.parametrize("extension_creator", [USER, "postgres"])
+def test_unpackaged_upgrade(extension_creator):
     """Test upgrading from extension to pgai library for all released versions.
 
     This test verifies that the vectorizer functionality can correctly transition
@@ -265,7 +265,7 @@ def test_unpackaged_upgrade():
         create_database(test_db)
 
         # Install the old extension version
-        create_extension(test_db, version)
+        create_extension(test_db, version, user=extension_creator)
         assert check_version(test_db) == version
         installed_lib = False
         if semver.VersionInfo.parse(version) < semver.VersionInfo.parse("0.10.0"):
