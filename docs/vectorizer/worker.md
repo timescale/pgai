@@ -1,53 +1,124 @@
 
 # Run vectorizers using pgai vectorizer worker
 
-When you install pgai on Timescale Cloud or another cloud installation, you use 
-scheduling to control the times when vectorizers are run. A scheduled job detects whether work is to be done for the 
-vectorizers. If there is, the job runs the cloud function to embed the data.
+When you install pgai on Timescale Cloud, the vectorizer worker is automatically activated and run on a schedule
+so you don't need to do anything (more details are available in [this section](#details-about-the-vectorizer-worker-deployment-on-timescale-cloud) below).
 
-Note: Timescale Cloud currently supports embedding natively with OpenAI. To use Ollama on the data in your Timescale Cloud service, set [scheduling => ai.scheduling_none()](/docs/vectorizer/api-reference.md#scheduling-configuration) in the configuration for your service, then [install the vectorizer worker locally](/docs/vectorizer/worker.md#install-and-configure-vectorizer-worker) and configure it to connect to your Timescale Cloud service.
+When you use pgai vectorizers on a self-hosted Postgres installation or another cloud provider other than Timescale Cloud, you have to run the vectorizer worker yourself. The vectorizer worker will connect to your database and process the vectorizers you have defined. You can run the vectorizer:
+- Through the pgai CLI tool as `pgai vectorizer worker` (see [instructions below](#running-a-vectorizer-worker-as-a-cli-tool))
+- Integrating the vectorizer worker as a background process into your own python application (see [instructions below](#running-a-vectorizer-worker-in-your-own-application))
+- Using the vectorizer worker Docker image (see [instructions below](#running-a-vectorizer-worker-with-docker))
+- In a Docker Compose configuration (see [instructions below](#running-a-vectorizer-worker-with-docker-compose))
 
-When you have [defined vectorizers](/docs/vectorizer/overview.md#define-a-vectorizer) on a self-hosted Postgres installation or on another cloud provider other than Timescale Cloud, you 
-use vectorizer worker to asynchronously processes them. By default, when you run `pgai vectorizer worker`, it 
-loops over the vectorizers defined in your database and processes each vectorizer in turn.
 
-This page shows you how to install, run, and manage the workers that run vectorizers in your database:
+# Running a vectorizer worker as a CLI tool
 
-- [Install and configure vectorizer worker](#install-and-configure-vectorizer-worker): setup the environment
-  to securely run vectorizers defined in a self-hosted Postgres environment
-- [Run vectorizers with vectorizer worker](#run-vectorizers-with-vectorizer-worker): run specific
-  vectorizers in your database as either single, parallel or concurrent tasks
-- [Set the time between vectorizer worker runs](#set-the-time-between-vectorizer-worker-runs): manage run scheduling
-- [Additional configuration via environment variables](#additional-configuration-via-environment-variables) an overview of the environment variables and their purpose
+**Prerequisites**: [Python3][python3] and [pip][pip]
 
-## Prerequisites
 
-To run vectorizer workers, you need to:
+1. **Install [pgai](https://pypi.org/project/pgai/) from PyPI**
 
-* Install:
-  * Container environment: [Docker][docker]
-  * Local environment: [Python3][python3] and [pip][pip]
-  * All environments: A Postgres client like [psql][psql]
-* Create a key for your AI provider:
-  * [OpenAI][openai-key]
-  * [Voyage AI][voyage-key]
+   ```shell
+   pip install pgai
+   ```
 
-## Install and configure vectorizer worker
+   The `pgai` command line tool should now be in your `$PATH`.
+   
+1. **Create a .env file**
 
-To be able to run vectorizers in your self-hosted database, use one of the following setups:
+   [Configure](#setting-api-keys-through-environment-variables-or-env-file) the API keys for your embedding providers by adding them to a `.env` file. For example, if you are using OpenAI, you can add the following:
 
-- [End-to-end vectorizer worker with Docker Compose](#end-to-end-vectorizer-worker-with-docker-compose): a Docker Compose configuration with a database instance and pgai vectorizer worker
-- [Standalone vectorizer worker with Docker](#standalone-vectorizer-worker-with-docker): a Docker image you use to run vectorizers on any self-hosted Postgres database with the pgai
-   extension activated
-- [Install vectorizer worker as a python package](#install-vectorizer-worker-as-a-python-package): install pgai as a python package so you can run vectorizers on any self-hosted
-  Postgres database with the pgai extension activated
+   ```
+   OPENAI_API_KEY=<your-openai-api-key>
+   ```
+   
+   Alternatively, you can set the API key through an environment variable, but this is less secure.
 
-### End-to-end vectorizer worker with Docker Compose
+1. **Run the vectorizer worker**
 
-The end-to-end vectorizer worker is a batteries-included Docker Compose
-configuration which you use to test pgai, vectorizers and vectorizer worker
-locally. It includes a:
-- local Postgres instance with pgai installed,
+    After you [define a vectorizer in your database](/docs/vectorizer.md#define-a-vectorizer), you run 
+    a vectorizer worker to generate and update your embeddings:
+    
+    ```shell
+    pgai vectorizer worker -d <db-connection-string>
+    ```
+
+For more configuration options, see [Advanced configuration options](#advanced-configuration-options) below.
+
+# Running a vectorizer worker in your own application 
+
+ **Prerequisites**: [Python3][python3] and [pip][pip]
+
+1. Add the pgai package dependency to your project
+
+   ```shell
+   pip install pgai
+   ```
+   or add `pgai` to the dependencies in your `requirements.txt` file, `pyproject.toml`, or similar configuration file.
+
+2. Add the vectorizer worker to run in the background of your application
+
+   ```python
+   from pgai import Worker
+
+   worker = Worker(db_url=<your-database-connection-string>)
+   task = asyncio.run(worker.run())
+   ```
+
+   You can then shutdown the worker gracefully when your application shuts down:
+
+   ```python
+    
+    await worker.request_graceful_shutdown()
+    try:
+        result = await asyncio.wait_for(task, timeout=20)
+        if result is not None:
+            print("Worker shutdown with exception:", result)
+        else:
+            print("Worker shutdown successfully")
+    except asyncio.TimeoutError:
+        print("Worker did not shutdown in time, it was killed")
+   ```
+   
+3. Make sure you add the API keys for your embedding providers to the environment variables when you run 
+  your application. 
+  
+    We recommend using a `.env` file to set the API key and then load the `.env` file using the `load_dotenv` function from the `python-dotenv` package.
+    
+    Alternatively, you can set the API key through an environment variable.
+    
+4. Run your application
+
+For more configuration options, see [Advanced configuration options](#advanced-configuration-options) below.
+
+# Running a vectorizer worker with Docker
+
+**Prerequisites**:  [Docker][docker]
+
+1. **Create a .env file**
+
+    [Configure](#setting-api-keys-through-environment-variables-or-env-file) the API keys for your embedding providers by adding them to a `.env` file. For example, if you are using OpenAI, you can add the following:
+
+   ```
+   OPENAI_API_KEY=<your-openai-api-key>
+   ```
+   
+   Alternatively, you can set the API key by passing it as an environment variable in the `docker run` command below, but this is less secure.
+
+1. **Run the vectorizer worker**
+  
+    After you [define a vectorizer in your database](/docs/vectorizer.md#define-a-vectorizer), you run a vectorizer worker to generate and update your embeddings.
+
+    ```
+    docker run --env-file=.env timescale/pgai-vectorizer-worker:{tag version} --db-url <DB URL>
+    ```
+
+For more configuration options, see [Advanced configuration options](#advanced-configuration-options) below.
+
+# Running a vectorizer worker with Docker Compose
+
+Below is an end-to-end batteries-included Docker Compose configuration which you can use to test pgai vectorizers and and the vectorizer worker locally. It includes a:
+- local Postgres instance,
 - Ollama embedding API service
 - pgai vectorizer worker
 
@@ -87,59 +158,64 @@ On your local machine:
    - Docker: `docker compose exec -it db psql`
    - psql:  `psql postgres://postgres:postgres@localhost:5432/postgres`
 
-### Standalone vectorizer worker with Docker
+For more configuration options, see [Advanced configuration options](#advanced-configuration-options) below.
 
-The `timescale/pgai-vectorizer-worker` docker image supplies the pgai vectorizer worker.
-You use this image to run vectorizers on any self-hosted Postgres database that has the
-pgai extension activated.
+# Configure the vectorizer worker
 
-On your local machine:
+Most users of the vectorizer worker will need to set the following configuration options:
 
-1. **Run the vectorizer worker**
+- [Setting the database connection string](#setting-the-database-connection-string)
+- [Setting API keys for embedding providers through environment variables (or .env file)](#setting-api-keys-through-environment-variables-or-env-file)
 
-   For self-hosted, you run a pgai vectorizer worker to automatically create embedding from the data in your
-   database using [vectorizers you defined previously](/docs/vectorizer.md#define-a-vectorizer).
+Other, advanced configuration options are available, see [Advanced configuration options](#advanced-configuration-options) below.
 
-   Start the vectorizer worker:
-   ```
-   docker run timescale/pgai-vectorizer-worker:{tag version} --db-url <DB URL>
-   ```
+## Setting the database connection string
 
-### Install vectorizer worker as a python package
+The vectorizer worker needs to know how to connect to your database. You can do this by setting the `-d` command line argument or the `PGAI_VECTORIZER_WORKER_DB_URL` environment variable.
 
-On your local machine:
+For example, if you are using a local Postgres database, you can set the database connection string as follows:
 
-1. **Install [pgai](https://pypi.org/project/pgai/) from PyPI**
+```
+pgai vectorizer worker -d postgres://postgres:postgres@localhost:5432/postgres
+```
 
-   ```shell
-   pip install pgai
-   ```
 
-   The vectorizer worker, `pgai vectorizer worker` is now in your `$PATH`.
+## Setting API keys through environment variables (or .env file)
 
-1. **Run the vectorizer worker**
+If you are using an embedding provider that requires an API key (which most do),
+you can set the API key through an environment variable or a .env file. We recommend
+using a .env file to set the API key.
 
-    After you [define a vectorizer in your database](/docs/vectorizer.md#define-a-vectorizer), you run 
-    a vectorizer worker to generate and update your embeddings:
+For example, if you are using OpenAI, you can set the API key in a .env file as follows:
 
-    1. Configure environment variables if necessary (see [Additional configuration via environment variables](#additional-configuration-via-environment-variables))
-       for a list of the available environment variables.
+```
+OPENAI_API_KEY=<your-openai-api-key>
+```
 
-    1. Run the vectorizer worker:
+Or you can set the API key through an environment variable:
 
-       ```shell
-       pgai vectorizer worker -d <db-connection-string>
-       ```
+```
+export OPENAI_API_KEY=<your-openai-api-key>
+```
 
-## Run vectorizers with vectorizer worker
 
-By default, when you run a vectorizer worker, it loops over the vectorizers defined in 
-your database and processes each vectorizer in turn. Five minutes after completing each 
-vectorizer run, the vectorizer worker loops over the vectorizers again. 
-For a [local installation](#install-vectorizer-worker-in-your-local-environment-), you use the 
-`-i` / `--vectorizer-id` command line argument to manage which vectorizers that are run by that
-worker instance. For `docker compose` you add arguments using either the `command` or `environment`
-flags in `compose.yaml`.
+## Advanced configuration options
+
+Most users of the vectorizer worker will be happy with the default configuration for all other options.
+But, if you need to, you can control the following:
+
+- The vectorizer ids that are processed by the vectorizer worker ([section below](#control-which-vectorizers-are-processed))
+- The time between vectorizer worker runs ([section below](#set-the-time-between-vectorizer-worker-runs))
+- The number of asynchronous tasks running in a vectorizer worker ([section below](#set-the-number-of-asynchronous-tasks-running-in-a-vectorizer-worker))
+- Whether to run the vectorizer worker once and then exit ([section below](#run-the-vectorizer-worker-once-and-then-exit))
+
+
+### Control which vectorizers are processed
+
+If you want to run a vectorizer worker that only processes a subset of the vectorizers in your database,
+you can do so by specifying the vectorizer ids you want to process. You can do this by using the 
+`-i` / `--vectorizer-id` command line argument. 
+
 
 A vectorizer worker can:
 
@@ -197,7 +273,7 @@ A vectorizer worker can:
 
 You find the vectorizer ids in the `ai.vectorizer` table.
 
-## Set the time between vectorizer worker runs
+### Set the time between vectorizer worker runs
 
 When you run a vectorizer worker, it loops over the vectorizers defined in your database.
 Each vectorizer worker processes vectorizer queue until it is empty. By 
@@ -223,14 +299,8 @@ in the `--poll-interval` parameter:
   - local: `pgai vectorizer worker --poll-interval=900`
   - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --poll-interval=900`
   - Docker Compose: `command: ["--poll-interval", "900"]`
-
-- Run once and then exit: 
-
-  - local: `pgai vectorizer worker --once`
-  - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --once`
-  - Docker Compose: `command: ["--once"]`
-
-  This is useful if you want to run the vectorizer worker on a cron job.
+  
+You can also make the vectorizer worker run only once by setting the `--once` flag. See [Run the vectorizer worker once and then exit](#run-the-vectorizer-worker-once-and-then-exit) for more details.
 
 ### Set the number of asynchronous tasks running in a vectorizer worker
 
@@ -241,18 +311,30 @@ multiple asynchronous tasks to process a queue:
 - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -c 3`
 - Docker Compose: `command: ["-c", "3"]`
 
-## Additional configuration via environment variables
+### Run the vectorizer worker once and then exit
 
-Some important internals of the vectorizer worker are configured through
-the following environment variables.
+You can run the vectorizer worker once and then exit by using the `--once` flag. This is useful for debugging or if you want to run the vectorizer worker in a cron job.
 
-| Environment Variable                        | Default                | Purpose                                                                                                                         |
-|---------------------------------------------|------------------------|---------------------------------------------------------------------------------------------------------------------------------|
-| PGAI_VECTORIZER_WORKER_DB_URL               | -                      | Configures the database url that the vectorizer worker uses to procesa vectorizers.                                             |
-| OPENAI_API_KEY                              | -                      | The API key that the vectorizer worker uses to authenticate against the OpenAI API. Can also be provided on the db instance.    |
-| VOYAGE_API_KEY                              | -                      | The API key that the vectorizer worker uses to authenticate against the Voyage AI API. Can also be provided on the db instance. |
-| OLLAMA_HOST                                 | http://localhost:11434 | The host to use when communicating with the Ollama API.                                                                         |
-| PGAI_VECTORIZER_OLLAMA_MAX_CHUNKS_PER_BATCH | 2048                   | Configures the number of chunks of data embedded in one Ollama API call, defaults to 2048                                       |
+- local: `pgai vectorizer worker --once`
+- Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --once`
+- Docker Compose: `command: ["--once"]`
+                                  |
+
+
+# Details about the vectorizer worker deployment on Timescale Cloud
+
+When you deploy a pgai vectorizer on Timescale Cloud, the vectorizer worker is automatically activated and run on a schedule.
+The scheduled job detects whether work is to be done for the vectorizers. If there is, the job runs the cloud function to embed the data.
+
+There are some instances in which you might want to run the vectorizer worker manually and disable the cloud function from running. You can do this by setting
+[scheduling => ai.scheduling_none()](/docs/vectorizer/api-reference.md#scheduling-configuration) in the configuration for your vectorizer. Then you can run the 
+vectorizer worker manually using the `pgai vectorizer worker` command or any other method discussed above.
+
+> [!NOTE]
+> Timescale Cloud currently does not support Ollama. To use Ollama on the data in your Timescale Cloud 
+> service you need to disable the cloud function and run the vectorizer worker yourself.
+
+
 
 
 [python3]: https://www.python.org/downloads/
