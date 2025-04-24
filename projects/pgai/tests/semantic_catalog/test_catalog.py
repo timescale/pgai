@@ -193,3 +193,29 @@ async def test_semantic_catalog(container: PostgresContainer):
             assert row is not None
             actual: int = int(row["actual"])
             assert actual == 3
+
+
+async def test_semantic_catalog_getters(container: PostgresContainer):
+    async with (
+        await psycopg.AsyncConnection.connect(
+            container.connection_string(database=DATABASE)
+        ) as con,
+        con.transaction(force_rollback=True) as _,
+    ):
+        cat1 = await sc.create(con, catalog_name="butch1")
+        assert cat1.name == "butch1"
+        cat2 = await sc.create(con, catalog_name="butch2")
+        assert cat2.name == "butch2"
+        cat3 = await sc.create(con, catalog_name="butch3")
+        assert cat3.name == "butch3"
+        actual = await sc.from_name(con, "butch2")
+        assert actual.name == "butch2"
+        assert actual.id == cat2.id
+        actual = await sc.from_id(con, cat3.id)
+        assert actual.name == "butch3"
+        assert actual.id == cat3.id
+        actuals = await sc.list_semantic_catalogs(con)
+        assert len(actuals) >= 3
+        assert "butch1" in {c.name for c in actuals}
+        assert "butch2" in {c.name for c in actuals}
+        assert "butch3" in {c.name for c in actuals}

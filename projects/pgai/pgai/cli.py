@@ -455,6 +455,77 @@ def vectorize(
     type=click.STRING,
     default="postgres://postgres@localhost:5432/postgres",
     show_default=True,
+    help="The connection URL to the database the semantic catalog is in.",
+)
+@click.option(
+    "-f",
+    "--sql-file",
+    type=click.Path(exists=True, dir_okay=False, resolve_path=True, path_type=Path),
+    default=None,
+    help="The path to a sql file containing descriptions.",
+)
+@click.option(
+    "-n",
+    "--catalog-name",
+    type=click.STRING,
+    default="default",
+    help="The name of the semantic catalog to generate embeddings for.",  # noqa: E501
+)
+@click.option(
+    "-e",
+    "--embed-config",
+    type=click.STRING,
+    default=None,
+    help="The name of the embedding configuration to generate embeddings for. (If None, do all)",  # noqa: E501
+)
+@click.option(
+    "-b",
+    "--batch-size",
+    type=click.INT,
+    default=None,
+    help="The number of embeddings to generate per batch.",
+)
+def load(
+    db_url: str,
+    sql_file: Path,
+    catalog_name: str | None,
+    embed_config: str | None,
+    batch_size: int | None = None,
+) -> None:
+    catalog_name = catalog_name or "default"
+    batch_size = batch_size if batch_size is not None else 32
+    assert sql_file and sql_file.exists() and sql_file.is_file(), "invalid sql file"
+
+    script = sql_file.read_text()
+
+    async def do():
+        from pgai.semantic_catalog import from_name
+
+        async with await psycopg.AsyncConnection.connect(db_url) as con:
+            async with con.cursor() as cur:
+                await cur.execute(script)  # pyright: ignore [reportArgumentType]
+            sc = await from_name(con, catalog_name)
+            match embed_config:
+                case None:
+                    await sc.vectorize_all(con, batch_size=batch_size)
+                case _:
+                    config = await sc.get_embedding(con, embed_config)
+                    if config is None:
+                        raise ValueError(
+                            f"No embedding configuration found for {catalog_name}"
+                        )
+                    await sc.vectorize(con, embed_config, config, batch_size=batch_size)
+
+    asyncio.run(do())
+
+
+@semantic_catalog.command()
+@click.option(
+    "-d",
+    "--db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
     help="The connection URL to the database the database to generate sql for.",
 )
 @click.option(
