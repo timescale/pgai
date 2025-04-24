@@ -1,8 +1,20 @@
+# Running on Timescale Cloud
+When you install pgai on **Timescale Cloud**, the vectorizer worker is automatically activated and run on a schedule
+so you don't need to do anything, everything just works out of the box.
 
-# Run vectorizers using pgai vectorizer worker
+**How it works**: When you deploy a pgai vectorizer on Timescale Cloud, the vectorizer worker is automatically activated and run on a schedule.
+The scheduled job detects whether work is to be done for the vectorizers. If there is, the job runs the cloud function to embed the data.
 
-When you install pgai on Timescale Cloud, the vectorizer worker is automatically activated and run on a schedule
-so you don't need to do anything (more details are available in [this section](#details-about-the-vectorizer-worker-deployment-on-timescale-cloud) below).
+**Disable the cloud function**: There are some instances in which you might want to run the vectorizer worker manually and disable the cloud function from running. You can do this by setting
+[scheduling => ai.scheduling_none()](/docs/vectorizer/api-reference.md#scheduling-configuration) in the configuration for your vectorizer. Then you can run the 
+vectorizer worker manually using the `pgai vectorizer worker` command or any other method discussed above.
+
+> [!NOTE]
+> Timescale Cloud currently does not support Ollama. To use Ollama on the data in your Timescale Cloud 
+> service you need to disable the cloud function and run the vectorizer worker yourself.
+
+
+# Running on self-hosted Postgres or other platforms
 
 When you use pgai vectorizers on a self-hosted Postgres installation or another cloud provider other than Timescale Cloud, you have to run the vectorizer worker yourself. The vectorizer worker will connect to your database and process the vectorizers you have defined. You can run the vectorizer:
 - Through the pgai CLI tool as `pgai vectorizer worker` (see [instructions below](#running-a-vectorizer-worker-as-a-cli-tool))
@@ -11,7 +23,7 @@ When you use pgai vectorizers on a self-hosted Postgres installation or another 
 - In a Docker Compose configuration (see [instructions below](#running-a-vectorizer-worker-with-docker-compose))
 
 
-# Running a vectorizer worker as a CLI tool
+## Running a vectorizer worker as a CLI tool
 
 **Prerequisites**: [Python3][python3] and [pip][pip]
 
@@ -45,7 +57,7 @@ When you use pgai vectorizers on a self-hosted Postgres installation or another 
 
 For more configuration options, see [Advanced configuration options](#advanced-configuration-options) below.
 
-# Running a vectorizer worker in your own application 
+## Running a vectorizer worker in your own application 
 
  **Prerequisites**: [Python3][python3] and [pip][pip]
 
@@ -91,7 +103,7 @@ For more configuration options, see [Advanced configuration options](#advanced-c
 
 For more configuration options, see [Advanced configuration options](#advanced-configuration-options) below.
 
-# Running a vectorizer worker with Docker
+## Running a vectorizer worker with Docker
 
 **Prerequisites**:  [Docker][docker]
 
@@ -115,7 +127,7 @@ For more configuration options, see [Advanced configuration options](#advanced-c
 
 For more configuration options, see [Advanced configuration options](#advanced-configuration-options) below.
 
-# Running a vectorizer worker with Docker Compose
+## Running a vectorizer worker with Docker Compose
 
 Below is an end-to-end batteries-included Docker Compose configuration which you can use to test pgai vectorizers and and the vectorizer worker locally. It includes a:
 - local Postgres instance,
@@ -209,6 +221,16 @@ But, if you need to, you can control the following:
 - The number of asynchronous tasks running in a vectorizer worker ([section below](#set-the-number-of-asynchronous-tasks-running-in-a-vectorizer-worker))
 - Whether to run the vectorizer worker once and then exit ([section below](#run-the-vectorizer-worker-once-and-then-exit))
 
+All of these options can be set through the command line arguments, environment variables, or through an argument to the `Worker` 
+class constructor in the `pgai` Python package.
+
+| Option | Command line argument | Environment variable | `Worker` class constructor argument |
+|--------|-----------------------|--------------------|-------------------------------------|
+| Control which vectorizers are processed | `-i` / `--vectorizer-id` | `PGAI_VECTORIZER_WORKER_VECTORIZER_IDS` | `vectorizer_ids` |
+| Set the time between vectorizer worker runs | `--poll-interval` | `PGAI_VECTORIZER_WORKER_POLL_INTERVAL` | `poll_interval` |
+| Set the number of asynchronous tasks running in a vectorizer worker | `-c` / `--concurrency` | `PGAI_VECTORIZER_WORKER_CONCURRENCY` | `concurrency` |
+| Run the vectorizer worker once and then exit | `--once` | `PGAI_VECTORIZER_WORKER_ONCE` | `once` |
+
 
 ### Control which vectorizers are processed
 
@@ -222,21 +244,24 @@ A vectorizer worker can:
 - Run all vectorizers:
 
   To run all current and future vectorizers:
-  - local: `pgai vectorizer worker`
+  - cli: `pgai vectorizer worker`
+  - python: `worker = Worker(db_url=<your-database-connection-string>)`
   - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version}`
   - Docker Compose: `command: []`
 
 - Run a single vectorizer:
 
   To run the vectorizer with id 42:
-  - local: `pgai vectorizer worker -i 42`
+  - cli: `pgai vectorizer worker -i 42`
+  - python: `worker = Worker(db_url=<your-database-connection-string>, vectorizer_ids=[42])`
   - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 42`
   - Docker Compose: `command: ["-i", "42"]`
 
 - Run multiple specific vectorizers: 
 
   To run the vectorizers with ids `42`, `64`, and `8`:
-  - local: `pgai vectorizer worker -i 42 -i 64 -i 8`
+  - cli: `pgai vectorizer worker -i 42 -i 64 -i 8`
+  - python: `worker = Worker(db_url=<your-database-connection-string>, vectorizer_ids=[42, 64, 8])`
   - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 42 -i 64 -i 8`
   - Docker Compose: `command: ["-i", "42", "-i", "64", "-i", "8"]`
 
@@ -244,13 +269,15 @@ A vectorizer worker can:
 
   To run the vectorizers with id `42` and `64` in different vectorizer workers:
   1. In a first shell, run:
-     - local: `pgai vectorizer worker -i 42`
+     - cli: `pgai vectorizer worker -i 42`
+     - python: `worker = Worker(db_url=<your-database-connection-string>, vectorizer_ids=[42])`
      - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version}  -i 42`
      - Docker Compose: `command: ["-i", "42"]`
 
   1. In another shell, run: 
 
-     - local: `pgai vectorizer worker -i 64`
+     - cli: `pgai vectorizer worker -i 64`
+     - python: `worker = Worker(db_url=<your-database-connection-string>, vectorizer_ids=[64])`
      - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 64`
      - Docker Compose: `command: ["-i", "64"]`
 
@@ -261,13 +288,15 @@ A vectorizer worker can:
 
   1. In a first shell, run:
 
-     - local: `pgai vectorizer worker -i 42`
+     - cli: `pgai vectorizer worker -i 42`
+     - python: `worker = Worker(db_url=<your-database-connection-string>, vectorizer_ids=[42])`
      - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 42`
      - Docker Compose: `command: ["-i", "42"]`
 
   1. In another shell, run:
 
-     - local: `pgai vectorizer worker -i 42`
+     - cli: `pgai vectorizer worker -i 42`
+     - python: `worker = Worker(db_url=<your-database-connection-string>, vectorizer_ids=[42])`
      - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 42`
      - Docker Compose: `command: ["-i", "42"]`
 
@@ -284,19 +313,22 @@ in the `--poll-interval` parameter:
 
 - Run every hour:
 
-  - local: `pgai vectorizer worker --poll-interval=1h`
+  - cli: `pgai vectorizer worker --poll-interval=1h`
+  - python: `worker = Worker(db_url=<your-database-connection-string>, poll_interval=timedelta(hours=1))`
   - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --poll-interval=1h`
   - Docker Compose: `command: ["--poll-interval", "1h"]`
 
 - Run every 45 minutes:
 
-  - local: `pgai vectorizer worker --poll-interval=45m`
+  - cli: `pgai vectorizer worker --poll-interval=45m`
+  - python: `worker = Worker(db_url=<your-database-connection-string>, poll_interval=timedelta(minutes=45))`
   - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --poll-interval=45m`
   - Docker Compose: `command: ["--poll-interval", "45m"]`
 
 - Run every 900 seconds:
 
-  - local: `pgai vectorizer worker --poll-interval=900`
+  - cli: `pgai vectorizer worker --poll-interval=900`
+  - python: `worker = Worker(db_url=<your-database-connection-string>, poll_interval=timedelta(seconds=900))`
   - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --poll-interval=900`
   - Docker Compose: `command: ["--poll-interval", "900"]`
   
@@ -307,7 +339,8 @@ You can also make the vectorizer worker run only once by setting the `--once` fl
 Use the `-c` / `--concurrency` option to cause the vectorizer worker to use 
 multiple asynchronous tasks to process a queue:
 
-- local: `pgai vectorizer worker -c 3`
+- cli: `pgai vectorizer worker -c 3`
+- python: `worker = Worker(db_url=<your-database-connection-string>, concurrency=3)`
 - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -c 3`
 - Docker Compose: `command: ["-c", "3"]`
 
@@ -315,26 +348,11 @@ multiple asynchronous tasks to process a queue:
 
 You can run the vectorizer worker once and then exit by using the `--once` flag. This is useful for debugging or if you want to run the vectorizer worker in a cron job.
 
-- local: `pgai vectorizer worker --once`
+- cli: `pgai vectorizer worker --once`
+- python: `worker = Worker(db_url=<your-database-connection-string>, once=True)`
 - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --once`
 - Docker Compose: `command: ["--once"]`
                                   |
-
-
-# Details about the vectorizer worker deployment on Timescale Cloud
-
-When you deploy a pgai vectorizer on Timescale Cloud, the vectorizer worker is automatically activated and run on a schedule.
-The scheduled job detects whether work is to be done for the vectorizers. If there is, the job runs the cloud function to embed the data.
-
-There are some instances in which you might want to run the vectorizer worker manually and disable the cloud function from running. You can do this by setting
-[scheduling => ai.scheduling_none()](/docs/vectorizer/api-reference.md#scheduling-configuration) in the configuration for your vectorizer. Then you can run the 
-vectorizer worker manually using the `pgai vectorizer worker` command or any other method discussed above.
-
-> [!NOTE]
-> Timescale Cloud currently does not support Ollama. To use Ollama on the data in your Timescale Cloud 
-> service you need to disable the cloud function and run the vectorizer worker yourself.
-
-
 
 
 [python3]: https://www.python.org/downloads/
