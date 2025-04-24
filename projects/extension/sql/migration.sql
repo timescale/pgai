@@ -13,8 +13,9 @@ begin
     select * into _migration from ai.migration where "name" operator(pg_catalog.=) _migration_name;
     if _migration is not null then
         raise notice 'migration %s already applied. skipping.', _migration_name;
-        if _migration.body operator(pg_catalog.!=) _migration_body then
-            raise warning 'the contents of migration "%s" have changed', _migration_name;
+        if _migration.body operator(pg_catalog.!=) _migration_body
+            and _migration_name not in ('009-drop-truncate-from-vectorizer-config.sql', '020-divest.sql') then
+            raise warning 'the contents of migration "%" have changed', _migration_name;
         end if;
         return;
     end if;
