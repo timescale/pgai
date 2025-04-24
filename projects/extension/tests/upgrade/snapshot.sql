@@ -76,7 +76,9 @@ where name not in (
  '006-drop-vectorizer.sql', 
  '012-add-vectorizer-disabled-column.sql',
  '017-upgrade-source-pk.sql',
- '018-drop-foreign-key-constraint.sql')
+ '018-drop-foreign-key-constraint.sql',
+ '020-divest.sql'
+ )
 order by applied_at
 ;
 
