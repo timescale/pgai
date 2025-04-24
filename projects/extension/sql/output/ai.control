@@ -1,6 +1,6 @@
 # pgai extension
 comment='helper functions for ai workflows'
-default_version='0.10.1-dev'
+default_version='0.10.1'
 requires='vector,plpython3u'
 relocatable=false
 schema=ai
