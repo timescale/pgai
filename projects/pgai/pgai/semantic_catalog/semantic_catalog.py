@@ -287,7 +287,16 @@ async def from_name(con: CatalogConnection, catalog_name: str) -> SemanticCatalo
         return SemanticCatalog(row["id"], row["catalog_name"])
 
 
-# TODO: list semantic catalogs
+async def list_semantic_catalogs(con: CatalogConnection) -> list[SemanticCatalog]:
+    async with con.cursor(row_factory=dict_row) as cur:
+        await cur.execute("""\
+            select id, catalog_name
+            from ai.semantic_catalog
+        """)
+        results: list[SemanticCatalog] = []
+        for row in await cur.fetchall():
+            results.append(SemanticCatalog(row["id"], row["catalog_name"]))
+        return results
 
 
 async def create(
