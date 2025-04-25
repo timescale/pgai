@@ -905,6 +905,21 @@ class Executor:
 
             return len(items)
 
+    @cached_property
+    def _batch_size(self) -> int:
+        """Returns the batch size for processing.
+        Documents take way longer to process than simple text rows,
+        due to download and parsing overhead.
+        So when the vectorizer is processing documents
+        we use a smaller default batch size."""
+        if self.vectorizer.config.processing.batch_size is not None:
+            return max(1, min(self.vectorizer.config.processing.batch_size, 2048))
+        else:
+            if isinstance(self.vectorizer.config.loading, UriLoading):
+                return 1
+            else:
+                return 50
+
     async def _fetch_work(self, conn: AsyncConnection) -> list[SourceRow]:
         """
         Fetches a batch of tasks from the work queue table. Safe for concurrent use.
@@ -924,7 +939,7 @@ class Executor:
                 await cursor.execute(
                     self.queries.fetch_work_query_with_retries,
                     (
-                        self.vectorizer.config.processing.batch_size,
+                        self._batch_size,
                         queue_table_oid,
                     ),
                 )
@@ -932,7 +947,7 @@ class Executor:
                 await cursor.execute(
                     self.queries.fetch_work_query,
                     (
-                        self.vectorizer.config.processing.batch_size,
+                        self._batch_size,
                         queue_table_oid,
                     ),
                 )
