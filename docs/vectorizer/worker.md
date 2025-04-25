@@ -74,7 +74,7 @@ For more configuration options, see [Advanced configuration options](#advanced-c
    from pgai import Worker
 
    worker = Worker(db_url=<your-database-connection-string>)
-   task = asyncio.run(worker.run())
+   task = asyncio.create_task(worker.run())
    ```
 
    You can then shutdown the worker gracefully when your application shuts down:
