@@ -119,8 +119,8 @@ SELECT ai.create_vectorizer(
    'blog'::regclass,
    name => 'blog_embeddings',  -- Optional custom name for easier reference
    loading => ai.loading_column('contents'),
-   destination => ai.destination_table('blog_contents_embeddings'),
-   embedding => ai.embedding_ollama('nomic-embed-text', 768)
+   embedding => ai.embedding_ollama('nomic-embed-text', 768),
+   destination => ai.destination_table('blog_contents_embeddings')
 );
 ```
 
@@ -151,9 +151,9 @@ into each chunk:
 SELECT ai.create_vectorizer(   
     'blog'::regclass,
     loading => ai.loading_column('contents'),
-    destination => ai.destination_table('blog_contents_embeddings'),
     embedding => ai.embedding_ollama('nomic-embed-text', 768),
-    formatting => ai.formatting_python_template('$title: $chunk')
+    formatting => ai.formatting_python_template('$title: $chunk'),
+    destination => ai.destination_table('blog_contents_embeddings')
 );
 ```
 
@@ -285,9 +285,9 @@ accordingly:
 SELECT ai.create_vectorizer(
     'blog'::regclass,
     loading => ai.loading_column('contents'),
-    destination => ai.destination_table('blog_contents_embeddings'),
     embedding => ai.embedding_ollama('nomic-embed-text', 768),
-    formatting => ai.formatting_python_template('$title - by $author - $chunk')
+    formatting => ai.formatting_python_template('$title - by $author - $chunk'),
+    destination => ai.destination_table('blog_contents_embeddings')
 );
 ```
 
@@ -305,10 +305,10 @@ example uses a HNSW index:
 SELECT ai.create_vectorizer(
     'blog'::regclass,
     loading => ai.loading_column('contents'),
-    destination => ai.destination_table('blog_contents_embeddings'),
     embedding => ai.embedding_ollama('nomic-embed-text', 768),
     formatting => ai.formatting_python_template('$title - by $author - $chunk'),
-    indexing => ai.indexing_hnsw(min_rows => 100000, opclass => 'vector_l2_ops')
+    indexing => ai.indexing_hnsw(min_rows => 100000, opclass => 'vector_l2_ops'),
+    destination => ai.destination_table('blog_contents_embeddings')
 );
 ```
 
@@ -358,12 +358,12 @@ SELECT ai.create_vectorizer(
     'blog'::regclass,
     name => 'blog_vectorizer',  -- Optional custom name for easier reference
     loading => ai.loading_column('contents'),
+    embedding => ai.embedding_ollama('nomic-embed-text', 768),
     destination => ai.destination_table(
         target_schema => 'public',
         target_table => 'blog_embeddings_store',
         view_name => 'blog_embeddings'
     ),
-    embedding => ai.embedding_ollama('nomic-embed-text', 768)
 );
 ```
 
@@ -382,9 +382,9 @@ SELECT ai.create_vectorizer(
     'product_descriptions'::regclass,
     name => 'product_descriptions_vectorizer',
     loading => ai.loading_column('description'),
-    destination => ai.destination_column('description_embedding'),
     embedding => ai.embedding_openai('text-embedding-3-small', 768),
-    chunking => ai.chunking_none()  -- Required for column destination
+    chunking => ai.chunking_none(),  -- Required for column destination
+    destination => ai.destination_column('description_embedding')
 );
 ```
 

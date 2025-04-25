@@ -48,8 +48,8 @@ follows:
 SELECT ai.create_vectorizer(
      'wiki'::regclass,
      loading => ai.loading_column(column_name=>'text'),
-     destination => ai.destination_table(target_table=>'wiki_embedding_storage'),
-     embedding => ai.embedding_openai(model=>'text-embedding-ada-002', dimensions=>'1536')
+     embedding => ai.embedding_openai(model=>'text-embedding-ada-002', dimensions=>'1536'),
+     destination => ai.destination_table(target_table=>'wiki_embedding_storage')
     )
 ```
 

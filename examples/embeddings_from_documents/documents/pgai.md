@@ -120,9 +120,9 @@ Please note that using Ollama requires a large (>4GB) download of the docker ima
     ```sql
     SELECT ai.create_vectorizer(
          'wiki'::regclass,
-         destination => ai.destination_table('wiki_embeddings'),
          embedding => ai.embedding_ollama('all-minilm', 384),
-         chunking => ai.chunking_recursive_character_text_splitter('text')
+         chunking => ai.chunking_recursive_character_text_splitter('text'),
+         destination => ai.destination_table('wiki_embeddings')
     );
     ```
     
@@ -477,9 +477,9 @@ With one line of code, you can define a vectorizer that creates embeddings for d
 ```sql
 SELECT ai.create_vectorizer(
     <table_name>::regclass,
-    destination => <embedding_table_name>,
-    embedding => ai.embedding_ollama(<model_name>, <dimensions>),
-    chunking => ai.chunking_recursive_character_text_splitter(<column_name>)
+    destination => ai.destination_table(<embedding_table_name>),
+    embedding => ai.embedding_ollama('all-minilm', 384),
+    chunking => ai.chunking_recursive_character_text_splitter('text')
 );
 ```
 This newly created vectorizer will automatically track any changes to the

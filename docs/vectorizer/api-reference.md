@@ -108,15 +108,15 @@ SELECT ai.create_vectorizer(
     'website.blog'::regclass,
     name => 'website_blog_vectorizer',
     loading => ai.loading_column('contents'),
+    embedding => ai.embedding_ollama('nomic-embed-text', 768),
+    chunking => ai.chunking_character_text_splitter(128, 10),
+    formatting => ai.formatting_python_template('title: $title published: $published $chunk'),
+    grant_to => ai.grant_to('bob', 'alice'),
     destination => ai.destination_table(
         target_schema => 'website',
         target_table => 'blog_embeddings_store',
         view_name => 'blog_embeddings'
-    ),
-    embedding => ai.embedding_ollama('nomic-embed-text', 768),
-    chunking => ai.chunking_character_text_splitter(128, 10),
-    formatting => ai.formatting_python_template('title: $title published: $published $chunk'),
-    grant_to => ai.grant_to('bob', 'alice')
+    )
 );
 ```
 
@@ -141,10 +141,10 @@ SELECT ai.create_vectorizer(
     'website.product_descriptions'::regclass,
     name => 'product_descriptions_vectorizer',
     loading => ai.loading_column('description'),
-    destination => ai.destination_column('description_embedding'),
     embedding => ai.embedding_openai('text-embedding-3-small', 768),
     chunking => ai.chunking_none(),  -- Required for column destination
-    grant_to => ai.grant_to('marketing_team')
+    grant_to => ai.grant_to('marketing_team'),
+    destination => ai.destination_column('description_embedding')
 );
 ```
 
