@@ -261,12 +261,13 @@ def semantic_catalog():
     default="postgres://postgres@localhost:5432/postgres",
     show_default=True,
     help="The connection URL to the database to find objects in.",
+    envvar="TARGET_DB",
 )
 @click.option(
     "-m",
     "--model",
     type=click.STRING,
-    default="anthropic:claude-3-7-sonnet-latest",
+    default="openai:o3",
     show_default=True,
     help="The LLM model to generate descriptions",
 )
@@ -397,6 +398,7 @@ def describe(
     default="postgres://postgres@localhost:5432/postgres",
     show_default=True,
     help="The connection URL to the database the semantic catalog is in.",
+    envvar="CATALOG_DB",
 )
 @click.option(
     "-n",
@@ -455,26 +457,27 @@ def vectorize(
     default="postgres://postgres@localhost:5432/postgres",
     show_default=True,
     help="The connection URL to the database the semantic catalog is in.",
+    envvar="CATALOG_DB",
 )
 @click.option(
     "-p",
     "--provider",
     type=click.STRING,
-    default="sentence_transformers",
+    default="openai",
     help="The name of the embedding provider.",
 )
 @click.option(
     "-m",
     "--model",
     type=click.STRING,
-    default="nomic-ai/nomic-embed-text-v1.5",
+    default="text-embedding-3-small",
     help="The name of the embedding model.",
 )
 @click.option(
     "-v",
     "--vector-dimensions",
     type=click.INT,
-    default=768,
+    default=1536,
     help="The number of dimensions in the embeddings.",
 )
 @click.option(
@@ -542,6 +545,10 @@ def create(
             raise RuntimeError(f"unrecognized provider {provider}")
     assert config is not None
 
+    import pgai
+
+    pgai.install(db_url, strict=False)
+
     async def do():
         from pgai.semantic_catalog import create
 
@@ -562,6 +569,7 @@ def create(
     default="postgres://postgres@localhost:5432/postgres",
     show_default=True,
     help="The connection URL to the database the semantic catalog is in.",
+    envvar="CATALOG_DB",
 )
 @click.option(
     "-f",
@@ -633,6 +641,7 @@ def load(
     default="postgres://postgres@localhost:5432/postgres",
     show_default=True,
     help="The connection URL to the database the database to generate sql for.",
+    envvar="TARGET_DB",
 )
 @click.option(
     "-c",
@@ -641,6 +650,7 @@ def load(
     default="postgres://postgres@localhost:5432/postgres",
     show_default=True,
     help="The connection URL to the database the semantic catalog is in.",
+    envvar="CATALOG_DB",
 )
 @click.option(
     "-m",
