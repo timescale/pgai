@@ -181,6 +181,7 @@ in other management functions.
 | queue_table      | name                                                   | -                                 | ✖        | Specify the name of the work queue table.                                                          |
 | grant_to         | [Grant To configuration][#grant-to-configuration]      | `ai.grant_to_default()`           | ✖        | Specify which users should be able to use objects created by the vectorizer.                       |
 | enqueue_existing | bool                                                   | `true`                            | ✖        | Set to `true` if existing rows should be immediately queued for embedding.                         |
+| if_not_exists    | bool                                                   | `false`                           | ✖        | Set to `true` to avoid an error if the vectorizer already exists.                                  |
 
 
 #### Returns
@@ -1501,14 +1502,21 @@ SELECT ai.enable_vectorizer_schedule('public_blog_embeddings');
 
 #### Parameters
 
-`ai.enable_vectorizer_schedule` takes one of the following parameters:
+`ai.enable_vectorizer_schedule` has two implementations:
+
+1. `ai.enable_vectorizer_schedule(vectorizer_id int)`:
 
 |Name| Type | Default | Required | Description                                               |
 |-|------|---------|-|-----------------------------------------------------------|
-|vectorizer_id| int  | -       |✔*| The identifier of the vectorizer whose schedule you want to enable. |
-|name| text  | -       |✔*| The name of the vectorizer whose schedule you want to enable. |
+|vectorizer_id| int  | -       |✔| The identifier of the vectorizer whose schedule you want to enable. |
 
-*Either vectorizer_id or name must be provided
+2. `ai.enable_vectorizer_schedule(name text)`:
+
+|Name| Type | Default | Required | Description                                               |
+|-|------|---------|-|-----------------------------------------------------------|
+|name| text  | -       |✔| The name of the vectorizer whose schedule you want to enable. |
+
+So that either vectorizer_id or name can be used
 
 #### Returns
 
@@ -1535,14 +1543,21 @@ SELECT ai.disable_vectorizer_schedule('public_blog_embeddings');
 
 #### Parameters
 
-`ai.disable_vectorizer_schedule` takes one of the following parameters:
+`ai.disable_vectorizer_schedule` has two implementations:
+
+1. `ai.disable_vectorizer_schedule(vectorizer_id int)`:
 
 |Name| Type | Default | Required | Description                                                          |
 |-|------|---------|-|----------------------------------------------------------------------|
-|vectorizer_id| int  | -       |✔*| The identifier of the vectorizer whose schedule you want to disable. |
-|name| text  | -       |✔*| The name of the vectorizer whose schedule you want to disable. |
+|vectorizer_id| int  | -       |✔| The identifier of the vectorizer whose schedule you want to disable. |
 
-*Either vectorizer_id or name must be provided
+2. `ai.disable_vectorizer_schedule(name text)`:
+
+|Name| Type | Default | Required | Description                                                          |
+|-|------|---------|-|----------------------------------------------------------------------|
+|name| text  | -       |✔| The name of the vectorizer whose schedule you want to disable. |
+
+So that either vectorizer_id or name can be used
 
 #### Returns
 
@@ -1612,15 +1627,23 @@ Examples:
 
 #### Parameters
 
-`ai.drop_vectorizer` takes the following parameters:
+`ai.drop_vectorizer` has two implementations:
+
+1. `ai.drop_vectorizer(vectorizer_id int)`:
 
 |Name| Type | Default | Required | Description |
 |-|------|-|-|-|
-|vectorizer_id| int  | -|✔*|The identifier of the vectorizer you want to drop|
-|name| text  | -|✔*|The name of the vectorizer you want to drop|
+|vectorizer_id| int  | -|✔|The identifier of the vectorizer you want to drop|
 |drop_all| bool | false |✖|true to drop the target table and view as well|
 
-*Either vectorizer_id or name must be provided
+2. `ai.drop_vectorizer(name text)`:
+
+|Name| Type | Default | Required | Description |
+|-|------|-|-|-|
+|name| text  | -|✔|The name of the vectorizer you want to drop|
+|drop_all| bool | false |✖|true to drop the target table and view as well|
+
+So that either vectorizer_id or name can be used
 
 #### Returns
 
@@ -1743,15 +1766,23 @@ SELECT ai.vectorizer_queue_pending('public_blog_embeddings', exact_count=>true);
 
 #### Parameters
 
-`ai.vectorizer_queue_pending function` takes the following parameters:
+`ai.vectorizer_queue_pending` has two implementations:
+
+1. `ai.vectorizer_queue_pending(vectorizer_id int)`:
 
 | Name          | Type | Default | Required | Description                                             |
 |---------------|------|---------|----------|---------------------------------------------------------|
-| vectorizer_id | int  | -       | ✔*       | The identifier of the vectorizer you want to check      |
-| name          | text | -       | ✔*       | The name of the vectorizer you want to check            |
+| vectorizer_id | int  | -       | ✔       | The identifier of the vectorizer you want to check      |
 | exact_count   | bool | false   | ✖        | If true, return exact count. If false, capped at 10,000 |
 
-*Either vectorizer_id or name must be provided
+2. `ai.vectorizer_queue_pending(name text)`:
+
+| Name          | Type | Default | Required | Description                                             |
+|---------------|------|---------|----------|---------------------------------------------------------|
+| name          | text | -       | ✔       | The name of the vectorizer you want to check            |
+| exact_count   | bool | false   | ✖        | If true, return exact count. If false, capped at 10,000 |
+
+So that either vectorizer_id or name can be used
 
 
 ### Returns
