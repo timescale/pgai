@@ -3761,6 +3761,7 @@ dependencies = [
     { name = "smart-open" },
     { name = "structlog" },
     { name = "tiktoken" },
+    { name = "torch" },
     { name = "typing-extensions", version = "4.12.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version != '3.12.*'" },
     { name = "typing-extensions", version = "4.13.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.12.*'" },
     { name = "voyageai", marker = "python_full_version < '3.13'" },
@@ -3830,6 +3831,7 @@ requires-dist = [
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=2.0.36" },
     { name = "structlog", specifier = ">=24.0,<25.0" },
     { name = "tiktoken", specifier = ">=0.7,<1.0" },
+    { name = "torch", specifier = ">=2.6.0" },
     { name = "typing-extensions", specifier = ">=4.0,<5.0" },
     { name = "voyageai", marker = "python_full_version < '3.13'", specifier = ">=0.3.1,<0.3.2" },
 ]
