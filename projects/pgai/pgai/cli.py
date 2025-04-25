@@ -351,6 +351,19 @@ def semantic_catalog():
     default=3,
     help="Number of sample rows to include in the context",
 )
+@click.option(
+    "-q",
+    "--quiet",
+    is_flag=True,
+    help="Do not print progress messages.",
+)
+@click.option(
+    "-l",
+    "--log-file",
+    type=click.Path(dir_okay=False, writable=True, resolve_path=True, path_type=Path),
+    default=None,
+    help="The path to a file to write log messages to.",
+)
 def describe(
     db_url: str,
     model: str,
@@ -366,11 +379,24 @@ def describe(
     output: Path | None = None,
     append: bool = False,
     sample_size: int = 3,
+    quiet: bool = False,
+    log_file: Path | None = None,
 ) -> None:
+    if log_file:
+        import logging
+
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=[
+                logging.FileHandler(log_file),
+            ],
+        )
+
+    from rich.console import Console
+
     from pgai.semantic_catalog.describe import describe
 
-    # TODO: add progress feedback with Rich and add --quiet to turn it off
-    # TODO: is async io for stdout/file needed?
     with sys.stdout if not output else output.open(mode="a" if append else "w") as f:
         asyncio.run(
             describe(
@@ -378,6 +404,7 @@ def describe(
                 model,  # pyright: ignore [reportArgumentType]
                 catalog_name,
                 output=f,
+                console=Console(stderr=True, quiet=quiet),
                 include_schema=include_schema,
                 exclude_schema=exclude_schema,
                 include_table=include_table,
