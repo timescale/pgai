@@ -8,6 +8,15 @@ from pydantic_ai import Agent
 from pydantic_ai.models import KnownModelName, Model
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import Usage
+from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 
 from pgai.semantic_catalog import TargetConnection, loader, render
 from pgai.semantic_catalog.models import ObjectDescription, Procedure, Table, View
@@ -194,7 +203,7 @@ async def generate_table_descriptions(
         """
         table = table_index.get(table_id)
         if table is None:
-            # TODO: handle this somehow
+            logger.warning(f"invalid table id provided by LLM: {id}")
             return
         logger.debug(
             f"recording description for table {table.schema_name}.{table.table_name}"
@@ -224,14 +233,16 @@ async def generate_table_descriptions(
         """
         table = table_index.get(table_id)
         if table is None:
-            # TODO: handle this somehow
+            logger.warning(f"invalid table id provided by LLM: {id} {column_name}")
             return
         if not table.columns:
-            # TODO: handle this somehow
+            logger.warning(
+                f"column described by LLM but table has no columns: {id} {column_name}"
+            )
             return
         column = next((c for c in table.columns if c.name == column_name), None)
         if column is None:
-            # TODO: handle this somehow
+            logger.warning(f"invalid column provided by LLM: {id} {column_name}")
             return
         logger.debug(
             f"recording description for column {table.schema_name}.{table.table_name}.{column.name}"  # noqa
@@ -307,7 +318,7 @@ async def generate_view_descriptions(
         """
         view = view_index.get(view_id)
         if view is None:
-            # TODO: handle this somehow
+            logger.warning(f"invalid view id provided by LLM: {id}")
             return
         logger.debug(
             f"recording description for view {view.schema_name}.{view.view_name}"
@@ -337,14 +348,16 @@ async def generate_view_descriptions(
         """
         view = view_index.get(view_id)
         if view is None:
-            # TODO: handle this somehow
+            logger.warning(f"invalid view id provided by LLM: {id} {column_name}")
             return
         if not view.columns:
-            # TODO: handle this somehow
+            logger.warning(
+                f"column description provided for view but view has no columns: {id} {column_name}"  # noqa
+            )
             return
         column = next((c for c in view.columns if c.name == column_name), None)
         if column is None:
-            # TODO: handle this somehow
+            logger.warning(f"invalid view column provided by LLM: {id} {column_name}")
             return
         logger.debug(
             f"recording description for view column {view.schema_name}.{view.view_name}.{column.name}"  # noqa
@@ -417,7 +430,7 @@ async def generate_procedure_descriptions(
         """  # noqa: E501
         proc = proc_index.get(id)
         if proc is None:
-            # TODO: handle this somehow
+            logger.warning(f"invalid procedure id provided by LLM: {id}")
             return
         logger.debug(
             f"recording description for procedure {proc.schema_name}.{proc.proc_name}"
@@ -456,11 +469,29 @@ async def generate_procedure_descriptions(
     return usage
 
 
+async def _count_columns(con: psycopg.AsyncConnection, oids: list[int]) -> int:
+    async with con.cursor() as cur:
+        await cur.execute(
+            """\
+            select count(*)
+            from pg_class k
+            inner join pg_attribute a on (k.oid = a.attrelid)
+            where k.oid = any(%s)
+            and not a.attisdropped
+            and a.attnum > 0
+        """,
+            (oids,),
+        )
+        row = await cur.fetchone()
+        return row[0] if row else 0
+
+
 async def describe(
     db_url: str,
     model: KnownModelName | Model,
     catalog_name: str,
     output: TextIO,
+    console: Console | None = None,
     include_schema: str | None = None,
     exclude_schema: str | None = None,
     include_table: str | None = None,
@@ -472,60 +503,161 @@ async def describe(
     batch_size: int = 5,
     sample_size: int = 0,
 ) -> Usage:
-    def callback(description: ObjectDescription):
-        output.write(render.render_description_to_sql(con, catalog_name, description))
+    usage = Usage()
+
+    if console is None:
+        console = Console(quiet=True)
 
     async with await psycopg.AsyncConnection.connect(db_url) as con:
-        # tables
-        table_oids = await find_tables(
-            con,
-            include_schema,
-            exclude_schema,
-            include_table,
-            exclude_table,
-        )
-        usage = await generate_table_descriptions(
-            con,
-            table_oids,
-            model,
-            callback,
-            batch_size=batch_size,
-            sample_size=sample_size,
-        )
-        output.flush()
+        # find tables
+        with console.status("finding tables..."):
+            table_oids = await find_tables(
+                con,
+                include_schema,
+                exclude_schema,
+                include_table,
+                exclude_table,
+            )
+        # find views
+        with console.status("finding views..."):
+            view_oids = await find_views(
+                con,
+                include_schema,
+                exclude_schema,
+                include_view,
+                exclude_view,
+            )
+        # find procedures
+        with console.status("finding procedures/functions..."):
+            proc_oids = await find_procedures(
+                con,
+                include_schema,
+                exclude_schema,
+                include_proc,
+                exclude_proc,
+            )
+        if len(table_oids) == 0:
+            console.print(":warning: no tables found.")
+        else:
+            console.print(f"tables found: {len(table_oids)}")
+        if len(view_oids) == 0:
+            console.print(":warning: no views found.")
+        else:
+            console.print(f"views found: {len(view_oids)}")
+        if len(proc_oids) == 0:
+            console.print(":warning: no procedures/functions found.")
+        else:
+            console.print(f"procedures/functions found: {len(proc_oids)}")
 
-        # views
-        view_oids = await find_views(
-            con,
-            include_schema,
-            exclude_schema,
-            include_view,
-            exclude_view,
+        total_table = (
+            len(table_oids) + (await _count_columns(con, table_oids))
+            if len(table_oids) > 0
+            else 0
         )
-        usage += await generate_view_descriptions(
-            con,
-            view_oids,
-            model,
-            callback,
-            batch_size=batch_size,
-            sample_size=sample_size,
+        total_view = (
+            len(view_oids) + (await _count_columns(con, view_oids))
+            if len(view_oids) > 0
+            else 0
         )
-        output.flush()
+        total_proc = len(proc_oids)
 
-        # procedures
-        proc_oids = await find_procedures(
-            con,
-            include_schema,
-            exclude_schema,
-            include_proc,
-            exclude_proc,
-        )
-        usage += await generate_procedure_descriptions(
-            con,
-            proc_oids,
-            model,
-            callback,
-            batch_size=batch_size,
-        )
-    output.flush()
+        pbcols = [
+            SpinnerColumn(),
+            TextColumn("{task.description}"),
+            BarColumn(),
+            MofNCompleteColumn(),
+            TimeElapsedColumn(),
+        ]
+
+        with Progress(*pbcols, console=console) as progress:
+            # tables/columns
+            if total_table > 0:
+                task_table = progress.add_task(
+                    "generate table/column descriptions",
+                    total=total_table,
+                    visible=total_table > 0,
+                )
+
+                def table_callback(d: ObjectDescription):
+                    output.write(render.render_description_to_sql(con, catalog_name, d))
+                    nonlocal progress, task_table
+                    progress.console.print(".".join(d.objnames))
+                    progress.update(task_table, advance=1.0)
+
+                usage += await generate_table_descriptions(
+                    con,
+                    table_oids,
+                    model,
+                    table_callback,
+                    batch_size=batch_size,
+                    sample_size=sample_size,
+                )
+                output.flush()
+
+            # views/columns
+            if total_view > 0:
+                task_view = progress.add_task(
+                    "generate view/column descriptions",
+                    total=total_view,
+                    visible=total_view > 0,
+                )
+
+                def view_callback(d: ObjectDescription):
+                    output.write(render.render_description_to_sql(con, catalog_name, d))
+                    nonlocal progress, task_view
+                    progress.console.print(".".join(d.objnames))
+                    progress.update(task_view, advance=1.0)
+
+                usage += await generate_view_descriptions(
+                    con,
+                    view_oids,
+                    model,
+                    view_callback,
+                    batch_size=batch_size,
+                    sample_size=sample_size,
+                )
+                output.flush()
+
+            # procedures/functions
+            if total_proc > 0:
+                task_proc = progress.add_task(
+                    "generate procedure/function descriptions", total=total_proc
+                )
+
+                def proc_callback(d: ObjectDescription):
+                    output.write(render.render_description_to_sql(con, catalog_name, d))
+                    nonlocal progress, task_proc
+                    progress.console.print(".".join(d.objnames))
+                    if d.objsubid == 0:
+                        progress.update(task_proc, advance=1.0)
+
+                usage += await generate_procedure_descriptions(
+                    con,
+                    proc_oids,
+                    model,
+                    proc_callback,
+                    batch_size=batch_size,
+                )
+                output.flush()
+
+    from rich.table import Table
+
+    table = Table(title="Usage")
+
+    table.add_column("Metric", justify="left", no_wrap=True)
+    table.add_column("Value", justify="right", no_wrap=True)
+
+    table.add_row("Requests", str(usage.requests))
+    table.add_row(
+        "Request Tokens", str(usage.request_tokens) if usage.request_tokens else "?"
+    )
+    table.add_row(
+        "Response Tokens", str(usage.response_tokens) if usage.response_tokens else "?"
+    )
+    table.add_row(
+        "Total Tokens", str(usage.total_tokens) if usage.total_tokens else "?"
+    )
+
+    console.print(table)
+
     return usage
