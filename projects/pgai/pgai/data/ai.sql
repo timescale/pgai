@@ -4058,6 +4058,7 @@ set search_path to pg_catalog, pg_temp;
 create or replace view ai.vectorizer_status as
 select
   v.id
+, v.name
 , pg_catalog.format('%I.%I', v.source_schema, v.source_table) as source_table
 , case when v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation' = 'table' then
     pg_catalog.format('%I.%I', v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_schema', v.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_table')
