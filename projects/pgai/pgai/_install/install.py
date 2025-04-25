@@ -1,4 +1,5 @@
 from importlib.resources import files
+from textwrap import dedent
 from typing import Any
 
 import psycopg
@@ -23,14 +24,16 @@ def _get_sql(vector_extension_schema: str) -> str:
 
 def warn_if_pre_release() -> None:
     if semver.VersionInfo.parse(__version__).prerelease is not None:
-        log.warning("""
+        log.warning(
+            dedent("""
             Installing pre-release version of pgai.
-                                        
+
             This is unstable software and no upgrade path is guaranteed.
-                    
+
             Instead, install using the latest release in pip:
             https://pypi.org/project/pgai/
         """)
+        )
 
 
 def _get_guc_vectorizer_url_sql() -> sql_lib.SQL:

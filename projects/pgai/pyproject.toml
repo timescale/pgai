@@ -41,6 +41,7 @@ dependencies = [
     "sentence-transformers>=4.0.2",
     "einops>=0.8.1",
     "pydantic-ai>=0.1.3",
+    "torch>=2.6.0",
 ]
 classifiers = [
     "License :: OSI Approved :: PostgreSQL License",
