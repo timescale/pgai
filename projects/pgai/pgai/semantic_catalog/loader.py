@@ -23,8 +23,82 @@ async def load_tables(
     # TODO: add support for foreign tables
     assert len(oids) > 0, "list of oids must not be empty"
     async with con.cursor(row_factory=dict_row) as cur:
+        await cur.execute("select 1 from pg_extension where extname = 'timescaledb'")
+        is_timescale = await cur.fetchone() is not None
+        timescale_cte = """
+        select
+            null as schema_name
+            , null as table_name, null as dimensions
+        """
+        if is_timescale:
+            timescale_cte = """
+            select
+                h.schema_name
+                , h.table_name
+                , d.dimensions
+            from
+                _timescaledb_catalog.hypertable AS h
+            join (
+                select
+                    d.hypertable_id
+                    , json_agg(json_build_object(
+                        'dimension_builder', d.dimension_builder
+                        , 'column_name', d.column_name
+                        , 'partition_func', d.partition_func
+                        , 'partition_interval', d.partition_interval
+                        , 'number_partitions', d.number_partitions
+                    )) as dimensions
+                from (
+                    select
+                    d.hypertable_id,
+                    case
+                        when d.partitioning_func is null then 'by_range'
+                        when d.partitioning_func = 'get_partition_hash' then 'by_hash'
+                        when f.function_type IN ('int2', 'int4', 'int8') then 'by_hash'
+                        else 'by_range'
+                    end AS dimension_builder,
+                    d.column_name AS column_name,
+                    case
+                        when d.partitioning_func is null then null
+                        when d.partitioning_func = 'get_partition_hash' then null
+                        else format(
+                            '%%s.%%s'
+                            , d.partitioning_func_schema
+                            , d.partitioning_func
+                        )
+                    end as partition_func,
+                    case
+                        when d.interval_length is null then null
+                        else 'INTERVAL '''
+                            || justify_interval(
+                                d.interval_length * interval '1 microsecond'
+                            )
+                            || ''''
+                    end as partition_interval,
+                    d.num_slices as number_partitions
+                    from _timescaledb_catalog.dimension as d
+                    left join
+                    (
+                        select
+                        n.nspname as function_schema
+                        , p.proname as function_name
+                        , t.typname as function_type
+                        from pg_proc p
+                        join pg_namespace n on n.oid = p.pronamespace
+                        join pg_type t on t.oid = p.prorettype
+                    ) as f on (
+                        f.function_schema = d.partitioning_func_schema
+                        and f.function_name = d.partitioning_func
+                    )
+                    order by d.id
+                ) as d
+                group by d.hypertable_id
+            ) as d on d.hypertable_id = h.id
+            where h.schema_name != '_timescaledb_internal'
+            """
+
         await cur.execute(
-            """\
+            f"""
             with x as
             (
                 select
@@ -87,9 +161,17 @@ async def load_tables(
                 inner join pg_namespace n on (k.relnamespace = n.oid)
                 where k.oid = any(%s::oid[])
                 and k.relkind in ('r', 'p', 'f')
+            ),
+            y as
+            (
+                {timescale_cte}
             )
-            select *
+            select x.*, y.dimensions
             from x
+            left join y on (
+                x.schema_name = y.schema_name
+                and x.table_name = y.table_name
+            )
         """,
             (oids,),
         )
