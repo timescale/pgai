@@ -115,7 +115,6 @@ async def load_tables(
 async def load_views(
     con: psycopg.AsyncConnection, oids: list[int], sample_size: int = 0
 ) -> list[View]:
-    # TODO: add support for continuous aggregates
     assert len(oids) > 0, "list of oids must not be empty"
     async with con.cursor(row_factory=dict_row) as cur:
         await cur.execute("select 1 from pg_extension where extname = 'timescaledb'")

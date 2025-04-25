@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from textwrap import dedent
 
@@ -12,6 +13,8 @@ from pydantic_ai.usage import Usage, UsageLimits
 from pgai.semantic_catalog import loader, render, search
 from pgai.semantic_catalog.models import Fact, Procedure, SQLExample, Table, View
 from pgai.semantic_catalog.vectorizer import EmbeddingConfig, vectorizer
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -121,8 +124,10 @@ async def validate_sql_statement(
         try:
             await cur.execute(f"explain {sql_statement}")  # pyright: ignore [reportArgumentType]
         except psycopg.Error as e:
+            logger.info(f"sql statement is invalid {e.diag.message_primary or str(e)}")
             return e.diag.message_primary or str(e)
         else:
+            logger.info("sql statement is valid")
             return None
 
 
@@ -185,6 +190,7 @@ async def generate_sql(
         """
         nonlocal ctx
         for prompt in search_prompts:
+            logger.info(f"{agent.name}: semantic search for '{prompt}'")
             ctx = await fetch_database_context(
                 catalog_con,
                 target_con,
@@ -216,6 +222,7 @@ async def generate_sql(
             the user's prompt
         :return: None
         """
+        logger.info(f"{agent.name}: answered.")
         nonlocal answer
         answer = sql_statement
         nonlocal ctx
@@ -247,6 +254,7 @@ async def generate_sql(
         if answer:
             error = await validate_sql_statement(target_con, answer)
             if error:
+                logger.info(f"asking {agent.name} to fix the invalid sql statement")
                 user_prompt = dedent(f"""\
                 The SQL statement was not valid. Please fix it.
                 <sql>

@@ -364,6 +364,13 @@ def semantic_catalog():
     default=None,
     help="The path to a file to write log messages to.",
 )
+@click.option(
+    "--log-level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARN", "ERROR", "FATAL", "CRITICAL"], case_sensitive=False
+    ),
+    default="INFO",
+)
 def describe(
     db_url: str,
     model: str,
@@ -381,12 +388,13 @@ def describe(
     sample_size: int = 3,
     quiet: bool = False,
     log_file: Path | None = None,
+    log_level: str | None = "INFO",
 ) -> None:
     if log_file:
         import logging
 
         logging.basicConfig(
-            level=logging.DEBUG,
+            level=get_log_level(log_level or "INFO"),
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             handlers=[
                 logging.FileHandler(log_file),
@@ -449,12 +457,55 @@ def describe(
     default=None,
     help="The number of embeddings to generate per batch.",
 )
+@click.option(
+    "-q",
+    "--quiet",
+    is_flag=True,
+    help="Do not print log messages.",
+)
+@click.option(
+    "-l",
+    "--log-file",
+    type=click.Path(dir_okay=False, writable=True, resolve_path=True, path_type=Path),
+    default=None,
+    help="The path to a file to write log messages to.",
+)
+@click.option(
+    "--log-level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARN", "ERROR", "FATAL", "CRITICAL"], case_sensitive=False
+    ),
+    default="INFO",
+)
 def vectorize(
     db_url: str,
     catalog_name: str | None,
     embed_config: str | None,
     batch_size: int | None = None,
+    quiet: bool = False,
+    log_file: Path | None = None,
+    log_level: str | None = "INFO",
 ) -> None:
+    import logging
+
+    log_handlers: list[logging.Handler] = []
+    if log_file:
+        log_handlers.append(logging.FileHandler(log_file))
+    if not quiet:
+        from rich.console import Console
+        from rich.logging import RichHandler
+
+        log_handlers.append(
+            RichHandler(console=Console(stderr=True), rich_tracebacks=True)
+        )
+
+    if len(log_handlers) > 0:
+        logging.basicConfig(
+            level=get_log_level(log_level or "INFO"),
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=log_handlers,
+        )
+
     catalog_name = catalog_name or "default"
     batch_size = batch_size if batch_size is not None else 32
 
@@ -534,6 +585,26 @@ def vectorize(
     default=None,
     help="The name of the environment variable containing the API key for the embedding provider",  # noqa: E501
 )
+@click.option(
+    "-q",
+    "--quiet",
+    is_flag=True,
+    help="Do not print log messages.",
+)
+@click.option(
+    "-l",
+    "--log-file",
+    type=click.Path(dir_okay=False, writable=True, resolve_path=True, path_type=Path),
+    default=None,
+    help="The path to a file to write log messages to.",
+)
+@click.option(
+    "--log-level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARN", "ERROR", "FATAL", "CRITICAL"], case_sensitive=False
+    ),
+    default="INFO",
+)
 def create(
     db_url: str,
     provider: str,
@@ -543,7 +614,30 @@ def create(
     embed_config: str | None = None,
     base_url: str | None = None,
     api_key_name: str | None = None,
+    quiet: bool = False,
+    log_file: Path | None = None,
+    log_level: str | None = "INFO",
 ):
+    import logging
+
+    log_handlers: list[logging.Handler] = []
+    if log_file:
+        log_handlers.append(logging.FileHandler(log_file))
+    if not quiet:
+        from rich.console import Console
+        from rich.logging import RichHandler
+
+        log_handlers.append(
+            RichHandler(console=Console(stderr=True), rich_tracebacks=True)
+        )
+
+    if len(log_handlers) > 0:
+        logging.basicConfig(
+            level=get_log_level(log_level or "INFO"),
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=log_handlers,
+        )
+
     from pgai.semantic_catalog.vectorizer import (
         OllamaConfig,
         OpenAIConfig,
@@ -627,13 +721,56 @@ def create(
     default=None,
     help="The number of embeddings to generate per batch.",
 )
+@click.option(
+    "-q",
+    "--quiet",
+    is_flag=True,
+    help="Do not print log messages.",
+)
+@click.option(
+    "-l",
+    "--log-file",
+    type=click.Path(dir_okay=False, writable=True, resolve_path=True, path_type=Path),
+    default=None,
+    help="The path to a file to write log messages to.",
+)
+@click.option(
+    "--log-level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARN", "ERROR", "FATAL", "CRITICAL"], case_sensitive=False
+    ),
+    default="INFO",
+)
 def load(
     db_url: str,
     sql_file: Path,
     catalog_name: str | None,
     embed_config: str | None,
     batch_size: int | None = None,
+    quiet: bool = False,
+    log_file: Path | None = None,
+    log_level: str | None = "INFO",
 ) -> None:
+    import logging
+
+    log_handlers: list[logging.Handler] = []
+    if log_file:
+        log_handlers.append(logging.FileHandler(log_file))
+    if not quiet:
+        from rich.console import Console
+        from rich.logging import RichHandler
+
+        log_handlers.append(
+            RichHandler(console=Console(stderr=True), rich_tracebacks=True)
+        )
+
+    if len(log_handlers) > 0:
+        logging.basicConfig(
+            level=get_log_level(log_level or "INFO"),
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=log_handlers,
+        )
+
     catalog_name = catalog_name or "default"
     batch_size = batch_size if batch_size is not None else 32
     assert sql_file and sql_file.exists() and sql_file.is_file(), "invalid sql file"
@@ -716,6 +853,36 @@ def load(
     default=3,
     help="Number of sample rows to include in the context",
 )
+@click.option(
+    "-q",
+    "--quiet",
+    is_flag=True,
+    help="Do not print log messages.",
+)
+@click.option(
+    "-l",
+    "--log-file",
+    type=click.Path(dir_okay=False, writable=True, resolve_path=True, path_type=Path),
+    default=None,
+    help="The path to a file to write log messages to.",
+)
+@click.option(
+    "--log-level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARN", "ERROR", "FATAL", "CRITICAL"], case_sensitive=False
+    ),
+    default="INFO",
+)
+@click.option(
+    "--print-messages",
+    is_flag=True,
+    help="Print LLM messages.",
+)
+@click.option(
+    "--print-usage",
+    is_flag=True,
+    help="Print LLM usage metrics.",
+)
 def generate_sql(
     db_url: str,
     catalog_db_url: str | None,
@@ -724,22 +891,48 @@ def generate_sql(
     embed_config: str | None,
     prompt: str,
     sample_size: int = 3,
+    quiet: bool = False,
+    log_file: Path | None = None,
+    log_level: str | None = "INFO",
+    print_messages: bool = False,
+    print_usage: bool = False,
 ) -> None:
+    import logging
+
+    log_handlers: list[logging.Handler] = []
+    if log_file:
+        log_handlers.append(logging.FileHandler(log_file))
+    if not quiet:
+        from rich.console import Console
+        from rich.logging import RichHandler
+
+        log_handlers.append(
+            RichHandler(console=Console(stderr=True), rich_tracebacks=True)
+        )
+
+    if len(log_handlers) > 0:
+        logging.basicConfig(
+            level=get_log_level(log_level or "INFO"),
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=log_handlers,
+        )
+
     catalog_db_url = catalog_db_url or db_url
     catalog_name = catalog_name or "default"
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.usage import UsageLimits
 
     from pgai.semantic_catalog import from_name
+    from pgai.semantic_catalog.gen_sql import GenerateSQLResponse
 
-    async def do():
+    async def do() -> GenerateSQLResponse:
         if catalog_db_url:
             async with (
                 await psycopg.AsyncConnection.connect(db_url) as tcon,
                 await psycopg.AsyncConnection.connect(catalog_db_url) as ccon,
             ):
                 sc = await from_name(ccon, catalog_name)
-                resp = await sc.generate_sql(
+                return await sc.generate_sql(
                     ccon,
                     tcon,
                     model=model,  # pyright: ignore [reportArgumentType]
@@ -749,11 +942,10 @@ def generate_sql(
                     embedding_name=embed_config,
                     sample_size=sample_size,
                 )
-                print(resp.sql_statement)
         else:
             async with await psycopg.AsyncConnection.connect(db_url) as con:
                 sc = await from_name(con, catalog_name)
-                resp = await sc.generate_sql(
+                return await sc.generate_sql(
                     con,
                     con,
                     model=model,  # pyright: ignore [reportArgumentType]
@@ -763,9 +955,44 @@ def generate_sql(
                     embedding_name=embed_config,
                     sample_size=sample_size,
                 )
-                print(resp.sql_statement)
 
-    asyncio.run(do())
+    resp = asyncio.run(do())
+    if quiet:
+        print(resp.sql_statement)
+        exit(0)
+
+    from rich.console import Console
+    from rich.pretty import pprint
+    from rich.rule import Rule
+    from rich.syntax import Syntax
+    from rich.table import Table
+
+    console = Console(stderr=True)
+
+    if print_messages:
+        for msg in resp.messages:
+            pprint(msg, console=console)
+
+    if print_usage:
+        usage = resp.usage
+        table = Table(title="Usage")
+        table.add_column("Metric", justify="left", no_wrap=True)
+        table.add_column("Value", justify="right", no_wrap=True)
+        table.add_row("Requests", str(usage.requests))
+        table.add_row(
+            "Request Tokens", str(usage.request_tokens) if usage.request_tokens else "?"
+        )
+        table.add_row(
+            "Response Tokens",
+            str(usage.response_tokens) if usage.response_tokens else "?",  # noqa
+        )
+        table.add_row(
+            "Total Tokens", str(usage.total_tokens) if usage.total_tokens else "?"
+        )
+        console.print(table)
+
+    console.print(Rule())
+    console.print(Syntax(resp.sql_statement, "sql"))
 
 
 cli.add_command(semantic_catalog)
