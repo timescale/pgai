@@ -2,12 +2,17 @@
 When you install pgai on **Timescale Cloud**, the vectorizer worker is automatically activated and run on a schedule
 so you don't need to do anything, everything just works out of the box.
 
-**How it works**: When you deploy a pgai vectorizer on Timescale Cloud, the vectorizer worker is automatically activated and run on a schedule.
-The scheduled job detects whether work is to be done for the vectorizers. If there is, the job runs the cloud function to embed the data.
+**How it works**: When you deploy a pgai vectorizer on Timescale Cloud, a scheduled job detects 
+whether work is to be done for the vectorizers. If there is, the job triggers a cloud function to embed the data.
 
-**Disable the cloud function**: There are some instances in which you might want to run the vectorizer worker manually and disable the cloud function from running. You can do this by setting
-[scheduling => ai.scheduling_none()](/docs/vectorizer/api-reference.md#scheduling-configuration) in the configuration for your vectorizer. Then you can run the 
-vectorizer worker manually using the `pgai vectorizer worker` command or any other method discussed above.
+**Disable the cloud function**: There are some instances in which you might want
+to run the vectorizer worker manually and disable the cloud function from
+running. You can do this by setting [scheduling =>ai.scheduling_none()](/docs/vectorizer/api-reference.md#scheduling-configuration)
+in the configuration for your vectorizer. Then you can run the  vectorizer
+worker manually using the `pgai vectorizer worker` command or any other method
+discussed below.
+	
+**Manually trigger an execution**: You can also always manually trigger an execution of the vectorizer cloud function by running `select ai.execute_vectorizer(<vectorizer_id>)`.
 
 > [!NOTE]
 > Timescale Cloud currently does not support Ollama. To use Ollama on the data in your Timescale Cloud 
@@ -25,7 +30,7 @@ When you use pgai vectorizers on a self-hosted Postgres installation or another 
 
 ## Running a vectorizer worker as a CLI tool
 
-**Prerequisites**: [Python3][python3] and [pip][pip]
+**Prerequisites**: [Python (>= 3.10)][python3] and [pip][pip]
 
 
 1. **Install [pgai](https://pypi.org/project/pgai/) from PyPI**
@@ -44,7 +49,7 @@ When you use pgai vectorizers on a self-hosted Postgres installation or another 
    OPENAI_API_KEY=<your-openai-api-key>
    ```
    
-   Alternatively, you can set the API key through an environment variable, but this is less secure.
+   Alternatively, you can set the API key through an environment variable directly.
 
 1. **Run the vectorizer worker**
 
@@ -52,7 +57,7 @@ When you use pgai vectorizers on a self-hosted Postgres installation or another 
     a vectorizer worker to generate and update your embeddings:
     
     ```shell
-    pgai vectorizer worker -d <db-connection-string>
+    pgai vectorizer worker -d "postgres://postgres:password@host:5432/database" 
     ```
 
 For more configuration options, see [Advanced configuration options](#advanced-configuration-options) below.
@@ -73,11 +78,15 @@ For more configuration options, see [Advanced configuration options](#advanced-c
    ```python
    from pgai import Worker
 
-   worker = Worker(db_url=<your-database-connection-string>)
+   worker = Worker(db_url="postgres://postgres:password@host:5432/database")
    task = asyncio.create_task(worker.run())
    ```
-
-   You can then shutdown the worker gracefully when your application shuts down:
+   
+   We recommend to shutdown the worker gracefully when your application shuts
+   down. It won't cause problems if you skip this step and force kill the
+   worker, but this ensures the last batch of work is finished, if possible,
+   before stopping the process. You can do this by calling
+   `request_graceful_shutdown` on the worker. Example:
 
    ```python
     
@@ -95,9 +104,11 @@ For more configuration options, see [Advanced configuration options](#advanced-c
 3. Make sure you add the API keys for your embedding providers to the environment variables when you run 
   your application. 
   
-    We recommend using a `.env` file to set the API key and then load the `.env` file using the `load_dotenv` function from the `python-dotenv` package.
+    We recommend using a `.env` file to set the API key and then having your
+    application load the `.env` file using the `load_dotenv` function from the
+    `python-dotenv` package.
     
-    Alternatively, you can set the API key through an environment variable.
+    Alternatively, you can set the API key through an environment variable directly.
     
 4. Run your application
 
@@ -115,14 +126,14 @@ For more configuration options, see [Advanced configuration options](#advanced-c
    OPENAI_API_KEY=<your-openai-api-key>
    ```
    
-   Alternatively, you can set the API key by passing it as an environment variable in the `docker run` command below, but this is less secure.
+   Alternatively, you can set the API key by passing it as an environment variable in the `docker run` command below.
 
 1. **Run the vectorizer worker**
   
     After you [define a vectorizer in your database](/docs/vectorizer.md#define-a-vectorizer), you run a vectorizer worker to generate and update your embeddings.
 
     ```
-    docker run --env-file=.env timescale/pgai-vectorizer-worker:{tag version} --db-url <DB URL>
+    docker run --env-file=.env timescale/pgai-vectorizer-worker:{tag version} --db-url "postgres://postgres:password@host:5432/database"
     ```
 
 For more configuration options, see [Advanced configuration options](#advanced-configuration-options) below.
@@ -188,15 +199,14 @@ The vectorizer worker needs to know how to connect to your database. You can do 
 For example, if you are using a local Postgres database, you can set the database connection string as follows:
 
 ```
-pgai vectorizer worker -d postgres://postgres:postgres@localhost:5432/postgres
+pgai vectorizer worker -d "postgres://postgres:password@host:5432/database"
 ```
 
 
 ## Setting API keys through environment variables (or .env file)
 
 If you are using an embedding provider that requires an API key (which most do),
-you can set the API key through an environment variable or a .env file. We recommend
-using a .env file to set the API key.
+you can set the API key through an environment variable or a .env file. 
 
 For example, if you are using OpenAI, you can set the API key in a .env file as follows:
 
@@ -245,7 +255,7 @@ A vectorizer worker can:
 
   To run all current and future vectorizers:
   - cli: `pgai vectorizer worker`
-  - python: `worker = Worker(db_url=<your-database-connection-string>)`
+  - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database")`
   - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version}`
   - Docker Compose: `command: []`
 
@@ -253,7 +263,7 @@ A vectorizer worker can:
 
   To run the vectorizer with id 42:
   - cli: `pgai vectorizer worker -i 42`
-  - python: `worker = Worker(db_url=<your-database-connection-string>, vectorizer_ids=[42])`
+  - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", vectorizer_ids=[42])`
   - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 42`
   - Docker Compose: `command: ["-i", "42"]`
 
@@ -261,7 +271,7 @@ A vectorizer worker can:
 
   To run the vectorizers with ids `42`, `64`, and `8`:
   - cli: `pgai vectorizer worker -i 42 -i 64 -i 8`
-  - python: `worker = Worker(db_url=<your-database-connection-string>, vectorizer_ids=[42, 64, 8])`
+  - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", vectorizer_ids=[42, 64, 8])`
   - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 42 -i 64 -i 8`
   - Docker Compose: `command: ["-i", "42", "-i", "64", "-i", "8"]`
 
@@ -270,14 +280,14 @@ A vectorizer worker can:
   To run the vectorizers with id `42` and `64` in different vectorizer workers:
   1. In a first shell, run:
      - cli: `pgai vectorizer worker -i 42`
-     - python: `worker = Worker(db_url=<your-database-connection-string>, vectorizer_ids=[42])`
+     - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", vectorizer_ids=[42])`
      - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version}  -i 42`
      - Docker Compose: `command: ["-i", "42"]`
 
   1. In another shell, run: 
 
      - cli: `pgai vectorizer worker -i 64`
-     - python: `worker = Worker(db_url=<your-database-connection-string>, vectorizer_ids=[64])`
+     - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", vectorizer_ids=[64])`
      - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 64`
      - Docker Compose: `command: ["-i", "64"]`
 
@@ -289,14 +299,14 @@ A vectorizer worker can:
   1. In a first shell, run:
 
      - cli: `pgai vectorizer worker -i 42`
-     - python: `worker = Worker(db_url=<your-database-connection-string>, vectorizer_ids=[42])`
+     - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", vectorizer_ids=[42])`
      - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 42`
      - Docker Compose: `command: ["-i", "42"]`
 
   1. In another shell, run:
 
      - cli: `pgai vectorizer worker -i 42`
-     - python: `worker = Worker(db_url=<your-database-connection-string>, vectorizer_ids=[42])`
+     - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", vectorizer_ids=[42])`
      - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 42`
      - Docker Compose: `command: ["-i", "42"]`
 
@@ -314,21 +324,21 @@ in the `--poll-interval` parameter:
 - Run every hour:
 
   - cli: `pgai vectorizer worker --poll-interval=1h`
-  - python: `worker = Worker(db_url=<your-database-connection-string>, poll_interval=timedelta(hours=1))`
+  - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", poll_interval=timedelta(hours=1))`
   - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --poll-interval=1h`
   - Docker Compose: `command: ["--poll-interval", "1h"]`
 
 - Run every 45 minutes:
 
   - cli: `pgai vectorizer worker --poll-interval=45m`
-  - python: `worker = Worker(db_url=<your-database-connection-string>, poll_interval=timedelta(minutes=45))`
+  - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", poll_interval=timedelta(minutes=45))`
   - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --poll-interval=45m`
   - Docker Compose: `command: ["--poll-interval", "45m"]`
 
 - Run every 900 seconds:
 
   - cli: `pgai vectorizer worker --poll-interval=900`
-  - python: `worker = Worker(db_url=<your-database-connection-string>, poll_interval=timedelta(seconds=900))`
+  - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", poll_interval=timedelta(seconds=900))`
   - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --poll-interval=900`
   - Docker Compose: `command: ["--poll-interval", "900"]`
   
@@ -340,7 +350,7 @@ Use the `-c` / `--concurrency` option to cause the vectorizer worker to use
 multiple asynchronous tasks to process a queue:
 
 - cli: `pgai vectorizer worker -c 3`
-- python: `worker = Worker(db_url=<your-database-connection-string>, concurrency=3)`
+- python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", concurrency=3)`
 - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -c 3`
 - Docker Compose: `command: ["-c", "3"]`
 
@@ -349,7 +359,7 @@ multiple asynchronous tasks to process a queue:
 You can run the vectorizer worker once and then exit by using the `--once` flag. This is useful for debugging or if you want to run the vectorizer worker in a cron job.
 
 - cli: `pgai vectorizer worker --once`
-- python: `worker = Worker(db_url=<your-database-connection-string>, once=True)`
+- python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", once=True)`
 - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --once`
 - Docker Compose: `command: ["--once"]`
                                   |
