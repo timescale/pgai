@@ -1633,14 +1633,14 @@ Examples:
 1. With a vectorizer name (recommended for better readability)
 2. With a vectorizer ID
 
-`ai.drop_vectorizer(name text)`:
+`ai.drop_vectorizer(name text, drop_all bool)`:
 
 |Name| Type | Default | Required | Description |
 |-|------|-|-|-|
 |name| text  | -|✔|The name of the vectorizer you want to drop|
 |drop_all| bool | false |✖|true to drop the target table and view as well|
 
-`ai.drop_vectorizer(vectorizer_id int)`:
+`ai.drop_vectorizer(vectorizer_id int, drop_all bool)`:
 
 |Name| Type | Default | Required | Description |
 |-|------|-|-|-|
@@ -1774,14 +1774,14 @@ SELECT ai.vectorizer_queue_pending(1, exact_count=>true);
 1. With a vectorizer name (recommended for better readability)
 2. With a vectorizer ID
 
-`ai.vectorizer_queue_pending(name text)`:
+`ai.vectorizer_queue_pending(name text, exact_count bool)`:
 
 | Name          | Type | Default | Required | Description                                             |
 |---------------|------|---------|----------|---------------------------------------------------------|
 | name          | text | -       | ✔       | The name of the vectorizer you want to check            |
 | exact_count   | bool | false   | ✖        | If true, return exact count. If false, capped at 10,000 |
 
-`ai.vectorizer_queue_pending(vectorizer_id int)`:
+`ai.vectorizer_queue_pending(vectorizer_id int, exact_count bool)`:
 
 | Name          | Type | Default | Required | Description                                             |
 |---------------|------|---------|----------|---------------------------------------------------------|
