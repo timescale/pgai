@@ -1284,7 +1284,7 @@ You use `ai.processing_default` to specify the concurrency and batch size for th
 
 |Name| Type | Default                      | Required | Description                                                                                                                                                                                                           |
 |-|------|------------------------------|-|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|batch_size| int  | Determined by the vectorizer |✖| The number of items to process in each batch. The optimal batch size depends on your data and cloud function configuration, larger batch sizes can improve efficiency but may increase memory usage.                  |
+|batch_size| int  | Determined by the vectorizer |✖| The number of items to process in each batch. The optimal batch size depends on your data and cloud function configuration, larger batch sizes can improve efficiency but may increase memory usage. The default is 1 for vectorizers that use document loading (`ai.loading_uri`) and 50 otherwise.                  |
 |concurrency| int  | Determined by the vectorizer |✖| The number of concurrent processing tasks to run. The optimal concurrency depends on your cloud infrastructure and rate limits, higher concurrency can speed up processing but may increase costs and resource usage. |
 
 #### Returns

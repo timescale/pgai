@@ -26,7 +26,7 @@ class ProcessingDefault(BaseModel):
     """
 
     implementation: Literal["default"]
-    batch_size: Annotated[int, Gt(gt=0), Le(le=2048)] = 50
+    batch_size: int | None = None
     concurrency: Annotated[int, Gt(gt=0), Le(le=10)] = 1
     log_level: Literal[
         "CRITICAL",
