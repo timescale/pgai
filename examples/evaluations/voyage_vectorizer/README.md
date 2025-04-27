@@ -69,7 +69,7 @@ Dataset Setup:
    SELECT ai.create_vectorizer(
        'sec_filings'::regclass,
        loading => ai.loading_column('text'),
-       destination => 'sec_filings_openai_embeddings',
+       destination => ai.destination_table('sec_filings_openai_embeddings'),
        embedding => ai.embedding_openai('text-embedding-3-small', 768),
        chunking => ai.chunking_recursive_character_text_splitter(512, 50)
    );
@@ -78,7 +78,7 @@ Dataset Setup:
    SELECT ai.create_vectorizer(
        'sec_filings'::regclass,
        loading => ai.loading_column('text'),
-       destination => 'sec_filings_voyage_embeddings',
+       destination => ai.destination_table('sec_filings_voyage_embeddings'),
        embedding => ai.embedding_voyageai('voyage-finance-2', 1024),
        chunking => ai.chunking_recursive_character_text_splitter(512, 50)
    );

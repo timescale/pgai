@@ -54,7 +54,7 @@ The evaluation generates diverse question types (short, long, direct, implied, a
 
     SELECT ai.create_vectorizer(
         'paul_graham_essays'::regclass,
-        destination => 'essays_cohere_embeddings',
+        destination => ai.destination_table('essays_cohere_embeddings'),
         embedding => ai.embedding_litellm(
             'cohere/embed-english-v3.0',
             1024,
@@ -65,7 +65,7 @@ The evaluation generates diverse question types (short, long, direct, implied, a
 
     SELECT ai.create_vectorizer(
         'paul_graham_essays'::regclass,
-        destination => 'essays_mistral_embeddings',
+        destination => ai.destination_table('essays_mistral_embeddings'),
         embedding => ai.embedding_litellm(
             'mistral/mistral-embed',
             1024,
@@ -76,7 +76,7 @@ The evaluation generates diverse question types (short, long, direct, implied, a
 
     SELECT ai.create_vectorizer(
         'paul_graham_essays'::regclass,
-        destination => 'essays_openai_small_embeddings',
+        destination => ai.destination_table('essays_openai_small_embeddings'),
         embedding => ai.embedding_openai(
             'text-embedding-3-small', 
             1024, 

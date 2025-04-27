@@ -92,8 +92,8 @@ To create and run a vectorizer, then query the auto-generated embeddings created
     SELECT ai.create_vectorizer(
        'blog'::regclass,
        loading => ai.loading_column('contents'),
-       destination => 'blog_contents_embeddings',
-       embedding => ai.embedding_openai('text-embedding-3-small', 768)
+       embedding => ai.embedding_openai('text-embedding-3-small', 768),
+       destination => ai.destination_table('blog_contents_embeddings')
     );
     ```
 
