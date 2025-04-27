@@ -1493,30 +1493,31 @@ You use `ai.enable_vectorizer_schedule` to:
 To resume the automatic scheduling for a vectorizer:
 
 ```sql
+-- Using vectorizer name (recommended)
+SELECT ai.enable_vectorizer_schedule('public_blog_embeddings');
+
 -- Using ID
 SELECT ai.enable_vectorizer_schedule(1);
-
--- Using name (recommended)
-SELECT ai.enable_vectorizer_schedule('public_blog_embeddings');
 ```
 
 #### Parameters
 
-`ai.enable_vectorizer_schedule` has two implementations:
+`ai.enable_vectorizer_schedule` can be called in two ways:
+1. With a vectorizer name (recommended for better readability)
+2. With a vectorizer ID
 
-1. `ai.enable_vectorizer_schedule(vectorizer_id int)`:
-
-|Name| Type | Default | Required | Description                                               |
-|-|------|---------|-|-----------------------------------------------------------|
-|vectorizer_id| int  | -       |✔| The identifier of the vectorizer whose schedule you want to enable. |
-
-2. `ai.enable_vectorizer_schedule(name text)`:
+`ai.enable_vectorizer_schedule(name text)`:
 
 |Name| Type | Default | Required | Description                                               |
 |-|------|---------|-|-----------------------------------------------------------|
 |name| text  | -       |✔| The name of the vectorizer whose schedule you want to enable. |
 
-So that either vectorizer_id or name can be used
+`ai.enable_vectorizer_schedule(vectorizer_id int)`:
+
+|Name| Type | Default | Required | Description                                               |
+|-|------|---------|-|-----------------------------------------------------------|
+|vectorizer_id| int  | -       |✔| The identifier of the vectorizer whose schedule you want to enable. |
+
 
 #### Returns
 
@@ -1534,30 +1535,31 @@ You use `ai.disable_vectorizer_schedule` to:
 To stop the automatic scheduling for a vectorizer:
 
 ```sql
--- Using ID
-SELECT ai.disable_vectorizer_schedule(1);
-
 -- Using name (recommended)
 SELECT ai.disable_vectorizer_schedule('public_blog_embeddings');
+
+-- Using ID
+SELECT ai.disable_vectorizer_schedule(1);
 ```
 
 #### Parameters
 
-`ai.disable_vectorizer_schedule` has two implementations:
+`ai.disable_vectorizer_schedule` can be called in two ways:
+1. With a vectorizer name (recommended for better readability)
+2. With a vectorizer ID
 
-1. `ai.disable_vectorizer_schedule(vectorizer_id int)`:
-
-|Name| Type | Default | Required | Description                                                          |
-|-|------|---------|-|----------------------------------------------------------------------|
-|vectorizer_id| int  | -       |✔| The identifier of the vectorizer whose schedule you want to disable. |
-
-2. `ai.disable_vectorizer_schedule(name text)`:
+`ai.disable_vectorizer_schedule(name text)`:
 
 |Name| Type | Default | Required | Description                                                          |
 |-|------|---------|-|----------------------------------------------------------------------|
 |name| text  | -       |✔| The name of the vectorizer whose schedule you want to disable. |
 
-So that either vectorizer_id or name can be used
+
+`ai.disable_vectorizer_schedule(vectorizer_id int)`:
+
+|Name| Type | Default | Required | Description                                                          |
+|-|------|---------|-|----------------------------------------------------------------------|
+|vectorizer_id| int  | -       |✔| The identifier of the vectorizer whose schedule you want to disable. |
 
 #### Returns
 
@@ -1607,16 +1609,16 @@ Best practices are:
 
 
 Examples: 
-- Remove a vectorizer by ID:
-
-  ```sql
-  SELECT ai.drop_vectorizer(1);
-  ```
-
 - Remove a vectorizer by name (recommended):
 
   ```sql
   SELECT ai.drop_vectorizer('public_blog_embeddings');
+  ```
+
+- Remove a vectorizer by ID:
+
+  ```sql
+  SELECT ai.drop_vectorizer(1);
   ```
 
 - Remove a vectorizer and drop the target table and view as well:
@@ -1627,23 +1629,25 @@ Examples:
 
 #### Parameters
 
-`ai.drop_vectorizer` has two implementations:
+`ai.drop_vectorizer` can be called in two ways:
+1. With a vectorizer name (recommended for better readability)
+2. With a vectorizer ID
 
-1. `ai.drop_vectorizer(vectorizer_id int)`:
-
-|Name| Type | Default | Required | Description |
-|-|------|-|-|-|
-|vectorizer_id| int  | -|✔|The identifier of the vectorizer you want to drop|
-|drop_all| bool | false |✖|true to drop the target table and view as well|
-
-2. `ai.drop_vectorizer(name text)`:
+`ai.drop_vectorizer(name text)`:
 
 |Name| Type | Default | Required | Description |
 |-|------|-|-|-|
 |name| text  | -|✔|The name of the vectorizer you want to drop|
 |drop_all| bool | false |✖|true to drop the target table and view as well|
 
-So that either vectorizer_id or name can be used
+`ai.drop_vectorizer(vectorizer_id int)`:
+
+|Name| Type | Default | Required | Description |
+|-|------|-|-|-|
+|vectorizer_id| int  | -|✔|The identifier of the vectorizer you want to drop|
+|drop_all| bool | false |✖|true to drop the target table and view as well|
+
+
 
 #### Returns
 
@@ -1740,11 +1744,11 @@ You use `vectorizer_queue_pending` to:
 Return the number of pending items for a vectorizer:
 
 ```sql
--- Using ID
-SELECT ai.vectorizer_queue_pending(1);
-
 -- Using name (recommended)
 SELECT ai.vectorizer_queue_pending('public_blog_embeddings');
+
+-- Using ID
+SELECT ai.vectorizer_queue_pending(1);
 ```
 
 A queue with a very large number of items may be slow to count. The optional 
@@ -1757,32 +1761,32 @@ To get an exact count, regardless of queue size, set the optional parameter to
 `true` like this:
 
 ```sql
--- Using ID
-SELECT ai.vectorizer_queue_pending(1, exact_count=>true);
-
 -- Using name (recommended)
 SELECT ai.vectorizer_queue_pending('public_blog_embeddings', exact_count=>true);
+
+-- Using ID
+SELECT ai.vectorizer_queue_pending(1, exact_count=>true);
 ```
 
 #### Parameters
 
-`ai.vectorizer_queue_pending` has two implementations:
+`ai.vectorizer_queue_pending` can be called in two ways:
+1. With a vectorizer name (recommended for better readability)
+2. With a vectorizer ID
 
-1. `ai.vectorizer_queue_pending(vectorizer_id int)`:
-
-| Name          | Type | Default | Required | Description                                             |
-|---------------|------|---------|----------|---------------------------------------------------------|
-| vectorizer_id | int  | -       | ✔       | The identifier of the vectorizer you want to check      |
-| exact_count   | bool | false   | ✖        | If true, return exact count. If false, capped at 10,000 |
-
-2. `ai.vectorizer_queue_pending(name text)`:
+`ai.vectorizer_queue_pending(name text)`:
 
 | Name          | Type | Default | Required | Description                                             |
 |---------------|------|---------|----------|---------------------------------------------------------|
 | name          | text | -       | ✔       | The name of the vectorizer you want to check            |
 | exact_count   | bool | false   | ✖        | If true, return exact count. If false, capped at 10,000 |
 
-So that either vectorizer_id or name can be used
+`ai.vectorizer_queue_pending(vectorizer_id int)`:
+
+| Name          | Type | Default | Required | Description                                             |
+|---------------|------|---------|----------|---------------------------------------------------------|
+| vectorizer_id | int  | -       | ✔       | The identifier of the vectorizer you want to check      |
+| exact_count   | bool | false   | ✖        | If true, return exact count. If false, capped at 10,000 |
 
 
 ### Returns
