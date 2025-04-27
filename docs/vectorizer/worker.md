@@ -57,14 +57,14 @@ When you use pgai vectorizers on a self-hosted Postgres installation or another 
     a vectorizer worker to generate and update your embeddings:
     
     ```shell
-    pgai vectorizer worker -d "postgres://postgres:password@host:5432/database" 
+    pgai vectorizer worker -d "postgres://user:password@host:5432/database" 
     ```
 
 For more configuration options, see [Advanced configuration options](#advanced-configuration-options) below.
 
 ## Running a vectorizer worker in your own application 
 
- **Prerequisites**: [Python3][python3] and [pip][pip]
+ **Prerequisites**: [Python (>= 3.10)][python3] and [pip][pip]
 
 1. Add the pgai package dependency to your project
 
@@ -78,7 +78,7 @@ For more configuration options, see [Advanced configuration options](#advanced-c
    ```python
    from pgai import Worker
 
-   worker = Worker(db_url="postgres://postgres:password@host:5432/database")
+   worker = Worker(db_url="postgres://user:password@host:5432/database")
    task = asyncio.create_task(worker.run())
    ```
    
@@ -133,7 +133,7 @@ For more configuration options, see [Advanced configuration options](#advanced-c
     After you [define a vectorizer in your database](/docs/vectorizer.md#define-a-vectorizer), you run a vectorizer worker to generate and update your embeddings.
 
     ```
-    docker run --env-file=.env timescale/pgai-vectorizer-worker:{tag version} --db-url "postgres://postgres:password@host:5432/database"
+    docker run --env-file=.env timescale/pgai-vectorizer-worker:{tag version} --db-url "postgres://user:password@host:5432/database"
     ```
 
 For more configuration options, see [Advanced configuration options](#advanced-configuration-options) below.
@@ -199,7 +199,7 @@ The vectorizer worker needs to know how to connect to your database. You can do 
 For example, if you are using a local Postgres database, you can set the database connection string as follows:
 
 ```
-pgai vectorizer worker -d "postgres://postgres:password@host:5432/database"
+pgai vectorizer worker -d "postgres://user:password@host:5432/database"
 ```
 
 
@@ -255,7 +255,7 @@ A vectorizer worker can:
 
   To run all current and future vectorizers:
   - cli: `pgai vectorizer worker`
-  - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database")`
+  - python: `worker = Worker(db_url="postgres://user:password@host:5432/database")`
   - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version}`
   - Docker Compose: `command: []`
 
@@ -263,7 +263,7 @@ A vectorizer worker can:
 
   To run the vectorizer with id 42:
   - cli: `pgai vectorizer worker -i 42`
-  - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", vectorizer_ids=[42])`
+  - python: `worker = Worker(db_url="postgres://user:password@host:5432/database", vectorizer_ids=[42])`
   - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 42`
   - Docker Compose: `command: ["-i", "42"]`
 
@@ -271,7 +271,7 @@ A vectorizer worker can:
 
   To run the vectorizers with ids `42`, `64`, and `8`:
   - cli: `pgai vectorizer worker -i 42 -i 64 -i 8`
-  - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", vectorizer_ids=[42, 64, 8])`
+  - python: `worker = Worker(db_url="postgres://user:password@host:5432/database", vectorizer_ids=[42, 64, 8])`
   - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 42 -i 64 -i 8`
   - Docker Compose: `command: ["-i", "42", "-i", "64", "-i", "8"]`
 
@@ -280,14 +280,14 @@ A vectorizer worker can:
   To run the vectorizers with id `42` and `64` in different vectorizer workers:
   1. In a first shell, run:
      - cli: `pgai vectorizer worker -i 42`
-     - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", vectorizer_ids=[42])`
+     - python: `worker = Worker(db_url="postgres://user:password@host:5432/database", vectorizer_ids=[42])`
      - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version}  -i 42`
      - Docker Compose: `command: ["-i", "42"]`
 
   1. In another shell, run: 
 
      - cli: `pgai vectorizer worker -i 64`
-     - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", vectorizer_ids=[64])`
+     - python: `worker = Worker(db_url="postgres://user:password@host:5432/database", vectorizer_ids=[64])`
      - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 64`
      - Docker Compose: `command: ["-i", "64"]`
 
@@ -299,14 +299,14 @@ A vectorizer worker can:
   1. In a first shell, run:
 
      - cli: `pgai vectorizer worker -i 42`
-     - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", vectorizer_ids=[42])`
+     - python: `worker = Worker(db_url="postgres://user:password@host:5432/database", vectorizer_ids=[42])`
      - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 42`
      - Docker Compose: `command: ["-i", "42"]`
 
   1. In another shell, run:
 
      - cli: `pgai vectorizer worker -i 42`
-     - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", vectorizer_ids=[42])`
+     - python: `worker = Worker(db_url="postgres://user:password@host:5432/database", vectorizer_ids=[42])`
      - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -i 42`
      - Docker Compose: `command: ["-i", "42"]`
 
@@ -324,21 +324,21 @@ in the `--poll-interval` parameter:
 - Run every hour:
 
   - cli: `pgai vectorizer worker --poll-interval=1h`
-  - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", poll_interval=timedelta(hours=1))`
+  - python: `worker = Worker(db_url="postgres://user:password@host:5432/database", poll_interval=timedelta(hours=1))`
   - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --poll-interval=1h`
   - Docker Compose: `command: ["--poll-interval", "1h"]`
 
 - Run every 45 minutes:
 
   - cli: `pgai vectorizer worker --poll-interval=45m`
-  - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", poll_interval=timedelta(minutes=45))`
+  - python: `worker = Worker(db_url="postgres://user:password@host:5432/database", poll_interval=timedelta(minutes=45))`
   - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --poll-interval=45m`
   - Docker Compose: `command: ["--poll-interval", "45m"]`
 
 - Run every 900 seconds:
 
   - cli: `pgai vectorizer worker --poll-interval=900`
-  - python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", poll_interval=timedelta(seconds=900))`
+  - python: `worker = Worker(db_url="postgres://user:password@host:5432/database", poll_interval=timedelta(seconds=900))`
   - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --poll-interval=900`
   - Docker Compose: `command: ["--poll-interval", "900"]`
   
@@ -350,7 +350,7 @@ Use the `-c` / `--concurrency` option to cause the vectorizer worker to use
 multiple asynchronous tasks to process a queue:
 
 - cli: `pgai vectorizer worker -c 3`
-- python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", concurrency=3)`
+- python: `worker = Worker(db_url="postgres://user:password@host:5432/database", concurrency=3)`
 - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} -c 3`
 - Docker Compose: `command: ["-c", "3"]`
 
@@ -359,7 +359,7 @@ multiple asynchronous tasks to process a queue:
 You can run the vectorizer worker once and then exit by using the `--once` flag. This is useful for debugging or if you want to run the vectorizer worker in a cron job.
 
 - cli: `pgai vectorizer worker --once`
-- python: `worker = Worker(db_url="postgres://postgres:password@host:5432/database", once=True)`
+- python: `worker = Worker(db_url="postgres://user:password@host:5432/database", once=True)`
 - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --once`
 - Docker Compose: `command: ["--once"]`
                                   |
