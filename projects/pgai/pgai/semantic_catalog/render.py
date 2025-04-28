@@ -1,21 +1,17 @@
 from collections.abc import Iterable
-from pathlib import Path
 
-import psycopg
-from jinja2 import Environment, FileSystemLoader
-from psycopg.sql import SQL, Literal
-
+# from jinja2 import Environment, FileSystemLoader
 from pgai.semantic_catalog.models import (
     Fact,
-    ObjectDescription,
     Procedure,
     SQLExample,
     Table,
     View,
 )
+from pgai.semantic_catalog.templates import env
 
-template_dir = Path(__file__).parent.joinpath("templates")
-env = Environment(loader=FileSystemLoader(template_dir))
+# template_dir = Path(__file__).parent.joinpath("templates")
+# env = Environment(loader=FileSystemLoader(template_dir))
 
 
 def render_table(table: Table) -> str:
@@ -75,118 +71,3 @@ def render_sql_example(example: SQLExample) -> str:
 
 def render_sql_examples(examples: Iterable[SQLExample]) -> str:
     return "\n\n".join(map(render_sql_example, examples)).strip()
-
-
-def render_description_to_sql(
-    con: psycopg.AsyncConnection, catalog_name: str, description: ObjectDescription
-) -> str:
-    match description.objtype:
-        case "table":
-            assert len(description.objnames) == 2
-            return (
-                SQL("select ai.sc_set_table_desc({}, {}, {}, {}, {}, {});\n")
-                .format(
-                    Literal(description.classid),
-                    Literal(description.objid),
-                    Literal(description.objnames[0]),
-                    Literal(description.objnames[1]),
-                    Literal(description.description),
-                    Literal(catalog_name),
-                )
-                .as_string(con)
-            )
-        case "view":
-            assert len(description.objnames) == 2
-            return (
-                SQL("select ai.sc_set_view_desc({}, {}, {}, {}, {}, {});\n")
-                .format(
-                    Literal(description.classid),
-                    Literal(description.objid),
-                    Literal(description.objnames[0]),
-                    Literal(description.objnames[1]),
-                    Literal(description.description),
-                    Literal(catalog_name),
-                )
-                .as_string(con)
-            )
-        case "table column":
-            assert len(description.objnames) == 3
-            return (
-                SQL(
-                    "select ai.sc_set_table_col_desc({}, {}, {}, {}, {}, {}, {}, {});\n"
-                )  # noqa
-                .format(
-                    Literal(description.classid),
-                    Literal(description.objid),
-                    Literal(description.objsubid),
-                    Literal(description.objnames[0]),
-                    Literal(description.objnames[1]),
-                    Literal(description.objnames[2]),
-                    Literal(description.description),
-                    Literal(catalog_name),
-                )
-                .as_string(con)
-            )
-        case "view column":
-            assert len(description.objnames) == 3
-            return (
-                SQL("select ai.sc_set_view_col_desc({}, {}, {}, {}, {}, {}, {}, {});\n")  # noqa
-                .format(
-                    Literal(description.classid),
-                    Literal(description.objid),
-                    Literal(description.objsubid),
-                    Literal(description.objnames[0]),
-                    Literal(description.objnames[1]),
-                    Literal(description.objnames[2]),
-                    Literal(description.description),
-                    Literal(catalog_name),
-                )
-                .as_string(con)
-            )
-        case "procedure":
-            assert len(description.objnames) >= 2
-            return (
-                SQL("select ai.sc_set_proc_desc({}, {}, {}, {}, {}, {}, {});\n")
-                .format(
-                    Literal(description.classid),
-                    Literal(description.objid),
-                    Literal(description.objnames[0]),
-                    Literal(description.objnames[1]),
-                    Literal(description.objargs),
-                    Literal(description.description),
-                    Literal(catalog_name),
-                )
-                .as_string(con)
-            )
-        case "function":
-            assert len(description.objnames) >= 2
-            return (
-                SQL("select ai.sc_set_func_desc({}, {}, {}, {}, {}, {}, {});\n")
-                .format(
-                    Literal(description.classid),
-                    Literal(description.objid),
-                    Literal(description.objnames[0]),
-                    Literal(description.objnames[1]),
-                    Literal(description.objargs),
-                    Literal(description.description),
-                    Literal(catalog_name),
-                )
-                .as_string(con)
-            )
-        case "aggregate":
-            assert len(description.objnames) >= 2
-            return (
-                SQL("select ai.sc_set_agg_desc({}, {}, {}, {}, {}, {}, {});\n")
-                .format(
-                    Literal(description.classid),
-                    Literal(description.objid),
-                    Literal(description.objnames[0]),
-                    Literal(description.objnames[1]),
-                    Literal(description.objargs),
-                    Literal(description.description),
-                    Literal(catalog_name),
-                )
-                .as_string(con)
-            )
-        case _:
-            raise ValueError(f"unknown description objtype: {description.objtype}")
