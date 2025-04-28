@@ -177,22 +177,28 @@ Return your response in this JSON format:
 
 def get_docs_files() -> Dict[str, List[Tuple[str, str, str]]]:
     """
-    Get documentation files from docs/ directory, categorized by section.
+    Get documentation files from docs/ directory and projects/extension/docs/ directory, categorized by section.
     Uses Claude to generate descriptions and categorize files.
     """
+    # Main docs path
     docs_path = REPO_ROOT / "docs"
+    # Extension docs path
+    extension_docs_path = REPO_ROOT / "projects" / "extension" / "docs"
     
     # File categories
     install_docs = []
     core_docs = []
     vectorizer_docs = []
     
-    # Get all markdown files
-    md_files = glob.glob(f"{docs_path}/**/*.md", recursive=True)
+    # Get all markdown files from both directories
+    main_md_files = glob.glob(f"{docs_path}/**/*.md", recursive=True)
+    extension_md_files = glob.glob(f"{extension_docs_path}/**/*.md", recursive=True)
+    md_files = main_md_files + extension_md_files
     
     # Skip README.md files at the root of directories
     md_files = [f for f in md_files if not (os.path.basename(f) == "README.md" and 
-                                            os.path.dirname(os.path.relpath(f, REPO_ROOT)) == "docs")]
+                                            (os.path.dirname(os.path.relpath(f, REPO_ROOT)) == "docs" or 
+                                             os.path.dirname(os.path.relpath(f, REPO_ROOT)) == "projects/extension/docs"))]
     
     # Extract metadata from files
     file_metadata = []
@@ -382,8 +388,11 @@ def generate_llms_txt():
         
         # Installation documentation
         f.write("## Installation\n\n")
-        for title, path, description in docs_files_dict["install"]:
-            f.write(f"- [{title}]({path}): {description}\n")
+        if docs_files_dict["install"]:
+            for title, path, description in docs_files_dict["install"]:
+                f.write(f"- [{title}]({path}): {description}\n")
+        else:
+            f.write("Installation documentation can be found in the projects/extension/docs/install directory.\n")
         
         # Core pgai documentation
         f.write("\n## Core pgai Extension\n\n")
