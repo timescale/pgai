@@ -1,6 +1,6 @@
-<sql{% if example.id > -1 %} id="{{ example.id }}"{% endif %}>
+<sql-example{% if example.id > -1 %} id="{{ example.id }}"{% endif %}>
 /*
 {{ example.description }}
 */
 {{ example.sql }}
-</sql>
+</sql-example>
