@@ -58,7 +58,8 @@
         "definition": "PRIMARY KEY (code)"
       }
     ],
-    "indexes": null
+    "indexes": null,
+    "dimensions": null
   },
   "flight": {
     "classid": 1259,
@@ -185,7 +186,8 @@
         "definition": "FOREIGN KEY (departure_airport) REFERENCES postgres_air.airport(airport_code)"
       }
     ],
-    "indexes": null
+    "indexes": null,
+    "dimensions": null
   },
   "airport": {
     "classid": 1259,
@@ -282,7 +284,8 @@
         "definition": "PRIMARY KEY (airport_code)"
       }
     ],
-    "indexes": null
+    "indexes": null,
+    "dimensions": null
   },
   "account": {
     "classid": 1259,
@@ -356,7 +359,8 @@
         "definition": "FOREIGN KEY (frequent_flyer_id) REFERENCES postgres_air.frequent_flyer(frequent_flyer_id)"
       }
     ],
-    "indexes": null
+    "indexes": null,
+    "dimensions": null
   },
   "booking": {
     "classid": 1259,
@@ -457,7 +461,8 @@
         "name": "booking_booking_ref_key",
         "definition": "CREATE UNIQUE INDEX booking_booking_ref_key ON postgres_air.booking USING btree (booking_ref)"
       }
-    ]
+    ],
+    "dimensions": null
   },
   "booking_leg": {
     "classid": 1259,
@@ -535,7 +540,8 @@
         "definition": "FOREIGN KEY (flight_id) REFERENCES postgres_air.flight(flight_id)"
       }
     ],
-    "indexes": null
+    "indexes": null,
+    "dimensions": null
   },
   "boarding_pass": {
     "classid": 1259,
@@ -622,7 +628,8 @@
         "definition": "FOREIGN KEY (passenger_id) REFERENCES postgres_air.passenger(passenger_id)"
       }
     ],
-    "indexes": null
+    "indexes": null,
+    "dimensions": null
   },
   "frequent_flyer": {
     "classid": 1259,
@@ -728,7 +735,8 @@
         "definition": "PRIMARY KEY (frequent_flyer_id)"
       }
     ],
-    "indexes": null
+    "indexes": null,
+    "dimensions": null
   },
   "passenger": {
     "classid": 1259,
@@ -837,7 +845,8 @@
         "definition": "FOREIGN KEY (account_id) REFERENCES postgres_air.account(account_id)"
       }
     ],
-    "indexes": null
+    "indexes": null,
+    "dimensions": null
   },
   "phone": {
     "classid": 1259,
@@ -911,6 +920,141 @@
         "definition": "FOREIGN KEY (account_id) REFERENCES postgres_air.account(account_id)"
       }
     ],
-    "indexes": null
+    "indexes": null,
+    "dimensions": null
+  },
+  "events": {
+    "classid": 1259,
+    "objid": 27138,
+    "schema_name": "postgres_air",
+    "table_name": "events",
+    "persistence": null,
+    "columns": [
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 1,
+        "name": "time",
+        "type": "timestamp without time zone",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 2,
+        "name": "name",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 3,
+        "name": "params",
+        "type": "jsonb",
+        "is_not_null": true,
+        "default_value": null
+      }
+    ],
+    "constraints": null,
+    "indexes": [
+      {
+        "name": "events_time_idx",
+        "definition": "CREATE INDEX events_time_idx ON postgres_air.events USING btree (\"time\" DESC)"
+      }
+    ],
+    "dimensions": [
+      {
+        "column_name": "time",
+        "dimension_builder": "by_range",
+        "partition_func": null,
+        "partition_interval": "INTERVAL '7 days'",
+        "number_partitions": null
+      }
+    ]
+  },
+  "hypertable_test": {
+    "classid": 1259,
+    "objid": 27138,
+    "schema_name": "postgres_air",
+    "table_name": "hypertable_test",
+    "persistence": null,
+    "columns": [
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 1,
+        "name": "time",
+        "type": "timestamp with time zone",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 2,
+        "name": "location",
+        "type": "character varying",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 3,
+        "name": "time_received",
+        "type": "timestamp with time zone",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 4,
+        "name": "params",
+        "type": "jsonb",
+        "is_not_null": true,
+        "default_value": null
+      }
+    ],
+    "constraints": null,
+    "indexes": [
+      {
+        "name": "hypertable_test_time_idx",
+        "definition": "CREATE INDEX hypertable_test_time_idx ON postgres_air.hypertable_test USING btree (\"time\" DESC)"
+      }
+    ],
+    "dimensions": [
+      {
+        "column_name": "time",
+        "dimension_builder": "by_range",
+        "partition_func": null,
+        "partition_interval": "INTERVAL '7 days'",
+        "number_partitions": null
+      },
+      {
+        "column_name": "location",
+        "dimension_builder": "by_hash",
+        "partition_func": null,
+        "partition_interval": null,
+        "number_partitions": 2
+      },
+      {
+        "column_name": "time_received",
+        "dimension_builder": "by_range",
+        "partition_func": null,
+        "partition_interval": "INTERVAL '1 day'",
+        "number_partitions": null
+      },
+      {
+        "column_name": "params",
+        "dimension_builder": "by_range",
+        "partition_func": "public.hypertable_test_func",
+        "partition_interval": "INTERVAL '1 day'",
+        "number_partitions": null
+      }
+    ]
   }
 }
