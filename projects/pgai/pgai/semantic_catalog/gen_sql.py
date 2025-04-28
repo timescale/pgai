@@ -1,8 +1,8 @@
 import logging
 from dataclasses import dataclass
-from textwrap import dedent
 
 import psycopg
+from jinja2 import Template
 from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.messages import ModelMessage
@@ -10,11 +10,23 @@ from pydantic_ai.models import KnownModelName, Model
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import Usage, UsageLimits
 
-from pgai.semantic_catalog import loader, render, search
+from pgai.semantic_catalog import loader, render, search, templates
 from pgai.semantic_catalog.models import Fact, Procedure, SQLExample, Table, View
 from pgai.semantic_catalog.vectorizer import EmbeddingConfig, vectorizer
 
 logger = logging.getLogger(__name__)
+
+_template_system_prompt: Template = templates.env.get_template(
+    "prompt_gen_sql_system.j2"
+)
+_template_user_prompt: Template = templates.env.get_template("prompt_gen_sql_user.j2")
+
+
+async def get_database_version(target_con: psycopg.AsyncConnection) -> int | None:
+    async with target_con.cursor() as cur:
+        await cur.execute("select current_setting('server_version_num', true)")
+        row = await cur.fetchone()
+        return int(row[0]) // 10000 if row else None
 
 
 @dataclass
@@ -151,6 +163,8 @@ async def generate_sql(
     model_settings: ModelSettings,
     sample_size: int = 3,
 ) -> GenerateSQLResponse:
+    prior_prompts: list[str] = [prompt]
+
     ctx: DatabaseContext = await fetch_database_context(
         catalog_con,
         target_con,
@@ -164,19 +178,14 @@ async def generate_sql(
 
     answer: str | None = None
 
+    pgversion: int | None = await get_database_version(target_con)
+    system_prompt: str = _template_system_prompt.render(pgversion=pgversion)
+
     agent = Agent(
         model=model,
         model_settings=model_settings,
         name="sql-author",
-        system_prompt=dedent("""\
-        You are an expert at SQL and PostgreSQL.
-        You write valid and accurate SQL statements to address user's prompts.
-        You are provided with context in the form of database object descriptions,
-        example SQL statements, and/or facts. If the context is insufficient to
-        confidently address the user's prompt, you may provide do a semantic search to
-        extend the context. Otherwise, record the SQL statement you author and note the
-        ids of the elements of context that were relevant in producing the answer.
-        """).replace("\n", " "),
+        system_prompt=system_prompt,
     )
 
     @agent.tool_plain
@@ -190,6 +199,7 @@ async def generate_sql(
         """
         nonlocal ctx
         for prompt in search_prompts:
+            prior_prompts.append(prompt)
             logger.info(f"{agent.name}: semantic search for '{prompt}'")
             ctx = await fetch_database_context(
                 catalog_con,
@@ -242,26 +252,22 @@ async def generate_sql(
     while True:
         usage_limits.check_before_request(usage)
         if user_prompt is None:
-            user_prompt = dedent(f"""\
-            Author a valid SQL statement to address the following question.
-            Q: {prompt}
-            """) + render_database_context(ctx)
-        result: AgentRunResult = await agent.run(
-            user_prompt, message_history=messages, usage_limits=usage_limits
-        )
+            user_prompt = _template_user_prompt.render(
+                ctx=ctx, prompt=prompt, prior_prompts=prior_prompts
+            )
+        result: AgentRunResult = await agent.run(user_prompt, usage_limits=usage_limits)
         messages.extend(result.new_messages())
         usage = usage + result.usage()
         if answer:
             error = await validate_sql_statement(target_con, answer)
             if error:
                 logger.info(f"asking {agent.name} to fix the invalid sql statement")
-                user_prompt = dedent(f"""\
-                The SQL statement was not valid. Please fix it.
-                <sql>
-                {answer}
-                </sql>
-                ERROR: {error}
-                """)
+                user_prompt = _template_user_prompt.render(
+                    ctx=ctx,
+                    prompt=prompt,
+                    prior_prompts=prior_prompts,
+                    error=error,
+                )
             else:
                 break  # we have a valid answer
         else:
