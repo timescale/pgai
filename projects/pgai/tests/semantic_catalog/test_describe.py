@@ -24,6 +24,7 @@ ALL_TABLES: set[str] = {
     "events",
     "flight",
     "frequent_flyer",
+    "hypertable_test",
     "passenger",
     "phone",
 }
