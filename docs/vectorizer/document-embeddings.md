@@ -1,4 +1,4 @@
-# Document Vectorization in pgai
+# Document embeddings in pgai
 
 This is a comprehensive walkthrough of how embedding generation for documents work in pgai. If you want to get started quickly check out the [runnable example](/examples/embeddings_from_documents).
 
@@ -12,14 +12,14 @@ While RAG (Retrieval Augmented Generation) applications typically require text d
 
 pgai's document vectorization system supports directly embedding documents via a declarative approach that handles loading, parsing, chunking, and embedding files.
 
-## Setting Up Document Storage
+## Setting up document storage
 
 ### The document table
 
 The foundation of document management in pgai is a document metadata table in PostgreSQL. Documents can either be stored directly within a table using a BYTEA column, or alternatively, the table can hold URIs pointing to files located in an external storage system such as S3. You can also include any additional metadata required by your application in this table.  
 If your application already handles documents, it's likely that you already have such a table which can be used as a source for the vectorizer.
 
-#### Minimal Document Table
+#### Minimal document table
 
 A minimal document source table requires only an identifier and a URI pointing to the document, this can be the same column:
 
@@ -34,7 +34,7 @@ INSERT INTO document (uri) VALUES
     ('s3://my-bucket/documents/api-reference.md'),
 ```
 
-#### Extended Document Table
+#### Extended document table
 
 For real applications, you will often want to include additional metadata that you might need to filter or classify documents. To facilitate synchronization, consider including `created_at` and `updated_at` updates to these fields will then trigger the re-embedding process:
 
@@ -57,7 +57,7 @@ INSERT INTO document (title, uri, content_type, owner_id, access_level, tags) VA
     ('API Reference', 's3://my-bucket/documents/api-reference.md', 'text/markdown', 8, 'public', ARRAY['api', 'developer']);
 ```
 
-#### Storing Document Content Directly
+#### Storing document content directly
 
 For smaller documents or systems without external storage, you can also store content directly as binary data:
 
@@ -71,11 +71,11 @@ CREATE TABLE document (
 INSERT INTO document (file) VALUES (pg_read_binary_file('/tmp/sample.pdf')::bytea);
 ```
 
-## Configuring Document Vectorizers
+## Configuring document vectorizers
 
 A vectorizer is a declarative configuration that defines how documents are processed, chunked, and embedded. pgai's vectorizer system automatically keeps document embeddings in sync with source documents. You can find the reference for vectorizers in the [API Reference documentation](./api-reference.md).
 
-### Example Vectorizer Configuration
+### Example vectorizer configuration
 
 Here's a complete vectorizer configuration for documents stored in S3:
 
@@ -183,9 +183,9 @@ embedding => ai.embedding_openai(
 )
 ```
 
-### More Examples
+### More examples
 
-#### Document Processing from S3 with OpenAI Embeddings
+#### Document processing from S3 with OpenAI embeddings
 
 ```sql
 -- Create document table
@@ -215,7 +215,7 @@ SELECT ai.create_vectorizer(
 );
 ```
 
-#### Binary Documents with Ollama Embeddings
+#### Binary documents with ollama embeddings
 
 ```sql
 -- Create document table with binary storage
@@ -245,11 +245,11 @@ SELECT ai.create_vectorizer(
 );
 ```
 
-## Working with Document Embeddings
+## Working with document embeddings
 
 Once your vectorizer is created, pgai automatically generates a target table with your embeddings.
 
-### Query Document Embeddings
+### Query document embeddings
 
 To search for similar documents:
 
@@ -262,7 +262,7 @@ ORDER BY distance
 LIMIT 5;
 ```
 
-### Combine Vector Similarity with Metadata Filters
+### Combine vector similarity with metadata filters
 
 One of the most powerful features of pgai's document approach is the ability to combine vector similarity with traditional SQL filters:
 
@@ -278,7 +278,7 @@ ORDER BY e.embedding <=> <search_embedding>
 LIMIT 5;
 ```
 
-### Advanced Query Patterns
+### Advanced query patterns
 
 **Join with application data:**
 
@@ -298,7 +298,7 @@ LIMIT 10;
 
 ## Monitoring and Troubleshooting
 
-### Monitoring Failures and Retries
+### Monitoring failures and retries
 
 You can use the usual vectorizer monitoring tools to check the status of your vectorizers:
 
@@ -328,15 +328,15 @@ SELECT * FROM ai._vectorizer_q_1
 The queue name can be found in the `ai.vectorizer` table
 
 
-## Common Issues and Solutions
+## Common issues and solutions
 
 
-**Embedding API Rate Limits**
+**Embedding API rate limits**
 
 If you encounter rate limits with your embedding provider:
 - Adjust the processing batch size and concurrency explained in the [processing reference](./api-reference.md#processing-configuration) in general we recommend a low batch size (e.g. 1) and a high concurrency (e.g. 10) for documents. Since parsing takes some time.
 - Consider upgrading API tiers or using a different provider
 
-**Document Limitations**
+**Document limitations**
 - The pgai document vectorizer is designed for small to medium sized documents. Large documents will take a long time to be parsed and embedded. The page limit for pdfs on Timescale Cloud is ~50 pages. For larger documents consider splitting them into smaller chunks.
 - Supported documents depend on the parser that you are using. Check the [parser reference](./api-reference.md#parsing-configuration) to see what types of documents are supported by the parser you are using.

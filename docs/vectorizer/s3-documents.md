@@ -1,6 +1,6 @@
-# S3 Integration Guide
+# S3 integration guide
 
-## Setup for Self-hosted pgai Installations
+## Setup for self-hosted pgai installations
 
 To integrate with your AWS S3 buckets, pgai needs to authenticate. There are two main methods to authenticate with S3:
 
@@ -33,11 +33,11 @@ SELECT ai.create_vectorizer(
 
 The role must have appropriate S3 read permissions for the buckets containing your documents.
 
-## Setup for Timescale-cloud-hosted pgai
+## Setup for Timescale Cloud
 
 For Timescale Cloud installations, only role-based authentication via `assume_role_arn` is supported.
 
-### Create a Role for s3 access
+### Create a role for s3 access
 First you need to create a role that Timescale can assume:
 
 ```bash
@@ -100,53 +100,7 @@ ai.loading_uri(
 )
 ```
 
-
-## Syncing S3 to a Documents Table
-
-If your application so far does not handle document uploads which would allow you to update the document table directly. You can instead use s3 events to keep your document table synchronized with S3 when documents are uploaded, modified, or deleted:
-
-```python
-# AWS Lambda function to handle S3 events
-def handle_s3_event(event, context):
-    import psycopg2
-    
-    # Extract document info from S3 event
-    bucket = event['Records'][0]['s3']['bucket']['name']
-    key = event['Records'][0]['s3']['object']['key']
-    event_name = event['Records'][0]['eventName']
-    
-    # Connect to PostgreSQL
-    conn = psycopg2.connect("postgresql://user:password@host:port/database")
-    cursor = conn.cursor()
-    
-    # Handle different event types
-    if 'ObjectCreated' in event_name:
-        # Document created or updated
-        cursor.execute(
-            """
-            INSERT INTO document (title, uri, updated_at) 
-            VALUES (%s, %s, CURRENT_TIMESTAMP)
-            ON CONFLICT (uri) DO UPDATE 
-            SET updated_at = CURRENT_TIMESTAMP
-            """,
-            [key.split('/')[-1], f"s3://{bucket}/{key}"]
-        )
-    elif 'ObjectRemoved' in event_name:
-        # Document deleted
-        cursor.execute(
-            "DELETE FROM document WHERE uri = %s",
-            [f"s3://{bucket}/{key}"]
-        )
-    
-    conn.commit()
-    cursor.close()
-    conn.close()
-```
-
-Configure an [S3 bucket notification](https://docs.aws.amazon.com/AmazonS3/latest/userguide/EventNotifications.html) to trigger this Lambda function on object events (PutObject, DeleteObject).
-
-
-## Common Issues and Solutions
+## Common issues and solutions
 
 **1. S3 Access Issues**
 
