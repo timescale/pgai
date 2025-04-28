@@ -16,3 +16,19 @@ select
     public.time_bucket(INTERVAL '1 day', time) as bucket
 from postgres_air.events
 group by name, bucket;
+
+CREATE TABLE postgres_air.hypertable_test (
+  time timestamp with time zone,
+  location varchar,
+  time_received timestamp with time zone,
+  params jsonb
+);
+CREATE FUNCTION public.hypertable_test_func(jsonb)
+    RETURNS timestamptz
+    LANGUAGE SQL
+    IMMUTABLE AS
+$func$SELECT ($1->>'started')::timestamptz$func$;
+SELECT create_hypertable('postgres_air.hypertable_test', by_range('time'));
+SELECT add_dimension('postgres_air.hypertable_test', by_hash('location', 2));
+SELECT add_dimension('postgres_air.hypertable_test', by_range('time_received', INTERVAL '1 day'));
+SELECT add_dimension('postgres_air.hypertable_test', by_range('params', INTERVAL '1 day', partition_func => 'public.hypertable_test_func'));
