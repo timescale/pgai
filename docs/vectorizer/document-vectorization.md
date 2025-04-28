@@ -75,7 +75,7 @@ INSERT INTO document (file) VALUES (pg_read_binary_file('/tmp/sample.pdf')::byte
 
 A vectorizer is a declarative configuration that defines how documents are processed, chunked, and embedded. pgai's vectorizer system automatically keeps document embeddings in sync with source documents. You can find the reference for vectorizers in the [API Reference documentation](./api-reference.md).
 
-### Vectorizer Configuration
+### Example Vectorizer Configuration
 
 Here's a complete vectorizer configuration for documents stored in S3:
 
@@ -88,7 +88,8 @@ SELECT ai.create_vectorizer(
         chunk_size => 700,
         separators => array[E'\n## ', E'\n### ', E'\n#### ', E'\n- ', E'\n1. ', E'\n\n', E'\n', '.', '?', '!', ' ', '', '|']
     ),
-    embedding => ai.embedding_openai('text-embedding-3-small', 768)     
+    embedding => ai.embedding_openai('text-embedding-3-small', 768),
+    destination => ai.destination_table('document_embeddings')
 );
 ```
 
@@ -99,9 +100,9 @@ This configuration:
 4. Splits text into chunks at common markdown breaking points (headers, paragraphs, etc.)
 5. Generates embeddings using OpenAI's `text-embedding-3-small` model
 
-### Vectorizer Components
+### Explanation of the components
 
-#### Loading Options
+#### Loading
 
 pgai supports two main loading methods:
 
@@ -115,12 +116,14 @@ loading => ai.loading_uri(
 )
 ```
 
-This loads documents from:
+This is what you will usually use to load any kind of document. It allows to download documents from:
 - S3 URLs (e.g. `s3://bucket/path/to/file.pdf`)
 - HTTP/HTTPS URLs (e.g. `https://example.com/file.pdf`)
 - Local files on the worker machine (e.g. `/path/to/file.pdf`)
 
-In theory this also supports other source like GCS and other blob storage that's supported by the `smart_open` library. However, this is not supported on Timescale Cloud and if you want to use it yourself in a self-hosted installation, you need to make sure that necessary dependencies are installed. Check the [smart open documentation](https://pypi.org/project/smart-open/) for details.
+Timescale Cloud and a self-hosted pgai installation support S3 URLs out of the box. Check the [S3 documentation](./s3-documents.md) for more information on how to authenticate and configure S3.
+
+**Other storage options:** We use the [smart_open](https://pypi.org/project/smart-open/) library to connect to the URI. That means any URI that can work with smart_open should work (including Google Cloud, Azure, etc.); however, only AWS S3 is supported on Timescale Cloud. In a self-hosted installation, other provider should work but you need to install the appropriate smart_open dependencies, and test it yourself. See the [smart-open documentation](https://pypi.org/project/smart-open/) for details.
 
 
 **2. Loading from BYTEA columns (`ai.loading_column`)**
@@ -131,53 +134,18 @@ loading => ai.loading_column(
 )
 ```
 
-This loads documents directly from binary data stored in a PostgreSQL BYTEA column.
+Alternatively you can use `loading_column` to load documents directly from a BYTEA column. This is useful if you already have the document content in your database and don't want to use any kind of external storage.
 
-#### Parsing Options
+#### Parsing
 
-pgai offers several parsing strategies to convert documents into LLM-friendly text:
+To make documents LLM-friendly, you need to parse them into markdown. pgai currently supports two different parsers: pymupdf and docling. You wont have to worry about this most of the time as `ai.parsing_auto` will automatically select the appropriate parser based on the file type, but you can also explicitly select it.
 
-**1. Automatic Parsing (`ai.parsing_auto`)**
 
-```sql
-parsing => ai.parsing_auto()
-```
+You can find more information about the parsers in the [parsing reference](./api-reference.md#parsing-configuration).
 
-Automatically selects the appropriate parser based on file type. This is the recommended option for most use cases.
+#### Chunking
 
-**2. Docling Parsing (`ai.parsing_docling`)**
-
-```sql
-parsing => ai.parsing_docling()
-```
-
-Uses IBM's Docling library for robust parsing of complex documents. Best for:
-- PDFs with tables and multi-column layouts
-- Office documents (DOCX, XLSX)
-- Documents where structure preservation is critical
-
-**3. PyMuPDF Parsing (`ai.parsing_pymupdf`)**
-
-```sql
-parsing => ai.parsing_pymupdf()
-```
-
-Uses PyMuPDF for faster but less sophisticated parsing. Best for:
-- Simple PDF documents
-- EPUB files
-- When processing speed is more important than structure preservation
-
-**4. No Parsing (`ai.parsing_none`)**
-
-```sql
-parsing => ai.parsing_none()
-```
-
-Skips parsing and treats content as raw text. Use only when data is already in text format.
-
-#### Chunking Strategies
-
-Chunking divides documents into smaller pieces for embedding. The recommended approach for documents is recursive character splitting:
+Chunking divides documents into smaller pieces for embedding. Since the contents gets parsed to markdown you will want to use a splitter that respects the markdown structure e.g. a setup like this:
 
 ```sql
 chunking => ai.chunking_recursive_character_text_splitter(
@@ -199,10 +167,13 @@ chunking => ai.chunking_recursive_character_text_splitter(
 
 This configuration progressively tries more granular separators to achieve the target chunk size, preserving document structure where possible.
 
-#### Embedding Configuration
+For more information about chunking, see the [chunking reference](./api-reference.md#chunking-configuration).
 
-Choose an embedding provider based on your needs:
+#### Embedding
 
+pgai support a wide range of embedding providers. You can find the reference for the embedding providers in the [embedding documentation](./api-reference.md#embedding-configuration).
+
+The embedding providers all follow a similar pattern, e.g. this is how you would use the OpenAI embedding provider:
 **OpenAI**
 
 ```sql
@@ -211,8 +182,6 @@ embedding => ai.embedding_openai(
     768                        -- Embedding dimensions
 )
 ```
-
-For more embedding providers, see the [API Reference documentation](./api-reference.md#embedding-configuration).
 
 ### More Examples
 
@@ -287,7 +256,7 @@ To search for similar documents:
 ```sql
 -- Basic similarity search
 SELECT d.title, e.chunk, e.embedding <=> <search_embedding> AS distance
-FROM documentation_embedding_store e
+FROM document_embeddings e
 JOIN documentation d ON e.id = d.id
 ORDER BY distance
 LIMIT 5;
@@ -300,7 +269,7 @@ One of the most powerful features of pgai's document approach is the ability to 
 ```sql
 -- Find recent documentation about configuration
 SELECT d.title, e.chunk
-FROM documentation_embedding_store e
+FROM document_embeddings e
 JOIN documentation d ON e.id = d.id
 WHERE 
     d.updated_at > (CURRENT_DATE - INTERVAL '30 days')
@@ -320,7 +289,7 @@ FROM customers c
 JOIN support_tickets t ON c.id = t.customer_id
 JOIN customer_documentation cd ON c.id = cd.customer_id
 JOIN documentation d ON cd.document_id = d.id
-JOIN documentation_embedding_store e ON d.id = e.id
+JOIN document_embeddings e ON d.id = e.id
 WHERE t.status = 'pending'
 ORDER BY e.embedding <=> <search_embedding>
 LIMIT 10;
@@ -333,13 +302,13 @@ LIMIT 10;
 
 You can use the usual vectorizer monitoring tools to check the status of your vectorizers:
 
-Check pending items:
+**Check pending items**:
 
 ```sql
 select * from ai.vectorizer_status:
 ```
 
-Check for failed items:
+**Check for failed items**:
 
 ```sql
 -- View all vectorizer errors
@@ -348,169 +317,26 @@ SELECT * FROM ai.vectorizer_errors;
 -- View errors for a specific vectorizer
 SELECT * FROM ai.vectorizer_errors WHERE id = <vectorizer_id>;
 ```
-
 The error table includes detailed information about what went wrong.
 
-## S3 Integration Guide
-
-### Setup for Self-hosted pgai Installations
-
-To integrate with s3 pgai need to authenticate. There are two main methods to authenticate with S3:
-
-**1. Default AWS credentials**
-
-pgai uses the default aws credential sources, look into the [boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials) for details. E.g. you can set the following environment variables where the vectorizer runs:
-
-```
-AWS_ACCESS_KEY_ID=your_access_key
-AWS_SECRET_ACCESS_KEY=your_secret_key
-```
-
-The user must have appropriate S3 read permissions for the buckets containing your documents.
-
-
-**2. Assume Role-based Authentication**
-
-You can also use the `aws_role_arn` parameter to assume an IAM role. This is what Timescale Cloud uses, but it is usually not necessary if you self-host since the worker will run in the same AWS environment as your buckets:
+**Check the queue and retry counts**:
 
 ```sql
-SELECT ai.create_vectorizer(
-    'document'::regclass,
-    loading => ai.loading_uri(
-        column_name => 'uri',
-        aws_role_arn => 'arn:aws:iam::123456789012:role/S3AccessRole'
-    ),
-    -- other configuration...
-);
+SELECT * FROM ai._vectorizer_q_1
 ```
 
-The role must have appropriate S3 read permissions for the buckets containing your documents.
-
-### Setup for Timescale-cloud-hosted pgai
-
-For Timescale Cloud installations, only role-based authentication via `assume_role_arn` is supported.
-
-#### Create a Role for s3 access
-First you need to create a role that Timescale can assume:
-
-```bash
-aws iam create-role \
-  --role-name timescale-vectorizer-s3-access \
-  --assume-role-policy-document '{
-    "Version": "2012-10-17",
-    "Statement": [
-      {
-        "Effect": "Allow",
-        "Principal": {
-          "AWS": "arn:aws:iam::142548018081:role/timescale-pgai-vectorizer"
-        },
-        "Action": "sts:AssumeRole",
-        "Condition": {
-          "StringLike": {
-            "sts:ExternalId": "projectId/serviceId"
-          }
-        }
-      }
-    ]
-  }'
-```
-
-Note that the assumeRole permission needs you to replace the `projectId/serviceId` with the actual project and service id of your Timescale Cloud installation. You can find this in the Timescale Cloud console. This is a security measure that prevents the [confused deputy problem](https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html), which would otherwise allow other Timescale Cloud users to access your buckets if they guessed your role name and accountId.
-
-#### Grant Permissions to your bucket to the role
-
-```bash
-aws iam put-role-policy \
-  --role-name timescale-vectorizer-s3-access \
-  --policy-name S3AccessPolicy \
-  --policy-document '{
-    "Version": "2012-10-17",
-    "Statement": [
-      {
-        "Action": [
-          "s3:GetObject"
-        ],
-        "Effect": "Allow",
-        "Resource": [
-          "arn:aws:s3:::test",
-          "arn:aws:s3:::test/*"
-        ]
-      }
-    ]
-  }'
-```
-
-#### Get the role ARN
-```bash
-aws iam get-role --role-name timescale-s3-role-test --query 'Role.Arn' --output text
-```
-#### Configure it in your ai.loading_uri:
-
-```sql
-ai.loading_uri(
-    column_name => 'uri',
-    aws_role_arn => 'arn:aws:iam::123456789012:role/timescale-vectorizer-s3-access'
-)
-```
+The queue name can be found in the `ai.vectorizer` table
 
 
-### Syncing S3 to a Documents Table
-
-If your application so far does not handle document uploads which would allow you to update the document table directly. You can instead use s3 events to keep your document table synchronized with S3 when documents are uploaded, modified, or deleted:
-
-```python
-# AWS Lambda function to handle S3 events
-def handle_s3_event(event, context):
-    import psycopg2
-    
-    # Extract document info from S3 event
-    bucket = event['Records'][0]['s3']['bucket']['name']
-    key = event['Records'][0]['s3']['object']['key']
-    event_name = event['Records'][0]['eventName']
-    
-    # Connect to PostgreSQL
-    conn = psycopg2.connect("postgresql://user:password@host:port/database")
-    cursor = conn.cursor()
-    
-    # Handle different event types
-    if 'ObjectCreated' in event_name:
-        # Document created or updated
-        cursor.execute(
-            """
-            INSERT INTO document (title, uri, updated_at) 
-            VALUES (%s, %s, CURRENT_TIMESTAMP)
-            ON CONFLICT (uri) DO UPDATE 
-            SET updated_at = CURRENT_TIMESTAMP
-            """,
-            [key.split('/')[-1], f"s3://{bucket}/{key}"]
-        )
-    elif 'ObjectRemoved' in event_name:
-        # Document deleted
-        cursor.execute(
-            "DELETE FROM document WHERE uri = %s",
-            [f"s3://{bucket}/{key}"]
-        )
-    
-    conn.commit()
-    cursor.close()
-    conn.close()
-```
-
-Configure an [S3 bucket notification](https://docs.aws.amazon.com/AmazonS3/latest/userguide/EventNotifications.html) to trigger this Lambda function on object events (PutObject, DeleteObject).
+## Common Issues and Solutions
 
 
-### Common Issues and Solutions
+**Embedding API Rate Limits**
 
-**1. S3 Access Issues**
-
-If documents from S3 fail to load:
-- Verify AWS credentials are correctly configured
-- Check that IAM roles have appropriate permissions
-- Ensure S3 bucket names and object keys are correct
-
-
-**2. Embedding API Rate Limits**
-
-If you encounter rate limits with embedding providers:
-- Adjust the processing batch size and concurrency
+If you encounter rate limits with your embedding provider:
+- Adjust the processing batch size and concurrency explained in the [processing reference](./api-reference.md#processing-configuration) in general we recommend a low batch size (e.g. 1) and a high concurrency (e.g. 10) for documents. Since parsing takes some time.
 - Consider upgrading API tiers or using a different provider
+
+**Document Limitations**
+- The pgai document vectorizer is designed for small to medium sized documents. Large documents will take a long time to be parsed and embedded. The page limit for pdfs on Timescale Cloud is ~50 pages. For larger documents consider splitting them into smaller chunks.
+- Supported documents depend on the parser that you are using. Check the [parser reference](./api-reference.md#parsing-configuration) to see what types of documents are supported by the parser you are using.
