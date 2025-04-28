@@ -67,7 +67,7 @@ format-fix:
 	@uv run --no-project ruff format ./
 
 # Run both linter and type-checking checks and fix all auto-fixable issues
-fix: lint-fix format-fix
+fix: format-fix lint-fix
 
 # CI pipeline. Runs all recipes needed for ensuring the code is ready to be integrated. Triggered by GH Actions
 ci: db-check install lint type-check format test build
