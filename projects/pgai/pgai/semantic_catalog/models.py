@@ -25,6 +25,14 @@ class Column(BaseModel):
     description: ObjectDescription | None = None
 
 
+class Dimension(BaseModel):
+    column_name: str
+    dimension_builder: str
+    partition_func: str | None = None
+    partition_interval: str | None = None
+    number_partitions: int | None = None
+
+
 class View(BaseModel):
     id: int = -1
     classid: int
@@ -72,6 +80,7 @@ class Table(BaseModel):
     columns: list[Column] | None = None
     constraints: list[Constraint] | None = None
     indexes: list[Index] | None = None
+    dimensions: list[Dimension] | None = None
     description: ObjectDescription | None = None
     sample: str | None = None
 
