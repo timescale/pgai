@@ -3,7 +3,7 @@ from collections.abc import Callable
 from typing import TextIO
 
 import psycopg
-from psycopg.sql import SQL, Composable
+from psycopg.sql import SQL, Composable, Literal
 from pydantic_ai import Agent
 from pydantic_ai.models import KnownModelName, Model
 from pydantic_ai.settings import ModelSettings
@@ -486,6 +486,121 @@ async def _count_columns(con: psycopg.AsyncConnection, oids: list[int]) -> int:
         return row[0] if row else 0
 
 
+def render_sql(
+    con: psycopg.AsyncConnection, catalog_name: str, description: ObjectDescription
+) -> str:
+    match description.objtype:
+        case "table":
+            assert len(description.objnames) == 2
+            return (
+                SQL("select ai.sc_set_table_desc({}, {}, {}, {}, {}, {});\n")
+                .format(
+                    Literal(description.classid),
+                    Literal(description.objid),
+                    Literal(description.objnames[0]),
+                    Literal(description.objnames[1]),
+                    Literal(description.description),
+                    Literal(catalog_name),
+                )
+                .as_string(con)
+            )
+        case "view":
+            assert len(description.objnames) == 2
+            return (
+                SQL("select ai.sc_set_view_desc({}, {}, {}, {}, {}, {});\n")
+                .format(
+                    Literal(description.classid),
+                    Literal(description.objid),
+                    Literal(description.objnames[0]),
+                    Literal(description.objnames[1]),
+                    Literal(description.description),
+                    Literal(catalog_name),
+                )
+                .as_string(con)
+            )
+        case "table column":
+            assert len(description.objnames) == 3
+            return (
+                SQL(
+                    "select ai.sc_set_table_col_desc({}, {}, {}, {}, {}, {}, {}, {});\n"
+                )  # noqa
+                .format(
+                    Literal(description.classid),
+                    Literal(description.objid),
+                    Literal(description.objsubid),
+                    Literal(description.objnames[0]),
+                    Literal(description.objnames[1]),
+                    Literal(description.objnames[2]),
+                    Literal(description.description),
+                    Literal(catalog_name),
+                )
+                .as_string(con)
+            )
+        case "view column":
+            assert len(description.objnames) == 3
+            return (
+                SQL("select ai.sc_set_view_col_desc({}, {}, {}, {}, {}, {}, {}, {});\n")  # noqa
+                .format(
+                    Literal(description.classid),
+                    Literal(description.objid),
+                    Literal(description.objsubid),
+                    Literal(description.objnames[0]),
+                    Literal(description.objnames[1]),
+                    Literal(description.objnames[2]),
+                    Literal(description.description),
+                    Literal(catalog_name),
+                )
+                .as_string(con)
+            )
+        case "procedure":
+            assert len(description.objnames) >= 2
+            return (
+                SQL("select ai.sc_set_proc_desc({}, {}, {}, {}, {}, {}, {});\n")
+                .format(
+                    Literal(description.classid),
+                    Literal(description.objid),
+                    Literal(description.objnames[0]),
+                    Literal(description.objnames[1]),
+                    Literal(description.objargs),
+                    Literal(description.description),
+                    Literal(catalog_name),
+                )
+                .as_string(con)
+            )
+        case "function":
+            assert len(description.objnames) >= 2
+            return (
+                SQL("select ai.sc_set_func_desc({}, {}, {}, {}, {}, {}, {});\n")
+                .format(
+                    Literal(description.classid),
+                    Literal(description.objid),
+                    Literal(description.objnames[0]),
+                    Literal(description.objnames[1]),
+                    Literal(description.objargs),
+                    Literal(description.description),
+                    Literal(catalog_name),
+                )
+                .as_string(con)
+            )
+        case "aggregate":
+            assert len(description.objnames) >= 2
+            return (
+                SQL("select ai.sc_set_agg_desc({}, {}, {}, {}, {}, {}, {});\n")
+                .format(
+                    Literal(description.classid),
+                    Literal(description.objid),
+                    Literal(description.objnames[0]),
+                    Literal(description.objnames[1]),
+                    Literal(description.objargs),
+                    Literal(description.description),
+                    Literal(catalog_name),
+                )
+                .as_string(con)
+            )
+        case _:
+            raise ValueError(f"unknown description objtype: {description.objtype}")
+
+
 async def describe(
     db_url: str,
     model: KnownModelName | Model,
@@ -579,7 +694,7 @@ async def describe(
                 )
 
                 def table_callback(d: ObjectDescription):
-                    output.write(render.render_description_to_sql(con, catalog_name, d))
+                    output.write(render_sql(con, catalog_name, d))
                     nonlocal progress, task_table
                     progress.console.print(".".join(d.objnames))
                     progress.update(task_table, advance=1.0)
@@ -603,7 +718,7 @@ async def describe(
                 )
 
                 def view_callback(d: ObjectDescription):
-                    output.write(render.render_description_to_sql(con, catalog_name, d))
+                    output.write(render_sql(con, catalog_name, d))
                     nonlocal progress, task_view
                     progress.console.print(".".join(d.objnames))
                     progress.update(task_view, advance=1.0)
@@ -625,7 +740,7 @@ async def describe(
                 )
 
                 def proc_callback(d: ObjectDescription):
-                    output.write(render.render_description_to_sql(con, catalog_name, d))
+                    output.write(render_sql(con, catalog_name, d))
                     nonlocal progress, task_proc
                     progress.console.print(".".join(d.objnames))
                     if d.objsubid == 0:
