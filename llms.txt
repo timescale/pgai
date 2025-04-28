@@ -36,14 +36,16 @@ The pgai Vectorizer is a system that automatically creates and synchronizes vect
 
 - [Vectorizer quick start](docs/vectorizer-quick-start.md): Quickstart guide for creating an Ollama-based vectorizer in a self-hosted Postgres instance with pgai
 - [Adding a Vectorizer embedding integration](docs/vectorizer/adding-embedding-integration.md): Describes how to add a new vectorizer embedding integration to the pgai extension
-- [pgai Vectorizer API reference](docs/vectorizer/api-reference.md): Detailed API reference for the pgai Vectorizer, including configuration options for embedding, indexing, and scheduling providers like OpenAI, Ollama, and Voyage AI.
-- [Automate AI embedding with pgai Vectorizer](docs/vectorizer/overview.md): Automate AI embedding with the pgai Vectorizer, supporting OpenAI, Ollama, and Voyage AI providers
+- [pgai Vectorizer API reference](docs/vectorizer/api-reference.md): Detailed API reference for the pgai Vectorizer, including configuration options for embedding, indexing, and other features.
+- [Document embeddings in pgai](docs/vectorizer/document-embeddings.md): Comprehensive guide to document embedding generation and management in the pgai extension, including support for OpenAI and Ollama embeddings.
+- [Automate AI embedding with pgai Vectorizer](docs/vectorizer/overview.md): Automate AI embedding with the pgai Vectorizer, supporting Ollama, Voyage AI, and OpenAI as embedding providers.
 - [Creating vectorizers from python](docs/vectorizer/python-integration.md): Documentation on creating vectorizers from Python and integrating pgai's Vectorizer with SQLAlchemy
 - [Vectorizer quick start with Ollama](docs/vectorizer/quick-start-ollama.md): Quick start guide for using the pgai Vectorizer feature with the Ollama AI provider
-- [Vectorizer quick start with OpenAI](docs/vectorizer/quick-start-openai.md): Quickly create a vectorizer in Postgres using the pgai extension and the OpenAI provider
+- [Vectorizer quick start with OpenAI](docs/vectorizer/quick-start-openai.md): Quickly create a vectorizer in Postgres using the pgai extension and OpenAI for embedding generation.
 - [Vectorizer quick start with VoyageAI](docs/vectorizer/quick-start-voyage.md): Quickly set up a local development environment and create a Voyage AI-powered vectorizer for semantic search on Postgres
-- [Vectorizer quick start](docs/vectorizer/quick-start.md): Quickstart guide for setting up a local development environment and creating a pgai Vectorizer for automatic embedding creation.
-- [Run vectorizers using pgai vectorizer worker](docs/vectorizer/worker.md): Documentation on running the pgai vectorizer worker to generate vector embeddings
+- [Vectorizer quick start](docs/vectorizer/quick-start.md): Quickly set up a local development environment and create a pgai Vectorizer to automatically embed data in Postgres.
+- [S3 integration guide](docs/vectorizer/s3-documents.md): Guide for integrating pgai with AWS S3 for self-hosted and Timescale Cloud installations
+- [Running on Timescale Cloud](docs/vectorizer/worker.md): Documentation for running the pgai Vectorizer worker on Timescale Cloud or self-hosted Postgres
 - [Use pgai with LiteLLM](projects/extension/docs/model_calling/litellm.md): Describes how to use the pgai extension with the LiteLLM AI model provider
 
 ## Optional

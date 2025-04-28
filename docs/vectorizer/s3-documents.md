@@ -18,7 +18,7 @@ The user must have appropriate S3 read permissions for the buckets containing yo
 
 **2. Assume Role-based Authentication**
 
-You can also use the `aws_role_arn` parameter to assume an IAM role. You can also use the `aws_role_arn` parameter to assume an IAM role. This is what Timescale Cloud uses, but it is usually not necessary if the worker runs on the same AWS account as your AWS S3 buckets::
+ You can also use the `aws_role_arn` parameter to assume an IAM role. This is what Timescale Cloud uses, but it is usually not necessary if the worker runs on the same AWS account as your AWS S3 buckets::
 
 ```sql
 SELECT ai.create_vectorizer(
