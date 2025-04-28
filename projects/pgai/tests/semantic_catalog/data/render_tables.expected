@@ -84,6 +84,16 @@ ALTER TABLE postgres_air.booking_leg ADD CONSTRAINT flight_id_fk FOREIGN KEY (fl
 </table>
 
 <table id="0">
+CREATE TABLE postgres_air.events
+( time timestamp without time zone NOT NULL
+, name text NOT NULL
+, params jsonb NOT NULL
+);
+CREATE INDEX events_time_idx ON postgres_air.events USING btree ("time" DESC);
+SELECT create_hypertable('postgres_air.events', by_range('time', INTERVAL '7 days'));
+</table>
+
+<table id="0">
 CREATE TABLE postgres_air.flight
 ( flight_id integer NOT NULL nextval('postgres_air.flight_flight_id_seq'::regclass)
 , flight_no text NOT NULL
@@ -117,6 +127,20 @@ CREATE TABLE postgres_air.frequent_flyer
 , update_ts timestamp with time zone
 );
 ALTER TABLE postgres_air.frequent_flyer ADD CONSTRAINT frequent_flyer_pkey PRIMARY KEY (frequent_flyer_id);
+</table>
+
+<table id="0">
+CREATE TABLE postgres_air.hypertable_test
+( time timestamp with time zone NOT NULL
+, location character varying
+, time_received timestamp with time zone NOT NULL
+, params jsonb NOT NULL
+);
+CREATE INDEX hypertable_test_time_idx ON postgres_air.hypertable_test USING btree ("time" DESC);
+SELECT create_hypertable('postgres_air.hypertable_test', by_range('time', INTERVAL '7 days'));
+SELECT add_dimension('postgres_air.hypertable_test', by_hash('location', 2));
+SELECT add_dimension('postgres_air.hypertable_test', by_range('time_received', INTERVAL '1 day'));
+SELECT add_dimension('postgres_air.hypertable_test', by_range('params', INTERVAL '1 day', partition_func => 'public.hypertable_test_func'));
 </table>
 
 <table id="0">
