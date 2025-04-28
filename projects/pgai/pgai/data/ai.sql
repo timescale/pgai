@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
--- ai 0.10.0-dev
+-- ai 0.10.0
 
 
 set local search_path = pg_catalog, pg_temp;
@@ -88,8 +88,6 @@ $$;
 
 insert into ai.pgai_lib_version ("name", version)
 values ('ai', '__version__') on conflict ("name") do update set version = excluded.version;
-
-
 
 
 -------------------------------------------------------------------------------
