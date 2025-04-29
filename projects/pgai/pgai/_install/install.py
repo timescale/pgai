@@ -113,6 +113,12 @@ async def ainstall(
                 raise error_from_result
 
 
+def _get_database_version(cur: psycopg.Cursor) -> int | None:
+    cur.execute("select current_setting('server_version_num', true)")
+    row = cur.fetchone()
+    return int(row[0]) // 10000 if row else None
+
+
 def install(
     db_url: str, vector_extension_schema: str | None = None, strict: bool = False
 ) -> None:
@@ -135,6 +141,12 @@ def install(
         psycopg.connect(db_url, autocommit=True) as conn,
         conn.cursor() as cur,
     ):
+        pg_version = _get_database_version(cur)
+        if pg_version and pg_version < 15:
+            raise RuntimeError(
+                "pgai is only supported on postgres version 15 or greater"
+            )
+
         if vector_extension_schema is None:
             conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
         else:
