@@ -45,6 +45,12 @@ def _get_vector_extension_schema_sql() -> sql_lib.SQL:
     """)
 
 
+def _get_server_version_sql() -> sql_lib.SQL:
+    return sql_lib.SQL(
+        "select current_setting('server_version_num', true)::int / 10000"
+    )
+
+
 def verify_error_library_already_installed(
     error_from_result: psycopg.errors.DuplicateObject,
 ) -> bool:
@@ -79,6 +85,14 @@ async def ainstall(
         conn.cursor() as cur,
         conn.transaction(),
     ):
+        await cur.execute(_get_server_version_sql())
+        result = await cur.fetchone()
+        pg_version = int(result[0]) if result is not None else None
+        if pg_version and pg_version < 15:
+            raise RuntimeError(
+                f"postgres {pg_version} is unsupported, pgai requires postgres version 15 or greater"  # noqa
+            )
+
         if vector_extension_schema is None:
             await conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
         else:
@@ -135,6 +149,14 @@ def install(
         psycopg.connect(db_url, autocommit=True) as conn,
         conn.cursor() as cur,
     ):
+        cur.execute(_get_server_version_sql())
+        result = cur.fetchone()
+        pg_version = int(result[0]) if result is not None else None
+        if pg_version and pg_version < 15:
+            raise RuntimeError(
+                f"postgres {pg_version} is unsupported, pgai requires postgres version 15 or greater"  # noqa
+            )
+
         if vector_extension_schema is None:
             conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
         else:
