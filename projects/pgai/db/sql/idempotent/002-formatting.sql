@@ -3,12 +3,11 @@
 -- formatting_python_template
 create or replace function ai.formatting_python_template(template pg_catalog.text default '$chunk') returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'python_template'
-    , 'config_type': 'formatting'
-    , 'template': template
-    absent on null
-    )
+    select json_strip_nulls(json_build_object
+    ( 'implementation', 'python_template'
+    , 'config_type', 'formatting'
+    , 'template', template
+    ))
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;

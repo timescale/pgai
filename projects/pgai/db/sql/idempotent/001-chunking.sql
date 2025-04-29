@@ -8,15 +8,14 @@ create or replace function ai.chunking_character_text_splitter
 , is_separator_regex pg_catalog.bool default false
 ) returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'character_text_splitter'
-    , 'config_type': 'chunking'
-    , 'chunk_size': chunk_size
-    , 'chunk_overlap': chunk_overlap
-    , 'separator': separator
-    , 'is_separator_regex': is_separator_regex
-    absent on null
-    )
+    select json_strip_nulls(json_build_object
+    ( 'implementation', 'character_text_splitter'
+    , 'config_type', 'chunking'
+    , 'chunk_size', chunk_size
+    , 'chunk_overlap', chunk_overlap
+    , 'separator', separator
+    , 'is_separator_regex', is_separator_regex
+    ))
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -30,15 +29,14 @@ create or replace function ai.chunking_recursive_character_text_splitter
 , is_separator_regex pg_catalog.bool default false
 ) returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'recursive_character_text_splitter'
-    , 'config_type': 'chunking'
-    , 'chunk_size': chunk_size
-    , 'chunk_overlap': chunk_overlap
-    , 'separators': separators
-    , 'is_separator_regex': is_separator_regex
-    absent on null
-    )
+    select json_strip_nulls(json_build_object
+    ( 'implementation', 'recursive_character_text_splitter'
+    , 'config_type', 'chunking'
+    , 'chunk_size', chunk_size
+    , 'chunk_overlap', chunk_overlap
+    , 'separators', separators
+    , 'is_separator_regex', is_separator_regex
+    ))
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -47,10 +45,9 @@ set search_path to pg_catalog, pg_temp
 -- chunking_none
 create or replace function ai.chunking_none() returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'none'
-    , 'config_type': 'chunking'
-    absent on null
+    select json_build_object
+    ( 'implementation', 'none'
+    , 'config_type', 'chunking'
     )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
