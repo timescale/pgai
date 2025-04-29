@@ -6,12 +6,13 @@ create or replace function ai.processing_default
 , concurrency pg_catalog.int4 default null
 ) returns pg_catalog.jsonb
 as $func$
-    select json_strip_nulls(json_build_object
-    ( 'implementation', 'default'
-    , 'config_type', 'processing'
-    , 'batch_size', batch_size
-    , 'concurrency', concurrency
-    ))
+    select json_object
+    ( 'implementation': 'default'
+    , 'config_type': 'processing'
+    , 'batch_size': batch_size
+    , 'concurrency': concurrency
+    absent on null
+    )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;

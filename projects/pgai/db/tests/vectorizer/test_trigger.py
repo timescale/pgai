@@ -1,7 +1,4 @@
-import os
-
 import psycopg
-import pytest
 from psycopg.rows import namedtuple_row
 
 from db.tests.conftest import detailed_notice_handler
@@ -11,7 +8,6 @@ def db_url(user: str) -> str:
     return f"postgres://{user}@127.0.0.1:5432/test"
 
 
-@pytest.mark.skipif(os.getenv("PG_MAJOR") == "15", reason="does not support pg15")
 def test_same_table_vectorizer_timescaledb():
     with psycopg.connect(
         db_url("postgres"), autocommit=True, row_factory=namedtuple_row

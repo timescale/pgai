@@ -36,18 +36,19 @@ create or replace function ai.indexing_diskann
 , create_when_queue_empty pg_catalog.bool default true
 ) returns pg_catalog.jsonb
 as $func$
-    select json_strip_nulls(json_build_object
-    ( 'implementation', 'diskann'
-    , 'config_type', 'indexing'
-    , 'min_rows', min_rows
-    , 'storage_layout', storage_layout
-    , 'num_neighbors', num_neighbors
-    , 'search_list_size', search_list_size
-    , 'max_alpha', max_alpha
-    , 'num_dimensions', num_dimensions
-    , 'num_bits_per_dimension', num_bits_per_dimension
-    , 'create_when_queue_empty', create_when_queue_empty
-    ))
+    select json_object
+    ( 'implementation': 'diskann'
+    , 'config_type': 'indexing'
+    , 'min_rows': min_rows
+    , 'storage_layout': storage_layout
+    , 'num_neighbors': num_neighbors
+    , 'search_list_size': search_list_size
+    , 'max_alpha': max_alpha
+    , 'num_dimensions': num_dimensions
+    , 'num_bits_per_dimension': num_bits_per_dimension
+    , 'create_when_queue_empty': create_when_queue_empty
+    absent on null
+    )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -99,15 +100,16 @@ create or replace function ai.indexing_hnsw
 , create_when_queue_empty pg_catalog.bool default true
 ) returns pg_catalog.jsonb
 as $func$
-    select json_strip_nulls(json_build_object
-    ( 'implementation', 'hnsw'
-    , 'config_type', 'indexing'
-    , 'min_rows', min_rows
-    , 'opclass', opclass
-    , 'm', m
-    , 'ef_construction', ef_construction
-    , 'create_when_queue_empty', create_when_queue_empty
-    ))
+    select json_object
+    ( 'implementation': 'hnsw'
+    , 'config_type': 'indexing'
+    , 'min_rows': min_rows
+    , 'opclass': opclass
+    , 'm': m
+    , 'ef_construction': ef_construction
+    , 'create_when_queue_empty': create_when_queue_empty
+    absent on null
+    )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;

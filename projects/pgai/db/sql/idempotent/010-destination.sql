@@ -9,15 +9,16 @@ create or replace function ai.destination_table
     , view_name pg_catalog.name default null
 ) returns pg_catalog.jsonb
 as $func$
-    select json_strip_nulls(json_build_object
-    ( 'implementation', 'table'
-    , 'config_type', 'destination'
-    , 'destination', destination
-    , 'target_schema', target_schema
-    , 'target_table', target_table
-    , 'view_schema', view_schema
-    , 'view_name', view_name
-    ))
+    select json_object
+    ( 'implementation': 'table'
+    , 'config_type': 'destination'
+    , 'destination': destination
+    , 'target_schema': target_schema
+    , 'target_table': target_table
+    , 'view_schema': view_schema
+    , 'view_name': view_name
+    absent on null
+    )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -29,11 +30,12 @@ create or replace function ai.destination_column
     embedding_column pg_catalog.name
 ) returns pg_catalog.jsonb
 as $func$
-    select json_strip_nulls(json_build_object
-    ( 'implementation', 'column'
-    , 'config_type', 'destination'
-    , 'embedding_column', embedding_column
-    ))
+    select json_object
+    ( 'implementation': 'column'
+    , 'config_type': 'destination'
+    , 'embedding_column': embedding_column
+    absent on null
+    )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -94,19 +96,19 @@ begin
             when destination operator(pg_catalog.->>) 'destination' is not null then destination operator(pg_catalog.->>) 'destination'
             else pg_catalog.concat(source_table, '_embedding')
         end;
-        return json_build_object
-        ( 'implementation', 'table'
-        , 'config_type', 'destination'
-        , 'target_schema', target_schema
-        , 'target_table', target_table
-        , 'view_schema', view_schema
-        , 'view_name', view_name
+        return json_object
+        ( 'implementation': 'table'
+        , 'config_type': 'destination'
+        , 'target_schema': target_schema
+        , 'target_table': target_table
+        , 'view_schema': view_schema
+        , 'view_name': view_name
         );
     elseif destination operator(pg_catalog.->>) 'implementation' = 'column' then
-        return json_build_object
-        ( 'implementation', 'column'
-        , 'config_type', 'destination'
-        , 'embedding_column', destination operator(pg_catalog.->>) 'embedding_column'
+        return json_object
+        ( 'implementation': 'column'
+        , 'config_type': 'destination'
+        , 'embedding_column': destination operator(pg_catalog.->>) 'embedding_column'
         );
     else
         raise exception 'invalid implementation for destination config';

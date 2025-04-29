@@ -5,11 +5,11 @@ create or replace function ai.loading_column
 , retries pg_catalog.int4 default 6)
 returns pg_catalog.jsonb
 as $func$
-    select json_build_object
-    ( 'implementation', 'column'
-    , 'config_type', 'loading'
-    , 'column_name', column_name
-    , 'retries', retries
+    select json_object
+    ( 'implementation': 'column'
+    , 'config_type': 'loading'
+    , 'column_name': column_name
+    , 'retries': retries
     )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
@@ -23,13 +23,13 @@ create or replace function ai.loading_uri
 , aws_role_arn pg_catalog.text default null)
 returns pg_catalog.jsonb
 as $func$
-    select json_strip_nulls(json_build_object
-    ( 'implementation', 'uri'
-    , 'config_type', 'loading'
-    , 'column_name', column_name
-    , 'retries', retries
-    , 'aws_role_arn', aws_role_arn
-    ))
+    select json_object
+    ( 'implementation': 'uri'
+    , 'config_type': 'loading'
+    , 'column_name': column_name
+    , 'retries': retries
+    , 'aws_role_arn': aws_role_arn
+    absent on null)
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;

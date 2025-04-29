@@ -615,7 +615,7 @@ begin
         execute _sql into strict _queue_depth;
     else
         select format
-        ( $sql$select count(*) from (select 1 from %I.%I limit 10001) as subselect$sql$
+        ( $sql$select count(*) from (select 1 from %I.%I limit 10001)$sql$
         , _queue_schema, _queue_table
         ) into strict _sql
         ;

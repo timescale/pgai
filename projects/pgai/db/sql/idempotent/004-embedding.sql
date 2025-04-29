@@ -9,15 +9,16 @@ create or replace function ai.embedding_openai
 , base_url text default null
 ) returns pg_catalog.jsonb
 as $func$
-    select json_strip_nulls(json_build_object
-    ( 'implementation', 'openai'
-    , 'config_type', 'embedding'
-    , 'model', model
-    , 'dimensions', dimensions
-    , 'user', chat_user
-    , 'api_key_name', api_key_name
-    , 'base_url', base_url
-    ))
+    select json_object
+    ( 'implementation': 'openai'
+    , 'config_type': 'embedding'
+    , 'model': model
+    , 'dimensions': dimensions
+    , 'user': chat_user
+    , 'api_key_name': api_key_name
+    , 'base_url': base_url
+    absent on null
+    )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -32,15 +33,16 @@ create or replace function ai.embedding_ollama
 , keep_alive pg_catalog.text default null
 ) returns pg_catalog.jsonb
 as $func$
-    select json_strip_nulls(json_build_object
-    ( 'implementation', 'ollama'
-    , 'config_type', 'embedding'
-    , 'model', model
-    , 'dimensions', dimensions
-    , 'base_url', base_url
-    , 'options', options
-    , 'keep_alive', keep_alive
-    ))
+    select json_object
+    ( 'implementation': 'ollama'
+    , 'config_type': 'embedding'
+    , 'model': model
+    , 'dimensions': dimensions
+    , 'base_url': base_url
+    , 'options': options
+    , 'keep_alive': keep_alive
+    absent on null
+    )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -60,14 +62,15 @@ begin
         raise exception 'invalid input_type for voyage ai "%"', input_type;
     end if;
 
-    return json_strip_nulls(json_build_object
-    ( 'implementation', 'voyageai'
-    , 'config_type', 'embedding'
-    , 'model', model
-    , 'dimensions', dimensions
-    , 'input_type', input_type
-    , 'api_key_name', api_key_name
-    ));
+    return json_object
+    ( 'implementation': 'voyageai'
+    , 'config_type': 'embedding'
+    , 'model': model
+    , 'dimensions': dimensions
+    , 'input_type': input_type
+    , 'api_key_name': api_key_name
+    absent on null
+    );
 end
 $func$ language plpgsql immutable security invoker
 set search_path to pg_catalog, pg_temp
@@ -83,14 +86,15 @@ create or replace function ai.embedding_litellm
 ) returns pg_catalog.jsonb
 as $func$
 begin
-    return json_strip_nulls(json_build_object
-    ( 'implementation', 'litellm'
-    , 'config_type', 'embedding'
-    , 'model', model
-    , 'dimensions', dimensions
-    , 'api_key_name', api_key_name
-    , 'extra_options', extra_options
-    ));
+    return json_object
+    ( 'implementation': 'litellm'
+    , 'config_type': 'embedding'
+    , 'model': model
+    , 'dimensions': dimensions
+    , 'api_key_name': api_key_name
+    , 'extra_options': extra_options
+    absent on null
+    );
 end
 $func$ language plpgsql immutable security invoker
 set search_path to pg_catalog, pg_temp
