@@ -331,9 +331,7 @@ def semantic_catalog():
 @click.option(
     "-o",
     "--output",
-    type=click.Path(
-        exists=False, dir_okay=False, writable=True, resolve_path=True, path_type=Path
-    ),
+    type=click.Path(exists=False, dir_okay=False, writable=True, path_type=Path),
     default=None,
     help="The path to a file to write output to.",
 )
@@ -360,7 +358,7 @@ def semantic_catalog():
 @click.option(
     "-l",
     "--log-file",
-    type=click.Path(dir_okay=False, writable=True, resolve_path=True, path_type=Path),
+    type=click.Path(dir_okay=False, writable=True, path_type=Path),
     default=None,
     help="The path to a file to write log messages to.",
 )
@@ -397,13 +395,15 @@ def describe(
             level=get_log_level(log_level or "INFO"),
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             handlers=[
-                logging.FileHandler(log_file),
+                logging.FileHandler(log_file.expanduser().resolve()),
             ],
         )
 
     from rich.console import Console
 
     from pgai.semantic_catalog.describe import describe
+
+    output = output.expanduser().resolve() if output else None
 
     with sys.stdout if not output else output.open(mode="a" if append else "w") as f:
         asyncio.run(
@@ -466,7 +466,7 @@ def describe(
 @click.option(
     "-l",
     "--log-file",
-    type=click.Path(dir_okay=False, writable=True, resolve_path=True, path_type=Path),
+    type=click.Path(dir_okay=False, writable=True, path_type=Path),
     default=None,
     help="The path to a file to write log messages to.",
 )
@@ -490,7 +490,7 @@ def vectorize(
 
     log_handlers: list[logging.Handler] = []
     if log_file:
-        log_handlers.append(logging.FileHandler(log_file))
+        log_handlers.append(logging.FileHandler(log_file.expanduser().resolve()))
     if not quiet:
         from rich.console import Console
         from rich.logging import RichHandler
@@ -594,7 +594,7 @@ def vectorize(
 @click.option(
     "-l",
     "--log-file",
-    type=click.Path(dir_okay=False, writable=True, resolve_path=True, path_type=Path),
+    type=click.Path(dir_okay=False, writable=True, path_type=Path),
     default=None,
     help="The path to a file to write log messages to.",
 )
@@ -622,7 +622,7 @@ def create(
 
     log_handlers: list[logging.Handler] = []
     if log_file:
-        log_handlers.append(logging.FileHandler(log_file))
+        log_handlers.append(logging.FileHandler(log_file.expanduser().resolve()))
     if not quiet:
         from rich.console import Console
         from rich.logging import RichHandler
@@ -696,7 +696,7 @@ def create(
 @click.option(
     "-f",
     "--sql-file",
-    type=click.Path(exists=True, dir_okay=False, resolve_path=True, path_type=Path),
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=None,
     help="The path to a sql file containing descriptions.",
 )
@@ -730,7 +730,7 @@ def create(
 @click.option(
     "-l",
     "--log-file",
-    type=click.Path(dir_okay=False, writable=True, resolve_path=True, path_type=Path),
+    type=click.Path(dir_okay=False, writable=True, path_type=Path),
     default=None,
     help="The path to a file to write log messages to.",
 )
@@ -755,7 +755,7 @@ def load(
 
     log_handlers: list[logging.Handler] = []
     if log_file:
-        log_handlers.append(logging.FileHandler(log_file))
+        log_handlers.append(logging.FileHandler(log_file.expanduser().resolve()))
     if not quiet:
         from rich.console import Console
         from rich.logging import RichHandler
@@ -773,6 +773,7 @@ def load(
 
     catalog_name = catalog_name or "default"
     batch_size = batch_size if batch_size is not None else 32
+    sql_file = sql_file.expanduser().resolve()
     assert sql_file and sql_file.exists() and sql_file.is_file(), "invalid sql file"
 
     script = sql_file.read_text()
@@ -862,7 +863,7 @@ def load(
 @click.option(
     "-l",
     "--log-file",
-    type=click.Path(dir_okay=False, writable=True, resolve_path=True, path_type=Path),
+    type=click.Path(dir_okay=False, writable=True, path_type=Path),
     default=None,
     help="The path to a file to write log messages to.",
 )
@@ -883,6 +884,12 @@ def load(
     is_flag=True,
     help="Print LLM usage metrics.",
 )
+@click.option(
+    "--save-final-prompt",
+    type=click.Path(dir_okay=False, writable=True, path_type=Path),
+    default=None,
+    help="The path to a file to write the final prompt to.",
+)
 def generate_sql(
     db_url: str,
     catalog_db_url: str | None,
@@ -896,12 +903,13 @@ def generate_sql(
     log_level: str | None = "INFO",
     print_messages: bool = False,
     print_usage: bool = False,
+    save_final_prompt: Path | None = None,
 ) -> None:
     import logging
 
     log_handlers: list[logging.Handler] = []
     if log_file:
-        log_handlers.append(logging.FileHandler(log_file))
+        log_handlers.append(logging.FileHandler(log_file.expanduser().resolve()))
     if not quiet:
         from rich.console import Console
         from rich.logging import RichHandler
@@ -993,6 +1001,9 @@ def generate_sql(
 
     console.print(Rule())
     console.print(Syntax(resp.sql_statement, "sql"))
+
+    if save_final_prompt:
+        save_final_prompt.expanduser().resolve().write_text(resp.final_prompt)
 
 
 cli.add_command(semantic_catalog)
