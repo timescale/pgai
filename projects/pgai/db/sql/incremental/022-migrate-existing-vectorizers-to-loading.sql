@@ -18,15 +18,15 @@ BEGIN
             -- 2. Add parsing config
             -- 3. Remove chunk_column from chunking config
             _config := _vectorizer.config operator(pg_catalog.||) jsonb_build_object(
-                'loading', json_object(
-                    'implementation': 'column',
-                    'config_type': 'loading',
-                    'column_name': _chunk_column,
-                    'retries': 6
+                'loading', json_build_object(
+                    'implementation', 'column',
+                    'config_type', 'loading',
+                    'column_name', _chunk_column,
+                    'retries', 6
            ),
-                'parsing', json_object(
-                    'implementation': 'auto',
-                    'config_type': 'parsing'
+                'parsing', json_build_object(
+                    'implementation', 'auto',
+                    'config_type', 'parsing'
                 ),
                 'chunking', _chunking operator(pg_catalog.-) 'chunk_column',
                 'version', '__version__'
