@@ -147,6 +147,7 @@ async def validate_sql_statement(
 class GenerateSQLResponse:
     sql_statement: str
     context: DatabaseContext
+    final_prompt: str
     messages: list[ModelMessage]
     usage: Usage
 
@@ -275,6 +276,7 @@ async def generate_sql(
     return GenerateSQLResponse(
         sql_statement=answer,
         context=ctx,
+        final_prompt=user_prompt,
         messages=messages,
         usage=usage,
     )
