@@ -62,7 +62,7 @@ async def sample_table(
     schema_name: str,
     table_name: str,
     limit: int = 3,
-    format: str = "inserts",
+    format: str = "copy_text",
 ) -> str:
     assert format in {"inserts", "copy_text"}
     match format:
