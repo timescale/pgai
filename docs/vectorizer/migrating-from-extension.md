@@ -16,7 +16,7 @@ upgrade vectorizer functionality in the future.
 
 The upgrade process is as follows:
 
-1. **Upgrade the extension:** Run ALTER EXTENSION ai UPDATE TO '0.10.0' to detach the vectorizer catalog tables and functions from the extension. This leaves them in your database in the ai schema, and the vectorizer will continue to work.
+1. **Upgrade the extension:** Run ALTER EXTENSION ai UPDATE TO '0.10.1' to detach the vectorizer catalog tables and functions from the extension. This leaves them in your database in the ai schema, and the vectorizer will continue to work.
 2. **Upgrade (or install) the pgai python library:** Install pgai version `>0.10.0`. This can be done with `pip install -U pgai` or via your `requirements.txt` or similar dependency file.
 3. **Manage the vectorizer with the python library:** You can then manage the vectorizer from the python library or cli by using `pgai install -d DB_URL` as described in the new python-library-based [workflow](/docs/vectorizer/api-reference.md#install-or-upgrade-the-database-objects-necessary-for-vectorizer).
 3. **(Optional) Remove the extension:** If you are not using Timescale Cloud and you don't use the model calling capabilities of pgai, you can then remove the pgai extension from your database.
@@ -35,3 +35,14 @@ These changes are automatically applied to existing vectorizers. But, when creat
 * `ai.create_vectorizer` now requires a [`loading =>`](https://github.com/timescale/pgai/blob/main/docs/vectorizer/api-reference.md#loading-configuration) argument. Previous behavior is provided via the [`loading => loading_column()`](https://github.com/timescale/pgai/blob/main/docs/vectorizer/api-reference.md#ailoading_column) function.
 * `ai.create_vectorizer` no longer takes `destination`, `target_table`, `target_schema`, `view_schema`, `view_name` as arguments configure these options via the new [`destination => ai.destination_table()`](https://github.com/timescale/pgai/blob/main/docs/vectorizer/api-reference.md#destination-configuration) function instead.
 * [ai.chunking_character_text_splitter](https://github.com/timescale/pgai/blob/main/docs/vectorizer/api-reference.md#aichunking_character_text_splitter) and [ai.chunking_recursive_character_text_splitter](https://github.com/timescale/pgai/blob/main/docs/vectorizer/api-reference.md#aichunking_recursive_character_text_splitter) no longer take a `chunk_column` argument, that column name is now provided via [`loading => loading_column()`](https://github.com/timescale/pgai/blob/main/docs/vectorizer/api-reference.md#ailoading_column) function instead.
+
+# Commons Issues:
+
+### Old extension still installed
+If you see something like
+```
+psycopg.errors.DuplicateTable: relation "vectorizer" already exists
+CONTEXT:  SQL statement "create table ai.vectorizer
+```
+When trying to run `pgai install`, it likely means that you have an old version (`<0.10`) of the extension installed.
+Make sure to run `ALTER EXTENSION ai UPDATE TO '0.10.1'` first!
