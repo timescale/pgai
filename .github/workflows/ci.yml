@@ -158,6 +158,10 @@ jobs:
   build-and-test-pgai-db-module:
     needs: authorize
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        postgres-version: [ 15, 16, 17 ]
+      fail-fast: false
 
     steps:
       - uses: actions/checkout@v4
@@ -184,3 +188,4 @@ jobs:
         run: just pgai db ci
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PG_MAJOR: ${{ matrix.postgres-version }}

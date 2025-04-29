@@ -19,13 +19,13 @@ begin
         -- Create new config:
         -- Add destination config
         _config := _vectorizer.config operator(pg_catalog.||) jsonb_build_object(
-            'destination', json_object(
-                'implementation': 'table',
-                'config_type': 'destination',
-                'target_schema': _target_schema,
-                'target_table': _target_table,
-                'view_schema': _view_schema,
-                'view_name': _view_name
+            'destination', json_build_object(
+                'implementation', 'table',
+                'config_type', 'destination',
+                'target_schema', _target_schema,
+                'target_table', _target_table,
+                'view_schema', _view_schema,
+                'view_name', _view_name
         ));
 
         -- Update the vectorizer with new config
