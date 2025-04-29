@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.10.1](https://github.com/timescale/pgai/compare/pgai-v0.10.0...pgai-v0.10.1) (2025-04-29)
+
+
+### Bug Fixes
+
+* change --strict argument of install to flag ([ceaa313](https://github.com/timescale/pgai/commit/ceaa313562e60eb45f976655bbaac4c0f5e37d48))
+* support pg15 ([#662](https://github.com/timescale/pgai/issues/662)) ([c7402c0](https://github.com/timescale/pgai/commit/c7402c0110baf180592d2cefab24276853a55f9f))
+
+
+### Miscellaneous
+
+* add postgres version check to pgai install ([#670](https://github.com/timescale/pgai/issues/670)) ([713e771](https://github.com/timescale/pgai/commit/713e771527e3a659d2943b9ab28413664a81286c))
+
 ## [0.10.0](https://github.com/timescale/pgai/compare/pgai-v0.9.2...pgai-v0.10.0) (2025-04-08)
 
 
