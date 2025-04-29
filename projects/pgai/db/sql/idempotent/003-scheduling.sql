@@ -32,15 +32,14 @@ create or replace function ai.scheduling_timescaledb
 , timezone pg_catalog.text default null
 ) returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'timescaledb'
-    , 'config_type': 'scheduling'
-    , 'schedule_interval': schedule_interval
-    , 'initial_start': initial_start
-    , 'fixed_schedule': fixed_schedule
-    , 'timezone': timezone
-    absent on null
-    )
+    select json_strip_nulls(json_build_object
+    ( 'implementation', 'timescaledb'
+    , 'config_type', 'scheduling'
+    , 'schedule_interval', schedule_interval
+    , 'initial_start', initial_start
+    , 'fixed_schedule', fixed_schedule
+    , 'timezone', timezone
+    ))
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;

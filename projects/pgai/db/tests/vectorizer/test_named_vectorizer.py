@@ -21,7 +21,6 @@ def test_named_vectorizer():
             cur.execute("select to_regrole('adelaide') is null")
             if cur.fetchone()[0] is True:
                 cur.execute("create user adelaide")
-            cur.execute("create extension if not exists ai cascade")
     with psycopg.connect(
         db_url("test"), autocommit=True, row_factory=namedtuple_row
     ) as con:
@@ -64,11 +63,7 @@ def test_named_vectorizer():
             , loading=>ai.loading_column('body')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
             , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
-            , scheduling=>ai.scheduling_timescaledb
-                    ( interval '5m'
-                    , initial_start=>'2050-01-06'::timestamptz
-                    , timezone=>'America/Chicago'
-                    )
+            , scheduling=>ai.scheduling_none()
             , destination=>ai.destination_column('embedding1')
             , chunking=>ai.chunking_none()
             );
@@ -88,11 +83,7 @@ def test_named_vectorizer():
             , loading=>ai.loading_column('body')
             , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
             , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
-            , scheduling=>ai.scheduling_timescaledb
-                    ( interval '5m'
-                    , initial_start=>'2050-01-06'::timestamptz
-                    , timezone=>'America/Chicago'
-                    )
+            , scheduling=>ai.scheduling_none()
             , destination=>ai.destination_column('embedding1')
             , chunking=>ai.chunking_none()
             , if_not_exists => true
@@ -114,11 +105,7 @@ def test_named_vectorizer():
                 , loading=>ai.loading_column('body')
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
                 , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
-                , scheduling=>ai.scheduling_timescaledb
-                        ( interval '5m'
-                        , initial_start=>'2050-01-06'::timestamptz
-                        , timezone=>'America/Chicago'
-                        )
+                , scheduling=>ai.scheduling_none()
                 , destination=>ai.destination_column('embedding1')
                 , chunking=>ai.chunking_none()
                 , if_not_exists => false
@@ -132,11 +119,7 @@ def test_named_vectorizer():
                , loading=>ai.loading_column('body')
                , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
                , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
-               , scheduling=>ai.scheduling_timescaledb
-                       ( interval '5m'
-                       , initial_start=>'2050-01-06'::timestamptz
-                       , timezone=>'America/Chicago'
-                       )
+               , scheduling=>ai.scheduling_none()
                , destination=>ai.destination_column('embedding1')
                , chunking=>ai.chunking_none()
                , if_not_exists => false
@@ -160,11 +143,7 @@ def test_named_vectorizer():
                , loading=>ai.loading_column('body')
                , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
                , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
-               , scheduling=>ai.scheduling_timescaledb
-                       ( interval '5m'
-                       , initial_start=>'2050-01-06'::timestamptz
-                       , timezone=>'America/Chicago'
-                       )
+               , scheduling=>ai.scheduling_none()
                , destination=>ai.destination_table()
                , chunking=>ai.chunking_none()
                , if_not_exists => false
@@ -188,11 +167,7 @@ def test_named_vectorizer():
                , loading=>ai.loading_column('body')
                , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
                , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
-               , scheduling=>ai.scheduling_timescaledb
-                       ( interval '5m'
-                       , initial_start=>'2050-01-06'::timestamptz
-                       , timezone=>'America/Chicago'
-                       )
+               , scheduling=>ai.scheduling_none()
                , destination=>ai.destination_table()
                , chunking=>ai.chunking_none()
                , if_not_exists => true
@@ -216,11 +191,7 @@ def test_named_vectorizer():
                 , loading=>ai.loading_column('body')
                 , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
                 , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
-                , scheduling=>ai.scheduling_timescaledb
-                        ( interval '5m'
-                        , initial_start=>'2050-01-06'::timestamptz
-                        , timezone=>'America/Chicago'
-                        )
+                , scheduling=>ai.scheduling_none()
                 , destination=>ai.destination_table()
                 , chunking=>ai.chunking_none()
                 , if_not_exists => false

@@ -588,14 +588,14 @@ BEGIN
             -- 3. Remove chunk_column from chunking config
             _config := _vectorizer.config operator(pg_catalog.||) jsonb_build_object(
                 'loading', json_object(
-                    'implementation': 'column',
-                    'config_type': 'loading',
-                    'column_name': _chunk_column,
-                    'retries': 6
+                    'implementation', 'column',
+                    'config_type', 'loading',
+                    'column_name', _chunk_column,
+                    'retries', 6
            ),
                 'parsing', json_object(
-                    'implementation': 'auto',
-                    'config_type': 'parsing'
+                    'implementation', 'auto',
+                    'config_type', 'parsing'
                 ),
                 'chunking', _chunking operator(pg_catalog.-) 'chunk_column',
                 'version', '__version__'
@@ -983,12 +983,12 @@ begin
         -- Add destination config
         _config := _vectorizer.config operator(pg_catalog.||) jsonb_build_object(
             'destination', json_object(
-                'implementation': 'table',
-                'config_type': 'destination',
-                'target_schema': _target_schema,
-                'target_table': _target_table,
-                'view_schema': _view_schema,
-                'view_name': _view_name
+                'implementation', 'table',
+                'config_type', 'destination',
+                'target_schema', _target_schema,
+                'target_table', _target_table,
+                'view_schema', _view_schema,
+                'view_name', _view_name
         ));
 
         -- Update the vectorizer with new config
@@ -1115,15 +1115,14 @@ create or replace function ai.chunking_character_text_splitter
 , is_separator_regex pg_catalog.bool default false
 ) returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'character_text_splitter'
-    , 'config_type': 'chunking'
-    , 'chunk_size': chunk_size
-    , 'chunk_overlap': chunk_overlap
-    , 'separator': separator
-    , 'is_separator_regex': is_separator_regex
-    absent on null
-    )
+    select json_strip_nulls(json_build_object
+    ( 'implementation', 'character_text_splitter'
+    , 'config_type', 'chunking'
+    , 'chunk_size', chunk_size
+    , 'chunk_overlap', chunk_overlap
+    , 'separator', separator
+    , 'is_separator_regex', is_separator_regex
+    ))
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -1137,15 +1136,14 @@ create or replace function ai.chunking_recursive_character_text_splitter
 , is_separator_regex pg_catalog.bool default false
 ) returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'recursive_character_text_splitter'
-    , 'config_type': 'chunking'
-    , 'chunk_size': chunk_size
-    , 'chunk_overlap': chunk_overlap
-    , 'separators': separators
-    , 'is_separator_regex': is_separator_regex
-    absent on null
-    )
+    select json_strip_nulls(json_build_object
+    ( 'implementation', 'recursive_character_text_splitter'
+    , 'config_type', 'chunking'
+    , 'chunk_size', chunk_size
+    , 'chunk_overlap', chunk_overlap
+    , 'separators', separators
+    , 'is_separator_regex', is_separator_regex
+    ))
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -1154,10 +1152,9 @@ set search_path to pg_catalog, pg_temp
 -- chunking_none
 create or replace function ai.chunking_none() returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'none'
-    , 'config_type': 'chunking'
-    absent on null
+    select json_build_object
+    ( 'implementation', 'none'
+    , 'config_type', 'chunking'
     )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
@@ -1198,12 +1195,11 @@ set search_path to pg_catalog, pg_temp
 -- formatting_python_template
 create or replace function ai.formatting_python_template(template pg_catalog.text default '$chunk') returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'python_template'
-    , 'config_type': 'formatting'
-    , 'template': template
-    absent on null
-    )
+    select json_strip_nulls(json_build_object
+    ( 'implementation', 'python_template'
+    , 'config_type', 'formatting'
+    , 'template', template
+    ))
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -1316,15 +1312,14 @@ create or replace function ai.scheduling_timescaledb
 , timezone pg_catalog.text default null
 ) returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'timescaledb'
-    , 'config_type': 'scheduling'
-    , 'schedule_interval': schedule_interval
-    , 'initial_start': initial_start
-    , 'fixed_schedule': fixed_schedule
-    , 'timezone': timezone
-    absent on null
-    )
+    select json_strip_nulls(json_build_object
+    ( 'implementation', 'timescaledb'
+    , 'config_type', 'scheduling'
+    , 'schedule_interval', schedule_interval
+    , 'initial_start', initial_start
+    , 'fixed_schedule', fixed_schedule
+    , 'timezone', timezone
+    ))
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -1396,16 +1391,15 @@ create or replace function ai.embedding_openai
 , base_url text default null
 ) returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'openai'
-    , 'config_type': 'embedding'
-    , 'model': model
-    , 'dimensions': dimensions
-    , 'user': chat_user
-    , 'api_key_name': api_key_name
-    , 'base_url': base_url
-    absent on null
-    )
+    select json_strip_nulls(json_build_object
+    ( 'implementation', 'openai'
+    , 'config_type', 'embedding'
+    , 'model', model
+    , 'dimensions', dimensions
+    , 'user', chat_user
+    , 'api_key_name', api_key_name
+    , 'base_url', base_url
+    ))
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -1420,16 +1414,15 @@ create or replace function ai.embedding_ollama
 , keep_alive pg_catalog.text default null
 ) returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'ollama'
-    , 'config_type': 'embedding'
-    , 'model': model
-    , 'dimensions': dimensions
-    , 'base_url': base_url
-    , 'options': options
-    , 'keep_alive': keep_alive
-    absent on null
-    )
+    select json_strip_nulls(json_build_object
+    ( 'implementation', 'ollama'
+    , 'config_type', 'embedding'
+    , 'model', model
+    , 'dimensions', dimensions
+    , 'base_url', base_url
+    , 'options', options
+    , 'keep_alive', keep_alive
+    ))
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -1449,15 +1442,14 @@ begin
         raise exception 'invalid input_type for voyage ai "%"', input_type;
     end if;
 
-    return json_object
-    ( 'implementation': 'voyageai'
-    , 'config_type': 'embedding'
-    , 'model': model
-    , 'dimensions': dimensions
-    , 'input_type': input_type
-    , 'api_key_name': api_key_name
-    absent on null
-    );
+    return json_strip_nulls(json_build_object
+    ( 'implementation', 'voyageai'
+    , 'config_type', 'embedding'
+    , 'model', model
+    , 'dimensions', dimensions
+    , 'input_type', input_type
+    , 'api_key_name', api_key_name
+    ));
 end
 $func$ language plpgsql immutable security invoker
 set search_path to pg_catalog, pg_temp
@@ -1473,15 +1465,14 @@ create or replace function ai.embedding_litellm
 ) returns pg_catalog.jsonb
 as $func$
 begin
-    return json_object
-    ( 'implementation': 'litellm'
-    , 'config_type': 'embedding'
-    , 'model': model
-    , 'dimensions': dimensions
-    , 'api_key_name': api_key_name
-    , 'extra_options': extra_options
-    absent on null
-    );
+    return json_strip_nulls(json_build_object
+    ( 'implementation', 'litellm'
+    , 'config_type', 'embedding'
+    , 'model', model
+    , 'dimensions', dimensions
+    , 'api_key_name', api_key_name
+    , 'extra_options', extra_options
+    ));
 end
 $func$ language plpgsql immutable security invoker
 set search_path to pg_catalog, pg_temp
@@ -1566,19 +1557,18 @@ create or replace function ai.indexing_diskann
 , create_when_queue_empty pg_catalog.bool default true
 ) returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'diskann'
-    , 'config_type': 'indexing'
-    , 'min_rows': min_rows
-    , 'storage_layout': storage_layout
-    , 'num_neighbors': num_neighbors
-    , 'search_list_size': search_list_size
-    , 'max_alpha': max_alpha
-    , 'num_dimensions': num_dimensions
-    , 'num_bits_per_dimension': num_bits_per_dimension
-    , 'create_when_queue_empty': create_when_queue_empty
-    absent on null
-    )
+    select json_strip_nulls(json_build_object
+    ( 'implementation', 'diskann'
+    , 'config_type', 'indexing'
+    , 'min_rows', min_rows
+    , 'storage_layout', storage_layout
+    , 'num_neighbors', num_neighbors
+    , 'search_list_size', search_list_size
+    , 'max_alpha', max_alpha
+    , 'num_dimensions', num_dimensions
+    , 'num_bits_per_dimension', num_bits_per_dimension
+    , 'create_when_queue_empty', create_when_queue_empty
+    ))
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -1630,16 +1620,15 @@ create or replace function ai.indexing_hnsw
 , create_when_queue_empty pg_catalog.bool default true
 ) returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'hnsw'
-    , 'config_type': 'indexing'
-    , 'min_rows': min_rows
-    , 'opclass': opclass
-    , 'm': m
-    , 'ef_construction': ef_construction
-    , 'create_when_queue_empty': create_when_queue_empty
-    absent on null
-    )
+    select json_strip_nulls(json_build_object
+    ( 'implementation', 'hnsw'
+    , 'config_type', 'indexing'
+    , 'min_rows', min_rows
+    , 'opclass', opclass
+    , 'm', m
+    , 'ef_construction', ef_construction
+    , 'create_when_queue_empty', create_when_queue_empty
+    ))
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -1709,13 +1698,12 @@ create or replace function ai.processing_default
 , concurrency pg_catalog.int4 default null
 ) returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'default'
-    , 'config_type': 'processing'
-    , 'batch_size': batch_size
-    , 'concurrency': concurrency
-    absent on null
-    )
+    select json_strip_nulls(json_build_object
+    ( 'implementation', 'default'
+    , 'config_type', 'processing'
+    , 'batch_size', batch_size
+    , 'concurrency', concurrency
+    ))
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -1813,11 +1801,11 @@ create or replace function ai.loading_column
 , retries pg_catalog.int4 default 6)
 returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'column'
-    , 'config_type': 'loading'
-    , 'column_name': column_name
-    , 'retries': retries
+    select json_build_object
+    ( 'implementation', 'column'
+    , 'config_type', 'loading'
+    , 'column_name', column_name
+    , 'retries', retries
     )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
@@ -1831,13 +1819,13 @@ create or replace function ai.loading_uri
 , aws_role_arn pg_catalog.text default null)
 returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'uri'
-    , 'config_type': 'loading'
-    , 'column_name': column_name
-    , 'retries': retries
-    , 'aws_role_arn': aws_role_arn
-    absent on null)
+    select json_strip_nulls(json_build_object
+    ( 'implementation', 'uri'
+    , 'config_type', 'loading'
+    , 'column_name', column_name
+    , 'retries', retries
+    , 'aws_role_arn', aws_role_arn
+    ))
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -1915,9 +1903,9 @@ set search_path to pg_catalog, pg_temp
 -- parsing_auto
 create or replace function ai.parsing_auto() returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'auto'
-    , 'config_type': 'parsing'
+    select json_build_object
+    ( 'implementation', 'auto'
+    , 'config_type', 'parsing'
     )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
@@ -1927,9 +1915,9 @@ set search_path to pg_catalog, pg_temp
 -- parsing_none
 create or replace function ai.parsing_none() returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'none'
-    , 'config_type': 'parsing'
+    select json_build_object
+    ( 'implementation', 'none'
+    , 'config_type', 'parsing'
     )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
@@ -1939,9 +1927,9 @@ set search_path to pg_catalog, pg_temp
 -- parser_pymupdf
 create or replace function ai.parsing_pymupdf() returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'pymupdf'
-    , 'config_type': 'parsing'
+    select json_build_object
+    ( 'implementation', 'pymupdf'
+    , 'config_type', 'parsing'
     )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
@@ -1951,9 +1939,9 @@ set search_path to pg_catalog, pg_temp
 -- parser_docling
 create or replace function ai.parsing_docling() returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'docling'
-    , 'config_type': 'parsing'
+    select json_build_object
+    ( 'implementation', 'docling'
+    , 'config_type', 'parsing'
     )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
@@ -2034,16 +2022,15 @@ create or replace function ai.destination_table
     , view_name pg_catalog.name default null
 ) returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'table'
-    , 'config_type': 'destination'
-    , 'destination': destination
-    , 'target_schema': target_schema
-    , 'target_table': target_table
-    , 'view_schema': view_schema
-    , 'view_name': view_name
-    absent on null
-    )
+    select json_strip_nulls(json_build_object
+    ( 'implementation', 'table'
+    , 'config_type', 'destination'
+    , 'destination', destination
+    , 'target_schema', target_schema
+    , 'target_table', target_table
+    , 'view_schema', view_schema
+    , 'view_name', view_name
+    ))
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -2055,12 +2042,11 @@ create or replace function ai.destination_column
     embedding_column pg_catalog.name
 ) returns pg_catalog.jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'column'
-    , 'config_type': 'destination'
-    , 'embedding_column': embedding_column
-    absent on null
-    )
+    select json_strip_nulls(json_build_object
+    ( 'implementation', 'column'
+    , 'config_type', 'destination'
+    , 'embedding_column', embedding_column
+    ))
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;
@@ -2121,19 +2107,19 @@ begin
             when destination operator(pg_catalog.->>) 'destination' is not null then destination operator(pg_catalog.->>) 'destination'
             else pg_catalog.concat(source_table, '_embedding')
         end;
-        return json_object
-        ( 'implementation': 'table'
-        , 'config_type': 'destination'
-        , 'target_schema': target_schema
-        , 'target_table': target_table
-        , 'view_schema': view_schema
-        , 'view_name': view_name
+        return json_build_object
+        ( 'implementation', 'table'
+        , 'config_type', 'destination'
+        , 'target_schema', target_schema
+        , 'target_table', target_table
+        , 'view_schema', view_schema
+        , 'view_name', view_name
         );
     elseif destination operator(pg_catalog.->>) 'implementation' = 'column' then
-        return json_object
-        ( 'implementation': 'column'
-        , 'config_type': 'destination'
-        , 'embedding_column': destination operator(pg_catalog.->>) 'embedding_column'
+        return json_build_object
+        ( 'implementation', 'column'
+        , 'config_type', 'destination'
+        , 'embedding_column', destination operator(pg_catalog.->>) 'embedding_column'
         );
     else
         raise exception 'invalid implementation for destination config';
@@ -2372,9 +2358,16 @@ begin
         select pg_catalog.format(
             $sql$
             alter table %I.%I 
-            add column %I @extschema:vector@.vector(%L) storage main default null
+            add column %I @extschema:vector@.vector(%L) default null
             $sql$,
             source_schema, source_table, embedding_column, dimensions
+        ) into strict _sql;
+
+        execute _sql;
+
+        select pg_catalog.format(
+            $sql$alter table %I.%I alter column %I set storage main$sql$,
+            source_schema, source_table, embedding_column
         ) into strict _sql;
 
         execute _sql;
@@ -2409,7 +2402,7 @@ begin
     , %s
     , chunk_seq int not null
     , chunk text not null
-    , embedding @extschema:vector@.vector(%L) storage main not null
+    , embedding @extschema:vector@.vector(%L) not null
     , unique (%s, chunk_seq)
     )
     $sql$
@@ -2431,6 +2424,14 @@ begin
     , dimensions
     , _pk_cols
     ) into strict _sql
+    ;
+    execute _sql;
+
+    select pg_catalog.format
+       ( $sql$alter table %I.%I alter column embedding set storage main$sql$
+       , target_schema
+       , target_table
+       ) into strict _sql
     ;
     execute _sql;
 
@@ -4024,7 +4025,7 @@ begin
         execute _sql into strict _queue_depth;
     else
         select format
-        ( $sql$select count(*) from (select 1 from %I.%I limit 10001)$sql$
+        ( $sql$select count(*) from (select 1 from %I.%I limit 10001) as subselect$sql$
         , _queue_schema, _queue_table
         ) into strict _sql
         ;
