@@ -234,10 +234,10 @@ cli.add_command(vectorizer)
 )
 @click.option(
     "--strict",
-    type=click.BOOL,
+    is_flag=True,
     default=False,
     show_default=True,
-    help="If True, raise an error when the extension already exists and is at the latest version.",  # noqa: E501
+    help="Raise an error when the extension already exists and is at the latest version.",  # noqa: E501
 )
 def install(db_url: str, strict: bool) -> None:
     import pgai
