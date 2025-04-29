@@ -2,6 +2,17 @@
 
 This is a comprehensive walkthrough of how embedding generation for documents work in pgai. If you want to get started quickly check out the [runnable example](/examples/embeddings_from_documents).
 
+To process documents, you need to:
+
+1. [Set up document storage](#setting-up-document-storage) - This creates a table that stores metadata about the documents either a reference to the document in an external system or the document content itself.
+2. [Create a vectorizer](#configuring-document-vectorizers) - This defines how the documents are processed and embedded.
+
+Then you can [query the generated embeddings](#query-document-embeddings) using the usual pgvector semantic search. 
+
+In this guide, we'll also cover how to [monitor and troubleshoot](#monitoring-and-troubleshooting) your vectorizers.
+
+If you are storing documents in AWS S3, you can use the [S3 documentation](s3-documents.md) to learn more about how to configure S3 for document storage.
+
 ## Introduction
 
 While RAG (Retrieval Augmented Generation) applications typically require text data, real-world scenarios often involve documents that:
@@ -14,18 +25,18 @@ pgai's document vectorization system supports directly embedding documents via a
 
 ## Setting up document storage
 
-### The document table
-
 The foundation of document management in pgai is a document metadata table in PostgreSQL. Documents can either be stored directly within a table using a BYTEA column, or alternatively, the table can hold URIs pointing to files located in an external storage system such as S3. You can also include any additional metadata required by your application in this table.  
+
 If your application already handles documents, it's likely that you already have such a table which can be used as a source for the vectorizer.
 
-#### Minimal document table
+### Minimal document table
 
-A minimal document source table requires only an identifier and a URI pointing to the document, this can be the same column:
+A minimal document source table requires only an identifier and a URI pointing to the document, this can be the same column. The `updated_at` column is optional but recommended to allow you to trigger re-embedding when the document is updated:
 
 ```sql
 CREATE TABLE document (
-    uri TEXT PRIMARY KEY
+    uri TEXT PRIMARY KEY,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Example records
@@ -34,9 +45,9 @@ INSERT INTO document (uri) VALUES
     ('s3://my-bucket/documents/api-reference.md'),
 ```
 
-#### Extended document table
+### Extended document table
 
-For real applications, you will often want to include additional metadata that you might need to filter or classify documents. To facilitate synchronization, consider including `created_at` and `updated_at` updates to these fields will then trigger the re-embedding process:
+For real applications, you will often want to include additional metadata that you might need to filter or classify documents.
 
 ```sql
 CREATE TABLE document (
@@ -100,11 +111,13 @@ This configuration:
 4. Splits text into chunks at common markdown breaking points (headers, paragraphs, etc.)
 5. Generates embeddings using OpenAI's `text-embedding-3-small` model
 
+You can see more examples in the [more example vectorizer configurations](#appendix-a-more-example-vectorizer-configurations) section.
+
 ### Explanation of the components
 
 #### Loading
 
-pgai supports two main loading methods:
+pgai supports loading documents from references to external storage systems using the `ai.loading_uri` function or from a BYTEA column using the `ai.loading_column` function.
 
 **1. Loading from URI columns (`ai.loading_uri`)**
 
@@ -121,7 +134,7 @@ This is what you will usually use to load any kind of document. It allows to dow
 - HTTP/HTTPS URLs (e.g. `https://example.com/file.pdf`)
 - Local files on the worker machine (e.g. `/path/to/file.pdf`)
 
-Timescale Cloud and a self-hosted pgai installation support S3 URLs out of the box. Check the [S3 documentation](./s3-documents.md) for more information on how to authenticate and configure S3.
+**Storing documents in AWS S3**: Timescale Cloud and a self-hosted pgai installation support AWS S3 URLs out of the box. Check the [S3 documentation](./s3-documents.md) for more information on how to authenticate and configure S3.
 
 **Other storage options:** We use the [smart_open](https://pypi.org/project/smart-open/) library to connect to the URI. That means any URI that can work with smart_open should work (including Google Cloud, Azure, etc.); however, only AWS S3 is supported on Timescale Cloud. In a self-hosted installation, other provider should work but you need to install the appropriate smart_open dependencies, and test it yourself. See the [smart-open documentation](https://pypi.org/project/smart-open/) for details.
 
@@ -134,7 +147,7 @@ loading => ai.loading_column(
 )
 ```
 
-Alternatively you can use `loading_column` to load documents directly from a BYTEA column. This is useful if you already have the document content in your database and don't want to use any kind of external storage.
+Alternatively, you can use `loading_column` to load documents directly from a BYTEA column. This is useful if you already have the document content in your database and don't want to use any kind of external storage.
 
 #### Parsing
 
@@ -183,81 +196,28 @@ embedding => ai.embedding_openai(
 )
 ```
 
-### More examples
+You can see more examples in the [more example vectorizer configurations](#appendix-a-more-example-vectorizer-configurations) section.
 
-#### Document processing from S3 with OpenAI embeddings
+## Querying document embeddings
 
-```sql
--- Create document table
-CREATE TABLE documentation (
-    id SERIAL PRIMARY KEY,
-    title TEXT NOT NULL,
-    file_uri TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
+Once your vectorizer is created, pgai automatically generates a target table with your embeddings and a view that joins the embeddings with the original document table. We configure the view name in the `ai.destination_table('document_embeddings')` [destination configuration](./api-reference.md#destination-configuration). The view contains all the columns from the original document table plus the following additional columns:
 
--- Add documents
-INSERT INTO documentation (title, file_uri) VALUES
-('Product Manual', 's3://company-docs/manuals/product-v2.pdf'),
-('API Reference', 's3://company-docs/api/reference.md');
+| Column         | Type   | Description                                                     |
+|----------------|--------|-----------------------------------------------------------------|
+| embedding_uuid | UUID   | Unique identifier for the embedding                             |
+| chunk          | TEXT   | The text segment that was embedded                              |
+| embedding      | VECTOR | The vector representation of the chunk                          |
+| chunk_seq      | INT    | Sequence number of the chunk within the document, starting at 0 |
 
--- Create vectorizer
-SELECT ai.create_vectorizer(
-    'documentation'::regclass,
-    loading => ai.loading_uri(column_name => 'file_uri'),
-    parsing => ai.parsing_auto(), -- Auto-detects parser, this is the default and can also be omitted
-    chunking => ai.chunking_recursive_character_text_splitter(
-        chunk_size => 700,
-        separators => array[E'\n## ', E'\n### ', E'\n#### ', E'\n- ', E'\n1. ', E'\n\n', E'\n', '.', '?', '!', ' ', '', '|']
-    ),
-    embedding => ai.embedding_openai('text-embedding-3-small', 768)     
-);
-```
 
-#### Binary documents with ollama embeddings
-
-```sql
--- Create document table with binary storage
-CREATE TABLE internal_document (
-    id SERIAL PRIMARY KEY,
-    title TEXT NOT NULL,
-    content BYTEA NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
-
--- Add documents
-INSERT INTO internal_document (title, content) VALUES
-('Internal Report', pg_read_binary_file('/path/to/report.pdf')::bytea),
-('Internal Memo', pg_read_binary_file('/path/to/memo.docx')::bytea);
-
--- Create vectorizer
-SELECT ai.create_vectorizer(
-    'internal_document'::regclass,
-    loading => ai.loading_column(column_name => 'content'),
-    chunking => ai.chunking_recursive_character_text_splitter(
-        chunk_size => 500,
-        chunk_overlap => 100,
-        separators => array[E'\n\n', E'\n', '.', ' ', '']
-    ),
-    embedding => ai.embedding_ollama('nomic-embed-text', 768, base_url => 'http://ollama:11434')
-);
-```
-
-## Working with document embeddings
-
-Once your vectorizer is created, pgai automatically generates a target table with your embeddings.
-
-### Query document embeddings
+### Simple semantic search
 
 To search for similar documents:
 
 ```sql
 -- Basic similarity search
-SELECT d.title, e.chunk, e.embedding <=> <search_embedding> AS distance
-FROM document_embeddings e
-JOIN documentation d ON e.id = d.id
+SELECT title, chunk, embedding <=> <search_embedding> AS distance
+FROM document_embeddings
 ORDER BY distance
 LIMIT 5;
 ```
@@ -268,13 +228,12 @@ One of the most powerful features of pgai's document approach is the ability to 
 
 ```sql
 -- Find recent documentation about configuration
-SELECT d.title, e.chunk
-FROM document_embeddings e
-JOIN documentation d ON e.id = d.id
+SELECT title, chunk
+FROM document_embeddings
 WHERE 
-    d.updated_at > (CURRENT_DATE - INTERVAL '30 days')
-    AND d.title ILIKE '%configuration%'
-ORDER BY e.embedding <=> <search_embedding>
+    updated_at > (CURRENT_DATE - INTERVAL '30 days')
+    AND title ILIKE '%configuration%'
+ORDER BY embedding <=> <search_embedding>
 LIMIT 5;
 ```
 
@@ -288,8 +247,7 @@ SELECT c.name, d.title, e.chunk
 FROM customers c
 JOIN support_tickets t ON c.id = t.customer_id
 JOIN customer_documentation cd ON c.id = cd.customer_id
-JOIN documentation d ON cd.document_id = d.id
-JOIN document_embeddings e ON d.id = e.id
+JOIN document_embeddings e ON cd.document_id = e.id
 WHERE t.status = 'pending'
 ORDER BY e.embedding <=> <search_embedding>
 LIMIT 10;
@@ -340,3 +298,65 @@ If you encounter rate limits with your embedding provider:
 **Document limitations**
 - The pgai document vectorizer is designed for small to medium sized documents. Large documents will take a long time to be parsed and embedded. The page limit for pdfs on Timescale Cloud is ~50 pages. For larger documents consider splitting them into smaller chunks.
 - Supported documents depend on the parser that you are using. Check the [parser reference](./api-reference.md#parsing-configuration) to see what types of documents are supported by the parser you are using.
+
+## Appendix A: More example vectorizer configurations
+
+### Document processing from S3 with OpenAI embeddings
+
+```sql
+-- Create document table
+CREATE TABLE documentation (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    file_uri TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add documents
+INSERT INTO documentation (title, file_uri) VALUES
+('Product Manual', 's3://company-docs/manuals/product-v2.pdf'),
+('API Reference', 's3://company-docs/api/reference.md');
+
+-- Create vectorizer
+SELECT ai.create_vectorizer(
+    'documentation'::regclass,
+    loading => ai.loading_uri(column_name => 'file_uri'),
+    parsing => ai.parsing_auto(), -- Auto-detects parser, this is the default and can also be omitted
+    chunking => ai.chunking_recursive_character_text_splitter(
+        chunk_size => 700,
+        separators => array[E'\n## ', E'\n### ', E'\n#### ', E'\n- ', E'\n1. ', E'\n\n', E'\n', '.', '?', '!', ' ', '', '|']
+    ),
+    embedding => ai.embedding_openai('text-embedding-3-small', 768)     
+);
+```
+
+### Binary documents with ollama embeddings
+
+```sql
+-- Create document table with binary storage
+CREATE TABLE internal_document (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    content BYTEA NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add documents
+INSERT INTO internal_document (title, content) VALUES
+('Internal Report', pg_read_binary_file('/path/to/report.pdf')::bytea),
+('Internal Memo', pg_read_binary_file('/path/to/memo.docx')::bytea);
+
+-- Create vectorizer
+SELECT ai.create_vectorizer(
+    'internal_document'::regclass,
+    loading => ai.loading_column(column_name => 'content'),
+    chunking => ai.chunking_recursive_character_text_splitter(
+        chunk_size => 500,
+        chunk_overlap => 100,
+        separators => array[E'\n\n', E'\n', '.', ' ', '']
+    ),
+    embedding => ai.embedding_ollama('nomic-embed-text', 768, base_url => 'http://ollama:11434')
+);
+```

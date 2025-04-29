@@ -19,7 +19,7 @@ representing only a part of a row's data -- we've simplified the entire workflow
 
 Our system empowers you to:
 
-- Designate any text column for embedding using customizable rules
+- Designate any text column for embedding using customizable rules (or, if you are embedding binary documents such as PDFs, you can see our guide for [embedding documents](document-embeddings.md))
 - Automatically generate and maintain searchable embedding tables 
 - Keep embeddings continuously synchronized with source data (asynchronously)
 - Utilize a convenient view that seamlessly joins base tables with their embeddings
@@ -37,6 +37,8 @@ worker runs automatically and creates and synchronizes the embeddings in the
 background. When using a database on another cloud provider (AWS RDS, Supabase,
 etc.) or self-hosted Postgres, you can use the [vectorizer worker](/docs/vectorizer/worker.md) to
 process your vectorizers.
+
+This guide walks you the steps to configure your vectorizer to embed data stored in text columns. If you are embedding binary documents such as PDFs, see our guide for [embedding documents](document-embeddings.md).
 
 Let's explore how the Vectorizer can transform your approach to unstructured,
 textual, data analysis, and semantic search:
@@ -133,7 +135,7 @@ The `loading` parameter specifies the source of the data to generate embeddings 
 Vectorizer supports other loaders, such as the
 `ai.loading_uri`, which loads external documents from local or remote buckets like S3, etc.
 For more details, check the [loading configuration](/docs/vectorizer/api-reference.md#loading-configuration) section 
-of the vectorizer API reference.
+of the vectorizer API reference or our [guide for embedding documents](document-embeddings.md).
 
 Additionally, if the `contents` field is lengthy, it is split into multiple chunks,
 resulting in several embeddings for a single blog post. Chunking helps
@@ -347,7 +349,9 @@ CREATE TABLE blog_contents_embeddings_store(
 
 ## Destination Options for Embeddings
 
-Vectorizer supports two different ways to store your embeddings:
+Vectorizer supports two different ways to store your embeddings. You should choose the option to use based on whether:
+-  You need **multiple embeddings per source row** because of chunking. This is the common case. You should choose table destination.
+-  You need a **single embedding per source row**. This happens if you are either embedding small text fragments (e.g. a single sentence) or if have already chunked the document and the souce table contains the chunks. In this case, you should choose a column destination.
 
 ### 1. Table Destination (Default)
 
