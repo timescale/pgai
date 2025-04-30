@@ -11,7 +11,7 @@ Then you can [query the generated embeddings](#query-document-embeddings) using 
 
 In this guide, we'll also cover how to [monitor and troubleshoot](#monitoring-and-troubleshooting) your vectorizers.
 
-If you are storing documents in AWS S3, you can use the [S3 documentation](s3-documents.md) to learn more about how to configure S3 for document storage.
+If you are storing documents in AWS S3, you can use the [S3 documentation](s3-documents.md) to learn more about how to configure S3 for document storage and synchronize your S3 buckets with your document table.
 
 ## Introduction
 
@@ -27,7 +27,8 @@ pgai's document vectorization system supports directly embedding documents via a
 
 The foundation of document management in pgai is a document metadata table in PostgreSQL. Documents can either be stored directly within a table using a BYTEA column, or alternatively, the table can hold URIs pointing to files located in an external storage system such as S3. You can also include any additional metadata required by your application in this table.  
 
-If your application already handles documents, it's likely that you already have such a table which can be used as a source for the vectorizer.
+If your application already handles documents, it's likely that you already have such a table which can be used as a source for the vectorizer.  
+If you don't have such a table yet and are storing documents in S3 we have a [guide on how to sync S3 to a document table](s3-documents.md#syncing-s3-to-a-documents-table).
 
 ### Minimal document table
 
