@@ -96,7 +96,7 @@ class Actions:
         osf = output_sql_file()
         osf.unlink(missing_ok=True)
         with osf.open("w") as wf:
-            wf.write(f"{hr}\n-- ai {this_version()}\n\n")
+            wf.write(f"{hr}\n-- ai {this_version()} (x-release-please-version)\n\n")
             wf.write(sql_dir().joinpath("head.sql").read_text())
             if is_prerelease(this_version()):
                 wf.write("\n\n")
