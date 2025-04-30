@@ -2,7 +2,10 @@
   "bootstrap-sha": "b2a936ab45c96d43dbb9e0cd81c257530a27b0d4",
   "packages": {
     "projects/pgai": {
-      "component": "pgai"
+      "component": "pgai",
+      "extra-files": [
+        "pgai/data/ai.sql"
+      ]
     }
   },
   "separate-pull-requests": true,
