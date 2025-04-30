@@ -27,9 +27,15 @@ A Python library that transforms PostgreSQL into a robust, production-ready retr
 
 - 🐘 Works with any PostgreSQL database, including Timescale Cloud, Amazon RDS, Supabase and more.
 
-<div align=center>
 
-[![Auto Create and Sync Vector Embeddings in 1 Line of SQL (pgai Vectorizer)](https://github.com/user-attachments/assets/8a71c774-505a-4335-8b34-cdea9dedb558)](https://youtu.be/ZoC2XYol6Zk?si=atI4XPurEifG0pd5)
+**Basic Architecture**:
+The system consists of an application you write, a PostgreSQL database, and stateless vectorizer workers. The application defines a vectorizer configuration to embed data from sources like PostgreSQL or S3. The workers read this configuration, processes the data queue into embeddings and chunked text, and writes the results back. The application then queries this data to power RAG and semantic search.
+
+The key strength of this architecture lies in its resilience: data modifications made by the application are decoupled from the embedding process, ensuring that failures in the embedding service do not affect the core data operations.
+    
+<div align=center>
+<img height="400" src="docs/images/pgai_architecture.png" alt="Pgai Architecture: application, database, vectorizer worker">
+
 
 </div>
 
@@ -157,6 +163,8 @@ The main thing pgai does right now is generating vector embeddings for data in P
 ## Code walkthrough
 
 ### Install the pgai database components
+
+Pgai requires a few catalog tables and functions to be installed into the database. This is done using the `pgai.install` function, which will install the necessary components into the `ai` schema of the database.
 
 ```python
 pgai.install(DB_URL)
