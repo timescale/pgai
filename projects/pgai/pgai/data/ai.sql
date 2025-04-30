@@ -4264,12 +4264,11 @@ create or replace function ai.embedding_sentence_transformers
 , dimensions int4 default 768
 ) returns jsonb
 as $func$
-    select json_object
-    ( 'implementation': 'sentence_transformers'
-    , 'config_type': 'embedding'
-    , 'model': model
-    , 'dimensions': dimensions
-    absent on null
+    select json_build_object
+    ( 'implementation', 'sentence_transformers'
+    , 'config_type', 'embedding'
+    , 'model', model
+    , 'dimensions', dimensions
     )
 $func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
