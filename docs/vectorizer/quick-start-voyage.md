@@ -41,6 +41,11 @@ On your local machine:
     docker compose up -d
     ```
 
+1. **Install pgai in your database**
+   ```shell
+   docker compose run --rm --entrypoint "python -m pgai install -d postgres://postgres:postgres@db:5432/postgres" vectorizer-worker
+   ```
+
 ## Create and run a vectorizer
 
 Now you can create and run a vectorizer. A vectorizer is a pgai concept, it processes data in a table and automatically creates embeddings for it.

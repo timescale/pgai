@@ -38,7 +38,17 @@ On your local machine:
      data:
     ```
 
-1. **Start the services**
+1. **Start the database**
+   ```shell
+    docker compose up -d db
+    ```
+
+1. **Install pgai in your database**
+   ```shell
+   docker compose run --rm --entrypoint "python -m pgai install -d postgres://postgres:postgres@db:5432/postgres" vectorizer-worker
+   ```
+
+1. **Start the vectorizer worker and ollama**
    ```shell
     docker compose up -d
     ```
