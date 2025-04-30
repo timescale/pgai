@@ -79,6 +79,7 @@ EmbeddingConfig = Annotated[
 
 
 def embedding_config_from_dict(config: dict[str, Any]) -> EmbeddingConfig:
+    config = {**config, "embedding_type": "embedding"}
     assert "implementation" in config
     match config["implementation"]:
         case "sentence_transformers":
