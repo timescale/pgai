@@ -159,7 +159,6 @@ async def find_procedures(
             and n.nspname != 'timescaledb_experimental'
             and n.nspname != 'timescaledb_information'
             and n.nspname != 'toolkit_experimental'
-            and p.prokind != 'a'
             {filters}
         """).format(filters=combined_filters)
         await cur.execute(query, params)
