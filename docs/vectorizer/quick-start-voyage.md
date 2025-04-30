@@ -43,9 +43,8 @@ On your local machine:
 
 1. **Install pgai in your database**
    ```shell
-   docker run --rm --entrypoint python \
-   timescale/pgai-vectorizer-worker:latest \
-   -m pgai install --strict true -d "postgres://postgres:postgres@localhost:5432/postgres"
+   docker compose run vectorizer-worker python \
+   -m pgai install --strict true
    ```
 
 ## Create and run a vectorizer
