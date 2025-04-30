@@ -1,6 +1,6 @@
 import logging
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, TextIO
 
 import psycopg
 from psycopg.rows import dict_row
@@ -8,8 +8,15 @@ from psycopg.sql import SQL, Composable
 from pydantic_ai.models import KnownModelName, Model
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import UsageLimits
+from rich.console import Console
 
 from pgai.semantic_catalog import gen_sql, loader, render, search
+from pgai.semantic_catalog.file import (
+    async_export_to_yaml,
+    import_from_yaml,
+    load_from_catalog,
+    save_to_catalog,
+)
 from pgai.semantic_catalog.gen_sql import GenerateSQLResponse
 from pgai.semantic_catalog.models import (
     Fact,
@@ -251,6 +258,38 @@ class SemanticCatalog:
             model_settings,
             sample_size=sample_size,
         )
+
+    async def import_catalog(
+        self,
+        catalog_con: psycopg.AsyncConnection,
+        target_con: psycopg.AsyncConnection,
+        yaml: TextIO,
+        embedding_name: str | None,
+        batch_size: int | None = None,
+        console: Console | None = None,
+    ):
+        batch_size = batch_size or 32
+        console = console or Console(stderr=True, quiet=True)
+        console.status("importing yaml file into semantic catalog...")
+        await save_to_catalog(catalog_con, target_con, self.id, import_from_yaml(yaml))
+        match embedding_name:
+            case None:
+                console.status("vectorizing all embedding configs...")
+                await self.vectorize_all(catalog_con, batch_size)
+            case _:
+                console.status(f"finding '{embedding_name}' embedding config...")
+                config = await self.get_embedding(catalog_con, embedding_name)
+                if not config:
+                    raise RuntimeError(f"embedding config '{embedding_name}' not found")
+                console.status(f"vectorizing '{embedding_name}' embedding config...")
+                await self.vectorize(catalog_con, embedding_name, config, batch_size)
+
+    async def export_catalog(
+        self,
+        catalog_con: psycopg.AsyncConnection,
+        yaml: TextIO,
+    ):
+        await async_export_to_yaml(yaml, load_from_catalog(catalog_con, self.id))
 
 
 async def from_id(con: CatalogConnection, id: int) -> SemanticCatalog:

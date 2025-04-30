@@ -3,7 +3,7 @@ from collections.abc import Callable
 from typing import TextIO
 
 import psycopg
-from psycopg.sql import SQL, Composable, Literal
+from psycopg.sql import SQL, Composable
 from pydantic_ai import Agent
 from pydantic_ai.models import KnownModelName, Model
 from pydantic_ai.settings import ModelSettings
@@ -18,8 +18,8 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from pgai.semantic_catalog import TargetConnection, loader, render
-from pgai.semantic_catalog.models import ObjectDescription, Procedure, Table, View
+from pgai.semantic_catalog import TargetConnection, file, loader, render
+from pgai.semantic_catalog.models import Procedure, Table, View
 
 logger = logging.getLogger(__name__)
 
@@ -171,100 +171,35 @@ async def generate_table_descriptions(
     con: TargetConnection,
     oids: list[int],
     model: KnownModelName | Model,
-    callback: Callable[[ObjectDescription], None],
+    callback: Callable[[file.Table], None],
+    progress_callback: Callable[[str], None] | None = None,
     model_settings: ModelSettings | None = None,
     batch_size: int = 5,
     sample_size: int = 3,
 ) -> Usage:
-    def batches():
+    def batches(batch_size: int):
         for i in range(0, len(oids), batch_size):
             yield oids[i : i + batch_size]
 
-    table_index: dict[int, Table] = {}
-
-    agent = Agent(
-        model,
-        model_settings=model_settings,
-        name="table-describer",
-        system_prompt=(
-            "You are a SQL expert who generates natural language descriptions of tables in a PostgreSQL database. "  # noqa: E501
-            "The descriptions that you generate should be a concise, single sentence."
-        ),
-    )
-
-    @agent.tool_plain
-    def record_table_description(table_id: int, description: str) -> None:  # pyright: ignore [reportUnusedFunction]
-        """Records the description of a table
-
-        Args:
-            table_id (int): The ID of the table (specified in the XML tag)
-            description (str): a concise, single sentence description of the table
-        """
-        table = table_index.get(table_id)
-        if table is None:
-            logger.warning(f"invalid table id provided by LLM: {id}")
-            return
-        logger.debug(
-            f"recording description for table {table.schema_name}.{table.table_name}"
-        )
-        callback(
-            ObjectDescription(
-                classid=table.classid,
-                objid=table.objid,
-                objsubid=0,
-                objtype="table",
-                objnames=[table.schema_name, table.table_name],
-                objargs=[],
-                description=description,
-            )
-        )
-
-    @agent.tool_plain
-    def record_column_description(  # pyright: ignore [reportUnusedFunction]
-        table_id: int, column_name: str, description: str
-    ) -> None:
-        """Records the description of a column
-
-        Args:
-            table_id (int): The ID of the table (specified in the XML tag)
-            column_name (str): the name of the column
-            description (str): a concise, single sentence description of the column
-        """
-        table = table_index.get(table_id)
-        if table is None:
-            logger.warning(f"invalid table id provided by LLM: {id} {column_name}")
-            return
-        if not table.columns:
-            logger.warning(
-                f"column described by LLM but table has no columns: {id} {column_name}"
-            )
-            return
-        column = next((c for c in table.columns if c.name == column_name), None)
-        if column is None:
-            logger.warning(f"invalid column provided by LLM: {id} {column_name}")
-            return
-        logger.debug(
-            f"recording description for column {table.schema_name}.{table.table_name}.{column.name}"  # noqa
-        )
-        callback(
-            ObjectDescription(
-                classid=column.classid,
-                objid=column.objid,
-                objsubid=column.objsubid,
-                objtype="table column",
-                objnames=[table.schema_name, table.table_name, column_name],
-                objargs=[],
-                description=description,
-            )
-        )
-
     usage: Usage = Usage()
-    for batch in batches():
+    table_index: dict[int, file.Table] = {}
+
+    for batch in batches(batch_size):
         logger.debug(f"loading details for batch of {len(batch)} tables")
         tables: list[Table] = await loader.load_tables(
             con, batch, sample_size=sample_size
         )
-        table_index = {table.objid: table for table in tables}
+        table_index.clear()
+        for table in tables:
+            table_index[table.objid] = file.Table(
+                schema=table.schema_name,
+                name=table.table_name,
+                description="",
+                columns=[
+                    file.Column(name=c.name, description="")
+                    for c in (table.columns or [])  # noqa: E501
+                ],
+            )
         logger.debug(f"rendering details for batch of {len(batch)} tables")
         rendered: str = render.render_tables(tables)
         prompt = (
@@ -276,9 +211,82 @@ async def generate_table_descriptions(
             )
             + rendered
         )
+
+        agent = Agent(
+            model,
+            model_settings=model_settings,
+            name="table-describer",
+            system_prompt=(
+                "You are a SQL expert who generates natural language descriptions of tables in a PostgreSQL database. "  # noqa: E501
+                "The descriptions that you generate should be a concise, single sentence."  # noqa: E501
+            ),
+        )
+
+        @agent.tool_plain
+        def record_table_description(table_id: int, description: str) -> None:  # pyright: ignore [reportUnusedFunction]
+            """Records the description of a table
+
+            Args:
+                table_id (int): The ID of the table (specified in the XML tag)
+                description (str): a concise, single sentence description of the table
+            """
+            nonlocal table_index
+            table = table_index.get(table_id)
+            if table is None:
+                logger.warning(f"invalid table id provided by LLM: {table_id}")
+                return
+            logger.debug(
+                f"recording description for table {table.schema_name}.{table.name}"  # noqa: E501
+            )
+            table.description = description
+            if progress_callback:
+                progress_callback(".".join([table.schema_name, table.name]))
+
+        @agent.tool_plain
+        def record_column_description(  # pyright: ignore [reportUnusedFunction]
+            table_id: int, column_name: str, description: str
+        ) -> None:
+            """Records the description of a column
+
+            Args:
+                table_id (int): The ID of the table (specified in the XML tag)
+                column_name (str): the name of the column
+                description (str): a concise, single sentence description of the column
+            """
+            nonlocal table_index
+            table = table_index.get(table_id)
+            if table is None:
+                logger.warning(
+                    f"invalid table id provided by LLM: {table_id} {column_name}"
+                )  # noqa: E501
+                return
+            if not table.columns:
+                logger.warning(
+                    f"column described by LLM but table has no columns: {table_id} {column_name}"  # noqa: E501
+                )
+                return
+            column = next((c for c in table.columns if c.name == column_name), None)
+            if column is None:
+                logger.warning(
+                    f"invalid column provided by LLM: {table_id} {column_name}"
+                )  # noqa: E501
+                return
+            column.description = description
+            logger.debug(
+                f"recording description for column {table.schema_name}.{table.name}.{column.name}"  # noqa
+            )
+            if progress_callback:
+                progress_callback(
+                    ".".join([table.schema_name, table.name, column_name])
+                )
+
         logger.debug(f"asking llm to generate descriptions for {len(batch)} tables")
         result = await agent.run(user_prompt=prompt)
         usage = usage + result.usage()
+
+        for table in table_index.values():
+            callback(table)
+
     return usage
 
 
@@ -286,98 +294,34 @@ async def generate_view_descriptions(
     con: TargetConnection,
     oids: list[int],
     model: KnownModelName | Model,
-    callback: Callable[[ObjectDescription], None],
+    callback: Callable[[file.View], None],
+    progress_callback: Callable[[str], None] | None = None,
     model_settings: ModelSettings | None = None,
     batch_size: int = 5,
     sample_size: int = 3,
 ) -> Usage:
-    def batches():
+    def batches(batch_size: int):
         for i in range(0, len(oids), batch_size):
             yield oids[i : i + batch_size]
 
-    view_index: dict[int, View] = {}
-
-    agent = Agent(
-        model,
-        model_settings=model_settings,
-        name="view-describer",
-        system_prompt=(
-            "You are a SQL expert who generates natural language descriptions of views in a PostgreSQL database. "  # noqa: E501
-            "The descriptions that you generate should be a concise, single sentence."
-        ),
-    )
-
-    @agent.tool_plain
-    def record_view_description(view_id: int, description: str) -> None:  # pyright: ignore [reportUnusedFunction]
-        """Records the description of a view
-
-        Args:
-            view_id (int): The ID of the view (specified in the XML tag)
-            description (str): a concise, single sentence description of the view
-        """
-        view = view_index.get(view_id)
-        if view is None:
-            logger.warning(f"invalid view id provided by LLM: {id}")
-            return
-        logger.debug(
-            f"recording description for view {view.schema_name}.{view.view_name}"
-        )
-        callback(
-            ObjectDescription(
-                classid=view.classid,
-                objid=view.objid,
-                objsubid=0,
-                objtype="view",
-                objnames=[view.schema_name, view.view_name],
-                objargs=[],
-                description=description,
-            )
-        )
-
-    @agent.tool_plain
-    def record_column_description(  # pyright: ignore [reportUnusedFunction]
-        view_id: int, column_name: str, description: str
-    ) -> None:
-        """Records the description of a column
-
-        Args:
-            view_id (int): The ID of the view (specified in the XML tag)
-            column_name (str): the name of the column in the view
-            description (str): a concise, single sentence description of the column
-        """
-        view = view_index.get(view_id)
-        if view is None:
-            logger.warning(f"invalid view id provided by LLM: {id} {column_name}")
-            return
-        if not view.columns:
-            logger.warning(
-                f"column description provided for view but view has no columns: {id} {column_name}"  # noqa
-            )
-            return
-        column = next((c for c in view.columns if c.name == column_name), None)
-        if column is None:
-            logger.warning(f"invalid view column provided by LLM: {id} {column_name}")
-            return
-        logger.debug(
-            f"recording description for view column {view.schema_name}.{view.view_name}.{column.name}"  # noqa
-        )
-        callback(
-            ObjectDescription(
-                classid=column.classid,
-                objid=column.objid,
-                objsubid=column.objsubid,
-                objtype="view column",
-                objnames=[view.schema_name, view.view_name, column_name],
-                objargs=[],
-                description=description,
-            )
-        )
-
     usage: Usage = Usage()
-    for batch in batches():
+    view_index: dict[int, file.View] = {}
+
+    for batch in batches(batch_size):
         logger.debug(f"loading details for batch of {len(batch)} views")
         views: list[View] = await loader.load_views(con, batch, sample_size=sample_size)
-        view_index = {view.objid: view for view in views}
+        view_index.clear()
+        for view in views:
+            view_index[view.objid] = file.View(
+                schema=view.schema_name,
+                name=view.view_name,
+                description="",
+                columns=[
+                    file.Column(name=c.name, description="")
+                    for c in (view.columns or [])  # noqa: E501
+                ],
+            )
+
         logger.debug(f"rendering details for batch of {len(batch)} views")
         rendered: str = render.render_views(views)
         prompt = (
@@ -389,9 +333,80 @@ async def generate_view_descriptions(
             )
             + rendered
         )
+
+        agent = Agent(
+            model,
+            model_settings=model_settings,
+            name="view-describer",
+            system_prompt=(
+                "You are a SQL expert who generates natural language descriptions of views in a PostgreSQL database. "  # noqa: E501
+                "The descriptions that you generate should be a concise, single sentence."  # noqa: E501
+            ),
+        )
+
+        @agent.tool_plain
+        def record_view_description(view_id: int, description: str) -> None:  # pyright: ignore [reportUnusedFunction]
+            """Records the description of a view
+
+            Args:
+                view_id (int): The ID of the view (specified in the XML tag)
+                description (str): a concise, single sentence description of the view
+            """
+            nonlocal view_index
+            view = view_index.get(view_id)
+            if view is None:
+                logger.warning(f"invalid view id provided by LLM: {view_id}")
+                return
+            logger.debug(
+                f"recording description for view {view.schema_name}.{view.name}"
+            )
+            view.description = description
+            if progress_callback:
+                progress_callback(".".join([view.schema_name, view.name]))
+
+        @agent.tool_plain
+        def record_column_description(  # pyright: ignore [reportUnusedFunction]
+            view_id: int, column_name: str, description: str
+        ) -> None:
+            """Records the description of a column
+
+            Args:
+                view_id (int): The ID of the view (specified in the XML tag)
+                column_name (str): the name of the column in the view
+                description (str): a concise, single sentence description of the column
+            """
+            nonlocal view_index
+            view = view_index.get(view_id)
+            if view is None:
+                logger.warning(
+                    f"invalid view id provided by LLM: {view_id} {column_name}"
+                )
+                return
+            if not view.columns:
+                logger.warning(
+                    f"column description provided for view but view has no columns: {view_id} {column_name}"  # noqa
+                )
+                return
+            column = next((c for c in view.columns if c.name == column_name), None)
+            if column is None:
+                logger.warning(
+                    f"invalid view column provided by LLM: {view_id} {column_name}"
+                )
+                return
+            column.description = description
+            logger.debug(
+                f"recording description for view column {view.schema_name}.{view.name}.{column.name}"  # noqa
+            )
+            if progress_callback:
+                progress_callback(".".join([view.schema_name, view.name, column.name]))
+
         logger.debug(f"asking llm to generate descriptions for {len(batch)} views")
         result = await agent.run(user_prompt=prompt)
         usage = usage + result.usage()
+
+        for view in view_index.values():
+            callback(view)
+
     return usage
 
 
@@ -399,58 +414,46 @@ async def generate_procedure_descriptions(
     con: TargetConnection,
     oids: list[int],
     model: KnownModelName | Model,
-    callback: Callable[[ObjectDescription], None],
+    callback: Callable[[file.Function | file.Procedure | file.Aggregate], None],
+    progress_callback: Callable[[str], None] | None = None,
     model_settings: ModelSettings | None = None,
     batch_size: int = 5,
 ) -> Usage:
-    def batches():
+    def batches(batch_size: int):
         for i in range(0, len(oids), batch_size):
             yield oids[i : i + batch_size]
 
-    proc_index: dict[int, Procedure] = {}
-
-    agent = Agent(
-        model,
-        model_settings=model_settings,
-        name="procedure-describer",
-        system_prompt=(
-            "You are a SQL expert who generates natural language descriptions of procedures and functions in a PostgreSQL database. "  # noqa: E501
-            "The descriptions that you generate should be a concise, single sentence."
-        ),
-    )
-
-    @agent.tool_plain
-    def record_description(id: int, description: str) -> None:  # pyright: ignore [reportUnusedFunction]
-        """Records the description of a procedure or function
-
-        Args:
-            id (int): The ID of the procedure or function (specified in the XML tag)
-            description (str): a concise, single sentence description of the procedure/function
-        """  # noqa: E501
-        proc = proc_index.get(id)
-        if proc is None:
-            logger.warning(f"invalid procedure id provided by LLM: {id}")
-            return
-        logger.debug(
-            f"recording description for procedure {proc.schema_name}.{proc.proc_name}"
-        )
-        callback(
-            ObjectDescription(
-                classid=proc.classid,
-                objid=proc.objid,
-                objsubid=0,
-                objtype=proc.kind,
-                objnames=[proc.schema_name, proc.proc_name],
-                objargs=proc.objargs,
-                description=description,
-            )
-        )
-
     usage: Usage = Usage()
-    for batch in batches():
+    proc_index: dict[int, file.Function | file.Procedure | file.Aggregate] = {}
+
+    for batch in batches(batch_size):
         logger.debug(f"loading details for batch of {len(batch)} procedures")
         procs: list[Procedure] = await loader.load_procedures(con, batch)
-        proc_index = {proc.objid: proc for proc in procs}
+        proc_index.clear()
+        for proc in procs:
+            match proc.kind:
+                case "function":
+                    proc_index[proc.objid] = file.Function(
+                        schema=proc.schema_name,
+                        name=proc.proc_name,
+                        args=proc.objargs,
+                        description="",
+                    )
+                case "procedure":
+                    proc_index[proc.objid] = file.Procedure(
+                        schema=proc.schema_name,
+                        name=proc.proc_name,
+                        args=proc.objargs,
+                        description="",
+                    )
+                case "aggregate":
+                    proc_index[proc.objid] = file.Aggregate(
+                        schema=proc.schema_name,
+                        name=proc.proc_name,
+                        args=proc.objargs,
+                        description="",
+                    )
+
         logger.debug(f"rendering details for batch of {len(batch)} procedures")
         rendered: str = render.render_procedures(procs)
         prompt = (
@@ -462,6 +465,38 @@ async def generate_procedure_descriptions(
             )
             + rendered
         )
+
+        agent = Agent(
+            model,
+            model_settings=model_settings,
+            name="procedure-describer",
+            system_prompt=(
+                "You are a SQL expert who generates natural language descriptions of procedures and functions in a PostgreSQL database. "  # noqa: E501
+                "The descriptions that you generate should be a concise, single sentence."  # noqa: E501
+            ),
+        )
+
+        @agent.tool_plain
+        def record_description(proc_id: int, description: str) -> None:  # pyright: ignore [reportUnusedFunction]
+            """Records the description of a procedure or function
+
+            Args:
+                proc_id (int): The ID of the procedure or function (specified in the XML tag)
+                description (str): a concise, single sentence description of the procedure/function
+            """  # noqa: E501
+            nonlocal proc_index
+            proc = proc_index.get(proc_id)
+            if proc is None:
+                logger.warning(f"invalid procedure id provided by LLM: {proc_id}")
+                return
+            logger.debug(
+                f"recording description for procedure {proc.schema_name}.{proc.name}"
+            )
+            proc.description = description
+            if progress_callback:
+                progress_callback(".".join([proc.schema_name, proc.name]))
+            callback(proc)
+
         logger.debug(f"asking llm to generate descriptions for {len(batch)} procedures")
         result = await agent.run(user_prompt=prompt)
         usage = usage + result.usage()
@@ -485,125 +520,9 @@ async def _count_columns(con: psycopg.AsyncConnection, oids: list[int]) -> int:
         return row[0] if row else 0
 
 
-def render_sql(
-    con: psycopg.AsyncConnection, catalog_name: str, description: ObjectDescription
-) -> str:
-    match description.objtype:
-        case "table":
-            assert len(description.objnames) == 2
-            return (
-                SQL("select ai.sc_set_table_desc({}, {}, {}, {}, {}, {});\n")
-                .format(
-                    Literal(description.classid),
-                    Literal(description.objid),
-                    Literal(description.objnames[0]),
-                    Literal(description.objnames[1]),
-                    Literal(description.description),
-                    Literal(catalog_name),
-                )
-                .as_string(con)
-            )
-        case "view":
-            assert len(description.objnames) == 2
-            return (
-                SQL("select ai.sc_set_view_desc({}, {}, {}, {}, {}, {});\n")
-                .format(
-                    Literal(description.classid),
-                    Literal(description.objid),
-                    Literal(description.objnames[0]),
-                    Literal(description.objnames[1]),
-                    Literal(description.description),
-                    Literal(catalog_name),
-                )
-                .as_string(con)
-            )
-        case "table column":
-            assert len(description.objnames) == 3
-            return (
-                SQL(
-                    "select ai.sc_set_table_col_desc({}, {}, {}, {}, {}, {}, {}, {});\n"
-                )  # noqa
-                .format(
-                    Literal(description.classid),
-                    Literal(description.objid),
-                    Literal(description.objsubid),
-                    Literal(description.objnames[0]),
-                    Literal(description.objnames[1]),
-                    Literal(description.objnames[2]),
-                    Literal(description.description),
-                    Literal(catalog_name),
-                )
-                .as_string(con)
-            )
-        case "view column":
-            assert len(description.objnames) == 3
-            return (
-                SQL("select ai.sc_set_view_col_desc({}, {}, {}, {}, {}, {}, {}, {});\n")  # noqa
-                .format(
-                    Literal(description.classid),
-                    Literal(description.objid),
-                    Literal(description.objsubid),
-                    Literal(description.objnames[0]),
-                    Literal(description.objnames[1]),
-                    Literal(description.objnames[2]),
-                    Literal(description.description),
-                    Literal(catalog_name),
-                )
-                .as_string(con)
-            )
-        case "procedure":
-            assert len(description.objnames) >= 2
-            return (
-                SQL("select ai.sc_set_proc_desc({}, {}, {}, {}, {}, {}, {});\n")
-                .format(
-                    Literal(description.classid),
-                    Literal(description.objid),
-                    Literal(description.objnames[0]),
-                    Literal(description.objnames[1]),
-                    Literal(description.objargs),
-                    Literal(description.description),
-                    Literal(catalog_name),
-                )
-                .as_string(con)
-            )
-        case "function":
-            assert len(description.objnames) >= 2
-            return (
-                SQL("select ai.sc_set_func_desc({}, {}, {}, {}, {}, {}, {});\n")
-                .format(
-                    Literal(description.classid),
-                    Literal(description.objid),
-                    Literal(description.objnames[0]),
-                    Literal(description.objnames[1]),
-                    Literal(description.objargs),
-                    Literal(description.description),
-                    Literal(catalog_name),
-                )
-                .as_string(con)
-            )
-        case "aggregate":
-            assert len(description.objnames) >= 2
-            return (
-                SQL("select ai.sc_set_agg_desc({}, {}, {}, {}, {}, {}, {});\n")
-                .format(
-                    Literal(description.classid),
-                    Literal(description.objid),
-                    Literal(description.objnames[0]),
-                    Literal(description.objnames[1]),
-                    Literal(description.objargs),
-                    Literal(description.description),
-                    Literal(catalog_name),
-                )
-                .as_string(con)
-            )
-        case _:
-            raise ValueError(f"unknown description objtype: {description.objtype}")
-
-
 async def describe(
     db_url: str,
     model: KnownModelName | Model,
-    catalog_name: str,
     output: TextIO,
     console: Console | None = None,
     include_schema: str | None = None,
@@ -683,6 +602,9 @@ async def describe(
             TimeElapsedColumn(),
         ]
 
+        output.write(file.Header().to_yaml())
+        output.flush()
+
         with Progress(*pbcols, console=console) as progress:
             # tables/columns
             if total_table > 0:
@@ -692,10 +614,13 @@ async def describe(
                     visible=total_table > 0,
                 )
 
-                def table_callback(d: ObjectDescription):
-                    output.write(render_sql(con, catalog_name, d))
+                def table_callback(t: file.Table):
+                    output.write(t.to_yaml())
+                    output.flush()
+
+                def table_progress_callback(msg: str):
                     nonlocal progress, task_table
-                    progress.console.print(".".join(d.objnames))
+                    progress.console.print(msg)
                     progress.update(task_table, advance=1.0)
 
                 usage += await generate_table_descriptions(
@@ -703,10 +628,10 @@ async def describe(
                     table_oids,
                     model,
                     table_callback,
+                    progress_callback=table_progress_callback,
                     batch_size=batch_size,
                     sample_size=sample_size,
                 )
-                output.flush()
 
             # views/columns
             if total_view > 0:
@@ -716,10 +641,13 @@ async def describe(
                     visible=total_view > 0,
                 )
 
-                def view_callback(d: ObjectDescription):
-                    output.write(render_sql(con, catalog_name, d))
+                def view_callback(v: file.View):
+                    output.write(v.to_yaml())
+                    output.flush()
+
+                def view_progress_callback(msg: str):
                     nonlocal progress, task_view
-                    progress.console.print(".".join(d.objnames))
+                    progress.console.print(msg)
                     progress.update(task_view, advance=1.0)
 
                 usage += await generate_view_descriptions(
@@ -727,10 +655,10 @@ async def describe(
                     view_oids,
                     model,
                     view_callback,
+                    progress_callback=view_progress_callback,
                     batch_size=batch_size,
                     sample_size=sample_size,
                 )
-                output.flush()
 
             # procedures/functions
             if total_proc > 0:
@@ -738,21 +666,25 @@ async def describe(
                     "generate procedure/function descriptions", total=total_proc
                 )
 
-                def proc_callback(d: ObjectDescription):
-                    output.write(render_sql(con, catalog_name, d))
+                def proc_callback(x: file.Function | file.Procedure | file.Aggregate):
+                    output.write(x.to_yaml())
+                    output.flush()
+
+                def proc_progress_callback(msg: str):
                     nonlocal progress, task_proc
-                    progress.console.print(".".join(d.objnames))
-                    if d.objsubid == 0:
-                        progress.update(task_proc, advance=1.0)
+                    progress.console.print(msg)
+                    progress.update(task_proc, advance=1.0)
 
                 usage += await generate_procedure_descriptions(
                     con,
                     proc_oids,
                     model,
                     proc_callback,
+                    progress_callback=proc_progress_callback,
                     batch_size=batch_size,
                 )
-                output.flush()
+
+    output.flush()
 
     from rich.table import Table
 
