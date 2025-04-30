@@ -32,3 +32,13 @@ SELECT create_hypertable('postgres_air.hypertable_test', by_range('time'));
 SELECT add_dimension('postgres_air.hypertable_test', by_hash('location', 2));
 SELECT add_dimension('postgres_air.hypertable_test', by_range('time_received', INTERVAL '1 day'));
 SELECT add_dimension('postgres_air.hypertable_test', by_range('params', INTERVAL '1 day', partition_func => 'public.hypertable_test_func'));
+
+CREATE AGGREGATE postgres_air.unsafe_sum (float8)
+(
+    stype = float8,
+    sfunc = float8pl,
+    mstype = float8,
+    msfunc = float8pl,
+    minvfunc = float8mi,
+    initcond = 10
+);

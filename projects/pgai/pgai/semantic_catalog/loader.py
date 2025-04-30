@@ -289,17 +289,102 @@ async def load_procedures(
                 when 'a' then 'aggregate'
               end as kind
             , pg_get_function_identity_arguments(p.oid) as identity_args
-            , pg_get_functiondef(p.oid) as definition
+            , case
+                when p.prokind = 'a' then
+                  'CREATE OR REPLACE AGGREGATE FUNCTION '
+                  || quote_ident(n.nspname) || '.' || quote_ident(p.proname)
+                  || '(' || pg_get_function_identity_arguments(p.oid) ||  ') (' || E'\n'
+                  || '  sfunc = ' || a.aggtransfn::text
+                  || ',' || E'\n' || '  stype = ' || tt.typname::text
+                  || case
+                    when a.aggmtransfn != 0 then
+                      ',' || E'\n' || '  msfunc = ' || a.aggmtransfn::text || ','
+                      || E'\n' || '  mstype = ' || tm.typname::text
+                    else ''
+                  end
+                  || case
+                    when a.aggfinalfn != 0 then
+                      ',' || E'\n' || '  finalfunc = ' || a.aggfinalfn::text
+                      || case
+                        when a.aggfinalextra is true then
+                          ', ' || E'\n' || '  finalfunc_extra'
+                        else ''
+                      end
+                      || ',' || E'\n' || '  finalfunc_modify = '
+                      || case
+                        when a.aggfinalmodify = 'r' then 'READ_ONLY'
+                        when a.aggfinalmodify = 's' then 'SHAREABLE'
+                        when a.aggfinalmodify = 'w' then 'READ_WRITE'
+                      end
+                    else ''
+                  end
+                  || case
+                    when a.aggcombinefn != 0 then
+                      ',' || E'\n' || '  combinefunc = ' || a.aggcombinefn::text
+                    else ''
+                  end
+                  || case
+                    when a.aggserialfn != 0 then
+                      ',' || E'\n' || '  serialfunc = ' || a.aggserialfn::text
+                    else ''
+                  end
+                  || case
+                    when a.aggdeserialfn != 0 then
+                      ',' || E'\n' || '  deserialfunc = ' || a.aggdeserialfn::text
+                    else ''
+                  end
+                  || case
+                    when a.aggmfinalfn != 0 then
+                      ',' || E'\n' || '  mfinalfunc = ' || a.aggmfinalfn::text
+                      || case
+                        when a.aggmfinalextra is true then
+                        ', ' || E'\n' || '  mfinalfunc_extra'
+                        else ''
+                      end
+                      || ',' || E'\n' || '  mfinalfunc_modify = '
+                      || case
+                        when a.aggmfinalmodify = 'r' then 'READ_ONLY'
+                        when a.aggmfinalmodify = 's' then 'SHAREABLE'
+                        when a.aggmfinalmodify = 'w' then 'READ_WRITE'
+                      end
+                      else ''
+                  end
+                  || case
+                    when a.aggminvtransfn != 0 then ',' || E'\n'
+                      || '  minvfunc = ' || a.aggminvtransfn::text
+                    else ''
+                  end
+                  || case
+                    when a.agginitval is not null then ',' || E'\n'
+                      || '  initcond = ' || a.agginitval
+                    else ''
+                  end
+                  || case
+                    when a.aggminitval is not null then ',' || E'\n'
+                      || '  minitcond = ' || a.aggminitval
+                    else ''
+                  end
+                  || case
+                    when a.aggsortop != 0 then
+                      ',' || E'\n' || '  sortop = ' || o.oprname
+                    else ''
+                  end
+                  || E'\n' || ')'
+                else pg_get_functiondef(p.oid)
+            end as definition
             , x.object_args as objargs
             from pg_proc p
             inner join pg_namespace n on (p.pronamespace = n.oid)
+            left join pg_aggregate a on (p.oid = a.aggfnoid)
+            left join pg_type tt on (a.aggtranstype = tt.oid)
+            left join pg_type tm on (a.aggmtranstype = tm.oid)
+            left join pg_operator o on (a.aggsortop = o.oid)
             cross join lateral pg_identify_object_as_address
             ( 'pg_catalog.pg_proc'::regclass::oid
             , p.oid
             , 0
             ) x
             where p.oid = any(%s::oid[])
-            and p.prokind != 'a'
         """,
             (oids,),
         )
