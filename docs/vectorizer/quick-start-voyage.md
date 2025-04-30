@@ -41,6 +41,13 @@ On your local machine:
     docker compose up -d
     ```
 
+1. **Install pgai in your database**
+   ```shell
+   docker run --rm --entrypoint python \
+   timescale/pgai-vectorizer-worker:latest \
+   -m pgai install --strict true -d "postgres://postgres:postgres@localhost:5432/postgres"
+   ```
+
 ## Create and run a vectorizer
 
 Now you can create and run a vectorizer. A vectorizer is a pgai concept, it processes data in a table and automatically creates embeddings for it.

@@ -32,6 +32,7 @@ On your local machine:
         image: timescale/pgai-vectorizer-worker:latest
         environment:
           PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
+          OPENAI_API_KEY: <your-api-key>
     volumes:
       data:
     ```
@@ -44,6 +45,13 @@ On your local machine:
    ```shell
     docker compose up -d db
     ```
+
+1. **Install pgai in your database**
+   ```shell
+   docker run --rm --entrypoint python \
+   timescale/pgai-vectorizer-worker:latest \
+   -m pgai install --strict true -d "postgres://postgres:postgres@localhost:5432/postgres"
+   ```
 
 ## Create and run a vectorizer
 
