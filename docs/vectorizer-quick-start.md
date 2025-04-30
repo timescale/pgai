@@ -45,8 +45,7 @@ On your local machine:
 
 1. **Install pgai in your database**
    ```shell
-   docker compose run vectorizer-worker python \
-   -m pgai install --strict true
+   docker compose run --rm --entrypoint "python -m pgai install -d postgres://postgres:postgres@db:5432/postgres" vectorizer-worker
    ```
 
 1. **Start the vectorizer worker and ollama**
