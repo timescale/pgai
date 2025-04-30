@@ -273,14 +273,6 @@ def semantic_catalog():
     help="The LLM model to generate descriptions",
 )
 @click.option(
-    "-n",
-    "--catalog-name",
-    type=click.STRING,
-    default="default",
-    show_default=True,
-    help="The name of the semantic catalog to insert descriptions into",
-)
-@click.option(
     "--include-schema",
     type=click.STRING,
     default=None,
@@ -372,7 +364,6 @@ def semantic_catalog():
 def describe(
     db_url: str,
     model: str,
-    catalog_name: str,
     include_schema: str | None = None,
     exclude_schema: str | None = None,
     include_table: str | None = None,
@@ -410,7 +401,6 @@ def describe(
             describe(
                 db_url,
                 model,  # pyright: ignore [reportArgumentType]
-                catalog_name,
                 output=f,
                 console=Console(stderr=True, quiet=quiet),
                 include_schema=include_schema,
@@ -683,10 +673,19 @@ def create(
     asyncio.run(do())
 
 
-@semantic_catalog.command()
+@semantic_catalog.command(name="import")
 @click.option(
     "-d",
     "--db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The connection URL to the database the database to generate sql for.",
+    envvar="TARGET_DB",
+)
+@click.option(
+    "-c",
+    "--catalog-db-url",
     type=click.STRING,
     default="postgres://postgres@localhost:5432/postgres",
     show_default=True,
@@ -695,10 +694,10 @@ def create(
 )
 @click.option(
     "-f",
-    "--sql-file",
+    "--yaml-file",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=None,
-    help="The path to a sql file containing descriptions.",
+    help="The path to a yaml file.",
 )
 @click.option(
     "-n",
@@ -741,9 +740,10 @@ def create(
     ),
     default="INFO",
 )
-def load(
+def import_catalog(
     db_url: str,
-    sql_file: Path,
+    catalog_db_url: str,
+    yaml_file: Path,
     catalog_name: str | None,
     embed_config: str | None,
     batch_size: int | None = None,
@@ -771,30 +771,119 @@ def load(
             handlers=log_handlers,
         )
 
-    catalog_name = catalog_name or "default"
-    batch_size = batch_size if batch_size is not None else 32
-    sql_file = sql_file.expanduser().resolve()
-    assert sql_file and sql_file.exists() and sql_file.is_file(), "invalid sql file"
+    from rich.console import Console
 
-    script = sql_file.read_text()
+    console = Console(stderr=True, quiet=quiet)
+
+    catalog_name = catalog_name or "default"
+    yaml_file = yaml_file.expanduser().resolve()
+    assert yaml_file.is_file(), "invalid yaml file"
 
     async def do():
         from pgai.semantic_catalog import from_name
 
-        async with await psycopg.AsyncConnection.connect(db_url) as con:
-            async with con.cursor() as cur:
-                await cur.execute(script)  # pyright: ignore [reportArgumentType]
-            sc = await from_name(con, catalog_name)
-            match embed_config:
-                case None:
-                    await sc.vectorize_all(con, batch_size=batch_size)
-                case _:
-                    config = await sc.get_embedding(con, embed_config)
-                    if config is None:
-                        raise ValueError(
-                            f"No embedding configuration found for {catalog_name}"
-                        )
-                    await sc.vectorize(con, embed_config, config, batch_size=batch_size)
+        async with (
+            await psycopg.AsyncConnection.connect(catalog_db_url) as ccon,
+            await psycopg.AsyncConnection.connect(db_url) as tcon,
+        ):
+            console.status(f"finding '{catalog_name}' catalog...")
+            sc = await from_name(ccon, catalog_name)
+            with yaml_file.open(mode="r") as r:
+                await sc.import_catalog(
+                    ccon, tcon, r, embed_config, batch_size, console
+                )
+
+    asyncio.run(do())
+
+
+@semantic_catalog.command(name="export")
+@click.option(
+    "-c",
+    "--catalog-db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The connection URL to the database the semantic catalog is in.",
+    envvar="CATALOG_DB",
+)
+@click.option(
+    "-f",
+    "--yaml-file",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help="The path to a yaml file.",
+)
+@click.option(
+    "-n",
+    "--catalog-name",
+    type=click.STRING,
+    default="default",
+    help="The name of the semantic catalog to generate embeddings for.",  # noqa: E501
+)
+@click.option(
+    "-q",
+    "--quiet",
+    is_flag=True,
+    help="Do not print log messages.",
+)
+@click.option(
+    "-l",
+    "--log-file",
+    type=click.Path(dir_okay=False, writable=True, path_type=Path),
+    default=None,
+    help="The path to a file to write log messages to.",
+)
+@click.option(
+    "--log-level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARN", "ERROR", "FATAL", "CRITICAL"], case_sensitive=False
+    ),
+    default="INFO",
+)
+def export_catalog(
+    catalog_db_url: str,
+    yaml_file: Path,
+    catalog_name: str | None,
+    quiet: bool = False,
+    log_file: Path | None = None,
+    log_level: str | None = "INFO",
+) -> None:
+    import logging
+
+    log_handlers: list[logging.Handler] = []
+    if log_file:
+        log_handlers.append(logging.FileHandler(log_file.expanduser().resolve()))
+    if not quiet:
+        from rich.console import Console
+        from rich.logging import RichHandler
+
+        log_handlers.append(
+            RichHandler(console=Console(stderr=True), rich_tracebacks=True)
+        )
+
+    if len(log_handlers) > 0:
+        logging.basicConfig(
+            level=get_log_level(log_level or "INFO"),
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=log_handlers,
+        )
+
+    from rich.console import Console
+
+    console = Console(stderr=True, quiet=quiet)
+
+    catalog_name = catalog_name or "default"
+    yaml_file = yaml_file.expanduser().resolve()
+
+    async def do():
+        from pgai.semantic_catalog import from_name
+
+        async with await psycopg.AsyncConnection.connect(catalog_db_url) as ccon:
+            console.status(f"finding '{catalog_name}' catalog...")
+            sc = await from_name(ccon, catalog_name)
+            console.status("exporting semantic catalog to file...")
+            with yaml_file.open(mode="w") as w:
+                await sc.export_catalog(ccon, w)
 
     asyncio.run(do())
 
