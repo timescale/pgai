@@ -25,5 +25,17 @@
       "integer",
       "pg_catalog.text"
     ]
+  },
+  "unsafe_sum": {
+    "classid": 1255,
+    "objid": 24005,
+    "schema_name": "postgres_air",
+    "proc_name": "unsafe_sum",
+    "kind": "aggregate",
+    "identity_args": "double precision",
+    "definition": "CREATE OR REPLACE AGGREGATE FUNCTION postgres_air.unsafe_sum(double precision) (\n  sfunc = float8pl,\n  stype = float8,\n  msfunc = float8pl,\n  mstype = float8,\n  minvfunc = float8mi,\n  initcond = 10\n)",
+    "objargs": [
+      "double precision"
+    ]
   }
 }

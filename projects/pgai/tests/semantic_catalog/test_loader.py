@@ -50,9 +50,9 @@ async def test_load_procedures(container: PostgresContainer):
     ) as con:
         for proc_name, expected in get_procedure_dict().items():
             oids = await describe.find_procedures(con, include_proc=f"^{proc_name}$")
-            assert len(oids) == 1
+            assert len(oids) == 1, f"no oids found for {proc_name}"
             actual = await loader.load_procedures(con, oids)
-            assert len(actual) == 1
+            assert len(actual) == 1, f"no procedure found for {proc_name}"
             actual = actual[0]
             # classid and objid will change. don't compare
             actual.classid = expected.classid

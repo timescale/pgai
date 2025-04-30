@@ -39,7 +39,7 @@ ALL_TABLES: set[str] = {
 
 ALL_VIEWS: set[str] = {"events_daily", "flight_summary", "passenger_details"}
 
-ALL_PROCS: set[str] = {"advance_air_time", "update_flight_status"}
+ALL_PROCS: set[str] = {"advance_air_time", "unsafe_sum", "update_flight_status"}
 
 
 async def get_table_names(con: psycopg.AsyncConnection, oids: list[int]) -> set[str]:
@@ -187,10 +187,13 @@ async def test_find_procs(container: PostgresContainer):
         ({"exclude_schema": "^emp", "include_schema": "_air$"}, ALL_PROCS),
         ({"exclude_schema": "_air$", "include_schema": "^emp"}, EMPTY_SET),
         ({"include_proc": "advance.*"}, {"advance_air_time"}),
-        ({"include_proc": "(advance_air_time|update_flight_status)"}, ALL_PROCS),
+        (
+            {"include_proc": "(advance_air_time|unsafe_sum|update_flight_status)"},
+            ALL_PROCS,
+        ),
         (
             {"exclude_proc": "advance_air_time", "include_schema": "postgres_air"},
-            {"update_flight_status"},
+            {"update_flight_status", "unsafe_sum"},
         ),
         ({"include_proc": "bob"}, EMPTY_SET),
         ({"include_proc": "^advance"}, {"advance_air_time"}),
@@ -198,7 +201,7 @@ async def test_find_procs(container: PostgresContainer):
         ({"include_schema": "^postgres_air$", "exclude_proc": ".*"}, EMPTY_SET),
         ({"exclude_schema": "^public$", "exclude_proc": ".*"}, EMPTY_SET),
         (
-            {"exclude_schema": "^public$", "include_proc": "^u"},
+            {"exclude_schema": "^public$", "include_proc": "^up"},
             {"update_flight_status"},
         ),
     ]
