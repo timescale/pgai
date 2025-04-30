@@ -189,3 +189,36 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           PG_MAJOR: ${{ matrix.postgres-version }}
+
+  # This is a test to see if we can install the pgai package via pip
+  # It is used to check if the package is compatible with the python version
+  # and if the dependencies are correctly installed.
+  # NOTE: we are not using uv here because sometimes uv succeeds when pip fails
+  # and we want to fail if pip fails.
+  test-pgai-pip-install:
+    needs: authorize
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ "3.10", "3.11", "3.12", "3.13" ]
+      fail-fast: true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # in a pull_request_target event, the ref is the `main` branch not the PR branch
+          # so we need to tell checkout to use the head.ref instead.
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: "Install via pip"
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -e .
+        working-directory: ./projects/pgai
