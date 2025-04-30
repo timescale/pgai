@@ -31,7 +31,11 @@ async def setup_database(container: PostgresContainer) -> None:
     container.drop_database(DATABASE, force=True)
     container.create_database(DATABASE)
     pgai.install(container.connection_string(database=DATABASE))
-    script = Path(__file__).parent.joinpath("data", "descriptions.sql").read_text()
+    script = (
+        Path(__file__)
+        .parent.joinpath("data", "descriptions_to_vectorize.sql")
+        .read_text()
+    )
     async with await psycopg.AsyncConnection.connect(
         container.connection_string(database=DATABASE)
     ) as con:
