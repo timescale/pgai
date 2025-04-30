@@ -1103,6 +1103,46 @@ begin
 end;
 $outer_migration_block$;
 
+-------------------------------------------------------------------------------
+-- 030-add_vectorizer-name-column-to-errors.sql
+do $outer_migration_block$ /*030-add_vectorizer-name-column-to-errors.sql*/
+declare
+    _sql text;
+    _migration record;
+    _migration_name text = $migration_name$030-add_vectorizer-name-column-to-errors.sql$migration_name$;
+    _migration_body text =
+$migration_body$
+-- add the column `name` to the `ai.vectorizer_errors` table
+-- which will be used to store the name of the vectorizer
+alter table ai.vectorizer_errors
+add column name name check (name ~ '^[a-z][a-z_0-9]*$');
+
+-- add a new index to perform lookups by vectorizer name
+create index on ai.vectorizer_errors (name, recorded);
+
+-- populate the new column with each vectorizer name
+update ai.vectorizer_errors ve
+set name = v.name
+from ai.vectorizer v
+where ve.id = v.id;
+
+$migration_body$;
+begin
+    select * into _migration from ai.pgai_lib_migration where "name" operator(pg_catalog.=) _migration_name;
+    if _migration is not null then
+        raise notice 'migration %s already applied. skipping.', _migration_name;
+        if _migration.body operator(pg_catalog.!=) _migration_body then
+            raise warning 'the contents of migration "%s" have changed', _migration_name;
+        end if;
+        return;
+    end if;
+    _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
+    execute _sql;
+    insert into ai.pgai_lib_migration ("name", body, applied_at_version)
+    values (_migration_name, _migration_body, $version$__version__$version$);
+end;
+$outer_migration_block$;
+
 --------------------------------------------------------------------------------
 -- 001-chunking.sql
 
