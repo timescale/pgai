@@ -38,6 +38,17 @@ $procedure$
 ;
 </procedure>
 
+<aggregate id="0">
+CREATE OR REPLACE AGGREGATE FUNCTION postgres_air.unsafe_sum(double precision) (
+  sfunc = float8pl,
+  stype = float8,
+  msfunc = float8pl,
+  mstype = float8,
+  minvfunc = float8mi,
+  initcond = 10
+);
+</aggregate>
+
 <procedure id="0">
 CREATE OR REPLACE PROCEDURE postgres_air.update_flight_status(IN flight_id integer, IN status text)
  LANGUAGE plpgsql
