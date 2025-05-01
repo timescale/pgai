@@ -75,6 +75,14 @@ def test_named_vectorizer():
             pending = cur.fetchone()[0]
             assert pending == 3
 
+            # testing ai.vectorizer_status view filtering by vectorizer name
+            cur.execute(
+                "select pending_items from ai.vectorizer_status where name = %s",
+                ("blog_vectorizer",),
+            )
+            status_pending_items = cur.fetchone()[0]
+            assert status_pending_items == 3
+
             # create another vectorizer with same name but if not exists set
             cur.execute("""
             select ai.create_vectorizer
