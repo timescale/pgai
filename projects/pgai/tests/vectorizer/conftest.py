@@ -33,6 +33,7 @@ def download_docling_models():
         progress=True,
         output_dir=DOCLING_CACHE_DIR,
     )
+    print("Docling models downloaded.")
 
 
 @pytest.fixture(autouse=True)

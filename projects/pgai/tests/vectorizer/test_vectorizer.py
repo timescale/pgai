@@ -343,6 +343,32 @@ async def test_vectorizer_install_no_ai_extension(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("async_install", [True, False])
+async def test_vectorizer_install_old_ai_extension(
+    postgres_container: PostgresContainer, async_install: bool
+):
+    db = "old_ai_extension"
+    create_database(db, postgres_container)
+    _db_url = create_connection_url(postgres_container, dbname=db)
+
+    with (
+        psycopg.connect(_db_url, autocommit=True, row_factory=namedtuple_row) as con,
+        con.cursor() as cur,
+    ):
+        cur.execute("create extension if not exists ai version '0.9.0' cascade")
+
+    _db_url = create_connection_url(postgres_container, dbname=db)
+
+    with pytest.raises(
+        Exception, match="You have an old version of the ai extension installed"
+    ):
+        if async_install:
+            await pgai.ainstall(_db_url)
+        else:
+            pgai.install(_db_url)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("async_install", [True, False])
 async def test_vectorizer_install_vector_in_different_schema(
     postgres_container: PostgresContainer, async_install: bool
 ):
