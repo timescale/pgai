@@ -974,6 +974,11 @@ def export_catalog(
     help="Print LLM usage metrics.",
 )
 @click.option(
+    "--print-query-plan",
+    is_flag=True,
+    help="Print the query plan in json format.",
+)
+@click.option(
     "--save-final-prompt",
     type=click.Path(dir_okay=False, writable=True, path_type=Path),
     default=None,
@@ -992,6 +997,7 @@ def generate_sql(
     log_level: str | None = "INFO",
     print_messages: bool = False,
     print_usage: bool = False,
+    print_query_plan: bool = False,
     save_final_prompt: Path | None = None,
 ) -> None:
     import logging
@@ -1069,6 +1075,11 @@ def generate_sql(
     if print_messages:
         for msg in resp.messages:
             pprint(msg, console=console)
+
+    if print_query_plan:
+        from rich import print_json
+
+        print_json(data=resp.query_plan)
 
     if print_usage:
         usage = resp.usage
