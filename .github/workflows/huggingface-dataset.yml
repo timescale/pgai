@@ -23,7 +23,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
     
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v6
         with:
           version: "0.6.6"
           enable-cache: true
