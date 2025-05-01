@@ -1,8 +1,10 @@
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 import psycopg
 from jinja2 import Template
+from psycopg.rows import dict_row
 from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.messages import ModelMessage
@@ -128,25 +130,27 @@ async def fetch_database_context(
 async def validate_sql_statement(
     target_con: psycopg.AsyncConnection,
     sql_statement: str,
-) -> str | None:
+) -> tuple[dict[str, Any] | None, str | None]:
     async with (
-        target_con.cursor() as cur,
+        target_con.cursor(row_factory=dict_row) as cur,
         target_con.transaction(force_rollback=True) as _,
     ):
         try:
-            await cur.execute(f"explain {sql_statement}")  # pyright: ignore [reportArgumentType]
+            await cur.execute(f"explain (format json) {sql_statement}")  # pyright: ignore [reportArgumentType]
+            plan = await cur.fetchone()
+            assert plan is not None, "explain did not return a query plan"
+            logger.info("sql statement is valid")
+            return plan, None
         except psycopg.Error as e:
             logger.info(f"sql statement is invalid {e.diag.message_primary or str(e)}")
-            return e.diag.message_primary or str(e)
-        else:
-            logger.info("sql statement is valid")
-            return None
+            return None, e.diag.message_primary or str(e)
 
 
 @dataclass
 class GenerateSQLResponse:
     sql_statement: str
     context: DatabaseContext
+    query_plan: dict[str, Any]
     final_prompt: str
     messages: list[ModelMessage]
     usage: Usage
@@ -260,8 +264,10 @@ async def generate_sql(
         messages.extend(result.new_messages())
         usage = usage + result.usage()
         if answer:
-            error = await validate_sql_statement(target_con, answer)
+            logger.info("validating the sql statement")
+            query_plan, error = await validate_sql_statement(target_con, answer)
             if error:
+                answer = None
                 logger.info(f"asking {agent.name} to fix the invalid sql statement")
                 user_prompt = _template_user_prompt.render(
                     ctx=ctx,
@@ -276,6 +282,7 @@ async def generate_sql(
     return GenerateSQLResponse(
         sql_statement=answer,
         context=ctx,
+        query_plan=query_plan,
         final_prompt=user_prompt,
         messages=messages,
         usage=usage,
