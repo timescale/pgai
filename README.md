@@ -47,7 +47,7 @@ First, install the pgai package.
 pip install pgai
 ```              
 
-Then, install the pgai database components. You can do this from the cli or from the python package.
+Then, install the pgai database components. You can do this from the terminal using the CLI or in your Python application code using the pgai python package.
 ```
 # from the cli
 pgai install -d <database-url>
