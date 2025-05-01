@@ -243,3 +243,4 @@ def install(db_url: str, strict: bool) -> None:
     import pgai
 
     pgai.install(db_url, strict=strict)
+    log.info(f"pgai {__version__} installed")
