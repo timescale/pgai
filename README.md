@@ -39,11 +39,23 @@ The key strength of this architecture lies in its resilience: data modifications
 
 </div>
 
-### install via pip
+### install 
+
+First, install the pgai package.
 
 ```
 pip install pgai
 ```              
+
+Then, install the pgai database components. You can do this from the cli or from the python package.
+```
+# from the cli
+pgai install -d <database-url>
+
+# or from the python package, often done as part of your application setup
+import pgai
+pgai.install(DB_URL)
+```
 
 
 # Quick Start
@@ -57,6 +69,13 @@ endpoints are unreliable. You can define a simple version of the pipeline as
 follows:
 
 ```sql
+CREATE TABLE IF NOT EXISTS wiki (
+    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    url TEXT NOT NULL,
+    title TEXT NOT NULL,
+    text TEXT NOT NULL
+)
+
 SELECT ai.create_vectorizer(
      'wiki'::regclass,
      loading => ai.loading_column(column_name=>'text'),
