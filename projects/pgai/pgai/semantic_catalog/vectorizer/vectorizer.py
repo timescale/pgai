@@ -1,11 +1,11 @@
 import logging
 from collections.abc import Sequence
-from typing import Annotated, Any, Literal
+from typing import Any, Literal
 
 import psycopg
 from psycopg.rows import dict_row
 from psycopg.sql import SQL, Identifier
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from pgai.semantic_catalog.vectorizer.models import EmbedRow
 
@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 class SentenceTransformersConfig(BaseModel):
-    implementation: Literal["sentence_transformers"]
-    config_type: Literal["embedding"]
+    implementation: Literal["sentence_transformers"] = "sentence_transformers"
+    config_type: Literal["embedding"] = "embedding"
     model: str
     dimensions: int
 
@@ -29,8 +29,8 @@ class SentenceTransformersConfig(BaseModel):
 
 
 class OllamaConfig(BaseModel):
-    implementation: Literal["ollama"]
-    config_type: Literal["embedding"]
+    implementation: Literal["ollama"] = "ollama"
+    config_type: Literal["embedding"] = "embedding"
     model: str
     dimensions: int
     base_url: str | None = None
@@ -47,8 +47,8 @@ class OllamaConfig(BaseModel):
 
 
 class OpenAIConfig(BaseModel):
-    implementation: Literal["openai"]
-    config_type: Literal["embedding"]
+    implementation: Literal["openai"] = "openai"
+    config_type: Literal["embedding"] = "embedding"
     model: str
     dimensions: int
     base_url: str | None = None
@@ -72,15 +72,12 @@ class OpenAIConfig(BaseModel):
         )
 
 
-EmbeddingConfig = Annotated[
-    SentenceTransformersConfig | OllamaConfig | OpenAIConfig,
-    Field(discriminator="implementation"),
-]
+EmbeddingConfig = SentenceTransformersConfig | OllamaConfig | OpenAIConfig
 
 
 def embedding_config_from_dict(config: dict[str, Any]) -> EmbeddingConfig:
-    config = {**config, "embedding_type": "embedding"}
-    assert "implementation" in config
+    config = {**config, "config_type": "embedding"}
+    assert "implementation" in config, "config is missing implementation specification"
     match config["implementation"]:
         case "sentence_transformers":
             return SentenceTransformersConfig(**config)
