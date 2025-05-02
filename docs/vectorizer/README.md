@@ -370,7 +370,7 @@ ORDER BY
 LIMIT 10;
 ```
 
-### Advanced query patterns with document embeddings
+### Advanced query patterns
 
 You can create more sophisticated queries by combining vector similarity with traditional SQL features:
 
