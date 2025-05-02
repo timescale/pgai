@@ -1,3 +1,5 @@
 # Vectorizer quick start with Ollama
 
-## Go to our vectorizer-quickstart [here](/docs/vectorizer/quick-start.md) to start with pgai and ollama.
+The standard [Vectorizer Quick Start](/docs/vectorizer/quick-start.md) already uses Ollama as the embedding provider.
+
+Please follow that guide to get started with pgai and Ollama.

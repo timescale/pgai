@@ -132,7 +132,7 @@ We'll walk you through the main parts of the code below.
     ```
     </details>
     
-    To learn more about vectorizers, see the [vectorizer usage guide](/docs/vectorizer/overview.md).
+    To learn more about vectorizers, see the [vectorizer usage guide](/docs/vectorizer/README.md).
     
     The `CreateVectorizer` call is a convenience [sql statement builder](/docs/vectorizer/python-integration.md) that helps you build the sql statement to create the vectorizer. You can find the full reference for the sql `create_vectorizer` call in the [vectorizer API reference](/docs/vectorizer/api-reference.md#create-vectorizers).
     

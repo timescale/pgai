@@ -1,51 +1,62 @@
 # pgai documentation
 
-A Python library that turns PostgreSQL into the retrieval engine behind robust, production-ready RAG and Agentic applications.
+This is the central documentation hub for pgai, a Python library that turns PostgreSQL into the retrieval engine behind robust, production-ready RAG and Agentic applications.
 
-- 🔄 Automatically create vector embeddings from data in PostgreSQL tables as well as documents in S3.  The embeddings are automatically updated as the data changes.
+## Overview
 
-- 🔍 Powerful vector and semantic search with pgvector and pgvectorscale.
+pgai offers these key capabilities:
 
-- 🛡️ Production-ready out-of-the-box: Supports batch processing for efficient embedding generation, with built-in handling for model failures, rate limits, and latency spikes.
+- 🔄 **Automatic vector embeddings**: Create and synchronize vector embeddings from PostgreSQL data and documents in S3, with automatic updates as data changes.
 
-Works with any PostgreSQL database, including Timescale Cloud, Amazon RDS, Supabase and more.
+- 🔍 **Powerful search**: Use pgvector and pgvectorscale for efficient vector and semantic search.
 
-## pgai install
+- 🛡️ **Production-ready**: Built-in handling for model failures, rate limits, and latency spikes with batch processing for efficient embedding generation.
 
-The pgai python library can be installed using pip:
+- 🐘 **Works with any PostgreSQL**: Compatible with Timescale Cloud, Amazon RDS, Supabase, and more.
+
+## Installation
 
 ```bash
+# Install the pgai Python library
 pip install pgai
+
+# Setup database components
+python -c "import pgai; pgai.install('your-database-url')"
 ```
 
-To setup the necessary database functions and tables in your PostgreSQL database, run the following python code:
+All pgai database objects are installed in the `ai` schema.
 
-```python
-from pgai
-pgai.install(DB_URL)
-```
+## Documentation index
 
-All of the pgai objects are installed into the `ai` schema.
+### Getting started
+- **Quick start guides**:
+  - [Vectorizer with Ollama](/docs/vectorizer/quick-start.md) - Use pgai with self-hosted models
+  - [Vectorizer with OpenAI](/docs/vectorizer/quick-start-openai.md) - Use pgai with OpenAI's embedding models
+  - [Vectorizer with VoyageAI](/docs/vectorizer/quick-start-voyage.md) - Use pgai with Voyage AI
 
-## pgai Vectorizer
+### Extension
+- [pgai extension documentation](/projects/extension/README.md).
 
-Vectorizer automates the embedding process within your database management by treating embeddings as a declarative, DDL-like feature — like an index.
+### Vectorizer
+- [Vectorizer Documentation](/docs/vectorizer/README.md) - Understand how Vectorizer works and its features
+- [Document Embeddings](/docs/vectorizer/README.md#document-embedding) - Generate embeddings from documents (i.e. stored in AWS S3 buckets)
+- [Vectorizer API Reference](/docs/vectorizer/api-reference.md) - Complete reference for all Vectorizer functions
+- [Vectorizer Worker](/docs/vectorizer/worker.md) - Learn how to run vectorizers in production environments
 
- **Overview**: [Automate AI embedding with pgai Vectorizer](vectorizer/overview.md) - a comprehensive overview of Vectorizer features, demonstrating how it streamlines the process of working with vector embeddings in your database.
-- **Quickstart guides**:
-  * [Vectorizer quickstart for Ollama](vectorizer/quick-start.md): setup your developer environment, create and run a vectorizer.
-  * [Vectorizer quickstart for OpenAI](vectorizer/quick-start-openai.md): setup your developer environment, create and run a vectorizer using OpenAI.
-  * [Vectorizer quickstart for Voyage](vectorizer/quick-start-voyage.md): setup your developer environment, create and run a vectorizer using Voyage. 
-- **References**:
-  * [pgai Vectorizer API reference](vectorizer/api-reference.md): API reference for Vectorizer functions 
-  * [Documentation for vectorizer worker](vectorizer/worker.md): explain how to run vectorizers on a self-hosted PostgreSQL instance.
-  * [SqlAlchemy and Alembic integration](vectorizer/python-integration.md): learn how to use Vectorizer with SqlAlchemy and Alembic.
-- **Develop**:
-  * [Add a Vectorizer embedding integration](vectorizer/adding-embedding-integration.md)
+### Integration
+- [SQLAlchemy Integration](/docs/vectorizer/sqlalchemy-integration.md) - Use pgai with SQLAlchemy
+- [Alembic Integration](/docs/vectorizer/alembic-integration.md) - Manage migrations with Alembic
+- [Python Integration](/docs/vectorizer/python-integration.md) - General Python integration guidelines
+- [Migrating from Extension](/docs/vectorizer/migrating-from-extension.md) - Migrate from the previous extension-based approach
 
-## pgai utils
-  * [Chunking](/docs/utils/chunking.md): chunking algorithms you can use from withinSQL.
+### Advanced features
+- [Structured Retrieval/Text-to-SQL](/docs/structured_retrieval/text_to_sql.md) - Convert natural language to SQL
+- [Chunking Utilities](/docs/utils/chunking.md) - Text chunking algorithms for use within SQL
 
-## pgai extension
+### Development
+- [Adding Embedding Integrations](/docs/vectorizer/adding-embedding-integration.md) - Guide for adding new embedding model providers
 
-The pgai extension is a PostgreSQL extension that performs model calling inside of PostgreSQL. You can find more information about the extension in the [pgai extension directory](/projects/extension/README.md).
+## Getting help
+
+- [Join our Discord](https://discord.gg/KRdHVXAmkp) for community support
+- [GitHub Issues](https://github.com/timescale/pgai/issues) for bug reports and feature requests

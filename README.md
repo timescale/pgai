@@ -60,9 +60,17 @@ pgai.install(DB_URL)
 
 # Quick Start
 
-This quickstart demonstrates how pgai Vectorizer enables semantic search and RAG over PostgreSQL data by automatically creating and synchronizing embeddings as data changes.
+## Provider-Specific Quick Start Guides
+For detailed guides tailored to specific embedding providers:
+- [Complete Documentation](/docs/README.md)
+- [Quick Start with Ollama](/docs/vectorizer/quick-start.md)
+- [Quick Start with OpenAI](/docs/vectorizer/quick-start-openai.md) 
+- [Quick Start with VoyageAI](/docs/vectorizer/quick-start-voyage.md)
 
-The key "secret sauce" of pgai Vectorizer is its declarative approach to
+## General quick start
+The example below demonstrates the core functionality of pgai: automatically creating and synchronizing vector embeddings for PostgreSQL data to enable semantic search and Retrieval Augmented Generation (RAG). This quickstart uses OpenAI as the embedding provider, but you can substitute with any [supported embedding provider](#supported-embedding-models).
+
+The key advantage of pgai Vectorizer is its declarative approach to
 embedding generation. Simply define your pipeline and let Vectorizer handle the
 operational complexity of keeping embeddings in sync, even when embedding
 endpoints are unreliable. You can define a simple version of the pipeline as
@@ -308,20 +316,20 @@ Look for other quickstarts:
 - Quickstart with FastAPI and psycopg [here](/examples/simple_fastapi_app/README.md)
 
 Explore more about the vectorizer:
-- Learn more about the [vectorizer](/docs/vectorizer/overview.md) and the [vectorizer worker](/docs/vectorizer/worker.md)
+- Learn more about the [vectorizer](/docs/vectorizer/README.md) and the [vectorizer worker](/docs/vectorizer/worker.md)
 - dive into the vectorizer api [reference](/docs/vectorizer/api-reference.md)
 
 # Features 
 
 Our pgai Python library lets you work with embeddings generated from your data:
 
-* Automatically create and sync vector embeddings for your data using the [vectorizer](/docs/vectorizer/overview.md).
+* Automatically create and sync vector embeddings for your data using the [vectorizer](/docs/vectorizer/README.md).
 * [Load data](/docs/vectorizer/api-reference.md#loading-configuration) from a column in your table or from a file, s3 bucket, etc.
 * Create multiple embeddings for the same data with different models and parameters for testing and experimentation.
 * [Customize](#a-configurable-vectorizer-pipeline) how your embedding pipeline parses, chunks, formats, and embeds your data.
 
 You can use the vector embeddings to:
-- [Perform semantic search](/docs/vectorizer/overview.md#query-an-embedding) using pgvector.
+- [Perform semantic search](/docs/vectorizer/README.md#query-an-embedding) using pgvector.
 - Implement Retrieval Augmented Generation (RAG)
 - Perform high-performance, cost-efficient ANN search on large vector workloads with [pgvectorscale](https://github.com/timescale/pgvectorscale), which complements pgvector.
 
@@ -381,10 +389,11 @@ Many specialized vector databases create embeddings for you. However, they typic
 - [Vector Databases Are the Wrong Abstraction](https://www.timescale.com/blog/vector-databases-are-the-wrong-abstraction/)
 - [pgai: Giving PostgreSQL Developers AI Engineering Superpowers](http://www.timescale.com/blog/pgai-giving-postgresql-developers-ai-engineering-superpowers)
 
-## Quick start guides
-- [The quick start with Ollama guide above](#quick-start)
-- [Quick start with OpenAI](/docs/vectorizer/quick-start-openai.md)
-- [Quick start with VoyageAI](/docs/vectorizer/quick-start-voyage.md)
+## Documentation
+- [Complete Documentation](/docs/README.md)
+- [Vectorizer Overview](/docs/vectorizer/README.md)
+- [Vectorizer API Reference](/docs/vectorizer/api-reference.md)
+- [Vectorizer Worker](/docs/vectorizer/worker.md)
 
 ## Tutorials about pgai vectorizer
 - [How to Automatically Create & Update Embeddings in PostgreSQL—With One SQL Query](https://www.timescale.com/blog/how-to-automatically-create-update-embeddings-in-postgresql/)

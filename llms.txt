@@ -38,7 +38,7 @@ The pgai Vectorizer is a system that automatically creates and synchronizes vect
 - [Adding a Vectorizer embedding integration](docs/vectorizer/adding-embedding-integration.md): Describes how to add a new vectorizer embedding integration to the pgai extension
 - [pgai Vectorizer API reference](docs/vectorizer/api-reference.md): Detailed API reference for the pgai Vectorizer, including configuration options for embedding, indexing, and other features.
 - [Document embeddings in pgai](docs/vectorizer/document-embeddings.md): Comprehensive guide to document embedding generation and management in the pgai extension, including support for OpenAI and Ollama embeddings.
-- [Automate AI embedding with pgai Vectorizer](docs/vectorizer/overview.md): Automate AI embedding with the pgai Vectorizer, supporting Ollama, Voyage AI, and OpenAI as embedding providers.
+- [Automate AI embedding with pgai Vectorizer](docs/vectorizer/README.md): Automate AI embedding with the pgai Vectorizer, supporting Ollama, Voyage AI, and OpenAI as embedding providers.
 - [Creating vectorizers from python](docs/vectorizer/python-integration.md): Documentation on creating vectorizers from Python and integrating pgai's Vectorizer with SQLAlchemy
 - [Vectorizer quick start with Ollama](docs/vectorizer/quick-start-ollama.md): Quick start guide for using the pgai Vectorizer feature with the Ollama AI provider
 - [Vectorizer quick start with OpenAI](docs/vectorizer/quick-start-openai.md): Quickly create a vectorizer in Postgres using the pgai extension and OpenAI for embedding generation.

@@ -1,6 +1,6 @@
 # Pgai vectorizer S3 integration guide
 
-Pgai vectorizers can be configured to create vector embeddings for documents stored in S3 buckets. We have a [general guide for embedding documents](./document-embeddings.md) that walks you through the steps to configure your vectorizer to load, parse, chunk and embed documents. This guide will focus on issues specific to documents stored in S3.
+Pgai vectorizers can be configured to create vector embeddings for documents stored in S3 buckets. We have a [general guide for embedding documents](./README.md#document-embedding) that walks you through the steps to configure your vectorizer to load, parse, chunk and embed documents. This guide will focus on issues specific to documents stored in S3.
 
 A simple vectorizer configuration for documents stored in S3 looks like this:
 
@@ -13,7 +13,7 @@ SELECT ai.create_vectorizer(
 );
 ```
 
-Where the `document` table has a column `uri` that contains the S3 URI of the document. Learn more in our [guide for embedding documents](./document-embeddings.md).
+Where the `document` table has a column `uri` that contains the S3 URI of the document. Learn more in our [guide for embedding documents](./README.md#document-embedding).
 If you do not have a documents table yet, we provide you an example of how you can sync your s3 buckets to such a table [further down in this document](#syncing-s3-to-a-documents-table).
 
 But how do you configure the vectorizer to get access to your S3 buckets if they are not publicly accessible? This is the focus of the rest of this guide.

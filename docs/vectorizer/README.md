@@ -1,6 +1,6 @@
 # Automate AI embedding with pgai Vectorizer
 
-Vector embeddings have emerged as a powerful tool for transforming text into
+Vector embeddings have emerged as a powerful tool for transforming text and documents into
 compact, semantically rich representations. This approach unlocks the potential
 for more nuanced and context-aware searches, surpassing traditional
 keyword-based methods. By leveraging vector embeddings, users can search through
@@ -19,7 +19,7 @@ representing only a part of a row's data -- we've simplified the entire workflow
 
 Our system empowers you to:
 
-- Designate any text column for embedding using customizable rules (or, if you are embedding binary documents such as PDFs, you can see our guide for [embedding documents](document-embeddings.md))
+- Designate any text column or document for embedding using customizable rules
 - Automatically generate and maintain searchable embedding tables 
 - Keep embeddings continuously synchronized with source data (asynchronously)
 - Utilize a convenient view that seamlessly joins base tables with their embeddings
@@ -38,20 +38,20 @@ background. When using a database on another cloud provider (AWS RDS, Supabase,
 etc.) or self-hosted Postgres, you can use the [vectorizer worker](/docs/vectorizer/worker.md) to
 process your vectorizers.
 
-This guide walks you the steps to configure your vectorizer to embed data stored in text columns. If you are embedding binary documents such as PDFs, see our guide for [embedding documents](document-embeddings.md).
-
-Let's explore how the Vectorizer can transform your approach to unstructured,
-textual, data analysis, and semantic search:
+Let's explore how the Vectorizer can transform your approach to unstructured data analysis and semantic search:
 
 - [Select an embedding provider and set up your API Keys](#select-an-embedding-provider-and-set-up-your-api-keys)
 - [Define a vectorizer](#define-a-vectorizer)
+  - [Text column embedding](#text-column-embedding)
+  - [Document embedding](#document-embedding)
 - [Query an embedding](#query-an-embedding)
 - [Inject context into vectorizer chunks](#inject-context-into-vectorizer-chunks)
 - [Improve query performance on your Vectorizer](#improve-query-performance-on-your-vectorizer)
 - [Control vectorizer run time](#control-the-vectorizer-run-time-)
 - [The embedding storage table](#the-embedding-storage-table)
+- [Destination Options for Embeddings](#destination-options-for-embeddings)
 - [Monitor a vectorizer](#monitor-a-vectorizer)
-
+- [Monitoring and Troubleshooting](#monitoring-and-troubleshooting)
 
 ## Select an embedding provider and set up your API Keys
 
@@ -100,8 +100,14 @@ Timescale Cloud or on a self-hosted Postgres server.
 
 ## Define a vectorizer
 
+pgai supports two main types of data sources for vectorizing:
+1. [Text column embedding](#text-column-embedding) - for embedding text stored directly in database columns
+2. [Document embedding](#document-embedding) - for embedding files stored either as binary data or referenced by URI
+
+### Text column embedding
+
 You can configure the system to automatically generate and update embeddings
-for a table's data. Let's consider the following example table:
+for a table's text data. Let's consider the following example table:
 
 ```sql
 CREATE TABLE blog(
@@ -131,11 +137,7 @@ Ollama instance. Vectorizer supports other embedding providers, for more details
 consult the [embedding configuration](/docs/vectorizer/api-reference.md#embedding-configuration)
 section of the vectorizer API reference.
 
-The `loading` parameter specifies the source of the data to generate embeddings from. E.g. from the `contents` column.
-Vectorizer supports other loaders, such as the
-`ai.loading_uri`, which loads external documents from local or remote buckets like S3, etc.
-For more details, check the [loading configuration](/docs/vectorizer/api-reference.md#loading-configuration) section 
-of the vectorizer API reference or our [guide for embedding documents](document-embeddings.md).
+The `loading` parameter specifies the source of the data to generate embeddings from. In this case, we're using the `contents` column as our source.
 
 Additionally, if the `contents` field is lengthy, it is split into multiple chunks,
 resulting in several embeddings for a single blog post. Chunking helps
@@ -143,37 +145,188 @@ ensure that each embedding is semantically coherent, typically representing a
 single thought or concept. A useful mental model is to think of embedding one
 paragraph at a time.
 
-However, splitting text into chunks can sometimes lead to losing context. To
-mitigate this, you can reintroduce context into each chunk. For instance, you
-might want to repeat the blog post's title in every chunk. This is easily
-achieved using the `formatting` parameter, which allows you to inject row data
-into each chunk:
+### Document embedding
+
+For embedding documents (like PDFs, Word documents, markdown files, etc.), the workflow is slightly different. You'll first need to set up a document table and then create a vectorizer that points to this table.
+
+If you want to get started quickly, check out the [runnable example](/examples/embeddings_from_documents).
+
+If you are storing documents in AWS S3, you can use the [S3 documentation](s3-documents.md) to learn more about how to configure S3 for document storage and synchronize your S3 buckets with your document table.
+
+#### Introduction to document embeddings
+
+While RAG (Retrieval Augmented Generation) applications typically require text data, real-world scenarios often involve documents that:
+
+- Are stored in external systems like S3 or local filesystems
+- Come in various formats (PDF, DOCX, XLSX, EPUB, etc.)
+- Change frequently, requiring synchronization between sources and embeddings
+
+pgai's document vectorization system supports directly embedding documents via a declarative approach that handles loading, parsing, chunking, and embedding files.
+
+#### Setting up document storage
+
+The foundation of document management is a table in PostgreSQL that stores document metadata. Documents can either be stored directly using a BYTEA column, or alternatively, the table can hold URIs pointing to files located in an external storage system such as S3.
+
+If your application already handles documents, it's likely that you already have such a table which can be used as a source for the vectorizer. If you don't have such a table yet and are storing documents in S3 we have a [guide on how to sync S3 to a document table](s3-documents.md#syncing-s3-to-a-documents-table).
+
+**Minimal document table with URIs:**
 
 ```sql
-SELECT ai.create_vectorizer(   
-    'blog'::regclass,
-    loading => ai.loading_column('contents'),
-    embedding => ai.embedding_ollama('nomic-embed-text', 768),
-    formatting => ai.formatting_python_template('$title: $chunk'),
-    destination => ai.destination_table('blog_contents_embeddings')
+CREATE TABLE document (
+    uri TEXT PRIMARY KEY,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Example records
+INSERT INTO document (uri) VALUES 
+    ('s3://my-bucket/documents/product-manual.pdf'),
+    ('s3://my-bucket/documents/api-reference.md');
+```
+
+**Extended document table with metadata:**
+
+```sql
+CREATE TABLE document (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    uri TEXT NOT NULL,
+    content_type TEXT,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    owner_id INTEGER,
+    access_level TEXT,
+    tags TEXT[]
 );
 ```
 
-This approach ensures that each chunk retains important contextual information,
-improving the quality and relevance of the embeddings.
+**Storing document content directly:**
 
-On Timescale Cloud, vectorizers are created automatically and scheduled using TimescaleDB background jobs running
-every five minutes. If you are self-hosting, you need to [run the vectorizer-worker](/docs/vectorizer/worker.md)
-manually to create and run the vectorizer.
+```sql
+CREATE TABLE document (
+    id SERIAL PRIMARY KEY,
+    file BYTEA,
+    title TEXT NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Example of inserting a binary document
+INSERT INTO document (title, file) VALUES 
+    ('Sample Document', pg_read_binary_file('/tmp/sample.pdf')::bytea);
+```
+
+#### Creating a document vectorizer
+
+Here's an example vectorizer configuration for documents stored in S3:
+
+```sql
+SELECT ai.create_vectorizer(
+    'documentation'::regclass,
+    loading => ai.loading_uri(column_name => 'file_uri'),
+    parsing => ai.parsing_auto(), -- Auto-detects parser based on file type, this is the default and can also be omitted
+    chunking => ai.chunking_recursive_character_text_splitter(
+        chunk_size => 700,
+        separators => array[E'\n## ', E'\n### ', E'\n#### ', E'\n- ', E'\n1. ', E'\n\n', E'\n', '.', '?', '!', ' ', '', '|']
+    ),
+    embedding => ai.embedding_ollama('nomic-embed-text', 768)     
+);
+```
+
+For documents stored directly in the database:
+
+```sql
+SELECT ai.create_vectorizer(
+    'document'::regclass,
+    loading => ai.loading_column(column_name => 'file'),
+    parsing => ai.parsing_auto(),
+    chunking => ai.chunking_recursive_character_text_splitter(
+        chunk_size => 700,
+        chunk_overlap => 150,
+        separators => array[E'\n## ', E'\n### ', E'\n#### ', E'\n- ', E'\n1. ', E'\n\n', E'\n', '.', '?', '!', ' ', '', '|']
+    ),
+    embedding => ai.embedding_ollama('nomic-embed-text', 768),
+    destination => ai.destination_table('document_embeddings')
+);
+```
+
+#### Explanation of document vectorizer components
+
+##### Loading documents
+
+pgai supports loading documents from references to external storage systems using the `ai.loading_uri` function or from a BYTEA column using the `ai.loading_column` function.
+
+**1. Loading from URI columns (`ai.loading_uri`)**
+
+```sql
+loading => ai.loading_uri(
+    column_name => 'uri',
+    retries => 6,              -- Optional: number of retry attempts (default: 6)
+    aws_role_arn => 'arn:aws:iam::123456789012:role/S3AccessRole'  -- Optional: for S3 access using role assumption
+)
+```
+
+This is what you will usually use to load any kind of document. It allows to download documents from:
+- S3 URLs (e.g. `s3://bucket/path/to/file.pdf`)
+- HTTP/HTTPS URLs (e.g. `https://example.com/file.pdf`)
+- Local files on the worker machine (e.g. `/path/to/file.pdf`)
+
+**Storing documents in AWS S3**: Timescale Cloud and a self-hosted pgai installation support AWS S3 URLs out of the box. Check the [S3 documentation](./s3-documents.md) for more information on how to authenticate and configure S3.
+
+**Other storage options:** We use the [smart_open](https://pypi.org/project/smart-open/) library to connect to the URI. That means any URI that can work with smart_open should work (including Google Cloud, Azure, etc.); however, only AWS S3 is supported on Timescale Cloud. In a self-hosted installation, other providers should work but you need to install the appropriate smart_open dependencies and test it yourself. See the [smart-open documentation](https://pypi.org/project/smart-open/) for details.
+
+**2. Loading from BYTEA columns (`ai.loading_column`)**
+
+For documents stored directly in a BYTEA column:
+
+```sql
+loading => ai.loading_column(
+    column_name => 'file'
+)
+```
+
+This is useful if you already have the document content in your database and don't want to use any kind of external storage.
+
+##### Parsing documents
+
+To make documents LLM-friendly, you need to parse them into markdown. pgai currently supports two different parsers: pymupdf and docling. You won't have to worry about this most of the time as `ai.parsing_auto` will automatically select the appropriate parser based on the file type, but you can also explicitly select it.
+
+You can find more information about the parsers in the [parsing reference](./api-reference.md#parsing-configuration).
+
+##### Chunking documents
+
+Chunking divides documents into smaller pieces for embedding. Since the content gets parsed to markdown, you will want to use a splitter that respects the markdown structure, for example:
+
+```sql
+chunking => ai.chunking_recursive_character_text_splitter(
+    chunk_size => 700,
+    chunk_overlap => 150,
+    separators => array[
+        E'\n## ',      -- Split on header level 2
+        E'\n### ',     -- Split on header level 3
+        E'\n#### ',    -- Split on header level 4
+        E'\n- ',       -- Split on list items
+        E'\n1. ',      -- Split on numbered list items
+        E'\n\n',       -- Split on paragraphs
+        E'\n',         -- Split on lines
+        '.',           -- Split on sentences
+        '?', '!',      -- Split on question/exclamation
+    ]
+)
+```
+
+This configuration progressively tries more granular separators to achieve the target chunk size, preserving document structure where possible.
+
+For more information about chunking, see the [chunking reference](./api-reference.md#chunking-configuration).
+
+For more details on document vectorization, including supported document types and configuration options, see the [Document Embeddings documentation](document-embeddings.md).
 
 ## Query an embedding
 
 The `create_vectorizer` command generates a view with the same name as the
-specified destination. This view contains all the embeddings for the blog table.
-Note that you'll typically have multiple rows in the view for each blog entry,
-as multiple embeddings are usually generated for each source document.
+specified destination. This view contains all the embeddings for the table.
+Note that you'll typically have multiple rows in the view for each entry,
+as multiple embeddings are usually generated for each source document or text field.
 
-The view includes all columns from the blog table plus the following additional columns:
+The view includes all columns from the source table plus the following additional columns:
 
 | Column         | Type   | Description                                                     |
 |----------------|--------|-----------------------------------------------------------------|
@@ -213,7 +366,7 @@ ORDER BY
 LIMIT 10;
 ```
 
-This approach works with any column from the blog table. For example, to search by author:
+This approach works with any column from the original table. For example, to search by author:
 
 ```sql
 SELECT 
@@ -228,50 +381,57 @@ ORDER BY
 LIMIT 10;
 ```
 
-<details>
-<summary>Click to see SQLAlchemy examples for querying the embeddings</summary>
+### Advanced query patterns with document embeddings
 
-Given an example SQLAlchemy model:
+You can create more sophisticated queries by combining vector similarity with traditional SQL features:
 
-```python
-    class Wiki(Base):
-        __tablename__ = "wiki"
-        
-        id: Mapped[int] = mapped_column(primary_key=True)
-        url: Mapped[str]
-        title: Mapped[str]
-        text: Mapped[str]
+**Combining vector similarity with metadata filters:**
 
-        # Add vector embeddings for the text field
-        text_embeddings = vectorizer_relationship(
-            target_table='wiki_embeddings',
-            dimensions=384
-        )
+```sql
+-- Find recent documentation about configuration
+SELECT title, chunk
+FROM document_embeddings
+WHERE 
+    updated_at > (CURRENT_DATE - INTERVAL '30 days')
+    AND title ILIKE '%configuration%'
+ORDER BY embedding <=> <search_embedding>
+LIMIT 5;
 ```
 
-You can use the text_embeddings relationship to perform semantic search on the embeddings by ordering the results by distance.
+**Joining with application data:**
 
-```python
-    async def _find_relevant_chunks(client: ollama.AsyncClient, query: str, limit: int = 2) -> WikiSearchResult:
-        response = await client.embed(model="all-minilm", input=query)
-        embedding = response.embeddings[0]
-        with Session(engine) as session:
-            # Query both the Wiki model and its embeddings
-            result = session.query(
-                Wiki,
-                Wiki.text_embeddings.embedding.cosine_distance(embedding).label('distance')
-            ).join(Wiki.text_embeddings).order_by(
-                'distance'
-            ).limit(limit).all()
-            
-        return result
+```sql
+-- Find documents relevant to customers with pending support tickets
+SELECT c.name, d.title, e.chunk 
+FROM customers c
+JOIN support_tickets t ON c.id = t.customer_id
+JOIN customer_documentation cd ON c.id = cd.customer_id
+JOIN document_embeddings e ON cd.document_id = e.id
+WHERE t.status = 'pending'
+ORDER BY e.embedding <=> <search_embedding>
+LIMIT 10;
 ```
-
-You can, of course, add any other filters to the query.
-
-</details>
 
 ## Inject context into vectorizer chunks
+
+However, splitting text into chunks can sometimes lead to losing context. To
+mitigate this, you can reintroduce context into each chunk. For instance, you
+might want to repeat the blog post's title in every chunk. This is easily
+achieved using the `formatting` parameter, which allows you to inject row data
+into each chunk:
+
+```sql
+SELECT ai.create_vectorizer(   
+    'blog'::regclass,
+    loading => ai.loading_column('contents'),
+    embedding => ai.embedding_ollama('nomic-embed-text', 768),
+    formatting => ai.formatting_python_template('$title: $chunk'),
+    destination => ai.destination_table('blog_contents_embeddings')
+);
+```
+
+This approach ensures that each chunk retains important contextual information,
+improving the quality and relevance of the embeddings.
 
 Formatting allows you to inject additional information into each chunk. This is
 needed because splitting the text into chunks can lead to losing important
@@ -331,7 +491,7 @@ Note: when scheduling is disabled, the index is not created automatically. You n
 
 ## The embedding storage table
 
-The view is based on a table storing blog embeddings, named
+The view is based on a table storing embeddings, named
 `blog_contents_embeddings_store`. You can query this table directly for
 potentially more efficient queries. The table structure is as follows:
 
@@ -386,7 +546,7 @@ SELECT ai.create_vectorizer(
     'product_descriptions'::regclass,
     name => 'product_descriptions_vectorizer',
     loading => ai.loading_column('description'),
-    embedding => ai.embedding_openai('text-embedding-3-small', 768),
+    embedding => ai.embedding_ollama('nomic-embed-text', 768),
     chunking => ai.chunking_none(),  -- Required for column destination
     destination => ai.destination_column('description_embedding')
 );
@@ -426,4 +586,99 @@ will exhaustively count the exact number of pending items.
 
 ```sql
 select ai.vectorizer_queue_pending(1, exact_count=>true);
+```
+
+## Monitoring and Troubleshooting
+
+### Checking for failed items
+
+```sql
+-- View all vectorizer errors
+SELECT * FROM ai.vectorizer_errors;
+
+-- View errors for a specific vectorizer
+SELECT * FROM ai.vectorizer_errors WHERE id = <vectorizer_id>;
+```
+The error table includes detailed information about what went wrong.
+
+### Checking the queue and retry counts
+
+```sql
+SELECT * FROM ai._vectorizer_q_1
+```
+
+The queue name can be found in the `ai.vectorizer` table
+
+### Common issues and solutions
+
+**Embedding API rate limits**
+
+If you encounter rate limits with your embedding provider:
+- Adjust the processing batch size and concurrency explained in the [processing reference](./api-reference.md#processing-configuration) in general we recommend a low batch size (e.g. 1) and a high concurrency (e.g. 10) for documents. Since parsing takes some time.
+- Consider upgrading API tiers or using a different provider
+
+**Document limitations**
+- The pgai document vectorizer is designed for small to medium sized documents. Large documents will take a long time to be parsed and embedded. The page limit for pdfs on Timescale Cloud is ~50 pages. For larger documents consider splitting them into smaller chunks.
+- Supported documents depend on the parser that you are using. Check the [parser reference](./api-reference.md#parsing-configuration) to see what types of documents are supported by the parser you are using.
+
+## Appendix: More example vectorizer configurations
+
+### Document processing from S3 with Ollama embeddings
+
+```sql
+-- Create document table
+CREATE TABLE documentation (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    file_uri TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add documents
+INSERT INTO documentation (title, file_uri) VALUES
+('Product Manual', 's3://company-docs/manuals/product-v2.pdf'),
+('API Reference', 's3://company-docs/api/reference.md');
+
+-- Create vectorizer
+SELECT ai.create_vectorizer(
+    'documentation'::regclass,
+    loading => ai.loading_uri(column_name => 'file_uri'),
+    parsing => ai.parsing_auto(), -- Auto-detects parser, this is the default and can also be omitted
+    chunking => ai.chunking_recursive_character_text_splitter(
+        chunk_size => 700,
+        separators => array[E'\n## ', E'\n### ', E'\n#### ', E'\n- ', E'\n1. ', E'\n\n', E'\n', '.', '?', '!', ' ', '', '|']
+    ),
+    embedding => ai.embedding_ollama('nomic-embed-text', 768)     
+);
+```
+
+### Binary documents with ollama embeddings
+
+```sql
+-- Create document table with binary storage
+CREATE TABLE internal_document (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    content BYTEA NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add documents
+INSERT INTO internal_document (title, content) VALUES
+('Internal Report', pg_read_binary_file('/path/to/report.pdf')::bytea),
+('Internal Memo', pg_read_binary_file('/path/to/memo.docx')::bytea);
+
+-- Create vectorizer
+SELECT ai.create_vectorizer(
+    'internal_document'::regclass,
+    loading => ai.loading_column(column_name => 'content'),
+    chunking => ai.chunking_recursive_character_text_splitter(
+        chunk_size => 500,
+        chunk_overlap => 100,
+        separators => array[E'\n\n', E'\n', '.', ' ', '']
+    ),
+    embedding => ai.embedding_ollama('nomic-embed-text', 768, base_url => 'http://ollama:11434')
+);
 ```
