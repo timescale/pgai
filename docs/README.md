@@ -14,6 +14,8 @@ pgai offers these key capabilities:
 
 - 🐘 **Works with any PostgreSQL**: Compatible with Timescale Cloud, Amazon RDS, Supabase, and more.
 
+<img height="400" src="images/pgai_architecture.png" alt="Pgai Architecture: application, database, vectorizer worker">
+
 ## Installation
 
 ```bash

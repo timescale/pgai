@@ -19,6 +19,16 @@ This page provides an overview of Vectorizer features. For quick setup instructi
 
 Vectorizer uses a background worker for embedding generation, making the process performant and resilient to LLM endpoint failures. On [Timescale Cloud](https://tsdb.co/gh-pgai-signup), the worker runs automatically. For other cloud providers (AWS RDS, Supabase, etc.) or self-hosted Postgres, use the [vectorizer worker](/docs/vectorizer/worker.md) to process your vectorizers.
 
+## How vectorizer works
+
+The vectorizer is designed to be flexible and customizable. Each vectorizer defines a pipeline for creating embeddings from your data. The pipeline consists of these components:
+
+- **[Loading](/docs/vectorizer/api-reference.md#loading-configuration):** Defines the source of data to embed - either directly from a database column or from an external file via URI
+- **[Parsing](/docs/vectorizer/api-reference.md#parsing-configuration):** Converts non-text documents (PDF, HTML, markdown) into a text format suitable for embedding
+- **[Chunking](/docs/vectorizer/api-reference.md#chunking-configuration):** Splits text data into smaller, semantically meaningful pieces
+- **[Formatting](/docs/vectorizer/api-reference.md#formatting-configuration):** Prepares each chunk for embedding, optionally adding context like document title or metadata
+- **[Embedding](/docs/vectorizer/api-reference.md#embedding-configuration):** Generates vector embeddings using your chosen LLM provider and model
+
 Let's explore how the Vectorizer can transform your approach to unstructured data analysis and semantic search:
 
 - [Select an embedding provider and set up your API Keys](#select-an-embedding-provider-and-set-up-your-api-keys)
