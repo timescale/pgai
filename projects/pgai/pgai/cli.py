@@ -321,9 +321,9 @@ def semantic_catalog():
     help="A regular expression to match against proc names to be excluded from output.",
 )
 @click.option(
-    "-o",
-    "--output",
-    type=click.Path(exists=False, dir_okay=False, writable=True, path_type=Path),
+    "-f",
+    "--yaml-file",
+    type=click.Path(dir_okay=False, writable=True, path_type=Path),
     default=None,
     help="The path to a file to write output to.",
 )
@@ -372,7 +372,7 @@ def describe(
     exclude_view: str | None = None,
     include_proc: str | None = None,
     exclude_proc: str | None = None,
-    output: Path | None = None,
+    yaml_file: Path | None = None,
     append: bool = False,
     sample_size: int = 3,
     quiet: bool = False,
@@ -394,9 +394,14 @@ def describe(
 
     from pgai.semantic_catalog.describe import describe
 
-    output = output.expanduser().resolve() if output else None
+    if yaml_file:
+        yaml_file = yaml_file.expanduser().resolve()
 
-    with sys.stdout if not output else output.open(mode="a" if append else "w") as f:
+    with (
+        sys.stdout
+        if not yaml_file
+        else yaml_file.open(mode="a" if append else "w") as f
+    ):
         asyncio.run(
             describe(
                 db_url,
@@ -695,7 +700,7 @@ def create(
 @click.option(
     "-f",
     "--yaml-file",
-    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    type=click.Path(dir_okay=False, path_type=Path),
     default=None,
     help="The path to a yaml file.",
 )
@@ -743,7 +748,7 @@ def create(
 def import_catalog(
     db_url: str,
     catalog_db_url: str,
-    yaml_file: Path,
+    yaml_file: Path | None,
     catalog_name: str | None,
     embed_config: str | None,
     batch_size: int | None = None,
@@ -776,8 +781,9 @@ def import_catalog(
     console = Console(stderr=True, quiet=quiet)
 
     catalog_name = catalog_name or "default"
-    yaml_file = yaml_file.expanduser().resolve()
-    assert yaml_file.is_file(), "invalid yaml file"
+    if yaml_file:
+        yaml_file = yaml_file.expanduser().resolve()
+        assert yaml_file.is_file(), "invalid yaml file"
 
     async def do():
         from pgai.semantic_catalog import from_name
@@ -788,7 +794,7 @@ def import_catalog(
         ):
             console.status(f"finding '{catalog_name}' catalog...")
             sc = await from_name(ccon, catalog_name)
-            with yaml_file.open(mode="r") as r:
+            with sys.stdin if not yaml_file else yaml_file.open(mode="r") as r:
                 await sc.import_catalog(
                     ccon, tcon, r, embed_config, batch_size, console
                 )
@@ -809,7 +815,7 @@ def import_catalog(
 @click.option(
     "-f",
     "--yaml-file",
-    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    type=click.Path(dir_okay=False, path_type=Path),
     default=None,
     help="The path to a yaml file.",
 )
@@ -842,7 +848,7 @@ def import_catalog(
 )
 def export_catalog(
     catalog_db_url: str,
-    yaml_file: Path,
+    yaml_file: Path | None,
     catalog_name: str | None,
     quiet: bool = False,
     log_file: Path | None = None,
@@ -873,7 +879,8 @@ def export_catalog(
     console = Console(stderr=True, quiet=quiet)
 
     catalog_name = catalog_name or "default"
-    yaml_file = yaml_file.expanduser().resolve()
+    if yaml_file:
+        yaml_file = yaml_file.expanduser().resolve()
 
     async def do():
         from pgai.semantic_catalog import from_name
@@ -882,7 +889,7 @@ def export_catalog(
             console.status(f"finding '{catalog_name}' catalog...")
             sc = await from_name(ccon, catalog_name)
             console.status("exporting semantic catalog to file...")
-            with yaml_file.open(mode="w") as w:
+            with sys.stdout if not yaml_file else yaml_file.open(mode="w") as w:
                 await sc.export_catalog(ccon, w)
 
     asyncio.run(do())
