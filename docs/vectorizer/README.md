@@ -308,8 +308,6 @@ This configuration progressively tries more granular separators to achieve the t
 
 For more information about chunking, see the [chunking reference](./api-reference.md#chunking-configuration).
 
-For more details on document vectorization, including supported document types and configuration options, see the [Document Embeddings documentation](document-embeddings.md).
-
 ## Query an embedding
 
 The `create_vectorizer` command generates a view with the same name as the
