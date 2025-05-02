@@ -164,10 +164,15 @@ async def generate_sql(
     embedding_name: str,
     embedding_config: EmbeddingConfig,
     prompt: str,
-    usage_limits: UsageLimits,
-    model_settings: ModelSettings,
+    usage: Usage | None = None,
+    usage_limits: UsageLimits | None = None,
+    model_settings: ModelSettings | None = None,
     sample_size: int = 3,
 ) -> GenerateSQLResponse:
+    usage = usage or Usage()
+    usage_limits = usage_limits or UsageLimits(request_limit=None)
+    model_settings = model_settings or ModelSettings()
+
     prior_prompts: list[str] = [prompt]
 
     ctx: DatabaseContext = await fetch_database_context(
@@ -252,17 +257,17 @@ async def generate_sql(
             ctx.rendered_facts.pop(irrelevant_id)
 
     messages: list[ModelMessage] = []
-    usage: Usage = Usage()
     user_prompt: str | None = None
     while True:
-        usage_limits.check_before_request(usage)
         if user_prompt is None:
             user_prompt = _template_user_prompt.render(
                 ctx=ctx, prompt=prompt, prior_prompts=prior_prompts
             )
-        result: AgentRunResult = await agent.run(user_prompt, usage_limits=usage_limits)
+        result: AgentRunResult = await agent.run(
+            user_prompt, usage_limits=usage_limits, usage=usage
+        )
+        usage = result.usage()
         messages.extend(result.new_messages())
-        usage = usage + result.usage()
         if answer:
             logger.info("validating the sql statement")
             query_plan, error = await validate_sql_statement(target_con, answer)
