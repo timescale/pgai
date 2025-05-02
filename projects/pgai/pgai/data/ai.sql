@@ -1104,27 +1104,46 @@ end;
 $outer_migration_block$;
 
 -------------------------------------------------------------------------------
--- 030-add_vectorizer-name-column-to-errors.sql
-do $outer_migration_block$ /*030-add_vectorizer-name-column-to-errors.sql*/
+-- 030-add_vectorizer_errors_view.sql
+do $outer_migration_block$ /*030-add_vectorizer_errors_view.sql*/
 declare
     _sql text;
     _migration record;
-    _migration_name text = $migration_name$030-add_vectorizer-name-column-to-errors.sql$migration_name$;
+    _migration_name text = $migration_name$030-add_vectorizer_errors_view.sql$migration_name$;
     _migration_body text =
 $migration_body$
--- add the column `name` to the `ai.vectorizer_errors` table
--- which will be used to store the name of the vectorizer
-alter table ai.vectorizer_errors
-add column name name check (name ~ '^[a-z][a-z_0-9]*$');
+-- rename the ai.vectorizer_errors table to ai._vectorizer_errors
+alter table ai.vectorizer_errors rename to _vectorizer_errors;
 
--- add a new index to perform lookups by vectorizer name
-create index on ai.vectorizer_errors (name, recorded);
+-- drop any existing indexes on the old table that would have been associated with the (id, recorded) columns
+-- this is for index naming consistency purpose, not strictly necessary
+do $$
+declare
+  _index_name text;
+begin
+  select indexname into _index_name
+  from pg_indexes
+  where schemaname = 'ai' 
+    and tablename = 'vectorizer_errors'
+    and indexdef like '%id, recorded%';
+    
+  if _index_name is not null then
+    execute 'drop index if exists ai.' || quote_ident(_index_name);
+  end if;
+end
+$$;
 
--- populate the new column with each vectorizer name
-update ai.vectorizer_errors ve
-set name = v.name
-from ai.vectorizer v
-where ve.id = v.id;
+-- recreate the previous index to perform lookups by vectorizer id
+create index on ai._vectorizer_errors (id, recorded);
+
+-- create a view including vectorizer name
+create or replace view ai.vectorizer_errors as
+select 
+  ve.*,
+  v.name
+from
+  ai._vectorizer_errors ve
+  join ai.vectorizer v on ve.id = v.id;
 
 $migration_body$;
 begin
@@ -4263,6 +4282,7 @@ begin
         execute 'grant usage, create on schema ai to ' || to_user;
         execute 'grant select, insert, update, delete on table ai.vectorizer to ' || to_user;
         execute 'grant select on ai.vectorizer_errors to ' || to_user;
+        execute 'grant select on ai._vectorizer_errors to ' || to_user;
         execute 'grant select on ai.vectorizer_status to ' || to_user;
         execute 'grant select, usage on sequence ai.vectorizer_id_seq to ' || to_user;
     else
