@@ -954,6 +954,12 @@ def export_catalog(
     help="The question to be answered by the generated SQL statement",
 )
 @click.option(
+    "--iteration-limit",
+    type=click.INT,
+    default=5,
+    help="Maximum number of iterations to attempt",
+)
+@click.option(
     "-s",
     "--sample-size",
     type=click.INT,
@@ -1020,6 +1026,7 @@ def generate_sql(
     catalog_name: str | None,
     embed_config: str | None,
     prompt: str,
+    iteration_limit: int = 5,
     sample_size: int = 3,
     quiet: bool = False,
     log_file: Path | None = None,
@@ -1057,40 +1064,34 @@ def generate_sql(
     from pgai.semantic_catalog import from_name
     from pgai.semantic_catalog.gen_sql import GenerateSQLResponse
 
+    async def do1(
+        ccon: psycopg.AsyncConnection, tcon: psycopg.AsyncConnection
+    ) -> GenerateSQLResponse:
+        sc = await from_name(ccon, catalog_name)
+        return await sc.generate_sql(
+            ccon,
+            tcon,
+            model=model,  # pyright: ignore [reportArgumentType]
+            prompt=prompt,  # pyright: ignore [reportArgumentType]
+            usage_limits=UsageLimits(
+                request_limit=request_limit,
+                total_tokens_limit=total_tokens_limit,
+            ),
+            embedding_name=embed_config,
+            iteration_limit=iteration_limit,
+            sample_size=sample_size,
+        )
+
     async def do() -> GenerateSQLResponse:
         if catalog_db_url:
             async with (
                 await psycopg.AsyncConnection.connect(db_url) as tcon,
                 await psycopg.AsyncConnection.connect(catalog_db_url) as ccon,
             ):
-                sc = await from_name(ccon, catalog_name)
-                return await sc.generate_sql(
-                    ccon,
-                    tcon,
-                    model=model,  # pyright: ignore [reportArgumentType]
-                    prompt=prompt,  # pyright: ignore [reportArgumentType]
-                    usage_limits=UsageLimits(
-                        request_limit=request_limit,
-                        total_tokens_limit=total_tokens_limit,
-                    ),
-                    embedding_name=embed_config,
-                    sample_size=sample_size,
-                )
+                return await do1(ccon, tcon)
         else:
             async with await psycopg.AsyncConnection.connect(db_url) as con:
-                sc = await from_name(con, catalog_name)
-                return await sc.generate_sql(
-                    con,
-                    con,
-                    model=model,  # pyright: ignore [reportArgumentType]
-                    prompt=prompt,  # pyright: ignore [reportArgumentType]
-                    usage_limits=UsageLimits(
-                        request_limit=request_limit,
-                        total_tokens_limit=total_tokens_limit,
-                    ),
-                    embedding_name=embed_config,
-                    sample_size=sample_size,
-                )
+                return await do1(con, con)
 
     resp = asyncio.run(do())
     if quiet:
@@ -1132,6 +1133,8 @@ def generate_sql(
         )
         console.print(table)
 
+    console.print(Rule())
+    console.print(resp.final_response)
     console.print(Rule())
     console.print(Syntax(resp.sql_statement, "sql"))
 
