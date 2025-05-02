@@ -330,8 +330,7 @@ def semantic_catalog():
 @click.option(
     "-a",
     "--append",
-    type=click.BOOL,
-    default=False,
+    is_flag=True,
     help="Append to the output file instead of overwriting it.",
 )
 @click.option(
