@@ -222,6 +222,7 @@ class GenerateSQLResponse:
     context: DatabaseContext
     query_plan: dict[str, Any]
     final_prompt: str
+    final_response: str
     messages: list[ModelMessage]
     usage: Usage
 
@@ -283,6 +284,16 @@ async def initialize_database_context(
             )
 
 
+class IterationLimitExceededException(Exception):
+    """Exception raised when iteration limit exceeded."""
+
+    def __init__(self, limit: int, final_response: str | None = None):
+        self.limit = limit
+        self.final_response = final_response
+        self.message = f"Iteration limit exceeded: {limit}\n{final_response or ''}"
+        super().__init__(self.message)
+
+
 async def generate_sql(
     catalog_con: psycopg.AsyncConnection,
     target_con: psycopg.AsyncConnection,
@@ -294,6 +305,7 @@ async def generate_sql(
     usage: Usage | None = None,
     usage_limits: UsageLimits | None = None,
     model_settings: ModelSettings | None = None,
+    iteration_limit: int = 5,
     sample_size: int = 3,
     context_mode: ContextMode = "semantic_search",
     obj_ids: list[int] | None = None,
@@ -303,6 +315,7 @@ async def generate_sql(
     usage = usage or Usage()
     usage_limits = usage_limits or UsageLimits(request_limit=None)
     model_settings = model_settings or ModelSettings()
+    iteration_limit = max(int(iteration_limit), 1) or 5
 
     ctx = await initialize_database_context(
         catalog_con,
@@ -312,6 +325,7 @@ async def generate_sql(
         embedding_config,
         prompt,
         sample_size=sample_size,
+        context_mode=context_mode,
         obj_ids=obj_ids,
         sql_ids=sql_ids,
         fact_ids=fact_ids,
@@ -319,90 +333,102 @@ async def generate_sql(
 
     prior_prompts: list[str] = [prompt]
     answer: str | None = None
-
     pgversion: int | None = await get_database_version(target_con)
-    system_prompt: str = _template_system_prompt.render(
-        pgversion=pgversion, context_mode=context_mode
-    )
-
-    agent = Agent(
-        model=model,
-        model_settings=model_settings,
-        name="sql-author",
-        system_prompt=system_prompt,
-    )
-
-    @agent.tool_plain
-    async def search_for_context(search_prompts: list[str]) -> None:  # pyright: ignore [reportUnusedFunction]
-        """Search for database objects, example SQL statements, and facts that are
-        relevant to the prompts
-
-        :param search_prompts: one or more natural language prompts for a semantic
-            search query
-        :return: None
-        """
-        for p in search_prompts:
-            prior_prompts.append(p)
-            logger.info(f"{agent.name}: semantic search for '{p}'")
-            nonlocal ctx
-            ctx = await fetch_database_context(
-                catalog_con,
-                target_con,
-                catalog_id,
-                embedding_name,
-                embedding_config,
-                p,
-                ctx,
-                sample_size=sample_size,
-            )
-
-    @agent.tool_plain
-    def record_sql_statement(  # pyright: ignore [reportUnusedFunction]
-        sql_statement: str,
-        relevant_object_ids: list[int],
-        relevant_sql_example_ids: list[int],
-        relevant_fact_ids: list[int],
-    ) -> None:
-        """Records a valid SQL statement to address the users' prompt and context that
-        was relevant to the problem
-
-        :param sql_statement: a valid SQL statement that accurately addresses the
-            user's prompt
-        :param relevant_object_ids: the ids of the database objects that were relevant
-            to answering the user's prompt
-        :param relevant_sql_example_ids: the ids of the SQL examples that were relevant
-            to answering the user's prompt
-        :param relevant_fact_ids: the ids of the facts that were relevant to answering
-            the user's prompt
-        :return: None
-        """
-        logger.info(f"{agent.name}: answered.")
-        nonlocal answer
-        answer = sql_statement
-        nonlocal ctx
-        for irrelevant_id in ctx.objects.keys() - relevant_object_ids:
-            ctx.objects.pop(irrelevant_id)
-            ctx.rendered_objects.pop(irrelevant_id)
-        for irrelevant_id in ctx.sql_examples.keys() - relevant_sql_example_ids:
-            ctx.sql_examples.pop(irrelevant_id)
-            ctx.rendered_sql_examples.pop(irrelevant_id)
-        for irrelevant_id in ctx.facts.keys() - relevant_fact_ids:
-            ctx.facts.pop(irrelevant_id)
-            ctx.rendered_facts.pop(irrelevant_id)
-
     messages: list[ModelMessage] = []
+    final_response: str | None = None
     user_prompt: str | None = None
     query_plan: dict[str, Any] | None = None
+    iteration = 0
+
     while True:
+        iteration += 1
+        if iteration > iteration_limit:
+            raise IterationLimitExceededException(
+                limit=iteration_limit, final_response=final_response
+            )
+
+        system_prompt: str = _template_system_prompt.render(
+            pgversion=pgversion, semantic_search_available=(iteration < iteration_limit)
+        )
+
+        agent = Agent(
+            model=model,
+            model_settings=model_settings,
+            name="sql-author",
+            system_prompt=system_prompt,
+        )
+
+        if iteration < iteration_limit:
+
+            @agent.tool_plain
+            async def search_for_context(search_prompts: list[str]) -> None:  # pyright: ignore [reportUnusedFunction]
+                """Search for database objects, example SQL statements, and facts that
+                are relevant to the prompts
+
+                :param search_prompts: one or more natural language prompts for a
+                    semantic search query
+                :return: None
+                """
+                for p in search_prompts:
+                    prior_prompts.append(p)
+                    logger.info(f"semantic search for '{p}'")
+                    nonlocal ctx
+                    ctx = await fetch_database_context(
+                        catalog_con,
+                        target_con,
+                        catalog_id,
+                        embedding_name,
+                        embedding_config,
+                        p,
+                        ctx,
+                        sample_size=sample_size,
+                    )
+
+        @agent.tool_plain
+        def record_sql_statement(  # pyright: ignore [reportUnusedFunction]
+            sql_statement: str,
+            relevant_object_ids: list[int],
+            relevant_sql_example_ids: list[int],
+            relevant_fact_ids: list[int],
+        ) -> None:
+            """Records a valid SQL statement to address the users' prompt and context
+            that was relevant to the problem
+
+            :param sql_statement: a valid SQL statement that accurately addresses the
+                user's prompt
+            :param relevant_object_ids: the ids of the database objects that were
+                relevant to answering the user's prompt
+            :param relevant_sql_example_ids: the ids of the SQL examples that were
+                relevant to answering the user's prompt
+            :param relevant_fact_ids: the ids of the facts that were relevant to
+                answering the user's prompt
+            :return: None
+            """
+            nonlocal answer, ctx
+            logger.info("sql generated")
+            answer = sql_statement
+            for irrelevant_id in ctx.objects.keys() - relevant_object_ids:
+                ctx.objects.pop(irrelevant_id)
+                ctx.rendered_objects.pop(irrelevant_id)
+            for irrelevant_id in ctx.sql_examples.keys() - relevant_sql_example_ids:
+                ctx.sql_examples.pop(irrelevant_id)
+                ctx.rendered_sql_examples.pop(irrelevant_id)
+            for irrelevant_id in ctx.facts.keys() - relevant_fact_ids:
+                ctx.facts.pop(irrelevant_id)
+                ctx.rendered_facts.pop(irrelevant_id)
+
         if user_prompt is None:
             user_prompt = _template_user_prompt.render(
                 ctx=ctx, prompt=prompt, prior_prompts=prior_prompts
             )
+
+        logger.info(f"iteration {iteration} of {iteration_limit}")
         result: AgentRunResult = await agent.run(
             user_prompt, usage_limits=usage_limits, usage=usage
         )
         usage = result.usage()
         messages.extend(result.new_messages())
+        final_response = result.output
         if answer:
             logger.info("validating the sql statement")
             query_plan, error = await validate_sql_statement(target_con, answer)
@@ -419,10 +445,12 @@ async def generate_sql(
                 break  # we have a valid answer
         else:
             user_prompt = None
+
     return GenerateSQLResponse(
         sql_statement=answer,
         context=ctx,
         query_plan=query_plan,
+        final_response=final_response,
         final_prompt=user_prompt,
         messages=messages,
         usage=usage,
