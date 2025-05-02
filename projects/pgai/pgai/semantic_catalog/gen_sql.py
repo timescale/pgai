@@ -1,10 +1,11 @@
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 import psycopg
 from jinja2 import Template
 from psycopg.rows import dict_row
+from psycopg.sql import SQL, Identifier
 from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.messages import ModelMessage
@@ -13,7 +14,14 @@ from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import Usage, UsageLimits
 
 from pgai.semantic_catalog import loader, render, search, templates
-from pgai.semantic_catalog.models import Fact, Procedure, SQLExample, Table, View
+from pgai.semantic_catalog.models import (
+    Fact,
+    ObjectDescription,
+    Procedure,
+    SQLExample,
+    Table,
+    View,
+)
 from pgai.semantic_catalog.vectorizer import EmbeddingConfig, vectorizer
 
 logger = logging.getLogger(__name__)
@@ -39,19 +47,6 @@ class DatabaseContext:
     rendered_objects: dict[int, str]
     rendered_sql_examples: dict[int, str]
     rendered_facts: dict[int, str]
-
-
-def render_database_context(ctx: DatabaseContext) -> str:
-    output = ""
-    if ctx.rendered_objects:
-        output += "\n\n".join(ctx.rendered_objects.values())
-    if ctx.rendered_sql_examples:
-        output += "\n\n"
-        output += "\n\n".join(ctx.rendered_sql_examples.values())
-    if ctx.rendered_facts:
-        output += "\n\n"
-        output += "\n\n".join(ctx.rendered_facts.values())
-    return output.strip()
 
 
 async def fetch_database_context(
@@ -127,6 +122,81 @@ async def fetch_database_context(
     return ctx
 
 
+async def fetch_database_context_alt(
+    catalog_con: psycopg.AsyncConnection,
+    target_con: psycopg.AsyncConnection,
+    catalog_id: int,
+    obj_ids: list[int] | None = None,
+    sql_ids: list[int] | None = None,
+    fact_ids: list[int] | None = None,
+    sample_size: int = 3,
+) -> DatabaseContext:
+    ctx = DatabaseContext(
+        objects={},
+        sql_examples={},
+        facts={},
+        rendered_objects={},
+        rendered_sql_examples={},
+        rendered_facts={},
+    )
+    async with catalog_con.cursor(row_factory=dict_row) as cur:
+        # objects
+        sql = SQL("""\
+            select x.*
+            from ai.{table} x
+            {}
+        """).format(
+            Identifier(f"semantic_catalog_obj_{catalog_id}"),
+            SQL("where x.id = any(%s)") if obj_ids else SQL(""),
+        )
+        await cur.execute(sql)
+        objects: list[ObjectDescription] = []
+        for row in await cur.fetchall():
+            objects.append(ObjectDescription(**row))
+        ctx.objects = {
+            x.id: x for x in await loader.load_objects(target_con, objects, sample_size)
+        }
+        ctx.rendered_objects = {
+            x.id: render.render_object(x) for x in ctx.objects.values()
+        }
+
+        # sql examples
+        sql = SQL("""\
+            select x.*
+            from ai.{table} x
+            {}
+        """).format(
+            Identifier(f"semantic_catalog_sql_{catalog_id}"),
+            SQL("where x.id = any(%s)") if sql_ids else SQL(""),
+        )
+        await cur.execute(sql)
+        sql_examples: list[SQLExample] = []
+        for row in await cur.fetchall():
+            sql_examples.append(SQLExample(**row))
+        ctx.sql_examples = {x.id: x for x in sql_examples}
+        ctx.rendered_objects = {
+            x.id: render.render_sql_example(x) for x in sql_examples
+        }
+
+        # facts
+        sql = SQL("""\
+            select x.*
+            from ai.{table} x
+            {}
+        """).format(
+            Identifier(f"semantic_catalog_fact_{catalog_id}"),
+            SQL("where x.id = any(%s)") if fact_ids else SQL(""),
+        )
+        await cur.execute(sql)
+        facts: list[Fact] = []
+        for row in await cur.fetchall():
+            facts.append(Fact(**row))
+        ctx.facts = {x.id: x for x in facts}
+        ctx.rendered_facts = {x.id: render.render_fact(x) for x in facts}
+
+    return ctx
+
+
 async def validate_sql_statement(
     target_con: psycopg.AsyncConnection,
     sql_statement: str,
@@ -156,6 +226,63 @@ class GenerateSQLResponse:
     usage: Usage
 
 
+ContextMode = Literal["semantic_search", "entire_catalog", "specific_ids"]
+
+
+async def initialize_database_context(
+    catalog_con: psycopg.AsyncConnection,
+    target_con: psycopg.AsyncConnection,
+    catalog_id: int,
+    embedding_name: str,
+    embedding_config: EmbeddingConfig,
+    prompt: str,
+    sample_size: int = 3,
+    context_mode: ContextMode = "semantic_search",
+    obj_ids: list[int] | None = None,
+    sql_ids: list[int] | None = None,
+    fact_ids: list[int] | None = None,
+) -> DatabaseContext:
+    assert context_mode in {"semantic_search", "entire_catalog", "specific_ids"}
+    match context_mode:
+        case "semantic_search":
+            return await fetch_database_context(
+                catalog_con,
+                target_con,
+                catalog_id,
+                embedding_name,
+                embedding_config,
+                prompt,
+                ctx=None,
+                sample_size=sample_size,
+            )
+        case "entire_catalog":
+            obj_ids = None
+            sql_ids = None
+            fact_ids = None
+            return await fetch_database_context_alt(
+                catalog_con,
+                target_con,
+                catalog_id,
+                sample_size=sample_size,
+                obj_ids=obj_ids,
+                sql_ids=sql_ids,
+                fact_ids=fact_ids,
+            )
+        case "specific_ids":
+            obj_ids = obj_ids or []
+            sql_ids = sql_ids or []
+            fact_ids = fact_ids or []
+            return await fetch_database_context_alt(
+                catalog_con,
+                target_con,
+                catalog_id,
+                sample_size=sample_size,
+                obj_ids=obj_ids,
+                sql_ids=sql_ids,
+                fact_ids=fact_ids,
+            )
+
+
 async def generate_sql(
     catalog_con: psycopg.AsyncConnection,
     target_con: psycopg.AsyncConnection,
@@ -168,28 +295,35 @@ async def generate_sql(
     usage_limits: UsageLimits | None = None,
     model_settings: ModelSettings | None = None,
     sample_size: int = 3,
+    context_mode: ContextMode = "semantic_search",
+    obj_ids: list[int] | None = None,
+    sql_ids: list[int] | None = None,
+    fact_ids: list[int] | None = None,
 ) -> GenerateSQLResponse:
     usage = usage or Usage()
     usage_limits = usage_limits or UsageLimits(request_limit=None)
     model_settings = model_settings or ModelSettings()
 
-    prior_prompts: list[str] = [prompt]
-
-    ctx: DatabaseContext = await fetch_database_context(
+    ctx = await initialize_database_context(
         catalog_con,
         target_con,
         catalog_id,
         embedding_name,
         embedding_config,
         prompt,
-        ctx=None,
         sample_size=sample_size,
+        obj_ids=obj_ids,
+        sql_ids=sql_ids,
+        fact_ids=fact_ids,
     )
 
+    prior_prompts: list[str] = [prompt]
     answer: str | None = None
 
     pgversion: int | None = await get_database_version(target_con)
-    system_prompt: str = _template_system_prompt.render(pgversion=pgversion)
+    system_prompt: str = _template_system_prompt.render(
+        pgversion=pgversion, context_mode=context_mode
+    )
 
     agent = Agent(
         model=model,
@@ -207,17 +341,17 @@ async def generate_sql(
             search query
         :return: None
         """
-        nonlocal ctx
-        for prompt in search_prompts:
-            prior_prompts.append(prompt)
-            logger.info(f"{agent.name}: semantic search for '{prompt}'")
+        for p in search_prompts:
+            prior_prompts.append(p)
+            logger.info(f"{agent.name}: semantic search for '{p}'")
+            nonlocal ctx
             ctx = await fetch_database_context(
                 catalog_con,
                 target_con,
                 catalog_id,
                 embedding_name,
                 embedding_config,
-                prompt,
+                p,
                 ctx,
                 sample_size=sample_size,
             )
@@ -258,6 +392,7 @@ async def generate_sql(
 
     messages: list[ModelMessage] = []
     user_prompt: str | None = None
+    query_plan: dict[str, Any] | None = None
     while True:
         if user_prompt is None:
             user_prompt = _template_user_prompt.render(
