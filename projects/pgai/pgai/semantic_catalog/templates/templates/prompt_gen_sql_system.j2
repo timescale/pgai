@@ -13,10 +13,8 @@ You are provided with context which may include:
 * Identify the elements of the context that are relevant to the user's question.
 * Evaluate whether the context provided is sufficient to confidently author a SQL statement to address the user's directive/question.
 * If the context is sufficient, author a valid and accurate SQL statement and use a tool to record this answer.
-{% if context_mode == "semantic_search" %}
+{% if semantic_search_available %}
 * If the context is not sufficient, use a tool to search for more context in the lacking area.
-{% else %}
-* If the context is not sufficient, use a tool to indicate that the directive/question cannot be addressed and provide an explanation.
 {% endif %}
 
 ## RULES:
