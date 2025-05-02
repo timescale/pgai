@@ -1051,7 +1051,6 @@ def generate_sql(
             handlers=log_handlers,
         )
 
-    catalog_db_url = catalog_db_url or db_url
     catalog_name = catalog_name or "default"
     from pydantic_ai.usage import UsageLimits
 
@@ -1138,6 +1137,118 @@ def generate_sql(
 
     if save_final_prompt:
         save_final_prompt.expanduser().resolve().write_text(resp.final_prompt)
+
+
+@semantic_catalog.command()
+@click.option(
+    "-d",
+    "--db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The connection URL to the target database.",
+    envvar="TARGET_DB",
+)
+@click.option(
+    "-c",
+    "--catalog-db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The connection URL to the database the semantic catalog is in.",
+    envvar="CATALOG_DB",
+)
+@click.option(
+    "-n",
+    "--catalog-name",
+    type=click.STRING,
+    default="default",
+    help="The name of the semantic catalog to use.",
+)
+@click.option(
+    "-e",
+    "--embed-config",
+    type=click.STRING,
+    default=None,
+    help="The name of the embedding configuration to use",
+)
+@click.option(
+    "-p",
+    "--prompt",
+    type=click.STRING,
+    default=None,
+    help="The semantic search prompt",
+)
+@click.option(
+    "-s",
+    "--sample-size",
+    type=click.INT,
+    default=3,
+    help="Number of sample rows to include in the context",
+)
+def search(
+    db_url: str,
+    catalog_db_url: str | None,
+    catalog_name: str | None,
+    embed_config: str | None,
+    prompt: str,
+    sample_size: int = 3,
+) -> None:
+    catalog_name = catalog_name or "default"
+
+    from rich.console import Console
+
+    console = Console()
+
+    from pgai.semantic_catalog import from_name
+    from pgai.semantic_catalog.models import Fact, ObjectDescription, SQLExample
+
+    async def do1(ccon: psycopg.AsyncConnection, tcon: psycopg.AsyncConnection) -> None:
+        nonlocal embed_config
+        sc = await from_name(ccon, catalog_name)
+        if not embed_config:
+            embeddings = await sc.list_embeddings(ccon)
+            assert len(embeddings) > 0
+            embed_config = embeddings[0][0]
+        # objects
+        obj_matches: list[ObjectDescription] = await sc.search_objects(
+            ccon, embedding_name=embed_config, query=prompt, limit=5
+        )
+        for obj_match in obj_matches:
+            console.print(f"match: {'.'.join(obj_match.objnames)}")
+        for obj in await sc.load_objects(
+            tcon,
+            obj_matches,
+            sample_size,
+        ):
+            console.print(sc.render_objects([obj]))
+        # sql examples
+        sql_matches: list[SQLExample] = await sc.search_sql_examples(
+            ccon, embedding_name=embed_config, query=prompt, limit=5
+        )
+        for sql_match in sql_matches:
+            console.print(f"match: sql example: {sql_match.id}")
+        console.print(sc.render_sql_examples(sql_matches))
+        # facts
+        fact_matches: list[Fact] = await sc.search_facts(
+            ccon, embedding_name=embed_config, query=prompt, limit=5
+        )
+        for fact_match in fact_matches:
+            console.print(f"match: fact: {fact_match.id}")
+        console.print(sc.render_facts(fact_matches))
+
+    async def do() -> None:
+        if catalog_db_url:
+            async with (
+                await psycopg.AsyncConnection.connect(db_url) as tcon,
+                await psycopg.AsyncConnection.connect(catalog_db_url) as ccon,
+            ):
+                await do1(ccon, tcon)
+        else:
+            async with await psycopg.AsyncConnection.connect(db_url) as con:
+                await do1(con, con)
+
+    asyncio.run(do())
 
 
 cli.add_command(semantic_catalog)

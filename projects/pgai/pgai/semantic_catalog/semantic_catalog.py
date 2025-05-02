@@ -214,9 +214,12 @@ class SemanticCatalog:
         )
 
     async def load_objects(
-        self, con: TargetConnection, obj_desc: list[ObjectDescription]
+        self,
+        con: TargetConnection,
+        obj_desc: list[ObjectDescription],
+        sample_size: int = 0,
     ) -> list[Table | View | Procedure]:
-        return await loader.load_objects(con, obj_desc)
+        return await loader.load_objects(con, obj_desc, sample_size)
 
     def render_objects(self, objects: list[Table | View | Procedure]) -> str:
         return render.render_objects(objects)
