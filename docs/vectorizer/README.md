@@ -17,7 +17,7 @@ This page provides an overview of Vectorizer features. For quick setup instructi
 [Vectorizer quick start](/docs/vectorizer/quick-start.md). For technical details, see the
 [Vectorizer API reference](/docs/vectorizer/api-reference.md).
 
-Vectorizer uses a background worker for embedding generation, making the process performant and resilient to LLM endpoint failures. On [Timescale Cloud](https://tsdb.co/gh-pgai-signup), the worker runs automatically. For other cloud providers (AWS RDS, Supabase, etc.) or self-hosted Postgres, use the [vectorizer worker](/docs/vectorizer/worker.md) to process your vectorizers.
+Vectorizer uses a background worker for embedding generation, making the process performant and resilient to LLM endpoint failures. On [Timescale Cloud](https://tsdb.co/gh-pgai-signup), the worker runs automatically. For other cloud providers (AWS RDS, Supabase, etc.) or self-hosted Postgres, run the [vectorizer worker](/docs/vectorizer/worker.md) to process your vectorizers.
 
 ## How vectorizer works
 
