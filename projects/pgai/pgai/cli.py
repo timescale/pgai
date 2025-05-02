@@ -633,34 +633,18 @@ def create(
             handlers=log_handlers,
         )
 
-    from pgai.semantic_catalog.vectorizer import (
-        OllamaConfig,
-        OpenAIConfig,
-        SentenceTransformersConfig,
-    )
+    from pgai.semantic_catalog.vectorizer import embedding_config_from_dict
 
-    match provider.lower():
-        case "sentence_transformers":
-            config = SentenceTransformersConfig.create(
-                model=str(model),
-                dimensions=int(vector_dimensions),
-            )
-        case "openai":
-            config = OpenAIConfig.create(
-                model=str(model),
-                dimensions=int(vector_dimensions),
-                base_url=base_url,
-                api_key_name=api_key_name,
-            )
-        case "ollama":
-            config = OllamaConfig.create(
-                model=str(model),
-                dimensions=int(vector_dimensions),
-                base_url=base_url,
-            )
-        case _:
-            raise RuntimeError(f"unrecognized provider {provider}")
-    assert config is not None
+    d = dict(
+        provider=provider.lower(),
+        model=str(model),
+        dimensions=int(vector_dimensions),
+    )
+    if base_url:
+        d["base_url"] = base_url
+    if api_key_name:
+        d["api_key_name"] = api_key_name
+    config = embedding_config_from_dict(d)
 
     import pgai
 
