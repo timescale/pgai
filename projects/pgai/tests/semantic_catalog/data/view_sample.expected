@@ -1,4 +1,4 @@
-copy (select * from "public"."airport" limit 3) to stdout with (format text, header true);
+COPY (SELECT * FROM "public"."airport" LIMIT 3) TO STDOUT WITH (FORMAT TEXT, HEADER true);
 /*
 airport_code	airport_name	city	airport_tz	continent	iso_country	iso_region	intnl	update_ts
 HND	Tokyo Haneda International Airport	TOKYO	Asia/Tokyo	AS	JP	JP-13	t	\N
