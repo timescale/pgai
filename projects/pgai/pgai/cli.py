@@ -335,11 +335,16 @@ def semantic_catalog():
     help="Append to the output file instead of overwriting it.",
 )
 @click.option(
-    "-s",
     "--sample-size",
     type=click.INT,
     default=3,
     help="Number of sample rows to include in the context",
+)
+@click.option(
+    "--batch-size",
+    type=click.INT,
+    default=5,
+    help="Number of objects to send the LLM in a batch",
 )
 @click.option(
     "-q",
@@ -361,6 +366,18 @@ def semantic_catalog():
     ),
     default="INFO",
 )
+@click.option(
+    "--request-limit",
+    type=click.INT,
+    default=None,
+    help="Maximum number of LLM requests allowed",
+)
+@click.option(
+    "--total-tokens-limit",
+    type=click.INT,
+    default=None,
+    help="Maximum total LLM tokens allowed",
+)
 def describe(
     db_url: str,
     model: str,
@@ -375,9 +392,12 @@ def describe(
     yaml_file: Path | None = None,
     append: bool = False,
     sample_size: int = 3,
+    batch_size: int = 5,
     quiet: bool = False,
     log_file: Path | None = None,
     log_level: str | None = "INFO",
+    request_limit: int | None = None,
+    total_tokens_limit: int | None = None,
 ) -> None:
     if log_file:
         import logging
@@ -390,6 +410,7 @@ def describe(
             ],
         )
 
+    from pydantic_ai.usage import UsageLimits
     from rich.console import Console
 
     from pgai.semantic_catalog.describe import describe
@@ -416,7 +437,12 @@ def describe(
                 exclude_view=exclude_view,
                 include_proc=include_proc,
                 exclude_proc=exclude_proc,
+                usage_limits=UsageLimits(
+                    request_limit=request_limit,
+                    total_tokens_limit=total_tokens_limit,
+                ),
                 sample_size=sample_size,
+                batch_size=batch_size,
             )
         )
 
