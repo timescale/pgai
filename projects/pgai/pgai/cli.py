@@ -1001,6 +1001,18 @@ def export_catalog(
     default=None,
     help="The path to a file to write the final prompt to.",
 )
+@click.option(
+    "--request-limit",
+    type=click.INT,
+    default=None,
+    help="Maximum number of LLM requests allowed",
+)
+@click.option(
+    "--total-tokens-limit",
+    type=click.INT,
+    default=None,
+    help="Maximum total LLM tokens allowed",
+)
 def generate_sql(
     db_url: str,
     catalog_db_url: str | None,
@@ -1016,6 +1028,8 @@ def generate_sql(
     print_usage: bool = False,
     print_query_plan: bool = False,
     save_final_prompt: Path | None = None,
+    request_limit: int | None = None,
+    total_tokens_limit: int | None = None,
 ) -> None:
     import logging
 
@@ -1039,7 +1053,6 @@ def generate_sql(
 
     catalog_db_url = catalog_db_url or db_url
     catalog_name = catalog_name or "default"
-    from pydantic_ai.settings import ModelSettings
     from pydantic_ai.usage import UsageLimits
 
     from pgai.semantic_catalog import from_name
@@ -1057,8 +1070,10 @@ def generate_sql(
                     tcon,
                     model=model,  # pyright: ignore [reportArgumentType]
                     prompt=prompt,  # pyright: ignore [reportArgumentType]
-                    usage_limits=UsageLimits(),
-                    model_settings=ModelSettings(),
+                    usage_limits=UsageLimits(
+                        request_limit=request_limit,
+                        total_tokens_limit=total_tokens_limit,
+                    ),
                     embedding_name=embed_config,
                     sample_size=sample_size,
                 )
@@ -1070,8 +1085,10 @@ def generate_sql(
                     con,
                     model=model,  # pyright: ignore [reportArgumentType]
                     prompt=prompt,  # pyright: ignore [reportArgumentType]
-                    usage_limits=UsageLimits(),
-                    model_settings=ModelSettings(),
+                    usage_limits=UsageLimits(
+                        request_limit=request_limit,
+                        total_tokens_limit=total_tokens_limit,
+                    ),
                     embedding_name=embed_config,
                     sample_size=sample_size,
                 )

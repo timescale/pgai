@@ -7,7 +7,7 @@ from psycopg.rows import dict_row
 from psycopg.sql import SQL, Composable
 from pydantic_ai.models import KnownModelName, Model
 from pydantic_ai.settings import ModelSettings
-from pydantic_ai.usage import UsageLimits
+from pydantic_ai.usage import Usage, UsageLimits
 from rich.console import Console
 
 from pgai.semantic_catalog import gen_sql, loader, render, search
@@ -233,8 +233,9 @@ class SemanticCatalog:
         target_con: psycopg.AsyncConnection,
         model: KnownModelName | Model,
         prompt: str,
-        usage_limits: UsageLimits,
-        model_settings: ModelSettings,
+        usage: Usage | None = None,
+        usage_limits: UsageLimits | None = None,
+        model_settings: ModelSettings | None = None,
         embedding_name: str | None = None,
         sample_size: int = 3,
     ) -> GenerateSQLResponse:
@@ -254,8 +255,9 @@ class SemanticCatalog:
             embedding_name,
             emb_cfg,
             prompt,
-            usage_limits,
-            model_settings,
+            usage=usage,
+            usage_limits=usage_limits,
+            model_settings=model_settings,
             sample_size=sample_size,
         )
 
