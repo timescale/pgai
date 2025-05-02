@@ -7,7 +7,7 @@ from psycopg.sql import SQL, Composable
 from pydantic_ai import Agent
 from pydantic_ai.models import KnownModelName, Model
 from pydantic_ai.settings import ModelSettings
-from pydantic_ai.usage import Usage
+from pydantic_ai.usage import Usage, UsageLimits
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -173,6 +173,8 @@ async def generate_table_descriptions(
     model: KnownModelName | Model,
     callback: Callable[[file.Table], None],
     progress_callback: Callable[[str], None] | None = None,
+    usage: Usage | None = None,
+    usage_limits: UsageLimits | None = None,
     model_settings: ModelSettings | None = None,
     batch_size: int = 5,
     sample_size: int = 3,
@@ -181,7 +183,8 @@ async def generate_table_descriptions(
         for i in range(0, len(oids), batch_size):
             yield oids[i : i + batch_size]
 
-    usage: Usage = Usage()
+    usage = usage or Usage()
+    usage_limits = usage_limits or UsageLimits(request_limit=None)
     table_index: dict[int, file.Table] = {}
 
     for batch in batches(batch_size):
@@ -281,8 +284,10 @@ async def generate_table_descriptions(
                 )
 
         logger.debug(f"asking llm to generate descriptions for {len(batch)} tables")
-        result = await agent.run(user_prompt=prompt)
-        usage = usage + result.usage()
+        result = await agent.run(
+            user_prompt=prompt, usage_limits=usage_limits, usage=usage
+        )
+        usage = result.usage()
 
         for table in table_index.values():
             callback(table)
@@ -296,6 +301,8 @@ async def generate_view_descriptions(
     model: KnownModelName | Model,
     callback: Callable[[file.View], None],
     progress_callback: Callable[[str], None] | None = None,
+    usage: Usage | None = None,
+    usage_limits: UsageLimits | None = None,
     model_settings: ModelSettings | None = None,
     batch_size: int = 5,
     sample_size: int = 3,
@@ -304,7 +311,8 @@ async def generate_view_descriptions(
         for i in range(0, len(oids), batch_size):
             yield oids[i : i + batch_size]
 
-    usage: Usage = Usage()
+    usage = usage or Usage()
+    usage_limits = usage_limits or UsageLimits(request_limit=None)
     view_index: dict[int, file.View] = {}
 
     for batch in batches(batch_size):
@@ -401,8 +409,10 @@ async def generate_view_descriptions(
                 progress_callback(".".join([view.schema_name, view.name, column.name]))
 
         logger.debug(f"asking llm to generate descriptions for {len(batch)} views")
-        result = await agent.run(user_prompt=prompt)
-        usage = usage + result.usage()
+        result = await agent.run(
+            user_prompt=prompt, usage_limits=usage_limits, usage=usage
+        )
+        usage = result.usage()
 
         for view in view_index.values():
             callback(view)
@@ -416,6 +426,8 @@ async def generate_procedure_descriptions(
     model: KnownModelName | Model,
     callback: Callable[[file.Function | file.Procedure | file.Aggregate], None],
     progress_callback: Callable[[str], None] | None = None,
+    usage: Usage | None = None,
+    usage_limits: UsageLimits | None = None,
     model_settings: ModelSettings | None = None,
     batch_size: int = 5,
 ) -> Usage:
@@ -423,7 +435,8 @@ async def generate_procedure_descriptions(
         for i in range(0, len(oids), batch_size):
             yield oids[i : i + batch_size]
 
-    usage: Usage = Usage()
+    usage = usage or Usage()
+    usage_limits = usage_limits or UsageLimits(request_limit=None)
     proc_index: dict[int, file.Function | file.Procedure | file.Aggregate] = {}
 
     for batch in batches(batch_size):
@@ -498,8 +511,10 @@ async def generate_procedure_descriptions(
             callback(proc)
 
         logger.debug(f"asking llm to generate descriptions for {len(batch)} procedures")
-        result = await agent.run(user_prompt=prompt)
-        usage = usage + result.usage()
+        result = await agent.run(
+            user_prompt=prompt, usage_limits=usage_limits, usage=usage
+        )
+        usage = result.usage()
     return usage
 
 
@@ -533,10 +548,13 @@ async def describe(
     exclude_view: str | None = None,
     include_proc: str | None = None,
     exclude_proc: str | None = None,
+    usage: Usage | None = None,
+    usage_limits: UsageLimits | None = None,
     batch_size: int = 5,
     sample_size: int = 0,
 ) -> Usage:
-    usage = Usage()
+    usage = usage or Usage()
+    usage_limits = usage_limits or UsageLimits(request_limit=None)
 
     if console is None:
         console = Console(quiet=True)
@@ -623,12 +641,14 @@ async def describe(
                     progress.console.print(msg)
                     progress.update(task_table, advance=1.0)
 
-                usage += await generate_table_descriptions(
+                usage = await generate_table_descriptions(
                     con,
                     table_oids,
                     model,
                     table_callback,
                     progress_callback=table_progress_callback,
+                    usage=usage,
+                    usage_limits=usage_limits,
                     batch_size=batch_size,
                     sample_size=sample_size,
                 )
@@ -650,12 +670,14 @@ async def describe(
                     progress.console.print(msg)
                     progress.update(task_view, advance=1.0)
 
-                usage += await generate_view_descriptions(
+                usage = await generate_view_descriptions(
                     con,
                     view_oids,
                     model,
                     view_callback,
                     progress_callback=view_progress_callback,
+                    usage=usage,
+                    usage_limits=usage_limits,
                     batch_size=batch_size,
                     sample_size=sample_size,
                 )
@@ -675,12 +697,14 @@ async def describe(
                     progress.console.print(msg)
                     progress.update(task_proc, advance=1.0)
 
-                usage += await generate_procedure_descriptions(
+                usage = await generate_procedure_descriptions(
                     con,
                     proc_oids,
                     model,
                     proc_callback,
                     progress_callback=proc_progress_callback,
+                    usage=usage,
+                    usage_limits=usage_limits,
                     batch_size=batch_size,
                 )
 
