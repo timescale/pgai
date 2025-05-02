@@ -22,7 +22,7 @@ async def _sample_as_inserts(
         for row in await cur.fetchall():
             rows.append(SQL("({})").format(SQL(", ").join(Literal(val) for val in row)))
         logger.debug(f"sampled {len(rows)} rows from {schema_name}.{object_name}")
-        sql = SQL("insert into {}.{} ({}) values\n  {};").format(
+        sql = SQL("INSERT INTO {}.{} ({}) VALUES\n  {};").format(
             Identifier(schema_name),
             Identifier(object_name),
             SQL(", ").join([Identifier(col.name) for col in cur.description]),
@@ -35,7 +35,7 @@ async def _sample_as_copy_text(
     con: psycopg.AsyncConnection, schema_name: str, object_name: str, limit: int = 3
 ) -> str:
     query = SQL(
-        "copy (select * from {}.{} limit {}) to stdout with (format text, header true)"
+        "COPY (SELECT * FROM {}.{} LIMIT {}) TO STDOUT WITH (FORMAT TEXT, HEADER true)"
     ).format(
         Identifier(schema_name),
         Identifier(object_name),
