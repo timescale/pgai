@@ -17,7 +17,7 @@ from pgai.semantic_catalog.file import (
     load_from_catalog,
     save_to_catalog,
 )
-from pgai.semantic_catalog.gen_sql import GenerateSQLResponse
+from pgai.semantic_catalog.gen_sql import ContextMode, GenerateSQLResponse
 from pgai.semantic_catalog.models import (
     Fact,
     ObjectDescription,
@@ -241,6 +241,10 @@ class SemanticCatalog:
         model_settings: ModelSettings | None = None,
         embedding_name: str | None = None,
         sample_size: int = 3,
+        context_mode: ContextMode = "semantic_search",
+        obj_ids: list[int] | None = None,
+        sql_ids: list[int] | None = None,
+        fact_ids: list[int] | None = None,
     ) -> GenerateSQLResponse:
         if embedding_name is None:
             embeddings = await self.list_embeddings(catalog_con)
@@ -262,6 +266,10 @@ class SemanticCatalog:
             usage_limits=usage_limits,
             model_settings=model_settings,
             sample_size=sample_size,
+            context_mode=context_mode,
+            obj_ids=obj_ids,
+            sql_ids=sql_ids,
+            fact_ids=fact_ids,
         )
 
     async def import_catalog(
