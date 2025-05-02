@@ -1,42 +1,23 @@
 # Automate AI embedding with pgai Vectorizer
 
-Vector embeddings have emerged as a powerful tool for transforming text and documents into
-compact, semantically rich representations. This approach unlocks the potential
-for more nuanced and context-aware searches, surpassing traditional
-keyword-based methods. By leveraging vector embeddings, users can search through
-things that have similar meanings but use completely different words.
+Vector embeddings transform text and documents into compact, semantically rich representations that enable context-aware searches beyond traditional keyword matching.
 
-While modern vector databases like PostgreSQL excel at storing and querying
-these embeddings efficiently, the challenge of maintaining synchronization
-between embeddings and their source data has typically fallen to developers,
-requiring manual workflows and custom solutions.
+While PostgreSQL excels at storing and querying these embeddings, synchronizing embeddings with source data has traditionally required custom solutions from developers.
 
-Enter our innovative SQL-level interface for embedding services. This guide
-introduces a groundbreaking approach that automates the embedding process within
-the database management system itself. By treating embeddings as a declarative,
-DDL-like feature—akin to an index -- but with the added flexibility of
-representing only a part of a row's data -- we've simplified the entire workflow.
+pgai Vectorizer provides a SQL-level interface that automates the embedding process within your database. By treating embeddings as a declarative feature—similar to an index—we simplify the entire workflow.
 
-Our system empowers you to:
+With pgai Vectorizer, you can:
 
-- Designate any text column or document for embedding using customizable rules
+- Designate text columns or documents for embedding using customizable rules
 - Automatically generate and maintain searchable embedding tables 
-- Keep embeddings continuously synchronized with source data (asynchronously)
-- Utilize a convenient view that seamlessly joins base tables with their embeddings
+- Keep embeddings synchronized with source data (asynchronously)
+- Access a view that joins base tables with their embeddings
 
-This page offers a comprehensive overview of Vectorizer features,
-demonstrating how it streamlines the process of working with vector embeddings
-in your database. To quickly try out embeddings using a pre-built Docker developer environment, see the 
-[Vectorizer quick start](/docs/vectorizer/quick-start.md). For a more detailed technical specification, see the
+This page provides an overview of Vectorizer features. For quick setup instructions, see the 
+[Vectorizer quick start](/docs/vectorizer/quick-start.md). For technical details, see the
 [Vectorizer API reference](/docs/vectorizer/api-reference.md).
 
-To make embedding generation performant, and resilient to intermittent LLM
-endpoint failures, we use a background worker to perform the embedding
-generation. When you create Vectorizers in a [Timescale Cloud](https://tsdb.co/gh-pgai-signup) database, the
-worker runs automatically and creates and synchronizes the embeddings in the
-background. When using a database on another cloud provider (AWS RDS, Supabase,
-etc.) or self-hosted Postgres, you can use the [vectorizer worker](/docs/vectorizer/worker.md) to
-process your vectorizers.
+Vectorizer uses a background worker for embedding generation, making the process performant and resilient to LLM endpoint failures. On [Timescale Cloud](https://tsdb.co/gh-pgai-signup), the worker runs automatically. For other cloud providers (AWS RDS, Supabase, etc.) or self-hosted Postgres, use the [vectorizer worker](/docs/vectorizer/worker.md) to process your vectorizers.
 
 Let's explore how the Vectorizer can transform your approach to unstructured data analysis and semantic search:
 
