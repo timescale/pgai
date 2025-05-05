@@ -51,10 +51,6 @@ All pgai database objects are installed in the `ai` schema.
 - [Python Integration](/docs/vectorizer/python-integration.md) - General Python integration guidelines
 - [Migrating from Extension](/docs/vectorizer/migrating-from-extension.md) - Migrate from the previous extension-based approach
 
-### Advanced features
-- [Structured Retrieval/Text-to-SQL](/docs/structured_retrieval/text_to_sql.md) - Convert natural language to SQL
-- [Chunking Utilities](/docs/utils/chunking.md) - Text chunking algorithms for use within SQL
-
 ### Development
 - [Adding Embedding Integrations](/docs/vectorizer/adding-embedding-integration.md) - Guide for adding new embedding model providers
 
