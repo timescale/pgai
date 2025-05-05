@@ -113,6 +113,19 @@ async def test_search_obj_ollama(container: PostgresContainer) -> None:
         assert obj_desc.description is not None
 
 
+async def test_list_sql(container: PostgresContainer) -> None:
+    async with await psycopg.AsyncConnection.connect(
+        container.connection_string(database=DATABASE)
+    ) as con:
+        sc = await semantic_catalog.from_name(con, "default")
+        sql_examples = await sc.list_sql_examples(con)
+        assert len(sql_examples) > 0
+        sql_example = sql_examples[0]
+        assert (
+            sql_example.description == "Delayed flights are indicated by their status"
+        )
+
+
 async def test_search_sql_sentence_transformers(container: PostgresContainer) -> None:
     async with await psycopg.AsyncConnection.connect(
         container.connection_string(database=DATABASE)
@@ -168,6 +181,20 @@ async def test_search_sql_ollama(container: PostgresContainer) -> None:
         sql_example = sql_examples[0]
         assert (
             sql_example.description == "Delayed flights are indicated by their status"
+        )
+
+
+async def test_list_facts(container: PostgresContainer) -> None:
+    async with await psycopg.AsyncConnection.connect(
+        container.connection_string(database=DATABASE)
+    ) as con:
+        sc = await semantic_catalog.from_name(con, "default")
+        facts = await sc.list_facts(con)
+        assert len(facts) > 0
+        fact = facts[0]
+        assert (
+            fact.description
+            == "The postgres_air.airport.iso_region values are in uppercase."
         )
 
 
