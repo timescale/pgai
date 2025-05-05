@@ -3,7 +3,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_PROJECT_ENVIRONMENT=/usr/local/
 WORKDIR /build
-COPY --from=ghcr.io/astral-sh/uv:0.6.17 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.7.2 /uv /uvx /bin/
 
 COPY pyproject.toml uv.lock ./
 
