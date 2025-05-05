@@ -1,5 +1,5 @@
 <p align="center">
-    <img height="200" src="https://github.com/timescale/pgai/blob/main/docs/images/pgai_logo.png?raw=true" alt="pgai"/>
+    <img height="200" src="/docs/images/pgai_logo.png?raw=true" alt="pgai"/>
 </p>
 
 <p></p>

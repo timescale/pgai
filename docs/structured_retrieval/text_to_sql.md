@@ -257,5 +257,5 @@ Check out [the demo](/examples/text_to_sql/README.md) of this feature.
 * How many tables/columns can this support?   
   * There isn’t a known, hard limit. We search your database for tables relevant to the end user’s question and forward those schemas to the LLM.  
 * Can I self-host this? Or is it available on Timescale Cloud only?  
-  * Yes, you can self-host it, but you’d have to run the [vectorizer workers](https://github.com/timescale/pgai/blob/main/docs/vectorizer/worker.md) as well.  
+  * Yes, you can self-host it, but you’d have to run the [vectorizer workers](/docs/vectorizer/worker.md) as well.  
   * If you’re using Timescale Cloud, we take care of the vectorizer workers for you.

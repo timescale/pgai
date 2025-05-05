@@ -127,6 +127,6 @@ Outputs:
 - detailed_results.csv: Per-question evaluation results
 
 Links:
-1. Voyage AI x pgai Vectorizer Quickstart: https://github.com/timescale/pgai/blob/main/docs/vectorizer/quick-start-voyage.md
+1. Voyage AI x pgai Vectorizer Quickstart: /docs/vectorizer/quick-start-voyage.md
 2. SEC Filings dataset: https://huggingface.co/datasets/MemGPT/example-sec-filings/tree/main
 3. Voyage AI Text Embedding API docs: https://docs.voyageai.com/docs/embeddings

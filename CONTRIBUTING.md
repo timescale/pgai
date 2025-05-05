@@ -84,7 +84,7 @@ Please strictly follow the guidelines below:
 7. Clearly explain the purpose of the PR and link to related issues or RFCs.
 8. Ensure that your changes pass all CI checks.
 
-Please refer to our DEVELOPMENT doc for [instructions how to develop and test](https://github.com/timescale/pgai/blob/main/DEVELOPMENT.md).
+Please refer to our DEVELOPMENT doc for [instructions how to develop and test](/DEVELOPMENT.md).
 
 ## Testing
 

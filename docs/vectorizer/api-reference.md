@@ -1820,4 +1820,4 @@ The number of items in the queue for the specified vectorizer
 [timescale-cloud]: https://console.cloud.timescale.com/
 [openai-use-env-var]: https://help.openai.com/en/articles/5112595-best-practices-for-api-key-safety#h_a1ab3ba7b2
 [openai-set-key]: https://help.openai.com/en/articles/5112595-best-practices-for-api-key-safety#h_a1ab3ba7b2
-[docker configuration]: https://github.com/timescale/pgai/blob/main/docs/vectorizer/worker.md#install-and-configure-vectorizer-worker
+[docker configuration]: /docs/vectorizer/worker.md#install-and-configure-vectorizer-worker
