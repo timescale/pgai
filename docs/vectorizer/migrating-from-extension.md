@@ -32,9 +32,9 @@ During the transition to the python library, some APIs changed for the `ai.creat
 
 These changes are automatically applied to existing vectorizers. But, when creating new vectorizers, developers should be aware of the following changes:
 
-* `ai.create_vectorizer` now requires a [`loading =>`](https://github.com/timescale/pgai/blob/main/docs/vectorizer/api-reference.md#loading-configuration) argument. Previous behavior is provided via the [`loading => loading_column()`](https://github.com/timescale/pgai/blob/main/docs/vectorizer/api-reference.md#ailoading_column) function.
-* `ai.create_vectorizer` no longer takes `destination`, `target_table`, `target_schema`, `view_schema`, `view_name` as arguments configure these options via the new [`destination => ai.destination_table()`](https://github.com/timescale/pgai/blob/main/docs/vectorizer/api-reference.md#destination-configuration) function instead.
-* [ai.chunking_character_text_splitter](https://github.com/timescale/pgai/blob/main/docs/vectorizer/api-reference.md#aichunking_character_text_splitter) and [ai.chunking_recursive_character_text_splitter](https://github.com/timescale/pgai/blob/main/docs/vectorizer/api-reference.md#aichunking_recursive_character_text_splitter) no longer take a `chunk_column` argument, that column name is now provided via [`loading => loading_column()`](https://github.com/timescale/pgai/blob/main/docs/vectorizer/api-reference.md#ailoading_column) function instead.
+* `ai.create_vectorizer` now requires a [`loading =>`](/docs/vectorizer/api-reference.md#loading-configuration) argument. Previous behavior is provided via the [`loading => loading_column()`](/docs/vectorizer/api-reference.md#ailoading_column) function.
+* `ai.create_vectorizer` no longer takes `destination`, `target_table`, `target_schema`, `view_schema`, `view_name` as arguments configure these options via the new [`destination => ai.destination_table()`](/docs/vectorizer/api-reference.md#destination-configuration) function instead.
+* [ai.chunking_character_text_splitter](/docs/vectorizer/api-reference.md#aichunking_character_text_splitter) and [ai.chunking_recursive_character_text_splitter](/docs/vectorizer/api-reference.md#aichunking_recursive_character_text_splitter) no longer take a `chunk_column` argument, that column name is now provided via [`loading => loading_column()`](/docs/vectorizer/api-reference.md#ailoading_column) function instead.
 
 # Commons Issues:
 
