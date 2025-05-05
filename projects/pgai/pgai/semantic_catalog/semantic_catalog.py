@@ -4,7 +4,7 @@ from typing import Any, TextIO
 
 import psycopg
 from psycopg.rows import dict_row
-from psycopg.sql import SQL, Composable
+from psycopg.sql import SQL, Composable, Identifier
 from pydantic_ai.models import KnownModelName, Model
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import Usage, UsageLimits
@@ -179,6 +179,24 @@ class SemanticCatalog:
             con, self.id, embedding_name, emb_cfg, query, limit
         )
 
+    async def list_sql_examples(
+        self,
+        con: CatalogConnection,
+    ) -> list[SQLExample]:
+        async with con.cursor(row_factory=dict_row) as cur:
+            sql = SQL("""\
+                select x.*
+                from ai.{table} x
+                order by x.id
+            """).format(
+                table=Identifier(f"semantic_catalog_sql_{self.id}"),
+            )
+            await cur.execute(sql)
+            results: list[SQLExample] = []
+            for row in await cur.fetchall():
+                results.append(SQLExample(**row))
+        return results
+
     async def search_sql_examples(
         self,
         con: CatalogConnection,
@@ -195,6 +213,24 @@ class SemanticCatalog:
         return await search.search_sql_examples(
             con, self.id, embedding_name, emb_cfg, query, limit
         )
+
+    async def list_facts(
+        self,
+        con: CatalogConnection,
+    ) -> list[Fact]:
+        async with con.cursor(row_factory=dict_row) as cur:
+            sql = SQL("""\
+                select x.*
+                from ai.{table} x
+                order by x.id
+            """).format(
+                table=Identifier(f"semantic_catalog_fact_{self.id}"),
+            )
+            await cur.execute(sql)
+            results: list[Fact] = []
+            for row in await cur.fetchall():
+                results.append(Fact(**row))
+        return results
 
     async def search_facts(
         self,
