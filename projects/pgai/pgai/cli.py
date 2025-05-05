@@ -5,9 +5,11 @@ import os
 import signal
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 
 import click
+import psycopg
 import structlog
 from ddtrace import tracer
 from dotenv import load_dotenv
@@ -244,3 +246,1011 @@ def install(db_url: str, strict: bool) -> None:
 
     pgai.install(db_url, strict=strict)
     log.info(f"pgai {__version__} installed")
+
+
+@click.group(name="semantic-catalog")
+@click.version_option(version=__version__)
+def semantic_catalog():
+    pass
+
+
+@semantic_catalog.command()
+@click.option(
+    "-d",
+    "--db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The connection URL to the database to find objects in.",
+    envvar="TARGET_DB",
+)
+@click.option(
+    "-m",
+    "--model",
+    type=click.STRING,
+    default="openai:o3",
+    show_default=True,
+    help="The LLM model to generate descriptions",
+)
+@click.option(
+    "--include-schema",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against schema names to be included in output.",
+)
+@click.option(
+    "--exclude-schema",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against schema names to be excluded from output.",  # noqa: E501
+)
+@click.option(
+    "--include-table",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against table names to be included in output.",
+)
+@click.option(
+    "--exclude-table",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against table names to be excluded from output.",  # noqa: E501
+)
+@click.option(
+    "--include-view",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against view names to be included in output.",
+)
+@click.option(
+    "--exclude-view",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against view names to be excluded from output.",
+)
+@click.option(
+    "--include-proc",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against procedure/function names to be included in output.",  # noqa: E501
+)
+@click.option(
+    "--exclude-proc",
+    type=click.STRING,
+    default=None,
+    help="A regular expression to match against proc names to be excluded from output.",
+)
+@click.option(
+    "-f",
+    "--yaml-file",
+    type=click.Path(dir_okay=False, writable=True, path_type=Path),
+    default=None,
+    help="The path to a file to write output to.",
+)
+@click.option(
+    "-a",
+    "--append",
+    is_flag=True,
+    help="Append to the output file instead of overwriting it.",
+)
+@click.option(
+    "--sample-size",
+    type=click.INT,
+    default=3,
+    help="Number of sample rows to include in the context",
+)
+@click.option(
+    "--batch-size",
+    type=click.INT,
+    default=5,
+    help="Number of objects to send the LLM in a batch",
+)
+@click.option(
+    "-q",
+    "--quiet",
+    is_flag=True,
+    help="Do not print progress messages.",
+)
+@click.option(
+    "-l",
+    "--log-file",
+    type=click.Path(dir_okay=False, writable=True, path_type=Path),
+    default=None,
+    help="The path to a file to write log messages to.",
+)
+@click.option(
+    "--log-level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARN", "ERROR", "FATAL", "CRITICAL"], case_sensitive=False
+    ),
+    default="INFO",
+)
+@click.option(
+    "--request-limit",
+    type=click.INT,
+    default=None,
+    help="Maximum number of LLM requests allowed",
+)
+@click.option(
+    "--total-tokens-limit",
+    type=click.INT,
+    default=None,
+    help="Maximum total LLM tokens allowed",
+)
+def describe(
+    db_url: str,
+    model: str,
+    include_schema: str | None = None,
+    exclude_schema: str | None = None,
+    include_table: str | None = None,
+    exclude_table: str | None = None,
+    include_view: str | None = None,
+    exclude_view: str | None = None,
+    include_proc: str | None = None,
+    exclude_proc: str | None = None,
+    yaml_file: Path | None = None,
+    append: bool = False,
+    sample_size: int = 3,
+    batch_size: int = 5,
+    quiet: bool = False,
+    log_file: Path | None = None,
+    log_level: str | None = "INFO",
+    request_limit: int | None = None,
+    total_tokens_limit: int | None = None,
+) -> None:
+    if log_file:
+        import logging
+
+        logging.basicConfig(
+            level=get_log_level(log_level or "INFO"),
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=[
+                logging.FileHandler(log_file.expanduser().resolve()),
+            ],
+        )
+
+    from pydantic_ai.usage import UsageLimits
+    from rich.console import Console
+
+    from pgai.semantic_catalog.describe import describe
+
+    if yaml_file:
+        yaml_file = yaml_file.expanduser().resolve()
+
+    with (
+        sys.stdout
+        if not yaml_file
+        else yaml_file.open(mode="a" if append else "w") as f
+    ):
+        asyncio.run(
+            describe(
+                db_url,
+                model,  # pyright: ignore [reportArgumentType]
+                output=f,
+                console=Console(stderr=True, quiet=quiet),
+                include_schema=include_schema,
+                exclude_schema=exclude_schema,
+                include_table=include_table,
+                exclude_table=exclude_table,
+                include_view=include_view,
+                exclude_view=exclude_view,
+                include_proc=include_proc,
+                exclude_proc=exclude_proc,
+                usage_limits=UsageLimits(
+                    request_limit=request_limit,
+                    total_tokens_limit=total_tokens_limit,
+                ),
+                sample_size=sample_size,
+                batch_size=batch_size,
+            )
+        )
+
+
+@semantic_catalog.command()
+@click.option(
+    "-d",
+    "--db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The connection URL to the database the semantic catalog is in.",
+    envvar="CATALOG_DB",
+)
+@click.option(
+    "-n",
+    "--catalog-name",
+    type=click.STRING,
+    default="default",
+    help="The name of the semantic catalog to generate embeddings for.",  # noqa: E501
+)
+@click.option(
+    "-e",
+    "--embed-config",
+    type=click.STRING,
+    default=None,
+    help="The name of the embedding configuration to generate embeddings for. (If None, do all)",  # noqa: E501
+)
+@click.option(
+    "-b",
+    "--batch-size",
+    type=click.INT,
+    default=None,
+    help="The number of embeddings to generate per batch.",
+)
+@click.option(
+    "-q",
+    "--quiet",
+    is_flag=True,
+    help="Do not print log messages.",
+)
+@click.option(
+    "-l",
+    "--log-file",
+    type=click.Path(dir_okay=False, writable=True, path_type=Path),
+    default=None,
+    help="The path to a file to write log messages to.",
+)
+@click.option(
+    "--log-level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARN", "ERROR", "FATAL", "CRITICAL"], case_sensitive=False
+    ),
+    default="INFO",
+)
+def vectorize(
+    db_url: str,
+    catalog_name: str | None,
+    embed_config: str | None,
+    batch_size: int | None = None,
+    quiet: bool = False,
+    log_file: Path | None = None,
+    log_level: str | None = "INFO",
+) -> None:
+    import logging
+
+    log_handlers: list[logging.Handler] = []
+    if log_file:
+        log_handlers.append(logging.FileHandler(log_file.expanduser().resolve()))
+    if not quiet:
+        from rich.console import Console
+        from rich.logging import RichHandler
+
+        log_handlers.append(
+            RichHandler(console=Console(stderr=True), rich_tracebacks=True)
+        )
+
+    if len(log_handlers) > 0:
+        logging.basicConfig(
+            level=get_log_level(log_level or "INFO"),
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=log_handlers,
+        )
+
+    catalog_name = catalog_name or "default"
+    batch_size = batch_size if batch_size is not None else 32
+
+    async def do():
+        from pgai.semantic_catalog import from_name
+
+        async with await psycopg.AsyncConnection.connect(db_url) as con:
+            sc = await from_name(con, catalog_name)
+            match embed_config:
+                case None:
+                    await sc.vectorize_all(con, batch_size=batch_size)
+                case _:
+                    config = await sc.get_embedding(con, embed_config)
+                    if config is None:
+                        raise ValueError(
+                            f"No embedding configuration found for {catalog_name}"
+                        )
+                    await sc.vectorize(con, embed_config, config, batch_size=batch_size)
+
+    asyncio.run(do())
+
+
+@semantic_catalog.command()
+@click.option(
+    "-d",
+    "--db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The connection URL to the database the semantic catalog is in.",
+    envvar="CATALOG_DB",
+)
+@click.option(
+    "-p",
+    "--provider",
+    type=click.STRING,
+    default="openai",
+    help="The name of the embedding provider.",
+)
+@click.option(
+    "-m",
+    "--model",
+    type=click.STRING,
+    default="text-embedding-3-small",
+    help="The name of the embedding model.",
+)
+@click.option(
+    "-v",
+    "--vector-dimensions",
+    type=click.INT,
+    default=1536,
+    help="The number of dimensions in the embeddings.",
+)
+@click.option(
+    "-n",
+    "--catalog-name",
+    type=click.STRING,
+    default="default",
+    help="The name of the semantic catalog to generate embeddings for.",
+)
+@click.option(
+    "-e",
+    "--embed-config",
+    type=click.STRING,
+    default=None,
+    help="The name of the embedding configuration to generate embeddings for. (If None, do all)",  # noqa: E501
+)
+@click.option(
+    "--base-url",
+    type=click.STRING,
+    default=None,
+    help="The base_url for the embedding provider",
+)
+@click.option(
+    "--api-key-name",
+    type=click.STRING,
+    default=None,
+    help="The name of the environment variable containing the API key for the embedding provider",  # noqa: E501
+)
+@click.option(
+    "-q",
+    "--quiet",
+    is_flag=True,
+    help="Do not print log messages.",
+)
+@click.option(
+    "-l",
+    "--log-file",
+    type=click.Path(dir_okay=False, writable=True, path_type=Path),
+    default=None,
+    help="The path to a file to write log messages to.",
+)
+@click.option(
+    "--log-level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARN", "ERROR", "FATAL", "CRITICAL"], case_sensitive=False
+    ),
+    default="INFO",
+)
+def create(
+    db_url: str,
+    provider: str,
+    model: str,
+    vector_dimensions: int,
+    catalog_name: str | None = None,
+    embed_config: str | None = None,
+    base_url: str | None = None,
+    api_key_name: str | None = None,
+    quiet: bool = False,
+    log_file: Path | None = None,
+    log_level: str | None = "INFO",
+):
+    import logging
+
+    log_handlers: list[logging.Handler] = []
+    if log_file:
+        log_handlers.append(logging.FileHandler(log_file.expanduser().resolve()))
+    if not quiet:
+        from rich.console import Console
+        from rich.logging import RichHandler
+
+        log_handlers.append(
+            RichHandler(console=Console(stderr=True), rich_tracebacks=True)
+        )
+
+    if len(log_handlers) > 0:
+        logging.basicConfig(
+            level=get_log_level(log_level or "INFO"),
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=log_handlers,
+        )
+
+    from pgai.semantic_catalog.vectorizer import embedding_config_from_dict
+
+    d = dict(
+        provider=provider.lower(),
+        model=str(model),
+        dimensions=int(vector_dimensions),
+    )
+    if base_url:
+        d["base_url"] = base_url
+    if api_key_name:
+        d["api_key_name"] = api_key_name
+    config = embedding_config_from_dict(d)
+
+    import pgai
+
+    pgai.install(db_url, strict=False)
+
+    async def do():
+        from pgai.semantic_catalog import create
+
+        async with await psycopg.AsyncConnection.connect(db_url) as con:
+            sc = await create(
+                con, catalog_name, embedding_name=embed_config, embedding_config=config
+            )
+            print(f"""created "{sc.name}" semantic catalog with id: {sc.id}""")
+
+    asyncio.run(do())
+
+
+@semantic_catalog.command(name="import")
+@click.option(
+    "-d",
+    "--db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The connection URL to the database the database to generate sql for.",
+    envvar="TARGET_DB",
+)
+@click.option(
+    "-c",
+    "--catalog-db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The connection URL to the database the semantic catalog is in.",
+    envvar="CATALOG_DB",
+)
+@click.option(
+    "-f",
+    "--yaml-file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="The path to a yaml file.",
+)
+@click.option(
+    "-n",
+    "--catalog-name",
+    type=click.STRING,
+    default="default",
+    help="The name of the semantic catalog to generate embeddings for.",  # noqa: E501
+)
+@click.option(
+    "-e",
+    "--embed-config",
+    type=click.STRING,
+    default=None,
+    help="The name of the embedding configuration to generate embeddings for. (If None, do all)",  # noqa: E501
+)
+@click.option(
+    "-b",
+    "--batch-size",
+    type=click.INT,
+    default=None,
+    help="The number of embeddings to generate per batch.",
+)
+@click.option(
+    "-q",
+    "--quiet",
+    is_flag=True,
+    help="Do not print log messages.",
+)
+@click.option(
+    "-l",
+    "--log-file",
+    type=click.Path(dir_okay=False, writable=True, path_type=Path),
+    default=None,
+    help="The path to a file to write log messages to.",
+)
+@click.option(
+    "--log-level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARN", "ERROR", "FATAL", "CRITICAL"], case_sensitive=False
+    ),
+    default="INFO",
+)
+def import_catalog(
+    db_url: str,
+    catalog_db_url: str,
+    yaml_file: Path | None,
+    catalog_name: str | None,
+    embed_config: str | None,
+    batch_size: int | None = None,
+    quiet: bool = False,
+    log_file: Path | None = None,
+    log_level: str | None = "INFO",
+) -> None:
+    import logging
+
+    log_handlers: list[logging.Handler] = []
+    if log_file:
+        log_handlers.append(logging.FileHandler(log_file.expanduser().resolve()))
+    if not quiet:
+        from rich.console import Console
+        from rich.logging import RichHandler
+
+        log_handlers.append(
+            RichHandler(console=Console(stderr=True), rich_tracebacks=True)
+        )
+
+    if len(log_handlers) > 0:
+        logging.basicConfig(
+            level=get_log_level(log_level or "INFO"),
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=log_handlers,
+        )
+
+    from rich.console import Console
+
+    console = Console(stderr=True, quiet=quiet)
+
+    catalog_name = catalog_name or "default"
+    if yaml_file:
+        yaml_file = yaml_file.expanduser().resolve()
+        assert yaml_file.is_file(), "invalid yaml file"
+
+    async def do():
+        from pgai.semantic_catalog import from_name
+
+        async with (
+            await psycopg.AsyncConnection.connect(catalog_db_url) as ccon,
+            await psycopg.AsyncConnection.connect(db_url) as tcon,
+        ):
+            console.status(f"finding '{catalog_name}' catalog...")
+            sc = await from_name(ccon, catalog_name)
+            with sys.stdin if not yaml_file else yaml_file.open(mode="r") as r:
+                await sc.import_catalog(
+                    ccon, tcon, r, embed_config, batch_size, console
+                )
+
+    asyncio.run(do())
+
+
+@semantic_catalog.command(name="export")
+@click.option(
+    "-c",
+    "--catalog-db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The connection URL to the database the semantic catalog is in.",
+    envvar="CATALOG_DB",
+)
+@click.option(
+    "-f",
+    "--yaml-file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="The path to a yaml file.",
+)
+@click.option(
+    "-n",
+    "--catalog-name",
+    type=click.STRING,
+    default="default",
+    help="The name of the semantic catalog to generate embeddings for.",  # noqa: E501
+)
+@click.option(
+    "-q",
+    "--quiet",
+    is_flag=True,
+    help="Do not print log messages.",
+)
+@click.option(
+    "-l",
+    "--log-file",
+    type=click.Path(dir_okay=False, writable=True, path_type=Path),
+    default=None,
+    help="The path to a file to write log messages to.",
+)
+@click.option(
+    "--log-level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARN", "ERROR", "FATAL", "CRITICAL"], case_sensitive=False
+    ),
+    default="INFO",
+)
+def export_catalog(
+    catalog_db_url: str,
+    yaml_file: Path | None,
+    catalog_name: str | None,
+    quiet: bool = False,
+    log_file: Path | None = None,
+    log_level: str | None = "INFO",
+) -> None:
+    import logging
+
+    log_handlers: list[logging.Handler] = []
+    if log_file:
+        log_handlers.append(logging.FileHandler(log_file.expanduser().resolve()))
+    if not quiet:
+        from rich.console import Console
+        from rich.logging import RichHandler
+
+        log_handlers.append(
+            RichHandler(console=Console(stderr=True), rich_tracebacks=True)
+        )
+
+    if len(log_handlers) > 0:
+        logging.basicConfig(
+            level=get_log_level(log_level or "INFO"),
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=log_handlers,
+        )
+
+    from rich.console import Console
+
+    console = Console(stderr=True, quiet=quiet)
+
+    catalog_name = catalog_name or "default"
+    if yaml_file:
+        yaml_file = yaml_file.expanduser().resolve()
+
+    async def do():
+        from pgai.semantic_catalog import from_name
+
+        async with await psycopg.AsyncConnection.connect(catalog_db_url) as ccon:
+            console.status(f"finding '{catalog_name}' catalog...")
+            sc = await from_name(ccon, catalog_name)
+            console.status("exporting semantic catalog to file...")
+            with sys.stdout if not yaml_file else yaml_file.open(mode="w") as w:
+                await sc.export_catalog(ccon, w)
+
+    asyncio.run(do())
+
+
+@semantic_catalog.command()
+@click.option(
+    "-d",
+    "--db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The connection URL to the database the database to generate sql for.",
+    envvar="TARGET_DB",
+)
+@click.option(
+    "-c",
+    "--catalog-db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The connection URL to the database the semantic catalog is in.",
+    envvar="CATALOG_DB",
+)
+@click.option(
+    "-m",
+    "--model",
+    type=click.STRING,
+    default="anthropic:claude-3-7-sonnet-latest",
+    show_default=True,
+    help="The LLM model",
+)
+@click.option(
+    "-n",
+    "--catalog-name",
+    type=click.STRING,
+    default="default",
+    help="The name of the semantic catalog to use.",
+)
+@click.option(
+    "-e",
+    "--embed-config",
+    type=click.STRING,
+    default=None,
+    help="The name of the embedding configuration to use",
+)
+@click.option(
+    "-p",
+    "--prompt",
+    type=click.STRING,
+    default=None,
+    help="The question to be answered by the generated SQL statement",
+)
+@click.option(
+    "--iteration-limit",
+    type=click.INT,
+    default=5,
+    help="Maximum number of iterations to attempt",
+)
+@click.option(
+    "-s",
+    "--sample-size",
+    type=click.INT,
+    default=3,
+    help="Number of sample rows to include in the context",
+)
+@click.option(
+    "-q",
+    "--quiet",
+    is_flag=True,
+    help="Do not print log messages.",
+)
+@click.option(
+    "-l",
+    "--log-file",
+    type=click.Path(dir_okay=False, writable=True, path_type=Path),
+    default=None,
+    help="The path to a file to write log messages to.",
+)
+@click.option(
+    "--log-level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARN", "ERROR", "FATAL", "CRITICAL"], case_sensitive=False
+    ),
+    default="INFO",
+)
+@click.option(
+    "--print-messages",
+    is_flag=True,
+    help="Print LLM messages.",
+)
+@click.option(
+    "--print-usage",
+    is_flag=True,
+    help="Print LLM usage metrics.",
+)
+@click.option(
+    "--print-query-plan",
+    is_flag=True,
+    help="Print the query plan in json format.",
+)
+@click.option(
+    "--save-final-prompt",
+    type=click.Path(dir_okay=False, writable=True, path_type=Path),
+    default=None,
+    help="The path to a file to write the final prompt to.",
+)
+@click.option(
+    "--request-limit",
+    type=click.INT,
+    default=None,
+    help="Maximum number of LLM requests allowed",
+)
+@click.option(
+    "--total-tokens-limit",
+    type=click.INT,
+    default=None,
+    help="Maximum total LLM tokens allowed",
+)
+def generate_sql(
+    db_url: str,
+    catalog_db_url: str | None,
+    model: str,
+    catalog_name: str | None,
+    embed_config: str | None,
+    prompt: str,
+    iteration_limit: int = 5,
+    sample_size: int = 3,
+    quiet: bool = False,
+    log_file: Path | None = None,
+    log_level: str | None = "INFO",
+    print_messages: bool = False,
+    print_usage: bool = False,
+    print_query_plan: bool = False,
+    save_final_prompt: Path | None = None,
+    request_limit: int | None = None,
+    total_tokens_limit: int | None = None,
+) -> None:
+    import logging
+
+    log_handlers: list[logging.Handler] = []
+    if log_file:
+        log_handlers.append(logging.FileHandler(log_file.expanduser().resolve()))
+    if not quiet:
+        from rich.console import Console
+        from rich.logging import RichHandler
+
+        log_handlers.append(
+            RichHandler(console=Console(stderr=True), rich_tracebacks=True)
+        )
+
+    if len(log_handlers) > 0:
+        logging.basicConfig(
+            level=get_log_level(log_level or "INFO"),
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=log_handlers,
+        )
+
+    catalog_name = catalog_name or "default"
+    from pydantic_ai.usage import UsageLimits
+
+    from pgai.semantic_catalog import from_name
+    from pgai.semantic_catalog.gen_sql import GenerateSQLResponse
+
+    async def do1(
+        ccon: psycopg.AsyncConnection, tcon: psycopg.AsyncConnection
+    ) -> GenerateSQLResponse:
+        sc = await from_name(ccon, catalog_name)
+        return await sc.generate_sql(
+            ccon,
+            tcon,
+            model=model,  # pyright: ignore [reportArgumentType]
+            prompt=prompt,  # pyright: ignore [reportArgumentType]
+            usage_limits=UsageLimits(
+                request_limit=request_limit,
+                total_tokens_limit=total_tokens_limit,
+            ),
+            embedding_name=embed_config,
+            iteration_limit=iteration_limit,
+            sample_size=sample_size,
+        )
+
+    async def do() -> GenerateSQLResponse:
+        if catalog_db_url:
+            async with (
+                await psycopg.AsyncConnection.connect(db_url) as tcon,
+                await psycopg.AsyncConnection.connect(catalog_db_url) as ccon,
+            ):
+                return await do1(ccon, tcon)
+        else:
+            async with await psycopg.AsyncConnection.connect(db_url) as con:
+                return await do1(con, con)
+
+    resp = asyncio.run(do())
+    if quiet:
+        print(resp.sql_statement)
+        exit(0)
+
+    from rich.console import Console
+    from rich.pretty import pprint
+    from rich.rule import Rule
+    from rich.syntax import Syntax
+    from rich.table import Table
+
+    console = Console(stderr=True)
+
+    if print_messages:
+        for msg in resp.messages:
+            pprint(msg, console=console)
+
+    if print_query_plan:
+        from rich import print_json
+
+        print_json(data=resp.query_plan)
+
+    if print_usage:
+        usage = resp.usage
+        table = Table(title="Usage")
+        table.add_column("Metric", justify="left", no_wrap=True)
+        table.add_column("Value", justify="right", no_wrap=True)
+        table.add_row("Requests", str(usage.requests))
+        table.add_row(
+            "Request Tokens", str(usage.request_tokens) if usage.request_tokens else "?"
+        )
+        table.add_row(
+            "Response Tokens",
+            str(usage.response_tokens) if usage.response_tokens else "?",  # noqa
+        )
+        table.add_row(
+            "Total Tokens", str(usage.total_tokens) if usage.total_tokens else "?"
+        )
+        console.print(table)
+
+    console.print(Rule())
+    console.print(resp.final_response)
+    console.print(Rule())
+    console.print(Syntax(resp.sql_statement, "sql"))
+
+    if save_final_prompt:
+        save_final_prompt.expanduser().resolve().write_text(resp.final_prompt)
+
+
+@semantic_catalog.command()
+@click.option(
+    "-d",
+    "--db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The connection URL to the target database.",
+    envvar="TARGET_DB",
+)
+@click.option(
+    "-c",
+    "--catalog-db-url",
+    type=click.STRING,
+    default="postgres://postgres@localhost:5432/postgres",
+    show_default=True,
+    help="The connection URL to the database the semantic catalog is in.",
+    envvar="CATALOG_DB",
+)
+@click.option(
+    "-n",
+    "--catalog-name",
+    type=click.STRING,
+    default="default",
+    help="The name of the semantic catalog to use.",
+)
+@click.option(
+    "-e",
+    "--embed-config",
+    type=click.STRING,
+    default=None,
+    help="The name of the embedding configuration to use",
+)
+@click.option(
+    "-p",
+    "--prompt",
+    type=click.STRING,
+    default=None,
+    help="The semantic search prompt",
+)
+@click.option(
+    "-s",
+    "--sample-size",
+    type=click.INT,
+    default=3,
+    help="Number of sample rows to include in the context",
+)
+def search(
+    db_url: str,
+    catalog_db_url: str | None,
+    catalog_name: str | None,
+    embed_config: str | None,
+    prompt: str,
+    sample_size: int = 3,
+) -> None:
+    catalog_name = catalog_name or "default"
+
+    from rich.console import Console
+
+    console = Console()
+
+    from pgai.semantic_catalog import from_name
+    from pgai.semantic_catalog.models import Fact, ObjectDescription, SQLExample
+
+    async def do1(ccon: psycopg.AsyncConnection, tcon: psycopg.AsyncConnection) -> None:
+        nonlocal embed_config
+        sc = await from_name(ccon, catalog_name)
+        if not embed_config:
+            embeddings = await sc.list_embeddings(ccon)
+            assert len(embeddings) > 0
+            embed_config = embeddings[0][0]
+        # objects
+        obj_matches: list[ObjectDescription] = await sc.search_objects(
+            ccon, embedding_name=embed_config, query=prompt, limit=5
+        )
+        for obj_match in obj_matches:
+            console.print(f"match: {'.'.join(obj_match.objnames)}")
+        for obj in await sc.load_objects(
+            tcon,
+            obj_matches,
+            sample_size,
+        ):
+            console.print(sc.render_objects([obj]))
+        # sql examples
+        sql_matches: list[SQLExample] = await sc.search_sql_examples(
+            ccon, embedding_name=embed_config, query=prompt, limit=5
+        )
+        for sql_match in sql_matches:
+            console.print(f"match: sql example: {sql_match.id}")
+        console.print(sc.render_sql_examples(sql_matches))
+        # facts
+        fact_matches: list[Fact] = await sc.search_facts(
+            ccon, embedding_name=embed_config, query=prompt, limit=5
+        )
+        for fact_match in fact_matches:
+            console.print(f"match: fact: {fact_match.id}")
+        console.print(sc.render_facts(fact_matches))
+
+    async def do() -> None:
+        if catalog_db_url:
+            async with (
+                await psycopg.AsyncConnection.connect(db_url) as tcon,
+                await psycopg.AsyncConnection.connect(catalog_db_url) as ccon,
+            ):
+                await do1(ccon, tcon)
+        else:
+            async with await psycopg.AsyncConnection.connect(db_url) as con:
+                await do1(con, con)
+
+    asyncio.run(do())
+
+
+cli.add_command(semantic_catalog)

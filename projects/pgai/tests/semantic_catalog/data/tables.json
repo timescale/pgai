@@ -1,0 +1,1060 @@
+{
+  "aircraft": {
+    "classid": 1259,
+    "objid": 27093,
+    "schema_name": "postgres_air",
+    "table_name": "aircraft",
+    "persistence": null,
+    "columns": [
+      {
+        "classid": 1259,
+        "objid": 27093,
+        "objsubid": 1,
+        "name": "model",
+        "type": "text",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27093,
+        "objsubid": 2,
+        "name": "range",
+        "type": "numeric",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27093,
+        "objsubid": 3,
+        "name": "class",
+        "type": "integer",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27093,
+        "objsubid": 4,
+        "name": "velocity",
+        "type": "numeric",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27093,
+        "objsubid": 5,
+        "name": "code",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      }
+    ],
+    "constraints": [
+      {
+        "name": "aircraft_pkey",
+        "definition": "PRIMARY KEY (code)"
+      }
+    ],
+    "indexes": null,
+    "dimensions": null
+  },
+  "flight": {
+    "classid": 1259,
+    "objid": 27120,
+    "schema_name": "postgres_air",
+    "table_name": "flight",
+    "persistence": null,
+    "columns": [
+      {
+        "classid": 1259,
+        "objid": 27120,
+        "objsubid": 1,
+        "name": "flight_id",
+        "type": "integer",
+        "is_not_null": true,
+        "default_value": "nextval('postgres_air.flight_flight_id_seq'::regclass)"
+      },
+      {
+        "classid": 1259,
+        "objid": 27120,
+        "objsubid": 2,
+        "name": "flight_no",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27120,
+        "objsubid": 3,
+        "name": "scheduled_departure",
+        "type": "timestamp with time zone",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27120,
+        "objsubid": 4,
+        "name": "scheduled_arrival",
+        "type": "timestamp with time zone",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27120,
+        "objsubid": 5,
+        "name": "departure_airport",
+        "type": "character(3)",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27120,
+        "objsubid": 6,
+        "name": "arrival_airport",
+        "type": "character(3)",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27120,
+        "objsubid": 7,
+        "name": "status",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27120,
+        "objsubid": 8,
+        "name": "aircraft_code",
+        "type": "character(3)",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27120,
+        "objsubid": 9,
+        "name": "actual_departure",
+        "type": "timestamp with time zone",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27120,
+        "objsubid": 10,
+        "name": "actual_arrival",
+        "type": "timestamp with time zone",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27120,
+        "objsubid": 11,
+        "name": "update_ts",
+        "type": "timestamp with time zone",
+        "is_not_null": false,
+        "default_value": null
+      }
+    ],
+    "constraints": [
+      {
+        "name": "flight_pkey",
+        "definition": "PRIMARY KEY (flight_id)"
+      },
+      {
+        "name": "aircraft_code_fk",
+        "definition": "FOREIGN KEY (aircraft_code) REFERENCES postgres_air.aircraft(code)"
+      },
+      {
+        "name": "arrival_airport_fk",
+        "definition": "FOREIGN KEY (arrival_airport) REFERENCES postgres_air.airport(airport_code)"
+      },
+      {
+        "name": "departure_airport_fk",
+        "definition": "FOREIGN KEY (departure_airport) REFERENCES postgres_air.airport(airport_code)"
+      }
+    ],
+    "indexes": null,
+    "dimensions": null
+  },
+  "airport": {
+    "classid": 1259,
+    "objid": 27098,
+    "schema_name": "postgres_air",
+    "table_name": "airport",
+    "persistence": null,
+    "columns": [
+      {
+        "classid": 1259,
+        "objid": 27098,
+        "objsubid": 1,
+        "name": "airport_code",
+        "type": "character(3)",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27098,
+        "objsubid": 2,
+        "name": "airport_name",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27098,
+        "objsubid": 3,
+        "name": "city",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27098,
+        "objsubid": 4,
+        "name": "airport_tz",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27098,
+        "objsubid": 5,
+        "name": "continent",
+        "type": "text",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27098,
+        "objsubid": 6,
+        "name": "iso_country",
+        "type": "text",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27098,
+        "objsubid": 7,
+        "name": "iso_region",
+        "type": "text",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27098,
+        "objsubid": 8,
+        "name": "intnl",
+        "type": "boolean",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27098,
+        "objsubid": 9,
+        "name": "update_ts",
+        "type": "timestamp with time zone",
+        "is_not_null": false,
+        "default_value": null
+      }
+    ],
+    "constraints": [
+      {
+        "name": "airport_pkey",
+        "definition": "PRIMARY KEY (airport_code)"
+      }
+    ],
+    "indexes": null,
+    "dimensions": null
+  },
+  "account": {
+    "classid": 1259,
+    "objid": 27087,
+    "schema_name": "postgres_air",
+    "table_name": "account",
+    "persistence": null,
+    "columns": [
+      {
+        "classid": 1259,
+        "objid": 27087,
+        "objsubid": 1,
+        "name": "account_id",
+        "type": "integer",
+        "is_not_null": true,
+        "default_value": "nextval('postgres_air.account_account_id_seq'::regclass)"
+      },
+      {
+        "classid": 1259,
+        "objid": 27087,
+        "objsubid": 2,
+        "name": "login",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27087,
+        "objsubid": 3,
+        "name": "first_name",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27087,
+        "objsubid": 4,
+        "name": "last_name",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27087,
+        "objsubid": 5,
+        "name": "frequent_flyer_id",
+        "type": "integer",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27087,
+        "objsubid": 6,
+        "name": "update_ts",
+        "type": "timestamp with time zone",
+        "is_not_null": false,
+        "default_value": null
+      }
+    ],
+    "constraints": [
+      {
+        "name": "account_pkey",
+        "definition": "PRIMARY KEY (account_id)"
+      },
+      {
+        "name": "frequent_flyer_id_fk",
+        "definition": "FOREIGN KEY (frequent_flyer_id) REFERENCES postgres_air.frequent_flyer(frequent_flyer_id)"
+      }
+    ],
+    "indexes": null,
+    "dimensions": null
+  },
+  "booking": {
+    "classid": 1259,
+    "objid": 27110,
+    "schema_name": "postgres_air",
+    "table_name": "booking",
+    "persistence": null,
+    "columns": [
+      {
+        "classid": 1259,
+        "objid": 27110,
+        "objsubid": 1,
+        "name": "booking_id",
+        "type": "bigint",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27110,
+        "objsubid": 2,
+        "name": "booking_ref",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27110,
+        "objsubid": 3,
+        "name": "booking_name",
+        "type": "text",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27110,
+        "objsubid": 4,
+        "name": "account_id",
+        "type": "integer",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27110,
+        "objsubid": 5,
+        "name": "email",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27110,
+        "objsubid": 6,
+        "name": "phone",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27110,
+        "objsubid": 7,
+        "name": "update_ts",
+        "type": "timestamp with time zone",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27110,
+        "objsubid": 8,
+        "name": "price",
+        "type": "numeric(7,2)",
+        "is_not_null": false,
+        "default_value": null
+      }
+    ],
+    "constraints": [
+      {
+        "name": "booking_booking_ref_key",
+        "definition": "UNIQUE (booking_ref)"
+      },
+      {
+        "name": "booking_pkey",
+        "definition": "PRIMARY KEY (booking_id)"
+      },
+      {
+        "name": "booking_account_id_fk",
+        "definition": "FOREIGN KEY (account_id) REFERENCES postgres_air.account(account_id)"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "booking_booking_ref_key",
+        "definition": "CREATE UNIQUE INDEX booking_booking_ref_key ON postgres_air.booking USING btree (booking_ref)"
+      }
+    ],
+    "dimensions": null
+  },
+  "booking_leg": {
+    "classid": 1259,
+    "objid": 27115,
+    "schema_name": "postgres_air",
+    "table_name": "booking_leg",
+    "persistence": null,
+    "columns": [
+      {
+        "classid": 1259,
+        "objid": 27115,
+        "objsubid": 1,
+        "name": "booking_leg_id",
+        "type": "integer",
+        "is_not_null": true,
+        "default_value": "nextval('postgres_air.booking_leg_booking_leg_id_seq'::regclass)"
+      },
+      {
+        "classid": 1259,
+        "objid": 27115,
+        "objsubid": 2,
+        "name": "booking_id",
+        "type": "integer",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27115,
+        "objsubid": 3,
+        "name": "flight_id",
+        "type": "integer",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27115,
+        "objsubid": 4,
+        "name": "leg_num",
+        "type": "integer",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27115,
+        "objsubid": 5,
+        "name": "is_returning",
+        "type": "boolean",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27115,
+        "objsubid": 6,
+        "name": "update_ts",
+        "type": "timestamp with time zone",
+        "is_not_null": false,
+        "default_value": null
+      }
+    ],
+    "constraints": [
+      {
+        "name": "booking_leg_pkey",
+        "definition": "PRIMARY KEY (booking_leg_id)"
+      },
+      {
+        "name": "booking_id_fk",
+        "definition": "FOREIGN KEY (booking_id) REFERENCES postgres_air.booking(booking_id)"
+      },
+      {
+        "name": "flight_id_fk",
+        "definition": "FOREIGN KEY (flight_id) REFERENCES postgres_air.flight(flight_id)"
+      }
+    ],
+    "indexes": null,
+    "dimensions": null
+  },
+  "boarding_pass": {
+    "classid": 1259,
+    "objid": 27104,
+    "schema_name": "postgres_air",
+    "table_name": "boarding_pass",
+    "persistence": null,
+    "columns": [
+      {
+        "classid": 1259,
+        "objid": 27104,
+        "objsubid": 1,
+        "name": "pass_id",
+        "type": "integer",
+        "is_not_null": true,
+        "default_value": "nextval('postgres_air.boarding_pass_pass_id_seq'::regclass)"
+      },
+      {
+        "classid": 1259,
+        "objid": 27104,
+        "objsubid": 2,
+        "name": "passenger_id",
+        "type": "bigint",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27104,
+        "objsubid": 3,
+        "name": "booking_leg_id",
+        "type": "bigint",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27104,
+        "objsubid": 4,
+        "name": "seat",
+        "type": "text",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27104,
+        "objsubid": 5,
+        "name": "boarding_time",
+        "type": "timestamp with time zone",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27104,
+        "objsubid": 6,
+        "name": "precheck",
+        "type": "boolean",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27104,
+        "objsubid": 7,
+        "name": "update_ts",
+        "type": "timestamp with time zone",
+        "is_not_null": false,
+        "default_value": null
+      }
+    ],
+    "constraints": [
+      {
+        "name": "boarding_pass_pkey",
+        "definition": "PRIMARY KEY (pass_id)"
+      },
+      {
+        "name": "booking_leg_id_fk",
+        "definition": "FOREIGN KEY (booking_leg_id) REFERENCES postgres_air.booking_leg(booking_leg_id)"
+      },
+      {
+        "name": "passenger_id_fk",
+        "definition": "FOREIGN KEY (passenger_id) REFERENCES postgres_air.passenger(passenger_id)"
+      }
+    ],
+    "indexes": null,
+    "dimensions": null
+  },
+  "frequent_flyer": {
+    "classid": 1259,
+    "objid": 27126,
+    "schema_name": "postgres_air",
+    "table_name": "frequent_flyer",
+    "persistence": null,
+    "columns": [
+      {
+        "classid": 1259,
+        "objid": 27126,
+        "objsubid": 1,
+        "name": "frequent_flyer_id",
+        "type": "integer",
+        "is_not_null": true,
+        "default_value": "nextval('postgres_air.frequent_flyer_frequent_flyer_id_seq'::regclass)"
+      },
+      {
+        "classid": 1259,
+        "objid": 27126,
+        "objsubid": 2,
+        "name": "first_name",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27126,
+        "objsubid": 3,
+        "name": "last_name",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27126,
+        "objsubid": 4,
+        "name": "title",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27126,
+        "objsubid": 5,
+        "name": "card_num",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27126,
+        "objsubid": 6,
+        "name": "level",
+        "type": "integer",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27126,
+        "objsubid": 7,
+        "name": "award_points",
+        "type": "integer",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27126,
+        "objsubid": 8,
+        "name": "email",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27126,
+        "objsubid": 9,
+        "name": "phone",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27126,
+        "objsubid": 10,
+        "name": "update_ts",
+        "type": "timestamp with time zone",
+        "is_not_null": false,
+        "default_value": null
+      }
+    ],
+    "constraints": [
+      {
+        "name": "frequent_flyer_pkey",
+        "definition": "PRIMARY KEY (frequent_flyer_id)"
+      }
+    ],
+    "indexes": null,
+    "dimensions": null
+  },
+  "passenger": {
+    "classid": 1259,
+    "objid": 27132,
+    "schema_name": "postgres_air",
+    "table_name": "passenger",
+    "persistence": null,
+    "columns": [
+      {
+        "classid": 1259,
+        "objid": 27132,
+        "objsubid": 1,
+        "name": "passenger_id",
+        "type": "integer",
+        "is_not_null": true,
+        "default_value": "nextval('postgres_air.passenger_passenger_id_seq'::regclass)"
+      },
+      {
+        "classid": 1259,
+        "objid": 27132,
+        "objsubid": 2,
+        "name": "booking_id",
+        "type": "integer",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27132,
+        "objsubid": 3,
+        "name": "booking_ref",
+        "type": "text",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27132,
+        "objsubid": 4,
+        "name": "passenger_no",
+        "type": "integer",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27132,
+        "objsubid": 5,
+        "name": "first_name",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27132,
+        "objsubid": 6,
+        "name": "last_name",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27132,
+        "objsubid": 7,
+        "name": "account_id",
+        "type": "integer",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27132,
+        "objsubid": 8,
+        "name": "update_ts",
+        "type": "timestamp with time zone",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27132,
+        "objsubid": 9,
+        "name": "age",
+        "type": "integer",
+        "is_not_null": false,
+        "default_value": null
+      }
+    ],
+    "constraints": [
+      {
+        "name": "passenger_pkey",
+        "definition": "PRIMARY KEY (passenger_id)"
+      },
+      {
+        "name": "pass_account_id_fk",
+        "definition": "FOREIGN KEY (account_id) REFERENCES postgres_air.account(account_id)"
+      },
+      {
+        "name": "pass_booking_id_fk",
+        "definition": "FOREIGN KEY (booking_id) REFERENCES postgres_air.booking(booking_id)"
+      },
+      {
+        "name": "pass_frequent_flyer_id_fk",
+        "definition": "FOREIGN KEY (account_id) REFERENCES postgres_air.account(account_id)"
+      }
+    ],
+    "indexes": null,
+    "dimensions": null
+  },
+  "phone": {
+    "classid": 1259,
+    "objid": 27138,
+    "schema_name": "postgres_air",
+    "table_name": "phone",
+    "persistence": null,
+    "columns": [
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 1,
+        "name": "phone_id",
+        "type": "integer",
+        "is_not_null": true,
+        "default_value": "nextval('postgres_air.phone_phone_id_seq'::regclass)"
+      },
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 2,
+        "name": "account_id",
+        "type": "integer",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 3,
+        "name": "phone",
+        "type": "text",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 4,
+        "name": "phone_type",
+        "type": "text",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 5,
+        "name": "primary_phone",
+        "type": "boolean",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 6,
+        "name": "update_ts",
+        "type": "timestamp with time zone",
+        "is_not_null": false,
+        "default_value": null
+      }
+    ],
+    "constraints": [
+      {
+        "name": "phone_pkey",
+        "definition": "PRIMARY KEY (phone_id)"
+      },
+      {
+        "name": "phone_account_id_fk",
+        "definition": "FOREIGN KEY (account_id) REFERENCES postgres_air.account(account_id)"
+      }
+    ],
+    "indexes": null,
+    "dimensions": null
+  },
+  "events": {
+    "classid": 1259,
+    "objid": 27138,
+    "schema_name": "postgres_air",
+    "table_name": "events",
+    "persistence": null,
+    "columns": [
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 1,
+        "name": "time",
+        "type": "timestamp without time zone",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 2,
+        "name": "name",
+        "type": "text",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 3,
+        "name": "params",
+        "type": "jsonb",
+        "is_not_null": true,
+        "default_value": null
+      }
+    ],
+    "constraints": null,
+    "indexes": [
+      {
+        "name": "events_time_idx",
+        "definition": "CREATE INDEX events_time_idx ON postgres_air.events USING btree (\"time\" DESC)"
+      }
+    ],
+    "dimensions": [
+      {
+        "column_name": "time",
+        "dimension_builder": "by_range",
+        "partition_func": null,
+        "partition_interval": "INTERVAL '7 days'",
+        "number_partitions": null
+      }
+    ]
+  },
+  "hypertable_test": {
+    "classid": 1259,
+    "objid": 27138,
+    "schema_name": "postgres_air",
+    "table_name": "hypertable_test",
+    "persistence": null,
+    "columns": [
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 1,
+        "name": "time",
+        "type": "timestamp with time zone",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 2,
+        "name": "location",
+        "type": "character varying",
+        "is_not_null": false,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 3,
+        "name": "time_received",
+        "type": "timestamp with time zone",
+        "is_not_null": true,
+        "default_value": null
+      },
+      {
+        "classid": 1259,
+        "objid": 27138,
+        "objsubid": 4,
+        "name": "params",
+        "type": "jsonb",
+        "is_not_null": true,
+        "default_value": null
+      }
+    ],
+    "constraints": null,
+    "indexes": [
+      {
+        "name": "hypertable_test_time_idx",
+        "definition": "CREATE INDEX hypertable_test_time_idx ON postgres_air.hypertable_test USING btree (\"time\" DESC)"
+      }
+    ],
+    "dimensions": [
+      {
+        "column_name": "time",
+        "dimension_builder": "by_range",
+        "partition_func": null,
+        "partition_interval": "INTERVAL '7 days'",
+        "number_partitions": null
+      },
+      {
+        "column_name": "location",
+        "dimension_builder": "by_hash",
+        "partition_func": null,
+        "partition_interval": null,
+        "number_partitions": 2
+      },
+      {
+        "column_name": "time_received",
+        "dimension_builder": "by_range",
+        "partition_func": null,
+        "partition_interval": "INTERVAL '1 day'",
+        "number_partitions": null
+      },
+      {
+        "column_name": "params",
+        "dimension_builder": "by_range",
+        "partition_func": "public.hypertable_test_func",
+        "partition_interval": "INTERVAL '1 day'",
+        "number_partitions": null
+      }
+    ]
+  }
+}

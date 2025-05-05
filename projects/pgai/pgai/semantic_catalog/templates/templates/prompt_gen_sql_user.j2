@@ -1,0 +1,54 @@
+
+## Prior search prompts:
+The semantic search results from the following prompts are already included in the context below:
+{% for prior_prompt in prior_prompts %}
+{{ loop.index }}. {{ prior_prompt }}
+{% endfor %}
+
+## Context:
+The following context may be relevant to the user's directive/question.
+
+### Database Objects:
+{% if ctx.rendered_objects|length > 0 %}
+{% for obj in ctx.rendered_objects.values() %}
+{{ obj }}
+{% endfor %}
+{% else %}
+No database objects in current context.
+{% endif %}
+
+### SQL Examples:
+{% if ctx.rendered_sql_examples|length > 0 %}
+{% for ex in ctx.rendered_sql_examples.values() %}
+{{ ex }}
+{% endfor %}
+{% else %}
+No SQL examples in current context.
+{% endif %}
+
+### Facts:
+{% if ctx.rendered_facts|length > 0 %}
+{% for fact in ctx.rendered_facts.values() %}
+{{ fact }}
+{% endfor %}
+{% else %}
+No facts in current context.
+{% endif %}
+
+{% if error is not defined %}
+## Task:
+Author a valid SQL statement to address the following directive/question.
+USER: "{{ prompt }}"
+{% else %}
+## Task:
+A SQL statement was authored to address the user's directive/question, however it had errors.
+Fix the SQL statement.
+
+USER: "{{ prompt }}"
+
+<sql-statement>
+{{ answer }}
+</sql-statement>
+
+ERROR: {{ error }}
+{% endif %}

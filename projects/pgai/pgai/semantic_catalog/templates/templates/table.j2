@@ -1,0 +1,27 @@
+<table id="{% if table.id > -1 %}{{ table.id }}{% else %}{{ table.objid }}{% endif %}">
+CREATE{% if table.persistence is not none %} {{ table.persistence | upper }} {% else %} {% endif %}TABLE {{ table.schema_name }}.{{ table.table_name }}
+( {% for column in (table.columns if table.columns is not none else []) %}{% if not loop.first %}{{ '\n, ' }}{% endif %}{{ column.name }} {{ column.type }}{% if column.is_not_null %} NOT NULL{% endif %}{% if column.default_value is not none %} {{ column.default_value }}{% endif %}{% endfor %}
+);
+{% for constraint in (table.constraints if table.constraints is not none else []) -%}
+ALTER TABLE {{ table.schema_name }}.{{ table.table_name }} ADD CONSTRAINT {{ constraint.name }} {{ constraint.definition }};
+{% endfor -%}
+{% for index in (table.indexes if table.indexes is not none else []) -%}
+{{ index.definition }};
+{% endfor -%}
+{% if table.description is not none %}
+COMMENT ON TABLE {{ table.schema_name }}.{{ table.table_name }} IS $${{ table.description.description }}$$;
+{% endif -%}
+{% for column in (table.columns if table.columns is not none else []) -%}
+{% if column.description is not none %}
+COMMENT ON COLUMN {{ table.schema_name }}.{{ table.table_name }}.{{ column.name }} IS $${{ column.description.description }}$$;
+{% endif -%}
+{% endfor -%}
+{% if table.dimensions is not none -%}
+{% for dimension in table.dimensions -%}
+SELECT {% if loop.first %}create_hypertable{% else %}add_dimension{% endif %}('{{ table.schema_name }}.{{ table.table_name }}', {{ dimension.dimension_builder }}('{{ dimension.column_name }}', {% if dimension.partition_interval is not none %}{{ dimension.partition_interval }}{% else %}{{ dimension.number_partitions }}{% endif %}{% if dimension.partition_func is not none %}, partition_func => '{{ dimension.partition_func }}'{% endif %}));
+{% endfor -%}
+{% endif -%}
+{% if table.sample is not none %}
+{{ table.sample }}
+{% endif -%}
+</table>
