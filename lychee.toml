@@ -1,0 +1,19 @@
+verbose = "info"
+no_progress = true
+exclude_loopback = true
+accept = ["403"]
+include = [
+    # force checking absolute links within this repo (overriding the exclusion below)
+    # we shouldn't have any absolute links like thise (we should use relative links instead),
+    # so we're not too concerned about hitting rate limits.
+    "https://github.com/timescale/pgai/blob/.*",
+]
+exclude = [
+    "http://0.0.0.0:8000/*",
+    "https://github.com/timescale/pgai/compare/pgai-v.*",
+    "https://github.com/timescale/pgai/commit/.*",
+    "https://github.com/.*/.*/blob/.*", # github has strict rate limits on these URLs
+]
+exclude_path = [
+    "examples/embeddings_from_documents/documents", # contains a copy of the pgai documentation, so absolute links are all broken
+]
