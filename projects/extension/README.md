@@ -102,7 +102,7 @@ Please note that using Ollama requires a large (>4GB) download of the docker ima
     SELECT ai.load_dataset('wikimedia/wikipedia', '20231101.en', table_name=>'wiki', batch_size=>5, max_batches=>1, if_table_exists=>'append');
     ```
     
-    Related documentation: [load dataset from huggingface](/docs/utils/load_dataset_from_huggingface.md).
+    Related documentation: [load dataset from huggingface](docs/utils/load_dataset_from_huggingface.md).
 
 1. **Generate a summary of the article in the database**
     
@@ -129,10 +129,9 @@ Please note that using Ollama requires a large (>4GB) download of the docker ima
 
 ## Leverage LLMs for data processing tasks
 * Retrieve LLM chat completions from models like Claude Sonnet 3.5, OpenAI GPT4o, Cohere Command, and Llama 3 (via Ollama). ([learn more](#usage-of-pgai))
-* Reason over your data and facilitate use cases like classification, summarization, and data enrichment on your existing relational data in PostgreSQL ([see an example](/docs/model_calling/openai.md)).
+* Reason over your data and facilitate use cases like classification, summarization, and data enrichment on your existing relational data in PostgreSQL ([see an example](docs/model_calling/openai.md)).
 
 ## Useful utilities
-* Load datasets from Hugging Face into your database with [ai.load_dataset](/docs/utils/load_dataset_from_huggingface.md).
 * Use chunking algorithms to split text with [SQL functions](/docs/utils/chunking.md).
 
 # Resources

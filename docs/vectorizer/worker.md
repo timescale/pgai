@@ -53,7 +53,7 @@ When you use pgai vectorizers on a self-hosted Postgres installation or another 
 
 1. **Run the vectorizer worker**
 
-    After you [define a vectorizer in your database](/docs/vectorizer.md#define-a-vectorizer), you run 
+    After you [define a vectorizer in your database](/docs/vectorizer/overview.md#define-a-vectorizer), you run
     a vectorizer worker to generate and update your embeddings:
     
     ```shell
@@ -130,7 +130,7 @@ For more configuration options, see [Advanced configuration options](#advanced-c
 
 1. **Run the vectorizer worker**
   
-    After you [define a vectorizer in your database](/docs/vectorizer.md#define-a-vectorizer), you run a vectorizer worker to generate and update your embeddings.
+    After you [define a vectorizer in your database](/docs/vectorizer/overview.md#define-a-vectorizer), you run a vectorizer worker to generate and update your embeddings.
 
     ```
     docker run --env-file=.env timescale/pgai-vectorizer-worker:{tag version} --db-url "postgres://user:password@host:5432/database"
