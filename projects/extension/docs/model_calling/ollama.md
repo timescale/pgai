@@ -36,7 +36,7 @@ You set the network for your Ollama configuration either:
   * System-wide, [add it to the postgres.conf file](https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-CONFIGURATION-FILE)
 
 
-When Ollama is running on the same host machine as the [Docker container](../install/docker.md) 
+When Ollama is running on the same host machine as the [Docker container](/projects/extension/docs/install/docker.md) 
 running pgai, the ollama host address is `http://host.docker.internal:11434`.
 
 ## Usage

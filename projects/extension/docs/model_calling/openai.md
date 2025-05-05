@@ -13,7 +13,7 @@ To use the OpenAI functions, you need an [OpenAI API key](https://platform.opena
 In production, we suggest setting the API key using an environment variable.
 During testing and development, it may be easiest to configure the key value
 as a [session level parameter]. For more options and details, consult the
-[Handling API keys](/docs/security/handling-api-keys.md) document.
+[Handling API keys](/projects/extension/docs/security/handling-api-keys.md) document.
 
 [session level parameter]: https://www.postgresql.org/docs/current/config-setting.html#CONFIG-SETTING-SHELL
 
@@ -366,7 +366,7 @@ To add the advanced examples to your developer environment, in the `<pgai-repo>/
 
 1. Connect to your database using `psql`:
 
-   The following command [passes your OpenAI API key as a session parameter](/docs/security/handling-api-keys.md#configure-an-api-key-for-an-interactive-psql-session):
+   The following command [passes your OpenAI API key as a session parameter](/projects/extension/docs/security/handling-api-keys.md#configure-an-api-key-for-an-interactive-psql-session):
 
    ```bash
    PGOPTIONS="-c ai.openai_api_key=$OPENAI_API_KEY" psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"

@@ -205,7 +205,7 @@ EOF
 
 ### Set your API key
 
-There are a [number of supported ways](/docs/security/handling-api-keys.md) to 
+There are a [number of supported ways](/projects/extension/docs/security/handling-api-keys.md) to
 make your API keys available to pgai. For the purposes of this demo, set the 
 OPENAI_API_KEY environment variable in your shell session in the docker container.
 
