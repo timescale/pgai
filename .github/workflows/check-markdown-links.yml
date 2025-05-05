@@ -10,25 +10,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Restore lychee cache
-        id: restore-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: .lycheecache
-          key: cache-lychee-${{ github.sha }}
-          restore-keys: cache-lychee-
-
       - name: Link Checker
         id: lychee
         uses: lycheeverse/lychee-action@v2
         with:
-          args: --concurrency 100 --cache --max-cache-age 1d --exclude-loopback --accept '403' --exclude "http://0.0.0.0:8000/*" --exclude "https://github.com/timescale/pgai/compare/pgai-v.*" --exclude "https://github.com/timescale/pgai/commit/*"  --verbose --no-progress ..
+          args: --root-dir $(pwd) --exclude-loopback --accept '403' --exclude "http://0.0.0.0:8000/*" --exclude "https://github.com/timescale/pgai/compare/pgai-v.*" --exclude "https://github.com/timescale/pgai/commit/.*" --exclude "https://github.com/.*/.*/blob/.*" --include "https://github.com/timescale/pgai/blob/.*" --verbose --no-progress ..
           format: markdown
           jobSummary: true
-
-      - name: Save lychee cache
-        uses: actions/cache/save@v4
-        if: always()
-        with:
-          path: .lycheecache
-          key: ${{ steps.restore-cache.outputs.cache-primary-key }}
