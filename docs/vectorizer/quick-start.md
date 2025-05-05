@@ -142,3 +142,5 @@ The results look like:
 That's it, you're done. You now have a table in Postgres that pgai vectorizer automatically creates 
 and syncs embeddings for. You can use this vectorizer for semantic search, RAG or any other AI 
 app you can think of! If you have any questions, reach out to us on [Discord](https://discord.gg/KRdHVXAmkp).
+
+noop
