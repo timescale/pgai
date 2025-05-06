@@ -46,7 +46,7 @@ def psql_file(user, dbname, file: str) -> None:
         ]
     )
     if where_am_i() != "docker":
-        cmd = f"docker exec -w {docker_dir()} pgai-ext {cmd}"
+        cmd = f"docker exec -w {docker_dir()} pgai-db {cmd}"
     subprocess.run(cmd, check=True, shell=True, env=os.environ, cwd=str(host_dir()))
 
 
