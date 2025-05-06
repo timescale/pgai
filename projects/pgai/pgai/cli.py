@@ -695,13 +695,16 @@ def create(
     - OpenAI: https://platform.openai.com/docs/guides/embeddings#embedding-models
     - Ollama: https://ollama.com/search?c=embedding
     - Sentence Transformers:
-    - https://www.sbert.net/docs/sentence_transformer/pretrained_models.html
-    - https://huggingface.co/models?library=sentence-transformers
+        - https://www.sbert.net/docs/sentence_transformer/pretrained_models.html
+        - https://huggingface.co/models?library=sentence-transformers
 
     Examples:
+
+        \b
         # Create a catalog with OpenAI embeddings
         pgai semantic-catalog create --provider openai --model text-embedding-3-small
-
+        
+        \b
         # Create a catalog with custom embedding name
         pgai semantic-catalog create --catalog-name my_catalog --embed-config custom_embeddings
     """  # noqa: E501
@@ -842,12 +845,16 @@ def import_catalog(
     If no YAML file is provided, input is read from stdin.
 
     Examples:
+
+        \b
         # Import from a YAML file
         pgai semantic-catalog import --yaml-file descriptions.yaml
 
+        \b
         # Import and vectorize using a specific embedding configuration
         pgai semantic-catalog import --yaml-file descriptions.yaml --embed-config openai_embeddings
 
+        \b
         # Import from stdin
         cat descriptions.yaml | pgai semantic-catalog import
     """  # noqa: E501
@@ -958,12 +965,16 @@ def export_catalog(
     If no YAML file is provided, output is written to stdout.
 
     Examples:
+
+        \b
         # Export to a YAML file
         pgai semantic-catalog export --yaml-file catalog_backup.yaml
 
+        \b
         # Export a specific catalog
         pgai semantic-catalog export --catalog-name my_catalog --yaml-file my_catalog.yaml
 
+        \b
         # Export to stdout
         pgai semantic-catalog export | tee catalog_backup.yaml
     """  # noqa: E501
@@ -1159,16 +1170,20 @@ def generate_sql(
     https://ai.pydantic.dev/api/models/base/#pydantic_ai.models.KnownModelName
 
     Examples:
+
+        \b
         # Generate SQL for a simple query
         pgai semantic-catalog generate-sql --prompt "Find all users who signed up last month"
-        
+
+        \b
         # Use a specific model and limit iterations
-        pgai semantic-catalog generate-sql --model anthropic:claude-3-opus-20240229 \
-            --prompt "Count orders by product category for Q1 2023" \
+        pgai semantic-catalog generate-sql --model anthropic:claude-3-opus-20240229 \\
+            --prompt "Count orders by product category for Q1 2023" \\
             --iteration-limit 3
-            
+
+        \b  
         # Save the final prompt for debugging
-        pgai semantic-catalog generate-sql --prompt "Find inactive customers" \
+        pgai semantic-catalog generate-sql --prompt "Find inactive customers" \\
             --save-final-prompt debug_prompt.txt
     """  # noqa: E501
     import logging
@@ -1348,12 +1363,16 @@ def search(
     and finding relevant examples that can be adapted for your own queries.
 
     Examples:
+
+        \b
         # Search for objects related to users
         pgai semantic-catalog search --prompt "user accounts"
 
+        \b
         # Search with a specific question
         pgai semantic-catalog search --prompt "How are orders related to customers?"
 
+        \b
         # Include more sample data in results
         pgai semantic-catalog search --prompt "product inventory" --sample-size 5
     """
