@@ -4281,8 +4281,8 @@ begin
     if not admin then
         execute 'grant usage, create on schema ai to ' || to_user;
         execute 'grant select, insert, update, delete on table ai.vectorizer to ' || to_user;
-        execute 'grant select on ai.vectorizer_errors to ' || to_user;
         execute 'grant select on ai._vectorizer_errors to ' || to_user;
+        execute 'grant select on ai.vectorizer_errors to ' || to_user;
         execute 'grant select on ai.vectorizer_status to ' || to_user;
         execute 'grant select, usage on sequence ai.vectorizer_id_seq to ' || to_user;
     else
@@ -4291,6 +4291,7 @@ begin
         execute 'grant all privileges on table ai.pgai_lib_version to ' || to_user;
         execute 'grant all privileges on table ai.pgai_lib_feature_flag to ' || to_user;
         execute 'grant all privileges on table ai.vectorizer to ' || to_user;
+        execute 'grant all privileges on table ai._vectorizer_errors to ' || to_user;
         execute 'grant all privileges on table ai.vectorizer_errors to ' || to_user;
         execute 'grant all privileges on table ai.vectorizer_status to ' || to_user;
         execute 'grant all privileges on sequence ai.vectorizer_id_seq to ' || to_user;
