@@ -10,6 +10,20 @@ logger = logging.getLogger(__name__)
 async def _sample_as_inserts(
     con: psycopg.AsyncConnection, schema_name: str, object_name: str, limit: int = 3
 ) -> str:
+    """Generate INSERT statements for sample data from a database object.
+    
+    Queries the specified database object and generates INSERT statements 
+    for a limited number of rows.
+    
+    Args:
+        con: Asynchronous database connection object.
+        schema_name: Name of the schema containing the object.
+        object_name: Name of the table or view to sample.
+        limit: Maximum number of rows to sample (default: 3).
+        
+    Returns:
+        A string containing SQL INSERT statements for the sampled data.
+    """
     async with con.cursor() as cur:
         await cur.execute(
             SQL("select * from {}.{} limit %s").format(
@@ -34,6 +48,20 @@ async def _sample_as_inserts(
 async def _sample_as_copy_text(
     con: psycopg.AsyncConnection, schema_name: str, object_name: str, limit: int = 3
 ) -> str:
+    """Generate COPY command text for sample data from a database object.
+    
+    Queries the specified database object and generates a COPY command with 
+    sample data in text format, including headers.
+    
+    Args:
+        con: Asynchronous database connection object.
+        schema_name: Name of the schema containing the object.
+        object_name: Name of the table or view to sample.
+        limit: Maximum number of rows to sample (default: 3).
+        
+    Returns:
+        A string containing the COPY command followed by the sampled data in text format.
+    """
     query = SQL(
         "COPY (SELECT * FROM {}.{} LIMIT {}) TO STDOUT WITH (FORMAT TEXT, HEADER true)"
     ).format(
@@ -64,6 +92,24 @@ async def sample_table(
     limit: int = 3,
     format: str = "copy_text",
 ) -> str:
+    """Sample data from a database table.
+    
+    Retrieves a limited number of rows from the specified table and formats the data
+    according to the specified format.
+    
+    Args:
+        con: Asynchronous database connection object.
+        schema_name: Name of the schema containing the table.
+        table_name: Name of the table to sample.
+        limit: Maximum number of rows to sample (default: 3).
+        format: Output format, either "inserts" or "copy_text" (default: "copy_text").
+        
+    Returns:
+        A string containing the sampled data in the requested format.
+        
+    Raises:
+        RuntimeError: If an unsupported format is specified.
+    """
     assert format in {"inserts", "copy_text"}
     match format:
         case "inserts":
@@ -81,6 +127,24 @@ async def sample_view(
     limit: int = 3,
     format: str = "copy_text",
 ) -> str:
+    """Sample data from a database view.
+    
+    Retrieves a limited number of rows from the specified view and formats the data
+    according to the specified format.
+    
+    Args:
+        con: Asynchronous database connection object.
+        schema_name: Name of the schema containing the view.
+        view_name: Name of the view to sample.
+        limit: Maximum number of rows to sample (default: 3).
+        format: Output format, either "inserts" or "copy_text" (default: "copy_text").
+        
+    Returns:
+        A string containing the sampled data in the requested format.
+        
+    Raises:
+        RuntimeError: If an unsupported format is specified.
+    """
     assert format in {"inserts", "copy_text"}
     match format:
         case "inserts":
