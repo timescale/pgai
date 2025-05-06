@@ -661,7 +661,7 @@ def create(
     from pgai.semantic_catalog.vectorizer import embedding_config_from_dict
 
     d = dict(
-        provider=provider.lower(),
+        implementation=provider.lower(),
         model=str(model),
         dimensions=int(vector_dimensions),
     )
