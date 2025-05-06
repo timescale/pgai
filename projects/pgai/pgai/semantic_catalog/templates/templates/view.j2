@@ -1,3 +1,31 @@
+{#
+Template for rendering a database view.
+
+This template generates a SQL representation of a view, including:
+- CREATE VIEW or CREATE MATERIALIZED VIEW statement
+- TimescaleDB continuous aggregate configuration (if applicable)
+- View definition SQL
+- Column type information as a comment
+- Comments on the view and columns
+- Sample data (if available)
+
+Expected context variables:
+- view: A View object with the following attributes:
+  - id: the View's ID in the Semantic Catalog
+  - objid: PostgreSQL object ID
+  - schema_name: Schema name
+  - view_name: View name
+  - table_name: Table name (for comments)
+  - is_materialized: Boolean indicating if it's a materialized view
+  - is_continuous_aggregate: Boolean indicating if it's a TimescaleDB continuous aggregate
+  - definition: The SQL definition of the view
+  - columns: List of Column objects with:
+    - name: Column name
+    - type: Column data type
+    - description: Optional ObjectDescription for column comments
+  - description: Optional ObjectDescription for view comments
+  - sample: Optional string containing sample data SQL
+#}
 <view id="{% if view.id > -1 %}{{ view.id }}{% else %}{{ view.objid }}{% endif %}">
 CREATE{% if view.is_materialized %} MATERIALIZED {% else %} {% endif %}VIEW {{ view.schema_name }}.{{ view.view_name }}{% if view.is_continuous_aggregate %} WITH (timescaledb.continuous){% endif %} AS
 {{ view.definition }}

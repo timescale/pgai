@@ -1,3 +1,41 @@
+{#
+Template for rendering a database table.
+
+This template generates a SQL representation of a table, including:
+- CREATE TABLE statement with columns and their types/constraints
+- ALTER TABLE statements for additional constraints
+- Index definitions
+- Comments on the table and columns
+- TimescaleDB hypertable configuration (if applicable)
+- Sample data (if available)
+
+Expected context variables:
+- table: A Table object with the following attributes:
+  - id: the Table's ID in the Semantic Catalog
+  - objid: PostgreSQL object ID
+  - schema_name: Schema name
+  - table_name: Table name
+  - persistence: Optional table persistence type ("temporary" or "unlogged")
+  - columns: List of Column objects with:
+    - name: Column name
+    - type: Column data type
+    - is_not_null: Boolean for NOT NULL constraint
+    - default_value: Optional default expression
+    - description: Optional ObjectDescription for column comments
+  - constraints: Optional list of Constraint objects with:
+    - name: Constraint name
+    - definition: Constraint definition SQL
+  - indexes: Optional list of Index objects with:
+    - definition: Index definition SQL
+  - description: Optional ObjectDescription for table comments
+  - dimensions: Optional list of TimescaleDB Dimension objects with:
+    - dimension_builder: Function to use for dimension creation
+    - column_name: Column to use for partitioning
+    - partition_interval: Time interval for time partitioning
+    - number_partitions: Number of partitions for space partitioning
+    - partition_func: Optional custom partitioning function
+  - sample: Optional string containing sample data SQL
+#}
 <table id="{% if table.id > -1 %}{{ table.id }}{% else %}{{ table.objid }}{% endif %}">
 CREATE{% if table.persistence is not none %} {{ table.persistence | upper }} {% else %} {% endif %}TABLE {{ table.schema_name }}.{{ table.table_name }}
 ( {% for column in (table.columns if table.columns is not none else []) %}{% if not loop.first %}{{ '\n, ' }}{% endif %}{{ column.name }} {{ column.type }}{% if column.is_not_null %} NOT NULL{% endif %}{% if column.default_value is not none %} {{ column.default_value }}{% endif %}{% endfor %}

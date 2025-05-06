@@ -1,4 +1,23 @@
 
+{# 
+Template for the user prompt in SQL generation.
+
+This template generates the user prompt for an AI assistant tasked with writing
+SQL statements. It provides context about the database (objects, examples, facts)
+and either asks for a new SQL statement or requests a fix for a previous statement
+that had errors.
+
+Expected context variables:
+- prior_prompts: List of previous search prompts (if any)
+- ctx: Context object with:
+  - rendered_objects: Dictionary of rendered database objects
+  - rendered_sql_examples: Dictionary of rendered SQL examples
+  - rendered_facts: Dictionary of rendered facts
+- prompt: The user's question or directive
+- error: Optional error message from a previous SQL statement
+- answer: The previous SQL statement that had errors (only used if error is defined)
+#}
+
 ## Prior search prompts:
 The semantic search results from the following prompts are already included in the context below:
 {% for prior_prompt in prior_prompts %}
