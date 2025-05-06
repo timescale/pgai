@@ -440,6 +440,74 @@ async def generate_sql(
     sql_ids: list[int] | None = None,
     fact_ids: list[int] | None = None,
 ) -> GenerateSQLResponse:
+    """Generate a SQL statement based on natural language prompt and database context.
+
+    This function uses an AI model to generate a SQL statement that fulfills the user's
+    request, drawing on context from the semantic catalog about database objects, SQL
+    examples, and facts. The generated SQL is validated against the target database
+    to ensure correctness, and refinement iterations are performed if needed.
+
+    The function uses an iterative approach:
+    1. Initialize database context based on the specified context mode
+    2. Generate a SQL statement using the AI model with the context
+    3. Validate the SQL statement against the target database
+    4. If invalid, refine the SQL statement with error feedback
+    5. Repeat until a valid SQL statement is generated or iteration limit is reached
+
+    Args:
+        catalog_con: Connection to the semantic catalog database.
+        target_con: Connection to the target database where SQL will be executed.
+        model: AI model to use for generating SQL (KnownModelName or Model instance).
+        catalog_id: ID of the semantic catalog to use for context.
+        embedding_name: Name of the embedding column to use for semantic search.
+        embedding_config: Configuration for the embedding model.
+        prompt: Natural language prompt describing the desired SQL statement.
+        usage: Optional Usage object to track token usage across calls.
+        usage_limits: Optional limits on token usage and requests.
+        model_settings: Optional settings for the AI model.
+        iteration_limit: Maximum number of refinement iterations (default: 5).
+        sample_size: Number of sample rows to include for tables/views (default: 3).
+        context_mode: Strategy for initializing database context:
+            - "semantic_search": Find relevant items semantically (default)
+            - "entire_catalog": Include all items from the catalog
+            - "specific_ids": Include only items with specified IDs
+        obj_ids: Optional list of database object IDs to include (for "specific_ids" mode).
+        sql_ids: Optional list of SQL example IDs to include (for "specific_ids" mode).
+        fact_ids: Optional list of fact IDs to include (for "specific_ids" mode).
+
+    Returns:
+        A GenerateSQLResponse containing:
+        - The generated SQL statement
+        - The database context used for generation
+        - The query plan for the SQL statement
+        - The final prompt sent to the model
+        - The final response from the model
+        - All messages exchanged during generation
+        - Usage statistics for the AI model calls
+
+    Raises:
+        IterationLimitExceededException: If the iteration limit is reached without
+            generating a valid SQL statement.
+        RuntimeError: If the semantic catalog is not properly configured.
+
+    Example:
+        ```python
+        # Generate a SQL statement for a natural language query
+        response = await generate_sql(
+            catalog_con=catalog_connection,
+            target_con=db_connection,
+            model="anthropic:claude-3-opus-20240229",
+            catalog_id=1,
+            embedding_name="openai_embeddings",
+            embedding_config=config,
+            prompt="Find all orders placed last month with a total value over $1000",
+            iteration_limit=3,
+        )
+
+        # Use the generated SQL
+        print(response.sql_statement)
+        ```
+    """  # noqa: E501
     usage = usage or Usage()
     usage_limits = usage_limits or UsageLimits(request_limit=None)
     model_settings = model_settings or ModelSettings()
