@@ -17,6 +17,24 @@ logger = logging.getLogger(__name__)
 async def load_tables(
     con: psycopg.AsyncConnection, oids: list[int], sample_size: int = 0
 ) -> list[Table]:
+    """Load table definitions from the database based on object IDs.
+    
+    Retrieves table metadata including columns, constraints, and indexes for the
+    specified table OIDs. If sample_size is greater than 0, it also retrieves sample
+    data from each table.
+    
+    Args:
+        con: Asynchronous database connection object.
+        oids: List of table object IDs to load.
+        sample_size: Number of sample rows to retrieve from each table (default: 0).
+            If 0, no sample data is retrieved.
+            
+    Returns:
+        A list of Table objects with metadata and optionally sample data.
+        
+    Raises:
+        AssertionError: If the list of oids is empty.
+    """
     # TODO: add support for hypertable info
     # TODO: add support for partitioning info
     # TODO: add support for inheritance info
@@ -197,6 +215,25 @@ async def load_tables(
 async def load_views(
     con: psycopg.AsyncConnection, oids: list[int], sample_size: int = 0
 ) -> list[View]:
+    """Load view definitions from the database based on object IDs.
+    
+    Retrieves view metadata including columns and definition SQL for the specified
+    view OIDs. Handles both regular views and materialized views. If TimescaleDB is
+    installed, it also identifies continuous aggregates. If sample_size is greater 
+    than 0, it also retrieves sample data from each view.
+    
+    Args:
+        con: Asynchronous database connection object.
+        oids: List of view object IDs to load.
+        sample_size: Number of sample rows to retrieve from each view (default: 0).
+            If 0, no sample data is retrieved.
+            
+    Returns:
+        A list of View objects with metadata and optionally sample data.
+        
+    Raises:
+        AssertionError: If the list of oids is empty.
+    """
     assert len(oids) > 0, "list of oids must not be empty"
     async with con.cursor(row_factory=dict_row) as cur:
         await cur.execute("select 1 from pg_extension where extname = 'timescaledb'")
@@ -273,6 +310,21 @@ async def load_views(
 async def load_procedures(
     con: psycopg.AsyncConnection, oids: list[int]
 ) -> list[Procedure]:
+    """Load procedure definitions from the database based on object IDs.
+    
+    Retrieves metadata for procedures, functions, and aggregates for the specified OIDs,
+    including their full definition SQL.
+    
+    Args:
+        con: Asynchronous database connection object.
+        oids: List of procedure object IDs to load.
+            
+    Returns:
+        A list of Procedure objects with metadata.
+        
+    Raises:
+        AssertionError: If the list of oids is empty.
+    """
     assert len(oids) > 0, "list of oids must not be empty"
     async with con.cursor(row_factory=dict_row) as cur:
         await cur.execute(
@@ -403,6 +455,25 @@ async def load_objects(
     obj_desc: list[ObjectDescription],
     sample_size: int = 0,
 ) -> list[Table | View | Procedure]:
+    """Load database objects based on their descriptions.
+    
+    Takes a list of object descriptions and loads the corresponding database objects
+    (tables, views, procedures) with their metadata. Matches the descriptions with 
+    the loaded objects and attaches them. If sample_size is greater than 0, it also 
+    retrieves sample data for tables and views.
+    
+    Args:
+        con: Asynchronous database connection object.
+        obj_desc: List of object descriptions to match with database objects.
+        sample_size: Number of sample rows to retrieve from tables and views (default: 0).
+            If 0, no sample data is retrieved.
+            
+    Returns:
+        A list of database objects (Tables, Views, Procedures) with metadata and descriptions.
+        
+    Raises:
+        ValueError: If an unknown object type is encountered.
+    """
     # given a list of object descriptions, load the objects' models and match up the
     # descriptions with the models
     t: set[int] = set()  # distinct objid
