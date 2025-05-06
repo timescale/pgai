@@ -1,3 +1,9 @@
+"""SentenceTransformers embedding provider for the semantic catalog vectorizer.
+
+This module implements embedding functionality using SentenceTransformers as the embedding provider.
+It provides functions for embedding both batches of content and individual queries.
+"""
+
 import logging
 from collections.abc import Sequence
 from contextlib import contextmanager
@@ -33,6 +39,18 @@ def disable_logging():
 async def embed_batch(
     config: SentenceTransformersConfig, batch: list[EmbedRow]
 ) -> None:
+    """Generate embeddings for a batch of content using SentenceTransformers.
+    
+    Creates vector embeddings for multiple items using SentenceTransformers and
+    updates the vector field in each EmbedRow object with the resulting embedding.
+    
+    Args:
+        config: Configuration for the SentenceTransformers embedding service.
+        batch: List of EmbedRow objects containing content to be embedded.
+        
+    Raises:
+        AssertionError: If the number of embeddings returned doesn't match the batch size.
+    """
     st = SentenceTransformer(
         config.model, trust_remote_code=True
     )  # TODO: configurable?
@@ -59,6 +77,20 @@ async def embed_batch(
 async def embed_query(
     config: SentenceTransformersConfig, query: str
 ) -> Sequence[float]:
+    """Generate an embedding for a single query using SentenceTransformers.
+    
+    Creates a vector embedding for a query string using SentenceTransformers.
+    
+    Args:
+        config: Configuration for the SentenceTransformers embedding service.
+        query: The query string to embed.
+        
+    Returns:
+        A vector embedding (sequence of floats) for the query.
+        
+    Raises:
+        AssertionError: If the number of embeddings returned is not exactly 1.
+    """
     st = SentenceTransformer(
         config.model, trust_remote_code=True
     )  # TODO: configurable?
