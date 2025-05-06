@@ -192,6 +192,20 @@ Item = Table | View | Procedure | Function | Aggregate | SQLExample | Fact
 
 
 def item_from_dict(d: dict[str, Any]) -> Item:
+    """Convert a dictionary to the appropriate catalog item type.
+    
+    Takes a dictionary that represents a catalog item and converts it to the
+    corresponding model class based on the 'type' field.
+    
+    Args:
+        d: Dictionary containing item data with a 'type' field.
+        
+    Returns:
+        An instance of the appropriate Item type.
+        
+    Raises:
+        ValueError: If the 'type' field is not recognized.
+    """
     mapping = {
         "table": Table,
         "view": View,
@@ -208,6 +222,20 @@ def item_from_dict(d: dict[str, Any]) -> Item:
 
 
 def import_from_yaml(text: TextIO) -> Generator[Item, None, None]:
+    """Import catalog items from a YAML file.
+    
+    Reads a YAML stream containing multiple documents. The first document should be a
+    header with schema version information, followed by one or more catalog items.
+    
+    Args:
+        text: A text IO stream containing YAML documents.
+        
+    Returns:
+        A generator yielding catalog items (Tables, Views, Functions, etc.).
+        
+    Raises:
+        RuntimeError: If the first document is not a header or has an invalid schema version.
+    """
     for i, doc in enumerate(yaml.safe_load_all(text)):
         if not doc:
             continue
@@ -224,6 +252,21 @@ def import_from_yaml(text: TextIO) -> Generator[Item, None, None]:
 async def _look_up_class(
     target_con: psycopg.AsyncConnection, item: Table | View
 ) -> list[ObjectDescription]:
+    """Look up database object IDs for a table or view and its columns.
+    
+    Queries the database to find the object IDs for a table or view and all its columns,
+    then creates ObjectDescription objects for each.
+    
+    Args:
+        target_con: Asynchronous database connection to the target database.
+        item: A Table or View object to look up.
+        
+    Returns:
+        A list of ObjectDescription objects for the table/view and its columns.
+        
+    Raises:
+        RuntimeError: If the table or view is not found in the database.
+    """
     descs: list[ObjectDescription] = []
     async with target_con.cursor(row_factory=dict_row) as cur:
         await cur.execute(
@@ -295,6 +338,21 @@ async def _look_up_class(
 async def _look_up_proc(
     target_con: psycopg.AsyncConnection, item: Procedure | Function | Aggregate
 ) -> ObjectDescription:
+    """Look up database object IDs for a procedure, function, or aggregate.
+    
+    Queries the database to find the object ID for a procedure, function, or aggregate,
+    then creates an ObjectDescription object for it.
+    
+    Args:
+        target_con: Asynchronous database connection to the target database.
+        item: A Procedure, Function, or Aggregate object to look up.
+        
+    Returns:
+        An ObjectDescription object for the procedure, function, or aggregate.
+        
+    Raises:
+        RuntimeError: If the procedure, function, or aggregate is not found in the database.
+    """
     async with target_con.cursor(row_factory=dict_row) as cur:
         await cur.execute(
             """\
@@ -331,6 +389,15 @@ async def _look_up_proc(
 async def _save_objs(
     catalog_con: psycopg.AsyncConnection, catalog_id: int, objs: list[ObjectDescription]
 ) -> None:
+    """Save object descriptions to the semantic catalog.
+    
+    Stores the provided object descriptions in the semantic catalog database.
+    
+    Args:
+        catalog_con: Asynchronous database connection to the catalog database.
+        catalog_id: ID of the semantic catalog to save to.
+        objs: List of ObjectDescription objects to save.
+    """
     async with catalog_con.cursor() as cur:
         for obj in objs:
             await cur.execute(
@@ -364,6 +431,15 @@ async def _save_objs(
 async def _save_sql_example(
     catalog_con: psycopg.AsyncConnection, catalog_id: int, sql_example: SQLExample
 ) -> None:
+    """Save a SQL example to the semantic catalog.
+    
+    Stores the provided SQL example in the semantic catalog database.
+    
+    Args:
+        catalog_con: Asynchronous database connection to the catalog database.
+        catalog_id: ID of the semantic catalog to save to.
+        sql_example: SQLExample object to save.
+    """
     async with catalog_con.cursor() as cur:
         await cur.execute(
             """\
@@ -386,6 +462,15 @@ async def _save_sql_example(
 async def _save_fact(
     catalog_con: psycopg.AsyncConnection, catalog_id: int, fact: Fact
 ) -> None:
+    """Save a fact to the semantic catalog.
+    
+    Stores the provided fact in the semantic catalog database.
+    
+    Args:
+        catalog_con: Asynchronous database connection to the catalog database.
+        catalog_id: ID of the semantic catalog to save to.
+        fact: Fact object to save.
+    """
     async with catalog_con.cursor() as cur:
         await cur.execute(
             """\
@@ -406,6 +491,17 @@ async def save_to_catalog(
     catalog_id: int,
     items: Iterator[Item],
 ) -> None:
+    """Save catalog items to the semantic catalog database.
+    
+    Takes a collection of catalog items and saves them to the semantic catalog database.
+    Resolves object IDs from the target database and creates appropriate descriptions.
+    
+    Args:
+        catalog_con: Asynchronous database connection to the catalog database.
+        target_con: Asynchronous database connection to the target database (where objects are defined).
+        catalog_id: ID of the semantic catalog to save to.
+        items: Iterator of catalog items to save.
+    """
     for item in items:
         match item.type:
             case "table" | "view":
@@ -425,6 +521,18 @@ async def save_to_catalog(
 async def _load_tables_views(
     cur: psycopg.AsyncCursor[DictRow], catalog_id: int
 ) -> AsyncGenerator[Item, None]:
+    """Load table and view descriptions from the semantic catalog.
+    
+    Queries the semantic catalog to retrieve table and view descriptions,
+    including column descriptions.
+    
+    Args:
+        cur: Asynchronous database cursor.
+        catalog_id: ID of the semantic catalog to load from.
+        
+    Returns:
+        An async generator yielding Table and View objects.
+    """
     await cur.execute(
         SQL("""\
             select
@@ -460,6 +568,17 @@ async def _load_tables_views(
 async def _load_functions_procedures_aggregates(
     cur: psycopg.AsyncCursor[DictRow], catalog_id: int
 ) -> AsyncGenerator[Item, None]:
+    """Load function, procedure, and aggregate descriptions from the semantic catalog.
+    
+    Queries the semantic catalog to retrieve function, procedure, and aggregate descriptions.
+    
+    Args:
+        cur: Asynchronous database cursor.
+        catalog_id: ID of the semantic catalog to load from.
+        
+    Returns:
+        An async generator yielding Function, Procedure, and Aggregate objects.
+    """
     await cur.execute(
         SQL("""\
             select
@@ -479,6 +598,17 @@ async def _load_functions_procedures_aggregates(
 async def _load_sql_examples(
     cur: psycopg.AsyncCursor[DictRow], catalog_id: int
 ) -> AsyncGenerator[Item, None]:
+    """Load SQL examples from the semantic catalog.
+    
+    Queries the semantic catalog to retrieve SQL examples.
+    
+    Args:
+        cur: Asynchronous database cursor.
+        catalog_id: ID of the semantic catalog to load from.
+        
+    Returns:
+        An async generator yielding SQLExample objects.
+    """
     await cur.execute(
         SQL("""\
             select
@@ -494,6 +624,17 @@ async def _load_sql_examples(
 async def _load_facts(
     cur: psycopg.AsyncCursor[DictRow], catalog_id: int
 ) -> AsyncGenerator[Item, None]:
+    """Load facts from the semantic catalog.
+    
+    Queries the semantic catalog to retrieve facts.
+    
+    Args:
+        cur: Asynchronous database cursor.
+        catalog_id: ID of the semantic catalog to load from.
+        
+    Returns:
+        An async generator yielding Fact objects.
+    """
     await cur.execute(
         SQL("""\
             select
@@ -508,6 +649,18 @@ async def _load_facts(
 async def load_from_catalog(
     con: psycopg.AsyncConnection, catalog_id: int
 ) -> AsyncGenerator[Item, None]:
+    """Load all items from the semantic catalog.
+    
+    Retrieves all catalog items (tables, views, functions, procedures, aggregates,
+    SQL examples, and facts) from the specified semantic catalog.
+    
+    Args:
+        con: Asynchronous database connection to the catalog database.
+        catalog_id: ID of the semantic catalog to load from.
+        
+    Returns:
+        An async generator yielding all catalog items.
+    """
     async with con.cursor(row_factory=dict_row) as cur:
         async for item in _load_tables_views(cur, catalog_id):
             yield item
@@ -520,6 +673,15 @@ async def load_from_catalog(
 
 
 def export_to_yaml(text: TextIO, items: Iterator[Item]) -> None:
+    """Export catalog items to a YAML file.
+    
+    Writes catalog items to a YAML file with multiple documents. The first document
+    is a header with schema version information, followed by one document per item.
+    
+    Args:
+        text: A text IO stream to write the YAML documents to.
+        items: Iterator of catalog items to export.
+    """
     text.write(Header().to_yaml())
     for item in items:
         text.write(item.to_yaml())
@@ -527,6 +689,15 @@ def export_to_yaml(text: TextIO, items: Iterator[Item]) -> None:
 
 
 async def async_export_to_yaml(text: TextIO, items: AsyncIterator[Item]) -> None:
+    """Export catalog items to a YAML file asynchronously.
+    
+    Asynchronously writes catalog items to a YAML file with multiple documents. The first document
+    is a header with schema version information, followed by one document per item.
+    
+    Args:
+        text: A text IO stream to write the YAML documents to.
+        items: Async iterator of catalog items to export.
+    """
     text.write(Header().to_yaml())
     async for item in items:
         text.write(item.to_yaml())
