@@ -343,33 +343,22 @@ class SemanticCatalog:
         await async_export_to_yaml(yaml, load_from_catalog(catalog_con, self.id))
 
 
-async def _check_installed(con: CatalogConnection) -> None:
-    async with con.cursor() as cur:
-        await cur.execute(
-            """\
-            select count(*)
-            from information_schema.tables
-            where table_schema = %s and table_name = %s
-        """,
-            ("ai", "semantic_catalog"),
-        )
-        row = await cur.fetchone()
-        assert (
-            row is not None and row[0] > 0
-        ), "Semantic catalog is not installed, please run: pgai semantic-catalog create"
-
-
 async def from_id(con: CatalogConnection, id: int) -> SemanticCatalog:
-    await _check_installed(con)
     async with con.cursor(row_factory=dict_row) as cur:
-        await cur.execute(
-            """\
-            select id, catalog_name
-            from ai.semantic_catalog
-            where id = %s
-        """,
-            (id,),
-        )
+        try:
+            await cur.execute(
+                """\
+                select id, catalog_name
+                from ai.semantic_catalog
+                where id = %s
+            """,
+                (id,),
+            )
+        except psycopg.errors.UndefinedTable:
+            raise RuntimeError(
+                "Semantic catalog is not installed, please run: "
+                + "pgai semantic-catalog create"
+            ) from None
         row = await cur.fetchone()
         if row is None:
             raise RuntimeError(f"No semantic catalog found with id: {id}")
@@ -377,16 +366,21 @@ async def from_id(con: CatalogConnection, id: int) -> SemanticCatalog:
 
 
 async def from_name(con: CatalogConnection, catalog_name: str) -> SemanticCatalog:
-    await _check_installed(con)
     async with con.cursor(row_factory=dict_row) as cur:
-        await cur.execute(
-            """\
-            select id, catalog_name
-            from ai.semantic_catalog
-            where catalog_name = %s
-        """,
-            (catalog_name,),
-        )
+        try:
+            await cur.execute(
+                """\
+                select id, catalog_name
+                from ai.semantic_catalog
+                where catalog_name = %s
+            """,
+                (catalog_name,),
+            )
+        except psycopg.errors.UndefinedTable:
+            raise RuntimeError(
+                "Semantic catalog is not installed, please run: "
+                + "pgai semantic-catalog create"
+            ) from None
         row = await cur.fetchone()
         if row is None:
             raise RuntimeError(
@@ -397,10 +391,16 @@ async def from_name(con: CatalogConnection, catalog_name: str) -> SemanticCatalo
 
 async def list_semantic_catalogs(con: CatalogConnection) -> list[SemanticCatalog]:
     async with con.cursor(row_factory=dict_row) as cur:
-        await cur.execute("""\
-            select id, catalog_name
-            from ai.semantic_catalog
-        """)
+        try:
+            await cur.execute("""\
+                select id, catalog_name
+                from ai.semantic_catalog
+            """)
+        except psycopg.errors.UndefinedTable:
+            raise RuntimeError(
+                "Semantic catalog is not installed, please run: "
+                + "pgai semantic-catalog create"
+            ) from None
         results: list[SemanticCatalog] = []
         for row in await cur.fetchall():
             results.append(SemanticCatalog(row["id"], row["catalog_name"]))
