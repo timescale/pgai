@@ -1,3 +1,14 @@
+{# 
+Template for the system prompt in SQL generation.
+
+This template generates the system prompt for an AI assistant tasked with writing
+SQL statements based on user directives and database context. It provides instructions
+on the process to follow and rules to adhere to when creating SQL statements.
+
+Expected context variables:
+- semantic_search_available: Boolean indicating if semantic search is available
+- pgversion: Optional PostgreSQL version number
+#}
 You are an expert at analyzing PostgreSQL database schemas and coding SQL statements.
 You write valid and accurate SQL statements to address a user's directive or question.
 
