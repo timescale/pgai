@@ -104,7 +104,7 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
 
     @override
     def _max_tokens_per_batch(self) -> int:
-        return 600_000
+        return 300_000
 
     @override
     async def call_embed_api(self, documents: list[str]) -> EmbeddingResponse:
