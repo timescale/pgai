@@ -703,7 +703,7 @@ def create(
         \b
         # Create a catalog with OpenAI embeddings
         pgai semantic-catalog create --provider openai --model text-embedding-3-small
-        
+
         \b
         # Create a catalog with custom embedding name
         pgai semantic-catalog create --catalog-name my_catalog --embed-config custom_embeddings
@@ -1181,7 +1181,7 @@ def generate_sql(
             --prompt "Count orders by product category for Q1 2023" \\
             --iteration-limit 3
 
-        \b  
+        \b
         # Save the final prompt for debugging
         pgai semantic-catalog generate-sql --prompt "Find inactive customers" \\
             --save-final-prompt debug_prompt.txt
