@@ -12,12 +12,12 @@ import click
 import psycopg
 import structlog
 from ddtrace import tracer
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from pytimeparse import parse  # type: ignore
 
 from .__init__ import __version__
 
-load_dotenv()
+load_dotenv(dotenv_path=find_dotenv(usecwd=True))
 
 structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
 log = structlog.get_logger()
