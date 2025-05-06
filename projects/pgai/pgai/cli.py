@@ -252,12 +252,11 @@ def install(db_url: str, strict: bool) -> None:
 @click.version_option(version=__version__)
 def semantic_catalog():
     """Manage semantic catalogs for PostgreSQL databases.
-    
+
     Semantic catalogs store metadata about database objects along with natural language
     descriptions and vector embeddings, enabling natural language queries about database
     schema and AI-generated SQL.
     """
-    pass
 
 
 @semantic_catalog.command()
@@ -405,15 +404,15 @@ def describe(
     total_tokens_limit: int | None = None,
 ) -> None:
     """Generate natural language descriptions for database objects.
-    
+
     Uses AI to create human-readable descriptions of database objects including
     tables, views, and procedures. These descriptions can be used to populate
     a semantic catalog for natural language queries and SQL generation.
-    
+
     The command connects to the specified database, extracts schema information for
     matching objects, and uses an LLM to generate comprehensive descriptions.
     Results are exported to YAML format.
-    
+
     Filtering options allow you to include or exclude database objects based on
     regular expression patterns applied to schema, table, view, and procedure names.
     """
@@ -488,7 +487,7 @@ def describe(
     "--embed-config",
     type=click.STRING,
     default=None,
-    help="Name of the embedding configuration to use. If not specified, uses all available configurations.",
+    help="Name of the embedding configuration to use. If not specified, uses all available configurations.",  # noqa: E501
 )
 @click.option(
     "-b",
@@ -527,20 +526,20 @@ def vectorize(
     log_level: str | None = "INFO",
 ) -> None:
     """Generate vector embeddings for items in the semantic catalog.
-    
+
     Processes all database objects, SQL examples, and facts in the semantic catalog
     that don't yet have embeddings for the specified embedding configuration.
-    
-    The embeddings are used for semantic search capabilities, allowing natural 
+
+    The embeddings are used for semantic search capabilities, allowing natural
     language queries about the database schema and context for SQL generation.
-    
-    If no embedding configuration is specified, all configurations in the 
+
+    If no embedding configuration is specified, all configurations in the
     catalog will be used for vectorization.
-    
+
     Examples:
         # Vectorize all items using all embedding configurations
         pgai semantic-catalog vectorize
-        
+
         # Vectorize using a specific embedding configuration
         pgai semantic-catalog vectorize --embed-config openai_embeddings
     """
@@ -677,11 +676,11 @@ def create(
     log_level: str | None = "INFO",
 ):
     """Create a new semantic catalog with embedding configuration.
-    
+
     Creates a semantic catalog in the database with the specified parameters.
     The catalog requires at least one embedding configuration to enable semantic
     search capabilities.
-    
+
     The embedding configuration specifies which embedding provider and model
     to use for generating vector embeddings, along with the vector dimensions.
 
@@ -702,10 +701,10 @@ def create(
     Examples:
         # Create a catalog with OpenAI embeddings
         pgai semantic-catalog create --provider openai --model text-embedding-3-small
-        
+
         # Create a catalog with custom embedding name
         pgai semantic-catalog create --catalog-name my_catalog --embed-config custom_embeddings
-    """
+    """  # noqa: E501
     import logging
 
     log_handlers: list[logging.Handler] = []
@@ -786,7 +785,7 @@ def create(
     "--catalog-name",
     type=click.STRING,
     default="default",
-    help="The name of the semantic catalog to generate embeddings for.",  # noqa: E501
+    help="The name of the semantic catalog to generate embeddings for.",
 )
 @click.option(
     "-e",
@@ -834,21 +833,21 @@ def import_catalog(
     log_level: str | None = "INFO",
 ) -> None:
     """Import catalog items from a YAML file into a semantic catalog.
-    
+
     Reads catalog items (tables, views, procedures, SQL examples, facts) from a YAML file
-    and imports them into the specified semantic catalog. After importing, it generates 
+    and imports them into the specified semantic catalog. After importing, it generates
     vector embeddings for the imported items.
-    
+
     The YAML file should be in the format produced by the 'describe' or 'export' commands.
     If no YAML file is provided, input is read from stdin.
-    
+
     Examples:
         # Import from a YAML file
         pgai semantic-catalog import --yaml-file descriptions.yaml
-        
+
         # Import and vectorize using a specific embedding configuration
         pgai semantic-catalog import --yaml-file descriptions.yaml --embed-config openai_embeddings
-        
+
         # Import from stdin
         cat descriptions.yaml | pgai semantic-catalog import
     """  # noqa: E501
@@ -951,23 +950,23 @@ def export_catalog(
     log_level: str | None = "INFO",
 ) -> None:
     """Export catalog items from a semantic catalog to a YAML file.
-    
-    Exports all database objects (tables, views, procedures), SQL examples, 
+
+    Exports all database objects (tables, views, procedures), SQL examples,
     and facts from the semantic catalog to a YAML file. This YAML can be used
     to recreate the catalog in another database or as a backup.
-    
+
     If no YAML file is provided, output is written to stdout.
-    
+
     Examples:
         # Export to a YAML file
         pgai semantic-catalog export --yaml-file catalog_backup.yaml
-        
+
         # Export a specific catalog
         pgai semantic-catalog export --catalog-name my_catalog --yaml-file my_catalog.yaml
-        
+
         # Export to stdout
         pgai semantic-catalog export | tee catalog_backup.yaml
-    """
+    """  # noqa: E501
     import logging
 
     log_handlers: list[logging.Handler] = []
@@ -1049,14 +1048,14 @@ def export_catalog(
     "--embed-config",
     type=click.STRING,
     default=None,
-    help="Name of the embedding configuration to use. If not specified, uses the first available configuration.",
+    help="Name of the embedding configuration to use. If not specified, uses the first available configuration.",  # noqa: E501
 )
 @click.option(
     "-p",
     "--prompt",
     type=click.STRING,
     default=None,
-    help="Natural language description of the SQL query you want to generate (e.g., 'Find all orders placed last month')",
+    help="Natural language description of the SQL query you want to generate (e.g., 'Find all orders placed last month')",  # noqa: E501
     required=True,
 )
 @click.option(
@@ -1171,7 +1170,7 @@ def generate_sql(
         # Save the final prompt for debugging
         pgai semantic-catalog generate-sql --prompt "Find inactive customers" \
             --save-final-prompt debug_prompt.txt
-    """
+    """  # noqa: E501
     import logging
 
     log_handlers: list[logging.Handler] = []
@@ -1256,14 +1255,16 @@ def generate_sql(
         table.add_column("Value", justify="right", no_wrap=True)
         table.add_row("Requests", str(usage.requests))
         table.add_row(
-            "Request Tokens", str(usage.request_tokens) if usage.request_tokens else "?"
+            "Request Tokens",
+            str(usage.request_tokens) if usage.request_tokens else "?",  # noqa: E501
         )
         table.add_row(
             "Response Tokens",
             str(usage.response_tokens) if usage.response_tokens else "?",  # noqa
         )
         table.add_row(
-            "Total Tokens", str(usage.total_tokens) if usage.total_tokens else "?"
+            "Total Tokens",
+            str(usage.total_tokens) if usage.total_tokens else "?",  # noqa: E501
         )
         console.print(table)
 
@@ -1314,7 +1315,7 @@ def generate_sql(
     "--prompt",
     type=click.STRING,
     default=None,
-    help="Natural language query to search for related database objects (e.g., 'customer orders')",
+    help="Natural language query to search for related database objects (e.g., 'customer orders')",  # noqa: E501
     required=True,
 )
 @click.option(
@@ -1334,25 +1335,25 @@ def search(
     sample_size: int = 3,
 ) -> None:
     """Search the semantic catalog using natural language queries.
-    
+
     Performs a semantic search across database objects, SQL examples, and facts
     in the semantic catalog based on a natural language prompt. Results are ranked
     by semantic similarity to the query.
-    
+
     For each matching database object, the command displays its schema information
     and sample data (if available). For SQL examples and facts, it displays their
     contents.
-    
+
     This command is useful for exploring the database schema using natural language
     and finding relevant examples that can be adapted for your own queries.
-    
+
     Examples:
         # Search for objects related to users
         pgai semantic-catalog search --prompt "user accounts"
-        
+
         # Search with a specific question
         pgai semantic-catalog search --prompt "How are orders related to customers?"
-        
+
         # Include more sample data in results
         pgai semantic-catalog search --prompt "product inventory" --sample-size 5
     """
