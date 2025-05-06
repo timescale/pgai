@@ -398,6 +398,7 @@ def describe(
     request_limit: int | None = None,
     total_tokens_limit: int | None = None,
 ) -> None:
+    """Generates descriptions for database objects"""
     if log_file:
         import logging
 
@@ -506,6 +507,7 @@ def vectorize(
     log_file: Path | None = None,
     log_level: str | None = "INFO",
 ) -> None:
+    """Generates embeddings for a semantic catalog"""
     import logging
 
     log_handlers: list[logging.Handler] = []
@@ -638,6 +640,22 @@ def create(
     log_file: Path | None = None,
     log_level: str | None = "INFO",
 ):
+    """Creates a semantic catalog and configures embeddings
+
+    \b
+    Supported providers:
+    - `openai` (requires API key)
+    - `ollama`
+    - `sentence_transformers`
+
+    \b
+    Supported models:
+    - OpenAI: https://platform.openai.com/docs/guides/embeddings#embedding-models
+    - Ollama: https://ollama.com/search?c=embedding
+    - Sentence Transformers:
+        - https://www.sbert.net/docs/sentence_transformer/pretrained_models.html
+        - https://huggingface.co/models?library=sentence-transformers
+    """
     import logging
 
     log_handlers: list[logging.Handler] = []
@@ -765,6 +783,7 @@ def import_catalog(
     log_file: Path | None = None,
     log_level: str | None = "INFO",
 ) -> None:
+    """Imports descriptions from a yaml file into a semantic catalog and embeds them"""
     import logging
 
     log_handlers: list[logging.Handler] = []
@@ -863,6 +882,7 @@ def export_catalog(
     log_file: Path | None = None,
     log_level: str | None = "INFO",
 ) -> None:
+    """Exports descriptions from a semantic catalog to a yaml file"""
     import logging
 
     log_handlers: list[logging.Handler] = []
@@ -1037,6 +1057,11 @@ def generate_sql(
     request_limit: int | None = None,
     total_tokens_limit: int | None = None,
 ) -> None:
+    """Generates a SQL statement to address a natural language question
+
+    Valid models for `--model` can be found at:
+    https://ai.pydantic.dev/api/models/base/#pydantic_ai.models.KnownModelName
+    """
     import logging
 
     log_handlers: list[logging.Handler] = []
@@ -1196,6 +1221,7 @@ def search(
     prompt: str,
     sample_size: int = 3,
 ) -> None:
+    """Searches a semantic catalog for relevant context"""
     catalog_name = catalog_name or "default"
 
     from rich.console import Console
