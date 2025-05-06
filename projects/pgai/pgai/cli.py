@@ -251,6 +251,12 @@ def install(db_url: str, strict: bool) -> None:
 @click.group(name="semantic-catalog")
 @click.version_option(version=__version__)
 def semantic_catalog():
+    """Manage semantic catalogs for PostgreSQL databases.
+    
+    Semantic catalogs store metadata about database objects along with natural language
+    descriptions and vector embeddings, enabling natural language queries about database
+    schema and AI-generated SQL.
+    """
     pass
 
 
@@ -270,62 +276,62 @@ def semantic_catalog():
     type=click.STRING,
     default="openai:o3",
     show_default=True,
-    help="The LLM model to generate descriptions",
+    help="The LLM model to generate descriptions (format: provider:model).",
 )
 @click.option(
     "--include-schema",
     type=click.STRING,
     default=None,
-    help="A regular expression to match against schema names to be included in output.",
+    help="Regex pattern to include schemas (e.g. 'public|app_.*').",
 )
 @click.option(
     "--exclude-schema",
     type=click.STRING,
     default=None,
-    help="A regular expression to match against schema names to be excluded from output.",  # noqa: E501
+    help="Regex pattern to exclude schemas (e.g. 'pg_.*|information_schema').",
 )
 @click.option(
     "--include-table",
     type=click.STRING,
     default=None,
-    help="A regular expression to match against table names to be included in output.",
+    help="Regex pattern to include tables (e.g. 'user.*|product.*').",
 )
 @click.option(
     "--exclude-table",
     type=click.STRING,
     default=None,
-    help="A regular expression to match against table names to be excluded from output.",  # noqa: E501
+    help="Regex pattern to exclude tables (e.g. 'temp_.*|_bak$').",
 )
 @click.option(
     "--include-view",
     type=click.STRING,
     default=None,
-    help="A regular expression to match against view names to be included in output.",
+    help="Regex pattern to include views (e.g. 'v_.*|report_.*').",
 )
 @click.option(
     "--exclude-view",
     type=click.STRING,
     default=None,
-    help="A regular expression to match against view names to be excluded from output.",
+    help="Regex pattern to exclude views (e.g. 'v_temp_.*').",
 )
 @click.option(
     "--include-proc",
     type=click.STRING,
     default=None,
-    help="A regular expression to match against procedure/function names to be included in output.",  # noqa: E501
+    help="Regex pattern to include procedures/functions (e.g. 'fn_.*|sp_.*').",
 )
 @click.option(
     "--exclude-proc",
     type=click.STRING,
     default=None,
-    help="A regular expression to match against proc names to be excluded from output.",
+    help="Regex pattern to exclude procedures/functions (e.g. 'internal_.*').",
 )
 @click.option(
     "-f",
     "--yaml-file",
     type=click.Path(dir_okay=False, writable=True, path_type=Path),
     default=None,
-    help="The path to a file to write output to.",
+    help="Path to output YAML file (default: print to stdout).",
 )
 @click.option(
     "-a",
@@ -337,13 +343,13 @@ def semantic_catalog():
     "--sample-size",
     type=click.INT,
     default=3,
-    help="Number of sample rows to include in the context",
+    help="Number of sample rows to retrieve from tables/views.",
 )
 @click.option(
     "--batch-size",
     type=click.INT,
     default=5,
-    help="Number of objects to send the LLM in a batch",
+    help="Number of database objects to process in each LLM request.",
 )
 @click.option(
     "-q",
@@ -356,7 +362,7 @@ def semantic_catalog():
     "--log-file",
     type=click.Path(dir_okay=False, writable=True, path_type=Path),
     default=None,
-    help="The path to a file to write log messages to.",
+    help="Path to log file for detailed logging.",
 )
 @click.option(
     "--log-level",
@@ -369,13 +375,13 @@ def semantic_catalog():
     "--request-limit",
     type=click.INT,
     default=None,
-    help="Maximum number of LLM requests allowed",
+    help="Maximum number of LLM requests allowed (for cost control).",
 )
 @click.option(
     "--total-tokens-limit",
     type=click.INT,
     default=None,
-    help="Maximum total LLM tokens allowed",
+    help="Maximum total LLM tokens allowed (for cost control).",
 )
 def describe(
     db_url: str,
@@ -398,7 +404,19 @@ def describe(
     request_limit: int | None = None,
     total_tokens_limit: int | None = None,
 ) -> None:
-    """Generates descriptions for database objects"""
+    """Generate natural language descriptions for database objects.
+    
+    Uses AI to create human-readable descriptions of database objects including
+    tables, views, and procedures. These descriptions can be used to populate
+    a semantic catalog for natural language queries and SQL generation.
+    
+    The command connects to the specified database, extracts schema information for
+    matching objects, and uses an LLM to generate comprehensive descriptions.
+    Results are exported to YAML format.
+    
+    Filtering options allow you to include or exclude database objects based on
+    regular expression patterns applied to schema, table, view, and procedure names.
+    """
     if log_file:
         import logging
 
@@ -462,21 +480,22 @@ def describe(
     "--catalog-name",
     type=click.STRING,
     default="default",
-    help="The name of the semantic catalog to generate embeddings for.",  # noqa: E501
+    show_default=True,
+    help="Name of the semantic catalog to use.",
 )
 @click.option(
     "-e",
     "--embed-config",
     type=click.STRING,
     default=None,
-    help="The name of the embedding configuration to generate embeddings for. (If None, do all)",  # noqa: E501
+    help="Name of the embedding configuration to use. If not specified, uses all available configurations.",
 )
 @click.option(
     "-b",
     "--batch-size",
     type=click.INT,
     default=None,
-    help="The number of embeddings to generate per batch.",
+    help="Number of items to process in each vectorization batch (default: 32).",
 )
 @click.option(
     "-q",
@@ -507,7 +526,24 @@ def vectorize(
     log_file: Path | None = None,
     log_level: str | None = "INFO",
 ) -> None:
-    """Generates embeddings for a semantic catalog"""
+    """Generate vector embeddings for items in the semantic catalog.
+    
+    Processes all database objects, SQL examples, and facts in the semantic catalog
+    that don't yet have embeddings for the specified embedding configuration.
+    
+    The embeddings are used for semantic search capabilities, allowing natural 
+    language queries about the database schema and context for SQL generation.
+    
+    If no embedding configuration is specified, all configurations in the 
+    catalog will be used for vectorization.
+    
+    Examples:
+        # Vectorize all items using all embedding configurations
+        pgai semantic-catalog vectorize
+        
+        # Vectorize using a specific embedding configuration
+        pgai semantic-catalog vectorize --embed-config openai_embeddings
+    """
     import logging
 
     log_handlers: list[logging.Handler] = []
@@ -640,7 +676,14 @@ def create(
     log_file: Path | None = None,
     log_level: str | None = "INFO",
 ):
-    """Creates a semantic catalog and configures embeddings
+    """Create a new semantic catalog with embedding configuration.
+    
+    Creates a semantic catalog in the database with the specified parameters.
+    The catalog requires at least one embedding configuration to enable semantic
+    search capabilities.
+    
+    The embedding configuration specifies which embedding provider and model
+    to use for generating vector embeddings, along with the vector dimensions.
 
     \b
     Supported providers:
@@ -653,8 +696,15 @@ def create(
     - OpenAI: https://platform.openai.com/docs/guides/embeddings#embedding-models
     - Ollama: https://ollama.com/search?c=embedding
     - Sentence Transformers:
-        - https://www.sbert.net/docs/sentence_transformer/pretrained_models.html
-        - https://huggingface.co/models?library=sentence-transformers
+    - https://www.sbert.net/docs/sentence_transformer/pretrained_models.html
+    - https://huggingface.co/models?library=sentence-transformers
+
+    Examples:
+        # Create a catalog with OpenAI embeddings
+        pgai semantic-catalog create --provider openai --model text-embedding-3-small
+        
+        # Create a catalog with custom embedding name
+        pgai semantic-catalog create --catalog-name my_catalog --embed-config custom_embeddings
     """
     import logging
 
@@ -783,7 +833,25 @@ def import_catalog(
     log_file: Path | None = None,
     log_level: str | None = "INFO",
 ) -> None:
-    """Imports descriptions from a yaml file into a semantic catalog and embeds them"""
+    """Import catalog items from a YAML file into a semantic catalog.
+    
+    Reads catalog items (tables, views, procedures, SQL examples, facts) from a YAML file
+    and imports them into the specified semantic catalog. After importing, it generates 
+    vector embeddings for the imported items.
+    
+    The YAML file should be in the format produced by the 'describe' or 'export' commands.
+    If no YAML file is provided, input is read from stdin.
+    
+    Examples:
+        # Import from a YAML file
+        pgai semantic-catalog import --yaml-file descriptions.yaml
+        
+        # Import and vectorize using a specific embedding configuration
+        pgai semantic-catalog import --yaml-file descriptions.yaml --embed-config openai_embeddings
+        
+        # Import from stdin
+        cat descriptions.yaml | pgai semantic-catalog import
+    """  # noqa: E501
     import logging
 
     log_handlers: list[logging.Handler] = []
@@ -882,7 +950,24 @@ def export_catalog(
     log_file: Path | None = None,
     log_level: str | None = "INFO",
 ) -> None:
-    """Exports descriptions from a semantic catalog to a yaml file"""
+    """Export catalog items from a semantic catalog to a YAML file.
+    
+    Exports all database objects (tables, views, procedures), SQL examples, 
+    and facts from the semantic catalog to a YAML file. This YAML can be used
+    to recreate the catalog in another database or as a backup.
+    
+    If no YAML file is provided, output is written to stdout.
+    
+    Examples:
+        # Export to a YAML file
+        pgai semantic-catalog export --yaml-file catalog_backup.yaml
+        
+        # Export a specific catalog
+        pgai semantic-catalog export --catalog-name my_catalog --yaml-file my_catalog.yaml
+        
+        # Export to stdout
+        pgai semantic-catalog export | tee catalog_backup.yaml
+    """
     import logging
 
     log_handlers: list[logging.Handler] = []
@@ -931,7 +1016,7 @@ def export_catalog(
     type=click.STRING,
     default="postgres://postgres@localhost:5432/postgres",
     show_default=True,
-    help="The connection URL to the database the database to generate sql for.",
+    help="Connection URL to the target database where SQL will be executed.",
     envvar="TARGET_DB",
 )
 @click.option(
@@ -940,7 +1025,7 @@ def export_catalog(
     type=click.STRING,
     default="postgres://postgres@localhost:5432/postgres",
     show_default=True,
-    help="The connection URL to the database the semantic catalog is in.",
+    help="Connection URL to the database containing the semantic catalog.",
     envvar="CATALOG_DB",
 )
 @click.option(
@@ -949,41 +1034,45 @@ def export_catalog(
     type=click.STRING,
     default="anthropic:claude-3-7-sonnet-latest",
     show_default=True,
-    help="The LLM model",
+    help="LLM model to use for SQL generation (format: provider:model).",
 )
 @click.option(
     "-n",
     "--catalog-name",
     type=click.STRING,
     default="default",
-    help="The name of the semantic catalog to use.",
+    show_default=True,
+    help="Name of the semantic catalog to use.",
 )
 @click.option(
     "-e",
     "--embed-config",
     type=click.STRING,
     default=None,
-    help="The name of the embedding configuration to use",
+    help="Name of the embedding configuration to use. If not specified, uses the first available configuration.",
 )
 @click.option(
     "-p",
     "--prompt",
     type=click.STRING,
     default=None,
-    help="The question to be answered by the generated SQL statement",
+    help="Natural language description of the SQL query you want to generate (e.g., 'Find all orders placed last month')",
+    required=True,
 )
 @click.option(
     "--iteration-limit",
     type=click.INT,
     default=5,
-    help="Maximum number of iterations to attempt",
+    show_default=True,
+    help="Maximum number of refinement attempts when generating SQL",
 )
 @click.option(
     "-s",
     "--sample-size",
     type=click.INT,
     default=3,
-    help="Number of sample rows to include in the context",
+    show_default=True,
+    help="Number of sample rows to include for each table/view in the context",
 )
 @click.option(
     "-q",
@@ -1057,10 +1146,31 @@ def generate_sql(
     request_limit: int | None = None,
     total_tokens_limit: int | None = None,
 ) -> None:
-    """Generates a SQL statement to address a natural language question
+    """Generate SQL based on a natural language prompt using the semantic catalog.
+    
+    Uses AI to generate a SQL statement that fulfills the user's request, based on
+    context from the semantic catalog. The SQL is validated against the target database
+    to ensure it's correct.
+    
+    The semantic catalog provides context about the database schema, including table
+    structures, column descriptions, and example SQL queries. This context helps the
+    AI model generate accurate SQL statements.
 
     Valid models for `--model` can be found at:
     https://ai.pydantic.dev/api/models/base/#pydantic_ai.models.KnownModelName
+
+    Examples:
+        # Generate SQL for a simple query
+        pgai semantic-catalog generate-sql --prompt "Find all users who signed up last month"
+        
+        # Use a specific model and limit iterations
+        pgai semantic-catalog generate-sql --model anthropic:claude-3-opus-20240229 \
+            --prompt "Count orders by product category for Q1 2023" \
+            --iteration-limit 3
+            
+        # Save the final prompt for debugging
+        pgai semantic-catalog generate-sql --prompt "Find inactive customers" \
+            --save-final-prompt debug_prompt.txt
     """
     import logging
 
@@ -1204,14 +1314,16 @@ def generate_sql(
     "--prompt",
     type=click.STRING,
     default=None,
-    help="The semantic search prompt",
+    help="Natural language query to search for related database objects (e.g., 'customer orders')",
+    required=True,
 )
 @click.option(
     "-s",
     "--sample-size",
     type=click.INT,
     default=3,
-    help="Number of sample rows to include in the context",
+    show_default=True,
+    help="Number of sample rows to include for each table/view in the results",
 )
 def search(
     db_url: str,
@@ -1221,7 +1333,29 @@ def search(
     prompt: str,
     sample_size: int = 3,
 ) -> None:
-    """Searches a semantic catalog for relevant context"""
+    """Search the semantic catalog using natural language queries.
+    
+    Performs a semantic search across database objects, SQL examples, and facts
+    in the semantic catalog based on a natural language prompt. Results are ranked
+    by semantic similarity to the query.
+    
+    For each matching database object, the command displays its schema information
+    and sample data (if available). For SQL examples and facts, it displays their
+    contents.
+    
+    This command is useful for exploring the database schema using natural language
+    and finding relevant examples that can be adapted for your own queries.
+    
+    Examples:
+        # Search for objects related to users
+        pgai semantic-catalog search --prompt "user accounts"
+        
+        # Search with a specific question
+        pgai semantic-catalog search --prompt "How are orders related to customers?"
+        
+        # Include more sample data in results
+        pgai semantic-catalog search --prompt "product inventory" --sample-size 5
+    """
     catalog_name = catalog_name or "default"
 
     from rich.console import Console
