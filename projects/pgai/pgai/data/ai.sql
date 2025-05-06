@@ -1145,6 +1145,26 @@ from
   ai._vectorizer_errors ve
   join ai.vectorizer v on ve.id = v.id;
 
+
+-- grant privileges on _vectorizer_errors and vectorizer_errors to vectorizer users
+DO $$
+DECLARE
+    to_user text;
+    rec RECORD;
+BEGIN
+    -- find all users that have permissions on ai.vectorizer table and grant them to the errors ones
+    FOR rec IN 
+        SELECT DISTINCT grantee as username
+        FROM information_schema.role_table_grants
+        WHERE table_schema = 'ai' 
+        AND table_name = 'vectorizer'
+    LOOP
+        to_user := rec.username;
+        EXECUTE 'GRANT SELECT ON ai._vectorizer_errors TO ' || quote_ident(to_user);
+        EXECUTE 'GRANT SELECT ON ai.vectorizer_errors TO ' || quote_ident(to_user);
+    END LOOP;
+END
+$$; 
 $migration_body$;
 begin
     select * into _migration from ai.pgai_lib_migration where "name" operator(pg_catalog.=) _migration_name;
