@@ -684,7 +684,7 @@ async def describe(
     usage: Usage | None = None,
     usage_limits: UsageLimits | None = None,
     batch_size: int = 5,
-    sample_size: int = 0,
+    sample_size: int = 3,
 ) -> Usage:
     """Generate natural language descriptions for database objects and export them to YAML.
 
@@ -709,7 +709,7 @@ async def describe(
         usage: Optional Usage object to track API usage across multiple calls.
         usage_limits: Optional UsageLimits object to set limits on API usage.
         batch_size: Number of objects to process in each batch (default: 5).
-        sample_size: Number of sample rows to include for tables and views (default: 0).
+        sample_size: Number of sample rows to include for tables and views (default: 3).
 
     Returns:
         Updated Usage object with information about token usage.
