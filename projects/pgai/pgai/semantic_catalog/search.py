@@ -20,10 +20,10 @@ async def search_objects(
     limit: int = 5,
 ) -> list[ObjectDescription]:
     """Search for database objects in the semantic catalog using vector similarity.
-    
+
     Performs a semantic search for database objects (tables, views, functions, etc.)
     using vector similarity between the query embedding and object embeddings.
-    
+
     Args:
         con: Asynchronous database connection to the catalog database.
         catalog_id: ID of the semantic catalog to search in.
@@ -31,7 +31,7 @@ async def search_objects(
         config: Configuration for the embedding model used.
         query: Query vector (embedding) to compare against stored object embeddings.
         limit: Maximum number of results to return (default: 5).
-        
+
     Returns:
         A list of ObjectDescription objects ordered by similarity to the query vector.
     """
@@ -64,10 +64,10 @@ async def search_sql_examples(
     limit: int = 5,
 ) -> list[SQLExample]:
     """Search for SQL examples in the semantic catalog using vector similarity.
-    
-    Performs a semantic search for SQL examples using vector similarity between 
+
+    Performs a semantic search for SQL examples using vector similarity between
     the query embedding and SQL example embeddings.
-    
+
     Args:
         con: Asynchronous database connection to the catalog database.
         catalog_id: ID of the semantic catalog to search in.
@@ -75,10 +75,10 @@ async def search_sql_examples(
         config: Configuration for the embedding model used.
         query: Query vector (embedding) to compare against stored SQL example embeddings.
         limit: Maximum number of results to return (default: 5).
-        
+
     Returns:
         A list of SQLExample objects ordered by similarity to the query vector.
-    """
+    """  # noqa: E501
     logger.debug(f"searching semantic catalog {catalog_id}")
     async with con.cursor(row_factory=dict_row) as cur:
         sql = SQL("""\
@@ -108,10 +108,10 @@ async def search_facts(
     limit: int = 5,
 ) -> list[Fact]:
     """Search for facts in the semantic catalog using vector similarity.
-    
-    Performs a semantic search for facts using vector similarity between 
+
+    Performs a semantic search for facts using vector similarity between
     the query embedding and fact embeddings.
-    
+
     Args:
         con: Asynchronous database connection to the catalog database.
         catalog_id: ID of the semantic catalog to search in.
@@ -119,7 +119,7 @@ async def search_facts(
         config: Configuration for the embedding model used.
         query: Query vector (embedding) to compare against stored fact embeddings.
         limit: Maximum number of results to return (default: 5).
-        
+
     Returns:
         A list of Fact objects ordered by similarity to the query vector.
     """
