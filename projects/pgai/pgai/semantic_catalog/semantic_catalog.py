@@ -1,3 +1,14 @@
+"""Semantic Catalog module for managing database metadata and descriptions.
+
+This module provides the core functionality for creating, managing, and interacting with
+semantic catalogs. A semantic catalog stores metadata about database objects (tables,
+views, procedures, etc.) along with natural language descriptions and vector embeddings
+for semantic search capabilities.
+
+The semantic catalog enables natural language queries about database schema, generating
+SQL based on natural language prompts, and managing database documentation.
+"""
+
 import logging
 from collections.abc import Sequence
 from typing import Any, TextIO
@@ -39,19 +50,53 @@ CatalogConnection = psycopg.AsyncConnection
 
 
 class SemanticCatalog:
+    """Represents a semantic catalog in the database.
+    
+    A semantic catalog is a collection of database object metadata, descriptions,
+    and vector embeddings that enable semantic search capabilities and natural
+    language interactions with the database schema.
+    
+    Attributes:
+        id: The unique identifier of the semantic catalog.
+        name: The name of the semantic catalog.
+    """
+    
     def __init__(self, id: int, name: str):
+        """Initialize a SemanticCatalog instance.
+        
+        Args:
+            id: The unique identifier of the semantic catalog.
+            name: The name of the semantic catalog.
+        """
         self._id = id
         self._name = name
 
     @property
     def id(self) -> int:
+        """Get the unique identifier of the semantic catalog.
+        
+        Returns:
+            The semantic catalog ID.
+        """
         return self._id
 
     @property
     def name(self) -> str:
+        """Get the name of the semantic catalog.
+        
+        Returns:
+            The semantic catalog name.
+        """
         return self._name
 
     async def drop(self, con: CatalogConnection) -> None:
+        """Drop the semantic catalog from the database.
+        
+        Deletes the semantic catalog and all its associated data from the database.
+        
+        Args:
+            con: The database connection to the catalog database.
+        """
         async with con.cursor() as cur:
             logger.info(f"dropping semantic catalog {self.name}")
             await cur.execute(
@@ -67,6 +112,23 @@ class SemanticCatalog:
         config: EmbeddingConfig,
         embedding_name: str | None = None,
     ) -> tuple[str, EmbeddingConfig]:
+        """Add an embedding configuration to the semantic catalog.
+        
+        Creates a new embedding configuration in the semantic catalog. If an embedding name
+        is not provided, a default name will be generated.
+        
+        Args:
+            con: The database connection to the catalog database.
+            config: The embedding configuration to add.
+            embedding_name: Optional name for the embedding. If not provided, a default
+                name will be generated.
+                
+        Returns:
+            A tuple containing the embedding name and the embedding configuration that was added.
+            
+        Raises:
+            RuntimeError: If the embedding could not be added.
+        """
         logger.debug(
             f"adding embedding config {embedding_name} to semantic catalog {self.name}"
         )
@@ -92,6 +154,15 @@ class SemanticCatalog:
             return str(row["embedding_name"]), embedding_config_from_dict(row["config"])
 
     async def drop_embedding(self, con: CatalogConnection, embedding_name: str):
+        """Drop an embedding configuration from the semantic catalog.
+        
+        Removes an embedding configuration and all its associated embeddings from the
+        semantic catalog.
+        
+        Args:
+            con: The database connection to the catalog database.
+            embedding_name: Name of the embedding configuration to drop.
+        """
         logger.debug(
             f"dropping embedding config {embedding_name} from semantic catalog {self.name}"  # noqa
         )
@@ -109,6 +180,16 @@ class SemanticCatalog:
     async def list_embeddings(
         self, con: CatalogConnection
     ) -> list[tuple[str, EmbeddingConfig]]:
+        """List all embedding configurations in the semantic catalog.
+        
+        Retrieves all embedding configurations defined in the semantic catalog.
+        
+        Args:
+            con: The database connection to the catalog database.
+            
+        Returns:
+            A list of tuples, each containing an embedding name and its configuration.
+        """
         results: list[tuple[str, EmbeddingConfig]] = []
         async with con.cursor(row_factory=dict_row) as cur:
             await cur.execute(
@@ -132,6 +213,17 @@ class SemanticCatalog:
     async def get_embedding(
         self, con: CatalogConnection, embedding_name: str
     ) -> EmbeddingConfig | None:
+        """Get a specific embedding configuration from the semantic catalog.
+        
+        Retrieves a single embedding configuration by name.
+        
+        Args:
+            con: The database connection to the catalog database.
+            embedding_name: Name of the embedding configuration to retrieve.
+            
+        Returns:
+            The embedding configuration if found, None otherwise.
+        """
         async with con.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 """\
@@ -152,12 +244,32 @@ class SemanticCatalog:
         config: EmbeddingConfig,
         batch_size: int = 32,
     ) -> None:
+        """Generate vector embeddings for items in the semantic catalog.
+        
+        Processes all database objects, SQL examples, and facts in the semantic catalog
+        that don't yet have embeddings for the specified embedding configuration.
+        
+        Args:
+            con: The database connection to the catalog database.
+            embedding_name: Name of the embedding configuration to use.
+            config: The embedding configuration to use.
+            batch_size: Number of items to process in each batch.
+        """
         logger.debug(
             f"vectorizing embedding config {embedding_name} in semantic catalog {self.name}"  # noqa
         )
         await vectorize(con, self.id, embedding_name, config, batch_size)
 
     async def vectorize_all(self, con: CatalogConnection, batch_size: int = 32):
+        """Generate vector embeddings for all embedding configurations.
+        
+        Processes all database objects, SQL examples, and facts in the semantic catalog
+        for all embedding configurations defined in the catalog.
+        
+        Args:
+            con: The database connection to the catalog database.
+            batch_size: Number of items to process in each batch.
+        """
         embeddings = await self.list_embeddings(con)
         for embedding_name, config in embeddings:
             await self.vectorize(con, embedding_name, config, batch_size)
@@ -169,6 +281,23 @@ class SemanticCatalog:
         query: str | Sequence[float],
         limit: int = 5,
     ) -> list[ObjectDescription]:
+        """Search for database objects using semantic search.
+        
+        Performs a semantic search for database objects that match the query.
+        The query can be a natural language string or a vector embedding.
+        
+        Args:
+            con: The database connection to the catalog database.
+            embedding_name: Name of the embedding configuration to use for the search.
+            query: Natural language query string or vector embedding.
+            limit: Maximum number of results to return.
+            
+        Returns:
+            A list of ObjectDescription objects ordered by similarity to the query.
+            
+        Raises:
+            RuntimeError: If the specified embedding configuration does not exist.
+        """
         emb_cfg = await self.get_embedding(con, embedding_name)
         if emb_cfg is None:
             raise RuntimeError(f"No embedding named: {embedding_name}")
@@ -183,6 +312,16 @@ class SemanticCatalog:
         self,
         con: CatalogConnection,
     ) -> list[SQLExample]:
+        """List all SQL examples in the semantic catalog.
+        
+        Retrieves all SQL examples stored in the semantic catalog.
+        
+        Args:
+            con: The database connection to the catalog database.
+            
+        Returns:
+            A list of SQLExample objects.
+        """
         async with con.cursor(row_factory=dict_row) as cur:
             sql = SQL("""\
                 select x.*
@@ -204,6 +343,23 @@ class SemanticCatalog:
         query: str | Sequence[float],
         limit: int = 5,
     ) -> list[SQLExample]:
+        """Search for SQL examples using semantic search.
+        
+        Performs a semantic search for SQL examples that match the query.
+        The query can be a natural language string or a vector embedding.
+        
+        Args:
+            con: The database connection to the catalog database.
+            embedding_name: Name of the embedding configuration to use for the search.
+            query: Natural language query string or vector embedding.
+            limit: Maximum number of results to return.
+            
+        Returns:
+            A list of SQLExample objects ordered by similarity to the query.
+            
+        Raises:
+            RuntimeError: If the specified embedding configuration does not exist.
+        """
         emb_cfg = await self.get_embedding(con, embedding_name)
         if emb_cfg is None:
             raise RuntimeError(f"No embedding named: {embedding_name}")
@@ -218,6 +374,16 @@ class SemanticCatalog:
         self,
         con: CatalogConnection,
     ) -> list[Fact]:
+        """List all facts in the semantic catalog.
+        
+        Retrieves all facts stored in the semantic catalog.
+        
+        Args:
+            con: The database connection to the catalog database.
+            
+        Returns:
+            A list of Fact objects.
+        """
         async with con.cursor(row_factory=dict_row) as cur:
             sql = SQL("""\
                 select x.*
@@ -239,6 +405,23 @@ class SemanticCatalog:
         query: str | Sequence[float],
         limit: int = 5,
     ) -> list[Fact]:
+        """Search for facts using semantic search.
+        
+        Performs a semantic search for facts that match the query.
+        The query can be a natural language string or a vector embedding.
+        
+        Args:
+            con: The database connection to the catalog database.
+            embedding_name: Name of the embedding configuration to use for the search.
+            query: Natural language query string or vector embedding.
+            limit: Maximum number of results to return.
+            
+        Returns:
+            A list of Fact objects ordered by similarity to the query.
+            
+        Raises:
+            RuntimeError: If the specified embedding configuration does not exist.
+        """
         emb_cfg = await self.get_embedding(con, embedding_name)
         if emb_cfg is None:
             raise RuntimeError(f"No embedding named: {embedding_name}")
@@ -255,15 +438,57 @@ class SemanticCatalog:
         obj_desc: list[ObjectDescription],
         sample_size: int = 0,
     ) -> list[Table | View | Procedure]:
+        """Load database objects based on their descriptions.
+        
+        Takes a list of object descriptions and loads the corresponding database objects
+        (tables, views, procedures) with their metadata. If sample_size is greater than 0,
+        it also retrieves sample data for tables and views.
+        
+        Args:
+            con: The database connection to the target database.
+            obj_desc: List of object descriptions to load.
+            sample_size: Number of sample rows to retrieve from tables and views.
+                If 0, no sample data is retrieved.
+                
+        Returns:
+            A list of database objects (Tables, Views, Procedures) with metadata and descriptions.
+        """
         return await loader.load_objects(con, obj_desc, sample_size)
 
     def render_objects(self, objects: list[Table | View | Procedure]) -> str:
+        """Render database objects as SQL statements.
+        
+        Renders tables, views, and procedures as SQL statements that can be used to
+        recreate them.
+        
+        Args:
+            objects: List of database objects to render.
+            
+        Returns:
+            A string containing the rendered SQL statements.
+        """
         return render.render_objects(objects)
 
     def render_sql_examples(self, sql_examples: list[SQLExample]) -> str:
+        """Render SQL examples as formatted text.
+        
+        Args:
+            sql_examples: List of SQL examples to render.
+            
+        Returns:
+            A string containing the rendered SQL examples.
+        """
         return "\n\n".join(map(render.render_sql_example, sql_examples))
 
     def render_facts(self, facts: list[Fact]) -> str:
+        """Render facts as formatted text.
+        
+        Args:
+            facts: List of facts to render.
+            
+        Returns:
+            A string containing the rendered facts.
+        """
         return "\n\n".join(map(render.render_fact, facts))
 
     async def generate_sql(
@@ -283,6 +508,35 @@ class SemanticCatalog:
         sql_ids: list[int] | None = None,
         fact_ids: list[int] | None = None,
     ) -> GenerateSQLResponse:
+        """Generate a SQL statement based on a natural language prompt.
+        
+        Uses AI to generate a SQL statement that fulfills the user's request, based on
+        context from the semantic catalog. The SQL is validated against the target database
+        to ensure it's correct.
+        
+        Args:
+            catalog_con: Connection to the semantic catalog database.
+            target_con: Connection to the target database.
+            model: AI model to use for generating SQL.
+            prompt: Natural language prompt describing the desired SQL.
+            usage: Optional usage tracking object.
+            usage_limits: Optional usage limits.
+            model_settings: Optional model settings.
+            embedding_name: Name of the embedding to use for semantic search.
+                If None, the first available embedding is used.
+            sample_size: Number of sample rows to include in the context.
+            iteration_limit: Maximum number of iterations for SQL refinement.
+            context_mode: Mode for selecting context information ("semantic_search", "manual", etc.).
+            obj_ids: Optional list of object IDs to include in the context (for "manual" mode).
+            sql_ids: Optional list of SQL example IDs to include in the context (for "manual" mode).
+            fact_ids: Optional list of fact IDs to include in the context (for "manual" mode).
+            
+        Returns:
+            A GenerateSQLResponse object containing the generated SQL and other information.
+            
+        Raises:
+            RuntimeError: If no embeddings are configured for the semantic catalog.
+        """
         if embedding_name is None:
             embeddings = await self.list_embeddings(catalog_con)
             if not embeddings:
@@ -319,6 +573,27 @@ class SemanticCatalog:
         batch_size: int | None = None,
         console: Console | None = None,
     ):
+        """Import catalog items from a YAML file into the semantic catalog.
+        
+        Reads catalog items (tables, views, procedures, SQL examples, facts) from a YAML file
+        and imports them into the semantic catalog. After importing, it generates vector
+        embeddings for the imported items using either all embedding configurations or
+        a specific one.
+        
+        Args:
+            catalog_con: Connection to the semantic catalog database.
+            target_con: Connection to the target database.
+            yaml: Text IO stream containing the YAML data to import.
+            embedding_name: Optional name of the embedding configuration to use for vectorization.
+                If None, all embedding configurations are used.
+            batch_size: Number of items to process in each vectorization batch.
+                If None, defaults to 32.
+            console: Rich console for displaying progress information.
+                If None, a default console is used.
+                
+        Raises:
+            RuntimeError: If the specified embedding configuration is not found.
+        """
         batch_size = batch_size or 32
         console = console or Console(stderr=True, quiet=True)
         console.status("importing yaml file into semantic catalog...")
@@ -340,10 +615,33 @@ class SemanticCatalog:
         catalog_con: psycopg.AsyncConnection,
         yaml: TextIO,
     ):
+        """Export the semantic catalog to a YAML file.
+        
+        Exports all catalog items (tables, views, procedures, SQL examples, facts) from
+        the semantic catalog to a YAML file.
+        
+        Args:
+            catalog_con: Connection to the semantic catalog database.
+            yaml: Text IO stream to write the YAML data to.
+        """
         await async_export_to_yaml(yaml, load_from_catalog(catalog_con, self.id))
 
 
 async def from_id(con: CatalogConnection, id: int) -> SemanticCatalog:
+    """Get a semantic catalog by its ID.
+    
+    Retrieves a semantic catalog from the database using its unique identifier.
+    
+    Args:
+        con: Connection to the catalog database.
+        id: The unique identifier of the semantic catalog to retrieve.
+        
+    Returns:
+        A SemanticCatalog instance representing the semantic catalog.
+        
+    Raises:
+        RuntimeError: If the semantic catalog is not installed or the specified ID is not found.
+    """
     async with con.cursor(row_factory=dict_row) as cur:
         try:
             await cur.execute(
@@ -366,6 +664,20 @@ async def from_id(con: CatalogConnection, id: int) -> SemanticCatalog:
 
 
 async def from_name(con: CatalogConnection, catalog_name: str) -> SemanticCatalog:
+    """Get a semantic catalog by its name.
+    
+    Retrieves a semantic catalog from the database using its name.
+    
+    Args:
+        con: Connection to the catalog database.
+        catalog_name: The name of the semantic catalog to retrieve.
+        
+    Returns:
+        A SemanticCatalog instance representing the semantic catalog.
+        
+    Raises:
+        RuntimeError: If the semantic catalog is not installed or the specified name is not found.
+    """
     async with con.cursor(row_factory=dict_row) as cur:
         try:
             await cur.execute(
@@ -390,6 +702,19 @@ async def from_name(con: CatalogConnection, catalog_name: str) -> SemanticCatalo
 
 
 async def list_semantic_catalogs(con: CatalogConnection) -> list[SemanticCatalog]:
+    """List all semantic catalogs in the database.
+    
+    Retrieves all semantic catalogs defined in the database.
+    
+    Args:
+        con: Connection to the catalog database.
+        
+    Returns:
+        A list of SemanticCatalog instances representing all semantic catalogs.
+        
+    Raises:
+        RuntimeError: If the semantic catalog is not installed.
+    """
     async with con.cursor(row_factory=dict_row) as cur:
         try:
             await cur.execute("""\
@@ -413,6 +738,24 @@ async def create(
     embedding_name: str | None = None,
     embedding_config: EmbeddingConfig | None = None,
 ) -> SemanticCatalog:
+    """Create a new semantic catalog in the database.
+    
+    Creates a new semantic catalog with optional embedding configuration.
+    
+    Args:
+        con: Connection to the catalog database.
+        catalog_name: Optional name for the semantic catalog. If not provided,
+            a default name will be generated.
+        embedding_name: Optional name for the embedding configuration. If not provided,
+            a default name will be generated.
+        embedding_config: Optional embedding configuration to add to the semantic catalog.
+            
+    Returns:
+        A SemanticCatalog instance representing the newly created semantic catalog.
+        
+    Raises:
+        RuntimeError: If the semantic catalog could not be created.
+    """
     async with con.cursor(row_factory=dict_row) as cur:
         params: list[Composable] = []
         args: dict[str, Any] = {}
