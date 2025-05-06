@@ -4,7 +4,7 @@ This module provides functionality for finding database objects (tables, views, 
 and generating natural language descriptions for them using AI models. These descriptions
 can be used to populate a semantic catalog, making it easier for users to understand
 the database schema and its purpose.
-"""
+"""  # noqa: E501
 
 import logging
 from collections.abc import Callable
@@ -40,21 +40,21 @@ async def find_tables(
     exclude_table: str | None = None,
 ) -> list[int]:
     """Find PostgreSQL tables matching specified criteria.
-    
+
     Searches the database for tables that match the specified inclusion/exclusion patterns
     for schemas and table names. System schemas and TimescaleDB internal schemas are excluded.
     Regular, foreign, and partitioned tables are included.
-    
+
     Args:
         con: Database connection to use for the search.
         include_schema: Regular expression pattern for schemas to include (optional).
         exclude_schema: Regular expression pattern for schemas to exclude (optional).
         include_table: Regular expression pattern for tables to include (optional).
         exclude_table: Regular expression pattern for tables to exclude (optional).
-        
+
     Returns:
         A list of PostgreSQL object IDs (OIDs) for the matching tables.
-    """
+    """  # noqa: E501
     async with con.cursor() as cur:
         filters: list[Composable] = []
         params: dict[str, str] = {}
@@ -104,21 +104,21 @@ async def find_views(
     exclude_view: str | None = None,
 ) -> list[int]:
     """Find PostgreSQL views matching specified criteria.
-    
+
     Searches the database for views that match the specified inclusion/exclusion patterns
     for schemas and view names. System schemas and TimescaleDB internal schemas are excluded.
     Regular and materialized views are included.
-    
+
     Args:
         con: Database connection to use for the search.
         include_schema: Regular expression pattern for schemas to include (optional).
         exclude_schema: Regular expression pattern for schemas to exclude (optional).
         include_view: Regular expression pattern for views to include (optional).
         exclude_view: Regular expression pattern for views to exclude (optional).
-        
+
     Returns:
         A list of PostgreSQL object IDs (OIDs) for the matching views.
-    """
+    """  # noqa: E501
     async with con.cursor() as cur:
         filters: list[Composable] = []
         params: dict[str, str] = {}
@@ -168,21 +168,21 @@ async def find_procedures(
     exclude_proc: str | None = None,
 ) -> list[int]:
     """Find PostgreSQL procedures and functions matching specified criteria.
-    
+
     Searches the database for procedures and functions that match the specified
     inclusion/exclusion patterns for schemas and procedure/function names.
     System schemas and TimescaleDB internal schemas are excluded.
-    
+
     Args:
         con: Database connection to use for the search.
         include_schema: Regular expression pattern for schemas to include (optional).
         exclude_schema: Regular expression pattern for schemas to exclude (optional).
         include_proc: Regular expression pattern for procedures/functions to include (optional).
         exclude_proc: Regular expression pattern for procedures/functions to exclude (optional).
-        
+
     Returns:
         A list of PostgreSQL object IDs (OIDs) for the matching procedures and functions.
-    """
+    """  # noqa: E501
     async with con.cursor() as cur:
         filters: list[Composable] = []
         params: dict[str, str] = {}
@@ -236,11 +236,11 @@ async def generate_table_descriptions(
     sample_size: int = 3,
 ) -> Usage:
     """Generate natural language descriptions for tables and their columns using AI.
-    
+
     Retrieves table metadata from the database in batches, renders it, and uses an AI model
     to generate concise descriptions for each table and column. The descriptions are provided
     to the callback function as they are generated.
-    
+
     Args:
         con: Database connection to use for loading table metadata.
         oids: List of PostgreSQL object IDs for the tables to describe.
@@ -252,10 +252,11 @@ async def generate_table_descriptions(
         model_settings: Optional settings for the AI model.
         batch_size: Number of tables to process in each batch (default: 5).
         sample_size: Number of sample rows to include for each table (default: 3).
-        
+
     Returns:
         Updated Usage object with information about token usage.
-    """
+    """  # noqa: E501
+
     def batches(batch_size: int):
         for i in range(0, len(oids), batch_size):
             yield oids[i : i + batch_size]
@@ -385,11 +386,11 @@ async def generate_view_descriptions(
     sample_size: int = 3,
 ) -> Usage:
     """Generate natural language descriptions for views and their columns using AI.
-    
+
     Retrieves view metadata from the database in batches, renders it, and uses an AI model
     to generate concise descriptions for each view and column. The descriptions are provided
     to the callback function as they are generated.
-    
+
     Args:
         con: Database connection to use for loading view metadata.
         oids: List of PostgreSQL object IDs for the views to describe.
@@ -401,10 +402,11 @@ async def generate_view_descriptions(
         model_settings: Optional settings for the AI model.
         batch_size: Number of views to process in each batch (default: 5).
         sample_size: Number of sample rows to include for each view (default: 3).
-        
+
     Returns:
         Updated Usage object with information about token usage.
-    """
+    """  # noqa: E501
+
     def batches(batch_size: int):
         for i in range(0, len(oids), batch_size):
             yield oids[i : i + batch_size]
@@ -530,11 +532,11 @@ async def generate_procedure_descriptions(
     batch_size: int = 5,
 ) -> Usage:
     """Generate natural language descriptions for procedures and functions using AI.
-    
+
     Retrieves procedure/function metadata from the database in batches, renders it, and uses
     an AI model to generate concise descriptions. The descriptions are provided
     to the callback function as they are generated. Supports procedures, functions, and aggregates.
-    
+
     Args:
         con: Database connection to use for loading procedure metadata.
         oids: List of PostgreSQL object IDs for the procedures to describe.
@@ -545,10 +547,11 @@ async def generate_procedure_descriptions(
         usage_limits: Optional UsageLimits object to set limits on API usage.
         model_settings: Optional settings for the AI model.
         batch_size: Number of procedures to process in each batch (default: 5).
-        
+
     Returns:
         Updated Usage object with information about token usage.
-    """
+    """  # noqa: E501
+
     def batches(batch_size: int):
         for i in range(0, len(oids), batch_size):
             yield oids[i : i + batch_size]
@@ -638,14 +641,14 @@ async def generate_procedure_descriptions(
 
 async def _count_columns(con: psycopg.AsyncConnection, oids: list[int]) -> int:
     """Count the number of columns in the specified tables or views.
-    
+
     Queries the database to count the total number of columns in the tables or views
     with the given object IDs. Used to track progress when describing tables and views.
-    
+
     Args:
         con: Database connection to use for the query.
         oids: List of PostgreSQL object IDs for the tables or views.
-        
+
     Returns:
         The total number of columns in the specified tables or views.
     """
@@ -684,12 +687,12 @@ async def describe(
     sample_size: int = 0,
 ) -> Usage:
     """Generate natural language descriptions for database objects and export them to YAML.
-    
+
     This is the main entry point for the describe functionality. It finds database objects
     matching the specified criteria, generates descriptions for them using AI, and writes
     the results to the output file in YAML format. Progress is tracked and displayed using
     the rich console.
-    
+
     Args:
         db_url: Database connection URL.
         model: AI model to use for generating descriptions.
@@ -707,10 +710,10 @@ async def describe(
         usage_limits: Optional UsageLimits object to set limits on API usage.
         batch_size: Number of objects to process in each batch (default: 5).
         sample_size: Number of sample rows to include for tables and views (default: 0).
-        
+
     Returns:
         Updated Usage object with information about token usage.
-    """
+    """  # noqa: E501
     usage = usage or Usage()
     usage_limits = usage_limits or UsageLimits(request_limit=None)
 
@@ -877,13 +880,16 @@ async def describe(
 
     table.add_row("Requests", str(usage.requests))
     table.add_row(
-        "Request Tokens", str(usage.request_tokens) if usage.request_tokens else "?"
+        "Request Tokens",
+        str(usage.request_tokens) if usage.request_tokens else "?",  # noqa: E501
     )
     table.add_row(
-        "Response Tokens", str(usage.response_tokens) if usage.response_tokens else "?"
+        "Response Tokens",
+        str(usage.response_tokens) if usage.response_tokens else "?",  # noqa: E501
     )
     table.add_row(
-        "Total Tokens", str(usage.total_tokens) if usage.total_tokens else "?"
+        "Total Tokens",
+        str(usage.total_tokens) if usage.total_tokens else "?",  # noqa: E501
     )
 
     console.print(table)
