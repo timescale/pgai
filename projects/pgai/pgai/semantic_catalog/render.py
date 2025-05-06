@@ -32,7 +32,7 @@ def render_tables(tables: Iterable[Table]) -> str:
     Returns:
         A string containing all rendered tables separated by newlines.
     """
-    return "\n\n".join(map(render_table, tables)).strip()
+    return "\n".join(map(render_table, tables)).strip()
 
 
 def render_view(view: View) -> str:
@@ -57,7 +57,7 @@ def render_views(views: Iterable[View]) -> str:
     Returns:
         A string containing all rendered views separated by newlines.
     """
-    return "\n\n".join(map(render_view, views)).strip()
+    return "\n".join(map(render_view, views)).strip()
 
 
 def render_procedure(proc: Procedure) -> str:
@@ -82,7 +82,7 @@ def render_procedures(procedures: Iterable[Procedure]) -> str:
     Returns:
         A string containing all rendered procedures separated by newlines.
     """
-    return "\n\n".join(map(render_procedure, procedures)).strip()
+    return "\n".join(map(render_procedure, procedures)).strip()
 
 
 def render_object(object: Table | View | Procedure) -> str:
@@ -112,7 +112,7 @@ def render_objects(objects: Iterable[Table | View | Procedure]) -> str:
     Returns:
         A string containing all rendered objects separated by newlines.
     """  # noqa: E501
-    return "\n\n".join(map(render_object, objects)).strip()
+    return "\n".join(map(render_object, objects)).strip()
 
 
 def render_fact(fact: Fact) -> str:
@@ -137,7 +137,7 @@ def render_facts(facts: Iterable[Fact]) -> str:
     Returns:
         A string containing all rendered facts separated by newlines.
     """
-    return "\n\n".join(map(render_fact, facts)).strip()
+    return "\n".join(map(render_fact, facts)).strip()
 
 
 def render_sql_example(example: SQLExample) -> str:
@@ -162,4 +162,4 @@ def render_sql_examples(examples: Iterable[SQLExample]) -> str:
     Returns:
         A string containing all rendered SQL examples separated by newlines.
     """
-    return "\n\n".join(map(render_sql_example, examples)).strip()
+    return "\n".join(map(render_sql_example, examples)).strip()
