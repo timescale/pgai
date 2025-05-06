@@ -3,8 +3,8 @@
 This module provides functionality to generate valid SQL statements based on natural
 language prompts and database context from the semantic catalog. It uses semantic search
 to find relevant database objects, SQL examples, and facts, and employs an AI model to
-generate SQL that fulfills the user's request. The generated SQL is validated against the
-target database to ensure correctness.
+generate SQL that fulfills the user's request. The generated SQL is validated against
+the target database to ensure correctness.
 """
 
 import logging
@@ -43,13 +43,13 @@ _template_user_prompt: Template = templates.env.get_template("prompt_gen_sql_use
 
 async def get_database_version(target_con: psycopg.AsyncConnection) -> int | None:
     """Get the major version number of the PostgreSQL database.
-    
+
     Queries the database to retrieve its version number, which is used to ensure
     that generated SQL is compatible with the specific PostgreSQL version in use.
-    
+
     Args:
         target_con: Asynchronous connection to the target database.
-        
+
     Returns:
         The major version number (e.g., 15 for PostgreSQL 15.x) or None if unavailable.
     """
@@ -62,11 +62,11 @@ async def get_database_version(target_con: psycopg.AsyncConnection) -> int | Non
 @dataclass
 class DatabaseContext:
     """Container for database objects, SQL examples, facts, and their rendered representations.
-    
+
     This class stores references to database objects (tables, views, procedures),
     SQL examples, and facts that are relevant to a user query, along with their
     rendered text representations for use in prompt construction.
-    
+
     Attributes:
         objects: Dictionary mapping object IDs to database objects (Tables, Views, Procedures).
         sql_examples: Dictionary mapping SQL example IDs to SQLExample objects.
@@ -74,7 +74,8 @@ class DatabaseContext:
         rendered_objects: Dictionary mapping object IDs to their rendered text representations.
         rendered_sql_examples: Dictionary mapping SQL example IDs to their rendered text representations.
         rendered_facts: Dictionary mapping fact IDs to their rendered text representations.
-    """
+    """  # noqa: E501
+
     objects: dict[int, Table | View | Procedure]
     sql_examples: dict[int, SQLExample]
     facts: dict[int, Fact]
@@ -94,11 +95,11 @@ async def fetch_database_context(
     sample_size: int = 3,
 ) -> DatabaseContext:
     """Fetch database context relevant to a prompt using semantic search.
-    
+
     Performs semantic search in the catalog to find database objects, SQL examples,
     and facts that are relevant to the given prompt. The retrieved items are added to
     the provided context (or a new context is created if none is provided).
-    
+
     Args:
         catalog_con: Connection to the semantic catalog database.
         target_con: Connection to the target database (where the objects are defined).
@@ -108,10 +109,10 @@ async def fetch_database_context(
         prompt: The natural language prompt to search for relevant context.
         ctx: Optional existing DatabaseContext to add to (None creates a new one).
         sample_size: Number of sample rows to include for tables and views (default: 3).
-        
+
     Returns:
         A DatabaseContext containing the relevant database objects, SQL examples, and facts.
-    """
+    """  # noqa: E501
     ctx = (
         ctx
         if ctx
@@ -185,10 +186,10 @@ async def fetch_database_context_alt(
     sample_size: int = 3,
 ) -> DatabaseContext:
     """Fetch database context by explicit IDs or fetch all items from the catalog.
-    
+
     Retrieves database objects, SQL examples, and facts from the semantic catalog based
     on either explicit IDs or by fetching all items if no IDs are provided.
-    
+
     Args:
         catalog_con: Connection to the semantic catalog database.
         target_con: Connection to the target database (where the objects are defined).
@@ -197,10 +198,10 @@ async def fetch_database_context_alt(
         sql_ids: Optional list of SQL example IDs to fetch (None fetches all).
         fact_ids: Optional list of fact IDs to fetch (None fetches all).
         sample_size: Number of sample rows to include for tables and views (default: 3).
-        
+
     Returns:
         A DatabaseContext containing the specified database objects, SQL examples, and facts.
-    """
+    """  # noqa: E501
     ctx = DatabaseContext(
         objects={},
         sql_examples={},
@@ -272,15 +273,15 @@ async def validate_sql_statement(
     sql_statement: str,
 ) -> tuple[dict[str, Any] | None, str | None]:
     """Validate a SQL statement against the database.
-    
+
     Attempts to execute an EXPLAIN command for the SQL statement to verify that it is
     syntactically correct and can be executed on the target database. This is done in
     a transaction that is rolled back to prevent any modifications to the database.
-    
+
     Args:
         target_con: Connection to the target database.
         sql_statement: The SQL statement to validate.
-        
+
     Returns:
         A tuple containing:
         - The query plan as a dictionary if validation succeeds, None otherwise.
@@ -304,10 +305,10 @@ async def validate_sql_statement(
 @dataclass
 class GenerateSQLResponse:
     """Response object for the generate_sql function.
-    
+
     Contains the generated SQL statement, the context used to generate it,
     the query plan, and additional information about the generation process.
-    
+
     Attributes:
         sql_statement: The generated SQL statement.
         context: The database context used to generate the SQL statement.
@@ -317,6 +318,7 @@ class GenerateSQLResponse:
         messages: List of all messages exchanged during the generation process.
         usage: Usage statistics for the AI model calls.
     """
+
     sql_statement: str
     context: DatabaseContext
     query_plan: dict[str, Any]
@@ -343,13 +345,13 @@ async def initialize_database_context(
     fact_ids: list[int] | None = None,
 ) -> DatabaseContext:
     """Initialize database context based on the specified context mode.
-    
+
     This function serves as a dispatcher to initialize the database context using
     one of three strategies:
     1. Semantic search: Find relevant items based on the prompt.
     2. Entire catalog: Fetch all items from the catalog.
     3. Specific IDs: Fetch items with the specified IDs.
-    
+
     Args:
         catalog_con: Connection to the semantic catalog database.
         target_con: Connection to the target database.
@@ -362,13 +364,13 @@ async def initialize_database_context(
         obj_ids: Optional list of object IDs to fetch (for "specific_ids" mode).
         sql_ids: Optional list of SQL example IDs to fetch (for "specific_ids" mode).
         fact_ids: Optional list of fact IDs to fetch (for "specific_ids" mode).
-        
+
     Returns:
         A DatabaseContext based on the specified context mode.
-        
+
     Raises:
         AssertionError: If the context_mode is not one of the supported values.
-    """
+    """  # noqa: E501
     assert context_mode in {"semantic_search", "entire_catalog", "specific_ids"}
     match context_mode:
         case "semantic_search":

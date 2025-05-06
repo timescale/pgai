@@ -15,14 +15,14 @@ from pgai.semantic_catalog.vectorizer.models import EmbedRow
 
 async def embed_batch(config: OpenAIConfig, batch: list[EmbedRow]) -> None:
     """Generate embeddings for a batch of content using OpenAI.
-    
+
     Creates vector embeddings for multiple items using the OpenAI API and
     updates the vector field in each EmbedRow object with the resulting embedding.
-    
+
     Args:
         config: Configuration for the OpenAI embedding service.
         batch: List of EmbedRow objects containing content to be embedded.
-        
+
     Raises:
         RuntimeError: If the number of embeddings returned doesn't match the batch size.
     """
@@ -45,16 +45,16 @@ async def embed_batch(config: OpenAIConfig, batch: list[EmbedRow]) -> None:
 
 async def embed_query(config: OpenAIConfig, query: str) -> Sequence[float]:
     """Generate an embedding for a single query using OpenAI.
-    
+
     Creates a vector embedding for a query string using the OpenAI API.
-    
+
     Args:
         config: Configuration for the OpenAI embedding service.
         query: The query string to embed.
-        
+
     Returns:
         A vector embedding (sequence of floats) for the query.
-        
+
     Raises:
         RuntimeError: If the number of embeddings returned is not exactly 1.
     """

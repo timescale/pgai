@@ -111,7 +111,7 @@ def render_objects(objects: Iterable[Table | View | Procedure]) -> str:
 
     Returns:
         A string containing all rendered objects separated by newlines.
-    """
+    """  # noqa: E501
     return "\n\n".join(map(render_object, objects)).strip()
 
 

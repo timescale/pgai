@@ -2,7 +2,8 @@
 
 This module provides a Jinja2 environment and templates for rendering database objects
 (tables, views, procedures), SQL examples, facts, and prompts for SQL generation.
-The templates are used to format the catalog items for display, export, and AI interaction.
+The templates are used to format the catalog items for display, export, and AI
+interaction.
 """
 
 from pathlib import Path

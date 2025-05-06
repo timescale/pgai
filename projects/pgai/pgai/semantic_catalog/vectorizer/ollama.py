@@ -14,14 +14,14 @@ from pgai.semantic_catalog.vectorizer.models import EmbedRow
 
 async def embed_batch(config: OllamaConfig, batch: list[EmbedRow]) -> None:
     """Generate embeddings for a batch of content using Ollama.
-    
+
     Creates vector embeddings for multiple items using the Ollama API and
     updates the vector field in each EmbedRow object with the resulting embedding.
-    
+
     Args:
         config: Configuration for the Ollama embedding service.
         batch: List of EmbedRow objects containing content to be embedded.
-        
+
     Raises:
         RuntimeError: If the number of embeddings returned doesn't match the batch size.
     """
@@ -37,16 +37,16 @@ async def embed_batch(config: OllamaConfig, batch: list[EmbedRow]) -> None:
 
 async def embed_query(config: OllamaConfig, query: str) -> Sequence[float]:
     """Generate an embedding for a single query using Ollama.
-    
+
     Creates a vector embedding for a query string using the Ollama API.
-    
+
     Args:
         config: Configuration for the Ollama embedding service.
         query: The query string to embed.
-        
+
     Returns:
         A vector embedding (sequence of floats) for the query.
-        
+
     Raises:
         RuntimeError: If the number of embeddings returned is not exactly 1.
     """

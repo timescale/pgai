@@ -4,9 +4,9 @@ This package provides functionality for converting textual content in the semant
 catalog into vector embeddings using various embedding models. It supports multiple
 embedding providers including SentenceTransformers, Ollama, and OpenAI.
 
-The vectorizer package is used to generate embeddings for database objects, SQL examples,
-and facts in the semantic catalog, enabling vector similarity search.
-"""
+The vectorizer package is used to generate embeddings for database objects,
+SQL examples, and facts in the semantic catalog, enabling vector similarity search.
+"""  # noqa: E501
 
 from .vectorizer import (
     EmbeddingConfig,
