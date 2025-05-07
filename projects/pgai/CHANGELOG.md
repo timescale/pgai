@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.10.2](https://github.com/timescale/pgai/compare/pgai-v0.10.1...pgai-v0.10.2) (2025-05-07)
+
+
+### Bug Fixes
+
+* add support for named vectorizers to ai.vectorizer_status ([#682](https://github.com/timescale/pgai/issues/682)) ([54d68dd](https://github.com/timescale/pgai/commit/54d68dd46f7af0249debda77efa6f8dce333ad48))
+* deps to support python 3.13 ([e68af04](https://github.com/timescale/pgai/commit/e68af0415b14479e4b8bfaf439c83762ca1b85e0))
+* reduce openai token limit ([#709](https://github.com/timescale/pgai/issues/709)) ([ff0f181](https://github.com/timescale/pgai/commit/ff0f1817fb214193d5d29e9b40beddbaf62cb47f))
+* support max tokens per batch on all providers ([6daa502](https://github.com/timescale/pgai/commit/6daa5021b54fdc6cdf643fdfa8d30fa19f79c403))
+
+
+### Miscellaneous
+
+* log that installation succeeded ([#686](https://github.com/timescale/pgai/issues/686)) ([a8f5f8d](https://github.com/timescale/pgai/commit/a8f5f8d66d25ee93427617e60d06383101593d5b))
+* regenerate sql after 0.10.1 release ([#675](https://github.com/timescale/pgai/issues/675)) ([c18249e](https://github.com/timescale/pgai/commit/c18249eb996af25dd4bbcde9f2e4c9b102e320be))
+* teach release-please how to update version in ai.sql ([#677](https://github.com/timescale/pgai/issues/677)) ([188fbc0](https://github.com/timescale/pgai/commit/188fbc03e333ee3ebfe4a37d67e6ab4598a3801d))
+
 ## [0.10.1](https://github.com/timescale/pgai/compare/pgai-v0.10.0...pgai-v0.10.1) (2025-04-29)
 
 
