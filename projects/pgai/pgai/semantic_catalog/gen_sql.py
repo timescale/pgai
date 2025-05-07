@@ -245,7 +245,7 @@ async def fetch_database_context_alt(
         for row in await cur.fetchall():
             sql_examples.append(SQLExample(**row))
         ctx.sql_examples = {x.id: x for x in sql_examples}
-        ctx.rendered_objects = {
+        ctx.rendered_sql_examples = {
             x.id: render.render_sql_example(x) for x in sql_examples
         }
 
