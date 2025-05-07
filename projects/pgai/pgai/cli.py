@@ -1487,6 +1487,7 @@ def search(
             return
 
         for obj in await sc.load_objects(
+            ccon,
             tcon,
             obj_matches,
             sample_size,
