@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 import psycopg
+import semver
 import structlog
 from psycopg.rows import dict_row, namedtuple_row
 
@@ -38,6 +39,24 @@ class VectorizerNotFoundError(Exception):
 
 class ApiKeyNotFoundError(Exception):
     pass
+
+
+def warn_on_old_version(version: Version):
+    if version.pgai_lib_version is None:
+        if (
+            version.ext_version is not None
+            and semver.Version.parse(version.ext_version) < "0.10.0"
+        ):
+            logger.warning(
+                "The pgai extension is outdated and can be upgraded. See https://github.com/timescale/pgai/blob/main/docs/vectorizer/migrating-from-extension.md"
+            )
+    else:
+        if semver.Version.parse(__version__) > semver.Version.parse(
+            version.pgai_lib_version
+        ):
+            logger.warning(
+                f"The pgai installation in your database is outdated and can be upgraded. Installed version: {version.pgai_lib_version}, latest version: {__version__}."  # noqa
+            )
 
 
 class Worker:
@@ -209,6 +228,7 @@ class Worker:
                             if self.exit_on_error:
                                 return exception
                         else:
+                            warn_on_old_version(pgai_version)
                             features = Features.from_db(cur)
                             worker_tracking = WorkerTracking(
                                 self.db_url, self.poll_interval, features, __version__
