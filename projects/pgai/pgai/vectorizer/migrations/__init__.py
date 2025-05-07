@@ -1,4 +1,5 @@
 import importlib
+import logging
 import pkgutil
 import sys
 from collections.abc import Callable
@@ -7,9 +8,7 @@ from typing import Any, Generic, TypeVar
 
 import semver
 
-from ...logger import get_logger
-
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # config generic type
 C = TypeVar("C")

@@ -1,3 +1,4 @@
+import logging
 from importlib.resources import files
 
 import psycopg
@@ -5,11 +6,10 @@ import semver
 from psycopg import sql as sql_lib
 
 from .. import __version__
-from ..logger import get_logger
 
 GUC_VECTORIZER_URL = "ai.external_functions_executor_url"
 
-log = get_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 def _get_sql(vector_extension_schema: str) -> str:

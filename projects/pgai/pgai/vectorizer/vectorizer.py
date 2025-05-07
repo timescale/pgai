@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import sys
 import threading
@@ -20,7 +21,7 @@ from pydantic import BaseModel, Field, model_validator
 from pydantic_core._pydantic_core import ArgsKwargs
 from typing_extensions import override
 
-from ..logger import StructuredMessage, get_logger
+from ..logger import StructuredMessage
 from .chunking import (
     LangChainCharacterTextSplitter,
     LangChainRecursiveCharacterTextSplitter,
@@ -36,7 +37,7 @@ from .parsing import ParsingAuto, ParsingNone, ParsingPyMuPDF
 from .processing import ProcessingDefault
 from .worker_tracking import WorkerTracking
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 VectorizerErrorRecord: TypeAlias = tuple[int, str, Jsonb]
 EmbeddingRecord: TypeAlias = list[Any]

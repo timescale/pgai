@@ -1,3 +1,4 @@
+import logging
 import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
@@ -6,9 +7,9 @@ from typing import TypeAlias
 
 from ddtrace import tracer
 
-from ..logger import StructuredMessage, get_logger
+from ..logger import StructuredMessage
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 EmbeddingVector: TypeAlias = list[float]
 

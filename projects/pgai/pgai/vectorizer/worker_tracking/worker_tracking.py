@@ -1,13 +1,14 @@
 import asyncio
 import datetime
+import logging
 from uuid import UUID
 
 import psycopg
 
-from ...logger import StructuredMessage, get_logger
+from ...logger import StructuredMessage
 from ..features import Features
 
-log = get_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 class WorkerTracking:

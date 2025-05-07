@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import logging
 import os
 import random
 import sys
@@ -12,7 +13,7 @@ import semver
 from psycopg.rows import dict_row, namedtuple_row
 
 from .. import __version__
-from ..logger import StructuredMessage, get_logger
+from ..logger import StructuredMessage
 from .embeddings import ApiKeyMixin
 from .features import Features
 from .vectorizer import Vectorizer
@@ -24,7 +25,7 @@ else:
     # For Python 3.10 and below, use the backport
     from exceptiongroup import BaseExceptionGroup
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 @dataclass

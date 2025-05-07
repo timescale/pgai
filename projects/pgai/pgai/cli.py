@@ -13,11 +13,10 @@ from dotenv import load_dotenv
 from pytimeparse import parse  # type: ignore
 
 from .__init__ import __version__
-from .logger import get_logger, set_level
 
 load_dotenv()
 
-log = get_logger()
+log = logging.getLogger(__name__)
 
 
 def asbool(value: str | None):
@@ -189,7 +188,7 @@ async def async_run_vectorizer_worker(
     signal.signal(signal.SIGTERM, shutdown_handler)
 
     # Configure the logging level for pgai loggers
-    set_level(get_log_level(log_level))
+    logging.getLogger("pgai").setLevel(get_log_level(log_level))
 
     worker = Worker(
         db_url,
