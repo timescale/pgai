@@ -264,8 +264,6 @@ def semantic_catalog():
     "-d",
     "--db-url",
     type=click.STRING,
-    default="postgres://postgres@localhost:5432/postgres",
-    show_default=True,
     help="The connection URL to the database to find objects in.",
     envvar="TARGET_DB",
 )
@@ -383,7 +381,7 @@ def semantic_catalog():
     help="Maximum total LLM tokens allowed (for cost control).",
 )
 def describe(
-    db_url: str,
+    db_url: str | None,
     model: str,
     include_schema: str | None = None,
     exclude_schema: str | None = None,
@@ -427,6 +425,13 @@ def describe(
             ],
         )
 
+    if not db_url:
+        print(
+            "--db-url must be specified or TARGET_DB environment variable defined",
+            file=sys.stderr,
+        )
+        exit(1)
+
     from pydantic_ai.usage import UsageLimits
     from rich.console import Console
 
@@ -466,11 +471,9 @@ def describe(
 
 @semantic_catalog.command()
 @click.option(
-    "-d",
-    "--db-url",
+    "-c",
+    "--catalog_db_url",
     type=click.STRING,
-    default="postgres://postgres@localhost:5432/postgres",
-    show_default=True,
     help="The connection URL to the database the semantic catalog is in.",
     envvar="CATALOG_DB",
 )
@@ -517,7 +520,7 @@ def describe(
     default="INFO",
 )
 def vectorize(
-    db_url: str,
+    catalog_db_url: str | None,
     catalog_name: str | None,
     embed_config: str | None,
     batch_size: int | None = None,
@@ -563,13 +566,24 @@ def vectorize(
             handlers=log_handlers,
         )
 
+    catalog_db_url = catalog_db_url if catalog_db_url else os.getenv("TARGET_DB")
+    if not catalog_db_url:
+        print(
+            (
+                "--catalog-db-url must be specified or CATALOG_DB or TARGET_DB "
+                "environment variable defined"
+            ),
+            file=sys.stderr,
+        )
+        exit(1)
+
     catalog_name = catalog_name or "default"
     batch_size = batch_size if batch_size is not None else 32
 
     async def do():
         from pgai.semantic_catalog import from_name
 
-        async with await psycopg.AsyncConnection.connect(db_url) as con:
+        async with await psycopg.AsyncConnection.connect(catalog_db_url) as con:
             sc = await from_name(con, catalog_name)
             match embed_config:
                 case None:
@@ -587,12 +601,10 @@ def vectorize(
 
 @semantic_catalog.command()
 @click.option(
-    "-d",
-    "--db-url",
+    "-c",
+    "--catalog-db-url",
     type=click.STRING,
-    default="postgres://postgres@localhost:5432/postgres",
-    show_default=True,
-    help="The connection URL to the database the semantic catalog is in.",
+    help="The connection URL to the database to create the semantic catalog in.",
     envvar="CATALOG_DB",
 )
 @click.option(
@@ -663,7 +675,7 @@ def vectorize(
     default="INFO",
 )
 def create(
-    db_url: str,
+    catalog_db_url: str | None,
     provider: str,
     model: str,
     vector_dimensions: int,
@@ -741,14 +753,25 @@ def create(
         d["api_key_name"] = api_key_name
     config = embedding_config_from_dict(d)
 
+    catalog_db_url = catalog_db_url if catalog_db_url else os.getenv("TARGET_DB")
+    if not catalog_db_url:
+        print(
+            (
+                "--catalog-db-url must be specified or CATALOG_DB or TARGET_DB "
+                "environment variables defined"
+            ),
+            file=sys.stderr,
+        )
+        exit(1)
+
     import pgai
 
-    pgai.install(db_url, strict=False)
+    pgai.install(catalog_db_url, strict=False)
 
     async def do():
         from pgai.semantic_catalog import create
 
-        async with await psycopg.AsyncConnection.connect(db_url) as con:
+        async with await psycopg.AsyncConnection.connect(catalog_db_url) as con:
             sc = await create(
                 con, catalog_name, embedding_name=embed_config, embedding_config=config
             )
@@ -762,8 +785,6 @@ def create(
     "-d",
     "--db-url",
     type=click.STRING,
-    default="postgres://postgres@localhost:5432/postgres",
-    show_default=True,
     help="The connection URL to the database the database to generate sql for.",
     envvar="TARGET_DB",
 )
@@ -771,8 +792,6 @@ def create(
     "-c",
     "--catalog-db-url",
     type=click.STRING,
-    default="postgres://postgres@localhost:5432/postgres",
-    show_default=True,
     help="The connection URL to the database the semantic catalog is in.",
     envvar="CATALOG_DB",
 )
@@ -825,8 +844,8 @@ def create(
     default="INFO",
 )
 def import_catalog(
-    db_url: str,
-    catalog_db_url: str,
+    db_url: str | None,
+    catalog_db_url: str | None,
     yaml_file: Path | None,
     catalog_name: str | None,
     embed_config: str | None,
@@ -882,24 +901,36 @@ def import_catalog(
 
     console = Console(stderr=True, quiet=quiet)
 
+    if not db_url:
+        print(
+            "--db-url must be specified or TARGET_DB " "environment variable defined",
+            file=sys.stderr,
+        )
+        exit(1)
+
     catalog_name = catalog_name or "default"
     if yaml_file:
         yaml_file = yaml_file.expanduser().resolve()
         assert yaml_file.is_file(), "invalid yaml file"
 
-    async def do():
+    async def do1(ccon: psycopg.AsyncConnection, tcon: psycopg.AsyncConnection):
         from pgai.semantic_catalog import from_name
 
-        async with (
-            await psycopg.AsyncConnection.connect(catalog_db_url) as ccon,
-            await psycopg.AsyncConnection.connect(db_url) as tcon,
-        ):
-            console.status(f"finding '{catalog_name}' catalog...")
-            sc = await from_name(ccon, catalog_name)
-            with sys.stdin if not yaml_file else yaml_file.open(mode="r") as r:
-                await sc.import_catalog(
-                    ccon, tcon, r, embed_config, batch_size, console
-                )
+        console.status(f"finding '{catalog_name}' catalog...")
+        sc = await from_name(ccon, catalog_name)
+        with sys.stdin if not yaml_file else yaml_file.open(mode="r") as r:
+            await sc.import_catalog(ccon, tcon, r, embed_config, batch_size, console)
+
+    async def do() -> None:
+        if catalog_db_url:
+            async with (
+                await psycopg.AsyncConnection.connect(db_url) as tcon,
+                await psycopg.AsyncConnection.connect(catalog_db_url) as ccon,
+            ):
+                await do1(ccon, tcon)
+        else:
+            async with await psycopg.AsyncConnection.connect(db_url) as con:
+                await do1(con, con)
 
     asyncio.run(do())
 
@@ -909,8 +940,6 @@ def import_catalog(
     "-c",
     "--catalog-db-url",
     type=click.STRING,
-    default="postgres://postgres@localhost:5432/postgres",
-    show_default=True,
     help="The connection URL to the database the semantic catalog is in.",
     envvar="CATALOG_DB",
 )
@@ -949,7 +978,7 @@ def import_catalog(
     default="INFO",
 )
 def export_catalog(
-    catalog_db_url: str,
+    catalog_db_url: str | None,
     yaml_file: Path | None,
     catalog_name: str | None,
     quiet: bool = False,
@@ -1002,6 +1031,17 @@ def export_catalog(
 
     console = Console(stderr=True, quiet=quiet)
 
+    catalog_db_url = catalog_db_url if catalog_db_url else os.getenv("TARGET_DB")
+    if not catalog_db_url:
+        print(
+            (
+                "--catalog-db-url must be specified or CATALOG_DB or TARGET_DB "
+                "environment variables defined"
+            ),
+            file=sys.stderr,
+        )
+        exit(1)
+
     catalog_name = catalog_name or "default"
     if yaml_file:
         yaml_file = yaml_file.expanduser().resolve()
@@ -1024,8 +1064,6 @@ def export_catalog(
     "-d",
     "--db-url",
     type=click.STRING,
-    default="postgres://postgres@localhost:5432/postgres",
-    show_default=True,
     help="Connection URL to the target database where SQL will be executed.",
     envvar="TARGET_DB",
 )
@@ -1033,8 +1071,6 @@ def export_catalog(
     "-c",
     "--catalog-db-url",
     type=click.STRING,
-    default="postgres://postgres@localhost:5432/postgres",
-    show_default=True,
     help="Connection URL to the database containing the semantic catalog.",
     envvar="CATALOG_DB",
 )
@@ -1138,7 +1174,7 @@ def export_catalog(
     help="Maximum total LLM tokens allowed",
 )
 def generate_sql(
-    db_url: str,
+    db_url: str | None,
     catalog_db_url: str | None,
     model: str,
     catalog_name: str | None,
@@ -1205,6 +1241,13 @@ def generate_sql(
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             handlers=log_handlers,
         )
+
+    if db_url is None:
+        print(
+            "--db-url must be specified or TARGET_DB environment variables defined",
+            file=sys.stderr,
+        )
+        exit(1)
 
     catalog_name = catalog_name or "default"
     from pydantic_ai.usage import UsageLimits
@@ -1297,8 +1340,6 @@ def generate_sql(
     "-d",
     "--db-url",
     type=click.STRING,
-    default="postgres://postgres@localhost:5432/postgres",
-    show_default=True,
     help="The connection URL to the target database.",
     envvar="TARGET_DB",
 )
@@ -1306,8 +1347,6 @@ def generate_sql(
     "-c",
     "--catalog-db-url",
     type=click.STRING,
-    default="postgres://postgres@localhost:5432/postgres",
-    show_default=True,
     help="The connection URL to the database the semantic catalog is in.",
     envvar="CATALOG_DB",
 )
@@ -1342,7 +1381,7 @@ def generate_sql(
     help="Number of sample rows to include for each table/view in the results",
 )
 def search(
-    db_url: str,
+    db_url: str | None,
     catalog_db_url: str | None,
     catalog_name: str | None,
     embed_config: str | None,
@@ -1381,6 +1420,13 @@ def search(
     from rich.console import Console
 
     console = Console()
+
+    if db_url is None:
+        print(
+            "--db-url must be specified or TARGET_DB environment variables defined",
+            file=sys.stderr,
+        )
+        exit(1)
 
     from pgai.semantic_catalog import from_name
     from pgai.semantic_catalog.models import Fact, ObjectDescription, SQLExample
