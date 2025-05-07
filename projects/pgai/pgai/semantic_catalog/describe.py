@@ -87,6 +87,7 @@ async def find_tables(
             and n.nspname != 'timescaledb_experimental'
             and n.nspname != 'timescaledb_information'
             and n.nspname != 'toolkit_experimental'
+            and n.nspname != 'ai'
             and c.relkind in ('r', 'f', 'p')
             {filters}
         """).format(filters=combined_filters)
@@ -151,6 +152,7 @@ async def find_views(
             and n.nspname != 'timescaledb_experimental'
             and n.nspname != 'timescaledb_information'
             and n.nspname != 'toolkit_experimental'
+            and n.nspname != 'ai'
             and c.relkind in ('v', 'm')
             {filters}
         """).format(filters=combined_filters)
@@ -215,6 +217,7 @@ async def find_procedures(
             and n.nspname != 'timescaledb_experimental'
             and n.nspname != 'timescaledb_information'
             and n.nspname != 'toolkit_experimental'
+            and n.nspname != 'ai'
             {filters}
         """).format(filters=combined_filters)
         await cur.execute(query, params)
