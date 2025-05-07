@@ -214,13 +214,13 @@ async def fetch_database_context_alt(
         # objects
         sql = SQL("""\
             select x.*
-            from ai.{table} x
+            from ai.{} x
             {}
         """).format(
             Identifier(f"semantic_catalog_obj_{catalog_id}"),
-            SQL("where x.id = any(%s)") if obj_ids else SQL(""),
+            SQL("where x.id = any(%s)") if obj_ids is not None else SQL(""),
         )
-        await cur.execute(sql)
+        await cur.execute(sql, (obj_ids,) if obj_ids is not None else ())
         objects: list[ObjectDescription] = []
         for row in await cur.fetchall():
             objects.append(ObjectDescription(**row))
@@ -234,13 +234,13 @@ async def fetch_database_context_alt(
         # sql examples
         sql = SQL("""\
             select x.*
-            from ai.{table} x
+            from ai.{} x
             {}
         """).format(
             Identifier(f"semantic_catalog_sql_{catalog_id}"),
-            SQL("where x.id = any(%s)") if sql_ids else SQL(""),
+            SQL("where x.id = any(%s)") if sql_ids is not None else SQL(""),
         )
-        await cur.execute(sql)
+        await cur.execute(sql, (sql_ids,) if sql_ids is not None else ())
         sql_examples: list[SQLExample] = []
         for row in await cur.fetchall():
             sql_examples.append(SQLExample(**row))
@@ -252,13 +252,13 @@ async def fetch_database_context_alt(
         # facts
         sql = SQL("""\
             select x.*
-            from ai.{table} x
+            from ai.{} x
             {}
         """).format(
             Identifier(f"semantic_catalog_fact_{catalog_id}"),
-            SQL("where x.id = any(%s)") if fact_ids else SQL(""),
+            SQL("where x.id = any(%s)") if fact_ids is not None else SQL(""),
         )
-        await cur.execute(sql)
+        await cur.execute(sql, (fact_ids,) if fact_ids is not None else ())
         facts: list[Fact] = []
         for row in await cur.fetchall():
             facts.append(Fact(**row))
