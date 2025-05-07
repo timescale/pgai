@@ -78,18 +78,19 @@ async def find_tables(
                 on (c.relnamespace = n.oid)
             where n.nspname not like 'pg_%%'
             and n.nspname != 'information_schema'
-            and n.nspname != '_timescaledb_cache'
-            and n.nspname != '_timescaledb_catalog'
-            and n.nspname != '_timescaledb_config'
-            and n.nspname != '_timescaledb_debug'
-            and n.nspname != '_timescaledb_functions'
-            and n.nspname != '_timescaledb_internal'
-            and n.nspname != 'timescaledb_experimental'
-            and n.nspname != 'timescaledb_information'
-            and n.nspname != 'toolkit_experimental'
             and n.nspname != 'ai'
             and c.relkind in ('r', 'f', 'p')
             {filters}
+            and not exists
+            (
+                select 1
+                from pg_catalog.pg_depend d
+                inner join pg_catalog.pg_extension x on (d.refobjid = x.oid)
+                where d.classid = 'pg_catalog.pg_class'::regclass::oid
+                and d.refclassid = 'pg_catalog.pg_extension'::regclass::oid
+                and d.deptype = 'e'
+                and d.objid = c.oid
+            )
         """).format(filters=combined_filters)
         await cur.execute(query, params)
         tables = [int(row[0]) for row in await cur.fetchall()]
@@ -143,18 +144,19 @@ async def find_views(
                 on (c.relnamespace = n.oid)
             where n.nspname not like 'pg_%%'
             and n.nspname != 'information_schema'
-            and n.nspname != '_timescaledb_cache'
-            and n.nspname != '_timescaledb_catalog'
-            and n.nspname != '_timescaledb_config'
-            and n.nspname != '_timescaledb_debug'
-            and n.nspname != '_timescaledb_functions'
-            and n.nspname != '_timescaledb_internal'
-            and n.nspname != 'timescaledb_experimental'
-            and n.nspname != 'timescaledb_information'
-            and n.nspname != 'toolkit_experimental'
             and n.nspname != 'ai'
             and c.relkind in ('v', 'm')
             {filters}
+            and not exists
+            (
+                select 1
+                from pg_catalog.pg_depend d
+                inner join pg_catalog.pg_extension x on (d.refobjid = x.oid)
+                where d.classid = 'pg_catalog.pg_class'::regclass::oid
+                and d.refclassid = 'pg_catalog.pg_extension'::regclass::oid
+                and d.deptype = 'e'
+                and d.objid = c.oid
+            )
         """).format(filters=combined_filters)
         await cur.execute(query, params)
         views = [int(row[0]) for row in await cur.fetchall()]
@@ -208,17 +210,18 @@ async def find_procedures(
                 on (p.pronamespace = n.oid)
             where n.nspname not like 'pg_%%'
             and n.nspname != 'information_schema'
-            and n.nspname != '_timescaledb_cache'
-            and n.nspname != '_timescaledb_catalog'
-            and n.nspname != '_timescaledb_config'
-            and n.nspname != '_timescaledb_debug'
-            and n.nspname != '_timescaledb_functions'
-            and n.nspname != '_timescaledb_internal'
-            and n.nspname != 'timescaledb_experimental'
-            and n.nspname != 'timescaledb_information'
-            and n.nspname != 'toolkit_experimental'
             and n.nspname != 'ai'
             {filters}
+            and not exists
+            (
+                select 1
+                from pg_catalog.pg_depend d
+                inner join pg_catalog.pg_extension x on (d.refobjid = x.oid)
+                where d.classid = 'pg_catalog.pg_proc'::regclass::oid
+                and d.refclassid = 'pg_catalog.pg_extension'::regclass::oid
+                and d.deptype = 'e'
+                and d.objid = p.oid
+            )
         """).format(filters=combined_filters)
         await cur.execute(query, params)
         procs = [int(row[0]) for row in await cur.fetchall()]
