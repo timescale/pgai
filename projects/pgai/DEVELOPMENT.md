@@ -101,7 +101,8 @@ just pgai type-check
 
 The following lines provide instructions for setting up and running the `pgai` development environment using Docker Compose. The setup consists of two primary services:
 
-- **db**: A PostgreSQL database instance with persistent storage and the `pgai` extension preloaded. Built from source using the [extension's Dockerfile](../extension/Dockerfile).
+- **db**: A PostgreSQL database instance with persistent storage. Built from source using the [extension's Dockerfile](../extension/Dockerfile).
+- **pgai-installer**: An ephemeral service that installs `pgai` in the database.
 - **vectorizer-worker**: The vectorizer worker service that connects to the PostgreSQL database and performs vectorization tasks. Built from source using the [Dockerfile](./Dockerfile).
 
 Files involved in the setup:
@@ -144,22 +145,6 @@ Alternatively, you can connect using any other client by specifying the followin
 psql 'postgresql://postgres:postgres@localhost'
 ```
 
-> [!IMPORTANT]  
-> Even though the pgai extension is loaded, it is not installed by default. Read below.
-
-#### Installing the pgai extension
-To install the `pgai` extension, connect to the database and run:
-
-```sql
-CREATE EXTENSION IF NOT EXISTS ai cascade;
-```
-
-Alternatively, you can run the following command from the host machine:
-
-```sh
-docker compose --file compose-dev.yaml exec -t db psql -U postgres -c "CREATE EXTENSION IF NOT EXISTS ai cascade;"
-```
-`
 ### Viewing logs
 To see logs for all services:
 
