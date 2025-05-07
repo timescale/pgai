@@ -356,10 +356,8 @@ async def test_vectorizer_install_old_ai_extension(
     ):
         cur.execute("create extension if not exists ai version '0.9.0' cascade")
 
-    _db_url = create_connection_url(postgres_container, dbname=db)
-
     with pytest.raises(
-        Exception, match="You have an old version of the ai extension installed"
+        Exception, match="The ai extension is outdated and must be upgraded"
     ):
         if async_install:
             await pgai.ainstall(_db_url)

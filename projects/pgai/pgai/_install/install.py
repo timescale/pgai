@@ -12,10 +12,6 @@ GUC_VECTORIZER_URL = "ai.external_functions_executor_url"
 
 log = structlog.get_logger()
 
-OLD_AI_EXTENSION_EXCEPTION = Exception(
-    "You have an old version of the ai extension installed. You must upgrade the ai extension to version 0.10.0 or greater before installing pgai"  # noqa: E501
-)
-
 
 def _get_sql(vector_extension_schema: str) -> str:
     with files("pgai.data").joinpath("ai.sql").open(mode="r") as f:
@@ -54,12 +50,14 @@ def get_ai_extension_version_sql() -> sql_lib.SQL:
     return sql_lib.SQL("select extversion from pg_extension where extname = 'ai'")
 
 
-def check_extension_version_result(result: Any | None) -> None:
+def raise_on_old_extension_version(result: Any | None) -> None:
     if result is None or result[0] is None:
         return  # no extension installed is fine
 
     if semver.VersionInfo.parse(result[0]) < semver.VersionInfo.parse("0.10.0"):
-        raise OLD_AI_EXTENSION_EXCEPTION
+        raise Exception(
+            f"The ai extension is outdated and must be upgraded. Installed version: {result[0]}, required version: 0.10.0"  # noqa: E501
+        )
 
 
 def _get_server_version_sql() -> sql_lib.SQL:
@@ -135,7 +133,7 @@ async def ainstall(
 
         # check if the ai extension is installed is at an acceptable version
         await cur.execute(get_ai_extension_version_sql())
-        check_extension_version_result(await cur.fetchone())
+        raise_on_old_extension_version(await cur.fetchone())
 
         try:
             await conn.execute(sql)  # type: ignore
@@ -203,7 +201,7 @@ def install(
 
         # check if the ai extension is installed is at an acceptable version
         cur.execute(get_ai_extension_version_sql())
-        check_extension_version_result(cur.fetchone())
+        raise_on_old_extension_version(cur.fetchone())
 
         try:
             conn.execute(sql)  # type: ignore
