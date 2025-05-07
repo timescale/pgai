@@ -268,6 +268,32 @@ async def fetch_database_context_alt(
     return ctx
 
 
+def diagnostic_to_str(d: psycopg.errors.Diagnostic) -> str | None:
+    msgs: list[str] = []
+    if d.message_primary:
+        msgs.append(d.message_primary)
+    if d.message_detail:
+        msgs.append(f"DETAIL: {d.message_detail}")
+    if d.message_hint:
+        msgs.append(f"HINT: {d.message_hint}")
+    if d.statement_position:
+        msgs.append(f"STATEMENT POSITION: {d.statement_position}")
+    if d.context:
+        msgs.append(f"CONTEXT: {d.context}")
+    if d.schema_name:
+        msgs.append(f"SCHEMA NAME: {d.schema_name}")
+    if d.table_name:
+        msgs.append(f"TABLE NAME: {d.table_name}")
+    if d.column_name:
+        msgs.append(f"COLUMN NAME: {d.column_name}")
+    if d.constraint_name:
+        msgs.append(f"CONSTRAINT NAME: {d.constraint_name}")
+    if d.sqlstate:
+        msgs.append(f"SQLSTATE: {d.sqlstate}")
+    msg = "\n".join(msgs).strip()
+    return msg if msg != "" else None
+
+
 async def validate_sql_statement(
     target_con: psycopg.AsyncConnection,
     sql_statement: str,
@@ -298,8 +324,9 @@ async def validate_sql_statement(
             logger.info("sql statement is valid")
             return plan, None
         except psycopg.Error as e:
-            logger.info(f"sql statement is invalid {e.diag.message_primary or str(e)}")
-            return None, e.diag.message_primary or str(e)
+            msg = diagnostic_to_str(e.diag) or str(e)
+            logger.info(f"sql statement is invalid {msg}")
+            return None, msg
 
 
 @dataclass
