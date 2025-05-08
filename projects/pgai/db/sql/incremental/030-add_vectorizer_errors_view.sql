@@ -36,6 +36,8 @@ from
 DO $$
 DECLARE
     to_user text;
+    priv_type text;
+    with_grant text;
     rec RECORD;
 BEGIN
     -- find all users that have permissions on ai.vectorizer table and grant them to the errors ones
@@ -43,11 +45,15 @@ BEGIN
         SELECT DISTINCT grantee as username
         FROM information_schema.role_table_grants
         WHERE table_schema = 'ai' 
-        AND table_name = 'vectorizer'
+        AND table_name = '_vectorizer_errors'
     LOOP
         to_user := rec.username;
-        EXECUTE 'GRANT SELECT ON ai._vectorizer_errors TO ' || quote_ident(to_user);
-        EXECUTE 'GRANT SELECT ON ai.vectorizer_errors TO ' || quote_ident(to_user);
+        priv_type := rec.privilege_type
+        with_grant = ''
+        if rec.is_grantable then
+           with_grant = ' WITH GRANT OPTION';
+        end if;
+        EXECUTE format('GRANT %I ON ai.vectorizer_errors TO %I %s', priv_type, to_user, with_grant);
     END LOOP;
 END
 $$; 
