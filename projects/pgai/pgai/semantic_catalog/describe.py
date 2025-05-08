@@ -8,7 +8,7 @@ the database schema and its purpose.
 
 import logging
 from collections.abc import Callable
-from typing import TextIO
+from typing import Any, TextIO
 
 import psycopg
 from psycopg.sql import SQL, Composable
@@ -38,6 +38,7 @@ async def find_tables(
     exclude_schema: str | None = None,
     include_table: str | None = None,
     exclude_table: str | None = None,
+    include_extensions: list[str] | None = None,
 ) -> list[int]:
     """Find PostgreSQL tables matching specified criteria.
 
@@ -57,7 +58,7 @@ async def find_tables(
     """  # noqa: E501
     async with con.cursor() as cur:
         filters: list[Composable] = []
-        params: dict[str, str] = {}
+        params: dict[str, Any] = {}
         if include_schema:
             filters.append(SQL("\nand n.nspname ~ %(include_schema)s"))
             params["include_schema"] = include_schema
@@ -71,6 +72,10 @@ async def find_tables(
             filters.append(SQL("\nand c.relname !~ %(exclude_table)s"))
             params["exclude_table"] = exclude_table
         combined_filters = SQL(" ").join(filters) if filters else SQL("")
+        extension_filter = SQL("")
+        if include_extensions:
+            extension_filter = SQL("and x.extname != any(%(include_extensions)s)")
+            params["include_extensions"] = include_extensions
         query = SQL("""\
             select c.oid
             from pg_catalog.pg_class c
@@ -78,6 +83,7 @@ async def find_tables(
                 on (c.relnamespace = n.oid)
             where n.nspname not like 'pg_%%'
             and n.nspname != 'information_schema'
+            and n.nspname != '_timescaledb_internal'
             and n.nspname != 'ai'
             and c.relkind in ('r', 'f', 'p')
             {filters}
@@ -90,8 +96,9 @@ async def find_tables(
                 and d.refclassid = 'pg_catalog.pg_extension'::regclass::oid
                 and d.deptype = 'e'
                 and d.objid = c.oid
+                {extension_filter}
             )
-        """).format(filters=combined_filters)
+        """).format(filters=combined_filters, extension_filter=extension_filter)
         await cur.execute(query, params)
         tables = [int(row[0]) for row in await cur.fetchall()]
         logger.debug(f"found {len(tables)} tables")
@@ -104,6 +111,7 @@ async def find_views(
     exclude_schema: str | None = None,
     include_view: str | None = None,
     exclude_view: str | None = None,
+    include_extensions: list[str] | None = None,
 ) -> list[int]:
     """Find PostgreSQL views matching specified criteria.
 
@@ -123,7 +131,7 @@ async def find_views(
     """  # noqa: E501
     async with con.cursor() as cur:
         filters: list[Composable] = []
-        params: dict[str, str] = {}
+        params: dict[str, Any] = {}
         if include_schema:
             filters.append(SQL("\nand n.nspname ~ %(include_schema)s"))
             params["include_schema"] = include_schema
@@ -137,6 +145,10 @@ async def find_views(
             filters.append(SQL("\nand c.relname !~ %(exclude_view)s"))
             params["exclude_view"] = exclude_view
         combined_filters = SQL(" ").join(filters) if filters else SQL("")
+        extension_filter = SQL("")
+        if include_extensions:
+            extension_filter = SQL("and x.extname != any(%(include_extensions)s)")
+            params["include_extensions"] = include_extensions
         query = SQL("""\
             select c.oid
             from pg_catalog.pg_class c
@@ -144,6 +156,7 @@ async def find_views(
                 on (c.relnamespace = n.oid)
             where n.nspname not like 'pg_%%'
             and n.nspname != 'information_schema'
+            and n.nspname != '_timescaledb_internal'
             and n.nspname != 'ai'
             and c.relkind in ('v', 'm')
             {filters}
@@ -156,8 +169,9 @@ async def find_views(
                 and d.refclassid = 'pg_catalog.pg_extension'::regclass::oid
                 and d.deptype = 'e'
                 and d.objid = c.oid
+                {extension_filter}
             )
-        """).format(filters=combined_filters)
+        """).format(filters=combined_filters, extension_filter=extension_filter)
         await cur.execute(query, params)
         views = [int(row[0]) for row in await cur.fetchall()]
         logger.debug(f"found {len(views)} views")
@@ -170,6 +184,7 @@ async def find_procedures(
     exclude_schema: str | None = None,
     include_proc: str | None = None,
     exclude_proc: str | None = None,
+    include_extensions: list[str] | None = None,
 ) -> list[int]:
     """Find PostgreSQL procedures and functions matching specified criteria.
 
@@ -189,7 +204,7 @@ async def find_procedures(
     """  # noqa: E501
     async with con.cursor() as cur:
         filters: list[Composable] = []
-        params: dict[str, str] = {}
+        params: dict[str, Any] = {}
         if include_schema:
             filters.append(SQL("\nand n.nspname ~ %(include_schema)s"))
             params["include_schema"] = include_schema
@@ -203,6 +218,10 @@ async def find_procedures(
             filters.append(SQL("\nand p.proname !~ %(exclude_proc)s"))
             params["exclude_proc"] = exclude_proc
         combined_filters = SQL(" ").join(filters) if filters else SQL("")
+        extension_filter = SQL("")
+        if include_extensions:
+            extension_filter = SQL("and x.extname != any(%(include_extensions)s)")
+            params["include_extensions"] = include_extensions
         query = SQL("""\
             select p.oid
             from pg_catalog.pg_proc p
@@ -210,6 +229,7 @@ async def find_procedures(
                 on (p.pronamespace = n.oid)
             where n.nspname not like 'pg_%%'
             and n.nspname != 'information_schema'
+            and n.nspname != '_timescaledb_internal'
             and n.nspname != 'ai'
             {filters}
             and not exists
@@ -221,8 +241,9 @@ async def find_procedures(
                 and d.refclassid = 'pg_catalog.pg_extension'::regclass::oid
                 and d.deptype = 'e'
                 and d.objid = p.oid
+                {extension_filter}
             )
-        """).format(filters=combined_filters)
+        """).format(filters=combined_filters, extension_filter=extension_filter)
         await cur.execute(query, params)
         procs = [int(row[0]) for row in await cur.fetchall()]
         logger.debug(f"found {len(procs)} procedures")
@@ -687,6 +708,7 @@ async def describe(
     exclude_view: str | None = None,
     include_proc: str | None = None,
     exclude_proc: str | None = None,
+    include_extensions: list[str] | None = None,
     usage: Usage | None = None,
     usage_limits: UsageLimits | None = None,
     batch_size: int = 5,
@@ -735,6 +757,7 @@ async def describe(
                 exclude_schema,
                 include_table,
                 exclude_table,
+                include_extensions,
             )
         # find views
         with console.status("finding views..."):
@@ -744,6 +767,7 @@ async def describe(
                 exclude_schema,
                 include_view,
                 exclude_view,
+                include_extensions,
             )
         # find procedures
         with console.status("finding procedures/functions..."):
@@ -753,6 +777,7 @@ async def describe(
                 exclude_schema,
                 include_proc,
                 exclude_proc,
+                include_extensions,
             )
         if len(table_oids) == 0:
             console.print(":warning: no tables found.")
