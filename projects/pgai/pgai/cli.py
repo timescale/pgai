@@ -1380,6 +1380,11 @@ def generate_sql(
     show_default=True,
     help="Number of sample rows to include for each table/view in the results",
 )
+@click.option(
+    "--render",
+    is_flag=True,
+    help="Render the prompts for matches",
+)
 def search(
     db_url: str | None,
     catalog_db_url: str | None,
@@ -1387,6 +1392,7 @@ def search(
     embed_config: str | None,
     prompt: str,
     sample_size: int = 3,
+    render: bool = False,
 ) -> None:
     """Search the semantic catalog using natural language queries.
 
@@ -1442,28 +1448,46 @@ def search(
         obj_matches: list[ObjectDescription] = await sc.search_objects(
             ccon, embedding_name=embed_config, query=prompt, limit=5
         )
-        for obj_match in obj_matches:
-            console.print(f"match: {'.'.join(obj_match.objnames)}")
+        # sql examples
+        sql_matches: list[SQLExample] = await sc.search_sql_examples(
+            ccon, embedding_name=embed_config, query=prompt, limit=5
+        )
+        # facts
+        fact_matches: list[Fact] = await sc.search_facts(
+            ccon, embedding_name=embed_config, query=prompt, limit=5
+        )
+
+        from rich.rule import Rule
+        from rich.table import Table
+
+        table = Table(title="Matches", expand=True)
+        table.add_column("ID", justify="right")
+        table.add_column("Item", justify="left", overflow="ellipsis")
+        table.add_column("Description", justify="left", overflow="ellipsis")
+        for m in obj_matches:
+            table.add_row(str(m.id), ".".join(m.objnames), m.description)
+        for m in sql_matches:
+            table.add_row(str(m.id), m.sql, m.description)
+        for m in fact_matches:
+            table.add_row(str(m.id), "", m.description)
+        console.print(table)
+
+        if not render:
+            return
+
         for obj in await sc.load_objects(
             tcon,
             obj_matches,
             sample_size,
         ):
+            console.print(Rule())
             console.print(sc.render_objects([obj]))
-        # sql examples
-        sql_matches: list[SQLExample] = await sc.search_sql_examples(
-            ccon, embedding_name=embed_config, query=prompt, limit=5
-        )
-        for sql_match in sql_matches:
-            console.print(f"match: sql example: {sql_match.id}")
-        console.print(sc.render_sql_examples(sql_matches))
-        # facts
-        fact_matches: list[Fact] = await sc.search_facts(
-            ccon, embedding_name=embed_config, query=prompt, limit=5
-        )
-        for fact_match in fact_matches:
-            console.print(f"match: fact: {fact_match.id}")
-        console.print(sc.render_facts(fact_matches))
+        for ex in sql_matches:
+            console.print(Rule())
+            console.print(sc.render_sql_examples([ex]))
+        for fact in fact_matches:
+            console.print(Rule())
+            console.print(sc.render_facts([fact]))
 
     async def do() -> None:
         if catalog_db_url:
