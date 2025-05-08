@@ -324,6 +324,13 @@ def semantic_catalog():
     help="Regex pattern to exclude procedures/functions (e.g. 'internal_.*').",
 )
 @click.option(
+    "--include-extension",
+    type=click.STRING,
+    multiple=True,
+    default=None,
+    help="The name of an extension whose objects should not be excluded",
+)
+@click.option(
     "-f",
     "--yaml-file",
     type=click.Path(dir_okay=False, writable=True, path_type=Path),
@@ -391,6 +398,7 @@ def describe(
     exclude_view: str | None = None,
     include_proc: str | None = None,
     exclude_proc: str | None = None,
+    include_extension: list[str] | None = None,
     yaml_file: Path | None = None,
     append: bool = False,
     sample_size: int = 3,
@@ -459,6 +467,9 @@ def describe(
                 exclude_view=exclude_view,
                 include_proc=include_proc,
                 exclude_proc=exclude_proc,
+                include_extensions=[x for x in include_extension]
+                if include_extension
+                else None,
                 usage_limits=UsageLimits(
                     request_limit=request_limit,
                     total_tokens_limit=total_tokens_limit,
