@@ -12,6 +12,7 @@ if enable_contents_tests == "0":
 
 
 def db_url(user: str, dbname: str) -> str:
+    # foo bar
     return f"postgres://{user}@127.0.0.1:5432/{dbname}"
 
 
