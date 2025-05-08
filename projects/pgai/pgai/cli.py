@@ -271,7 +271,7 @@ def semantic_catalog():
     "-m",
     "--model",
     type=click.STRING,
-    default="openai:o3",
+    default="openai:gpt-4.1",
     show_default=True,
     help="The LLM model to generate descriptions (format: provider:model).",
 )
