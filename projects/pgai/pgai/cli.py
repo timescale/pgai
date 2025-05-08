@@ -1096,7 +1096,7 @@ def export_catalog(
     "-m",
     "--model",
     type=click.STRING,
-    default="anthropic:claude-3-7-sonnet-latest",
+    default="openai:gpt-4.1",
     show_default=True,
     help="LLM model to use for SQL generation (format: provider:model).",
 )
@@ -1211,11 +1211,11 @@ def generate_sql(
     total_tokens_limit: int | None = None,
 ) -> None:
     """Generate SQL based on a natural language prompt using the semantic catalog.
-    
+
     Uses AI to generate a SQL statement that fulfills the user's request, based on
     context from the semantic catalog. The SQL is validated against the target database
     to ensure it's correct.
-    
+
     The semantic catalog provides context about the database schema, including table
     structures, column descriptions, and example SQL queries. This context helps the
     AI model generate accurate SQL statements.
