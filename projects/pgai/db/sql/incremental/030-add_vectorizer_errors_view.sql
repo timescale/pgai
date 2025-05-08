@@ -29,7 +29,7 @@ select
   v.name
 from
   ai._vectorizer_errors ve
-  join ai.vectorizer v on ve.id = v.id;
+  left join ai.vectorizer v on ve.id = v.id;
 
 
 -- grant privileges on _vectorizer_errors and vectorizer_errors to vectorizer users
