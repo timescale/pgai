@@ -115,7 +115,7 @@ async def test_find_tables(container: PostgresContainer):
     ) as con:
         for test in tests:
             args, expected = test
-            oids = await describe.find_tables(con, **args)
+            oids = await describe.find_tables(con, include_extensions=None, **args)
             actual = await get_table_names(con, oids)
             assert actual == expected, f"find_tables with {args} failed"
 
@@ -159,7 +159,7 @@ async def test_find_views(container: PostgresContainer):
     ) as con:
         for test in tests:
             args, expected = test
-            oids = await describe.find_views(con, **args)
+            oids = await describe.find_views(con, include_extensions=None, **args)
             actual = await get_view_names(con, oids)
             assert actual == expected, f"find_views with {args} failed"
 
@@ -211,7 +211,7 @@ async def test_find_procs(container: PostgresContainer):
         await cur.execute("create schema if not exists empty;")
         for test in tests:
             args, expected = test
-            oids = await describe.find_procedures(con, **args)
+            oids = await describe.find_procedures(con, include_extensions=None, **args)
             actual = await get_proc_names(con, oids)
             assert actual == expected, f"find_procs with {args} failed"
 
