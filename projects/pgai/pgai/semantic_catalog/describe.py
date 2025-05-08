@@ -695,6 +695,59 @@ async def _count_columns(con: psycopg.AsyncConnection, oids: list[int]) -> int:
         return row[0] if row else 0
 
 
+async def _class_names(
+    con: psycopg.AsyncConnection, oids: list[int]
+) -> list[tuple[str, str]]:
+    async with con.cursor() as cur:
+        await cur.execute(
+            """\
+            select
+              case
+                when k.relkind in ('r', 'p', 'f')
+                    then 'Table'
+                when k.relkind in ('v', 'm')
+                    then 'View'
+              end
+            , n.nspname || '.' || k.relname
+            from pg_class k
+            inner join pg_namespace n on (k.relnamespace = n.oid)
+            where k.oid = any(%s)
+            order by n.nspname, k.relname
+        """,
+            (oids,),
+        )
+        return [(str(row[0]), str(row[1])) for row in await cur.fetchall()]
+
+
+async def _proc_names(
+    con: psycopg.AsyncConnection, oids: list[int]
+) -> list[tuple[str, str]]:
+    async with con.cursor() as cur:
+        await cur.execute(
+            """\
+            select
+              case p.prokind
+                when 'f' then 'Function'
+                when 'p' then 'Procedure'
+                when 'a' then 'Aggregate'
+                when 'w' then 'Window Function'
+              end
+            , format
+              ( '%%s.%%s(%%s)'
+              , n.nspname
+              , p.proname
+              , pg_get_function_identity_arguments(p.oid)
+              )
+            from pg_proc p
+            inner join pg_namespace n on (p.pronamespace = n.oid)
+            where p.oid = any(%s)
+            order by n.nspname, p.proname
+        """,
+            (oids,),
+        )
+        return [(str(row[0]), str(row[1])) for row in await cur.fetchall()]
+
+
 async def describe(
     db_url: str,
     model: KnownModelName | Model,
@@ -713,6 +766,7 @@ async def describe(
     usage_limits: UsageLimits | None = None,
     batch_size: int = 5,
     sample_size: int = 3,
+    dry_run: bool = False,
 ) -> Usage:
     """Generate natural language descriptions for database objects and export them to YAML.
 
@@ -791,6 +845,21 @@ async def describe(
             console.print(":warning: no procedures/functions found.")
         else:
             console.print(f"procedures/functions found: {len(proc_oids)}")
+
+        if dry_run:
+            from rich.table import Table
+
+            table = Table(title="Objects Found", expand=True)
+            table.add_column("Type")
+            table.add_column("Name")
+            for t in await _class_names(con, table_oids):
+                table.add_row(t[0], t[1])
+            for v in await _class_names(con, view_oids):
+                table.add_row(v[0], v[1])
+            for p in await _proc_names(con, proc_oids):
+                table.add_row(p[0], p[1])
+            console.print(table)
+            return usage
 
         total_table = (
             len(table_oids) + (await _count_columns(con, table_oids))
