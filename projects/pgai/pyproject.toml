@@ -148,5 +148,11 @@ dev-dependencies = [
     "pdbpp>=0.10.3",
 ]
 
+[dependency-groups]
+bench = [
+    "memray>=1.16.0",
+    "py-spy>=0.4.0",
+]
+
 [tool.hatch.build.targets.wheel.shared-data]
 "pgai/data" = "data"
