@@ -387,6 +387,11 @@ def semantic_catalog():
     default=None,
     help="Maximum total LLM tokens allowed (for cost control).",
 )
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Find and list objects that would be described, but do not describe them.",
+)
 def describe(
     db_url: str | None,
     model: str,
@@ -408,6 +413,7 @@ def describe(
     log_level: str | None = "INFO",
     request_limit: int | None = None,
     total_tokens_limit: int | None = None,
+    dry_run: bool = False,
 ) -> None:
     """Generate natural language descriptions for database objects.
 
@@ -476,6 +482,7 @@ def describe(
                 ),
                 sample_size=sample_size,
                 batch_size=batch_size,
+                dry_run=dry_run,
             )
         )
 
