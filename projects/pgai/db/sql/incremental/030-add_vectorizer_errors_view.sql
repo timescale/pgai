@@ -15,28 +15,28 @@ from
   left join ai.vectorizer v on ve.id = v.id;
 
 
--- grant privileges on vectorizer_errors
-DO $$
-DECLARE
+-- grant privileges on new ai.vectorizer_errors view
+do language plpgsql $block$
+declare
     to_user text;
     priv_type text;
     with_grant text;
-    rec RECORD;
-BEGIN
-    -- find all users that have permissions on ai.vectorizer table and grant them to the errors ones
-    FOR rec IN 
-        SELECT DISTINCT grantee as username
-        FROM information_schema.role_table_grants
-        WHERE table_schema = 'ai' 
-        AND table_name = '_vectorizer_errors'
-    LOOP
+    rec record;
+begin
+    -- find all users that have permissions on old ai.vectorizer_errors table and grant them to the view
+    for rec in
+        select distinct grantee as username, privilege_type, is_grantable
+        from information_schema.role_table_grants
+        where table_schema = 'ai'
+        and table_name = '_vectorizer_errors'
+    loop
         to_user := rec.username;
-        priv_type := rec.privilege_type
-        with_grant = ''
+        priv_type := rec.privilege_type;
+        with_grant := '';
         if rec.is_grantable then
-           with_grant = ' WITH GRANT OPTION';
+           with_grant := ' WITH GRANT OPTION';
         end if;
-        EXECUTE format('GRANT %I ON ai.vectorizer_errors TO %I %s', priv_type, to_user, with_grant);
-    END LOOP;
-END
-$$; 
+        execute format('GRANT %s ON ai.vectorizer_errors TO %I %s', priv_type, to_user, with_grant);
+    end loop;
+end
+$block$;
