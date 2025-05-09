@@ -144,6 +144,20 @@ def test_named_vectorizer():
             vectorizer_name = cur.fetchone()[0]
             assert vectorizer_name == "website_blog_embedding1"
 
+            # Test fetch errors by vectorizer name
+            cur.execute(
+                "insert into ai._vectorizer_errors (id, message) values (%s, %s)",
+                (vectorizer_id_2, "test error message"),
+            )
+
+            cur.execute(
+                "select * from ai.vectorizer_errors where name = %s",
+                (vectorizer_name,),
+            )
+
+            error = cur.fetchone()
+            assert error.message == "test error message"
+
             # create a vectorizer with no name check default name
             cur.execute("""
                select ai.create_vectorizer
