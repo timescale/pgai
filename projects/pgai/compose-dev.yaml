@@ -16,10 +16,27 @@ services:
         required: false
       - path: ./db.env
         required: false
+  pgai-installer:
+    build: .
+    depends_on:
+      - db
+    entrypoint: sh
+    command:
+      - -c
+      - |
+        for i in $(seq 1 10); do
+          echo "Attempt $$i: installing pgai..."
+          # always overwriting previous installation here.
+          python -m pgai install -d postgres://postgres:postgres@db:5432/postgres && exit 0
+          echo "Failed. Retrying in 1s..."
+          sleep 1
+        done
+        echo "❌ pgai install failed after 10 attempts."
+        exit 1
   vectorizer-worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
+    depends_on:
+      - pgai-installer
     environment:
       PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
     env_file:

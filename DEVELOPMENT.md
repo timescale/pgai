@@ -88,39 +88,11 @@ The CI pipeline will check:
 Remember to always pull the latest changes before starting new work.
 
 ## Testing features
-If there is a feature in main that isn't released yet
-you can create a docker-compose.yml that looks like this:
-```yaml
-name: pgai
-services:
-  db:
-    build:
-      context: projects/extension
-      dockerfile: Dockerfile
-      target: pgai-test-db
-    environment:
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - data:/home/postgres/pgdata/data
-    command: [ "-c", "ai.ollama_host=http://ollama:11434" ]
-  vectorizer-worker:
-    build:
-      context: projects/pgai
-      dockerfile: Dockerfile
-    environment:
-      PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/postgres
-      OLLAMA_HOST: http://ollama:11434
-    command: [ "--poll-interval", "5s", "--log-level", "DEBUG" ]
-  ollama:
-    image: ollama/ollama
-volumes:
-  data:
-```
+If there is a feature in main that isn't released yet,
+please set up your [Docker development environment](/projects/pgai/DEVELOPMENT.md#docker-development-environment).
 
-This will build the vectorizer-worker and a database image with pgai
-installed from your repository state.
+This will build the vectorizer-worker and a database image with the pgai
+library installed from your repository state.
 You can then play around with the latest and greatest changes.
 
 
