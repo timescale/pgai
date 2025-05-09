@@ -434,18 +434,21 @@ class SemanticCatalog:
 
     async def load_objects(
         self,
-        con: TargetConnection,
+        catalog_con: CatalogConnection,
+        target_con: TargetConnection,
         obj_desc: list[ObjectDescription],
         sample_size: int = 0,
     ) -> list[Table | View | Procedure]:
         """Load database objects based on their descriptions.
 
         Takes a list of object descriptions and loads the corresponding database objects
-        (tables, views, procedures) with their metadata. If sample_size is greater than 0,
-        it also retrieves sample data for tables and views.
+        (tables, views, procedures) with their metadata. Matches the descriptions with
+        the loaded objects and attaches them. If sample_size is greater than 0, it also
+        retrieves sample data for tables and views.
 
         Args:
-            con: The database connection to the target database.
+            catalog_con: Connection to the semantic catalog database.
+            target_con: Connection to the target database where the objects are defined.
             obj_desc: List of object descriptions to load.
             sample_size: Number of sample rows to retrieve from tables and views.
                 If 0, no sample data is retrieved.
@@ -453,7 +456,9 @@ class SemanticCatalog:
         Returns:
             A list of database objects (Tables, Views, Procedures) with metadata and descriptions.
         """  # noqa: E501
-        return await loader.load_objects(con, obj_desc, sample_size)
+        return await loader.load_objects(
+            catalog_con, target_con, self.id, obj_desc, sample_size
+        )
 
     def render_objects(self, objects: list[Table | View | Procedure]) -> str:
         """Render database objects as SQL statements.
