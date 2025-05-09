@@ -26,7 +26,13 @@ class TestDatabase:
         count += 1
         self.container = container
         self.dbname = dbname
-        url = self._create_connection_url(dbname="template1")
+        url = self._create_connection_url(dbname="postgres")
+        with psycopg.connect(url, autocommit=True) as conn:
+            conn.execute(
+                sql.SQL("CREATE DATABASE {0}").format(sql.Identifier(self.dbname))
+            )
+
+        url = self._create_connection_url(dbname=self.dbname)
         with psycopg.connect(url, autocommit=True) as conn:
             if extension_version != "":
                 conn.execute(
@@ -37,9 +43,6 @@ class TestDatabase:
                 import pgai
 
                 pgai.install(url)
-            conn.execute(
-                sql.SQL("CREATE DATABASE {0}").format(sql.Identifier(self.dbname))
-            )
 
     def _create_connection_url(
         self,
