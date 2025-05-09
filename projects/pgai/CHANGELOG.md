@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.11.0](https://github.com/timescale/pgai/compare/pgai-v0.10.2...pgai-v0.11.0) (2025-05-09)
+
+
+### Features
+
+* **vectorizer:** warn on outdated pgai library ([#714](https://github.com/timescale/pgai/issues/714)) ([ea16719](https://github.com/timescale/pgai/commit/ea16719645115c3888dd06ef5ae0dac90dad89d8))
+
+
+### Bug Fixes
+
+* better error for old extension version ([b46b8ab](https://github.com/timescale/pgai/commit/b46b8ab17a891cf59e6b86a4a1093c9e9171c5b9))
+* james comments ([736a104](https://github.com/timescale/pgai/commit/736a10424cd1ee80bb3c07f5ca7476a2b6be6473))
+
 ## [0.10.2](https://github.com/timescale/pgai/compare/pgai-v0.10.1...pgai-v0.10.2) (2025-05-07)
 
 
