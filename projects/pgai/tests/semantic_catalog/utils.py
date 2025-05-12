@@ -9,6 +9,7 @@ import psycopg
 from docker import DockerClient
 from docker.models.containers import Container
 from docker.models.images import Image
+from docker.types import Mount
 from psycopg.sql import SQL, Identifier
 
 from pgai.semantic_catalog import describe, loader
@@ -24,6 +25,10 @@ class PostgresContainer:
     @property
     def container(self) -> Container:
         return self._container
+
+    @property
+    def name(self) -> str | None:
+        return self.container.name
 
     @cached_property
     def host(self) -> str:
@@ -103,6 +108,7 @@ class PostgresContainer:
         client: DockerClient = docker.from_env()
         containers: list[Container] = client.containers.list(  # pyright: ignore [reportUnknownVariableType, reportUnknownMemberType]
             filters={"name": container_name},
+            all=True,
         )
         if not containers:
             return None
@@ -136,11 +142,23 @@ class PostgresContainer:
                             ]
                         ),
                     },
+                    mounts=[
+                        Mount(
+                            type="bind",
+                            source=str(
+                                Path(__file__).parent.joinpath("data").resolve()
+                            ),
+                            target="/tmp/data",
+                        )
+                    ],
                 )
             )
             container.wait_for()
         else:
             container: PostgresContainer = maybe
+            if container.container.status != "running":
+                container.container.start()
+                container.wait_for()
         assert container is not None
         while "5432/tcp" not in container.container.ports:
             time.sleep(0.1)
