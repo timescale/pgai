@@ -396,6 +396,151 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- sc_grant_read
+create or replace function ai.sc_grant_read(catalog_name text, role_name name) returns void
+as $func$
+declare
+    _catalog_name text = sc_grant_read.catalog_name;
+    _role_name text = sc_grant_read.role_name;
+    _catalog_id int;
+    _sql text;
+begin
+    select x.id into strict _catalog_id
+    from ai.semantic_catalog x
+    where x.catalog_name = _catalog_name
+    ;
+
+    for _sql in
+    (
+        select format(x, _role_name)
+        from unnest(array[
+            $sql$grant select on ai.semantic_catalog to %I$sql$,
+            $sql$grant select on ai.semantic_catalog_embedding to %I$sql$
+        ]) x
+    )
+    loop
+        raise debug '%', _sql;
+        execute _sql;
+    end loop;
+
+    for _sql in
+    (
+        select format(y, x.id, _role_name)
+        from ai.semantic_catalog x
+        cross join unnest(array[
+            $sql$grant select on ai.semantic_catalog_obj_%s to %I$sql$,
+            $sql$grant select on ai.semantic_catalog_sql_%s to %I$sql$,
+            $sql$grant select on ai.semantic_catalog_fact_%s to %I$sql$
+        ]) y
+        where x.catalog_name = _catalog_name
+    )
+    loop
+        raise debug '%', _sql;
+        execute _sql;
+    end loop;
+end
+$func$ language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- sc_grant_write
+create or replace function ai.sc_grant_write(catalog_name text, role_name name) returns void
+as $func$
+declare
+    _catalog_name text = sc_grant_write.catalog_name;
+    _role_name text = sc_grant_write.role_name;
+    _catalog_id int;
+    _sql text;
+begin
+    select x.id into strict _catalog_id
+    from ai.semantic_catalog x
+    where x.catalog_name = _catalog_name
+    ;
+
+    for _sql in
+    (
+        select format(x, _role_name)
+        from unnest(array[
+            $sql$grant select on ai.semantic_catalog to %I$sql$,
+            $sql$grant select on ai.semantic_catalog_embedding to %I$sql$
+        ]) x
+    )
+    loop
+        raise debug '%', _sql;
+        execute _sql;
+    end loop;
+
+    for _sql in
+    (
+        select format(y, x.id, _role_name)
+        from ai.semantic_catalog x
+        cross join unnest(array[
+            $sql$grant select, insert, update, delete on ai.semantic_catalog_obj_%s to %I$sql$,
+            $sql$grant usage, select, update on sequence ai.semantic_catalog_obj_%s_id_seq to %I$sql$,
+            $sql$grant select, insert, update, delete on ai.semantic_catalog_sql_%s to %I$sql$,
+            $sql$grant usage, select, update on sequence ai.semantic_catalog_sql_%s_id_seq to %I$sql$,
+            $sql$grant select, insert, update, delete on ai.semantic_catalog_fact_%s to %I$sql$,
+            $sql$grant usage, select, update on sequence ai.semantic_catalog_fact_%s_id_seq to %I$sql$
+        ]) y
+        where x.catalog_name = _catalog_name
+    )
+    loop
+        raise debug '%', _sql;
+        execute _sql;
+    end loop;
+end
+$func$ language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- sc_grant_admin
+create or replace function ai.sc_grant_admin(role_name name) returns void
+as $func$
+declare
+    _role_name text = sc_grant_admin.role_name;
+    _sql text;
+begin
+
+    for _sql in
+    (
+        select format(x, _role_name)
+        from unnest(array[
+            $sql$grant select, insert, update, delete, truncate on ai.semantic_catalog to %I$sql$,
+            $sql$grant usage, select, update on sequence ai.semantic_catalog_id_seq to %I$sql$,
+            $sql$grant select, insert, update, delete, truncate on ai.semantic_catalog_embedding to %I$sql$,
+            $sql$grant usage, select, update on sequence ai.semantic_catalog_embedding_id_seq to %I$sql$
+        ]) x
+    )
+    loop
+        raise debug '%', _sql;
+        execute _sql;
+    end loop;
+
+    for _sql in
+    (
+        select format(y, x.id, _role_name)
+        from ai.semantic_catalog x
+        cross join unnest(array[
+            $sql$grant select, insert, update, delete on ai.semantic_catalog_obj_%s to %I$sql$,
+            $sql$grant usage, select, update on sequence ai.semantic_catalog_obj_%s_id_seq to %I$sql$,
+            $sql$grant select, insert, update, delete on ai.semantic_catalog_sql_%s to %I$sql$,
+            $sql$grant usage, select, update on sequence ai.semantic_catalog_sql_%s_id_seq to %I$sql$,
+            $sql$grant select, insert, update, delete on ai.semantic_catalog_fact_%s to %I$sql$,
+            $sql$grant usage, select, update on sequence ai.semantic_catalog_fact_%s_id_seq to %I$sql$
+        ]) y
+    )
+    loop
+        raise debug '%', _sql;
+        execute _sql;
+    end loop;
+end
+$func$ language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- sc_set_obj_desc
 create or replace function ai.sc_set_obj_desc
 ( classid oid
