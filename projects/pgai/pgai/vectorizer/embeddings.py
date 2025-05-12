@@ -32,6 +32,47 @@ class BatchingError(BaseException):
     pass
 
 
+def batch_indices(
+    chunk_token_lengths: list[float] | list[int],
+    max_chunks_per_batch: int,
+    max_tokens_per_batch: int | None,
+) -> list[tuple[int, int]]:
+    """
+    Given a list of chunk token lengths, determines how to batch them,
+    adhering to configured 'max_chunks_per_batch' and 'max_tokens_per_batch'.
+
+    Returns a list of tuples indicating the chunk indexes to include in the batch
+    """
+    batches: list[list[int]] = []
+    batch: list[int] = []
+    token_count = 0
+    for idx, chunk_tokens in enumerate(chunk_token_lengths):
+        if max_tokens_per_batch is not None and chunk_tokens > max_tokens_per_batch:
+            raise BatchingError(
+                f"chunk length {chunk_tokens} greater than max_tokens_per_batch {max_tokens_per_batch}"  # noqa
+            )
+        max_tokens_reached = (
+            max_tokens_per_batch is not None
+            and round(token_count + chunk_tokens) > max_tokens_per_batch
+        )
+        max_chunks_reached = len(batch) + 1 > max_chunks_per_batch
+        if max_tokens_reached or max_chunks_reached:
+            logger.debug(
+                f"Batch {len(batches) + 1} has {token_count} tokens in {len(batch)} chunks"  # noqa
+            )
+            batches.append(batch)
+            batch = []
+            token_count = 0
+        batch.append(idx)
+        token_count += chunk_tokens
+    if batch:
+        logger.debug(
+            f"Batch {len(batches) + 1} has {token_count} tokens in {len(batch)} chunks"
+        )
+        batches.append(batch)
+    return [(idxs[0], idxs[-1] + 1) for idxs in batches]
+
+
 class Embedder(ABC):
     """
     Abstract base class for an Embedder.
@@ -39,48 +80,6 @@ class Embedder(ABC):
     This class defines the interface for embedding text documents into vectors
     or returning embedding errors.
     """
-
-    def batch_indices(
-        self,
-        documents: list[str],  # noqa: ARG002
-        chunk_token_lengths: list[int],
-        max_chunks_per_batch: int,
-        max_tokens_per_batch: int | None,
-    ) -> list[tuple[int, int]]:
-        """
-        Given a list of chunk token lengths, determines how to batch them,
-        adhering to configured 'max_chunks_per_batch' and 'max_tokens_per_batch'.
-
-        Returns a list of tuples indicating the chunk indexes to include in the batch
-        """
-        batches: list[list[int]] = []
-        batch: list[int] = []
-        token_count = 0
-        for idx, chunk_tokens in enumerate(chunk_token_lengths):
-            if max_tokens_per_batch is not None and chunk_tokens > max_tokens_per_batch:
-                raise BatchingError(
-                    f"chunk length {chunk_tokens} greater than max_tokens_per_batch {max_tokens_per_batch}"  # noqa
-                )
-            max_tokens_reached = (
-                max_tokens_per_batch is not None
-                and token_count + chunk_tokens > max_tokens_per_batch
-            )
-            max_chunks_reached = len(batch) + 1 > max_chunks_per_batch
-            if max_tokens_reached or max_chunks_reached:
-                logger.debug(
-                    f"Batch {len(batches) + 1} has {token_count} tokens in {len(batch)} chunks"  # noqa
-                )
-                batches.append(batch)
-                batch = []
-                token_count = 0
-            batch.append(idx)
-            token_count += chunk_tokens
-        if batch:
-            logger.debug(
-                f"Batch {len(batches) + 1} has {token_count} tokens in {len(batch)} chunks"  # noqa
-            )
-            batches.append(batch)
-        return [(idxs[0], idxs[-1] + 1) for idxs in batches]
 
     @abstractmethod
     async def embed(
@@ -128,7 +127,7 @@ class Embedder(ABC):
         """
 
     async def batch_chunks_and_embed(
-        self, documents: list[str], token_counts: list[int]
+        self, documents: list[str], token_counts: list[float] | list[int]
     ) -> AsyncGenerator[list[EmbeddingVector], None]:
         """
         Performs the actual embedding of encoded documents by sending requests
@@ -136,7 +135,7 @@ class Embedder(ABC):
 
         Args:
             documents (list[str]): A list of documents.
-            token_counts (list[int]): A list of token count for each document, or 0
+            token_counts (list[float]): A list of token count for each document, or 0
         Returns:
             AsyncGenerator[list[EmbeddingVector], None]: A list of embedding vectors
             for each document.
@@ -144,8 +143,7 @@ class Embedder(ABC):
         assert len(documents) == len(token_counts)
         max_chunks_per_batch = self._max_chunks_per_batch()
         max_tokens_per_batch = self._max_tokens_per_batch()
-        batches = self.batch_indices(
-            documents,
+        batches = batch_indices(
             token_counts,
             max_chunks_per_batch=max_chunks_per_batch,
             max_tokens_per_batch=max_tokens_per_batch,
