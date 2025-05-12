@@ -3,6 +3,7 @@ from pathlib import Path
 
 import psycopg
 import pytest
+from docker.types import Mount
 from dotenv import load_dotenv
 
 from .utils import PostgresContainer
@@ -38,7 +39,15 @@ def load_postgres_air(container: PostgresContainer):
 @pytest.fixture(scope="session")
 def container():
     dont_kill_container = os.getenv("DONT_KILL_CONTAINER") is not None
-    container = PostgresContainer.get_or_create()
+    container = PostgresContainer.get_or_create(
+        mounts=[
+            Mount(
+                type="bind",
+                source=str(Path(__file__).parent.resolve()),
+                target="/tmp/tests",
+            )
+        ]
+    )
     container.drop_database("postgres_air")
     container.create_database("postgres_air")
     load_postgres_air(container)
