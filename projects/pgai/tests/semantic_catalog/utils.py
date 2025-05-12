@@ -116,7 +116,9 @@ class PostgresContainer:
 
     @staticmethod
     def get_or_create(
-        container_name: str = CONTAINER_NAME, port: int = 5678
+        container_name: str = CONTAINER_NAME,
+        port: int = 5678,
+        mounts: list[Mount] | None = None,
     ) -> "PostgresContainer":
         client: DockerClient = docker.from_env()
         maybe: PostgresContainer | None = PostgresContainer.get(container_name)
@@ -142,15 +144,7 @@ class PostgresContainer:
                             ]
                         ),
                     },
-                    mounts=[
-                        Mount(
-                            type="bind",
-                            source=str(
-                                Path(__file__).parent.joinpath("data").resolve()
-                            ),
-                            target="/tmp/data",
-                        )
-                    ],
+                    mounts=mounts,
                 )
             )
             container.wait_for()
