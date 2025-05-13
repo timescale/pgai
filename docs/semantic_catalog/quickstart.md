@@ -2,41 +2,56 @@
 
 ## What is "text-to-sql"?
 
-Text-to-SQL is a natural language processing technology that converts plain human language queries into SQL queries that can be executed against relational databases like PostgreSQL. It acts as a bridge between non-technical users and database systems, allowing them to interact with data using everyday language rather than having to write complex SQL syntax.
+Text-to-SQL is a natural language processing technology that converts questions made in human language into SQL queries
+that you execute in relational databases such as PostgreSQL. Text-to-SQL is a tool that enables non-technical users to
+interact with data and database systems using everyday language in the place of complex SQL syntax.
 
-## Prompting an LLM for text-to-sql
+## How Text-to-SQL works
 
-LLMs are trained on the SQL language. They are capable of writing valid SQL queries without further training on the language itself. However, knowing the language is not enough to author queries that accurately answer business questions. To do this, one also needs knowledge of the schema's structures and an understanding of the data in these structures.
+LLMs are capable of writing valid SQL queries without further training on the SQL language. However, knowing SQL is not
+enough to author queries that accurately answer business questions. Humans and LLMs need to:
 
-### The three ingredients to authoring a query:
+1. Know the SQL language
+2. Understand the database schema
+3. Understand the format and meaning of the data in the database
 
-1. knowledge of the SQL language
-2. knowledge of the database schema (structures)
-3. understanding of the data's format and meaning
+LLMs know the language. The postgres catalog contains the definitions of the schema and data. The semantic catalog acts
+as a bridge between the structural definitions and a human-level understanding in natural language.
 
-We have to provide ingredients 2 and 3 to the LLM in a prompt.
+One could dump the entire schema and data to the LLM prompt. For very small databases, this might work. As schemas get
+larger, this approach will consume too many tokens, too much time, and risks leading the LLM astray with irrelevant details.
 
-We could dump the entire schema and data to SQL and include it in the prompt. For very small databases, this might work. As schemas get larger, this approach will consume too many tokens, too much time, and risks leading the LLM astray with irrelevant details.
+For demanding applications, we use the semantic catalog to include only the schema and sample data that is *relevant* to
+the question posed. This light-touch solution reduces the number of tokens consumed and avoids introducing irrelevant
+details to the LLM.
 
-For demanding applications, we only want to include in the context the schema and sample data that is *relevant* to the question posed.
+### The semantic catalog
 
-## The "Semantic Catalog"
+A semantic catalog is a comprehensive knowledge repository that bridges the gap between natural language and database
+structures. The term _semantic_ refers to the meaning or interpretation of language and symbols, focusing on the
+relationships between words, phrases, and concepts rather than just their literal definitions. The semantic catalog is
+a layer that enriches raw database objects with meaningful context that natural language processing models can leverage.
 
-A semantic catalog serves as a comprehensive knowledge repository that bridges the gap between natural language and database structures. The term "semantic" refers to the meaning or interpretation of language and symbols, focusing on the relationships between words, phrases, and concepts rather than just their literal definitions. The semantic catalog is a layer that enriches raw database objects with meaningful context that natural language processing models can leverage.
+The semantic catalog consists of the following components:
 
-The semantic catalog consists of three components:
+- **Database objects**: with natural language descriptions that provide human-readable context for technical elements such
+   as tables, columns, and functions. This mapping helps the system understand what users mean when they reference
+   business concepts rather than technical database terms.
+- **SQL examples**: paired with natural language descriptions that demonstrate how specific questions translate into query
+   structures.
+- **Facts**: expressed as natural language statements about the dataset/schema, facts provide additional domain knowledge
+   that might not be explicitly encoded in the database structure but is crucial for understanding user intent.
 
-1. Database objects with natural language descriptions provide human-readable context for technical elements like tables, columns, and relationships. This mapping helps the system understand what users mean when they reference business concepts rather than technical database terms.
-2. SQL examples paired with natural language descriptions demonstrate how specific questions translate into query structures.
-3. Facts expressed as natural language statements about the dataset/schema provide additional domain knowledge that might not be explicitly encoded in the database structure but is crucial for understanding user intent.
-
-By embedding these components, your semantic catalog enables vector similarity searches that can retrieve relevant context when processing new queries. This retrieval-augmented generation (RAG) approach ensures the text-to-SQL system has access to the most pertinent information about your database structure, usage patterns, and domain knowledge when constructing SQL queries from natural language inputs.
+By embedding these components, your semantic catalog enables vector similarity searches that can retrieve relevant
+context when processing new queries. This retrieval-augmented generation (RAG) approach ensures that when constructing
+SQL queries from natural language inputs, Text-to-SQL has access to the most pertinent information about your database
+structure, usage patterns, and domain knowledge.
 
 ### Semantic Catalog Features
 
-* The semantic catalog can be in a database other than the database you are generating SQL statements for.
-* You can manage multiple, independent semantic catalogs in a single database
-* A single semantic catalog can have multiple embedding configurations for A/B testing
+* You can install the semantic catalog in a different database from the one you are generating SQL statements for.
+* You can manage multiple, independent semantic catalogs in a single database.
+* For A/B testing, you can create multiple embedding configurations on a single semantic catalog.
 
 ## Quickstart Example
 
@@ -51,105 +66,113 @@ Once our semantic catalog is loaded with embedded descriptions, we can start gen
 
 ## Prerequisites
 
+* [Python 3](https://www.python.org/downloads/)
 * [git](https://git-scm.com/downloads)
 * [uv](https://docs.astral.sh/uv/getting-started/installation/)
 * [docker](https://www.docker.com/products/docker-desktop/)
-* an OpenAI key
+* An [OpenAI key](https://platform.openai.com/api-keys)
 
-## Installation
+## Quickstart
 
-```bash
-git clone https://github.com/timescale/pgai.git -b jgpruitt/semantic-catalog
-cd pgai/projects/pgai
-uv sync
-source .venv/bin/activate
-pgai --version
-```
+This quickstart uses the:
 
-## Steps
+* Open source "postgres air" database:  to demonstrate SQL generation.
+* pgai: to find database objects in the postgres air database and automatically generate natural language descriptions
+  using an LLM.
 
-### 1. Run a postgres container
+Using these tools, you create a semantic catalog in another PostgreSQL database, then import and embed the descriptions.
+Once the semantic catalog is loaded with embedded descriptions, you start generating SQL to answer questions.
 
-```bash
-docker run -d --name postgres-air --hostname postgres-air \
-    -p 127.0.0.1:5555:5432 \
-    -e POSTGRES_HOST_AUTH_METHOD=trust \
-    pgvector/pgvector:pg17
-```
+1. **Install pgai**
 
-### 2. Load the postgres_air dataset
+   ```bash
+   git clone https://github.com/timescale/pgai.git -b jgpruitt/semantic-catalog
+   cd pgai/projects/pgai
+   uv sync
+   source .venv/bin/activate
+   pgai --version
+   ```
 
-Download the `postgres_air_2024.sql.zip` file from [https://github.com/hettie-d/postgres_air](https://drive.google.com/file/d/1C7PVxeYvLDr6n_7qjdA2k0vahv__jMEo/view?usp=drive_link). Then, unzip it to `postgres_air_2024.sql` and put it in your current directory.
+1. **Run a PostgreSQL container**
 
-Load the postgres_air dataset. Wait for this process to finish.
+   ```bash
+   docker run -d --name postgres-air \
+       -p 127.0.0.1:5555:5432 \
+       -e POSTGRES_HOST_AUTH_METHOD=trust \
+       pgvector/pgvector:pg17
+   ```
 
-```bash
-psql -d "postgres://postgres@localhost:5555/postgres" -v ON_ERROR_STOP=1 -f postgres_air_2024.sql
-```
+1. **Load the postgres_air dataset**
 
-### 3. Create a `.env` file
+   1. Unzip [https://github.com/hettie-d/postgres_air](https://drive.google.com/file/d/1C7PVxeYvLDr6n_7qjdA2k0vahv__jMEo/view?usp=drive_link) and put `postgres_air_2024.sql` in your current directory.
 
-Create a `.env` file in the current working directory and define some environment variables in it.
+   1. Load the postgres_air dataset.
 
-```
-OPENAI_API_KEY="sk-your-key-goes-here"
-TARGET_DB="postgres://postgres@localhost:5555/postgres"
-```
+      ```bash
+      psql -d "postgres://postgres@localhost:5555/postgres" -v ON_ERROR_STOP=1 -f postgres_air_2024.sql
+      ```
 
-### 4. Generate descriptions of the postgres_air database
+   Wait for psql to finish before moving to the next step.
 
-Then, find database objects in the postgres_air database, generate descriptions for them using an LLM,
-and then output a yaml file to be loaded in a semantic catalog.
+1. **Create a `.env` file**
 
-```bash
-pgai semantic-catalog describe -f descriptions.yaml
-```
+   In the current working directory, create a `.env` file define the following variables.
 
-Take a look at the yaml file. You can manually edit the descriptions to improve them if you wish.
+   ```
+   OPENAI_API_KEY="your-OpenAPI-key-goes-here"
+   TARGET_DB="postgres://postgres@localhost:5555/postgres"
+   ```
 
-### 5. Create a semantic catalog
+1. **Generate descriptions of the postgres_air database**
 
-Next, create a semantic catalog in the database.
+   The following command finds database objects in the postgres_air database, generates descriptions for them
+   using an LLM, and outputs a yaml file containing the content for the semantic catalog.
 
-By default, the semantic catalog is named "default" (you can have more than one),
-and a default embedding configuration is created using OpenAI's `text-embedding-3-small` (you can have more than one).
+   ```bash
+   pgai semantic-catalog describe -f descriptions.yaml
+   ```
 
-```bash
-pgai semantic-catalog create
-```
+   Take a look at `descriptions.yaml`. You can manually edit the descriptions to improve them if you wish.
 
-### 6. Import the descriptions
+1. **Create a semantic catalog**
 
-Now, load and vectorize the descriptions you generated into the semantic catalog.
+   By default, the first new semantic catalog has the catchy name of, _default_. You can have multiple semantic catalogs in
+   a single database. Run the following command to create the semantic catalog and add a default embedding configuration using OpenAI's
+   `text-embedding-3-small`.
 
-```bash
-pgai semantic-catalog import -f descriptions.yaml
-```
+   ```bash
+   pgai semantic-catalog create
+   ```
 
-### 7. Search the semantic catalog
+1. **Import the descriptions into the semantic catalog in your database**
 
-With a semantic catalog loaded with descriptions, we can now perform a semantic search using a natural language prompt.
-This will find database object, SQL examples, and/or facts that are relevant to the prompt provided.
+   ```bash
+   pgai semantic-catalog import -f descriptions.yaml
+   ```
 
-```bash
-pgai semantic-catalog search -p "Which passengers have experienced the most flight delays in 2024?"
-```
+1. **Now the fun part, search the semantic catalog using natural language**
 
-To see how these search results would be rendered to a prompt for an LLM, pass the `--render` flag.
+   With a semantic catalog loaded with descriptions, you can now perform a semantic search using a natural
+   language prompt. This finds the database objects, SQL examples, and/or facts that are relevant to the prompt
+   provided. For example:
 
-```bash
-pgai semantic-catalog search -p "Which passengers have experienced the most flight delays in 2024?" --render
-```
+   ```bash
+   pgai semantic-catalog search -p "Which passengers have experienced the most flight delays in 2024?"
+   ```
 
-### 8. Generate SQL statements
+1. **See how these search results are rendered to a prompt for an LLM**
 
-Now, you can generate SQL on the command line!
+   ```bash
+   pgai semantic-catalog search -p "Which passengers have experienced the most flight delays in 2024?" --render
+   ```
 
-```bash
-pgai semantic-catalog generate-sql -p "Which passengers have experienced the most flight delays in 2024?"
-```
+1. **More fun, generate SQL statements on the command line**
 
-Or in your Python application!
+   ```bash
+   pgai semantic-catalog generate-sql -p "Which passengers have experienced the most flight delays in 2024?"
+   ```
+
+1. **Generate SQL statements directly from your Python app**
 
 ```python
 import os
@@ -188,43 +211,7 @@ if __name__ == "__main__":
 
 ```
 
-## How does SQL generation work?
-
-```mermaid
----
-title: Generate SQL
----
-flowchart TB
-  Z[User Question]
-  A[Embed Search Prompt]
-  B[Find Relevant DB Objects]
-  C[Find Relevant SQL Examples]
-  D[Find Relevant Facts]
-  E[Render LLM Prompt]
-  F[LLM]
-  G[*Provide New Search Prompts]
-  H[*Provide SQL Answer]
-  I[Validate with EXPLAIN]
-  J[Return SQL]
-  Z-->A
-  A-->B
-  A-->C
-  A-->D
-  B-->E
-  C-->E
-  D-->E
-  E-->F
-  F-->|Context is insufficient|G
-  G-->A
-  F-->|Context is sufficient|H
-  H-->I
-  I-->|SQL is invalid|F
-  I-->|SQL is valid|J
-```
-
-`*` items are tools called by the LLM
-
-## More questions to try
+## Try a few more questions.
 
 ```
 ┌────┬──────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -319,3 +306,39 @@ flowchart TB
 └────┴──────────────┴───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 (86 rows)
 ```
+
+## How does SQL generation work?
+
+```mermaid
+---
+title: Generate SQL
+---
+flowchart TB
+  Z[User Question]
+  A[Embed Search Prompt]
+  B[Find Relevant DB Objects]
+  C[Find Relevant SQL Examples]
+  D[Find Relevant Facts]
+  E[Render LLM Prompt]
+  F[LLM]
+  G[*Provide New Search Prompts]
+  H[*Provide SQL Answer]
+  I[Validate with EXPLAIN]
+  J[Return SQL]
+  Z-->A
+  A-->B
+  A-->C
+  A-->D
+  B-->E
+  C-->E
+  D-->E
+  E-->F
+  F-->|Context is insufficient|G
+  G-->A
+  F-->|Context is sufficient|H
+  H-->I
+  I-->|SQL is invalid|F
+  I-->|SQL is valid|J
+```
+
+`*` items are tools called by the LLM
