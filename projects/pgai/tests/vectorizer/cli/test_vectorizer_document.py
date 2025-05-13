@@ -12,6 +12,7 @@ from testcontainers.localstack import LocalStackContainer  # type: ignore
 from tests.vectorizer.cli.conftest import (
     TestDatabase,
     configure_vectorizer,
+    download_docling_models,
     run_vectorizer_worker,
 )
 
@@ -23,6 +24,8 @@ docs = [
     "basic-v3plus2.epub",
     "test.md",
     "lego_sets.pdf",
+    "text_screenshot.png",
+    "electromagnetic_radiation.docx",
 ]
 
 
@@ -130,6 +133,9 @@ def test_simple_document_embedding_local(
     cli_db_url: str,
     vcr_: Any,
 ):
+    # First download the models used by Docling to the cache dir
+    download_docling_models()
+
     """Test that a document is successfully embedded"""
     connection = cli_db[1]
     vectorizer_id = configure_document_vectorizer(cli_db[1], number_of_rows=len(docs))
@@ -174,6 +180,12 @@ def test_simple_document_embedding_local(
 
         # lego_sets.pdf
         assert "7190-1 Millennium Falcon" in chunks_str
+
+        # text_screenshot.png
+        assert "Use cases include providing chatbot" in chunks_str
+
+        # electromagnetic_radiation.docx
+        assert "All forms of EMR travel at the speed of light in a vacuum" in chunks_str
 
 
 def test_simple_document_embedding_s3_no_credentials(

@@ -112,19 +112,30 @@ class ParsingDocling(BaseDocumentParsing):
             InputFormat,
         )
         from docling.datamodel.pipeline_options import PdfPipelineOptions
-        from docling.document_converter import DocumentConverter, PdfFormatOption
+        from docling.document_converter import (
+            DocumentConverter,
+            ImageFormatOption,
+            PdfFormatOption,
+        )
+
+        basic_pipeline_options = PdfPipelineOptions(
+            do_ocr=False,  # we do not want to do OCR in PDF (yet)
+            artifacts_path=self.cache_dir if os.path.isdir(self.cache_dir) else None,
+        )  # pyright: ignore[reportCallIssue]
+
+        with_ocr_pipeline_options = basic_pipeline_options
+        with_ocr_pipeline_options.do_ocr = True
 
         converter = DocumentConverter(
             format_options={
                 InputFormat.PDF: PdfFormatOption(
-                    # we do not want to do OCR (yet)
-                    pipeline_options=PdfPipelineOptions(
-                        do_ocr=False,
-                        artifacts_path=self.cache_dir
-                        if os.path.isdir(self.cache_dir)
-                        else None,
-                    ),  # pyright: ignore[reportCallIssue]
-                )
+                    pipeline_options=basic_pipeline_options
+                ),
+                InputFormat.IMAGE: ImageFormatOption(
+                    pipeline_options=with_ocr_pipeline_options
+                ),
+                # we don't need to configure the rest of the formats as they follow the
+                # simple pipeline without external models, OCR, etc.
             }
         )
 
