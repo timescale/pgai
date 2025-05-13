@@ -23,6 +23,7 @@ docs = [
     "basic-v3plus2.epub",
     "test.md",
     "lego_sets.pdf",
+    "text_screenshot.png",
 ]
 
 
@@ -174,6 +175,9 @@ def test_simple_document_embedding_local(
 
         # lego_sets.pdf
         assert "7190-1 Millennium Falcon" in chunks_str
+
+        # text_screenshot.png
+        assert "Use cases include providing chatbot" in chunks_str
 
 
 def test_simple_document_embedding_s3_no_credentials(
