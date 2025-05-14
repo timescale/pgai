@@ -21,7 +21,7 @@ from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import Usage, UsageLimits
 from rich.console import Console
 
-from pgai.semantic_catalog import gen_sql, loader, render, search
+from pgai.semantic_catalog import fix, gen_sql, loader, render, search
 from pgai.semantic_catalog.file import (
     async_export_to_yaml,
     import_from_yaml,
@@ -625,6 +625,64 @@ class SemanticCatalog:
             yaml: Text IO stream to write the YAML data to.
         """
         await async_export_to_yaml(yaml, load_from_catalog(catalog_con, self.id))
+
+    async def fix_ids(
+        self,
+        catalog_con: psycopg.AsyncConnection,
+        target_con: psycopg.AsyncConnection,
+        dry_run: bool = False,
+        console: Console | None = None,
+    ):
+        """Fix internal PostgreSQL IDs in the semantic catalog.
+
+        Database objects like tables, views, or columns can have their internal IDs changed
+        when database operations occur (like dumps/restores or migrations). This method
+        fixes the internal IDs stored in the semantic catalog to match the current
+        values in the target database.
+
+        For each object in the semantic catalog:
+        - If the object no longer exists in the target database, it will be deleted
+        - If the object's IDs don't match the current values, they will be updated
+        - If the object's IDs already match, it will be left unchanged
+
+        Args:
+            catalog_con: Connection to the database containing the semantic catalog
+            target_con: Connection to the target database containing the actual objects
+            dry_run: If True, only check for issues without making changes
+            console: Rich console for output and progress display. If None, a default
+                console with minimal output is used
+        """  # noqa
+        console = console or Console(stderr=True, quiet=True)
+        await fix.fix_ids(catalog_con, target_con, self.id, dry_run, console)
+
+    async def fix_names(
+        self,
+        catalog_con: psycopg.AsyncConnection,
+        target_con: psycopg.AsyncConnection,
+        dry_run: bool = False,
+        console: Console | None = None,
+    ):
+        """Fix object name identifiers in the semantic catalog.
+
+        Database objects like tables, views, or columns can have their names changed
+        when database operations occur (like renames or schema changes). This method
+        fixes the name identifiers stored in the semantic catalog to match the current
+        values in the target database.
+
+        For each object in the semantic catalog:
+        - If the object no longer exists in the target database, it will be deleted
+        - If the object's name identifiers don't match the current values, they will be updated
+        - If the object's name identifiers already match, it will be left unchanged
+
+        Args:
+            catalog_con: Connection to the database containing the semantic catalog
+            target_con: Connection to the target database containing the actual objects
+            dry_run: If True, only check for issues without making changes
+            console: Rich console for output and progress display. If None, a default
+                console with minimal output is used
+        """  # noqa
+        console = console or Console(stderr=True, quiet=True)
+        await fix.fix_names(catalog_con, target_con, self.id, dry_run, console)
 
 
 async def from_id(con: CatalogConnection, id: int) -> SemanticCatalog:
