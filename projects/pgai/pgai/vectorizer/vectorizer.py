@@ -125,7 +125,7 @@ class Vectorizer(BaseModel):
         source_pk (list[PkAtt]): List of primary key attributes from the source table.
         errors_schema (str): The schema where the error log is saved. Default is "ai".
         errors_table (str): The table where errors are logged.
-            Default is "_vectorizer_errors".
+            Default is "vectorizer_errors".
     """
 
     id: int
@@ -137,7 +137,7 @@ class Vectorizer(BaseModel):
     source_pk: list[PkAtt]
     queue_failed_table: str | None = None
     errors_schema: str = "ai"
-    errors_table: str = "_vectorizer_errors"
+    errors_table: str = "vectorizer_errors"
     schema_: str = Field(alias="schema", default="ai")
     table: str = "vectorizer"
 

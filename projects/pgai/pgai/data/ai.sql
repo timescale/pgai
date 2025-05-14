@@ -1103,74 +1103,6 @@ begin
 end;
 $outer_migration_block$;
 
--------------------------------------------------------------------------------
--- 030-add_vectorizer_errors_view.sql
-do $outer_migration_block$ /*030-add_vectorizer_errors_view.sql*/
-declare
-    _sql text;
-    _migration record;
-    _migration_name text = $migration_name$030-add_vectorizer_errors_view.sql$migration_name$;
-    _migration_body text =
-$migration_body$
--- rename the ai.vectorizer_errors table to ai._vectorizer_errors
-alter table ai.vectorizer_errors rename to _vectorizer_errors;
-
--- rename the existing index on the ai.vectorizer_error so it follows the right naming convention (adds the _ prefix)
--- this is not strictly necessary, but it is a good practice to keep the naming consistent
-alter index ai.vectorizer_errors_id_recorded_idx rename to _vectorizer_errors_id_recorded_idx;
-
--- create a view including vectorizer name
-create or replace view ai.vectorizer_errors as
-select 
-  ve.*,
-  v.name
-from
-  ai._vectorizer_errors ve
-  left join ai.vectorizer v on ve.id = v.id;
-
-
--- grant privileges on new ai.vectorizer_errors view
-do language plpgsql $block$
-declare
-    to_user text;
-    priv_type text;
-    with_grant text;
-    rec record;
-begin
-    -- find all users that have permissions on old ai.vectorizer_errors table and grant them to the view
-    for rec in
-        select distinct grantee as username, privilege_type, is_grantable
-        from information_schema.role_table_grants
-        where table_schema = 'ai'
-        and table_name = '_vectorizer_errors'
-    loop
-        to_user := rec.username;
-        priv_type := rec.privilege_type;
-        with_grant := '';
-        if rec.is_grantable then
-           with_grant := ' WITH GRANT OPTION';
-        end if;
-        execute format('GRANT %s ON ai.vectorizer_errors TO %I %s', priv_type, to_user, with_grant);
-    end loop;
-end
-$block$;
-$migration_body$;
-begin
-    select * into _migration from ai.pgai_lib_migration where "name" operator(pg_catalog.=) _migration_name;
-    if _migration is not null then
-        raise notice 'migration %s already applied. skipping.', _migration_name;
-        if _migration.body operator(pg_catalog.!=) _migration_body then
-            raise warning 'the contents of migration "%s" have changed', _migration_name;
-        end if;
-        return;
-    end if;
-    _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
-    execute _sql;
-    insert into ai.pgai_lib_migration ("name", body, applied_at_version)
-    values (_migration_name, _migration_body, $version$__version__$version$);
-end;
-$outer_migration_block$;
-
 --------------------------------------------------------------------------------
 -- 001-chunking.sql
 
@@ -4290,7 +4222,6 @@ begin
     if not admin then
         execute 'grant usage, create on schema ai to ' || to_user;
         execute 'grant select, insert, update, delete on table ai.vectorizer to ' || to_user;
-        execute 'grant select on ai._vectorizer_errors to ' || to_user;
         execute 'grant select on ai.vectorizer_errors to ' || to_user;
         execute 'grant select on ai.vectorizer_status to ' || to_user;
         execute 'grant select, usage on sequence ai.vectorizer_id_seq to ' || to_user;
@@ -4300,7 +4231,6 @@ begin
         execute 'grant all privileges on table ai.pgai_lib_version to ' || to_user;
         execute 'grant all privileges on table ai.pgai_lib_feature_flag to ' || to_user;
         execute 'grant all privileges on table ai.vectorizer to ' || to_user;
-        execute 'grant all privileges on table ai._vectorizer_errors to ' || to_user;
         execute 'grant all privileges on table ai.vectorizer_errors to ' || to_user;
         execute 'grant all privileges on table ai.vectorizer_status to ' || to_user;
         execute 'grant all privileges on sequence ai.vectorizer_id_seq to ' || to_user;
