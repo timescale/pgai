@@ -136,13 +136,13 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.sc_add_embedding
 ( config jsonb
 , embedding_name name default null
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 ) returns ai.semantic_catalog_embedding
 as $func$
 declare
     _config jsonb = sc_add_embedding.config;
     _embedding_name name = sc_add_embedding.embedding_name;
-    _catalog_name text = sc_add_embedding.catalog_name;
+    _catalog_name name = sc_add_embedding.catalog_name;
     _catalog_id int4;
     _dims int4;
     _tbl text;
@@ -206,12 +206,12 @@ set search_path to pg_catalog, pg_temp
 -- sc_drop_embedding
 create or replace function ai.sc_drop_embedding
 ( embedding_name name
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 ) returns void
 as $func$
 declare
     _embedding_name name = sc_drop_embedding.embedding_name;
-    _catalog_name text = sc_drop_embedding.catalog_name;
+    _catalog_name name = sc_drop_embedding.catalog_name;
     _embedding ai.semantic_catalog_embedding;
     _catalog_id int4;
     _tbl text;
@@ -254,13 +254,13 @@ set search_path to pg_catalog, pg_temp
 -------------------------------------------------------------------------------
 -- create_semantic_catalog
 create or replace function ai.create_semantic_catalog
-( catalog_name text default 'default'
+( catalog_name name default 'default'
 , embedding_name name default null
 , embedding_config jsonb default ai.embedding_sentence_transformers()
 ) returns int4
 as $func$
 declare
-    _catalog_name text = create_semantic_catalog.catalog_name;
+    _catalog_name name = create_semantic_catalog.catalog_name;
     _embedding_name name = create_semantic_catalog.embedding_name;
     _embedding_config jsonb = create_semantic_catalog.embedding_config;
     _catalog_id int4;
@@ -332,10 +332,10 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- drop_semantic_catalog
-create or replace function ai.drop_semantic_catalog(catalog_name text) returns int4
+create or replace function ai.drop_semantic_catalog(catalog_name name) returns int4
 as $func$
 declare
-    _catalog_name text = drop_semantic_catalog.catalog_name;
+    _catalog_name name = drop_semantic_catalog.catalog_name;
     _catalog_id int4;
     _sql text;
     _tbl text;
@@ -397,10 +397,10 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- sc_grant_read
-create or replace function ai.sc_grant_read(catalog_name text, role_name name) returns void
+create or replace function ai.sc_grant_read(catalog_name name, role_name name) returns void
 as $func$
 declare
-    _catalog_name text = sc_grant_read.catalog_name;
+    _catalog_name name = sc_grant_read.catalog_name;
     _role_name text = sc_grant_read.role_name;
     _catalog_id int;
     _sql text;
@@ -445,10 +445,10 @@ set search_path to pg_catalog, pg_temp
 
 -------------------------------------------------------------------------------
 -- sc_grant_write
-create or replace function ai.sc_grant_write(catalog_name text, role_name name) returns void
+create or replace function ai.sc_grant_write(catalog_name name, role_name name) returns void
 as $func$
 declare
-    _catalog_name text = sc_grant_write.catalog_name;
+    _catalog_name name = sc_grant_write.catalog_name;
     _role_name text = sc_grant_write.role_name;
     _catalog_id int;
     _sql text;
@@ -550,12 +550,12 @@ create or replace function ai.sc_set_obj_desc
 , objnames text[]
 , objargs text[]
 , description text
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 )
 returns int8
 as $func$
 declare
-    _catalog_name text = sc_set_obj_desc.catalog_name;
+    _catalog_name name = sc_set_obj_desc.catalog_name;
     _sql text;
     _id int8;
 begin
@@ -611,7 +611,7 @@ create or replace function ai.sc_set_table_desc
 , schema_name name
 , table_name name
 , description text
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 )
 returns int8
 as $func$
@@ -640,7 +640,7 @@ create or replace function ai.sc_set_table_col_desc
 , table_name name
 , column_name name
 , description text
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 )
 returns int8
 as $func$
@@ -667,7 +667,7 @@ create or replace function ai.sc_set_view_desc
 , schema_name name
 , view_name name
 , description text
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 )
 returns int8
 as $func$
@@ -696,7 +696,7 @@ create or replace function ai.sc_set_view_col_desc
 , view_name name
 , column_name name
 , description text
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 )
 returns int8
 as $func$
@@ -724,7 +724,7 @@ create or replace function ai.sc_set_proc_desc
 , proc_name name
 , objargs text[]
 , description text
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 )
 returns int8
 as $func$
@@ -752,7 +752,7 @@ create or replace function ai.sc_set_func_desc
 , func_name name
 , objargs text[]
 , description text
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 )
 returns int8
 as $func$
@@ -780,7 +780,7 @@ create or replace function ai.sc_set_agg_desc
 , agg_name name
 , objargs text[]
 , description text
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 )
 returns int8
 as $func$
@@ -806,7 +806,7 @@ create or replace function ai.sc_set_obj_desc
 , objnames text[]
 , objargs text[]
 , description text
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 )
 returns int8
 as $func$
@@ -845,7 +845,7 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.sc_set_table_desc
 ( t regclass
 , description text
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 )
 returns int8
 as $func$
@@ -878,7 +878,7 @@ create or replace function ai.sc_set_table_col_desc
 ( t regclass
 , column_name name
 , description text
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 )
 returns int8
 as $func$
@@ -912,7 +912,7 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.sc_set_view_desc
 ( v regclass
 , description text
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 )
 returns int8
 as $func$
@@ -945,7 +945,7 @@ create or replace function ai.sc_set_view_col_desc
 ( v regclass
 , column_name name
 , description text
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 )
 returns int8
 as $func$
@@ -979,7 +979,7 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.sc_set_proc_desc
 ( p regprocedure
 , description text
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 )
 returns int8
 as $func$
@@ -1011,7 +1011,7 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.sc_set_func_desc
 ( f regprocedure
 , description text
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 )
 returns int8
 as $func$
@@ -1043,7 +1043,7 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.sc_set_agg_desc
 ( a regprocedure
 , description text
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 )
 returns int8
 as $func$
@@ -1075,12 +1075,12 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.sc_add_sql_desc
 ( sql text
 , description text
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 )
 returns int8
 as $func$
 declare
-    _catalog_name text = sc_add_sql_desc.catalog_name;
+    _catalog_name name = sc_add_sql_desc.catalog_name;
     _sql text;
     _id int8;
 begin
@@ -1115,12 +1115,12 @@ set search_path to pg_catalog, pg_temp
 -- sc_add_fact
 create or replace function ai.sc_add_fact
 ( description text
-, catalog_name text default 'default'
+, catalog_name name default 'default'
 )
 returns int8
 as $func$
 declare
-    _catalog_name text = sc_add_fact.catalog_name;
+    _catalog_name name = sc_add_fact.catalog_name;
     _sql text;
     _id int8;
 begin
