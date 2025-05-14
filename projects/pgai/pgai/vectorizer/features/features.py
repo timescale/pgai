@@ -15,11 +15,13 @@ class Features:
         has_worker_tracking_table: bool,
         has_loading_retries: bool,
         has_reveal_secret_function: bool,
+        has_vectorizer_errors_view: bool,
     ) -> None:
         self.has_disabled_column = has_disabled_column
         self.has_worker_tracking_table = has_worker_tracking_table
         self.has_loading_retries = has_loading_retries
         self.has_reveal_secret_function = has_reveal_secret_function
+        self.has_vectorizer_errors_view = has_vectorizer_errors_view
 
     @classmethod
     def from_db(cls: type[Self], cur: psycopg.Cursor) -> Self:
@@ -62,20 +64,31 @@ class Features:
         cur.execute(query)
         has_reveal_secret_function = cur.fetchone() is not None
 
+        # Newer versions of pgai lib have the ai.vectorizer_errors view.
+        # The table has been renamed to ai._vectorizer_errors
+        query = """
+        SELECT table_name
+        FROM information_schema.views
+        WHERE table_schema = 'ai' AND table_name = 'vectorizer_errors';
+        """
+        cur.execute(query)
+        has_vectorizer_errors_view = cur.fetchone() is not None
+
         return cls(
             has_disabled_column,
             has_worker_tracking_table,
             has_loading_retries,
             has_reveal_secret_function,
+            has_vectorizer_errors_view,
         )
 
     @classmethod
     def for_testing_latest_version(cls: type[Self]) -> Self:
-        return cls(True, True, True, True)
+        return cls(True, True, True, True, True)
 
     @classmethod
     def for_testing_no_features(cls: type[Self]) -> Self:
-        return cls(False, False, False, False)
+        return cls(False, False, False, False, False)
 
     @cached_property
     def disable_vectorizers(self) -> bool:

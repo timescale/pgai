@@ -124,6 +124,8 @@ class Worker:
             vectorizer = row["vectorizer"]
             embedding = vectorizer["config"]["embedding"]
             vectorizer = Vectorizer.model_validate(vectorizer)
+            vectorizer.ensure_features(features)
+
             # The Ollama API doesn't need a key, so `api_key_name` may be unset
             if "api_key_name" in embedding:
                 api_key_name = embedding["api_key_name"]
