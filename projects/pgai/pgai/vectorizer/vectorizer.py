@@ -11,6 +11,7 @@ from typing import Any, TypeAlias, TypeVar
 from uuid import UUID
 
 import psycopg
+import semver
 import structlog
 from ddtrace import tracer
 from pgvector.psycopg import register_vector_async  # type: ignore
@@ -140,6 +141,16 @@ class Vectorizer(BaseModel):
     errors_table: str = "_vectorizer_errors"
     schema_: str = Field(alias="schema", default="ai")
     table: str = "vectorizer"
+
+    @model_validator(mode="after")
+    def assign_errors_table_from_config(self) -> "Vectorizer":
+        """Assigns the errors table name based on the vectorizer version"""
+        # if the errors_table is the default one, assign it based on the version
+        if self.errors_table == "_vectorizer_errors":
+            current_version = semver.VersionInfo.parse(self.config.version)
+            if current_version < semver.VersionInfo.parse("0.11.0"):
+                self.errors_table = "vectorizer_errors"
+        return self
 
     async def run(
         self,

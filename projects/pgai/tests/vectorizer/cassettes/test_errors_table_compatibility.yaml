@@ -1,0 +1,78 @@
+interactions:
+- request:
+    body: '{"input": ["post_1", "post_2", "post_3"], "model": "intentionally-bad-embedding-model",
+      "dimensions": 1536, "encoding_format": "float"}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, br, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '135'
+      content-type:
+      - application/json
+      host:
+      - api.openai.com
+      user-agent:
+      - AsyncOpenAI/Python 1.70.0
+      x-stainless-arch:
+      - arm64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - MacOS
+      x-stainless-package-version:
+      - 1.70.0
+      x-stainless-raw-response:
+      - stream
+      x-stainless-read-timeout:
+      - '600'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.10.15
+    method: POST
+    uri: https://api.openai.com/v1/embeddings
+  response:
+    body:
+      string: !!binary |
+        IbgDACCWTuUm6PQ4rrgJLvdamfPpEQSGbUltWUFbEFGGYZjAxe42Bq34IaX8BF8PAwDy8zzMJFA4
+        pmeHnyRA/+TRDc63ULlffb/moddte3GjHfed8c7lPnKYK4gh6/kTw4xr2KBU4Yp/YR2Q1x81d2O9
+        xrbc27GnnL2FuUiKHdxS2O8k0G9tuwPs4JDNkP2wyqj8TKj62McMAw==
+    headers:
+      CF-RAY:
+      - 93fa9285b965589a-BCN
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - br
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 14 May 2025 12:59:22 GMT
+      Server:
+      - cloudflare
+      Transfer-Encoding:
+      - chunked
+      X-Content-Type-Options:
+      - nosniff
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains; preload
+      vary:
+      - Origin
+      x-request-id:
+      - req_c8879e03af8f9ecd9ac5178dbc89604d
+    status:
+      code: 404
+      message: Not Found
+version: 1
