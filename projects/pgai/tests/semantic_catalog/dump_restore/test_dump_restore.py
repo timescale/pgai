@@ -170,3 +170,65 @@ async def test_dump_restore(container: PostgresContainer):
     assert cp.returncode == 0, f"dump of restore db privs failed: {cp.stderr}"
     privs_actual = Path(__file__).parent.joinpath("privs_restore.actual").read_text()
     assert privs_actual == privs_expected
+
+    # load the postgres air schema into the restored database
+    # now, the oids of the postgres air objects won't match the semantic catalog
+    cp = subprocess.run(
+        " ".join(
+            [
+                f'docker exec -w "/tmp/tests/data" {container.name}',
+                '/usr/bin/psql -d "postgres://postgres@localhost:5432/restore"',
+                "-v ON_ERROR_STOP=1",
+                "-f postgres_air.sql",
+            ]
+        ),
+        text=True,
+        shell=True,
+        capture_output=True,
+    )
+    assert (
+        cp.returncode == 0
+    ), f"failed to load postgres_air into restore db: {cp.stderr}"
+
+    async with (
+        await psycopg.AsyncConnection.connect(restore_url, autocommit=True) as con,
+        con.cursor() as cur,
+    ):
+        catalog = await sc.from_id(con, 1)
+
+        # do we have all the object descriptions we expect?
+        await cur.execute(f"""\
+            select count(*)
+            from ai.semantic_catalog_obj_{catalog.id}
+        """)  # pyright: ignore [reportArgumentType]
+        row = await cur.fetchone()
+        assert row and row[0] == 16
+
+        # fix the ids
+        await catalog.fix_ids(con, con)
+
+        # postgres_air.flight_summary should have been deleted
+        await cur.execute(f"""\
+            select count(*)
+            from ai.semantic_catalog_obj_{catalog.id}
+        """)  # pyright: ignore [reportArgumentType]
+        row = await cur.fetchone()
+        assert row and row[0] == 11
+
+        # change the objtype to 'bob' across the board
+        await cur.execute(f"""\
+            update ai.semantic_catalog_obj_{catalog.id}
+            set objtype = 'bob'
+        """)  # pyright: ignore [reportArgumentType]
+
+        # fix the names
+        await catalog.fix_names(con, con)
+
+        # objtype should have been fixed
+        await cur.execute(f"""\
+            select count(*)
+            from ai.semantic_catalog_obj_{catalog.id}
+            where objtype != 'bob'
+        """)  # pyright: ignore [reportArgumentType]
+        row = await cur.fetchone()
+        assert row and row[0] == 11

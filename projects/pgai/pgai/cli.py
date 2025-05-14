@@ -1521,4 +1521,155 @@ def search(
     asyncio.run(do())
 
 
+@semantic_catalog.command()
+@click.option(
+    "-d",
+    "--db-url",
+    type=click.STRING,
+    help="Connection URL to the target database where SQL will be executed.",
+    envvar="TARGET_DB",
+)
+@click.option(
+    "-c",
+    "--catalog-db-url",
+    type=click.STRING,
+    help="Connection URL to the database containing the semantic catalog.",
+    envvar="CATALOG_DB",
+)
+@click.option(
+    "-n",
+    "--catalog-name",
+    type=click.STRING,
+    default="default",
+    show_default=True,
+    help="Name of the semantic catalog to use.",
+)
+@click.option(
+    "-m",
+    "--mode",
+    type=click.Choice(["fix-ids", "fix-names"], case_sensitive=False),
+    default="fix-ids",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Find and list objects that would be described, but do not describe them.",
+)
+@click.option(
+    "-q",
+    "--quiet",
+    is_flag=True,
+    help="Do not print log messages.",
+)
+@click.option(
+    "-l",
+    "--log-file",
+    type=click.Path(dir_okay=False, writable=True, path_type=Path),
+    default=None,
+    help="The path to a file to write log messages to.",
+)
+@click.option(
+    "--log-level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARN", "ERROR", "FATAL", "CRITICAL"], case_sensitive=False
+    ),
+    default="INFO",
+)
+def fix(
+    db_url: str | None,
+    catalog_db_url: str | None,
+    catalog_name: str | None,
+    mode: str = "names-from-ids",
+    dry_run: bool = False,
+    quiet: bool = False,
+    log_file: Path | None = None,
+    log_level: str | None = "INFO",
+) -> None:
+    """Fix database object references in the semantic catalog.
+
+    Database objects like tables, views, or columns can have their internal IDs or
+    names changed when database operations occur (like dumps/restores, renames, or
+    schema changes). This command updates the semantic catalog to maintain proper
+    references to these objects.
+
+    Two fix modes are supported:
+
+    - fix-ids: Updates the internal PostgreSQL IDs in the semantic catalog to match
+      the current values in the target database.
+
+    - fix-names: Updates the object name identifiers in the semantic catalog to match
+      the current values in the target database.
+
+    For each object in the semantic catalog:
+    - If the object no longer exists in the target database, it will be deleted
+    - If the object's identifiers don't match the current values, they will be updated
+    - If the object's identifiers already match, it will be left unchanged
+
+    Examples:
+
+        \b
+        # Fix internal IDs in the semantic catalog
+        pgai semantic-catalog fix --mode fix-ids
+
+        \b
+        # Run a dry-run to see what would be changed without making changes
+        pgai semantic-catalog fix --mode fix-names --dry-run
+    """
+    if log_file:
+        import logging
+
+        logging.basicConfig(
+            level=get_log_level(log_level or "INFO"),
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=[
+                logging.FileHandler(log_file.expanduser().resolve()),
+            ],
+        )
+
+    from rich.console import Console
+
+    console = Console(stderr=True, quiet=quiet)
+
+    if not db_url:
+        print(
+            "--db-url must be specified or TARGET_DB environment variable defined",
+            file=sys.stderr,
+        )
+        exit(1)
+
+    catalog_name = catalog_name or "default"
+    if mode not in {
+        "fix-ids",
+        "fix-names",
+    }:
+        print('mode must be "fix-ids" or "fix-names"', file=sys.stderr)
+        exit(1)
+
+    async def do1(ccon: psycopg.AsyncConnection, tcon: psycopg.AsyncConnection):
+        from pgai.semantic_catalog import from_name
+
+        console.status(f"finding '{catalog_name}' catalog...")
+        sc = await from_name(ccon, catalog_name)
+        match mode:
+            case "fix-ids":
+                await sc.fix_ids(ccon, tcon, dry_run, console)
+            case "fix-names":
+                await sc.fix_names(ccon, tcon, dry_run, console)
+            case _:
+                raise ValueError(f"mode must be 'fix-ids' or 'fix-names': {mode}")
+
+    async def do() -> None:
+        if catalog_db_url:
+            async with (
+                await psycopg.AsyncConnection.connect(db_url) as tcon,
+                await psycopg.AsyncConnection.connect(catalog_db_url) as ccon,
+            ):
+                await do1(ccon, tcon)
+        else:
+            async with await psycopg.AsyncConnection.connect(db_url) as con:
+                await do1(con, con)
+
+    asyncio.run(do())
+
+
 cli.add_command(semantic_catalog)
