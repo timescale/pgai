@@ -191,6 +191,8 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
                         f"chunk truncated from {len(tokenized)} to {context_length} tokens"  # noqa
                     )
                     documents[i] = encoder.decode(tokenized[:context_length])
+        # OpenAIs per batch token limit is using a token estimator instead of actual tokens  # noqa: E501
+        # So we are reproducing their token counts
         token_counts = [self._estimate_token_length(document) for document in documents]
         async for embeddings in self.batch_chunks_and_embed(documents, token_counts):
             yield embeddings
