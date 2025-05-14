@@ -362,7 +362,6 @@ You can run the vectorizer worker once and then exit by using the `--once` flag.
 - python: `worker = Worker(db_url="postgres://user:password@host:5432/database", once=True)`
 - Docker: `docker run timescale/pgai-vectorizer-worker:{tag version} --once`
 - Docker Compose: `command: ["--once"]`
-                                  |
 
 
 [python3]: https://www.python.org/downloads/
