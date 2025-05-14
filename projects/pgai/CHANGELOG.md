@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.10.3](https://github.com/timescale/pgai/compare/pgai-v0.10.2...pgai-v0.10.3) (2025-05-14)
+
+
+### Features
+
+* **vectorizer:** warn on outdated pgai library ([#714](https://github.com/timescale/pgai/issues/714)) ([ea16719](https://github.com/timescale/pgai/commit/ea16719645115c3888dd06ef5ae0dac90dad89d8))
+
+
+### Bug Fixes
+
+* better error for old extension version ([b46b8ab](https://github.com/timescale/pgai/commit/b46b8ab17a891cf59e6b86a4a1093c9e9171c5b9))
+* james comments ([736a104](https://github.com/timescale/pgai/commit/736a10424cd1ee80bb3c07f5ca7476a2b6be6473))
+* openai per batch limit ([#730](https://github.com/timescale/pgai/issues/730)) ([7fbd781](https://github.com/timescale/pgai/commit/7fbd781dd4aa9a833cf14bc3950b5035150983f5))
+
+
+### Miscellaneous
+
+* release 0.10.3 ([b885d4f](https://github.com/timescale/pgai/commit/b885d4ffc06ed91b5eaf21a9046955799d7eb5ec))
+* vectorizer_errors change was reverted ([2a77389](https://github.com/timescale/pgai/commit/2a773894608e47b983a6f48fb372d3cdb90943ba))
+
 ## [0.10.2](https://github.com/timescale/pgai/compare/pgai-v0.10.1...pgai-v0.10.2) (2025-05-07)
 
 
