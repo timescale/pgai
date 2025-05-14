@@ -150,6 +150,18 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
             embeddings=embeddings, usage=Usage(prompt_tokens, total_tokens)
         )
 
+    def _estimate_token_length(self, document: str) -> float:
+        """
+        Estimates token count based on UTF-8 byte length.
+        """
+
+        total_estimated_tokens = 0
+        for char in document:
+            byte_length = len(char.encode("utf-8"))
+            total_estimated_tokens += byte_length * 0.25  # 0.25 tokens per byte
+
+        return total_estimated_tokens
+
     @override
     async def embed(
         self, documents: list[str]
@@ -170,7 +182,6 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
         encoder = self._encoder
         context_length = self._context_length
         if encoder is not None and context_length is not None:
-            token_counts: list[int] = []
             # truncate all documents before submitting them to the API
             for i, document in enumerate(documents):
                 tokenized = encoder.encode(document)
@@ -180,9 +191,9 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
                         f"chunk truncated from {len(tokenized)} to {context_length} tokens"  # noqa
                     )
                     documents[i] = encoder.decode(tokenized[:context_length])
-                token_counts.append(min(context_length, tokenized_length))
-        else:
-            token_counts = [0 for _ in documents]
+        # OpenAIs per batch token limit is using a token estimator instead of actual tokens  # noqa: E501
+        # So we are reproducing their token counts
+        token_counts = [self._estimate_token_length(document) for document in documents]
         async for embeddings in self.batch_chunks_and_embed(documents, token_counts):
             yield embeddings
 

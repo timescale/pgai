@@ -33,13 +33,13 @@ class BatchingError(BaseException):
 
 
 def batch_indices(
-    chunk_token_lengths: list[int],
+    chunk_token_lengths: list[float] | list[int],
     max_chunks_per_batch: int,
     max_tokens_per_batch: int | None,
 ) -> list[tuple[int, int]]:
     """
-    Given a list of chunk token lengths, determines how to batch them, adhering to
-    configured 'max_chunks_per_batch' and 'max_tokens_per_batch'.
+    Given a list of chunk token lengths, determines how to batch them,
+    adhering to configured 'max_chunks_per_batch' and 'max_tokens_per_batch'.
 
     Returns a list of tuples indicating the chunk indexes to include in the batch
     """
@@ -53,7 +53,7 @@ def batch_indices(
             )
         max_tokens_reached = (
             max_tokens_per_batch is not None
-            and token_count + chunk_tokens > max_tokens_per_batch
+            and round(token_count + chunk_tokens) > max_tokens_per_batch
         )
         max_chunks_reached = len(batch) + 1 > max_chunks_per_batch
         if max_tokens_reached or max_chunks_reached:
@@ -127,7 +127,7 @@ class Embedder(ABC):
         """
 
     async def batch_chunks_and_embed(
-        self, documents: list[str], token_counts: list[int]
+        self, documents: list[str], token_counts: list[float] | list[int]
     ) -> AsyncGenerator[list[EmbeddingVector], None]:
         """
         Performs the actual embedding of encoded documents by sending requests
@@ -135,7 +135,7 @@ class Embedder(ABC):
 
         Args:
             documents (list[str]): A list of documents.
-            token_counts (list[int]): A list of token count for each document, or 0
+            token_counts (list[float]): A list of token count for each document, or 0
         Returns:
             AsyncGenerator[list[EmbeddingVector], None]: A list of embedding vectors
             for each document.
