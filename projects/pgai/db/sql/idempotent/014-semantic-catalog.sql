@@ -282,8 +282,8 @@ begin
         , objnames text[] not null
         , objargs text[] not null
         , description text
-        , unique (classid, objid, objsubid)
-        , unique (objtype, objnames, objargs)
+        , unique (classid, objid, objsubid) deferrable initially deferred
+        , unique (objtype, objnames, objargs) deferrable initially deferred
         )
       $sql$
     , _catalog_id
