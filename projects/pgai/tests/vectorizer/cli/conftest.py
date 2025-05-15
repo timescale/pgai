@@ -8,6 +8,7 @@ from psycopg import Connection, sql
 from psycopg.rows import dict_row
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
+from pgai.cli import download_models as download_models_cmd
 from pgai.cli import vectorizer_worker
 
 count = 10000
@@ -177,3 +178,7 @@ def run_vectorizer_worker(
     if result.exit_code != 0:
         print(result.output)
     return result
+
+
+def download_docling_models():
+    CliRunner().invoke(download_models_cmd)
