@@ -1579,7 +1579,7 @@ def fix(
     db_url: str | None,
     catalog_db_url: str | None,
     catalog_name: str | None,
-    mode: str = "names-from-ids",
+    mode: str = "fix-ids",
     dry_run: bool = False,
     quiet: bool = False,
     log_file: Path | None = None,
