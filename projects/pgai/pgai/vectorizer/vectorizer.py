@@ -212,18 +212,6 @@ class Vectorizer(BaseModel):
         logger.warning("Unable to migrate configuration: raw data type is unknown")
         return data  # type: ignore[reportUnknownVariableType]
 
-    def ensure_features(self, features: Features):
-        """
-        Ensure the vectorizer is compatible with all possible features.
-        This modifies the vectorizer to make it compatible with the max
-        amount of features as possible.
-        """
-        if (
-            self.errors_table == DEFAULT_VECTORIZER_ERRORS_TABLE
-            and not features.has_vectorizer_errors_view
-        ):
-            self.errors_table = "vectorizer_errors"
-
 
 class VectorizerQueryBuilder:
     """
