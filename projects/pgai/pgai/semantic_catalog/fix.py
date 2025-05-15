@@ -301,6 +301,72 @@ def _update_names_sql(catalog_id: int, obj: _Object, names: _Names) -> Composed:
     )
 
 
+async def _defer_name_constraint(
+    catalog_cur: psycopg.AsyncCursor, catalog_id: int
+) -> None:
+    await catalog_cur.execute(
+        """\
+        select x.conname
+        from pg_class k
+        inner join pg_namespace n on (k.relnamespace = n.oid)
+        cross join lateral
+        (
+            select array_agg(a.attnum order by a.attnum) as cols
+            from pg_attribute a
+            where a.attrelid = k.oid
+            and a.attname in ('objtype', 'objnames', 'objargs')
+        ) a
+        inner join pg_constraint x on (x.conrelid = k.oid and x.conkey = a.cols)
+        where k.relname = %s
+        and n.nspname = 'ai'
+        and x.contype = 'u'
+        and x.condeferrable
+    """,
+        (f"semantic_catalog_obj_{catalog_id}",),
+    )
+    row = await catalog_cur.fetchone()
+    assert row is not None, "could not find unique constraint"
+    conname: str = str(row[0])
+    await catalog_cur.execute(
+        SQL("""\
+        set constraints ai.{conname} deferred
+    """).format(conname=Identifier(conname))
+    )
+
+
+async def _defer_id_constraint(
+    catalog_cur: psycopg.AsyncCursor, catalog_id: int
+) -> None:
+    await catalog_cur.execute(
+        """\
+        select x.conname
+        from pg_class k
+        inner join pg_namespace n on (k.relnamespace = n.oid)
+        cross join lateral
+        (
+            select array_agg(a.attnum order by a.attnum) as cols
+            from pg_attribute a
+            where a.attrelid = k.oid
+            and a.attname in ('classid', 'objid', 'objsubid')
+        ) a
+        inner join pg_constraint x on (x.conrelid = k.oid and x.conkey = a.cols)
+        where k.relname = %s
+        and n.nspname = 'ai'
+        and x.contype = 'u'
+        and x.condeferrable
+    """,
+        (f"semantic_catalog_obj_{catalog_id}",),
+    )
+    row = await catalog_cur.fetchone()
+    assert row is not None, "could not find unique constraint"
+    conname: str = str(row[0])
+    await catalog_cur.execute(
+        SQL("""\
+        set constraints ai.{conname} deferred
+    """).format(conname=Identifier(conname))
+    )
+
+
 async def fix_ids(
     catalog_con: psycopg.AsyncConnection,
     target_con: psycopg.AsyncConnection,
@@ -383,6 +449,7 @@ async def fix_ids(
 
         # do these changes in a transaction to take advantage of deferrable constraints
         async with catalog_con.transaction() as _, catalog_con.cursor() as cur:
+            await _defer_id_constraint(cur, catalog_id)
             for msg, query in queries:
                 progress.console.print(msg)
                 await cur.execute(query)
@@ -471,6 +538,7 @@ async def fix_names(
 
         # do these changes in a transaction to take advantage of deferrable constraints
         async with catalog_con.transaction() as _, catalog_con.cursor() as cur:
+            await _defer_name_constraint(cur, catalog_id)
             for msg, query in queries:
                 progress.console.print(msg)
                 await cur.execute(query)

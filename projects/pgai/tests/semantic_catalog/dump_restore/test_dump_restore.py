@@ -232,3 +232,28 @@ async def test_dump_restore(container: PostgresContainer):
         """)  # pyright: ignore [reportArgumentType]
         row = await cur.fetchone()
         assert row and row[0] == 11
+
+        # swap the names of two tables
+        async with con.transaction() as _:
+            await cur.execute("""\
+                create table postgres_air.bob();
+                select ai.sc_set_table_desc
+                ( 'postgres_air.bob'::regclass
+                , 'this table has no columns'
+                );
+                alter table postgres_air.airport rename to fred;
+                alter table postgres_air.bob rename to airport;
+                alter table postgres_air.fred rename to bob;
+            """)
+
+        # fix the names
+        await catalog.fix_names(con, con)
+
+        # objnames should have been fixed
+        await cur.execute(f"""\
+            select description
+            from ai.semantic_catalog_obj_{catalog.id}
+            where objnames = array['postgres_air', 'airport']
+        """)  # pyright: ignore [reportArgumentType]
+        row = await cur.fetchone()
+        assert row and row[0] == "this table has no columns"
