@@ -58,6 +58,30 @@ async def setup_database(container: PostgresContainer) -> None:
             await cur.execute(script)  # pyright: ignore [reportArgumentType]
 
 
+async def test_list_objects(container: PostgresContainer) -> None:
+    async with await psycopg.AsyncConnection.connect(
+        container.connection_string(database=DATABASE)
+    ) as con:
+        sc = await semantic_catalog.from_name(con, "default")
+        obj_descs = await sc.list_objects(con)
+        assert len(obj_descs) > 0
+        obj_desc = obj_descs[0]
+        assert obj_desc.objnames == ["postgres_air", "airport"]
+        assert obj_desc.description is not None
+
+
+async def test_list_objects_objtype(container: PostgresContainer) -> None:
+    async with await psycopg.AsyncConnection.connect(
+        container.connection_string(database=DATABASE)
+    ) as con:
+        sc = await semantic_catalog.from_name(con, "default")
+        obj_descs = await sc.list_objects(con, objtype="table column")
+        assert len(obj_descs) > 0
+        obj_desc = obj_descs[0]
+        assert obj_desc.objnames == ["postgres_air", "airport", "airport_code"]
+        assert obj_desc.description is not None
+
+
 async def test_search_obj_sentence_transformers(container: PostgresContainer) -> None:
     async with await psycopg.AsyncConnection.connect(
         container.connection_string(database=DATABASE)

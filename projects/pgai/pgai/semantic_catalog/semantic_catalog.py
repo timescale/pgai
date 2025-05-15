@@ -274,6 +274,46 @@ class SemanticCatalog:
         for embedding_name, config in embeddings:
             await self.vectorize(con, embedding_name, config, batch_size)
 
+    async def list_objects(
+        self,
+        con: CatalogConnection,
+        objtype: str | None = None,
+    ) -> list[ObjectDescription]:
+        """List all database objects in the semantic catalog.
+
+        Retrieves all database objects (tables, views, procedures) stored in the
+        semantic catalog.
+
+        Args:
+            con: The database connection to the catalog database.
+            objtype: Optional type of object to filter by (e.g., "table", "view").
+
+        Returns:
+            A list of ObjectDescription objects.
+        """
+        async with con.cursor(row_factory=dict_row) as cur:
+            filters: list[Composable] = []
+            params: list[Any] = []
+            if objtype is not None:
+                filters.append(SQL("x.objtype = %s"))
+                params.append(objtype)
+            sql = SQL("""\
+                select x.*
+                from ai.{table} x
+                {where}
+                order by x.id
+            """).format(
+                table=Identifier(f"semantic_catalog_obj_{self.id}"),
+                where=SQL("where {}").format(SQL(" or ").join(filters))
+                if filters
+                else SQL(""),
+            )
+            await cur.execute(sql, params)
+            results: list[ObjectDescription] = []
+            for row in await cur.fetchall():
+                results.append(ObjectDescription(**row))
+        return results
+
     async def search_objects(
         self,
         con: CatalogConnection,
