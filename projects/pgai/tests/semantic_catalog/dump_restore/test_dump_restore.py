@@ -50,6 +50,7 @@ async def test_dump_restore(container: PostgresContainer):
     container.drop_user("ada")
     container.drop_user("vera")
     container.drop_user("edith")
+    container.drop_user("bot")
 
     container.create_database("restore")
     container.create_database("dump")
@@ -57,6 +58,7 @@ async def test_dump_restore(container: PostgresContainer):
     container.create_user("ada")
     container.create_user("vera")
     container.create_user("edith")
+    container.create_user("bot")
 
     dump_url = container.connection_string(database="dump")
     restore_url = container.connection_string(database="restore")
@@ -257,3 +259,29 @@ async def test_dump_restore(container: PostgresContainer):
         """)  # pyright: ignore [reportArgumentType]
         row = await cur.fetchone()
         assert row and row[0] == "this table has no columns"
+
+        await cur.execute("""\
+            select ai.sc_grant_read('default', 'bot');
+            select ai.sc_grant_obj_read('default', 'bot');
+        """)
+
+    # get the bot's privileges to the objects
+    cp = subprocess.run(
+        " ".join(
+            [
+                f'docker exec -w "/tmp/tests/dump_restore" {container.name}',
+                'psql -d "postgres://postgres@localhost:5432/restore"',
+                "-X",
+                "-P format=aligned",
+                "-f obj_privs.sql",
+                "-o obj_privs.actual",
+            ]
+        ),
+        text=True,
+        shell=True,
+        capture_output=True,
+    )
+    assert cp.returncode == 0, f"dump of obj privs failed: {cp.stderr}"
+    obj_actual = Path(__file__).parent.joinpath("obj_privs.actual").read_text()
+    obj_expected = Path(__file__).parent.joinpath("obj_privs.expected").read_text()
+    assert obj_actual == obj_expected

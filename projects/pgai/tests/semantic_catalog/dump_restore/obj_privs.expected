@@ -1,0 +1,7 @@
+  objtype  |    schema    |      object      | has_access 
+-----------+--------------+------------------+------------
+ procedure | postgres_air | advance_air_time | t
+ table     | postgres_air | airport          | t
+ table     | postgres_air | bob              | t
+(3 rows)
+
