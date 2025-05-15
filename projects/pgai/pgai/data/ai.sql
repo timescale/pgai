@@ -4540,8 +4540,8 @@ begin
         , objnames text[] not null
         , objargs text[] not null
         , description text
-        , unique (classid, objid, objsubid) deferrable initially deferred
-        , unique (objtype, objnames, objargs) deferrable initially deferred
+        , unique (classid, objid, objsubid) deferrable initially immediate
+        , unique (objtype, objnames, objargs) deferrable initially immediate
         )
       $sql$
     , _catalog_id
@@ -4819,7 +4819,22 @@ declare
 begin
     select format
     ( $sql$
-        insert into ai.semantic_catalog_obj_%s
+        merge into ai.semantic_catalog_obj_%s tgt
+        using
+        (
+            select
+              $1 as classid
+            , $2 as objid
+            , $3 as objsubid
+            , $4 as objtype
+            , $5 as objnames
+            , $6 as objargs
+            , $7 as description
+        ) src
+        on (tgt.classid = src.classid and tgt.objid = src.objid and tgt.objsubid = src.objsubid)
+        when matched then update set description = src.description
+        when not matched by target then
+        insert
         ( classid
         , objid
         , objsubid
@@ -4829,16 +4844,14 @@ begin
         , description
         )
         values
-        ( $1
-        , $2
-        , $3
-        , $4
-        , $5
-        , $6
-        , $7
+        ( src.classid
+        , src.objid
+        , src.objsubid
+        , src.objtype
+        , src.objnames
+        , src.objargs
+        , src.description
         )
-        on conflict (classid, objid, objsubid) 
-        do update set description = $7
         returning id
       $sql$
     , x.id
