@@ -44,7 +44,7 @@ pgai adds the concept of a "semantic catalog." The semantic catalog allows you t
 provide natural language descriptions of database objects and example SQL statements
 to explain the semantics of your database schema.
 
-pgai uses [Vectorizers](/docs/vectorizer/overview.md) to create and maintain embeddings for each of the 
+pgai uses [Vectorizers](/docs/vectorizer/README.md) to create and maintain embeddings for each of the 
 descriptions stored in the semantic catalog.
 
 The `ai.text_to_sql` function will perform a semantic search of the semantic catalog to
