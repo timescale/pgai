@@ -9,6 +9,7 @@ from psycopg import Connection
 from psycopg.rows import dict_row
 from testcontainers.localstack import LocalStackContainer  # type: ignore
 
+from pgai.vectorizer.parsing import DOCLING_CACHE_DIR
 from tests.vectorizer.cli.conftest import (
     TestDatabase,
     configure_vectorizer,
@@ -128,6 +129,11 @@ def configure_document_vectorizer(
     )
 
 
+def list_dir_contents(path: Path):
+    """Return a sorted list of relative paths (files and dirs) in the directory."""
+    return sorted(p.relative_to(path) for p in path.rglob("*") if p.exists())
+
+
 def test_simple_document_embedding_local(
     cli_db: tuple[TestDatabase, Connection],
     cli_db_url: str,
@@ -135,6 +141,11 @@ def test_simple_document_embedding_local(
 ):
     # First download the models used by Docling to the cache dir
     download_docling_models()
+
+    # grab a snapshot of the docling and EasyOCR models dir to compare later
+    easyocr_models_dir = Path.home().joinpath(".EasyOCR/model")
+    docling_models_dir_before = list_dir_contents(DOCLING_CACHE_DIR)
+    easyocr_models_dir_before = list_dir_contents(easyocr_models_dir)
 
     """Test that a document is successfully embedded"""
     connection = cli_db[1]
@@ -186,6 +197,10 @@ def test_simple_document_embedding_local(
 
         # electromagnetic_radiation.docx
         assert "All forms of EMR travel at the speed of light in a vacuum" in chunks_str
+
+    # ensure no extra models were downloaded during the test
+    assert list_dir_contents(DOCLING_CACHE_DIR) == docling_models_dir_before
+    assert list_dir_contents(easyocr_models_dir) == easyocr_models_dir_before
 
 
 def test_simple_document_embedding_s3_no_credentials(
