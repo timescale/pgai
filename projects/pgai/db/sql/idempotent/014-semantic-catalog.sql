@@ -401,7 +401,7 @@ create or replace function ai.sc_grant_read(catalog_name name, role_name name) r
 as $func$
 declare
     _catalog_name name = sc_grant_read.catalog_name;
-    _role_name text = sc_grant_read.role_name;
+    _role_name name = sc_grant_read.role_name;
     _catalog_id int;
     _sql text;
 begin
@@ -409,6 +409,10 @@ begin
     from ai.semantic_catalog x
     where x.catalog_name = _catalog_name
     ;
+
+    _sql = format($sql$grant usage on schema ai to %I$sql$, _role_name);
+    raise debug '%', _sql;
+    execute _sql;
 
     for _sql in
     (
@@ -449,7 +453,7 @@ create or replace function ai.sc_grant_write(catalog_name name, role_name name) 
 as $func$
 declare
     _catalog_name name = sc_grant_write.catalog_name;
-    _role_name text = sc_grant_write.role_name;
+    _role_name name = sc_grant_write.role_name;
     _catalog_id int;
     _sql text;
 begin
@@ -457,6 +461,10 @@ begin
     from ai.semantic_catalog x
     where x.catalog_name = _catalog_name
     ;
+
+    _sql = format($sql$grant usage on schema ai to %I$sql$, _role_name);
+    raise debug '%', _sql;
+    execute _sql;
 
     for _sql in
     (
@@ -499,9 +507,13 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.sc_grant_admin(role_name name) returns void
 as $func$
 declare
-    _role_name text = sc_grant_admin.role_name;
+    _role_name name = sc_grant_admin.role_name;
     _sql text;
 begin
+
+    _sql = format($sql$grant usage on schema ai to %I$sql$, _role_name);
+    raise debug '%', _sql;
+    execute _sql;
 
     for _sql in
     (
@@ -530,6 +542,125 @@ begin
             $sql$grant select, insert, update, delete on ai.semantic_catalog_fact_%s to %I$sql$,
             $sql$grant usage, select, update on sequence ai.semantic_catalog_fact_%s_id_seq to %I$sql$
         ]) y
+    )
+    loop
+        raise debug '%', _sql;
+        execute _sql;
+    end loop;
+end
+$func$ language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _sc_obj
+create or replace function ai._sc_obj(catalog_id int)
+returns table
+( id int8
+, classid oid
+, objid oid
+, objsubid int4
+, objtype text
+, objnames text[]
+, objargs text[]
+, description text
+)
+as $func$
+declare
+    _sql text;
+begin
+    _sql = format
+    ( $sql$
+        select
+          id
+        , classid
+        , objid
+        , objsubid
+        , objtype
+        , objnames
+        , objargs
+        , description
+        from ai.semantic_catalog_obj_%s
+      $sql$
+    , catalog_id
+    );
+    return query execute _sql;
+end
+$func$ language plpgsql stable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- sc_grant_obj_read
+create or replace function ai.sc_grant_obj_read(catalog_name name, role_name name) returns void
+as $func$
+/*
+    grants select/execute on all database objects referenced in the specified catalog
+    grants usage on the schemas to which those objects belong
+*/
+declare
+    _catalog_name name = sc_grant_obj_read.catalog_name;
+    _role_name name = sc_grant_obj_read.role_name;
+    _catalog_id int;
+    _sql text;
+begin
+    select x.id into strict _catalog_id
+    from ai.semantic_catalog x
+    where x.catalog_name = _catalog_name
+    ;
+    
+    if not has_table_privilege
+        ( _role_name
+        , format('ai.semantic_catalog_obj_%s', _catalog_id)
+        , 'select'
+        ) then
+        raise exception 'user must have access to the catalog first';
+    end if;
+
+    -- schemas
+    for _sql in
+    (
+        select format
+        ( $sql$grant usage on schema %I to %I$sql$
+        , x.schema_name
+        , _role_name
+        )
+        from
+        (
+            select distinct x.objnames[1] as schema_name
+            from ai._sc_obj(_catalog_id) x
+            where x.objsubid = 0
+        ) x
+    )
+    loop
+        raise debug '%', _sql;
+        execute _sql;
+    end loop;
+
+    -- objects
+    for _sql in
+    (
+        select format
+        ( $sql$grant %s on %s %I.%I%s to %I$sql$
+        , case when x.objtype in ('aggregate', 'function', 'procedure')
+            then 'execute'
+            else 'select'
+          end
+        , case
+            when x.objtype in ('function', 'aggregate') then 'function'
+            else x.objtype
+          end
+        , x.objnames[1]
+        , x.objnames[2]
+        , case when x.objtype in ('aggregate', 'function', 'procedure')
+            then format('(%s)', array_to_string(x.objargs, ', '))
+            else ''
+          end
+        , _role_name
+        )
+        from ai._sc_obj(_catalog_id) x
+        where x.objsubid = 0
+        order by x.objnames
     )
     loop
         raise debug '%', _sql;
