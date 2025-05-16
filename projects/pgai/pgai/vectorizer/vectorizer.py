@@ -43,6 +43,7 @@ EmbeddingRecord: TypeAlias = list[Any]
 SourceRow: TypeAlias = dict[str, Any]
 
 DEFAULT_CONCURRENCY = 1
+DEFAULT_VECTORIZER_ERRORS_TABLE = "_vectorizer_errors"
 
 VECTORIZER_FAILED = "vectorizer failed with unexpected error"
 
@@ -125,7 +126,6 @@ class Vectorizer(BaseModel):
         source_pk (list[PkAtt]): List of primary key attributes from the source table.
         errors_schema (str): The schema where the error log is saved. Default is "ai".
         errors_table (str): The table where errors are logged.
-            Default is "vectorizer_errors".
     """
 
     id: int
@@ -137,7 +137,7 @@ class Vectorizer(BaseModel):
     source_pk: list[PkAtt]
     queue_failed_table: str | None = None
     errors_schema: str = "ai"
-    errors_table: str = "vectorizer_errors"
+    errors_table: str = DEFAULT_VECTORIZER_ERRORS_TABLE
     schema_: str = Field(alias="schema", default="ai")
     table: str = "vectorizer"
 
