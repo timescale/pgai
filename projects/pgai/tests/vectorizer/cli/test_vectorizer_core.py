@@ -514,3 +514,115 @@ def test_chunking_none(
             assert (
                 doc_chunks[0]["chunk_seq"] == 0
             ), "Chunk sequence should be 0 for single chunks"
+
+
+def test_vectorizer_does_not_leave_dead_chunks(
+    cli_db: tuple[PostgresContainer, Connection],
+    cli_db_url: str,
+    vcr_: Any,
+):
+    """Test that vectorizer does not leave dead chunks in the target table
+    when the source row is deleted during processing"""
+    postgres_container, main_connection = (
+        cli_db  # Renamed connection to main_connection for clarity
+    )
+    table_name = setup_source_table(main_connection, 2)  # e.g., "blog"
+    embedding_table_name = (
+        f"{table_name}_embedding_store"  # e.g., "blog_embedding_store"
+    )
+
+    vectorizer_id = configure_vectorizer(
+        table_name,
+        main_connection,
+        batch_size=5,  # Batch size large enough to pick up all items
+    )
+
+    # Fetch the vectorizer configuration
+    with main_connection.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "SELECT pg_catalog.to_jsonb(v) AS vectorizer FROM ai.vectorizer v WHERE v.id = %s",  # noqa: E501
+            (vectorizer_id,),
+        )
+        row = cur.fetchone()
+    assert row is not None
+    vectorizer = Vectorizer(**row["vectorizer"])
+
+    api_key = os.getenv("OPENAI_API_KEY", "sk-fake-key-for-testing")
+    vectorizer.config.embedding.set_api_key({"OPENAI_API_KEY": api_key})
+
+    features = Features.for_testing_latest_version()
+    worker_tracking = WorkerTracking(cli_db_url, 500, features, "0.0.1")
+
+    async def delete_source_rows_concurrently():
+        # Brief pause to allow the Executor to claim the batch
+        await asyncio.sleep(
+            0.2
+        )  # Adjust if needed, want this to hit after claim but before commit
+        with main_connection.cursor() as cur:
+            cur.execute(f"DELETE FROM {table_name}")
+
+    async def run_executor():
+        return await Executor(
+            cli_db_url,
+            vectorizer,
+            features,
+            worker_tracking,
+            # No hook needed here anymore, concurrency handles the deletion timing
+        ).run()
+
+    # Run the executor and the deletion concurrently
+    with vcr_.use_cassette("test_vectorizer_does_not_leave_dead_chunks.yaml"):
+        # results will be a list: [result_of_run_executor,
+        # result_of_delete_source_rows_concurrently]
+        # The delete function doesn't return anything meaningful for processed_count.
+        loop = asyncio.get_event_loop()
+        results = loop.run_until_complete(
+            asyncio.gather(
+                run_executor(),
+                delete_source_rows_concurrently(),
+            )
+        )
+        processed_count = results[0]  # Result from run_executor()
+
+    # The number of items successfully processed and committed might be 0 or 2,
+    # depending on the exact timing of the delete.
+    # The critical part is that no orphaned data is left.
+    # We expect it to have attempted to process the initial 2 items.
+    # If the deletion occurs after claiming but before commit,
+    # the internal count might still be 2
+    # but the actual committed embeddings should be 0.
+    assert processed_count == 2 or processed_count == 0
+
+    # Verify state after execution
+    with main_connection.cursor(row_factory=dict_row) as cur:
+        # Check that no items are pending
+        cur.execute(
+            """
+            SELECT pending_items
+            FROM ai.vectorizer_status
+            WHERE id = %s
+            """,
+            (vectorizer_id,),
+        )
+        status_row = cur.fetchone()
+        assert status_row is not None, "Vectorizer status should exist"
+        # Pending items should be 0, as the claimed items were either processed
+        # or aborted due to deletion, and no new items exist.
+        assert (
+            status_row["pending_items"] == 0
+        ), f"Pending items should be 0, was {status_row['pending_items']}"
+
+        # Check the source table is empty (no dead rows)
+        cur.execute(f"SELECT COUNT(*) FROM {table_name}")
+        source_row = cur.fetchone()
+        assert source_row is not None
+        assert (
+            source_row["count"] == 0
+        ), f"Source table should be empty, was {source_row['count']}"
+        # Check that the embedding table is empty (no dead chunks)
+        cur.execute(f"SELECT COUNT(*) FROM {embedding_table_name}")
+        embedding_row = cur.fetchone()
+        assert embedding_row is not None
+        assert (
+            embedding_row["count"] == 0
+        ), f"Embedding table should be empty, was {embedding_row['count']}"
