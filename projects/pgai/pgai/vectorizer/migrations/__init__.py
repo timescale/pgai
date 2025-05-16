@@ -1,4 +1,5 @@
 import importlib
+import logging
 import pkgutil
 import sys
 from collections.abc import Callable
@@ -6,9 +7,8 @@ from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
 
 import semver
-import structlog
 
-logger = structlog.get_logger()
+logger = logging.getLogger(__name__)
 
 # config generic type
 C = TypeVar("C")
