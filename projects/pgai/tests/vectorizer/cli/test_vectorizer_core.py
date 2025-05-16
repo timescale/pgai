@@ -1,11 +1,12 @@
 import asyncio
+import logging
 import os
 import subprocess
 import time
 from typing import Any
 
 import pytest
-from psycopg import Connection
+from psycopg import Connection, sql
 from psycopg.rows import dict_row
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
@@ -570,3 +571,150 @@ def test_vectorizer_without_retries_works_as_expected(
         )
         row = cur.fetchone()
         assert row is not None and row["pending_items"] == 0
+
+
+async def test_vectorizer_does_not_leave_dead_chunks(
+    cli_db: tuple[PostgresContainer, Connection],
+    cli_db_url: str,
+    vcr_: Any,
+):
+    logging.getLogger("pgai").setLevel(logging.DEBUG)
+    """Test that vectorizer does not leave dead chunks in the target table
+    when the source row is deleted during processing"""
+    _, main_connection = cli_db  # Renamed connection to main_connection for clarity
+    table_name = setup_source_table(main_connection, 2)  # e.g., "blog"
+    embedding_table_name = (
+        f"{table_name}_embedding_store"  # e.g., "blog_embedding_store"
+    )
+
+    vectorizer_id = configure_vectorizer(
+        table_name,
+        main_connection,
+        batch_size=5,  # Batch size large enough to pick up all items
+    )
+
+    # Fetch the vectorizer configuration
+    with main_connection.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "SELECT pg_catalog.to_jsonb(v) AS vectorizer FROM ai.vectorizer v WHERE v.id = %s",  # noqa: E501
+            (vectorizer_id,),
+        )
+        row = cur.fetchone()
+    assert row is not None
+    vectorizer = Vectorizer(**row["vectorizer"])
+
+    api_key = os.getenv("OPENAI_API_KEY", os.environ["OPENAI_API_KEY"])
+    vectorizer.config.embedding.set_api_key({"OPENAI_API_KEY": api_key})  # type: ignore
+
+    features = Features.for_testing_latest_version()
+    worker_tracking = WorkerTracking(cli_db_url, 500, features, "0.0.1")
+
+    queue_table = sql.Identifier(vectorizer.queue_schema, vectorizer.queue_table)
+
+    async def delete_source_rows_concurrently():
+        cur = main_connection.cursor()
+        source_table = sql.Identifier(vectorizer.source_schema, vectorizer.source_table)
+        target_table = sql.Identifier(
+            vectorizer.config.destination.target_schema,  # type: ignore
+            vectorizer.config.destination.target_table,  # type: ignore
+        )
+        with main_connection.transaction():
+            # Lock the source table to block the executor
+            cur.execute(
+                sql.SQL("LOCK TABLE {source_table}").format(source_table=source_table)
+            )
+            # Wait until we see the executor waiting for our lock
+            while True:
+                query = sql.SQL(
+                    "SELECT count(*) FROM pg_locks WHERE relation = '{source_table}'::regclass::oid;"
+                ).format(source_table=source_table)
+                cur.execute(query)
+                result = cur.fetchone()
+                if result is not None and result[0] == 2:
+                    break
+                await asyncio.sleep(0.2)
+        with main_connection.transaction():
+            # Lock the target table to block the executor again
+            cur.execute(
+                sql.SQL("LOCK TABLE {target_table}").format(target_table=target_table)
+            )
+            # Precondition: The queue table contains two rows
+            cur.execute(
+                sql.SQL("SELECT count(*) FROM {queue_table}").format(
+                    queue_table=queue_table
+                )
+            )
+            result = cur.fetchone()
+            assert result is not None and result[0] == 2
+            # Delete all rows in the source table
+            cur.execute(
+                sql.SQL("DELETE FROM {source_table}").format(source_table=source_table)
+            )
+            # Deleting the source table rows results in two queue rows being written
+            cur.execute(
+                sql.SQL("SELECT count(*) FROM {queue_table}").format(
+                    queue_table=queue_table
+                )
+            )
+            result = cur.fetchone()
+            assert result is not None and result[0] == 4
+
+    async def run_executor():
+        return await Executor(
+            cli_db_url,
+            vectorizer,
+            features,
+            worker_tracking,
+            # No hook needed here anymore, concurrency handles the deletion timing
+        ).run()
+
+    # Run the executor and the deletion concurrently
+    with vcr_.use_cassette("test_vectorizer_does_not_leave_dead_chunks.yaml"):
+        processed_count, _ = await asyncio.gather(
+            run_executor(),
+            delete_source_rows_concurrently(),
+        )
+
+    # The number of items successfully processed must be 4:
+    # - Two queue rows
+    # - Two "tombstone" queue rows
+    assert processed_count == 4
+
+    cur = main_connection.cursor(row_factory=dict_row)
+    cur.execute(sql.SQL("SELECT * FROM {queue_table}").format(queue_table=queue_table))
+    results = cur.fetchall()
+    assert len(results) == 0
+
+    # Verify state after execution
+    with main_connection.cursor(row_factory=dict_row) as cur:
+        # Check that no items are pending
+        cur.execute(
+            """
+            SELECT pending_items
+            FROM ai.vectorizer_status
+            WHERE id = %s
+            """,
+            (vectorizer_id,),
+        )
+        status_row = cur.fetchone()
+        assert status_row is not None, "Vectorizer status should exist"
+        # Pending items should be 0, as the claimed items were either processed
+        # or aborted due to deletion, and no new items exist.
+        assert (
+            status_row["pending_items"] == 0
+        ), f"Pending items should be 0, was {status_row['pending_items']}"
+
+        # Check the source table is empty (no dead rows)
+        cur.execute(f"SELECT COUNT(*) FROM {table_name}")
+        source_row = cur.fetchone()
+        assert source_row is not None
+        assert (
+            source_row["count"] == 0
+        ), f"Source table should be empty, was {source_row['count']}"
+        # Check that the embedding table is empty (no dead chunks)
+        cur.execute(f"SELECT COUNT(*) FROM {embedding_table_name}")
+        embedding_row = cur.fetchone()
+        assert embedding_row is not None
+        assert (
+            embedding_row["count"] == 0
+        ), f"Embedding table should be empty, was {embedding_row['count']}"
