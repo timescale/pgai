@@ -295,7 +295,7 @@ Please use the following context to provide an accurate response:
 Answer:"""
 
     response = await client.chat.completions.create({
-        model: "gpt-3.5-turbo",
+        model: "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
     })
     print("RAG response:")
