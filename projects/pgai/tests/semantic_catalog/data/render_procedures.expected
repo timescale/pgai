@@ -1,0 +1,63 @@
+<procedure id="0">
+CREATE OR REPLACE PROCEDURE postgres_air.advance_air_time(IN p_weeks integer DEFAULT 52, IN p_schema_name text DEFAULT 'postgres_air'::text, IN p_run boolean DEFAULT false)
+ LANGUAGE plpgsql
+AS $procedure$
+declare   stmt text;
+begin
+raise notice $$Interval: % $$,  make_interval (weeks=>p_weeks);
+if p_run 
+then raise notice $$Executing updates$$;
+else raise notice $$Displaying only$$;
+   end if;
+----
+for stmt in
+   select 
+      ---  nspname, relname, attname, typname
+   'update  '||nspname ||'.'|| relname ||' set '
+   || string_agg(attname || '='|| attname
+      ||'+make_interval(weeks=>' || p_weeks ||')', ',') 
+   ||';'
+from pg_class r
+join pg_attribute a on a.attrelid=r.oid
+join pg_type t on t.oid=a.atttypid
+join  pg_namespace n on relnamespace = n.oid
+where relkind='r'
+   and attnum>0
+   and n.nspname  = p_schema_name
+   and typname  in ('timestamptz','timestamp')
+group  by  nspname, relname
+order by  nspname, relname
+loop
+   raise notice $$ - % $$, stmt;
+   if p_run 
+   then execute stmt;
+      end if;
+   end loop;
+end;
+$procedure$
+;
+</procedure>
+
+<aggregate id="0">
+CREATE OR REPLACE AGGREGATE FUNCTION postgres_air.unsafe_sum(double precision) (
+  sfunc = float8pl,
+  stype = float8,
+  msfunc = float8pl,
+  mstype = float8,
+  minvfunc = float8mi,
+  initcond = 10
+);
+</aggregate>
+
+<procedure id="0">
+CREATE OR REPLACE PROCEDURE postgres_air.update_flight_status(IN flight_id integer, IN status text)
+ LANGUAGE plpgsql
+AS $procedure$
+begin
+    update postgres_air.flight
+    set status = update_flight_status.status
+    where flight_id = update_flight_status.flight_id;
+end;
+$procedure$
+;
+</procedure>

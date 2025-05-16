@@ -1,0 +1,14 @@
+{#
+Template for rendering a fact about the database or domain.
+
+This template formats a fact for display, wrapping it in a fact tag with an
+optional ID attribute.
+
+Expected context variables:
+- fact: A Fact object with the following attributes:
+  - id: the Fact's ID (optional)
+  - description: The text of the fact
+#}
+<fact{% if fact.id > -1 %} id="{{ fact.id }}"{% endif %}>
+{{ fact.description }}
+</fact>
