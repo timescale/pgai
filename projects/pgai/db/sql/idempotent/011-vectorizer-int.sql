@@ -586,6 +586,7 @@ declare
     _delete_statement pg_catalog.text;
     _pk_columns pg_catalog.text;
     _pk_values pg_catalog.text;
+    _old_pk_values pg_catalog.text;
     _func_def pg_catalog.text;
     _relevant_columns_check pg_catalog.text;
     _truncate_statement pg_catalog.text;
@@ -597,6 +598,10 @@ begin
 
     select pg_catalog.string_agg(pg_catalog.format('new.%I', x.attname), ', ' order by x.attnum)
     into strict _pk_values
+    from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name);
+
+    select pg_catalog.string_agg(pg_catalog.format('old.%I', x.attname), ', ' order by x.attnum)
+    into strict _old_pk_values
     from pg_catalog.jsonb_to_recordset(source_pk) x(attnum int, attname name);
 
     if target_schema is not null and target_table is not null then
@@ -637,6 +642,8 @@ begin
             if (TG_LEVEL = 'ROW') then
                 if (TG_OP = 'DELETE') then
                     $DELETE_STATEMENT$;
+                    insert into $QUEUE_SCHEMA$.$QUEUE_TABLE$ ($PK_COLUMNS$)
+                    values ($OLD_PK_VALUES$);
                 elsif (TG_OP = 'UPDATE') then
                     -- Check if the primary key has changed and queue the update
                     if $PK_CHANGE_CHECK$ then
@@ -674,6 +681,7 @@ begin
         _func_def := replace(_func_def, '$QUEUE_TABLE$', quote_ident(queue_table));
         _func_def := replace(_func_def, '$PK_COLUMNS$', _pk_columns);
         _func_def := replace(_func_def, '$PK_VALUES$', _pk_values);
+        _func_def := replace(_func_def, '$OLD_PK_VALUES$', _old_pk_values);
         _func_def := replace(_func_def, '$TARGET_SCHEMA$', quote_ident(target_schema));
         _func_def := replace(_func_def, '$TARGET_TABLE$', quote_ident(target_table));
         _func_def := replace(_func_def, '$RELEVANT_COLUMNS_CHECK$', _relevant_columns_check);

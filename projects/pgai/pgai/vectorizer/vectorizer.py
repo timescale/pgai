@@ -638,7 +638,7 @@ class VectorizerQueryBuilder:
                    WHERE ({pk_fields}) IN (SELECT {pk_fields} FROM update_locked_rows)
                      AND q.ctid NOT IN (SELECT _ctid FROM update_locked_rows)
                 )
-                SELECT s.*, {attempts}
+                SELECT {q_pk_fields}, s.*
                 FROM update_locked_rows l
                 LEFT JOIN LATERAL ( -- NOTE: lateral join forces runtime chunk exclusion
                     SELECT *
@@ -653,6 +653,17 @@ class VectorizerQueryBuilder:
                 [sql.Identifier("q", attname) for attname in self.pk_attnames]
             ),
             pk_fields=self.pk_fields_sql,
+            # Note: q_pk_fields is used to surface the queue row PKs, required
+            # to clean up "dangling" embeddings. In the "dangling" embedding case,
+            # the source row has been deleted, so all source table pk columns are null.
+            q_pk_fields=sql.SQL(", ").join(
+                [
+                    sql.SQL(" AS ").join(
+                        [sql.Identifier("l", attname), sql.Identifier(f"_q_{attname}")]
+                    )
+                    for attname in self.pk_attnames
+                ]
+            ),
             queue_table=sql.Identifier(
                 self.vectorizer.queue_schema, self.vectorizer.queue_table
             ),
@@ -1174,12 +1185,57 @@ class Executor:
             # Filter out items that were deleted from the source table.
             # We use the first primary key column, since they can only
             # be null if the LEFT JOIN didn't find a match.
+            items_to_delete = [
+                i for i in items if i[self.vectorizer.source_pk[0].attname] is None
+            ]
             items = [
                 i for i in items if i[self.vectorizer.source_pk[0].attname] is not None
             ]
 
+            if self.features.split_processing and len(items_to_delete) > 0:
+
+                def remap_queue_pks(
+                    items_to_delete: list[SourceRow],
+                ) -> list[SourceRow]:
+                    """
+                    Given a list of source rows, remaps "hidden" queue PK fields for deletion
+
+                    This is generally pretty ugly, but here are _all_ of the horrible details:
+                    There is no FK from the queue table to the source table, or from the
+                    embedding table to the source table. As a result, we can have "dangling"
+                    entries in both the queue table and the embedding table.
+                    To "clean up" dangling embeddings, we ensure that a queue row is inserted
+                    when a source table row is deleted. This queue row is dangling, and there
+                    may be dangling embeddings.
+                    To clean up the dangling embeddings, we need to know:
+                      a) That the queue row is dangling
+                      b) The PK values belonging to the queue row
+
+                    In the fetch work query, we extract all source table columns with `s.*`,
+                    because we generally don't know/want to know about the structure of that
+                    table. As a result, when there is a dangling entry in the queue table, all
+                    PK columns of the source row are None. We _also_ extract the PK values of
+                    the queue row, but aliased (with the prefix `_q_` to avoid conflicts with
+                    other columns in the source table).
+
+                    This function takes a list of source rows and maps the aliased queue row
+                    PKs to the original PK names.
+                    """
+                    del_pks: list[SourceRow] = []
+                    for item in items_to_delete:
+                        del_pk: SourceRow = {}
+                        for attname in self.queries.pk_attnames:
+                            del_pk[attname] = item[f"_q_{attname}"]
+                        del_pks.append(del_pk)
+                    return del_pks
+
+                async with conn.transaction():
+                    pks_to_delete = remap_queue_pks(items_to_delete)
+                    await self._delete_embeddings(conn, pks_to_delete)
+                    await self._delete_processed_queue_rows(conn, pks_to_delete)
+
             if len(items) == 0:
-                return 0
+                return len(items_to_delete)
 
             try:
                 num_chunks = await self._embed_and_write(conn, items)
