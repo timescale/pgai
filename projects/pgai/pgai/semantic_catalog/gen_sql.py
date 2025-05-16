@@ -142,7 +142,11 @@ async def fetch_database_context(
     missing_object_ids = object_descs.keys() - ctx.objects.keys()
     if missing_object_ids:
         objects = await loader.load_objects(
-            target_con, [object_descs[id] for id in missing_object_ids], sample_size
+            catalog_con,
+            target_con,
+            catalog_id,
+            [object_descs[id] for id in missing_object_ids],
+            sample_size,
         )
         ctx.objects.update({x.id: x for x in objects})
         ctx.rendered_objects.update({x.id: render.render_object(x) for x in objects})
@@ -225,7 +229,10 @@ async def fetch_database_context_alt(
         for row in await cur.fetchall():
             objects.append(ObjectDescription(**row))
         ctx.objects = {
-            x.id: x for x in await loader.load_objects(target_con, objects, sample_size)
+            x.id: x
+            for x in await loader.load_objects(
+                catalog_con, target_con, catalog_id, objects, sample_size
+            )
         }
         ctx.rendered_objects = {
             x.id: render.render_object(x) for x in ctx.objects.values()
