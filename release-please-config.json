@@ -12,6 +12,7 @@
   "include-component-in-tag": true,
   "release-type": "python",
   "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
   "pull-request-header": ":robot: Release ready",
   "changelog-sections": [
     { "type": "feat", "section": "Features", "hidden": false },
