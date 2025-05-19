@@ -3,7 +3,7 @@ from collections.abc import Sequence
 
 import psycopg
 from psycopg.rows import dict_row
-from psycopg.sql import SQL, Identifier
+from psycopg.sql import SQL, Identifier, Literal
 
 from pgai.semantic_catalog.models import Fact, ObjectDescription, SQLExample
 from pgai.semantic_catalog.vectorizer import EmbeddingConfig
@@ -18,6 +18,7 @@ async def search_objects(
     config: EmbeddingConfig,
     query: Sequence[float],
     limit: int = 5,
+    exclude_ids: Sequence[int] | None = None,
 ) -> list[ObjectDescription]:
     """Search for database objects in the semantic catalog using vector similarity.
 
@@ -31,23 +32,31 @@ async def search_objects(
         config: Configuration for the embedding model used.
         query: Query vector (embedding) to compare against stored object embeddings.
         limit: Maximum number of results to return (default: 5).
+        exclude_ids: ids of objects to exclude from search results
 
     Returns:
         A list of ObjectDescription objects ordered by similarity to the query vector.
     """
     logger.debug(f"searching semantic catalog {catalog_id}")
+    params = dict(query=query, limit=limit)
+    if exclude_ids:
+        params["exclude_ids"] = exclude_ids
     async with con.cursor(row_factory=dict_row) as cur:
         sql = SQL("""\
             select x.*
             from ai.{table} x
-            order by x.{column} <=> %s::vector({dimensions})
-            limit %s
+            {filter}
+            order by x.{column} <=> %(query)s::vector({dimensions})
+            limit %(limit)s
         """).format(
             table=Identifier(f"semantic_catalog_obj_{catalog_id}"),
-            dimensions=SQL(str(int(config.dimensions))),  # pyright: ignore [reportArgumentType]
+            dimensions=Literal(int(config.dimensions)),
             column=Identifier(embedding_name),
+            filter=SQL("")
+            if not exclude_ids
+            else SQL("where id != any(%(exclude_ids)s)"),
         )
-        await cur.execute(sql, (query, limit))
+        await cur.execute(sql, params)
         results: list[ObjectDescription] = []
         for row in await cur.fetchall():
             results.append(ObjectDescription(**row))
@@ -62,6 +71,7 @@ async def search_sql_examples(
     config: EmbeddingConfig,
     query: Sequence[float],
     limit: int = 5,
+    exclude_ids: Sequence[int] | None = None,
 ) -> list[SQLExample]:
     """Search for SQL examples in the semantic catalog using vector similarity.
 
@@ -75,23 +85,31 @@ async def search_sql_examples(
         config: Configuration for the embedding model used.
         query: Query vector (embedding) to compare against stored SQL example embeddings.
         limit: Maximum number of results to return (default: 5).
+        exclude_ids: ids of sql examples to exclude from search results
 
     Returns:
         A list of SQLExample objects ordered by similarity to the query vector.
     """  # noqa: E501
     logger.debug(f"searching semantic catalog {catalog_id}")
+    params = dict(query=query, limit=limit)
+    if exclude_ids:
+        params["exclude_ids"] = exclude_ids
     async with con.cursor(row_factory=dict_row) as cur:
         sql = SQL("""\
             select x.*
             from ai.{table} x
-            order by x.{column} <=> %s::vector({dimensions})
-            limit %s
+            {filter}
+            order by x.{column} <=> %(query)s::vector({dimensions})
+            limit %(limit)s
         """).format(
             table=Identifier(f"semantic_catalog_sql_{catalog_id}"),
-            dimensions=SQL(str(int(config.dimensions))),  # pyright: ignore [reportArgumentType]
+            dimensions=Literal(int(config.dimensions)),
             column=Identifier(embedding_name),
+            filter=SQL("")
+            if not exclude_ids
+            else SQL("where id != any(%(exclude_ids)s)"),
         )
-        await cur.execute(sql, (query, limit))
+        await cur.execute(sql, params)
         results: list[SQLExample] = []
         for row in await cur.fetchall():
             results.append(SQLExample(**row))
@@ -106,6 +124,7 @@ async def search_facts(
     config: EmbeddingConfig,
     query: Sequence[float],
     limit: int = 5,
+    exclude_ids: Sequence[int] | None = None,
 ) -> list[Fact]:
     """Search for facts in the semantic catalog using vector similarity.
 
@@ -119,23 +138,31 @@ async def search_facts(
         config: Configuration for the embedding model used.
         query: Query vector (embedding) to compare against stored fact embeddings.
         limit: Maximum number of results to return (default: 5).
+        exclude_ids: ids of facts to exclude from search results
 
     Returns:
         A list of Fact objects ordered by similarity to the query vector.
     """
     logger.debug(f"searching semantic catalog {catalog_id}")
+    params = dict(query=query, limit=limit)
+    if exclude_ids:
+        params["exclude_ids"] = exclude_ids
     async with con.cursor(row_factory=dict_row) as cur:
         sql = SQL("""\
             select x.*
             from ai.{table} x
-            order by x.{column} <=> %s::vector({dimensions})
-            limit %s
+            {filter}
+            order by x.{column} <=> %(query)s::vector({dimensions})
+            limit %(limit)s
         """).format(
             table=Identifier(f"semantic_catalog_fact_{catalog_id}"),
-            dimensions=SQL(str(int(config.dimensions))),  # pyright: ignore [reportArgumentType]
+            dimensions=Literal(int(config.dimensions)),
             column=Identifier(embedding_name),
+            filter=SQL("")
+            if not exclude_ids
+            else SQL("where id != any(%(exclude_ids)s)"),
         )
-        await cur.execute(sql, (query, limit))
+        await cur.execute(sql, params)
         results: list[Fact] = []
         for row in await cur.fetchall():
             results.append(Fact(**row))
