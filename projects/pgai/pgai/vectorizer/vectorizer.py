@@ -163,6 +163,13 @@ class Vectorizer(BaseModel):
         Returns:
             Number of items processed
         """
+
+        if (
+            self.errors_table == DEFAULT_VECTORIZER_ERRORS_TABLE
+            and not features.has_vectorizer_errors_view
+        ):
+            self.errors_table = "vectorizer_errors"
+
         concurrency = concurrency or self.config.processing.concurrency
         tasks = [
             asyncio.create_task(

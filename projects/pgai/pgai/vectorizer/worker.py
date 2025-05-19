@@ -15,7 +15,7 @@ from psycopg.rows import dict_row, namedtuple_row
 from .. import __version__
 from .embeddings import ApiKeyMixin
 from .features import Features
-from .vectorizer import DEFAULT_VECTORIZER_ERRORS_TABLE, Vectorizer
+from .vectorizer import Vectorizer
 from .worker_tracking import WorkerTracking
 
 if sys.version_info >= (3, 11):
@@ -124,12 +124,6 @@ class Worker:
             vectorizer = row["vectorizer"]
             embedding = vectorizer["config"]["embedding"]
             vectorizer = Vectorizer.model_validate(vectorizer)
-
-            if (
-                vectorizer.errors_table == DEFAULT_VECTORIZER_ERRORS_TABLE
-                and not features.has_vectorizer_errors_view
-            ):
-                vectorizer.errors_table = "vectorizer_errors"
 
             # The Ollama API doesn't need a key, so `api_key_name` may be unset
             if "api_key_name" in embedding:
