@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.5](https://github.com/timescale/pgai/compare/pgai-v0.10.4...pgai-v0.10.5) (2025-05-19)
+
+
+### Bug Fixes
+
+* errors table is now based on Features when running a Vectorizer ([#757](https://github.com/timescale/pgai/issues/757)) ([a90e75a](https://github.com/timescale/pgai/commit/a90e75a1fee95e138a41fb44b18bdea18a9baedf))
+
 ## [0.10.4](https://github.com/timescale/pgai/compare/pgai-v0.10.3...pgai-v0.10.4) (2025-05-19)
 
 
