@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.10.4](https://github.com/timescale/pgai/compare/pgai-v0.10.3...pgai-v0.10.4) (2025-05-19)
+
+
+### Features
+
+* add support for named vectorizers to ai.vectorizer_errors ([#740](https://github.com/timescale/pgai/issues/740)) ([c1d13f4](https://github.com/timescale/pgai/commit/c1d13f42c74b19645bd45dca80df0b7e7bdc24e2))
+
+
+### Bug Fixes
+
+* reuse easyocr models from docling cache dir ([#743](https://github.com/timescale/pgai/issues/743)) ([647985e](https://github.com/timescale/pgai/commit/647985e814ee3c3c4a9b8b0eb1e697d3fc04f067))
+
+
+### Miscellaneous
+
+* release 0.10.4 ([772359a](https://github.com/timescale/pgai/commit/772359a6b448a7eccbaeb3cb3d9ae14231009490))
+
 ## [0.10.3](https://github.com/timescale/pgai/compare/pgai-v0.10.2...pgai-v0.10.3) (2025-05-14)
 
 
