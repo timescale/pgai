@@ -547,7 +547,7 @@ async def load_objects(
                 classid = od.classid
             case "view column":
                 v.add(od.objid)
-                vd[od.objid] = od
+                cd[(od.objid, od.objsubid)] = od
                 tv.add(od.objid)
                 classid = od.classid
             case _:

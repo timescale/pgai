@@ -137,6 +137,7 @@ async def fetch_database_context(
             embedding_name,
             embedding_config,
             emb_prompt,
+            exclude_ids=[k for k in ctx.objects],
         )
     }
     missing_object_ids = object_descs.keys() - ctx.objects.keys()
@@ -158,6 +159,7 @@ async def fetch_database_context(
         embedding_name,
         embedding_config,
         emb_prompt,
+        exclude_ids=[k for k in ctx.sql_examples],
     ):
         if x.id in ctx.sql_examples:
             continue
@@ -171,6 +173,7 @@ async def fetch_database_context(
         embedding_name,
         embedding_config,
         emb_prompt,
+        exclude_ids=[k for k in ctx.rendered_facts],
     ):
         if x.id in ctx.facts:
             continue
