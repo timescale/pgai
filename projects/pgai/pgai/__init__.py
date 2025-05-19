@@ -1,4 +1,4 @@
-__version__ = "0.10.4"
+__version__ = "0.10.5"
 
 from pgai._install.install import ainstall, install
 
