@@ -525,6 +525,102 @@ class VectorizerQueryBuilder:
         )
 
     @cached_property
+    def fetch_work_query_with_split_transaction(self) -> sql.Composed:
+        """
+        Generates and SQL query to fetch and update work items in the queue
+        table. The resulting SQL query takes one parameter: the batch_size,
+        which denotes how many rows of work are fetched.
+
+        The query is safe to run concurrently from multiple workers. It handles
+        duplicate work items by allowing only one instance of the duplicates to
+        be processed at a time.
+
+        For a thorough explanation of the query, see:
+
+        https://timescale.slab.com/posts/vectorizer-worker-embedding-processing-05g8b73l
+
+        The main takeaway is:
+
+        The system retrieves a specified number of entries from the work queue,
+        determined by the batch queue size parameter. A session-level advisory
+        lock is taken to ensure that concurrently executing scripts don't try
+        processing the same queue items. We use the 'try' variant to ensure
+        that the system doesn't wait on locks.
+        """
+        return sql.SQL("""
+                WITH locked_queue_rows AS (
+                    SELECT ctid, _row_id, {pk_fields}, attempts, retry_after
+                    FROM ai._get_next_queue_batch({queue_table}, %s)
+                ),
+                update_locked_rows AS (
+                    WITH max_attempts AS (
+                        -- ensure that we count all attempts on this PK so far
+                        SELECT {pk_fields}, sum(attempts) AS max_attempt
+                        FROM {queue_table}
+                        WHERE {pk_fields} IN (SELECT {pk_fields} FROM locked_rows)
+                        GROUP BY {pk_fields}
+                    )
+                    UPDATE {queue_table}
+                    SET
+                      attempts = ma.max_attempt
+                    FROM locked_queue_rows lr
+                    JOIN max_attempts ma ON <lr.pk = ma.pk>
+                    WHERE lr.ctid = q.ctid
+                ),
+                delete_duplicate_rows AS (
+                   DELETE FROM {queue_table} q
+                   WHERE {pk_fields} IN (SELECT {pk_fields} FROM locked_queue_rows)
+                     AND q.ctid NOT IN (SELECT ctid FROM locked_queue_rows)
+                )
+                SELECT s.*, {retries}
+                FROM locked_items l
+                LEFT JOIN LATERAL ( -- NOTE: lateral join forces runtime chunk exclusion
+                    SELECT *
+                    FROM {source_schema}.{source_table} s
+                    WHERE {lateral_join_predicates}
+                    LIMIT 1
+                ) AS s ON true
+                WHERE l.locked = true
+                ORDER BY {pk_fields}
+                        """).format(
+            pk_fields=self.pk_fields_sql,
+            retries=sql.Identifier("retries"),
+            queue_table=sql.Identifier(
+                self.vectorizer.queue_schema, self.vectorizer.queue_table
+            ),
+            lock_fields=sql.SQL(" ,").join(
+                [
+                    xs
+                    for x in self.vectorizer.source_pk
+                    for xs in [
+                        sql.Literal(x.attname),
+                        sql.Identifier(x.attname),
+                    ]
+                ]
+            ),
+            delete_join_predicates=sql.SQL(" AND ").join(
+                [
+                    sql.SQL("w.{} = l.{}").format(
+                        sql.Identifier(x.attname),
+                        sql.Identifier(x.attname),
+                    )
+                    for x in self.vectorizer.source_pk
+                ]
+            ),
+            source_schema=sql.Identifier(self.vectorizer.source_schema),
+            source_table=sql.Identifier(self.vectorizer.source_table),
+            lateral_join_predicates=sql.SQL(" AND ").join(
+                [
+                    sql.SQL("l.{} = s.{}").format(
+                        sql.Identifier(x.attname),
+                        sql.Identifier(x.attname),
+                    )
+                    for x in self.vectorizer.source_pk
+                ]
+            ),
+        )
+
+    @cached_property
     def fetch_queue_table_oid_query(self) -> sql.Composed:
         return sql.SQL("SELECT to_regclass('{}')::oid").format(
             sql.Identifier(self.vectorizer.queue_schema, self.vectorizer.queue_table)
@@ -878,32 +974,61 @@ class Executor:
         """
         processing_stats = ProcessingStats()
         start_time = time.perf_counter()
-        async with conn.transaction():
-            items = await self._fetch_work(conn)
+        if self.features.split_processing:
+            items = []
+            while True:
+                # fetch_work executes in its own transaction
+                new_items = await self._fetch_work(conn)
+                current_span = tracer.current_span()
+                if current_span:
+                    current_span.set_tag("items_from_queue.pulled", len(items))
+                await logger.adebug(f"Items pulled from queue: {len(items)}")
 
-            current_span = tracer.current_span()
-            if current_span:
-                current_span.set_tag("items_from_queue.pulled", len(items))
-            await logger.adebug(f"Items pulled from queue: {len(items)}")
+                # Filter out items that were deleted from the source table.
+                # We use the first primary key column, since they can only
+                # be null if the LEFT JOIN didn't find a match.
+                items = [
+                    i for i in items if i[self.vectorizer.source_pk[0].attname] is not None
+                ]
 
-            # Filter out items that were deleted from the source table.
-            # We use the first primary key column, since they can only
-            # be null if the LEFT JOIN didn't find a match.
-            items = [
-                i for i in items if i[self.vectorizer.source_pk[0].attname] is not None
-            ]
+                if len(items) == 0:
+                    return 0
 
-            if len(items) == 0:
-                return 0
+                num_chunks = await self._embed_and_write(conn, items)
 
-            num_chunks = await self._embed_and_write(conn, items)
+                processing_stats.add_request_time(
+                    time.perf_counter() - start_time, num_chunks
+                )
+                await processing_stats.print_stats()
 
-            processing_stats.add_request_time(
-                time.perf_counter() - start_time, num_chunks
-            )
-            await processing_stats.print_stats()
+                return len(items)
+        else:
+            async with conn.transaction():
+                items = await self._fetch_work(conn)
 
-            return len(items)
+                current_span = tracer.current_span()
+                if current_span:
+                    current_span.set_tag("items_from_queue.pulled", len(items))
+                await logger.adebug(f"Items pulled from queue: {len(items)}")
+
+                # Filter out items that were deleted from the source table.
+                # We use the first primary key column, since they can only
+                # be null if the LEFT JOIN didn't find a match.
+                items = [
+                    i for i in items if i[self.vectorizer.source_pk[0].attname] is not None
+                ]
+
+                if len(items) == 0:
+                    return 0
+
+                num_chunks = await self._embed_and_write(conn, items)
+
+                processing_stats.add_request_time(
+                    time.perf_counter() - start_time, num_chunks
+                )
+                await processing_stats.print_stats()
+
+                return len(items)
 
     @cached_property
     def _batch_size(self) -> int:
@@ -934,24 +1059,29 @@ class Executor:
             list[SourceRow]: The rows from the source table that need to be embedded.
         """
         queue_table_oid = await self._get_queue_table_oid(conn)
-        async with conn.cursor(row_factory=dict_row) as cursor:
-            if self.features.loading_retries:
+        if self.features.split_processing:
+            async with conn.transaction():
+                async with conn.cursor(row_factory=dict_row) as cursor:
+                    await cursor.execute(self.queries.fetch_work_query_with_split_transaction, (
+                        queue_table_oid,
+                        self._batch_size
+                    ))
+                    return await cursor.fetchall()
+        else:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                if self.features.loading_retries:
+                    query = self.queries.fetch_work_query_with_retries
+                else:
+                    query = self.queries.fetch_work_query
                 await cursor.execute(
-                    self.queries.fetch_work_query_with_retries,
+                    query,
                     (
                         self._batch_size,
                         queue_table_oid,
                     ),
                 )
-            else:
-                await cursor.execute(
-                    self.queries.fetch_work_query,
-                    (
-                        self._batch_size,
-                        queue_table_oid,
-                    ),
-                )
-            return await cursor.fetchall()
+
+                return await cursor.fetchall()
 
     async def _get_queue_table_oid(self, conn: AsyncConnection) -> int:
         """

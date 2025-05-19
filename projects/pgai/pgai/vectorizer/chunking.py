@@ -142,12 +142,7 @@ class LangChainRecursiveCharacterTextSplitter(BaseModel, Chunker):
         # Note: deferred import to avoid import overhead
         from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-        return RecursiveCharacterTextSplitter(
-            separators=self.separators,
-            chunk_size=self.chunk_size,
-            chunk_overlap=self.chunk_overlap,
-            is_separator_regex=self.is_separator_regex,
-        )
+        return RecursiveCharacterTextSplitter(separators=['\n\n', '\n', '.', '?', '!', ' ', ''],chunk_size=100,chunk_overla=20)
 
     @override
     def into_chunks(self, row: dict[str, Any], payload: str) -> list[str]:

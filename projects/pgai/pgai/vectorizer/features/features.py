@@ -15,10 +15,12 @@ class Features:
         has_worker_tracking_table: bool,
         has_loading_retries: bool,
         has_reveal_secret_function: bool,
+        has_split_processing: bool,
     ) -> None:
         self.has_disabled_column = has_disabled_column
         self.has_worker_tracking_table = has_worker_tracking_table
         self.has_loading_retries = has_loading_retries
+        self.has_split_processing = has_split_processing
         self.has_reveal_secret_function = has_reveal_secret_function
 
     @classmethod
@@ -62,11 +64,21 @@ class Features:
         cur.execute(query)
         has_reveal_secret_function = cur.fetchone() is not None
 
+        query = """
+        SELECT proname
+        FROM pg_proc p
+        WHERE pronamespace = 'ai'::regnamespace
+          AND proname = '_get_next_queue_batch';
+        """
+        cur.execute(query)
+        has_split_processing = cur.fetchone() is True
+
         return cls(
             has_disabled_column,
             has_worker_tracking_table,
             has_loading_retries,
             has_reveal_secret_function,
+            has_split_processing,
         )
 
     @classmethod
@@ -99,6 +111,15 @@ class Features:
         queueing tables, and also how we handle the retries.
         """
         return self.has_loading_retries
+
+    @cached_property
+    def split_processing(self) -> bool:
+        """If the "split processing" feature is supported by the extension.
+
+        The feature breaks processing into two transactions: one to fetch work
+        and another to commit successfully processed items.
+        """
+        return self.has_split_processing
 
     @cached_property
     def db_reveal_secrets(self) -> bool:
