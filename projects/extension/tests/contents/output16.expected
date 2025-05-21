@@ -18,6 +18,7 @@ CREATE EXTENSION
  function ai.cohere_rerank(text,text,text[],text,text,integer,integer,boolean)
  function ai.cohere_tokenize(text,text,text,text,boolean)
  function ai.execute_vectorizer(integer)
+ function ai.execute_vectorizer(text)
  function ai.grant_ai_usage(name,boolean)
  function ai.grant_secret(text,text)
  function ai.litellm_embed(text,text,text,text,jsonb,boolean)
@@ -53,7 +54,7 @@ CREATE EXTENSION
  table ai.migration
  table ai._secret_permissions
  view ai.secret_permissions
-(49 rows)
+(50 rows)
 
                                     Table "ai._secret_permissions"
  Column | Type | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 

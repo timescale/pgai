@@ -28,7 +28,36 @@ def execute_vectorizer(plpy, vectorizer_id: int) -> None:
         plpy.error(f"vectorizer {vectorizer_id} not found")
 
     vectorizer = json.loads(result[0]["vectorizer"])
+    _execute_vectorizer(plpy, vectorizer)
 
+
+def execute_vectorizer_by_name(plpy, vectorizer_name: str) -> None:
+    try:
+        plan = plpy.prepare(
+            """
+            select pg_catalog.to_jsonb(v) as vectorizer
+            from ai.vectorizer v
+            where name = $1
+            limit 1
+        """,
+            ["text"],
+        )
+        result = plan.execute([vectorizer_name], 1)
+    except Exception as e:
+        if 'column "name" does not exist' in str(e):
+            plpy.error(
+                "The 'name' column does not exist in ai.vectorizer. Please update pgai to a recent version."
+            )
+        raise
+
+    if not result:
+        plpy.error(f"Vectorizer with name '{vectorizer_name}' not found")
+
+    vectorizer = json.loads(result[0]["vectorizer"])
+    _execute_vectorizer(plpy, vectorizer)
+
+
+def _execute_vectorizer(plpy, vectorizer: dict) -> None:
     embedding_api_key = (
         vectorizer.get("config", {}).get("embedding", {}).get("api_key_name", None)
     )
@@ -57,7 +86,7 @@ def execute_vectorizer(plpy, vectorizer_id: int) -> None:
     def on_backoff(detail: Details):
         wait = detail.get("wait", 0)
         plpy.warning(
-            f"{vectorizer_id} retry: {detail['tries']} elapsed: {detail['elapsed']} wait: {wait}..."
+            f"{vectorizer['id']} retry: {detail['tries']} elapsed: {detail['elapsed']} wait: {wait}..."
         )
 
     @backoff.on_exception(

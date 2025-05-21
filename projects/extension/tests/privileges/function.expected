@@ -56,6 +56,10 @@
  f       | bob   | execute   | no      | ai     | execute_vectorizer(vectorizer_id integer)
  f       | fred  | execute   | no      | ai     | execute_vectorizer(vectorizer_id integer)
  f       | jill  | execute   | YES     | ai     | execute_vectorizer(vectorizer_id integer)
+ f       | alice | execute   | YES     | ai     | execute_vectorizer(vectorizer_name text)
+ f       | bob   | execute   | no      | ai     | execute_vectorizer(vectorizer_name text)
+ f       | fred  | execute   | no      | ai     | execute_vectorizer(vectorizer_name text)
+ f       | jill  | execute   | YES     | ai     | execute_vectorizer(vectorizer_name text)
  f       | alice | execute   | YES     | ai     | grant_ai_usage(to_user name, admin boolean)
  f       | bob   | execute   | no      | ai     | grant_ai_usage(to_user name, admin boolean)
  f       | fred  | execute   | no      | ai     | grant_ai_usage(to_user name, admin boolean)
@@ -180,5 +184,5 @@
  f       | bob   | execute   | no      | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text, "verbose" boolean)
  f       | fred  | execute   | no      | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text, "verbose" boolean)
  f       | jill  | execute   | YES     | ai     | voyageai_embed(model text, input_texts text[], input_type text, api_key text, api_key_name text, "verbose" boolean)
-(180 rows)
+(184 rows)
 
