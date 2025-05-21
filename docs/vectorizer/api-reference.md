@@ -940,7 +940,7 @@ SELECT ai.create_vectorizer(
     embedding => ai.embedding_ollama(
       'nomic-embed-text',
       768,
-      base_url => "http://my.ollama.server:443"
+      base_url => 'http://my.ollama.server:443'
       options => '{ "num_ctx": 1024 }',
       keep_alive => "10m"
     ),
