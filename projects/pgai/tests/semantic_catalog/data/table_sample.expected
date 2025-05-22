@@ -1,0 +1,7 @@
+COPY (SELECT * FROM "postgres_air"."airport" LIMIT 3) TO STDOUT WITH (FORMAT TEXT, HEADER true);
+/*
+airport_code	airport_name	city	airport_tz	continent	iso_country	iso_region	intnl	update_ts
+HND	Tokyo Haneda International Airport	TOKYO	Asia/Tokyo	AS	JP	JP-13	t	\N
+NRT	Narita International Airport	TOKYO	Asia/Tokyo	AS	JP	JP-12	t	\N
+DEL	Indira Gandhi International Airport	DELHI	Asia/Calcutta	AS	IN	IN-DL	t	\N
+*/

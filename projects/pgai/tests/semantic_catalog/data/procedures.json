@@ -1,0 +1,41 @@
+{
+  "advance_air_time": {
+    "classid": 1255,
+    "objid": 23845,
+    "schema_name": "postgres_air",
+    "proc_name": "advance_air_time",
+    "kind": "procedure",
+    "identity_args": "IN p_weeks integer, IN p_schema_name text, IN p_run boolean",
+    "definition": "CREATE OR REPLACE PROCEDURE postgres_air.advance_air_time(IN p_weeks integer DEFAULT 52, IN p_schema_name text DEFAULT 'postgres_air'::text, IN p_run boolean DEFAULT false)\n LANGUAGE plpgsql\nAS $procedure$\ndeclare   stmt text;\nbegin\nraise notice $$Interval: % $$,  make_interval (weeks=>p_weeks);\nif p_run \nthen raise notice $$Executing updates$$;\nelse raise notice $$Displaying only$$;\n   end if;\n----\nfor stmt in\n   select \n      ---  nspname, relname, attname, typname\n   'update  '||nspname ||'.'|| relname ||' set '\n   || string_agg(attname || '='|| attname\n      ||'+make_interval(weeks=>' || p_weeks ||')', ',') \n   ||';'\nfrom pg_class r\njoin pg_attribute a on a.attrelid=r.oid\njoin pg_type t on t.oid=a.atttypid\njoin  pg_namespace n on relnamespace = n.oid\nwhere relkind='r'\n   and attnum>0\n   and n.nspname  = p_schema_name\n   and typname  in ('timestamptz','timestamp')\ngroup  by  nspname, relname\norder by  nspname, relname\nloop\n   raise notice $$ - % $$, stmt;\n   if p_run \n   then execute stmt;\n      end if;\n   end loop;\nend;\n$procedure$\n",
+    "objargs": [
+      "integer",
+      "pg_catalog.text",
+      "boolean"
+    ]
+  },
+  "update_flight_status": {
+    "classid": 1255,
+    "objid": 24004,
+    "schema_name": "postgres_air",
+    "proc_name": "update_flight_status",
+    "kind": "procedure",
+    "identity_args": "IN flight_id integer, IN status text",
+    "definition": "CREATE OR REPLACE PROCEDURE postgres_air.update_flight_status(IN flight_id integer, IN status text)\n LANGUAGE plpgsql\nAS $procedure$\nbegin\n    update postgres_air.flight\n    set status = update_flight_status.status\n    where flight_id = update_flight_status.flight_id;\nend;\n$procedure$\n",
+    "objargs": [
+      "integer",
+      "pg_catalog.text"
+    ]
+  },
+  "unsafe_sum": {
+    "classid": 1255,
+    "objid": 24005,
+    "schema_name": "postgres_air",
+    "proc_name": "unsafe_sum",
+    "kind": "aggregate",
+    "identity_args": "double precision",
+    "definition": "CREATE OR REPLACE AGGREGATE FUNCTION postgres_air.unsafe_sum(double precision) (\n  sfunc = float8pl,\n  stype = float8,\n  msfunc = float8pl,\n  mstype = float8,\n  minvfunc = float8mi,\n  initcond = 10\n)",
+    "objargs": [
+      "double precision"
+    ]
+  }
+}

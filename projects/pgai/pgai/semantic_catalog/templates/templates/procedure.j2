@@ -1,0 +1,24 @@
+{#
+Template for rendering a database procedure, function, or aggregate.
+
+This template generates a SQL representation of a callable database object, including:
+- The complete object definition
+- Comment on the object (if available)
+
+Expected context variables:
+- proc: A Procedure object with the following attributes:
+  - id: the Procedure's ID in the Semantic Catalog
+  - objid: PostgreSQL object ID
+  - kind: Type of procedure ("procedure", "function", or "aggregate")
+  - schema_name: Schema name
+  - proc_name: Procedure name
+  - identity_args: Argument signature as a string
+  - definition: The SQL definition of the procedure
+  - description: Optional ObjectDescription for procedure comments
+#}
+<{{ proc.kind }} id="{% if proc.id > -1 %}{{ proc.id }}{% else %}{{ proc.objid }}{% endif %}">
+{{ proc.definition }};
+{% if proc.description is not none %}
+COMMENT ON {{ proc.kind | upper }} {{ proc.schema_name }}.{{ proc.proc_name }}({{ proc.identity_args }}) IS $${{ proc.description.description }}$$;
+{% endif -%}
+</{{ proc.kind }}>

@@ -1,0 +1,19 @@
+{#
+Template for rendering a SQL example.
+
+This template formats a SQL example for display, including:
+- The SQL code
+- A comment with a description of what the SQL does
+
+Expected context variables:
+- example: A SQLExample object with the following attributes:
+  - id: the SQLExample's ID in the Semantic Catalog (optional)
+  - description: Description of what the SQL example demonstrates
+  - sql: The SQL code for the example
+#}
+<sql-example{% if example.id > -1 %} id="{{ example.id }}"{% endif %}>
+/*
+{{ example.description }}
+*/
+{{ example.sql }}
+</sql-example>

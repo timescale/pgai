@@ -154,6 +154,7 @@ jobs:
         run: just pgai ci
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
   build-and-test-pgai-db-module:
     needs: authorize
