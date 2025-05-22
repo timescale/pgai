@@ -574,7 +574,6 @@ async def generate_sql(
     iteration = 0
 
     while True:
-        iteration += 1
         if iteration > iteration_limit:
             raise IterationLimitExceededException(
                 limit=iteration_limit, final_response=final_response
@@ -602,10 +601,11 @@ async def generate_sql(
                     semantic search query
                 :return: None
                 """
+                nonlocal iteration, ctx
+                iteration += 1
                 for p in search_prompts:
                     prior_prompts.append(p)
                     logger.info(f"semantic search for '{p}'")
-                    nonlocal ctx
                     ctx = await fetch_database_context(
                         catalog_con,
                         target_con,
@@ -637,7 +637,8 @@ async def generate_sql(
                 answering the user's prompt
             :return: None
             """
-            nonlocal answer, ctx
+            nonlocal answer, ctx, iteration
+            iteration += 1
             logger.info("sql generated")
             answer = sql_statement
             for irrelevant_id in ctx.objects.keys() - relevant_object_ids:
