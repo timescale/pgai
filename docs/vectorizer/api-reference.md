@@ -1,8 +1,7 @@
-
 # pgai Vectorizer API reference
 
 This page provides an API reference for Vectorizer functions. For an overview
-of Vectorizer and how it works, see the [Vectorizer Guide](/docs/vectorizer/overview.md).
+of Vectorizer and how it works, see the [Vectorizer Guide](/docs/vectorizer/README.md).
 
 A vectorizer provides you with a powerful and automated way to generate and 
 manage LLM embeddings for your PostgreSQL data. Here's a summary of what you 
