@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import sys
 import threading
@@ -11,7 +12,6 @@ from typing import Any, TypeAlias, TypeVar
 from uuid import UUID
 
 import psycopg
-import structlog
 from ddtrace import tracer
 from pgvector.psycopg import register_vector_async  # type: ignore
 from psycopg import AsyncConnection, sql
@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field, model_validator
 from pydantic_core._pydantic_core import ArgsKwargs
 from typing_extensions import override
 
+from ..logger import StructuredMessage
 from .chunking import (
     LangChainCharacterTextSplitter,
     LangChainRecursiveCharacterTextSplitter,
@@ -36,7 +37,7 @@ from .parsing import ParsingAuto, ParsingNone, ParsingPyMuPDF
 from .processing import ProcessingDefault
 from .worker_tracking import WorkerTracking
 
-logger = structlog.get_logger()
+logger = logging.getLogger(__name__)
 
 VectorizerErrorRecord: TypeAlias = tuple[int, str, Jsonb]
 EmbeddingRecord: TypeAlias = list[Any]
@@ -198,7 +199,9 @@ class Vectorizer(BaseModel):
                 items += result
 
         logger.info(
-            "finished processing vectorizer", items=items, vectorizer_id=self.id
+            StructuredMessage(
+                "finished processing vectorizer", items=items, vectorizer_id=self.id
+            )
         )
 
         if len(exceptions) > 0:
@@ -665,10 +668,12 @@ class ProcessingStats:
             cls._instance = super().__new__(cls)
 
             logger.debug(
-                "ProcessingStats initialized",
-                thread_id=threading.get_native_id(),
-                active_count=threading.active_count(),
-                task=id(asyncio.current_task()),
+                StructuredMessage(
+                    "ProcessingStats initialized",
+                    thread_id=threading.get_native_id(),
+                    active_count=threading.active_count(),
+                    task=id(asyncio.current_task()),
+                )
             )
             cls._instance.total_processing_time = 0.0
             cls._instance.total_chunks = 0
@@ -704,14 +709,16 @@ class ProcessingStats:
         )
         wall_time = time.perf_counter() - self.wall_start
         chunks_per_second = self.total_chunks / wall_time if wall_time > 0 else 0
-        await logger.adebug(
-            "Processing stats",
-            wall_time=wall_time,
-            total_processing_time=self.total_processing_time,
-            total_chunks=self.total_chunks,
-            chunks_per_second=chunks_per_second,
-            chunks_per_second_per_thread=chunks_per_second_per_thread,
-            task=id(asyncio.current_task()),
+        logger.debug(
+            StructuredMessage(
+                "Processing stats",
+                wall_time=wall_time,
+                total_processing_time=self.total_processing_time,
+                total_chunks=self.total_chunks,
+                chunks_per_second=chunks_per_second,
+                chunks_per_second_per_thread=chunks_per_second_per_thread,
+                task=id(asyncio.current_task()),
+            )
         )
 
 
@@ -891,7 +898,7 @@ class Executor:
             current_span = tracer.current_span()
             if current_span:
                 current_span.set_tag("items_from_queue.pulled", len(items))
-            await logger.adebug(f"Items pulled from queue: {len(items)}")
+            logger.debug(StructuredMessage("Items pulled from queue", items=len(items)))
 
             # Filter out items that were deleted from the source table.
             # We use the first primary key column, since they can only

@@ -1,16 +1,16 @@
+import logging
 from importlib.resources import files
 from typing import Any
 
 import psycopg
 import semver
-import structlog
 from psycopg import sql as sql_lib
 
 from .. import __version__
 
 GUC_VECTORIZER_URL = "ai.external_functions_executor_url"
 
-log = structlog.get_logger()
+log = logging.getLogger(__name__)
 
 
 def _get_sql(vector_extension_schema: str) -> str:

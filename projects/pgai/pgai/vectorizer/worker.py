@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import logging
 import os
 import random
 import sys
@@ -9,10 +10,10 @@ from dataclasses import dataclass
 
 import psycopg
 import semver
-import structlog
 from psycopg.rows import dict_row, namedtuple_row
 
 from .. import __version__
+from ..logger import StructuredMessage
 from .embeddings import ApiKeyMixin
 from .features import Features
 from .vectorizer import Vectorizer
@@ -24,7 +25,7 @@ else:
     # For Python 3.10 and below, use the backport
     from exceptiongroup import BaseExceptionGroup
 
-logger = structlog.get_logger()
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -163,7 +164,7 @@ class Worker:
         kwargs = {}
         if vectorizer_id:
             kwargs["vectorizer_id"] = vectorizer_id
-        logger.error(error_message, **kwargs)
+        logger.error(StructuredMessage(error_message, **kwargs))
         if worker_tracking is not None:
             await worker_tracking.save_vectorizer_error(vectorizer_id, error_message)
         if self.exit_on_error:
@@ -203,7 +204,7 @@ class Worker:
     async def run(self) -> Exception | None:
         logger.debug("starting vectorizer worker")
 
-        valid_vectorizer_ids = []
+        valid_vectorizer_ids: list[int] = []
         can_connect = False
         pgai_version = None
         features = None
@@ -272,7 +273,11 @@ class Worker:
                                 return exception
                             break
 
-                        logger.info("running vectorizer", vectorizer_id=vectorizer_id)
+                        logger.info(
+                            StructuredMessage(
+                                "running vectorizer", vectorizer_id=vectorizer_id
+                            )
+                        )
 
                         def should_continue(_: int, __: int) -> bool:
                             return not self.shutdown_requested.is_set()
@@ -298,7 +303,9 @@ class Worker:
                 # catch any exceptions, log them, and keep on going
                 for exception in e.exceptions:  # type: ignore
                     error_msg = str(exception)  # type: ignore
-                    logger.error(error_msg, vectorizer_id=vectorizer_id)
+                    logger.error(
+                        StructuredMessage(error_msg, vectorizer_id=vectorizer_id)
+                    )
                 for exception_line in traceback.format_exception(e):  # type: ignore
                     for line in exception_line.rstrip().split("\n"):
                         logger.debug(line)
