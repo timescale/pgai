@@ -228,9 +228,9 @@ cli.add_command(vectorizer)
     "-d",
     "--db-url",
     type=click.STRING,
-    default="postgres://postgres@localhost:5432/postgres",
+    default="",
     show_default=True,
-    help="The database URL to connect to",
+    help="The database URL to connect to, defaults to $PGAI_VECTORIZER_WORKER_DB_URL",
 )
 @click.option(
     "--strict",
@@ -241,6 +241,12 @@ cli.add_command(vectorizer)
 )
 def install(db_url: str, strict: bool) -> None:
     import pgai
+
+    if db_url == "":
+        db_url = os.getenv(
+            "PGAI_VECTORIZER_WORKER_DB_URL",
+            "postgres://postgres@localhost:5432/postgres",
+        )
 
     pgai.install(db_url, strict=strict)
     log.info(f"pgai {__version__} installed")
