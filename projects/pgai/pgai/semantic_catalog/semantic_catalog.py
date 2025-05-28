@@ -410,6 +410,121 @@ class SemanticCatalog:
             con, self.id, embedding_name, emb_cfg, query, limit
         )
 
+    async def drop_fact(
+        self,
+        con: CatalogConnection,
+        fact_id: int,
+    ) -> None:
+        """Drop a fact from the semantic catalog.
+
+        Removes a specific fact from the semantic catalog by its ID.
+
+        Args:
+            con: The database connection to the catalog database.
+            fact_id: The unique identifier of the fact to drop.
+        """
+        logger.debug(
+            f"dropping fact with id {fact_id} from semantic catalog {self.name}"
+        )
+        async with con.cursor() as cur:
+            sql = SQL("""
+                delete from ai.{table} x
+                where x.id = %s
+            """).format(
+                table=Identifier(f"semantic_catalog_fact_{self.id}"),
+            )
+            await cur.execute(
+                sql,
+                (fact_id,),
+            )
+
+    async def add_fact(
+        self,
+        con: CatalogConnection,
+        description: str,
+    ) -> Fact:
+        """Add a fact to the semantic catalog.
+
+        Creates a new fact in the semantic catalog with the provided description.
+
+        Args:
+            con: The database connection to the catalog database.
+            description: The text of the fact to add.
+
+        Returns:
+            A Fact object representing the newly added fact.
+        """
+        logger.debug(f"adding fact to semantic catalog {self.name}")
+        async with con.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """\
+                select ai.sc_add_fact
+                ( %(description)s
+                , %(catalog_name)s
+                )
+            """,
+                dict(catalog_name=self.name, description=description),
+            )
+            row = await cur.fetchone()
+            if row is None:
+                raise RuntimeError("Failed to add fact to semantic catalog")
+            return Fact(id=row["sc_add_fact"], description=description)
+
+    async def edit_fact(
+        self,
+        con: CatalogConnection,
+        fact_id: int,
+        description: str,
+    ) -> Fact:
+        """Edit an existing fact in the semantic catalog.
+
+        Updates the description of an existing fact identified by its ID.
+
+        Args:
+            con: The database connection to the catalog database.
+            fact_id: The unique identifier of the fact to edit.
+            description: The new description for the fact.
+
+        Returns:
+            A Fact object representing the updated fact.
+        """
+        logger.debug(f"editing fact with id {fact_id} in semantic catalog {self.name}")
+        await self.drop_fact(con, fact_id)
+
+        async with con.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """\
+                    select count(*) as count
+                    from ai.semantic_catalog_embedding e
+                    where e.semantic_catalog_id = %(catalog_id)s
+                """,
+                dict(catalog_id=self.id),
+            )
+            row = await cur.fetchone()
+            count = row["count"] if row else 0
+            cols: list[Composable] = []
+            for i in range(count):
+                cols.append(SQL("{} = null").format(Identifier(f"emb{i + 1}")))
+            sql = SQL(
+                """
+                    update ai.{table} x
+                    set description = %(description)s
+                    {cols}
+                    where x.id = %(fact_id)s
+                """
+            ).format(
+                table=Identifier(f"semantic_catalog_fact_{self.id}"),
+                cols=SQL(", ") + SQL(", ").join(cols),
+            )
+            await cur.execute(
+                sql,
+                {
+                    "fact_id": fact_id,
+                    "description": description,
+                },
+            )
+        return Fact(id=fact_id, description=description)
+
     async def list_facts(
         self,
         con: CatalogConnection,
