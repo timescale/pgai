@@ -491,27 +491,36 @@ class SemanticCatalog:
         logger.debug(f"editing fact with id {fact_id} in semantic catalog {self.name}")
 
         async with con.cursor(row_factory=dict_row) as cur:
-            sql = SQL(
-                """
-                    update ai.{table} x
-                    set description = %(description)s
-                    where x.id = %(fact_id)s
-                """
-            ).format(
+            sql = SQL("""
+                select id
+                from ai.{table} x
+                where x.id = %(id)s
+            """).format(
                 table=Identifier(f"semantic_catalog_fact_{self.id}"),
             )
             await cur.execute(
                 sql,
-                {
-                    "fact_id": fact_id,
-                    "description": description,
-                },
+                {"id": fact_id},
             )
-
-            if cur.rowcount == 0:
+            row = await cur.fetchone()
+            if row is None:
                 raise RuntimeError(
                     f"Fact with id {fact_id} not found in catalog {self.name}"
                 )
+            await cur.execute(
+                """
+                    select ai.sc_update_fact
+                    ( %(id)s
+                    , %(description)s
+                    , %(catalog_name)s
+                    )
+                """,
+                {
+                    "id": fact_id,
+                    "description": description,
+                    "catalog_name": self.name,
+                },
+            )
         return Fact(id=fact_id, description=description)
 
     async def list_facts(
