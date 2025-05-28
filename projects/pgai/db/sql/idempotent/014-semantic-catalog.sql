@@ -271,9 +271,25 @@ declare
     _catalog_id int4;
     _sql text;
 begin
-    insert into ai.semantic_catalog(catalog_name)
-    values (catalog_name)
-    returning id into strict _catalog_id;
+    select nextval('ai.semantic_catalog_id_seq')
+    into strict _catalog_id
+    ;
+
+    insert into ai.semantic_catalog
+    ( id
+    , catalog_name
+    , obj_table
+    , sql_table
+    , fact_table
+    )
+    values 
+    ( _catalog_id
+    , catalog_name
+    , array['ai', format('semantic_catalog_obj_%s', _catalog_id)]
+    , array['ai', format('semantic_catalog_sql_%s', _catalog_id)]
+    , array['ai', format('semantic_catalog_fact_%s', _catalog_id)]
+    )
+    ;
     
     -- create the table for database objects
     _sql = format
