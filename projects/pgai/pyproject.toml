@@ -95,6 +95,7 @@ exclude = [
     ".venv",
     ".direnv",
     ".devenv",
+    "dist/*",
     "db/tests/*",
 ]
 reportImplicitOverride = true
