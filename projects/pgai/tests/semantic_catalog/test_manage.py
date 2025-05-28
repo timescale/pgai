@@ -44,7 +44,7 @@ async def test_fact(container: PostgresContainer) -> None:
         facts = await sc.list_facts(con)
         assert len(facts) == 1
 
-        edit_fact = await sc.edit_fact(con, fact.id, "This is an updated test fact")
+        edit_fact = await sc.update_fact(con, fact.id, "This is an updated test fact")
         assert edit_fact is not None
         assert edit_fact.id == fact.id
         assert edit_fact.description == "This is an updated test fact"

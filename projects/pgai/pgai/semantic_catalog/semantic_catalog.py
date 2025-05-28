@@ -470,7 +470,7 @@ class SemanticCatalog:
                 raise RuntimeError("Failed to add fact to semantic catalog")
             return Fact(id=row["sc_add_fact"], description=description)
 
-    async def edit_fact(
+    async def update_fact(
         self,
         con: CatalogConnection,
         fact_id: int,
