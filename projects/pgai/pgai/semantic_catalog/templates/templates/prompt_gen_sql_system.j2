@@ -27,6 +27,7 @@ You are provided with context which may include:
 {% if semantic_search_available %}
 * If the context is not sufficient, use a tool to search for more context in the lacking area.
 {% endif %}
+* You MUST call a tool for your response. You MUST NOT return a text response.
 
 ## RULES:
 * Do not alias columns in the SELECT clause unless explicitly asked, or it is syntactically required.
