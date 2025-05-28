@@ -12,8 +12,9 @@ TARGET = "postgres_air"
 
 
 async def test_import_export(container: PostgresContainer):
-    expected = Path(__file__).parent.joinpath("data", "export_yaml.expected")
-    actual = Path(__file__).parent.joinpath("data", "export_yaml.actual")
+    initial = Path(__file__).parent.joinpath("data", "catalog.yaml")
+    export1 = Path(__file__).parent.joinpath("data", "export1.yaml")
+    export2 = Path(__file__).parent.joinpath("data", "export2.yaml")
 
     container.drop_database(DATABASE)
     container.create_database(DATABASE)
@@ -28,12 +29,27 @@ async def test_import_export(container: PostgresContainer):
         ) as tcon,
     ):
         catalog = await sc.create(ccon)
-        with expected.open(mode="r") as r:
+
+        # load from an initial yaml file
+        with initial.open(mode="r") as r:
             await file.save_to_catalog(ccon, tcon, catalog.id, file.import_from_yaml(r))
 
-        with actual.open(mode="w") as w:
+        # export the catalog to a yaml file. this will include ids
+        with export1.open(mode="w") as w:
             await file.async_export_to_yaml(w, file.load_from_catalog(ccon, catalog.id))
 
-    expected_yaml = expected.read_text()
-    actual_yaml = actual.read_text()
-    assert actual_yaml == expected_yaml
+        # import this yaml to the catalog (should not change anything)
+        with export1.open(mode="r") as r:
+            await file.save_to_catalog(ccon, tcon, catalog.id, file.import_from_yaml(r))
+
+        # do it again for good measure
+        with export1.open(mode="r") as r:
+            await file.save_to_catalog(ccon, tcon, catalog.id, file.import_from_yaml(r))
+
+        # export to another file
+        with export2.open(mode="w") as w:
+            await file.async_export_to_yaml(w, file.load_from_catalog(ccon, catalog.id))
+
+    export1_yaml = export1.read_text()
+    export2_yaml = export2.read_text()
+    assert export2_yaml == export1_yaml

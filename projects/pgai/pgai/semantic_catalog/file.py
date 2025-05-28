@@ -25,10 +25,7 @@ class Header(BaseModel):
 
     def to_yaml(self) -> str:
         return yaml.safe_dump(
-            dict(
-                type=self.type,
-                schema_version=self.schema_version,
-            ),
+            self.model_dump(exclude_none=True),
             explicit_start=True,
             sort_keys=False,
             explicit_end=True,
@@ -49,15 +46,7 @@ class Table(BaseModel):
 
     def to_yaml(self) -> str:
         return yaml.safe_dump(
-            dict(
-                schema=self.schema_name,
-                name=self.name,
-                type=self.type,
-                description=self.description,
-                columns=[
-                    dict(name=c.name, description=c.description) for c in self.columns
-                ],
-            ),
+            self.model_dump(exclude_none=True, by_alias=True),
             explicit_start=True,
             sort_keys=False,
             explicit_end=True,
@@ -73,15 +62,7 @@ class View(BaseModel):
 
     def to_yaml(self) -> str:
         return yaml.safe_dump(
-            dict(
-                schema=self.schema_name,
-                name=self.name,
-                type=self.type,
-                description=self.description,
-                columns=[
-                    dict(name=c.name, description=c.description) for c in self.columns
-                ],
-            ),
+            self.model_dump(exclude_none=True, by_alias=True),
             explicit_start=True,
             sort_keys=False,
             explicit_end=True,
@@ -97,13 +78,7 @@ class Function(BaseModel):
 
     def to_yaml(self) -> str:
         return yaml.safe_dump(
-            dict(
-                schema=self.schema_name,
-                name=self.name,
-                args=self.args,
-                type=self.type,
-                description=self.description,
-            ),
+            self.model_dump(exclude_none=True, by_alias=True),
             explicit_start=True,
             sort_keys=False,
             explicit_end=True,
@@ -119,13 +94,7 @@ class Procedure(BaseModel):
 
     def to_yaml(self) -> str:
         return yaml.safe_dump(
-            dict(
-                schema=self.schema_name,
-                name=self.name,
-                args=self.args,
-                type=self.type,
-                description=self.description,
-            ),
+            self.model_dump(exclude_none=True, by_alias=True),
             explicit_start=True,
             sort_keys=False,
             explicit_end=True,
@@ -141,13 +110,7 @@ class Aggregate(BaseModel):
 
     def to_yaml(self) -> str:
         return yaml.safe_dump(
-            dict(
-                schema=self.schema_name,
-                name=self.name,
-                args=self.args,
-                type=self.type,
-                description=self.description,
-            ),
+            self.model_dump(exclude_none=True, by_alias=True),
             explicit_start=True,
             sort_keys=False,
             explicit_end=True,
@@ -156,14 +119,12 @@ class Aggregate(BaseModel):
 
 class Fact(BaseModel):
     type: Literal["fact"] = "fact"
+    id: int | None = None
     description: str
 
     def to_yaml(self) -> str:
         return yaml.safe_dump(
-            dict(
-                type=self.type,
-                description=self.description,
-            ),
+            self.model_dump(exclude_none=True),
             explicit_start=True,
             sort_keys=False,
             explicit_end=True,
@@ -172,16 +133,13 @@ class Fact(BaseModel):
 
 class SQLExample(BaseModel):
     type: Literal["sql_example"] = "sql_example"
+    id: int | None = None
     sql: str
     description: str
 
     def to_yaml(self) -> str:
         return yaml.safe_dump(
-            dict(
-                type=self.type,
-                sql=self.sql,
-                description=self.description,
-            ),
+            self.model_dump(exclude_none=True),
             explicit_start=True,
             sort_keys=False,
             explicit_end=True,
@@ -441,22 +399,42 @@ async def _save_sql_example(
         sql_example: SQLExample object to save.
     """
     async with catalog_con.cursor() as cur:
-        await cur.execute(
-            """\
-            select ai.sc_add_sql_desc
-            ( %(sql)s
-            , %(description)s
-            , c.catalog_name
+        if sql_example.id:
+            await cur.execute(
+                """\
+                select ai.sc_update_sql_desc
+                ( %(id)s
+                , %(sql)s
+                , %(description)s
+                , c.catalog_name
+                )
+                from ai.semantic_catalog c
+                where c.id = %(catalog_id)s
+            """,
+                dict(
+                    catalog_id=catalog_id,
+                    id=sql_example.id,
+                    sql=sql_example.sql,
+                    description=sql_example.description,
+                ),
             )
-            from ai.semantic_catalog c
-            where c.id = %(catalog_id)s
-        """,
-            dict(
-                catalog_id=catalog_id,
-                sql=sql_example.sql,
-                description=sql_example.description,
-            ),
-        )
+        else:
+            await cur.execute(
+                """\
+                select ai.sc_add_sql_desc
+                ( %(sql)s
+                , %(description)s
+                , c.catalog_name
+                )
+                from ai.semantic_catalog c
+                where c.id = %(catalog_id)s
+            """,
+                dict(
+                    catalog_id=catalog_id,
+                    sql=sql_example.sql,
+                    description=sql_example.description,
+                ),
+            )
 
 
 async def _save_fact(
@@ -472,17 +450,31 @@ async def _save_fact(
         fact: Fact object to save.
     """
     async with catalog_con.cursor() as cur:
-        await cur.execute(
-            """\
-            select ai.sc_add_fact
-            ( %(description)s
-            , c.catalog_name
+        if fact.id:
+            await cur.execute(
+                """\
+                select ai.sc_update_fact
+                ( %(id)s
+                , %(description)s
+                , c.catalog_name
+                )
+                from ai.semantic_catalog c
+                where c.id = %(catalog_id)s
+            """,
+                dict(catalog_id=catalog_id, id=fact.id, description=fact.description),
             )
-            from ai.semantic_catalog c
-            where c.id = %(catalog_id)s
-        """,
-            dict(catalog_id=catalog_id, description=fact.description),
-        )
+        else:
+            await cur.execute(
+                """\
+                select ai.sc_add_fact
+                ( %(description)s
+                , c.catalog_name
+                )
+                from ai.semantic_catalog c
+                where c.id = %(catalog_id)s
+            """,
+                dict(catalog_id=catalog_id, description=fact.description),
+            )
 
 
 async def save_to_catalog(
@@ -612,12 +604,14 @@ async def _load_sql_examples(
     await cur.execute(
         SQL("""\
             select
-              x.sql
+              x.id
+            , x.sql
             , x.description
             from ai.{} x
         """).format(Identifier(f"semantic_catalog_sql_{catalog_id}"))
     )
     for row in await cur.fetchall():
+        row["type"] = "sql_example"
         yield item_from_dict(row)
 
 
@@ -638,11 +632,13 @@ async def _load_facts(
     await cur.execute(
         SQL("""\
             select
-              x.description
+              x.id
+            , x.description
             from ai.{} x
         """).format(Identifier(f"semantic_catalog_fact_{catalog_id}"))
     )
     for row in await cur.fetchall():
+        row["type"] = "fact"
         yield item_from_dict(row)
 
 
