@@ -489,32 +489,16 @@ class SemanticCatalog:
             A Fact object representing the updated fact.
         """
         logger.debug(f"editing fact with id {fact_id} in semantic catalog {self.name}")
-        await self.drop_fact(con, fact_id)
 
         async with con.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                """\
-                    select count(*) as count
-                    from ai.semantic_catalog_embedding e
-                    where e.semantic_catalog_id = %(catalog_id)s
-                """,
-                dict(catalog_id=self.id),
-            )
-            row = await cur.fetchone()
-            count = row["count"] if row else 0
-            cols: list[Composable] = []
-            for i in range(count):
-                cols.append(SQL("{} = null").format(Identifier(f"emb{i + 1}")))
             sql = SQL(
                 """
                     update ai.{table} x
                     set description = %(description)s
-                    {cols}
                     where x.id = %(fact_id)s
                 """
             ).format(
                 table=Identifier(f"semantic_catalog_fact_{self.id}"),
-                cols=SQL(", ") + SQL(", ").join(cols),
             )
             await cur.execute(
                 sql,
@@ -523,6 +507,9 @@ class SemanticCatalog:
                     "description": description,
                 },
             )
+
+            if cur.rowcount == 0:
+                raise RuntimeError(f"Fact with id {fact_id} not found in catalog {self.name}")
         return Fact(id=fact_id, description=description)
 
     async def list_facts(
