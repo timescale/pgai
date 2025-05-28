@@ -22,6 +22,11 @@ set search_path to pg_catalog, pg_temp
 -- _semantic_catalog_make_trigger
 create or replace function ai._semantic_catalog_make_triggers(semantic_catalog_id int4) returns void
 as $func$
+/*
+this function dynamically creates triggers on the obj, sql, and fact tables associated with a
+semantic catalog. if any non-vector columns are updated, the vector columns are nulled out by
+these triggers. this serves as the signal that the row should be reembedded
+*/
 declare
     _tbl text;
     _sql text;
