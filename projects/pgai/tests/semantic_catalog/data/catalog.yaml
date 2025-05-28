@@ -247,3 +247,16 @@ description: Advances every timestamp/timestamptz column in all tables of the sp
   schema by a given number of weeks, executing or merely displaying the generated
   UPDATE statements according to the p_run flag.
 ...
+---
+type: sql_example
+sql: select f.id, f.scheduled_departure, f.scheduled_departure at time zone a.airport_tz
+  as scheduled_departure_local , a.airport_tz as departure_tz from postgres_air.flight
+  f inner join postgres_air.airport a on (f.departure_airport = a.airport_code)
+description: This query demonstrates how to compute a flight's departure time in the
+  local time of the departure airport using the airport's time zone.
+...
+---
+type: fact
+description: The names of cities in the city column of the airport table are in all
+  capital letters. e.g. "TOKYO"
+...

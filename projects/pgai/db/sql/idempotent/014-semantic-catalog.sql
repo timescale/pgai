@@ -1277,6 +1277,42 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- sc_update_sql_desc
+create or replace function ai.sc_update_sql_desc
+( id int8
+, sql text
+, description text
+, catalog_name name default 'default'
+)
+returns void
+as $func$
+declare
+    _catalog_name name = sc_update_sql_desc.catalog_name;
+    _sql text;
+begin
+    select format
+    ( $sql$
+        update ai.semantic_catalog_sql_%s set
+          sql = $1
+        , description = $2
+        where id = $3
+      $sql$
+    , x.id
+    ) into strict _sql
+    from ai.semantic_catalog x
+    where x.catalog_name = _catalog_name
+    ;
+    execute _sql using
+      sql
+    , description
+    , id
+    ;
+end
+$func$ language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- sc_add_fact
 create or replace function ai.sc_add_fact
 ( description text
@@ -1307,6 +1343,35 @@ begin
     execute _sql using description
     into strict _id;
     return _id;
+end
+$func$ language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- sc_update_fact
+create or replace function ai.sc_update_fact
+( id int8
+, description text
+, catalog_name name default 'default'
+)
+returns void
+as $func$
+declare
+    _catalog_name name = sc_update_fact.catalog_name;
+    _sql text;
+begin
+    select format
+    ( $sql$
+        update ai.semantic_catalog_fact_%s set description = $1
+        where id = $2
+      $sql$
+    , x.id
+    ) into strict _sql
+    from ai.semantic_catalog x
+    where x.catalog_name = _catalog_name
+    ;
+    execute _sql using description, id;
 end
 $func$ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
