@@ -42,13 +42,17 @@ The semantic catalog consists of the following components:
 - **Facts**: expressed as natural language statements about the dataset/schema, facts provide additional domain knowledge
    that might not be explicitly encoded in the database structure but is crucial for understanding user intent.
 
-By embedding these components, your semantic catalog enables vector similarity searches that can retrieve relevant
+We generate vector embeddings of the database objects, sql examples, and facts.
+With these embeddings, your semantic catalog enables vector similarity searches that can retrieve relevant
 context when processing new queries. This retrieval-augmented generation (RAG) approach ensures that when constructing
 SQL queries from natural language inputs, Text-to-SQL has access to the most pertinent information about your database
 structure, usage patterns, and domain knowledge.
 
 ### Semantic Catalog Features
 
+* The library can automatically generate descriptions of database objects
+* The contents of a semantic catalog can be exported to and imported from YAML
+* You can search the semantic catalog using natural language prompts
 * You can install the semantic catalog in a different database from the one you are generating SQL statements for.
 * You can manage multiple, independent semantic catalogs in a single database.
 * For A/B testing, you can create multiple embedding configurations on a single semantic catalog.
@@ -64,7 +68,7 @@ We will then create a semantic catalog in another postgres database, import our 
 
 Once our semantic catalog is loaded with embedded descriptions, we can start generating SQL to answer our questions.
 
-## Prerequisites
+### Prerequisites
 
 * [Python 3](https://www.python.org/downloads/)
 * [git](https://git-scm.com/downloads)
@@ -72,7 +76,7 @@ Once our semantic catalog is loaded with embedded descriptions, we can start gen
 * [docker](https://www.docker.com/products/docker-desktop/)
 * An [OpenAI key](https://platform.openai.com/api-keys)
 
-## Quickstart
+### Quickstart Instructions
 
 This quickstart uses the:
 
@@ -211,7 +215,7 @@ if __name__ == "__main__":
 
 ```
 
-## Try a few more questions.
+### Try a few more questions.
 
 ```
 ┌────┬──────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
