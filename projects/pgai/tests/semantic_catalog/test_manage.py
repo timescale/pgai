@@ -53,3 +53,12 @@ async def test_fact(container: PostgresContainer) -> None:
 
         facts = await sc.list_facts(con)
         assert len(facts) == 0
+
+
+async def test_update_nonexistant_fact_errors(container: PostgresContainer) -> None:
+    async with await psycopg.AsyncConnection.connect(
+        container.connection_string(database=DATABASE)
+    ) as con:
+        sc = await semantic_catalog.from_name(con, "default")
+        with pytest.raises(RuntimeError):
+            await sc.update_fact(con, 9999, "Fact with id 9999 not found in catalog default")
