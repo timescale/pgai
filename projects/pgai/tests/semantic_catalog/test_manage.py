@@ -62,7 +62,5 @@ async def test_update_nonexistant_fact_errors(container: PostgresContainer) -> N
         sc = await semantic_catalog.from_name(con, "default")
         with pytest.raises(RuntimeError):
             await sc.update_fact(
-                con,
-                9999,
-                "Fact with id 9999 not found in catalog default"
+                con, 9999, "Fact with id 9999 not found in catalog default"
             )
