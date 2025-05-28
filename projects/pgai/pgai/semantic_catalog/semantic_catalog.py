@@ -509,7 +509,9 @@ class SemanticCatalog:
             )
 
             if cur.rowcount == 0:
-                raise RuntimeError(f"Fact with id {fact_id} not found in catalog {self.name}")
+                raise RuntimeError(
+                    f"Fact with id {fact_id} not found in catalog {self.name}"
+                )
         return Fact(id=fact_id, description=description)
 
     async def list_facts(
