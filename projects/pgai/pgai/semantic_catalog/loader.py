@@ -2,6 +2,7 @@ import logging
 
 import psycopg
 from psycopg.rows import dict_row
+from psycopg.sql import SQL, Identifier
 
 from pgai.semantic_catalog.models import (
     ObjectDescription,
@@ -450,8 +451,47 @@ async def load_procedures(
     return procedures
 
 
+async def _load_descriptions(
+    con: psycopg.AsyncConnection, catalog_id: int, classid: int, objids: list[int]
+) -> list[ObjectDescription]:
+    """Loads ObjectDescriptions from the semantic catalog
+    Given a classid and a list of objids, this will load the corresponding
+    ObjectDescriptions.
+    Args:
+        con: Asynchronous database connection to the catalog database.
+        catalog_id: ID of the semantic catalog to search in.
+        classid: PostgreSQL object class ID
+        objids: list of PostgreSQL object IDs
+    Returns:
+        A list of ObjectDescription objects.
+    """
+    async with con.cursor(row_factory=dict_row) as cur:
+        sql = SQL("""\
+            select x.*
+            from ai.{table} x
+            where x.classid = %(classid)s
+            and x.objid = any(%(objids)s)
+            order by x.classid, x.objid
+        """).format(
+            table=Identifier(f"semantic_catalog_obj_{catalog_id}"),
+        )
+        await cur.execute(
+            sql,
+            dict(
+                classid=classid,
+                objids=objids,
+            ),
+        )
+        results: list[ObjectDescription] = []
+        for row in await cur.fetchall():
+            results.append(ObjectDescription(**row))
+        return results
+
+
 async def load_objects(
-    con: psycopg.AsyncConnection,
+    catalog_con: psycopg.AsyncConnection,
+    target_con: psycopg.AsyncConnection,
+    catalog_id: int,
     obj_desc: list[ObjectDescription],
     sample_size: int = 0,
 ) -> list[Table | View | Procedure]:
@@ -463,7 +503,9 @@ async def load_objects(
     retrieves sample data for tables and views.
 
     Args:
-        con: Asynchronous database connection object.
+        catalog_con: Connection to the semantic catalog database.
+        target_con: Connection to the target database where the objects are defined.
+        catalog_id: ID of the semantic catalog to use for retrieving descriptions.
         obj_desc: List of object descriptions to match with database objects.
         sample_size: Number of sample rows to retrieve from tables and views (default: 0).
             If 0, no sample data is retrieved.
@@ -474,8 +516,6 @@ async def load_objects(
     Raises:
         ValueError: If an unknown object type is encountered.
     """  # noqa: E501
-    # given a list of object descriptions, load the objects' models and match up the
-    # descriptions with the models
     t: set[int] = set()  # distinct objid
     v: set[int] = set()  # distinct objid
     p: set[int] = set()  # distinct objid
@@ -483,49 +523,69 @@ async def load_objects(
     cd: dict[tuple[int, int], ObjectDescription] = {}  # (objid, objsubid) -> OD
     vd: dict[int, ObjectDescription] = {}  # objid -> OD
     pd: dict[int, ObjectDescription] = {}  # objid -> OD
+    classid: int = -1
+    tv: set[int] = set()  # all tables and views objid
     for od in obj_desc:
         match od.objtype:
             case "table":
                 t.add(od.objid)
                 td[od.objid] = od
+                tv.add(od.objid)
+                classid = od.classid
             case "view":
                 v.add(od.objid)
                 vd[od.objid] = od
+                tv.add(od.objid)
+                classid = od.classid
             case "procedure":
                 p.add(od.objid)
                 pd[od.objid] = od
             case "table column":
                 t.add(od.objid)
                 cd[(od.objid, od.objsubid)] = od
+                tv.add(od.objid)
+                classid = od.classid
             case "view column":
                 v.add(od.objid)
                 cd[(od.objid, od.objsubid)] = od
+                tv.add(od.objid)
+                classid = od.classid
             case _:
                 raise ValueError(f"unknown object type {od.objtype}")
-    tables = await load_tables(con, list(t), sample_size) if len(t) > 0 else []
-    views = await load_views(con, list(v), sample_size) if len(v) > 0 else []
-    procedures = await load_procedures(con, list(p)) if len(p) > 0 else []
+    # make sure all the descriptions for each table/view are loaded
+    for od in await _load_descriptions(
+        catalog_con, catalog_id, classid, [o for o in tv]
+    ):
+        match od.objtype:
+            case "table":
+                td[od.objid] = od
+            case "view":
+                vd[od.objid] = od
+            case "table column":
+                cd[(od.objid, od.objsubid)] = od
+            case "view column":
+                vd[od.objid] = od
+            case _:
+                raise ValueError(f"unknown object type {od.objtype}")
+    tables = await load_tables(target_con, list(t), sample_size) if len(t) > 0 else []
+    views = await load_views(target_con, list(v), sample_size) if len(v) > 0 else []
+    procedures = await load_procedures(target_con, list(p)) if len(p) > 0 else []
     for table in tables:
         d = td.get(table.objid, None)
-        # TODO: if none try to fetch it?
         table.description = d
         table.id = d.id if d is not None else -1
         if table.columns:
             for column in table.columns:
-                # TODO: if none try to fetch it?
                 column.description = cd.get((column.objid, column.objsubid), None)
     for view in views:
         d = vd.get(view.objid, None)
-        # TODO: if none try to fetch it?
         view.description = d
         view.id = d.id if d is not None else -1
         if view.columns:
             for column in view.columns:
-                # TODO: if none try to fetch it?
                 column.description = cd.get((column.objid, column.objsubid), None)
     for procedure in procedures:
         d = pd.get(procedure.objid, None)
-        # TODO: if none try to fetch it?
         procedure.description = d
         procedure.id = d.id if d is not None else -1
     results: list[Table | View | Procedure] = []
