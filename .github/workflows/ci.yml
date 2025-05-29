@@ -139,7 +139,7 @@ jobs:
       - uses: taiki-e/install-action@just
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v6
         with:
           version: "0.5.20"
           enable-cache: true
@@ -174,7 +174,7 @@ jobs:
       - uses: taiki-e/install-action@just
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v6
         with:
           version: "0.5.20"
           enable-cache: true
