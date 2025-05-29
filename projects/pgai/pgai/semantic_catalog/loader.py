@@ -499,7 +499,7 @@ async def load_objects(
                 cd[(od.objid, od.objsubid)] = od
             case "view column":
                 v.add(od.objid)
-                vd[od.objid] = od
+                cd[(od.objid, od.objsubid)] = od
             case _:
                 raise ValueError(f"unknown object type {od.objtype}")
     tables = await load_tables(con, list(t), sample_size) if len(t) > 0 else []
