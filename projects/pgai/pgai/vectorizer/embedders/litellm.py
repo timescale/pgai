@@ -4,6 +4,7 @@ from typing import Any, Literal
 from pydantic import BaseModel
 from typing_extensions import override
 
+from ...logger import StructuredMessage
 from ..embeddings import (
     ApiKeyMixin,
     Embedder,
@@ -44,7 +45,11 @@ class LiteLLM(ApiKeyMixin, BaseModel, Embedder):
         Returns:
             Sequence[EmbeddingVector]: The embeddings for each document.
         """
-        await logger.adebug(f"Chunks produced: {len(documents)}")
+        logger.debug(
+            StructuredMessage(
+                f"Chunks produced: {len(documents)}", chunks=len(documents)
+            )
+        )
         token_counter = self._token_counter()
         logger.debug("counting tokens")
         chunk_lengths = (
@@ -80,7 +85,7 @@ class LiteLLM(ApiKeyMixin, BaseModel, Embedder):
             case "voyage":
                 return 128  # see https://docs.voyageai.com/reference/embeddings-api
             case _:
-                logger.warn(
+                logger.warning(
                     f"unknown provider '{custom_llm_provider}', falling back to conservative max chunks per batch"  # noqa: E501
                 )
                 return 5

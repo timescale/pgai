@@ -20,7 +20,6 @@ dependencies = [
     "ollama>=0.4.5,<0.5.0",
     "openai>=1.44,<2.0",
     "python-dotenv>=1.0,<2.0",
-    "structlog>=24.0,<25.0",
     "pgvector>=0.3,<1.0",
     "tiktoken>=0.7,<1.0",
     "typing_extensions>=4.0,<5.0",

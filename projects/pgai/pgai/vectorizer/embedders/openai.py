@@ -7,6 +7,8 @@ import ijson  # type: ignore
 from pydantic import BaseModel
 from typing_extensions import override
 
+from ...logger import StructuredMessage
+
 if TYPE_CHECKING:
     import openai
     import tiktoken
@@ -178,7 +180,11 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
             AsyncGenerator[list[EmbeddingVector], None]: The embeddings for
             each document.
         """
-        await logger.adebug(f"Chunks produced: {len(documents)}")
+        logger.debug(
+            StructuredMessage(
+                f"Chunks produced: {len(documents)}", chunks=len(documents)
+            )
+        )
         encoder = self._encoder
         context_length = self._context_length
         if encoder is not None and context_length is not None:
@@ -187,8 +193,12 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
                 tokenized = encoder.encode(document)
                 tokenized_length = len(tokenized)
                 if tokenized_length > context_length:
-                    await logger.awarning(
-                        f"chunk truncated from {len(tokenized)} to {context_length} tokens"  # noqa
+                    logger.warning(
+                        StructuredMessage(
+                            f"chunk truncated from {len(tokenized)} to {context_length} tokens",  # noqa
+                            original_length=len(tokenized),
+                            truncated_length=context_length,
+                        )
                     )
                     documents[i] = encoder.decode(tokenized[:context_length])
         # OpenAIs per batch token limit is using a token estimator instead of actual tokens  # noqa: E501
