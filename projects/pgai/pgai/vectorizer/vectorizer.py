@@ -12,7 +12,7 @@ from uuid import UUID
 
 import psycopg
 import structlog
-from ddtrace import tracer
+from ddtrace.trace import tracer
 from pgvector.psycopg import register_vector_async  # type: ignore
 from psycopg import AsyncConnection, sql
 from psycopg.rows import dict_row
