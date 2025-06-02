@@ -464,27 +464,30 @@ def _search_tool_definition() -> ToolDefinition:
     return ToolDefinition(
         name=_SEARCH_TOOL_NAME,
         description=(
-            "Request additional database object descriptions by providing a "
-            "focused question for semantic search. Use this when the current "
-            "context is insufficient to generate a confident SQL query. Frame "
+            "Request additional database context by providing "
+            "focused questions for semantic search. Use this when the current "
+            "context is insufficient to generate a SQL query confidently. Frame "
             "your questions to target specific tables, relationships, or "
             "attributes needed."
         ),
         parameters_json_schema={
             "type": "object",
             "properties": {
-                "prompts": {
+                "questions": {
                     "type": "array",
                     "items": {"type": "string"},
                     "minItems": 1,
                     "description": (
-                        "A list of brief questions (max 20 words each) focused "
-                        "on a specific database structure or relationship. Avoid "
-                        "explaining reasoning or context."
+                        "One or more natural language questions for a semantic search "
+                        "to find database objects, SQL examples, or facts to provide "
+                        "context. Questions should focus on a specific database "
+                        "structure, relationship, or calculation. Avoid "
+                        "explaining reasoning or context. Provide the search phrase "
+                        "only."
                     ),
                 }
             },
-            "required": ["prompts"],
+            "required": ["questions"],
         },
     )
 
@@ -705,17 +708,17 @@ async def generate_sql(
                     args = tool_call_part.args_as_dict()
                     logger.info(f"tool call: {tool_call_part.tool_name}")
                     if tool_call_part.tool_name == _SEARCH_TOOL_NAME:
-                        prompts: list[str] = args["prompts"]
-                        for p in prompts:
-                            prior_prompts.append(p)
-                            logger.info(f"semantic search for '{p}'")
+                        questions: list[str] = args["questions"]
+                        for q in questions:
+                            prior_prompts.append(q)
+                            logger.info(f"semantic search for '{q}'")
                             ctx = await fetch_database_context(
                                 catalog_con,
                                 target_con,
                                 catalog_id,
                                 embedding_name,
                                 embedding_config,
-                                p,
+                                q,
                                 ctx,
                                 sample_size=sample_size,
                             )
