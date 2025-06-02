@@ -1248,3 +1248,22 @@ end
 $func$
 language plpgsql security invoker
 ;
+
+-------------------------------------------------------------------------------
+-- execute_vectorizer by vectorizer name
+create or replace function ai.execute_vectorizer(vectorizer_name pg_catalog.text) returns void
+as $func$
+declare
+    _vectorizer_id pg_catalog.int4;
+begin
+    select v.id into strict _vectorizer_id
+    from ai.vectorizer v
+    where v.name operator(pg_catalog.=) vectorizer_name;
+
+    -- execute the vectorizer
+    perform ai.execute_vectorizer(_vectorizer_id);
+end
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;

@@ -1,3 +1,5 @@
+import os
+
 import psycopg
 import pytest
 from psycopg.rows import namedtuple_row
@@ -9,18 +11,7 @@ def db_url(user: str) -> str:
     return f"postgres://{user}@127.0.0.1:5432/test"
 
 
-def test_named_vectorizer():
-    with psycopg.connect(
-        db_url("postgres"), autocommit=True, row_factory=namedtuple_row
-    ) as con:
-        with con.cursor() as cur:
-            cur.execute("create extension if not exists timescaledb")
-            cur.execute("select to_regrole('bob') is null")
-            if cur.fetchone()[0] is True:
-                cur.execute("create user bob")
-            cur.execute("select to_regrole('adelaide') is null")
-            if cur.fetchone()[0] is True:
-                cur.execute("create user adelaide")
+def setup_website_blog_table():
     with psycopg.connect(
         db_url("test"), autocommit=True, row_factory=namedtuple_row
     ) as con:
@@ -35,14 +26,9 @@ def test_named_vectorizer():
                 , title text not null
                 , published timestamptz
                 , body text not null
-                , drop_me text
                 , primary key (title, published)
                 )
             """)
-            cur.execute(
-                """grant select, insert, update, delete on website.blog to bob, adelaide"""
-            )
-            cur.execute("""grant usage on schema website to adelaide""")
             cur.execute("""
                 insert into website.blog(title, published, body)
                 values
@@ -51,9 +37,50 @@ def test_named_vectorizer():
                 , ('how to make stir fry', '2022-01-06'::timestamptz, 'pick up the phone and order takeout')
             """)
 
-            # drop the drop_me column
-            cur.execute("alter table website.blog drop column drop_me")
 
+@pytest.mark.skipif(os.getenv("PG_MAJOR") == "15", reason="does not support pg15")
+def test_named_vectorizer_timescaledb():
+    setup_website_blog_table()
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        con.add_notice_handler(detailed_notice_handler)
+        with con.cursor() as cur:
+            # create a vectorizer for the blog table
+            # language=PostgreSQL
+            cur.execute("""
+                select ai.create_vectorizer
+                ( 'website.blog'::regclass
+                , name => 'blog_vectorizer'
+                , loading=>ai.loading_column('body')
+                , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
+                , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
+                , scheduling=>ai.scheduling_none()
+                , destination=>ai.destination_column('embedding1')
+                , chunking=>ai.chunking_none()
+                );
+                """)
+
+            cur.execute("create extension ai cascade")
+            cur.execute(
+                "select set_config('ai.external_functions_executor_url', 'http://0.0.0.0:8000', false)"
+            )
+            cur.execute(
+                "select set_config('ai.external_functions_executor_events_path', '/api/v1/events', false)"
+            )
+            cur.execute("select ai.execute_vectorizer('blog_vectorizer')")
+
+            with pytest.raises(psycopg.errors.NoDataFound):
+                cur.execute("select ai.execute_vectorizer('non_existent_vectorizer')")
+
+
+def test_named_vectorizer():
+    setup_website_blog_table()
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        con.add_notice_handler(detailed_notice_handler)
+        with con.cursor() as cur:
             # create a vectorizer for the blog table
             # language=PostgreSQL
             cur.execute("""
