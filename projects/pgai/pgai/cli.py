@@ -1345,8 +1345,6 @@ def generate_sql(
         console.print(table)
 
     console.print(Rule())
-    console.print(resp.final_response)
-    console.print(Rule())
     console.print(Syntax(resp.sql_statement, "sql", word_wrap=True))
 
     if save_final_prompt:
