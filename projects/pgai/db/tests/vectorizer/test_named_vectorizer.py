@@ -38,7 +38,9 @@ def setup_website_blog_table():
             """)
 
 
-@pytest.mark.skipif(os.getenv("PG_MAJOR") == "15", reason="does not support pg15")
+@pytest.mark.skipif(
+    os.getenv("PG_MAJOR") == "15", reason="extension does not support pg15"
+)
 def test_named_vectorizer_timescaledb():
     setup_website_blog_table()
     with psycopg.connect(
