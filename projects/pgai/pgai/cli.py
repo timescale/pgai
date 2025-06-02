@@ -87,13 +87,21 @@ def shutdown_handler(signum: int, _frame: Any):
 @click.command(name="download-models")
 def download_models():
     import docling.utils.model_downloader
+    from fastembed import SparseTextEmbedding
 
+    from .vectorizer.embedders.fastembed import FASTEMBED_CACHE_DIR
     from .vectorizer.parsing import DOCLING_CACHE_DIR
 
+    print("Downloading docling models")
     docling.utils.model_downloader.download_models(
         progress=True,
         output_dir=DOCLING_CACHE_DIR,  # pyright: ignore [reportUndefinedVariable]
     )
+
+    print("Downloading fasdtembed models")
+    SparseTextEmbedding(
+        model_name="prithivida/Splade_PP_en_v1", cache_dir=FASTEMBED_CACHE_DIR
+    ).embed("")
 
 
 @click.command(name="worker")
@@ -921,7 +929,7 @@ def import_catalog(
 
     if not db_url:
         print(
-            "--db-url must be specified or TARGET_DB " "environment variable defined",
+            "--db-url must be specified or TARGET_DB environment variable defined",
             file=sys.stderr,
         )
         exit(1)

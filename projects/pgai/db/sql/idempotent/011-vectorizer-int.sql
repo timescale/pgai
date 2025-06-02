@@ -202,7 +202,7 @@ begin
         select pg_catalog.format(
             $sql$
             alter table %I.%I 
-            add column %I @extschema:vector@.vector(%L) default null
+            add column %I @extschema:vector@.sparsevec(%L) default null
             $sql$,
             source_schema, source_table, embedding_column, dimensions
         ) into strict _sql;
@@ -246,7 +246,7 @@ begin
     , %s
     , chunk_seq int not null
     , chunk text not null
-    , embedding @extschema:vector@.vector(%L) not null
+    , embedding @extschema:vector@.sparsevec(%L) not null
     , unique (%s, chunk_seq)
     )
     $sql$

@@ -27,7 +27,7 @@ from .chunking import (
     NoneChunker,
 )
 from .destination import ColumnDestination, TableDestination
-from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
+from .embedders import FastEmbed, LiteLLM, Ollama, OpenAI, VoyageAI
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
 from .loading import ColumnLoading, LoadingError, UriLoading
@@ -92,7 +92,7 @@ class Config(BaseModel):
     # Set in the migrations if the configuration is migrated to a newer version
     original_version: str | None = None
     loading: ColumnLoading | UriLoading
-    embedding: OpenAI | Ollama | VoyageAI | LiteLLM
+    embedding: OpenAI | Ollama | VoyageAI | LiteLLM | FastEmbed
     processing: ProcessingDefault
     destination: TableDestination | ColumnDestination = Field(
         ..., discriminator="implementation"
@@ -1205,7 +1205,8 @@ class Executor:
                 for record, embedding in zip(
                     rwe_take(len(embeddings)), embeddings, strict=True
                 ):
-                    records.append(record + [np.array(embedding)])
+                    records.append(record + [embedding])
+                    # records.append(record + [np.array(embedding)])
                 yield records, []
         except Exception as e:
             raise EmbeddingProviderError() from e

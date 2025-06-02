@@ -44,6 +44,7 @@ dependencies = [
     "torch>=2.6.0",
     "rich>=13.9.4",
     "pyyaml>=6.0.2",
+    "fastembed>=0.4.2",
 ]
 classifiers = [
     "License :: OSI Approved :: PostgreSQL License",
@@ -144,7 +145,7 @@ dev-dependencies = [
     "python-dotenv==1.0.1",
     "vcrpy==7.0.0",
     "pyright>=1.1.394",
-    "psycopg[binary]==3.2.7",
+    "psycopg[binary]==3.2.9",
     "testcontainers==4.8.1",
     "build==1.2.2.post1",
     "twine==5.1.1",

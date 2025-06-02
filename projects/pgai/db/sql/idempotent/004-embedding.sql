@@ -122,6 +122,8 @@ begin
             -- ok
         when 'litellm' then
             -- ok
+        when 'fastembed' then
+            -- ok
         else
             if _implementation is null then
                 raise exception 'embedding implementation not specified';
@@ -131,5 +133,24 @@ begin
     end case;
 end
 $func$ language plpgsql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- embedding_openai
+create or replace function ai.embedding_fastembed
+( model pg_catalog.text
+, dimensions pg_catalog.int4
+, batch_size pg_catalog.int4
+) returns pg_catalog.jsonb
+as $func$
+    select json_strip_nulls(json_build_object
+    ( 'implementation', 'fastembed'
+    , 'config_type', 'embedding'
+    , 'dimensions', dimensions
+    , 'model', model
+    , 'batch_size', batch_size
+    ))
+$func$ language sql immutable security invoker
 set search_path to pg_catalog, pg_temp
 ;

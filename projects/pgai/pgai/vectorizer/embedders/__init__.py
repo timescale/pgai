@@ -1,3 +1,4 @@
+from .fastembed import FastEmbed as FastEmbed
 from .litellm import LiteLLM as LiteLLM
 from .ollama import Ollama as Ollama
 from .openai import OpenAI as OpenAI
