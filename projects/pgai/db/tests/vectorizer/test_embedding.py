@@ -60,32 +60,32 @@ def test_embedding_openai():
 def test_embedding_voyageai():
     ok = [
         (
-            "select ai.embedding_voyageai('voyage-3-lite', 512)",
+            "select ai.embedding_voyageai('voyage-3.5-lite', 512)",
             {
                 "implementation": "voyageai",
                 "config_type": "embedding",
-                "model": "voyage-3-lite",
+                "model": "voyage-3.5-lite",
                 "dimensions": 512,
                 "input_type": "document",
                 "api_key_name": "VOYAGE_API_KEY",
             },
         ),
         (
-            "select ai.embedding_voyageai('voyage-3-lite', 512, api_key_name => 'TEST_API_KEY', input_type => null)",
+            "select ai.embedding_voyageai('voyage-3.5-lite', 512, api_key_name => 'TEST_API_KEY', input_type => null)",
             {
                 "implementation": "voyageai",
                 "config_type": "embedding",
-                "model": "voyage-3-lite",
+                "model": "voyage-3.5-lite",
                 "dimensions": 512,
                 "api_key_name": "TEST_API_KEY",
             },
         ),
         (
-            "select ai.embedding_voyageai('voyage-3-lite', 512, api_key_name => 'TEST_API_KEY', input_type => 'query')",
+            "select ai.embedding_voyageai('voyage-3.5-lite', 512, api_key_name => 'TEST_API_KEY', input_type => 'query')",
             {
                 "implementation": "voyageai",
                 "config_type": "embedding",
-                "model": "voyage-3-lite",
+                "model": "voyage-3.5-lite",
                 "dimensions": 512,
                 "input_type": "query",
                 "api_key_name": "TEST_API_KEY",
@@ -94,7 +94,7 @@ def test_embedding_voyageai():
     ]
     bad = [
         (
-            "select ai.embedding_voyageai('voyage-3-lite', 512, input_type => 'foo')",
+            "select ai.embedding_voyageai('voyage-3.5-lite', 512, input_type => 'foo')",
             'invalid input_type for voyage ai "foo"',
         ),
     ]

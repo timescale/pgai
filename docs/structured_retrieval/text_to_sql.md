@@ -74,7 +74,7 @@ select ai.create_semantic_catalog(
 
 -- Voyage embeddings + Claude 3.5 Sonnet completions
 select ai.create_semantic_catalog(
-  embedding=>ai.embedding_voyageai('voyage-3-lite', 512)
+  embedding=>ai.embedding_voyageai('voyage-3.5-lite', 512)
 , text_to_sql=>ai.text_to_sql_anthropic(model=>'claude-3-5-sonnet-latest')
 );
 
