@@ -721,22 +721,31 @@ async def generate_sql(
                             )
                     elif tool_call_part.tool_name == _RECORD_TOOL_NAME:
                         answer = args["sql_statement"]
-                        relevant_object_ids: list[int] = args["relevant_object_ids"]
-                        relevant_sql_example_ids: list[int] = args[
+                        relevant_object_ids: list[int] | None = args.get(
+                            "relevant_object_ids"
+                        )
+                        relevant_sql_example_ids: list[int] | None = args.get(
                             "relevant_sql_example_ids"
-                        ]
-                        relevant_fact_ids: list[int] = args["relevant_fact_ids"]
-                        for irrelevant_id in ctx.objects.keys() - relevant_object_ids:
-                            ctx.objects.pop(irrelevant_id)
-                            ctx.rendered_objects.pop(irrelevant_id)
-                        for irrelevant_id in (
-                            ctx.sql_examples.keys() - relevant_sql_example_ids
-                        ):
-                            ctx.sql_examples.pop(irrelevant_id)
-                            ctx.rendered_sql_examples.pop(irrelevant_id)
-                        for irrelevant_id in ctx.facts.keys() - relevant_fact_ids:
-                            ctx.facts.pop(irrelevant_id)
-                            ctx.rendered_facts.pop(irrelevant_id)
+                        )
+                        relevant_fact_ids: list[int] | None = args.get(
+                            "relevant_fact_ids"
+                        )
+                        if relevant_object_ids:
+                            for irrelevant_id in (
+                                ctx.objects.keys() - relevant_object_ids
+                            ):
+                                ctx.objects.pop(irrelevant_id)
+                                ctx.rendered_objects.pop(irrelevant_id)
+                        if relevant_sql_example_ids:
+                            for irrelevant_id in (
+                                ctx.sql_examples.keys() - relevant_sql_example_ids
+                            ):
+                                ctx.sql_examples.pop(irrelevant_id)
+                                ctx.rendered_sql_examples.pop(irrelevant_id)
+                        if relevant_fact_ids:
+                            for irrelevant_id in ctx.facts.keys() - relevant_fact_ids:
+                                ctx.facts.pop(irrelevant_id)
+                                ctx.rendered_facts.pop(irrelevant_id)
                         command_type = str(args["command_type"])
                         if command_type.upper() in (
                             "SELECT",
