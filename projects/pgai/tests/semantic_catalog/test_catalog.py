@@ -137,13 +137,13 @@ async def test_semantic_catalog(container: PostgresContainer):
             """)
             for row in await cur.fetchall():
                 match row["attnum"]:
-                    case 9:
+                    case 10:
                         assert row["attname"] == "vec1"
                         assert row["type"] == "vector(768)"
-                    case 11:
+                    case 12:
                         assert row["attname"] == "emb3"
                         assert row["type"] == "vector(768)"
-                    case 12:
+                    case 13:
                         assert row["attname"] == "emb4"
                         assert row["type"] == "vector(768)"
                     case _:
