@@ -9,7 +9,7 @@ the target database to ensure correctness.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import psycopg
 from jinja2 import Template
@@ -48,7 +48,7 @@ _template_system_prompt: Template = templates.env.get_template(
 _template_user_prompt: Template = templates.env.get_template("prompt_gen_sql_user.j2")
 
 
-async def get_database_version(target_con: psycopg.AsyncConnection) -> int | None:
+async def _get_database_version(target_con: psycopg.AsyncConnection) -> int | None:
     """Get the major version number of the PostgreSQL database.
 
     Queries the database to retrieve its version number, which is used to ensure
@@ -562,6 +562,65 @@ def _answer_tool_definition() -> ToolDefinition:
     )
 
 
+async def _increment_obj_usage(
+    catalog_con: psycopg.AsyncConnection, catalog_id: int, ids: list[int]
+) -> None:
+    async with catalog_con.cursor() as cur:
+        await cur.execute(
+            SQL("""\
+            update ai.{} set usage = usage + 1
+            where id = any(%s)
+        """).format(Identifier(f"semantic_catalog_obj_{catalog_id}")),
+            (ids,),
+        )
+
+
+async def _increment_sql_usage(
+    catalog_con: psycopg.AsyncConnection, catalog_id: int, ids: list[int]
+) -> None:
+    async with catalog_con.cursor() as cur:
+        await cur.execute(
+            SQL("""\
+            update ai.{} set usage = usage + 1
+            where id = any(%s)
+        """).format(Identifier(f"semantic_catalog_sql_{catalog_id}")),
+            (ids,),
+        )
+
+
+async def _increment_fact_usage(
+    catalog_con: psycopg.AsyncConnection, catalog_id: int, ids: list[int]
+) -> None:
+    async with catalog_con.cursor() as cur:
+        await cur.execute(
+            SQL("""\
+            update ai.{} set usage = usage + 1
+            where id = any(%s)
+        """).format(Identifier(f"semantic_catalog_fact_{catalog_id}")),
+            (ids,),
+        )
+
+
+async def _freq_used_objects(
+    catalog_con: psycopg.AsyncConnection, catalog_id: int, n: int = 20
+) -> list[dict[str, Any]]:
+    async with catalog_con.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            SQL("""\
+            select
+              id
+            , objtype
+            , array_to_string(objnames, '.') as name
+            from ai.{}
+            where objsubid = 0
+            order by usage desc
+            limit %s
+        """).format(Identifier(f"semantic_catalog_obj_{catalog_id}")),
+            (n,),
+        )
+        return [row for row in await cur.fetchall()]
+
+
 async def generate_sql(
     catalog_con: psycopg.AsyncConnection,
     target_con: psycopg.AsyncConnection,
@@ -660,16 +719,21 @@ async def generate_sql(
         fact_ids=fact_ids,
     )
 
+    _continue = True
+    freq_used_objects: list[dict[str, Any]] = await _freq_used_objects(
+        catalog_con, catalog_id
+    )
     prior_prompts: list[str] = [prompt]
     answer: str | None = None
     command_type: str | None = None
-    pgversion: int | None = await get_database_version(target_con)
+    pgversion: int | None = await _get_database_version(target_con)
     messages: list[ModelRequest | ModelResponse] = []
     user_prompt: str | None = None
     query_plan: dict[str, Any] | None = None
+    error: str | None = None
     iteration = 0
 
-    while answer is None:
+    while _continue:
         iteration += 1
         if iteration > iteration_limit:
             raise IterationLimitExceededException(limit=iteration_limit)
@@ -683,10 +747,13 @@ async def generate_sql(
             pgversion=pgversion, semantic_search_available=(iteration < iteration_limit)
         )
 
-        if user_prompt is None:
-            user_prompt = _template_user_prompt.render(
-                ctx=ctx, prompt=prompt, prior_prompts=prior_prompts
-            )
+        user_prompt = _template_user_prompt.render(
+            ctx=ctx,
+            prompt=prompt,
+            prior_prompts=prior_prompts,
+            freq_used_objects=freq_used_objects,
+            error=error,
+        )
 
         model_response: ModelResponse = await model_request(
             model=model,
@@ -718,7 +785,9 @@ async def generate_sql(
                     args = tool_call_part.args_as_dict()
                     logger.info(f"tool call: {tool_call_part.tool_name}")
                     if tool_call_part.tool_name == _SEARCH_TOOL_NAME:
-                        questions: list[str] = args["questions"]
+                        questions: list[str] = (
+                            cast(list[str], args.get("questions")) or []
+                        )
                         for q in questions:
                             prior_prompts.append(q)
                             logger.info(f"semantic search for '{q}'")
@@ -733,15 +802,19 @@ async def generate_sql(
                                 sample_size=sample_size,
                             )
                     elif tool_call_part.tool_name == _RECORD_TOOL_NAME:
-                        answer = args["sql_statement"]
-                        relevant_object_ids: list[int] | None = args.get(
-                            "relevant_object_ids"
+                        answer = args.get("sql_statement")
+                        if not answer:
+                            logger.error("llm did not provide a sql_statement")
+                            continue
+                        _continue = False
+                        relevant_object_ids: list[int] | None = cast(
+                            list[int] | None, args.get("relevant_object_ids")
                         )
-                        relevant_sql_example_ids: list[int] | None = args.get(
-                            "relevant_sql_example_ids"
+                        relevant_sql_example_ids: list[int] | None = cast(
+                            list[int] | None, args.get("relevant_sql_example_ids")
                         )
-                        relevant_fact_ids: list[int] | None = args.get(
-                            "relevant_fact_ids"
+                        relevant_fact_ids: list[int] | None = cast(
+                            list[int] | None, args.get("relevant_fact_ids")
                         )
                         if relevant_object_ids:
                             for irrelevant_id in (
@@ -749,16 +822,29 @@ async def generate_sql(
                             ):
                                 ctx.objects.pop(irrelevant_id)
                                 ctx.rendered_objects.pop(irrelevant_id)
+                            await _increment_obj_usage(
+                                catalog_con,
+                                catalog_id,
+                                [id for id in ctx.objects],
+                            )
                         if relevant_sql_example_ids:
                             for irrelevant_id in (
                                 ctx.sql_examples.keys() - relevant_sql_example_ids
                             ):
                                 ctx.sql_examples.pop(irrelevant_id)
                                 ctx.rendered_sql_examples.pop(irrelevant_id)
+                            await _increment_sql_usage(
+                                catalog_con,
+                                catalog_id,
+                                [id for id in ctx.sql_examples],
+                            )
                         if relevant_fact_ids:
                             for irrelevant_id in ctx.facts.keys() - relevant_fact_ids:
                                 ctx.facts.pop(irrelevant_id)
                                 ctx.rendered_facts.pop(irrelevant_id)
+                            await _increment_fact_usage(
+                                catalog_con, catalog_id, [id for id in ctx.facts]
+                            )
                         command_type = str(args["command_type"])
                         if command_type.upper() in (
                             "SELECT",
@@ -776,13 +862,7 @@ async def generate_sql(
                                 logger.info(
                                     "asking llm to fix the invalid sql statement"
                                 )
-                                answer = None  # we aren't done. keep iterating
-                                user_prompt = _template_user_prompt.render(
-                                    ctx=ctx,
-                                    prompt=prompt,
-                                    prior_prompts=prior_prompts,
-                                    error=error,
-                                )
+                                _continue = True
                     else:
                         logger.error(
                             f"unrecognized tool name: {tool_call_part.tool_name}"
