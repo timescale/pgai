@@ -554,12 +554,28 @@ def test_vectorizer_does_not_leave_dead_chunks(
     worker_tracking = WorkerTracking(cli_db_url, 500, features, "0.0.1")
 
     async def delete_source_rows_concurrently():
-        # Brief pause to allow the Executor to claim the batch
-        await asyncio.sleep(
-            0.2
-        )  # Adjust if needed, want this to hit after claim but before commit
-        with main_connection.cursor() as cur:
+        cur = main_connection.cursor()
+        with main_connection.transaction():
+            # Lock the queue table to block the executor
+            cur.execute(f"LOCK TABLE {vectorizer.queue_schema}.{vectorizer.queue_table}")
+            # Wait until we see the executor waiting for our lock
+            while True:
+                cur.execute(f"SELECT count(*) FROM pg_locks WHERE relation = '{vectorizer.queue_schema}.{vectorizer.queue_table}'::regclass::oid;")
+                result = cur.fetchone()
+                if result[0] == 2:
+                    break
+                await asyncio.sleep(0.2)
+        with main_connection.transaction():
+            target_schema = vectorizer.config.destination.target_schema
+            target_table = vectorizer.config.destination.target_table
+            # Lock the target table to block the executor again
+            cur.execute(f"LOCK TABLE {target_schema}.{target_table}")
+            cur.execute(f"SELECT count(*) FROM {vectorizer.queue_schema}.{vectorizer.queue_table}")
+            print("queue rows before del:", cur.fetchone()[0])
+            # Delete all rows in the source table
             cur.execute(f"DELETE FROM {table_name}")
+            cur.execute(f"SELECT count(*) FROM {vectorizer.queue_schema}.{vectorizer.queue_table}")
+            print("queue rows after del:", cur.fetchone()[0])
 
     async def run_executor():
         return await Executor(
@@ -584,14 +600,15 @@ def test_vectorizer_does_not_leave_dead_chunks(
         )
         processed_count = results[0]  # Result from run_executor()
 
-    # The number of items successfully processed and committed might be 0 or 2,
-    # depending on the exact timing of the delete.
-    # The critical part is that no orphaned data is left.
-    # We expect it to have attempted to process the initial 2 items.
-    # If the deletion occurs after claiming but before commit,
-    # the internal count might still be 2
-    # but the actual committed embeddings should be 0.
-    assert processed_count == 2 or processed_count == 0
+    cur = main_connection.cursor()
+    cur.execute(f"SELECT count(*) FROM {vectorizer.queue_schema}.{vectorizer.queue_table}")
+    print("queue rows after processing:", cur.fetchone()[0])
+
+    # The number of items successfully processed and must be 2.
+    assert processed_count == 2
+
+    # run the processing once more
+    asyncio.run(run_executor())
 
     # Verify state after execution
     with main_connection.cursor(row_factory=dict_row) as cur:

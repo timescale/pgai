@@ -889,9 +889,13 @@ class Executor:
             # Filter out items that were deleted from the source table.
             # We use the first primary key column, since they can only
             # be null if the LEFT JOIN didn't find a match.
+            items_to_delete = [i for i in items if i[self.vectorizer.source_pk[0].attname] is None]
             items = [
                 i for i in items if i[self.vectorizer.source_pk[0].attname] is not None
             ]
+
+            if len(items_to_delete) > 0:
+                await self._delete_embeddings(conn, items_to_delete)
 
             if len(items) == 0:
                 return 0
