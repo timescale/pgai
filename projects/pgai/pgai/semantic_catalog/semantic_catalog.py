@@ -547,7 +547,7 @@ class SemanticCatalog:
         model_settings: ModelSettings | None = None,
         embedding_name: str | None = None,
         sample_size: int = 3,
-        iteration_limit: int = 5,
+        iteration_limit: int = 10,
         context_mode: ContextMode = "semantic_search",
         obj_ids: list[int] | None = None,
         sql_ids: list[int] | None = None,
