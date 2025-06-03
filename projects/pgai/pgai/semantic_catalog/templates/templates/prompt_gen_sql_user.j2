@@ -1,4 +1,3 @@
-
 {# 
 Template for the user prompt in SQL generation.
 
@@ -17,15 +16,26 @@ Expected context variables:
 - error: Optional error message from a previous SQL statement
 - answer: The previous SQL statement that had errors (only used if error is defined)
 #}
-
 ## Prior search prompts:
-The semantic search results from the following prompts are already included in the context below:
-{% for prior_prompt in prior_prompts %}
+
+The context already contains the results from semantic searches using these prompts:
+{% for prior_prompt in prior_prompts -%}
 {{ loop.index }}. {{ prior_prompt }}
 {% endfor %}
 
 ## Context:
 The following context may be relevant to the user's directive/question.
+
+{% if freq_used_objects|length > 0 %}
+### Frequently used Objects:
+Below is a list of frequently used database objects which may or may not be relevant.
+
+<frequently-used-database-objects>
+{% for obj in freq_used_objects -%}
+{{ obj.id }}. {{ obj.objtype }}: {{ obj.name }}
+{% endfor -%}
+</frequently-used-database-objects>
+{% endif %}
 
 ### Database Objects:
 {% if ctx.rendered_objects|length > 0 %}
@@ -54,7 +64,7 @@ No SQL examples in current context.
 No facts in current context.
 {% endif %}
 
-{% if error is not defined %}
+{% if error is none %}
 ## Task:
 Author a valid SQL statement to address the following directive/question.
 USER: "{{ prompt }}"
