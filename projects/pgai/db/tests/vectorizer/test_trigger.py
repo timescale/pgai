@@ -11,7 +11,9 @@ def db_url(user: str) -> str:
     return f"postgres://{user}@127.0.0.1:5432/test"
 
 
-@pytest.mark.skipif(os.getenv("PG_MAJOR") == "15", reason="does not support pg15")
+@pytest.mark.skipif(
+    os.getenv("PG_MAJOR") == "15", reason="extension does not support pg15"
+)
 def test_same_table_vectorizer_timescaledb():
     with psycopg.connect(
         db_url("postgres"), autocommit=True, row_factory=namedtuple_row

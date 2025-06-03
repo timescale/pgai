@@ -201,7 +201,9 @@ def psql_cmd(cmd: str) -> str:
     return str(proc.stdout).strip()
 
 
-@pytest.mark.skipif(os.getenv("PG_MAJOR") == "15", reason="does not support pg15")
+@pytest.mark.skipif(
+    os.getenv("PG_MAJOR") == "15", reason="extension does not support pg15"
+)
 def test_vectorizer_timescaledb():
     with psycopg.connect(db_url("test")) as con:
         with con.cursor() as cur:
@@ -600,7 +602,9 @@ def test_vectorizer_timescaledb():
     assert actual == VIEW
 
 
-@pytest.mark.skipif(os.getenv("PG_MAJOR") == "15", reason="does not support pg15")
+@pytest.mark.skipif(
+    os.getenv("PG_MAJOR") == "15", reason="extension does not support pg15"
+)
 def test_drop_vectorizer():
     with psycopg.connect(
         db_url("test"), autocommit=True, row_factory=namedtuple_row
@@ -742,7 +746,9 @@ def test_drop_vectorizer():
             assert actual == 0
 
 
-@pytest.mark.skipif(os.getenv("PG_MAJOR") == "15", reason="does not support pg15")
+@pytest.mark.skipif(
+    os.getenv("PG_MAJOR") == "15", reason="extension does not support pg15"
+)
 def test_drop_all_vectorizer():
     with psycopg.connect(
         db_url("test"), autocommit=True, row_factory=namedtuple_row
@@ -1303,7 +1309,9 @@ def index_creation_tester(cur: psycopg.Cursor, vectorizer_id: int) -> None:
     assert actual is True
 
 
-@pytest.mark.skipif(os.getenv("PG_MAJOR") == "15", reason="does not support pg15")
+@pytest.mark.skipif(
+    os.getenv("PG_MAJOR") == "15", reason="extension does not support pg15"
+)
 def test_diskann_index():
     # pgvectorscale must be installed by a superuser
     with psycopg.connect(
@@ -1356,7 +1364,9 @@ def test_diskann_index():
             index_creation_tester(cur, vectorizer_id)
 
 
-@pytest.mark.skipif(os.getenv("PG_MAJOR") == "15", reason="does not support pg15")
+@pytest.mark.skipif(
+    os.getenv("PG_MAJOR") == "15", reason="extension does not support pg15"
+)
 def test_hnsw_index():
     with psycopg.connect(
         db_url("test"), autocommit=True, row_factory=namedtuple_row
@@ -1403,7 +1413,9 @@ def test_hnsw_index():
             index_creation_tester(cur, vectorizer_id)
 
 
-@pytest.mark.skipif(os.getenv("PG_MAJOR") == "15", reason="does not support pg15")
+@pytest.mark.skipif(
+    os.getenv("PG_MAJOR") == "15", reason="extension does not support pg15"
+)
 def test_index_create_concurrency():
     # pgvectorscale must be installed by a superuser
     with psycopg.connect(
@@ -2254,7 +2266,9 @@ def test_weird_primary_key():
             assert actual == 7
 
 
-@pytest.mark.skipif(os.getenv("PG_MAJOR") == "15", reason="does not support pg15")
+@pytest.mark.skipif(
+    os.getenv("PG_MAJOR") == "15", reason="extension does not support pg15"
+)
 def test_install_ai_extension_before_library():
     with psycopg.connect(db_url("test")) as con:
         with con.cursor() as cur:
@@ -2266,7 +2280,9 @@ def test_install_ai_extension_before_library():
     pgai.install(db_url("test"))
 
 
-@pytest.mark.skipif(os.getenv("PG_MAJOR") == "15", reason="does not support pg15")
+@pytest.mark.skipif(
+    os.getenv("PG_MAJOR") == "15", reason="extension does not support pg15"
+)
 def test_install_library_before_ai_extension():
     with psycopg.connect(db_url("test")) as con:
         with con.cursor() as cur:
