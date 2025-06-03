@@ -573,7 +573,7 @@ async def generate_sql(
     usage: Usage | None = None,
     usage_limits: UsageLimits | None = None,
     model_settings: ModelSettings | None = None,
-    iteration_limit: int = 5,
+    iteration_limit: int = 10,
     sample_size: int = 3,
     context_mode: ContextMode = "semantic_search",
     obj_ids: list[int] | None = None,
