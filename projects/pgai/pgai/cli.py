@@ -1198,7 +1198,7 @@ def generate_sql(
     catalog_name: str | None,
     embed_config: str | None,
     prompt: str,
-    iteration_limit: int = 5,
+    iteration_limit: int = 10,
     sample_size: int = 3,
     quiet: bool = False,
     log_file: Path | None = None,
