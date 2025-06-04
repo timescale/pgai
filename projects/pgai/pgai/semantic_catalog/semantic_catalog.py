@@ -404,48 +404,45 @@ class SemanticCatalog:
         )
 
         async with con.cursor(row_factory=dict_row) as cur:
-            sql_check = SQL("""
-                select
-                    *
-                from ai.{table} x
-                where x.id = %(id)s
-            """).format(
-                table=Identifier(f"semantic_catalog_obj_{self.id}"),
+            await cur.execute(
+                SQL(
+                    """
+                    select
+                    x.classid
+                    , x.objid
+                    , x.objsubid
+                    , x.objtype
+                    , x.objnames
+                    , x.objargs
+                    , %(description)s as description
+                    , ai.sc_set_obj_desc
+                    ( x.classid
+                    , x.objid
+                    , x.objsubid
+                    , x.objtype
+                    , x.objnames
+                    , x.objargs
+                    , %(description)s
+                    , %(catalog_name)s
+                    ) as id
+                    from ai.{table} x
+                    where x.id = %(id)s
+                """
+                ).format(
+                    table=Identifier(f"semantic_catalog_obj_{self.id}"),
+                ),
+                {
+                    "id": object_id,
+                    "description": description,
+                    "catalog_name": self.name,
+                },
             )
-            await cur.execute(sql_check, {"id": object_id})
             row = await cur.fetchone()
             if row is None:
                 raise RuntimeError(
                     f"Object with id {object_id} not found in catalog {self.name}"
                 )
-            object_description = ObjectDescription(**row)
-            object_description.description = description
-            await cur.execute(
-                """
-                    select ai.sc_set_obj_desc
-                    ( %(classid)s
-                    , %(objid)s
-                    , %(objsubid)s
-                    , %(objtype)s
-                    , %(objnames)s
-                    , %(objargs)s
-                    , %(description)s
-                    , %(catalog_name)s
-                    )
-                """,
-                {
-                    "classid": object_description.classid,
-                    "objid": object_description.objid,
-                    "objsubid": object_description.objsubid,
-                    "objtype": object_description.objtype,
-                    "objnames": object_description.objnames,
-                    "objargs": object_description.objargs,
-                    "description": object_description.description,
-                    "catalog_name": self.name,
-                },
-            )
-            object_description.description = description
-        return object_description
+            return ObjectDescription(**row)
 
     async def list_objects(
         self,
@@ -620,44 +617,44 @@ class SemanticCatalog:
             raise ValueError("At least one of 'sql' or 'description' must be provided")
 
         async with con.cursor(row_factory=dict_row) as cur:
-            sql_check = SQL("""
-                select *
-                from ai.{table} x
-                where x.id = %(id)s
-            """).format(
-                table=Identifier(f"semantic_catalog_sql_{self.id}"),
-            )
             await cur.execute(
-                sql_check,
-                {"id": sql_id},
+                SQL(
+                    """
+                    with cte as (
+                        select
+                            x.id,
+                            coalesce(%(sql)s, x.sql) as sql,
+                            coalesce(%(description)s, x.description) as description
+                        from ai.{table} x
+                        where x.id = %(id)s
+                    )
+                    select
+                    cte.*
+                    , ai.sc_update_sql_desc
+                    (
+                    cte.id
+                    , cte.sql
+                    , cte.description
+                    , %(catalog_name)s
+                    )
+                    from cte
+                """
+                ).format(
+                    table=Identifier(f"semantic_catalog_sql_{self.id}"),
+                ),
+                {
+                    "id": sql_id,
+                    "sql": sql,
+                    "description": description,
+                    "catalog_name": self.name,
+                },
             )
             row = await cur.fetchone()
             if row is None:
                 raise RuntimeError(
-                    f"SQL example with id {sql_id} not found in catalog {self.name}"
+                    f"Object with id {sql_id} not found in catalog {self.name}"
                 )
-            example = SQLExample(**row)
-            if description is not None:
-                example.description = description
-            if sql is not None:
-                example.sql = sql
-            await cur.execute(
-                """
-                    select ai.sc_update_sql_desc
-                    ( %(id)s
-                    , %(sql)s
-                    , %(description)s
-                    , %(catalog_name)s
-                    )
-                """,
-                {
-                    "id": sql_id,
-                    "sql": example.sql,
-                    "description": example.description,
-                    "catalog_name": self.name,
-                },
-            )
-        return example
+            return SQLExample(**row)
 
     async def list_sql_examples(
         self,
@@ -802,37 +799,34 @@ class SemanticCatalog:
         logger.debug(f"editing fact with id {fact_id} in semantic catalog {self.name}")
 
         async with con.cursor(row_factory=dict_row) as cur:
-            sql = SQL("""
-                select id
-                from ai.{table} x
-                where x.id = %(id)s
-            """).format(
-                table=Identifier(f"semantic_catalog_fact_{self.id}"),
-            )
             await cur.execute(
-                sql,
-                {"id": fact_id},
-            )
-            row = await cur.fetchone()
-            if row is None:
-                raise RuntimeError(
-                    f"Fact with id {fact_id} not found in catalog {self.name}"
-                )
-            await cur.execute(
-                """
-                    select ai.sc_update_fact
-                    ( %(id)s
+                SQL(
+                    """
+                    select x.id
+                    , %(description)s as description
+                    , ai.sc_update_fact
+                    ( x.id
                     , %(description)s
                     , %(catalog_name)s
                     )
-                """,
+                    from ai.{table} x
+                    where x.id = %(id)s
+                """
+                ).format(
+                    table=Identifier(f"semantic_catalog_fact_{self.id}"),
+                ),
                 {
                     "id": fact_id,
                     "description": description,
                     "catalog_name": self.name,
                 },
             )
-        return Fact(id=fact_id, description=description)
+            row = await cur.fetchone()
+            if row is None:
+                raise RuntimeError(
+                    f"Fact with id {fact_id} not found in catalog {self.name}"
+                )
+            return Fact(**row)
 
     async def list_facts(
         self,
