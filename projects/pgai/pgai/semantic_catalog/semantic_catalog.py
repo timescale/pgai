@@ -324,11 +324,10 @@ class SemanticCatalog:
             classid: The class ID of the database object (e.g., pg_class OID).
             objid: The object ID of the database object.
             objsubid: The sub-object ID (e.g., column ID).
-            objtype: The type of the object (e.g., "table", "view", "procedure").
-            objnames: List of names associated with the object (e.g., table name, view
-                name).
-            objargs: List of arguments for the object (e.g., column names, procedure
-                parameters).
+            objtype: The type of the object (e.g., "table", "view", "table column").
+            objnames: List of names associated with the object (e.g., ["schema",
+                "table", "column"]).
+            objargs: List of arguments for the object (e.g., procedure parameters).
             description: Natural language description of the object.
 
         Returns:
