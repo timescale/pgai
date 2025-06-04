@@ -869,7 +869,9 @@ async def generate_sql(
                         )
                 case "text":
                     text_part: TextPart = part
-                    logger.info(f"model response: {text_part.content}")
+                    logger.error(
+                        f"unexpected textual model response: {text_part.content}"
+                    )
                 case _:
                     logger.error(f"unrecognized model response kind: {part.part_kind}")
 
