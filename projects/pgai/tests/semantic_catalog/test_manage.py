@@ -7,7 +7,7 @@ import pgai
 from pgai.semantic_catalog import semantic_catalog
 from tests.semantic_catalog.utils import PostgresContainer
 
-DATABASE = "sc_04"
+DATABASE = "sc_" + __name__.split(".")[-1]
 
 
 @pytest.fixture(scope="module")
