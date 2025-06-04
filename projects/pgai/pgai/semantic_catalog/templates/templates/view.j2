@@ -34,14 +34,6 @@ CREATE{% if view.is_materialized %} MATERIALIZED {% else %} {% endif %}VIEW {{ v
 {{- column.name }} {{ column.type }}
 {% endfor -%}
 */
-{% if view.description is not none %}
-COMMENT ON TABLE {{ view.schema_name }}.{{ view.table_name }} IS $${{ view.description.description }}$$;
-{% endif -%}
-{% for column in (view.columns if view.columns is not none else []) -%}
-{% if column.description is not none %}
-COMMENT ON COLUMN {{ view.schema_name }}.{{ view.table_name }}.{{ column.name }} IS $${{ column.description.description }}$$;
-{% endif -%}
-{% endfor -%}
 {% if view.sample is not none %}
 {{ view.sample }}
 {% endif -%}
