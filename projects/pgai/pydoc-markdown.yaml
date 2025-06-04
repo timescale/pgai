@@ -1,0 +1,16 @@
+loaders:
+  - type: python
+    search_path: ["."]
+    packages: ["pgai"]
+
+renderer:
+  type: mkdocs
+  output_directory: "docs"
+  content_directory_name: "api"
+  mkdocs_config:
+    site_name: PGAI
+    theme: readthedocs
+  pages:
+    - title: Semantic Catalog
+      contents:
+        - "pgai.semantic_catalog.*"
