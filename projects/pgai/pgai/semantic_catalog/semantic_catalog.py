@@ -274,6 +274,180 @@ class SemanticCatalog:
         for embedding_name, config in embeddings:
             await self.vectorize(con, embedding_name, config, batch_size)
 
+    async def drop_object(
+        self,
+        con: CatalogConnection,
+        object_id: int,
+    ) -> None:
+        """Drop a database object from the semantic catalog.
+
+        Removes a specific database object (table, view, procedure) from the semantic
+        catalog by its ID. This will delete the object and its associated metadata and
+        descriptions.
+
+        Args:
+            con: The database connection to the catalog database.
+            object_id: The unique identifier of the database object to drop.
+        """
+        logger.debug(
+            f"dropping object with id {object_id} from semantic catalog {self.name}"
+        )
+        async with con.cursor() as cur:
+            sql = SQL(
+                """
+                    delete from ai.{table} x
+                    where x.id = %(id)s
+                """
+            ).format(
+                table=Identifier(f"semantic_catalog_obj_{self.id}"),
+            )
+            await cur.execute(sql, {"id": object_id})
+
+    async def add_object(
+        self,
+        con: CatalogConnection,
+        classid: int,
+        objid: int,
+        objsubid: int,
+        objtype: str,
+        objnames: list[str],
+        objargs: list[str],
+        description: str,
+    ) -> ObjectDescription:
+        """Add a database object to the semantic catalog.
+
+        Creates a new database object entry in the semantic catalog with the provided
+        metadata and description. This can include tables, views, procedures, etc.
+
+        Args:
+            con: The database connection to the catalog database.
+            classid: The class ID of the database object (e.g., pg_class OID).
+            objid: The object ID of the database object.
+            objsubid: The sub-object ID (e.g., column ID).
+            objtype: The type of the object (e.g., "table", "view", "procedure").
+            objnames: List of names associated with the object (e.g., table name, view
+                name).
+            objargs: List of arguments for the object (e.g., column names, procedure
+                parameters).
+            description: Natural language description of the object.
+
+        Returns:
+            An ObjectDescription object representing the newly added database object.
+        Raises:
+            RuntimeError: If the object could not be added to the catalog.
+        """
+        logger.debug(f"adding object {objnames} to semantic catalog {self.name}")
+        async with con.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """\
+                select ai.sc_set_obj_desc
+                ( %(classid)s
+                , %(objid)s
+                , %(objsubid)s
+                , %(objtype)s
+                , %(objnames)s
+                , %(objargs)s
+                , %(description)s
+                , %(catalog_name)s
+                )
+            """,
+                {
+                    "classid": classid,
+                    "objid": objid,
+                    "objsubid": objsubid,
+                    "objtype": objtype,
+                    "objnames": objnames,
+                    "objargs": objargs,
+                    "description": description,
+                    "catalog_name": self.name,
+                },
+            )
+            row = await cur.fetchone()
+            if row is None:
+                raise RuntimeError("Failed to add object to semantic catalog")
+            return ObjectDescription(
+                id=row["sc_set_obj_desc"],
+                classid=classid,
+                objid=objid,
+                objsubid=objsubid,
+                objtype=objtype,
+                objnames=objnames,
+                objargs=objargs,
+                description=description,
+            )
+
+    async def update_object(
+        self,
+        con: CatalogConnection,
+        object_id: int,
+        description: str,
+    ) -> ObjectDescription:
+        """Edit an existing database object in the semantic catalog.
+
+        Updates the metadata and/or description of an existing database object
+        identified by its ID. At least one of the parameters must be provided to
+        perform an update.
+
+        Args:
+            con: The database connection to the catalog database.
+            object_id: The unique identifier of the database object to edit.
+            description: The new description for the database object.
+
+        Returns:
+            An ObjectDescription object representing the updated database object.
+
+        Raises:
+            RuntimeError: If the object with the specified ID does not exist in the
+                catalog.
+        """
+        logger.debug(
+            f"editing object with id {object_id} in semantic catalog {self.name}"
+        )
+
+        async with con.cursor(row_factory=dict_row) as cur:
+            sql_check = SQL("""
+                select
+                    *
+                from ai.{table} x
+                where x.id = %(id)s
+            """).format(
+                table=Identifier(f"semantic_catalog_obj_{self.id}"),
+            )
+            await cur.execute(sql_check, {"id": object_id})
+            row = await cur.fetchone()
+            if row is None:
+                raise RuntimeError(
+                    f"Object with id {object_id} not found in catalog {self.name}"
+                )
+            object_description = ObjectDescription(**row)
+            object_description.description = description
+            await cur.execute(
+                """
+                    select ai.sc_set_obj_desc
+                    ( %(classid)s
+                    , %(objid)s
+                    , %(objsubid)s
+                    , %(objtype)s
+                    , %(objnames)s
+                    , %(objargs)s
+                    , %(description)s
+                    , %(catalog_name)s
+                    )
+                """,
+                {
+                    "classid": object_description.classid,
+                    "objid": object_description.objid,
+                    "objsubid": object_description.objsubid,
+                    "objtype": object_description.objtype,
+                    "objnames": object_description.objnames,
+                    "objargs": object_description.objargs,
+                    "description": object_description.description,
+                    "catalog_name": self.name,
+                },
+            )
+            object_description.description = description
+        return object_description
+
     async def list_objects(
         self,
         con: CatalogConnection,
@@ -348,6 +522,144 @@ class SemanticCatalog:
             con, self.id, embedding_name, emb_cfg, query, limit
         )
 
+    async def drop_sql_example(
+        self,
+        con: CatalogConnection,
+        sql_id: int,
+    ) -> None:
+        """Drop a SQL example from the semantic catalog.
+
+        Removes a specific SQL example from the semantic catalog by its ID.
+
+        Args:
+            con: The database connection to the catalog database.
+            sql_id: The unique identifier of the SQL example to drop.
+        """
+        logger.debug(
+            f"dropping SQL example with id {sql_id} from semantic catalog {self.name}"
+        )
+        async with con.cursor() as cur:
+            sql = SQL("""
+                delete from ai.{table} x
+                where x.id = %s
+            """).format(
+                table=Identifier(f"semantic_catalog_sql_{self.id}"),
+            )
+            await cur.execute(
+                sql,
+                (sql_id,),
+            )
+
+    async def add_sql_example(
+        self,
+        con: CatalogConnection,
+        sql: str,
+        description: str,
+    ) -> SQLExample:
+        """Add a SQL example to the semantic catalog.
+
+        Creates a new SQL example in the semantic catalog with the provided SQL
+        statement and optional description.
+
+        Args:
+            con: The database connection to the catalog database.
+            sql: The SQL statement to add as an example.
+            description: Optional description of the SQL example.
+
+        Returns:
+            A SQLExample object representing the newly added SQL example.
+        """
+        logger.debug(f"adding SQL example to semantic catalog {self.name}")
+        async with con.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """\
+                select ai.sc_add_sql_desc
+                ( %(sql)s
+                , %(description)s
+                , %(catalog_name)s
+                )
+            """,
+                dict(catalog_name=self.name, sql=sql, description=description),
+            )
+            row = await cur.fetchone()
+            if row is None:
+                raise RuntimeError("Failed to add SQL example to semantic catalog")
+            return SQLExample(
+                id=row["sc_add_sql_desc"], sql=sql, description=description
+            )
+
+    async def update_sql_example(
+        self,
+        con: CatalogConnection,
+        sql_id: int,
+        sql: str | None = None,
+        description: str | None = None,
+    ) -> SQLExample:
+        """Edit an existing SQL example in the semantic catalog.
+
+        Updates the SQL statement and/or description of an existing SQL example
+        identified by its ID.
+
+        Args:
+            con: The database connection to the catalog database.
+            sql_id: The unique identifier of the SQL example to edit.
+            sql: The new SQL statement for the example.
+            description: The new description for the SQL example.
+
+        Returns:
+            A SQLExample object representing the updated SQL example.
+
+        Raises:
+            ValueError: If neither sql nor description is provided.
+            RuntimeError: If the SQL example with the specified ID does not exist.
+        """
+        logger.debug(
+            f"editing SQL example with id {sql_id} in semantic catalog {self.name}"
+        )
+
+        if sql is None and description is None:
+            raise ValueError("At least one of 'sql' or 'description' must be provided")
+
+        async with con.cursor(row_factory=dict_row) as cur:
+            sql_check = SQL("""
+                select *
+                from ai.{table} x
+                where x.id = %(id)s
+            """).format(
+                table=Identifier(f"semantic_catalog_sql_{self.id}"),
+            )
+            await cur.execute(
+                sql_check,
+                {"id": sql_id},
+            )
+            row = await cur.fetchone()
+            if row is None:
+                raise RuntimeError(
+                    f"SQL example with id {sql_id} not found in catalog {self.name}"
+                )
+            example = SQLExample(**row)
+            if description is not None:
+                example.description = description
+            if sql is not None:
+                example.sql = sql
+            await cur.execute(
+                """
+                    select ai.sc_update_sql_desc
+                    ( %(id)s
+                    , %(sql)s
+                    , %(description)s
+                    , %(catalog_name)s
+                    )
+                """,
+                {
+                    "id": sql_id,
+                    "sql": example.sql,
+                    "description": example.description,
+                    "catalog_name": self.name,
+                },
+            )
+        return example
+
     async def list_sql_examples(
         self,
         con: CatalogConnection,
@@ -409,6 +721,119 @@ class SemanticCatalog:
         return await search.search_sql_examples(
             con, self.id, embedding_name, emb_cfg, query, limit
         )
+
+    async def drop_fact(
+        self,
+        con: CatalogConnection,
+        fact_id: int,
+    ) -> None:
+        """Drop a fact from the semantic catalog.
+
+        Removes a specific fact from the semantic catalog by its ID.
+
+        Args:
+            con: The database connection to the catalog database.
+            fact_id: The unique identifier of the fact to drop.
+        """
+        logger.debug(
+            f"dropping fact with id {fact_id} from semantic catalog {self.name}"
+        )
+        async with con.cursor() as cur:
+            sql = SQL("""
+                delete from ai.{table} x
+                where x.id = %s
+            """).format(
+                table=Identifier(f"semantic_catalog_fact_{self.id}"),
+            )
+            await cur.execute(
+                sql,
+                (fact_id,),
+            )
+
+    async def add_fact(
+        self,
+        con: CatalogConnection,
+        description: str,
+    ) -> Fact:
+        """Add a fact to the semantic catalog.
+
+        Creates a new fact in the semantic catalog with the provided description.
+
+        Args:
+            con: The database connection to the catalog database.
+            description: The text of the fact to add.
+
+        Returns:
+            A Fact object representing the newly added fact.
+        """
+        logger.debug(f"adding fact to semantic catalog {self.name}")
+        async with con.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """\
+                select ai.sc_add_fact
+                ( %(description)s
+                , %(catalog_name)s
+                )
+            """,
+                dict(catalog_name=self.name, description=description),
+            )
+            row = await cur.fetchone()
+            if row is None:
+                raise RuntimeError("Failed to add fact to semantic catalog")
+            return Fact(id=row["sc_add_fact"], description=description)
+
+    async def update_fact(
+        self,
+        con: CatalogConnection,
+        fact_id: int,
+        description: str,
+    ) -> Fact:
+        """Edit an existing fact in the semantic catalog.
+
+        Updates the description of an existing fact identified by its ID.
+
+        Args:
+            con: The database connection to the catalog database.
+            fact_id: The unique identifier of the fact to edit.
+            description: The new description for the fact.
+
+        Returns:
+            A Fact object representing the updated fact.
+        """
+        logger.debug(f"editing fact with id {fact_id} in semantic catalog {self.name}")
+
+        async with con.cursor(row_factory=dict_row) as cur:
+            sql = SQL("""
+                select id
+                from ai.{table} x
+                where x.id = %(id)s
+            """).format(
+                table=Identifier(f"semantic_catalog_fact_{self.id}"),
+            )
+            await cur.execute(
+                sql,
+                {"id": fact_id},
+            )
+            row = await cur.fetchone()
+            if row is None:
+                raise RuntimeError(
+                    f"Fact with id {fact_id} not found in catalog {self.name}"
+                )
+            await cur.execute(
+                """
+                    select ai.sc_update_fact
+                    ( %(id)s
+                    , %(description)s
+                    , %(catalog_name)s
+                    )
+                """,
+                {
+                    "id": fact_id,
+                    "description": description,
+                    "catalog_name": self.name,
+                },
+            )
+        return Fact(id=fact_id, description=description)
 
     async def list_facts(
         self,
