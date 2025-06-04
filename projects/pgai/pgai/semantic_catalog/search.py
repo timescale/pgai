@@ -50,7 +50,7 @@ async def search_objects(
             limit %(limit)s
         """).format(
             table=Identifier(f"semantic_catalog_obj_{catalog_id}"),
-            dimensions=Literal(int(config.dimensions)),
+            dimensions=Literal(config.dimensions),
             column=Identifier(embedding_name),
             filter=SQL("")
             if not exclude_ids
