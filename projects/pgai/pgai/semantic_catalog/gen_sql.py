@@ -875,8 +875,9 @@ async def generate_sql(
                 case _:
                     logger.error(f"unrecognized model response kind: {part.part_kind}")
 
+    assert answer is not None, "answer is unexpectedly missing"
     return GenerateSQLResponse(
-        sql_statement=answer or "MISSING",
+        sql_statement=answer,
         context=ctx,
         command_type=command_type or "UNKNOWN",
         query_plan=query_plan or {},
