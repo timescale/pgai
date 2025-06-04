@@ -103,7 +103,7 @@ async def search_sql_examples(
             limit %(limit)s
         """).format(
             table=Identifier(f"semantic_catalog_sql_{catalog_id}"),
-            dimensions=SQL(str(int(config.dimensions))),  # pyright: ignore [reportArgumentType]
+            dimensions=Literal(config.dimensions),
             column=Identifier(embedding_name),
             filter=SQL("")
             if not exclude_ids
