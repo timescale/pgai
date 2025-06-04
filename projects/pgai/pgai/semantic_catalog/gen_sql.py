@@ -807,6 +807,25 @@ async def generate_sql(
                             logger.error("llm did not provide a sql_statement")
                             continue
                         _continue = False
+                        command_type = str(args["command_type"])
+                        if command_type.upper() in (
+                            "SELECT",
+                            "INSERT",
+                            "UPDATE",
+                            "DELETE",
+                            "MERGE",
+                            "VALUES",
+                        ):
+                            logger.info("validating the sql statement")
+                            query_plan, error = await validate_sql_statement(
+                                target_con, str(answer)
+                            )
+                            if error:
+                                logger.info(
+                                    "asking llm to fix the invalid sql statement"
+                                )
+                                _continue = True
+                                continue
                         relevant_object_ids: list[int] | None = cast(
                             list[int] | None, args.get("relevant_object_ids")
                         )
@@ -845,24 +864,6 @@ async def generate_sql(
                             await _increment_fact_usage(
                                 catalog_con, catalog_id, [id for id in ctx.facts]
                             )
-                        command_type = str(args["command_type"])
-                        if command_type.upper() in (
-                            "SELECT",
-                            "INSERT",
-                            "UPDATE",
-                            "DELETE",
-                            "MERGE",
-                            "VALUES",
-                        ):
-                            logger.info("validating the sql statement")
-                            query_plan, error = await validate_sql_statement(
-                                target_con, str(answer)
-                            )
-                            if error:
-                                logger.info(
-                                    "asking llm to fix the invalid sql statement"
-                                )
-                                _continue = True
                     else:
                         logger.error(
                             f"unrecognized tool name: {tool_call_part.tool_name}"
