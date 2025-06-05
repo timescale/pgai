@@ -20,7 +20,7 @@ jobs:
       - uses: googleapis/release-please-action@v4
         id: release
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.ORG_AUTOMATION_TOKEN }}
 
   release-pypi:
     name: Publish to PyPi
