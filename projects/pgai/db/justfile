@@ -59,6 +59,19 @@ freeze:
 docker-shell:
 	@docker exec -it -u root pgai-db /bin/bash
 
+# Installs the db in the given target
+@install target_db: build
+    psql -d {{target_db}} -c 'truncate ai.pgai_lib_version' || true
+    echo 'Installing pgai db...'
+    uv run pgai install --strict -d {{target_db}}
+
+# Installs the db in the given target with a clean installation
+[confirm("This command will drop the `ai` schema and run a clean installation. Are you sure you want to proceed?")]
+@install-clean target_db:
+    echo 'Removing any previous installation...'
+    psql -d {{target_db}} -c 'drop schema ai cascade'
+    just install target_db
+
 # Launches a psql shell in the container
 psql-shell:
 	@docker exec -it -u postgres pgai-db /bin/bash -c "set -e; if [ -f .env ]; then set -a; source .env; set +a; fi; psql"
