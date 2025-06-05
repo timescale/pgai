@@ -16,7 +16,7 @@ interactions:
       host:
       - api.openai.com
       user-agent:
-      - AsyncOpenAI/Python 1.60.0
+      - AsyncOpenAI/Python 1.78.1
       x-stainless-arch:
       - x64
       x-stainless-async:
@@ -26,13 +26,17 @@ interactions:
       x-stainless-os:
       - Linux
       x-stainless-package-version:
-      - 1.60.0
+      - 1.78.1
+      x-stainless-raw-response:
+      - stream
+      x-stainless-read-timeout:
+      - '600'
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
       - CPython
       x-stainless-runtime-version:
-      - 3.12.7
+      - 3.10.15
     method: POST
     uri: https://api.openai.com/v1/embeddings
   response:
@@ -43,7 +47,7 @@ interactions:
         \"invalid_api_key\"\n    }\n}\n"
     headers:
       CF-RAY:
-      - 9224d65b8db603b5-ZRH
+      - 94a8715b099624bc-ZRH
       Connection:
       - keep-alive
       Content-Length:
@@ -51,7 +55,7 @@ interactions:
       Content-Type:
       - application/json; charset=utf-8
       Date:
-      - Tue, 18 Mar 2025 12:47:13 GMT
+      - Wed, 04 Jun 2025 15:25:25 GMT
       Server:
       - cloudflare
       X-Content-Type-Options:
@@ -65,7 +69,7 @@ interactions:
       vary:
       - Origin
       x-request-id:
-      - req_38d181f6111f1ee751f9518581e6c403
+      - req_b881f409bf52a22d2daf4906a4fdbead
     status:
       code: 401
       message: Unauthorized

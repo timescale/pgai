@@ -1,5 +1,133 @@
 interactions:
 - request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - identity
+      Connection:
+      - keep-alive
+      X-Amzn-Trace-Id:
+      - a0608a3a-e34a-45cd-a0ab-6b424c4f75eb
+      user-agent:
+      - unknown/None; hf_hub/0.27.1; python/3.10.15; torch/2.6.0
+    method: HEAD
+    uri: https://huggingface.co/voyageai/voyage-3-lite/resolve/main/tokenizer.json
+  response:
+    body:
+      string: ''
+    headers:
+      Accept-Ranges:
+      - bytes
+      Access-Control-Allow-Origin:
+      - https://huggingface.co
+      Access-Control-Expose-Headers:
+      - X-Repo-Commit,X-Request-Id,X-Error-Code,X-Error-Message,X-Total-Count,ETag,Link,Accept-Ranges,Content-Range,X-Linked-Size,X-Linked-ETag,X-Xet-Hash
+      Connection:
+      - keep-alive
+      Content-Disposition:
+      - inline; filename*=UTF-8''tokenizer.json; filename="tokenizer.json";
+      Content-Length:
+      - '7028228'
+      Content-Security-Policy:
+      - default-src 'none'; sandbox
+      Content-Type:
+      - text/plain; charset=utf-8
+      Date:
+      - Wed, 04 Jun 2025 15:25:14 GMT
+      ETag:
+      - '"0ef33aae2033834579c429c2f784c609b8851e23"'
+      Referrer-Policy:
+      - strict-origin-when-cross-origin
+      Vary:
+      - Origin
+      Via:
+      - 1.1 52adb21cdfe339fc4ef63aaafb7d8b80.cloudfront.net (CloudFront)
+      X-Amz-Cf-Id:
+      - sWhCcKvefzto3TpUErByjmGKnjXV19NThjW36JlVaSge6kOevPFi_Q==
+      X-Amz-Cf-Pop:
+      - ZRH55-P2
+      X-Cache:
+      - Miss from cloudfront
+      X-Hub-Cache:
+      - HIT
+      X-Powered-By:
+      - huggingface-moon
+      X-Repo-Commit:
+      - 0a7e3b82581fa95f989c39293ab2554f4d3deb07
+      X-Request-Id:
+      - Root=1-6840655a-37eab48d75a955056ee6c214;a0608a3a-e34a-45cd-a0ab-6b424c4f75eb
+      cross-origin-opener-policy:
+      - same-origin
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - identity
+      Connection:
+      - keep-alive
+      X-Amzn-Trace-Id:
+      - ab6243ff-c594-4e2d-8c92-e5f8042e558c
+      user-agent:
+      - unknown/None; hf_hub/0.27.1; python/3.10.15; torch/2.6.0
+    method: HEAD
+    uri: https://huggingface.co/voyageai/voyage-3-lite/resolve/main/tokenizer.json
+  response:
+    body:
+      string: ''
+    headers:
+      Accept-Ranges:
+      - bytes
+      Access-Control-Allow-Origin:
+      - https://huggingface.co
+      Access-Control-Expose-Headers:
+      - X-Repo-Commit,X-Request-Id,X-Error-Code,X-Error-Message,X-Total-Count,ETag,Link,Accept-Ranges,Content-Range,X-Linked-Size,X-Linked-ETag,X-Xet-Hash
+      Connection:
+      - keep-alive
+      Content-Disposition:
+      - inline; filename*=UTF-8''tokenizer.json; filename="tokenizer.json";
+      Content-Length:
+      - '7028228'
+      Content-Security-Policy:
+      - default-src 'none'; sandbox
+      Content-Type:
+      - text/plain; charset=utf-8
+      Date:
+      - Wed, 04 Jun 2025 15:25:14 GMT
+      ETag:
+      - '"0ef33aae2033834579c429c2f784c609b8851e23"'
+      Referrer-Policy:
+      - strict-origin-when-cross-origin
+      Vary:
+      - Origin
+      Via:
+      - 1.1 762292f0c80546325d8a99c60a2e1b44.cloudfront.net (CloudFront)
+      X-Amz-Cf-Id:
+      - jYB848JGD4CiUxZEonvOWvNbmVK67LQ5YNv0OXQgyRw6A_s6epauyA==
+      X-Amz-Cf-Pop:
+      - ZRH55-P2
+      X-Cache:
+      - Miss from cloudfront
+      X-Hub-Cache:
+      - HIT
+      X-Powered-By:
+      - huggingface-moon
+      X-Repo-Commit:
+      - 0a7e3b82581fa95f989c39293ab2554f4d3deb07
+      X-Request-Id:
+      - Root=1-6840655a-0ed50b70152ec7ab18961232;ab6243ff-c594-4e2d-8c92-e5f8042e558c
+      cross-origin-opener-policy:
+      - same-origin
+    status:
+      code: 200
+      message: OK
+- request:
     body: '{"input": ["post_1", "post_2"], "model": "voyage-3-lite"}'
     headers:
       accept:
@@ -13,7 +141,7 @@ interactions:
       host:
       - api.voyageai.com
       user-agent:
-      - litellm/1.58.4
+      - litellm/1.65.4.post1
     method: POST
     uri: https://api.voyageai.com/v1/embeddings
   response:
@@ -29,7 +157,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Tue, 18 Mar 2025 12:46:38 GMT
+      - Wed, 04 Jun 2025 15:25:14 GMT
       server:
       - uvicorn
       x-api-warning:
@@ -51,7 +179,7 @@ interactions:
       host:
       - api.voyageai.com
       user-agent:
-      - litellm/1.58.4
+      - litellm/1.65.4.post1
     method: POST
     uri: https://api.voyageai.com/v1/embeddings
   response:
@@ -67,7 +195,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Tue, 18 Mar 2025 12:46:37 GMT
+      - Wed, 04 Jun 2025 15:25:15 GMT
       server:
       - uvicorn
       x-api-warning:

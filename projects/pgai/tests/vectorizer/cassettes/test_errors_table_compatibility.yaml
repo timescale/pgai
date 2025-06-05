@@ -16,17 +16,17 @@ interactions:
       host:
       - api.openai.com
       user-agent:
-      - AsyncOpenAI/Python 1.70.0
+      - AsyncOpenAI/Python 1.78.1
       x-stainless-arch:
-      - arm64
+      - x64
       x-stainless-async:
       - async:asyncio
       x-stainless-lang:
       - python
       x-stainless-os:
-      - MacOS
+      - Linux
       x-stainless-package-version:
-      - 1.70.0
+      - 1.78.1
       x-stainless-raw-response:
       - stream
       x-stainless-read-timeout:
@@ -47,7 +47,7 @@ interactions:
         xrbc27GnnL2FuUiKHdxS2O8k0G9tuwPs4JDNkP2wyqj8TKj62McMAw==
     headers:
       CF-RAY:
-      - 93fa9285b965589a-BCN
+      - 94a870f7faa16d88-ZRH
       Connection:
       - keep-alive
       Content-Encoding:
@@ -55,7 +55,7 @@ interactions:
       Content-Type:
       - application/json; charset=utf-8
       Date:
-      - Wed, 14 May 2025 12:59:22 GMT
+      - Wed, 04 Jun 2025 15:25:10 GMT
       Server:
       - cloudflare
       Transfer-Encoding:
@@ -71,7 +71,7 @@ interactions:
       vary:
       - Origin
       x-request-id:
-      - req_c8879e03af8f9ecd9ac5178dbc89604d
+      - req_4ed8fdf35bcb3726d86b7aa2f7fb134d
     status:
       code: 404
       message: Not Found

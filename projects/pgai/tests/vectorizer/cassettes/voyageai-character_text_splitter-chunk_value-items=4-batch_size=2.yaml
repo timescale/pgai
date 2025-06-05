@@ -1,5 +1,133 @@
 interactions:
 - request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - identity
+      Connection:
+      - keep-alive
+      X-Amzn-Trace-Id:
+      - 49aa19e6-6f05-436a-8274-bd1d41d19df6
+      user-agent:
+      - unknown/None; hf_hub/0.27.1; python/3.10.15; torch/2.6.0
+    method: HEAD
+    uri: https://huggingface.co/voyageai/voyage-3-lite/resolve/main/tokenizer.json
+  response:
+    body:
+      string: ''
+    headers:
+      Accept-Ranges:
+      - bytes
+      Access-Control-Allow-Origin:
+      - https://huggingface.co
+      Access-Control-Expose-Headers:
+      - X-Repo-Commit,X-Request-Id,X-Error-Code,X-Error-Message,X-Total-Count,ETag,Link,Accept-Ranges,Content-Range,X-Linked-Size,X-Linked-ETag,X-Xet-Hash
+      Connection:
+      - keep-alive
+      Content-Disposition:
+      - inline; filename*=UTF-8''tokenizer.json; filename="tokenizer.json";
+      Content-Length:
+      - '7028228'
+      Content-Security-Policy:
+      - default-src 'none'; sandbox
+      Content-Type:
+      - text/plain; charset=utf-8
+      Date:
+      - Wed, 04 Jun 2025 15:27:20 GMT
+      ETag:
+      - '"0ef33aae2033834579c429c2f784c609b8851e23"'
+      Referrer-Policy:
+      - strict-origin-when-cross-origin
+      Vary:
+      - Origin
+      Via:
+      - 1.1 49ffa36aef18f1aca048f1cca2434920.cloudfront.net (CloudFront)
+      X-Amz-Cf-Id:
+      - feyL7NPjNs62FV07W0F_lnAKd41Uu7nmjB2QRjZ5RGqrVehcUvqEbA==
+      X-Amz-Cf-Pop:
+      - ZRH55-P2
+      X-Cache:
+      - Miss from cloudfront
+      X-Hub-Cache:
+      - MISS
+      X-Powered-By:
+      - huggingface-moon
+      X-Repo-Commit:
+      - 0a7e3b82581fa95f989c39293ab2554f4d3deb07
+      X-Request-Id:
+      - Root=1-684065d8-26630bcb17b1aa8804eb38a2;49aa19e6-6f05-436a-8274-bd1d41d19df6
+      cross-origin-opener-policy:
+      - same-origin
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - identity
+      Connection:
+      - keep-alive
+      X-Amzn-Trace-Id:
+      - 7833af60-75dc-4e1c-8499-f466c338b54d
+      user-agent:
+      - unknown/None; hf_hub/0.27.1; python/3.10.15; torch/2.6.0
+    method: HEAD
+    uri: https://huggingface.co/voyageai/voyage-3-lite/resolve/main/tokenizer.json
+  response:
+    body:
+      string: ''
+    headers:
+      Accept-Ranges:
+      - bytes
+      Access-Control-Allow-Origin:
+      - https://huggingface.co
+      Access-Control-Expose-Headers:
+      - X-Repo-Commit,X-Request-Id,X-Error-Code,X-Error-Message,X-Total-Count,ETag,Link,Accept-Ranges,Content-Range,X-Linked-Size,X-Linked-ETag,X-Xet-Hash
+      Connection:
+      - keep-alive
+      Content-Disposition:
+      - inline; filename*=UTF-8''tokenizer.json; filename="tokenizer.json";
+      Content-Length:
+      - '7028228'
+      Content-Security-Policy:
+      - default-src 'none'; sandbox
+      Content-Type:
+      - text/plain; charset=utf-8
+      Date:
+      - Wed, 04 Jun 2025 15:27:20 GMT
+      ETag:
+      - '"0ef33aae2033834579c429c2f784c609b8851e23"'
+      Referrer-Policy:
+      - strict-origin-when-cross-origin
+      Vary:
+      - Origin
+      Via:
+      - 1.1 f10af19edfcce00892eb35856b1c5d66.cloudfront.net (CloudFront)
+      X-Amz-Cf-Id:
+      - eR01mOVeMFlGnoddcPVeJYl3SxUufuwqF_UhEreIv4xJAZyRZsoQdA==
+      X-Amz-Cf-Pop:
+      - ZRH55-P2
+      X-Cache:
+      - Miss from cloudfront
+      X-Hub-Cache:
+      - MISS
+      X-Powered-By:
+      - huggingface-moon
+      X-Repo-Commit:
+      - 0a7e3b82581fa95f989c39293ab2554f4d3deb07
+      X-Request-Id:
+      - Root=1-684065d8-51e4949a74380c075f26949a;7833af60-75dc-4e1c-8499-f466c338b54d
+      cross-origin-opener-policy:
+      - same-origin
+    status:
+      code: 200
+      message: OK
+- request:
     body: '{"input": ["post_3", "post_4"], "model": "voyage-3-lite", "input_type":
       "document", "truncation": true, "encoding_format": "base64"}'
     headers:
@@ -18,7 +146,7 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Tue, 18 Mar 2025 12:47:19 GMT
+      - Wed, 04 Jun 2025 15:27:19 GMT
       Server:
       - uvicorn
       Via:
@@ -47,7 +175,7 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Tue, 18 Mar 2025 12:47:19 GMT
+      - Wed, 04 Jun 2025 15:27:20 GMT
       Server:
       - uvicorn
       Via:

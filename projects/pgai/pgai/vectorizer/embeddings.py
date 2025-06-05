@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import TypeAlias
 
 import structlog
-from ddtrace import tracer
+from ddtrace.trace import tracer
 
 logger = structlog.get_logger()
 

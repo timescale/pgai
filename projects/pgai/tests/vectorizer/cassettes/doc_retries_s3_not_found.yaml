@@ -7,7 +7,7 @@ interactions:
         Ynl0ZXM9MC0=
       User-Agent:
       - !!binary |
-        Qm90bzMvMS4zNi40IG1kL0JvdG9jb3JlIzEuMzYuNCB1YS8yLjAgb3MvbGludXgjNi42LjY5IG1k
+        Qm90bzMvMS4zNi40IG1kL0JvdG9jb3JlIzEuMzYuNCB1YS8yLjAgb3MvbGludXgjNi42Ljc1IG1k
         L2FyY2gjeDg2XzY0IGxhbmcvcHl0aG9uIzMuMTAuMTUgbWQvcHlpbXBsI0NQeXRob24gY2ZnL3Jl
         dHJ5LW1vZGUjbGVnYWN5IEJvdG9jb3JlLzEuMzYuNA==
       X-Amz-Content-SHA256:
@@ -16,10 +16,10 @@ interactions:
         ODUyYjg1NQ==
       X-Amz-Date:
       - !!binary |
-        MjAyNTAzMjhUMDg0MzQ3Wg==
+        MjAyNTA2MDRUMTUyNzE3Wg==
       amz-sdk-invocation-id:
       - !!binary |
-        Mzk1YmQyOGEtZmM0YS00OTIwLWJlMTEtZjFhOWNiMGU0Y2U0
+        MmUyMjA1MjUtZmRkOS00MGQzLTkxZTktMzY1YmQzNjVkMjk5
       amz-sdk-request:
       - !!binary |
         YXR0ZW1wdD0x
@@ -32,20 +32,20 @@ interactions:
     body:
       string: '<?xml version=''1.0'' encoding=''utf-8''?>
 
-        <Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><RequestId>a072bf83-2ed2-4054-90f8-91ea09026cde</RequestId><Key>non_existing_doc.pdf</Key></Error>'
+        <Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><RequestId>d712ffc9-073f-4782-af10-700704eff4bf</RequestId><Key>non_existing_doc.pdf</Key></Error>'
     headers:
       Content-Length:
       - '218'
       Content-Type:
       - application/xml
       Date:
-      - Fri, 28 Mar 2025 08:43:47 GMT
+      - Wed, 04 Jun 2025 15:27:17 GMT
       Server:
       - TwistedWeb/24.3.0
       x-amz-id-2:
       - s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=
       x-amz-request-id:
-      - a072bf83-2ed2-4054-90f8-91ea09026cde
+      - d712ffc9-073f-4782-af10-700704eff4bf
     status:
       code: 404
       message: NOT FOUND

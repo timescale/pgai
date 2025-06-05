@@ -11,7 +11,7 @@ from typing import Any
 import click
 import psycopg
 import structlog
-from ddtrace import tracer
+from ddtrace.trace import tracer
 from dotenv import find_dotenv, load_dotenv
 from pytimeparse import parse  # type: ignore
 
