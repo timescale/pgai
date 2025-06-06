@@ -21,7 +21,12 @@ class TestDatabase:
     container: PostgresContainer
     dbname: str
 
-    def __init__(self, container: PostgresContainer, extension_version: str = ""):
+    def __init__(
+        self,
+        container: PostgresContainer,
+        extension_version: str = "",
+        pgai_db_version: str = "",
+    ):
         global count
         dbname = f"test_{count}"
         count += 1
@@ -41,9 +46,12 @@ class TestDatabase:
                     f"   WITH VERSION '{extension_version}' CASCADE"
                 )
             else:
-                import pgai
+                if pgai_db_version != "":
+                    install_old_pgai(conn, pgai_db_version)
+                else:
+                    import pgai
 
-                pgai.install(url)
+                    pgai.install(url)
 
     def _create_connection_url(
         self,
@@ -77,9 +85,11 @@ def cli_db(
             break
     params: Mapping[str, Any] = marker.kwargs if marker else {}  # type: ignore
     ai_extension_version: str = params.get("ai_extension_version", "")  # type: ignore
+    pgai_db_version: str = params.get("pgai_db_version", "")  # type: ignore
     test_database = TestDatabase(
         container=postgres_container,
         extension_version=ai_extension_version,  # type: ignore
+        pgai_db_version=pgai_db_version,  # type: ignore
     )
 
     # Connect
@@ -175,10 +185,19 @@ def run_vectorizer_worker(
         args,
         catch_exceptions=False,
     )
-    if result.exit_code != 0:
-        print(result.output)
+    # if result.exit_code != 0:
+    print(result.output)
     return result
 
 
 def download_docling_models():
     CliRunner().invoke(download_models_cmd)
+
+
+def install_old_pgai(conn: Connection, pgai_db_version: str):
+    with open(f"tests/vectorizer/cli/sql/pgai-v{pgai_db_version}.sql") as f:
+        sql = f.read()
+        sql = sql.replace("@extschema:vector@", "public")
+        sql = sql.replace("__version__", pgai_db_version)
+        conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
+        conn.execute(sql)  # type: ignore

@@ -90,15 +90,3 @@ class UriLoading(BaseModel):
             file_path=file_path,
             file_type=guess_filetype(content, file_path),
         )
-
-
-class LoadingError(Exception):
-    """
-    Raised when the loader fails.
-    """
-
-    def __init__(self, *args: str, e: Exception):
-        super().__init__(*args)
-        self.__cause__ = e
-
-    msg = "loading failed"
