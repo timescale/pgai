@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
--- ai 0.10.5 (x-release-please-version)
+-- ai 0.10.6 (x-release-please-version)
 
 
 set local search_path = pg_catalog, pg_temp;
@@ -1196,6 +1196,45 @@ create table ai.semantic_catalog_embedding
 , config jsonb not null check (jsonb_typeof(config) = 'object')
 , unique (semantic_catalog_id, embedding_name)
 );
+
+$migration_body$;
+begin
+    select * into _migration from ai.pgai_lib_migration where "name" operator(pg_catalog.=) _migration_name;
+    if _migration is not null then
+        raise notice 'migration %s already applied. skipping.', _migration_name;
+        if _migration.body operator(pg_catalog.!=) _migration_body then
+            raise warning 'the contents of migration "%s" have changed', _migration_name;
+        end if;
+        return;
+    end if;
+    _sql = pg_catalog.format(E'do /*%s*/ $migration_body$\nbegin\n%s\nend;\n$migration_body$;', _migration_name, _migration_body);
+    execute _sql;
+    insert into ai.pgai_lib_migration ("name", body, applied_at_version)
+    values (_migration_name, _migration_body, $version$__version__$version$);
+end;
+$outer_migration_block$;
+
+-------------------------------------------------------------------------------
+-- 032-split-transaction-support.sql
+do $outer_migration_block$ /*032-split-transaction-support.sql*/
+declare
+    _sql text;
+    _migration record;
+    _migration_name text = $migration_name$032-split-transaction-support.sql$migration_name$;
+    _migration_body text =
+$migration_body$
+-- rename loading_retries and loading_retry_after for all existing queue tables
+do language plpgsql $block$
+declare
+    _vectorizer record;
+begin
+    for _vectorizer in select queue_schema, queue_table from ai.vectorizer
+    loop
+        execute format('alter table %I.%I rename column loading_retries to attempts', _vectorizer.queue_schema, _vectorizer.queue_table);
+        execute format('alter table %I.%I rename column loading_retry_after to retry_after', _vectorizer.queue_schema, _vectorizer.queue_table);
+    end loop;
+end;
+$block$;
 
 $migration_body$;
 begin
@@ -2691,8 +2730,8 @@ begin
       create table %I.%I
       ( %s
       , queued_at pg_catalog.timestamptz not null default now()
-      , loading_retries pg_catalog.int4 not null default 0
-      , loading_retry_after pg_catalog.timestamptz
+      , attempts pg_catalog.int4 not null default 0
+      , retry_after pg_catalog.timestamptz
       )
       $sql$
     , queue_schema, queue_table
@@ -3534,6 +3573,71 @@ $func$
 language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
+
+create or replace function ai._get_next_queue_batch(
+    queue_table pg_catalog.regclass,
+    batch_size pg_catalog.int4
+) returns setof record AS $$
+declare
+    source_pk pg_catalog.jsonb;
+    lock_id_string pg_catalog.text;
+    query pg_catalog.text;
+    lock_count pg_catalog.int4 := 0;
+    row record;
+begin
+    -- get the source_pk for this queue table
+    select v.source_pk
+    into source_pk
+    from ai.vectorizer v
+    where pg_catalog.to_regclass(pg_catalog.format('%I.%I', v.queue_schema, v.queue_table)) operator(pg_catalog.=) _get_next_queue_batch.queue_table;
+
+    -- construct the "lock id string"
+    -- this is a string of all pk column names and their values, e.g. for a
+    -- two-column pk consisting of 'time' and 'url' this will generate:
+    -- hashtext(format('time|%s|url|%s', time, url))
+    select pg_catalog.format($fmt$pg_catalog.hashtext(pg_catalog.format('%s', %s))$fmt$, format_string, format_args)
+    into lock_id_string
+    from (
+      select
+        pg_catalog.string_agg(pg_catalog.format('%s|%%s', attname), '|' order by attnum) as format_string
+      , pg_catalog.string_agg(attname, ', ' order by attnum) as format_args
+      from pg_catalog.jsonb_to_recordset(source_pk) as (attnum int, attname text)
+    ) as _;
+
+    -- construct query to get all
+    query := pg_catalog.format($sql$
+      select distinct on (%s)
+        q.ctid
+      , %s as _lock_id
+      , q.*
+      from %s as q
+      where (retry_after is null or retry_after <= now())
+        and %s not in (
+            -- exclude all locks that we already hold
+            select objid::int
+            from pg_locks
+            where locktype = 'advisory'
+              and pid = pg_catalog.pg_backend_pid()
+              and classid = %s
+          )
+    $sql$, lock_id_string, lock_id_string, _get_next_queue_batch.queue_table, lock_id_string, _get_next_queue_batch.queue_table::oid);
+
+    for row in execute query
+    loop
+        if lock_count operator(pg_catalog.>=) batch_size then
+            exit;
+        end if;
+
+        if pg_try_advisory_lock(queue_table::oid::int, row._lock_id) then
+            lock_count := lock_count + 1;
+            return next row;
+        end if;
+    end loop;
+
+    return;
+end;
+$$ language plpgsql;
+
 
 --------------------------------------------------------------------------------
 -- 012-vectorizer-api.sql

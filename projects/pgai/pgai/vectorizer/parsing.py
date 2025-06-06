@@ -142,3 +142,4 @@ class ParsingDocling(BaseDocumentParsing):
         source = DocumentStream(name=payload.file_path or "", stream=payload.content)
         result = converter.convert(source)
         return result.document.export_to_markdown()
+

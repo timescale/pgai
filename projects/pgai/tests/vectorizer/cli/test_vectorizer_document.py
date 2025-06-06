@@ -235,9 +235,8 @@ def test_simple_document_embedding_s3_no_credentials(
         assert error["id"] == vectorizer_id
         assert error["message"] == "loading failed"
         assert error["details"] == {
-            "loader": "uri",
+            "step": "loading",
             "error_reason": "Unable to locate credentials",
-            "is_retryable": True,
         }
 
 
@@ -372,13 +371,12 @@ def test_retries_on_not_present_document_embedding_s3(
         assert error["id"] == vectorizer_id
         assert error["message"] == "loading failed"
         assert error["details"] == {
-            "loader": "uri",
+            "step": "loading",
             "error_reason": f"unable to access bucket: '{s3_bucket}'"
             " key: 'non_existing_doc.pdf' version: None"
             " error: An error occurred (NoSuchKey) when"
             " calling the GetObject operation: The specified"
             " key does not exist.",
-            "is_retryable": True,
         }
 
         cur.execute(
@@ -421,13 +419,12 @@ def test_there_will_be_no_more_retries_after_the_sixth_failure(
         assert error["id"] == vectorizer_id
         assert error["message"] == "loading failed"
         assert error["details"] == {
-            "loader": "uri",
+            "step": "loading",
             "error_reason": f"unable to access bucket: '{s3_bucket}'"
             " key: 'non_existing_doc.pdf' version: None"
             " error: An error occurred (NoSuchKey) when"
             " calling the GetObject operation: The specified"
             " key does not exist.",
-            "is_retryable": False,
         }
 
         cur.execute(
@@ -467,13 +464,12 @@ def test_retries_should_do_nothing_if_retry_after_is_in_the_future(
         assert error["id"] == vectorizer_id
         assert error["message"] == "loading failed"
         assert error["details"] == {
-            "loader": "uri",
+            "step": "loading",
             "error_reason": f"unable to access bucket: '{s3_bucket}'"
             " key: 'non_existing_doc.pdf' version: None"
             " error: An error occurred (NoSuchKey) when"
             " calling the GetObject operation: The specified"
             " key does not exist.",
-            "is_retryable": True,
         }
 
         cur.execute(

@@ -175,8 +175,8 @@ def run_vectorizer_worker(
         args,
         catch_exceptions=False,
     )
-    if result.exit_code != 0:
-        print(result.output)
+    # if result.exit_code != 0:
+    print(result.output)
     return result
 
 

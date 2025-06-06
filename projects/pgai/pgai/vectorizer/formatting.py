@@ -79,3 +79,4 @@ class PythonTemplate(BaseModel, Formatter):
     @cached_property
     def _template(self) -> Template:
         return Template(self.template)
+
