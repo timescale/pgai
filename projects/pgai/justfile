@@ -288,3 +288,6 @@ benchmark-cpu-top: benchmark-clean benchmark-db benchmark-setup-vectorizer
 benchmark-queue-count:
   watch 'psql -h localhost -p {{BENCHMARK_DB_PORT}} -U {{BENCHMARK_DB_USER}} \
     -d {{BENCHMARK_DB_NAME}} -c "select count(*) from ai._vectorizer_q_1"'
+
+generate-docs:
+  uv run pydoc-markdown

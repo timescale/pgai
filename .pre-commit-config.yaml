@@ -1,0 +1,21 @@
+default_install_hook_types:
+  - pre-commit
+  - commit-msg
+
+repos:
+  - repo: local
+    hooks:
+      - id: update-docs
+        name: Update pydoc-markdown documentation
+        entry: bash -c 'uv tool run pydoc-markdown && git add docs/api.md'
+        language: system
+        files: ^projects/pgai/pgai/.*\.py$
+        pass_filenames: false
+        stages: [pre-commit]
+
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.2.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [--verbose]

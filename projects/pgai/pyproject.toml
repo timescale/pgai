@@ -155,6 +155,7 @@ dev-dependencies = [
     "pgspot>=0.9.0",
     "pdbpp>=0.10.3",
     "docker>=7.1.0",
+    "pydoc-markdown>=4.8.2",
 ]
 
 [dependency-groups]

@@ -156,6 +156,15 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
+      - name: Check if docs are outdated
+        run: |
+          just pgai generate-docs
+          if git diff --name-only HEAD -- projects/pgai/docs/.generated-files.txt | grep -q . ; then
+            echo "::error:: Documentation is out of date. Please run 'just pgai generate-docs', or install the git hooks 'just install-git-hooks' and commit"
+            exit 1
+          fi
+          echo "Documentation is up to date!"
+
   build-and-test-pgai-db-module:
     needs: authorize
     runs-on: ubuntu-latest
