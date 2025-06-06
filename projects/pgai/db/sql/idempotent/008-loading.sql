@@ -67,7 +67,7 @@ end if;
      if _column_name is null then
         raise exception 'invalid loading config, missing column_name';
 end if;
-    
+
     if (config operator(pg_catalog.->>) 'retries') is null or (config operator(pg_catalog.->>) 'retries')::int < 0 then
         raise exception 'invalid loading config, retries must be a non-negative integer';
 end if;
@@ -84,11 +84,14 @@ end if;
         and k.relname operator(pg_catalog.=) source_table
         and a.attnum operator(pg_catalog.>) 0
         and a.attname operator(pg_catalog.=) _column_name
-        and y.typname in ('text', 'varchar', 'char', 'bpchar', 'bytea')
         and not a.attisdropped;
 
     if _column_type is null then
             raise exception 'column_name in config does not exist in the table: %', _column_name;
+    end if;
+
+    if _column_type not in ('text', 'varchar', 'char', 'bpchar', 'bytea') then
+            raise exception 'column_name % in config is of invalid type %. Supported types are: text, varchar, char, bpchar, bytea', _column_name, _column_type;
     end if;
 
     if _implementation = 'uri' and _column_type not in ('text', 'varchar', 'char', 'bpchar') then

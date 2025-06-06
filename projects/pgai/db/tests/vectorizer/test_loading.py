@@ -2,6 +2,7 @@ import os
 
 import psycopg
 import pytest
+from psycopg.sql import SQL
 
 # skip tests in this module if disabled
 enable_vectorizer_tests = os.getenv("ENABLE_VECTORIZER_TESTS")
@@ -90,89 +91,103 @@ def test_loading_uri():
 def test_validate_loading():
     ok = [
         # loading raw text data from a text column
-        """
+        SQL("""
         select ai._validate_loading
         ( ai.loading_column('body'), 'public', 'thing' )
-        """,
+        """),
         # loading a document from a bytea column
-        """
+        SQL("""
         select ai._validate_loading
         ( ai.loading_column('document'), 'public', 'thing' )
-        """,
+        """),
         # loading a document from a uri stored in any text column
         # (we do not validate the uri, smart-open does on runtime)
-        """
+        SQL("""
         select ai._validate_loading
         ( ai.loading_uri('body'), 'public', 'thing' )
-        """,
+        """),
         # setting the aws_role_arn parameter
-        """
+        SQL("""
         select ai._validate_loading
         ( ai.loading_uri('body', aws_role_arn => 'arn:aws:iam::account:role/role-name-with-path'), 'public', 'thing' )
-        """,
+        """),
     ]
     bad = [
         (
-            """
+            SQL("""
             select ai._validate_loading
             ( ai.loading_column(), 'public', 'thing' )
-            """,
+            """),
             "function ai.loading_column() does not exist",
         ),
         (
-            """
+            SQL("""
             select ai._validate_loading
             ( ai.loading_uri(), 'public', 'thing' )
-            """,
+            """),
             "function ai.loading_uri() does not exist",
         ),
         (
-            """
+            SQL("""
             select ai._validate_loading
             ( ai.loading_column('column_does_not_exist'), 'public', 'thing' )
-            """,
+            """),
             "column_name in config does not exist in the table: column_does_not_exist",
         ),
         (
-            """
+            SQL("""
             select ai._validate_loading
             ( ai.loading_column('weight'), 'public', 'thing' )
-            """,
-            "column_name in config does not exist in the table: weight",
+            """),
+            "column_name weight in config is of invalid type float8. Supported types are: text, varchar, char, bpchar, bytea",
         ),
         (
-            """
+            SQL("""
             select ai._validate_loading
             ( ai.loading_uri('weight'), 'public', 'thing' )
-            """,
-            "column_name in config does not exist in the table: weight",
+            """),
+            "column_name weight in config is of invalid type float8. Supported types are: text, varchar, char, bpchar, bytea",
         ),
         (
-            """
+            SQL("""
+            select ai._validate_loading
+            ( ai.loading_column('non_existing_column'), 'public', 'thing' )
+            """),
+            "column_name in config does not exist in the table: non_existing_column",
+        ),
+        (
+            SQL("""
+            select ai._validate_loading
+            ( ai.loading_uri('non_existing_column'), 'public', 'thing' )
+            """),
+            "column_name in config does not exist in the table: non_existing_column",
+        ),
+        (
+            SQL("""
             select ai._validate_loading
             ( ai.loading_uri('document'), 'public', 'thing' )
-            """,
+            """),
             "the type of the column `document` in config is not compatible with `uri` loading implementation (type should be either text, varchar, char, bpchar, or bytea)",
         ),
         (
-            """
+            SQL("""
             select ai._validate_loading
             ( ai.scheduling_none(), 'public', 'thing' )
-            """,
+            """),
             "invalid config_type for loading config",
         ),
         (
-            """
+            SQL("""
             select ai._validate_loading
             ( ai.loading_column('body', -1), 'public', 'thing' )
-            """,
+            """),
             "invalid loading config, retries must be a non-negative integer",
         ),
         (
-            """
+            SQL("""
             select ai._validate_loading
             ( ai.loading_uri('body', aws_role_arn => 'foo_bar'), 'public', 'thing' )
-            """,
+            """),
             "invalid loading config, aws_role_arn must match arn:aws:iam::*:role/*",
         ),
     ]
@@ -186,10 +201,6 @@ def test_validate_loading():
                 cur.execute(query)
                 assert True
             for query, err in bad:
-                try:
+                with pytest.raises(psycopg.ProgrammingError) as ex:
                     cur.execute(query)
-                except psycopg.ProgrammingError as ex:
-                    msg = str(ex.args[0])
-                    assert len(msg) >= len(err) and msg[: len(err)] == err
-                else:
-                    pytest.fail(f"expected exception: {err}")
+                assert str(ex.value).startswith(err)
