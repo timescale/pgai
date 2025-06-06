@@ -32,7 +32,7 @@ def test_voyageai_fails_without_secret(cur, voyageai_api_key):
             select vector_dims
             (
                 ai.voyageai_embed
-                ( 'voyage-3-lite'
+                ( 'voyage-3.5-lite'
                 , 'hello world'
                 )
             )
@@ -50,14 +50,14 @@ def test_voyageai_with_api_key_via_guc(cur, voyageai_api_key):
         select vector_dims
         (
             ai.voyageai_embed
-            ( 'voyage-3-lite'
+            ( 'voyage-3.5-lite'
             , 'hello world'
             )
         )
     """
     )
     actual = cur.fetchone()[0]
-    assert actual == 512
+    assert actual == 1024
 
 
 def test_voyageai_embed(cur, voyageai_api_key):
@@ -66,7 +66,7 @@ def test_voyageai_embed(cur, voyageai_api_key):
         select vector_dims
         (
             ai.voyageai_embed
-            ( 'voyage-3-lite'
+            ( 'voyage-3.5-lite'
             , 'hello world'
             , api_key=>%s
             )
@@ -75,14 +75,14 @@ def test_voyageai_embed(cur, voyageai_api_key):
         (voyageai_api_key,),
     )
     actual = cur.fetchone()[0]
-    assert actual == 512
+    assert actual == 1024
 
 
 def test_voyageai_embed_with_input_type(cur, voyageai_api_key):
     cur.execute(
         """
         select ai.voyageai_embed
-        ( 'voyage-3-lite'
+        ( 'voyage-3.5-lite'
         , 'hello world'
         , api_key=>%s
         , input_type => 'document'
@@ -94,7 +94,7 @@ def test_voyageai_embed_with_input_type(cur, voyageai_api_key):
     cur.execute(
         """
         select ai.voyageai_embed
-        ( 'voyage-3-lite'
+        ( 'voyage-3.5-lite'
         , 'hello world'
         , api_key=>%s
         , input_type => 'query'
@@ -116,7 +116,7 @@ def test_voyageai_embed_successful_with_very_large_input(cur, voyageai_api_key):
         select vector_dims
         (
             ai.voyageai_embed
-            ( 'voyage-3-lite'
+            ( 'voyage-3.5-lite'
             , repeat('hello world', 20000)
             , api_key=>%s
             )
@@ -125,14 +125,14 @@ def test_voyageai_embed_successful_with_very_large_input(cur, voyageai_api_key):
         (voyageai_api_key,),
     )
     dims = cur.fetchone()[0]
-    assert dims == 512
+    assert dims == 1024
 
 
 def test_voyageai_embed_with_multiple_inputs(cur, voyageai_api_key):
     cur.execute(
         """
             select count(*) from ai.voyageai_embed
-            ( 'voyage-3-lite'
+            ( 'voyage-3.5-lite'
             , ARRAY['hello world', 'hello bob']
             , api_key=>%s
             )

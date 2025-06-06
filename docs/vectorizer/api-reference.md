@@ -982,7 +982,7 @@ This function is used to create an embedding configuration object that is passed
 SELECT ai.create_vectorizer(
     'my_table'::regclass,
     embedding => ai.embedding_voyageai(
-      'voyage-3-lite',
+      'voyage-3.5-lite',
       512,
       api_key_name => "TEST_API_KEY"
     ),
