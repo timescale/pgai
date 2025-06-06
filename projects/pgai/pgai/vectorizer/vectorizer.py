@@ -5,21 +5,23 @@ import sys
 import threading
 import time
 from collections.abc import AsyncGenerator, Callable, Sequence
+from contextlib import asynccontextmanager
+from enum import Enum
 from functools import cache, cached_property, partial
 from itertools import islice
-from typing import Any, TypeAlias, TypeVar
+from typing import Any, TypeAlias, TypeVar, cast
 from uuid import UUID
 
 import psycopg
 import structlog
 from ddtrace.trace import tracer
 from pgvector.psycopg import register_vector_async  # type: ignore
-from psycopg import AsyncConnection, sql
+from psycopg import AsyncConnection, pq, sql
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb, set_json_dumps
 from pydantic import BaseModel, Field, model_validator
 from pydantic_core._pydantic_core import ArgsKwargs
-from typing_extensions import override
+from typing_extensions import LiteralString, override
 
 from .chunking import (
     LangChainCharacterTextSplitter,
@@ -30,17 +32,55 @@ from .destination import ColumnDestination, TableDestination
 from .embedders import LiteLLM, Ollama, OpenAI, VoyageAI
 from .features import Features
 from .formatting import ChunkValue, PythonTemplate
-from .loading import ColumnLoading, LoadingError, UriLoading
+from .loading import ColumnLoading, UriLoading
 from .migrations import apply_migrations
 from .parsing import ParsingAuto, ParsingNone, ParsingPyMuPDF
 from .processing import ProcessingDefault
 from .worker_tracking import WorkerTracking
+
+# ruff: noqa: E501
 
 logger = structlog.get_logger()
 
 VectorizerErrorRecord: TypeAlias = tuple[int, str, Jsonb]
 EmbeddingRecord: TypeAlias = list[Any]
 SourceRow: TypeAlias = dict[str, Any]
+
+
+class ProccesingStep(Enum):
+    LOADING = "loading"
+    PARSING = "parsing"
+    FORMATTING = "formatting"
+    EMBEDDING = "embedding"
+
+
+class ProcessingError(Exception):
+    step: ProccesingStep
+
+    def __init__(self, *args: str, e: Exception):
+        super().__init__(*args)
+        self.__cause__ = e
+
+    @property
+    def msg(self) -> str:
+        return f"{self.step.value} failed"
+
+
+class FormattingError(ProcessingError):
+    step = ProccesingStep.FORMATTING
+
+
+class LoadingError(ProcessingError):
+    step = ProccesingStep.LOADING
+
+
+class ParsingError(ProcessingError):
+    step = ProccesingStep.PARSING
+
+
+class EmbeddingError(ProcessingError):
+    step = ProccesingStep.EMBEDDING
+
 
 DEFAULT_CONCURRENCY = 1
 DEFAULT_VECTORIZER_ERRORS_TABLE = "_vectorizer_errors"
@@ -54,25 +94,21 @@ else:
     from exceptiongroup import BaseExceptionGroup
 
 
-class EmbeddingProviderError(Exception):
-    """
-    Raised when an embedding provider API request fails.
-    """
-
-    msg = "embedding provider failed"
-
-
 class PkAtt(BaseModel):
     """
     Represents an attribute of a primary key.
 
     Attributes:
         attname (str): The name of the attribute (column).
+        pknum (int): The order of the column in the primary key.
+        attnum (int): The order of the column in the table.
+        typname (str): The name of the type of the column.
     """
 
     attname: str
     pknum: int
     attnum: int
+    typname: str
 
 
 class Config(BaseModel):
@@ -240,9 +276,27 @@ class VectorizerQueryBuilder:
         represents the SQL expression "author, title". The columns will be
         listed in the order they appear in the table NOT the primary key.
         """
-        return sql.SQL(" ,").join(
+        return sql.SQL(", ").join(
             [
                 sql.Identifier(a.attname)
+                for a in sorted(self.vectorizer.source_pk, key=lambda pk: pk.attnum)
+            ]
+        )
+
+    @property
+    def pk_column_definition_list_sql(self) -> sql.Composed:
+        """
+        Generates the SQL expression for the "column definition list" of the
+        primary key columns. For example, if the primary key has two columns
+        (author text, title text), it will return a sql.Composed object that
+        represents the SQL expression "author text, title text". The columns
+        are listed in the order they appear in the table NOT the primary key.
+        """
+        return sql.SQL(", ").join(
+            [
+                sql.SQL(" ").join(
+                    [sql.Identifier(a.attname), sql.SQL(cast(LiteralString, a.typname))]
+                )
                 for a in sorted(self.vectorizer.source_pk, key=lambda pk: pk.attnum)
             ]
         )
@@ -389,7 +443,7 @@ class VectorizerQueryBuilder:
             queue_table=sql.Identifier(
                 self.vectorizer.queue_schema, self.vectorizer.queue_table
             ),
-            lock_fields=sql.SQL(" ,").join(
+            lock_fields=sql.SQL(", ").join(
                 [
                     xs
                     for x in self.vectorizer.source_pk
@@ -499,7 +553,7 @@ class VectorizerQueryBuilder:
             queue_table=sql.Identifier(
                 self.vectorizer.queue_schema, self.vectorizer.queue_table
             ),
-            lock_fields=sql.SQL(" ,").join(
+            lock_fields=sql.SQL(", ").join(
                 [
                     xs
                     for x in self.vectorizer.source_pk
@@ -530,6 +584,125 @@ class VectorizerQueryBuilder:
                 ]
             ),
         )
+
+    @cached_property
+    def fetch_work_query_with_split_transaction(self) -> sql.Composed:
+        """
+        Generates an SQL query to fetch and update work items in the queue
+        table. The resulting SQL query takes one parameter: the batch_size,
+        which denotes how many rows of work are fetched.
+
+        The query is safe to run concurrently from multiple workers. It handles
+        duplicate work items by allowing only one instance of the duplicates to
+        be processed at a time.
+
+        For a thorough explanation of the query, see:
+
+        https://timescale.slab.com/posts/vectorizer-worker-embedding-processing-05g8b73l
+
+        The main takeaway is:
+
+        The system retrieves a specified number of entries from the work queue,
+        determined by the batch queue size parameter. A session-level advisory
+        lock is taken to ensure that concurrently executing workers don't
+        process the same queue items. We use the 'try' variant to ensure that
+        the system doesn't wait on locks.
+        """
+        return sql.SQL("""
+                WITH locked_queue_rows AS materialized (
+                    SELECT _ctid, _lock_id, {pk_fields}, attempts, retry_after
+                    FROM ai._get_next_queue_batch('{queue_table}', %s) as (_ctid tid, _lock_id int, {pk_columns}, queued_at timestamptz, attempts int, retry_after timestamptz)
+                ),
+                update_locked_rows AS (
+                    WITH max_attempts AS (
+                        -- ensure that we count all attempts on this PK so far
+                        SELECT {pk_fields}, max(attempts) AS max_attempt
+                        FROM {queue_table}
+                        WHERE ({pk_fields}) IN (SELECT {pk_fields} FROM locked_queue_rows)
+                        GROUP BY {pk_fields}
+                    )
+                    UPDATE {queue_table} q
+                    SET
+                      attempts = ma.max_attempt + 1
+                    FROM locked_queue_rows lr
+                    JOIN max_attempts ma ON {max_attempts_join_predicates}
+                    WHERE lr._ctid = q.ctid
+                    RETURNING q.ctid as _ctid, {qualified_pk_fields}, q.queued_at, q.attempts, q.retry_after
+                ),
+                delete_duplicate_rows AS (
+                   DELETE FROM {queue_table} q
+                   WHERE ({pk_fields}) IN (SELECT {pk_fields} FROM locked_queue_rows)
+                     AND q.ctid NOT IN (SELECT _ctid FROM locked_queue_rows)
+                )
+                SELECT s.*, {attempts}
+                FROM update_locked_rows l
+                LEFT JOIN LATERAL ( -- NOTE: lateral join forces runtime chunk exclusion
+                    SELECT *
+                    FROM {source_schema}.{source_table} s
+                    WHERE {lateral_join_predicates}
+                    LIMIT 1
+                ) AS s ON true
+                ORDER BY {pk_fields}
+                        """).format(
+            pk_columns=self.pk_column_definition_list_sql,
+            qualified_pk_fields=sql.SQL(", ").join(
+                [sql.Identifier("q", attname) for attname in self.pk_attnames]
+            ),
+            pk_fields=self.pk_fields_sql,
+            queue_table=sql.Identifier(
+                self.vectorizer.queue_schema, self.vectorizer.queue_table
+            ),
+            max_attempts_join_predicates=sql.SQL(" AND ").join(
+                [
+                    sql.SQL("lr.{} = ma.{}").format(
+                        sql.Identifier(x.attname),
+                        sql.Identifier(x.attname),
+                    )
+                    for x in self.vectorizer.source_pk
+                ]
+            ),
+            attempts=sql.Identifier("attempts"),
+            source_schema=sql.Identifier(self.vectorizer.source_schema),
+            source_table=sql.Identifier(self.vectorizer.source_table),
+            lateral_join_predicates=sql.SQL(" AND ").join(
+                [
+                    sql.SQL("l.{} = s.{}").format(
+                        sql.Identifier(x.attname),
+                        sql.Identifier(x.attname),
+                    )
+                    for x in self.vectorizer.source_pk
+                ]
+            ),
+        )
+
+    def delete_processed_queue_rows_query(
+        self, items: Sequence[SourceRow]
+    ) -> tuple[sql.Composed, list[Any]]:
+        """
+        Generates parameters and SQL query to delete processed queue rows.
+
+        A "processed" queue row is a row with a non-zero 'attempts' column.
+
+        The returned query contains placeholders for `count` primary key values.
+
+        :param items: The queue rows to delete.
+        :return: A tuple containing the composed delete statement (sql.Composed)
+        and the parameters (Sequence[Any]))
+        """
+        params = [item[pk] for item in items for pk in self.pk_attnames]
+        query = sql.SQL(
+            """DELETE FROM {queue_table} q
+               WHERE ({pk_fields}) IN ({pk_placeholders})
+               AND attempts > 0
+            """
+        ).format(
+            queue_table=sql.Identifier(
+                self.vectorizer.queue_schema, self.vectorizer.queue_table
+            ),
+            pk_fields=self.pk_fields_sql,
+            pk_placeholders=self._pks_placeholders_tuples(len(items)),
+        )
+        return query, params
 
     @cached_property
     def fetch_queue_table_oid_query(self) -> sql.Composed:
@@ -570,6 +743,32 @@ class VectorizerQueryBuilder:
             self.errors_table_ident,
         )
 
+    def _placeholders_tuples(self, tuple_length: int, items_count: int) -> sql.Composed:
+        """
+        Generates a comma separated list of tuples with placeholders.
+
+        If the tuple_length is 2 fields, and we want to generate the
+        placeholders to match against 3 items:
+
+        self._placeholders_tuples(2, 3)
+        # => "(%s, %s), (%s, %s), (%s, %s)"
+
+        This can be used for queries like:
+
+        DELETE FROM table WHERE (pk1, pk2) IN ((%s, %s), (%s, %s), (%s, %s))
+
+        We cannot use ANY = %s because Postgres doesn't allow it for anonymous
+        composite values.
+        """
+        placeholder_tuple = sql.SQL(", ").join(
+            sql.Placeholder() for _ in range(tuple_length)
+        )
+
+        tuples = sql.SQL(",").join(
+            sql.SQL("({})").format(placeholder_tuple) for _ in range(items_count)
+        )
+        return tuples
+
     def _pks_placeholders_tuples(self, items_count: int) -> sql.Composed:
         """Generates a comma separated list of tuples with placeholders for the
         primary key fields of the source table.
@@ -587,14 +786,7 @@ class VectorizerQueryBuilder:
         We cannot use ANY = %s because Postgres doesn't allow it for anonymous
         composite values.
         """
-        placeholder_tuple = sql.SQL(", ").join(
-            sql.Placeholder() for _ in range(len(self.vectorizer.source_pk))
-        )
-
-        tuples = sql.SQL(",").join(
-            sql.SQL("({})").format(placeholder_tuple) for _ in range(items_count)
-        )
-        return tuples
+        return self._placeholders_tuples(len(self.vectorizer.source_pk), items_count)
 
     @cached_property
     def is_vectorizer_disabled_query(self) -> sql.Composed:
@@ -620,6 +812,56 @@ class VectorizerQueryBuilder:
                 for i in range(len(self.pk_fields))
             ),
         )
+
+    def update_retry_after_and_move_permanent_failures_to_dlq_query(
+        self, max_attempts: int, items: Sequence[tuple[SourceRow, ProcessingError]]
+    ) -> tuple[sql.Composed, list[Any]]:
+        """
+        Generates a query to update the retry_after for items in the queue based
+        on the specified maximum attempts, and moves permanently failed items to
+        a dead letter queue (DLQ).
+
+        :param max_attempts: The maximum attempts for an item before it is considered a permanent failure.
+        :param items: The Sequence of tuples where each tuple consists of a queue row and the error.
+        :return: A tuple containing a composed SQL query for processing and a list
+                 of parameters for the query.
+        """
+        params: list[Any] = []
+        for item, error in items:
+            params += [item[pk] for pk in self.pk_attnames]
+            params.append(error.step.value)
+        query = sql.SQL("""
+            WITH erroring_pk_and_step AS (
+                SELECT * FROM (VALUES {error_values}) AS erroring_pk_and_step({pk_fields}, failure_step)
+            ), update_attempts AS (
+                UPDATE {queue_table}
+                    SET retry_after = now() + INTERVAL '3 minutes' * attempts
+                    WHERE attempts <= {max_attempts}
+                    AND ({pk_fields}) IN (SELECT {pk_fields} FROM erroring_pk_and_step)
+            ), delete_over_attempts AS (
+                DELETE FROM {queue_table}
+                WHERE attempts > {max_attempts}
+                  AND ({pk_fields}) IN (SELECT {pk_fields} FROM erroring_pk_and_step)
+                RETURNING {pk_fields}
+            )
+            INSERT INTO {queue_failed_table} ({pk_fields}, failure_step)
+                SELECT {pk_fields}, failure_step FROM delete_over_attempts JOIN erroring_pk_and_step USING ({pk_fields})
+            
+            """).format(
+            error_values=self._placeholders_tuples(
+                len(self.vectorizer.source_pk) + 1, len(items)
+            ),
+            pk_fields=self.pk_fields_sql,
+            queue_table=sql.Identifier(
+                self.vectorizer.queue_schema, self.vectorizer.queue_table
+            ),
+            queue_failed_table=sql.Identifier(
+                self.vectorizer.queue_schema,
+                self.vectorizer.queue_failed_table,  # type: ignore
+            ),
+            max_attempts=max_attempts,
+        )
+        return query, params
 
     @cached_property
     def insert_queue_failed_query(self) -> sql.Composed:
@@ -741,6 +983,16 @@ class UUIDEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, o)
 
 
+@asynccontextmanager
+async def timed_debug_log(message: str):
+    start = time.perf_counter()
+    try:
+        yield start
+    finally:
+        duration = time.perf_counter() - start
+        await logger.adebug(f"{message} in {duration:.2}s")
+
+
 class Executor:
     """
     Responsible for processing items from the work queue and generating embeddings.
@@ -790,8 +1042,7 @@ class Executor:
 
         async with await psycopg.AsyncConnection.connect(
             self.db_url,
-            autocommit=True,
-            application_name=f"pgai-worker[{self.vectorizer.id}]: {self.worker_tracking.get_short_worker_id()}",  # noqa: E501
+            application_name=f"pgai-worker[{self.vectorizer.id}]: {self.worker_tracking.get_short_worker_id()}",
         ) as conn:
             try:
                 set_json_dumps(partial(json.dumps, cls=UUIDEncoder), context=conn)
@@ -808,7 +1059,8 @@ class Executor:
                     await self.worker_tracking.save_vectorizer_success(
                         conn, self.vectorizer.id, items_processed
                     )
-            except EmbeddingProviderError as e:
+            except EmbeddingError as e:
+                await conn.rollback()
                 async with conn.transaction():
                     await self._insert_vectorizer_error(
                         conn,
@@ -823,12 +1075,12 @@ class Executor:
                             ),
                         ),
                     )
-
                 if e.__cause__ is not None:
                     raise e.__cause__  # noqa
                 raise e
 
             except Exception as e:
+                await conn.rollback()
                 async with conn.transaction():
                     await self._insert_vectorizer_error(
                         conn,
@@ -858,7 +1110,7 @@ class Executor:
             Exception: If the vectorizer row is not found in the database.
         """
         if self.features.disable_vectorizers:
-            async with conn.cursor() as cursor:
+            async with conn.cursor() as cursor, conn.transaction():
                 await cursor.execute(
                     self.queries.is_vectorizer_disabled_query,
                     [self.vectorizer.id],
@@ -885,13 +1137,25 @@ class Executor:
         """
         processing_stats = ProcessingStats()
         start_time = time.perf_counter()
-        async with conn.transaction():
+        # Note: We require the following preconditions to ensure that we can
+        # manually handle transactions in this context.
+        assert not conn.autocommit
+        assert (
+            conn.info.transaction_status == pq.TransactionStatus.IDLE
+        ), f"transaction status is {conn.info.transaction_status.name}, not {pq.TransactionStatus.IDLE.name}"
+        try:
             items = await self._fetch_work(conn)
+            if self.features.split_processing:
+                await logger.adebug("Committed fetch work transaction")
+                # Commit after fetching work
+                await conn.commit()
 
             current_span = tracer.current_span()
             if current_span:
                 current_span.set_tag("items_from_queue.pulled", len(items))
-            await logger.adebug(f"Items pulled from queue: {len(items)}")
+            await logger.adebug(
+                f"Fetched {len(items)} rows from queue", batch_size=self._batch_size
+            )
 
             # Filter out items that were deleted from the source table.
             # We use the first primary key column, since they can only
@@ -903,14 +1167,30 @@ class Executor:
             if len(items) == 0:
                 return 0
 
-            num_chunks = await self._embed_and_write(conn, items)
+            try:
+                num_chunks = await self._embed_and_write(conn, items)
 
-            processing_stats.add_request_time(
-                time.perf_counter() - start_time, num_chunks
-            )
-            await processing_stats.print_stats()
+                # Final commit for "non-split" transaction. noop in split transaction.
+                await conn.commit()
 
-            return len(items)
+                processing_stats.add_request_time(
+                    time.perf_counter() - start_time, num_chunks
+                )
+                await processing_stats.print_stats()
+
+                return len(items)
+            except EmbeddingError as e:
+                if self.features.split_processing:
+                    # rollback ongoing transaction, because whatever we wrote is junk now
+                    await conn.rollback()
+                    async with conn.transaction():
+                        await self._handle_error(conn, items, e)
+                    return 0
+                else:
+                    raise e
+        finally:
+            async with conn.cursor() as cur, conn.transaction():
+                await cur.execute("SELECT pg_advisory_unlock_all()")
 
     @cached_property
     def _batch_size(self) -> int:
@@ -942,7 +1222,13 @@ class Executor:
         """
         queue_table_oid = await self._get_queue_table_oid(conn)
         async with conn.cursor(row_factory=dict_row) as cursor:
-            if self.features.loading_retries:
+            if self.features.split_processing:
+                query = self.queries.fetch_work_query_with_split_transaction
+                await cursor.execute(
+                    query,
+                    (self._batch_size,),
+                )
+            elif self.features.loading_retries:
                 await cursor.execute(
                     self.queries.fetch_work_query_with_retries,
                     (
@@ -1002,15 +1288,27 @@ class Executor:
             int: The number of records written to the database.
         """
 
+        # TODO(james): It would be nice to move this delete to after the call to
+        #  generate_embeddings, and put each batch of embedding deletion, writing
+        #  embeddings, and deleting processed qeueue rows into a shorter transaction.
         await self._delete_embeddings(conn, items)
         count = 0
-        async for records, loading_errors in self._generate_embeddings(items):
-            if loading_errors:
-                await self.handle_loading_retries(conn, loading_errors)
+        failed_items: list[SourceRow] = []
+        async for records, errors in self._generate_embeddings(items):
+            if errors:
+                await self._handle_errors(conn, errors)
+                failed_items += [item for item, _ in errors]
+
             await self._write_embeddings(conn, records)
             count += len(records)
+        if self.features.split_processing:
+            await self._delete_processed_queue_rows(
+                conn, [item for item in items if item not in failed_items]
+            )
+            await conn.commit()
         return count
 
+    @tracer.wrap()
     async def _delete_embeddings(self, conn: AsyncConnection, items: list[SourceRow]):
         """
         Deletes the embeddings for the given items from the target table.
@@ -1020,16 +1318,43 @@ class Executor:
             items (list[SourceRow]): The items whose embeddings need to be deleted.
         """
         if self.vectorizer.config.destination.implementation == "column":
+            await logger.adebug("skipping embedding deletion for column destination")
             return
         else:
             ids = [item[pk] for item in items for pk in self.queries.pk_attnames]
-            async with conn.cursor() as cursor:
+            async with (
+                conn.cursor() as cursor,
+                timed_debug_log(f"Removed embeddings for {len(items)} source rows"),
+            ):
                 await cursor.execute(
                     self.queries.delete_embeddings_query(
                         len(items), self.vectorizer.config.destination
                     ),
                     ids,
                 )
+                rows_deleted = cursor.rowcount
+                await logger.adebug(f"Removed {rows_deleted} embeddings")
+
+    @tracer.wrap()
+    async def _delete_processed_queue_rows(
+        self, conn: AsyncConnection, items: list[SourceRow]
+    ):
+        """
+        Deletes queue rows after they are processed
+
+        Args:
+            conn (AsyncConnection): The database connection.
+            items: (list[SourceRow]): Items to be deleted from the source queue
+        :param items:
+        :return:
+        """
+        if items:
+            query, params = self.queries.delete_processed_queue_rows_query(items)
+            async with (
+                conn.cursor() as cursor,
+                timed_debug_log(f"Removed {len(items)} processed queue rows"),
+            ):
+                await cursor.execute(query, params)
 
     async def _load_copy_types(
         self, conn: AsyncConnection, destination: TableDestination
@@ -1098,6 +1423,7 @@ class Executor:
         async with (
             conn.cursor(binary=True) as cursor,
             cursor.copy(self.queries.copy_embeddings_query(destination)) as copy,  # type: ignore
+            timed_debug_log(f"COPY wrote {len(records)} embeddings"),
         ):
             assert self.copy_types is not None  # ugh. make pyright happy
             copy.set_types(self.copy_types)
@@ -1108,13 +1434,17 @@ class Executor:
         # len(source_pk) + chunk_seq + chunk + embedding
         assert len(self.copy_types) == len(self.vectorizer.source_pk) + 3
 
+    @tracer.wrap()
     async def _update_source_table(
         self,
         destination: ColumnDestination,
         conn: AsyncConnection,
         records: list[EmbeddingRecord],
     ):
-        async with conn.cursor() as cursor:
+        async with (
+            conn.cursor() as cursor,
+            timed_debug_log(f"UPDATED {len(records)} embeddings"),
+        ):
             for record in records:
                 pk_values = record[: len(self.queries.pk_attnames)]
                 embedding = record[-1]  # Last item is the embedding
@@ -1123,6 +1453,7 @@ class Executor:
                     [embedding] + pk_values,
                 )
 
+    @tracer.wrap()
     async def _write_embeddings(
         self, conn: AsyncConnection, records: list[EmbeddingRecord]
     ):
@@ -1154,10 +1485,11 @@ class Executor:
     def _get_item_pk_values(self, item: SourceRow) -> list[Any]:
         return [item[pk] for pk in self.queries.pk_attnames]
 
+    @tracer.wrap()
     async def _generate_embeddings(
         self, items: list[SourceRow]
     ) -> AsyncGenerator[
-        tuple[list[EmbeddingRecord], list[tuple[SourceRow, LoadingError]]], None
+        tuple[list[EmbeddingRecord], list[tuple[SourceRow, ProcessingError]]], None
     ]:
         """
         Generates the embeddings for the given items.
@@ -1177,62 +1509,116 @@ class Executor:
         import numpy as np
 
         records_without_embeddings: list[EmbeddingRecord] = []
-        loading_errors: list[tuple[SourceRow, LoadingError]] = []
+        errors: list[tuple[SourceRow, ProcessingError]] = []
         documents: list[str] = []
-        for item in items:
-            pk_values = self._get_item_pk_values(item)
-            try:
-                payload = self.vectorizer.config.loading.load(item)
-            except Exception as e:
-                if self.features.loading_retries:
-                    loading_errors.append((item, (LoadingError(e=e))))
-                continue
 
-            payload = self.vectorizer.config.parsing.parse(item, payload)
-            chunks = self.vectorizer.config.chunking.into_chunks(item, payload)
-            for chunk_id, chunk in enumerate(chunks, 0):
-                formatted = self.vectorizer.config.formatting.format(chunk, item)
-                records_without_embeddings.append(pk_values + [chunk_id, formatted])
-                documents.append(formatted)
+        async with timed_debug_log(f"Pre-processed {len(items)} items"):
+            for item in items:
+                pk_values = self._get_item_pk_values(item)
+                try:
+                    payload = self.vectorizer.config.loading.load(item)
+                except Exception as e:
+                    if self.features.loading_retries:
+                        errors.append((item, LoadingError(e=e)))
+                    continue
 
-        if loading_errors:
-            yield [], loading_errors
+                try:
+                    payload = self.vectorizer.config.parsing.parse(item, payload)
+                except Exception as e:
+                    if self.features.loading_retries:
+                        errors.append((item, ParsingError(e=e)))
+                        continue
+                    else:
+                        raise e
+                chunks = self.vectorizer.config.chunking.into_chunks(item, payload)
+                try:
+                    for chunk_id, chunk in enumerate(chunks, 0):
+                        formatted = self.vectorizer.config.formatting.format(
+                            chunk, item
+                        )
+                        records_without_embeddings.append(
+                            pk_values + [chunk_id, formatted]
+                        )
+                        documents.append(formatted)
+                except Exception as e:
+                    if self.features.loading_retries:
+                        errors.append((item, FormattingError(e=e)))
+                        continue
+                    else:
+                        raise e
+
+        if errors:
+            yield [], errors
 
         try:
             rwe_take = flexible_take(records_without_embeddings)
+            start = time.perf_counter()
             async for embeddings in self.vectorizer.config.embedding.embed(documents):
                 records: list[EmbeddingRecord] = []
                 for record, embedding in zip(
                     rwe_take(len(embeddings)), embeddings, strict=True
                 ):
                     records.append(record + [np.array(embedding)])
+                now = time.perf_counter()
+                duration = now - start
+                start = now
+                await logger.adebug(
+                    f"obtained {len(records)} embeddings in {duration:.2}s"
+                )
                 yield records, []
         except Exception as e:
-            raise EmbeddingProviderError() from e
+            raise EmbeddingError(e=e) from e
 
-    async def handle_loading_retries(
+    def _format_error(self, error: ProcessingError) -> tuple[int, str, Jsonb]:
+        return (
+            self.vectorizer.id,
+            error.msg,
+            Jsonb(
+                {
+                    "step": error.step.value,
+                    "error_reason": str(error.__cause__),
+                }
+            ),
+        )
+
+    async def _handle_error(
+        self, conn: AsyncConnection, items: Sequence[SourceRow], error: ProcessingError
+    ):
+        await self._set_retry_after_and_move_to_dlq(
+            conn, [(item, error) for item in items]
+        )
+        await self._insert_vectorizer_error(conn, self._format_error(error))
+
+    async def _handle_errors(
         self,
         conn: AsyncConnection,
-        loading_errors: list[tuple[SourceRow, LoadingError]],
+        errors: Sequence[tuple[SourceRow, ProcessingError]],
     ):
-        for item, e in loading_errors:
-            is_retryable = await self._reinsert_loading_work_to_retry(
-                conn, self.vectorizer.config.loading.retries, item
+        if self.features.split_processing:
+            await self._set_retry_after_and_move_to_dlq(conn, errors)
+            for _, error in errors:
+                await self._insert_vectorizer_error(conn, self._format_error(error))
+        else:
+            for item, error in errors:
+                await self._reinsert_loading_work_to_retry(
+                    conn, self.vectorizer.config.loading.retries, item
+                )
+                await self._insert_vectorizer_error(conn, self._format_error(error))
+
+    async def _set_retry_after_and_move_to_dlq(
+        self, conn: AsyncConnection, errors: Sequence[tuple[SourceRow, ProcessingError]]
+    ):
+        query, params = (
+            self.queries.update_retry_after_and_move_permanent_failures_to_dlq_query(
+                6, errors
             )
-            await self._insert_vectorizer_error(
-                conn,
-                (
-                    self.vectorizer.id,
-                    e.msg,
-                    Jsonb(
-                        {
-                            "loader": self.vectorizer.config.loading.implementation,  # noqa
-                            "error_reason": str(e.__cause__),
-                            "is_retryable": is_retryable,
-                        }
-                    ),
-                ),
-            )
+        )
+
+        async with (
+            conn.cursor() as cursor,
+            timed_debug_log(f"set retry_after and moved to dlq on {len(errors)} items"),
+        ):
+            await cursor.execute(query, params)
 
     async def _reinsert_loading_work_to_retry(
         self, conn: AsyncConnection, max_loading_retries: int, item: SourceRow

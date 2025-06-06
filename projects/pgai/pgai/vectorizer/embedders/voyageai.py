@@ -38,8 +38,8 @@ def voyage_token_counter(model: str) -> Callable[[str], int] | None:
     try:
         tokenizer: Tokenizer = client.tokenizer(model)
         return lambda text: len(tokenizer.encode(text).tokens)
-    except BaseException:
-        logger.warn(f"Tokenizer for model '{model}' not found")
+    except Exception as e:
+        logger.warn(f"Tokenizer for model '{model}' not found: {e}")
         return None
 
 

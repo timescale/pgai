@@ -30,7 +30,7 @@ class PostgresParameter:
             "regclass": "str",
         }
         base_type = type_mapping.get(self.type_name, "Any")
-        if self.is_array and not base_type.startswith("list"):
+        if self.is_array and not base_type.startswith("list"):  # noqa: SIM108
             type_str = f"list[{base_type}]"
         else:
             type_str = base_type
