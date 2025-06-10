@@ -92,7 +92,7 @@ Once the semantic catalog is loaded with embedded descriptions, you start genera
    ```bash
    git clone https://github.com/timescale/pgai.git -b jgpruitt/semantic-catalog
    cd pgai/projects/pgai
-   uv sync
+   uv sync --extra semantic-catalog
    source .venv/bin/activate
    pgai --version
    ```
