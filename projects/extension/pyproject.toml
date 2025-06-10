@@ -33,7 +33,7 @@ dev = [
     "psycopg[binary]==3.2.1",
     "uv==0.7.10",
     "pgspot>=0.9.0",
-    "requests==2.32.3",
+    "requests>=2.32.3",
     "semver>=3.0.4",
 ]
 
