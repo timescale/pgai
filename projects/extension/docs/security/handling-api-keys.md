@@ -111,7 +111,7 @@ to run your AI queries:
 1. Run your AI query:
 
     ```sql
-    SELECT * FROM ai.voyageai_embed('voyage-3-lite', 'sample text to embed', api_key_name => 'my_api_key');
+    SELECT * FROM ai.voyageai_embed('voyage-3.5-lite', 'sample text to embed', api_key_name => 'my_api_key');
     ```
 
 

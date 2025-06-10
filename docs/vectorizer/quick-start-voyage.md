@@ -94,7 +94,7 @@ Now you can create and run a vectorizer. A vectorizer is a pgai concept, it proc
       'blog'::regclass,
       loading => ai.loading_column('contents'),
       embedding => ai.embedding_voyageai(
-        'voyage-3-lite',
+        'voyage-3.5-lite',
         512
       ),
       destination => ai.destination_table('blog_contents_embeddings')
@@ -118,7 +118,7 @@ Now you can create and run a vectorizer. A vectorizer is a pgai concept, it proc
    ```sql
    SELECT
        chunk,
-       embedding <=>  ai.voyageai_embed('voyage-3-lite', 'good food') as distance
+       embedding <=>  ai.voyageai_embed('voyage-3.5-lite', 'good food') as distance
    FROM blog_contents_embeddings
    ORDER BY distance;
    ```

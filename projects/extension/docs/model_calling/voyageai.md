@@ -31,7 +31,7 @@ as a [session level parameter]. For more options and details, consult the
    `ai.voyage_api_key` is set for the duration of your psql session, you do not need to specify it for pgai functions.
 
     ```sql
-    SELECT * FROM ai.voyageai_embed('voyage-3-lite', 'sample text to embed');
+    SELECT * FROM ai.voyageai_embed('voyage-3.5-lite', 'sample text to embed');
     ```
 
 ## Usage
@@ -49,7 +49,7 @@ Generate [embeddings](https://docs.voyageai.com/docs/embeddings) using a specifi
 
     ```sql
     SELECT ai.voyageai_embed
-    ( 'voyage-3-lite'
+    ( 'voyage-3.5-lite'
     , 'the purple elephant sits on a red mushroom'
     );
     ```
@@ -67,7 +67,7 @@ Generate [embeddings](https://docs.voyageai.com/docs/embeddings) using a specifi
 
     ```sql
     SELECT ai.voyageai_embed
-    ( 'voyage-3-lite'
+    ( 'voyage-3.5-lite'
     , array['Timescale is Postgres made Powerful', 'the purple elephant sits on a red mushroom']
     );
     ```
@@ -80,7 +80,7 @@ Generate [embeddings](https://docs.voyageai.com/docs/embeddings) using a specifi
 
     ```sql
     SELECT ai.voyageai_embed
-    ( 'voyage-3-lite'
+    ( 'voyage-3.5-lite'
     , 'A query'
     , input_type => 'query'
     );
