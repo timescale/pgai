@@ -7,7 +7,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.5.20 /uv /uvx /bin/
 
 COPY pyproject.toml uv.lock ./
 
-RUN uv sync --frozen --no-install-project --no-dev
+RUN uv sync --frozen --no-install-project --no-dev --all-extras
 
 FROM python:3.13-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \

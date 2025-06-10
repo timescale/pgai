@@ -43,7 +43,7 @@ The key strength of this architecture lies in its resilience: data modifications
 
 First, install the pgai package.
 
-```
+```bash
 pip install pgai
 ```              
 
@@ -55,6 +55,11 @@ pgai install -d <database-url>
 # or from the python package, often done as part of your application setup
 import pgai
 pgai.install(DB_URL)
+```
+
+If you are not on Timescale Cloud you will also need to run the pgai vectorizer worker. Install the dependencies for it via:
+```bash
+pip install pgai[vectorizer-worker]
 ```
 
 

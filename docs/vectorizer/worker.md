@@ -36,7 +36,7 @@ When you use pgai vectorizers on a self-hosted Postgres installation or another 
 1. **Install [pgai](https://pypi.org/project/pgai/) from PyPI**
 
    ```shell
-   pip install pgai
+   pip install pgai[vectorizer-worker]
    ```
 
    The `pgai` command line tool should now be in your `$PATH`.
@@ -69,7 +69,7 @@ For more configuration options, see [Advanced configuration options](#advanced-c
 1. Add the pgai package dependency to your project
 
    ```shell
-   pip install pgai
+   pip install pgai[vectorizer-worker]
    ```
    or add `pgai` to the dependencies in your `requirements.txt` file, `pyproject.toml`, or similar configuration file.
 

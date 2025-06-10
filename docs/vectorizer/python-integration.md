@@ -61,7 +61,12 @@ with psycopg.connect(conn_string) as conn:
 
 # Running the vectorizer worker
 
-You can then run the vectorizer worker using the the CLI tool or the `Worker` class discussed in the [vectorizer worker documentation](/docs/vectorizer/worker.md).
+You can then run the vectorizer worker using the the CLI tool or the `Worker` class discussed in the [vectorizer worker documentation](/docs/vectorizer/worker.md).  
+Note that you will need to install pgai with the `vectorizer-worker` extra to run the worker yourself:
+
+```bash
+pip install pgai[vectorizer-worker]
+```
 
 # Related integrations
 

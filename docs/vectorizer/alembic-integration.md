@@ -4,6 +4,13 @@ Alembic is a database migration tool that allows you to manage your database sch
 
 We first cover how to create vectorizers using the Alembic operations. Then, we cover how to exclude the tables created and managed by pgai Vectorizer from the autogenerate process.
 
+## Installation
+To make use of the alembic operations you need to install pgai with the sqlalchemy extras:
+
+```bash
+pip install pgai[sqlalchemy]
+```
+
 ## Creating vectorizers
 pgai provides native Alembic operations for managing vectorizers. For them to work you need to run `register_operations` in your env.py file. Which registers the pgai operations under the global op context:
 
