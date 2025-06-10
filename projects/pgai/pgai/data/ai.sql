@@ -1136,13 +1136,21 @@ declare
     priv_type text;
     with_grant text;
     rec record;
+    has_protected_roles BOOLEAN;
 begin
+     -- check if tsdb_admin.protected_roles exists. TimescaleDB protects certain roles from being granted permissions.
+    select to_regclass('tsdb_admin.protected_roles') is not null into has_protected_roles;
+
     -- find all users that have permissions on old ai.vectorizer_errors table and grant them to the view
     for rec in
         select distinct grantee as username, privilege_type, is_grantable
         from information_schema.role_table_grants
         where table_schema = 'ai'
-        and table_name = '_vectorizer_errors'
+            and table_name = '_vectorizer_errors'
+            and (
+                not has_protected_roles or
+                grantee not in (select role_name from tsdb_admin.protected_roles)
+            )
     loop
         to_user := rec.username;
         priv_type := rec.privilege_type;
