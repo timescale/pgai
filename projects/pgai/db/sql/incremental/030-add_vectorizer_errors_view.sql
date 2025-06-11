@@ -18,25 +18,35 @@ from
 -- grant privileges on new ai.vectorizer_errors view
 do language plpgsql $block$
 declare
-    to_user text;
-    priv_type text;
-    with_grant text;
-    rec record;
+    _sql text;
 begin
-    -- find all users that have permissions on old ai.vectorizer_errors table and grant them to the view
-    for rec in
-        select distinct grantee as username, privilege_type, is_grantable
-        from information_schema.role_table_grants
-        where table_schema = 'ai'
-        and table_name = '_vectorizer_errors'
+    for _sql in
+    (
+        -- generate grant commands with SELECT privilege
+        select format
+        ( $$GRANT SELECT ON ai.vectorizer_errors TO %I%s$$
+        , grantee.rolname
+        , case when x.is_grantable then ' WITH GRANT OPTION'
+          else ''
+          end
+        )
+        from pg_class k
+        inner join pg_namespace n on (k.relnamespace = n.oid)
+        cross join lateral aclexplode(k.relacl) x
+        inner join pg_roles grantee on (grantee.oid = x.grantee)
+        where n.nspname = 'ai'
+        and k.relname = '_vectorizer_errors' -- copy grants from the old table
+        and x.privilege_type = 'SELECT' -- only SELECT privileges, no need others
+        and not has_table_privilege -- only grant users with no privileges by default
+          ( grantee.oid
+          , 'ai.vectorizer_errors'::regclass::oid -- the view
+          , case when x.is_grantable then 'SELECT WITH GRANT OPTION'
+          else 'SELECT'
+          end
+          )
+    )
     loop
-        to_user := rec.username;
-        priv_type := rec.privilege_type;
-        with_grant := '';
-        if rec.is_grantable then
-           with_grant := ' WITH GRANT OPTION';
-        end if;
-        execute format('GRANT %s ON ai.vectorizer_errors TO %I %s', priv_type, to_user, with_grant);
+        execute _sql;
     end loop;
 end
 $block$;
