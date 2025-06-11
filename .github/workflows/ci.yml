@@ -156,11 +156,13 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Ensure we can build the Docker image
         uses: docker/build-push-action@v6
         with:
           context: "{{defaultContext}}:projects/pgai"
-          load: true
           push: false # we don't push the image, we just build it to validate it
           platforms: linux/amd64,linux/arm64
 
