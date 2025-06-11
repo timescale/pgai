@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.11.0](https://github.com/timescale/pgai/compare/pgai-v0.10.5...pgai-v0.11.0) (2025-06-11)
+
+
+### Features
+
+* support named vectorizers in ai.execute_vectorizer ([#776](https://github.com/timescale/pgai/issues/776)) ([5f4e3e1](https://github.com/timescale/pgai/commit/5f4e3e1f9c270a55b9d55975cfd6ef8f72138887))
+
+
+### Bug Fixes
+
+* incorrect error of column does not exist ([b8019a4](https://github.com/timescale/pgai/commit/b8019a4acce5a7bd2c1600d5e3a6dc0071b3e028))
+* skip granting already granted roles when granting permissions to ai.vectorizer_errors view ([#804](https://github.com/timescale/pgai/issues/804)) ([15a06e6](https://github.com/timescale/pgai/commit/15a06e6b99583fd7d9002599920a946e8bd3441d))
+* use cwd for dotenv ([b95efcb](https://github.com/timescale/pgai/commit/b95efcb8c636a1ccb41045c1a8955697740ad2a9))
+
+
+### Miscellaneous
+
+* **deps:** bump python ([#787](https://github.com/timescale/pgai/issues/787)) ([8f5dfa2](https://github.com/timescale/pgai/commit/8f5dfa22a0f85ab5ecd19ca36353824598f35850))
+* **deps:** bump the dependencies group across 1 directory with 6 updates ([#775](https://github.com/timescale/pgai/issues/775)) ([21c947e](https://github.com/timescale/pgai/commit/21c947eb89dcee4d7a2f05aa5647cae0990190a4))
+* ignore dist directory from pyright ([404eeb3](https://github.com/timescale/pgai/commit/404eeb3040324409ab4c0e985ec39e7bc3072fcf))
+
 ## [0.10.5](https://github.com/timescale/pgai/compare/pgai-v0.10.4...pgai-v0.10.5) (2025-05-19)
 
 
