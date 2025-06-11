@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/timescale/pgai/compare/pgai-v0.11.0...pgai-v0.11.1) (2025-06-11)
+
+
+### Miscellaneous
+
+* switch back to python 3.12 in docker image ([#806](https://github.com/timescale/pgai/issues/806)) ([c8a8847](https://github.com/timescale/pgai/commit/c8a8847a697b49e1fdb769982803c2e8e86cae24))
+
 ## [0.11.0](https://github.com/timescale/pgai/compare/pgai-v0.10.5...pgai-v0.11.0) (2025-06-11)
 
 
