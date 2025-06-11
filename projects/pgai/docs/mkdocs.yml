@@ -1,0 +1,5 @@
+docs_dir: api
+nav:
+- Semantic Catalog: semantic-catalog.md
+site_name: PGAI
+theme: readthedocs

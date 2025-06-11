@@ -19,6 +19,5 @@ ci:
 
 # Install semantic commit message hook
 @install-commit-hook:
-  curl --fail -s -o .git/hooks/commit-msg https://raw.githubusercontent.com/hazcod/semantic-commit-hook/master/commit-msg
-  chmod u+x .git/hooks/commit-msg
-  echo "commit-msg hook installed"
+  uv tool install pre-commit
+  uv tool run pre-commit install
