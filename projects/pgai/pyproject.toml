@@ -10,40 +10,16 @@ readme = "README.md"
 keywords = ["ai", "postgres"]
 dynamic = ["version"]
 dependencies = [
+    # CLI and database installation core dependencies
     "click>=8.0,<9.0",
     "psycopg[binary]>=3.2,<4.0",
-    "langchain-openai>=0.1,<1.0",
-    "langchain-text-splitters>=0.2,<1.0",
-    "exceptiongroup>=1.0, <2.0",
     "pydantic>=2.0,<3.0",
-    "mistral-common>=1.0,<2.0",
-    "ollama>=0.4.5,<0.6.0",
-    "openai>=1.44,<2.0",
-    "python-dotenv>=1.0,<2.0",
-    "structlog>=24.0,<26.0",
-    "pgvector>=0.3,<1.0",
-    "tiktoken>=0.7,<1.0",
     "typing_extensions>=4.0,<5.0",
+    "python-dotenv>=1.0,<2.0",
+    "semver>=3.0.4",
+    "structlog>=24.0,<26.0",
     "datadog_lambda>=6.9,<7.0",
     "pytimeparse>=1.1,<2.0",
-    "voyageai>=0.3.1,<0.3.2; python_version < '3.13'", # 0.3.2 fails the tests somehow
-    "litellm>=1.65.0,<1.73.0",
-    "google-cloud-aiplatform[tokenization]>=1.78.0,<2.0",
-    "boto3>=1.35.0,<2.0",
-    "smart-open==7.1.0",
-    "pymupdf4llm==0.0.24",
-    "filetype==1.2.0",
-    "docling==2.34.0",
-    "semver>=3.0.4",
-    "ijson>=3.3.0",
-    "boto3-stubs[s3,sts]>=1.37.30",
-    "jinja2>=3.1.5",
-    "sentence-transformers>=4.0.2",
-    "einops>=0.8.1",
-    "pydantic-ai>=0.2.12",
-    "torch>=2.6.0",
-    "rich>=13.9.4",
-    "pyyaml>=6.0.2",
 ]
 classifiers = [
     "License :: OSI Approved :: PostgreSQL License",
@@ -66,6 +42,47 @@ classifiers = [
 sqlalchemy=[
     "sqlalchemy>=2.0.36",
     "alembic>=1.14.0",
+]
+
+vectorizer-worker = [
+    # Core worker system dependencies
+    "exceptiongroup>=1.0, <2.0",
+    "pgvector>=0.3,<1.0",
+    
+    # Document processing
+    "boto3>=1.35.0,<2.0",
+    "boto3-stubs[s3,sts]>=1.37.30",
+    "smart-open==7.1.0",
+    "filetype==1.2.0",
+    "pymupdf4llm==0.0.24",
+    "docling==2.34.0",
+    "ijson>=3.3.0",
+    
+    # Embedding providers
+    "langchain-text-splitters>=0.2,<1.0",
+    "openai>=1.44,<2.0",
+    "tiktoken>=0.7,<1.0",
+    "ollama>=0.4.5,<0.6.0",
+    "voyageai>=0.3.1,<0.3.2; python_version < '3.13'", # 0.3.2 fails the tests somehow
+    "litellm>=1.65.0,<1.73.0",
+    "mistral-common>=1.0,<2.0",
+    "google-cloud-aiplatform[tokenization]>=1.78.0,<2.0",
+]
+
+semantic-catalog = [
+    # Core semantic catalog dependencies
+    "pgvector>=0.3,<1.0",
+    "pydantic-ai>=0.2.12",
+    "rich>=13.9.4",
+    "jinja2>=3.1.5",
+    "pyyaml>=6.0.2",
+    
+    # AI/ML for embeddings
+    "openai>=1.44,<2.0",
+    "ollama>=0.4.5,<0.6.0",
+    "sentence-transformers>=4.0.2",
+    "torch>=2.6.0",
+    "einops>=0.8.1",
 ]
 
 [project.urls]

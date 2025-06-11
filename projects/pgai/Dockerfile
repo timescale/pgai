@@ -8,7 +8,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.5.20 /uv /uvx /bin/
 
 COPY pyproject.toml uv.lock ./
 
-RUN uv sync --frozen --no-install-project --no-dev
+RUN uv sync --frozen --no-install-project --no-dev --all-extras
 
 # Note: some dependencies are not supported on 3.13, do not bump until that is sorted out
 FROM python:3.12-slim
