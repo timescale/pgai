@@ -617,6 +617,15 @@ You use it to recursively split text into chunks using multiple separators.
 
 A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
 
+### Understanding Overlap
+The recursive character text splitter creates overlaps only when splitting within words (using the empty string separator "").
+When splitting at explicit separators like periods or spaces, chunks connect with no overlap.
+Always include "" as the final separator or chunks may exceed the specified size.
+The chunk_overlap parameter is a target, not a guarantee, and actual overlap sizes will vary based on where splits occur.
+
+Both chunking implementations use langchain's Text splitters under the hood: [[1]](https://python.langchain.com/docs/how_to/character_text_splitter/), [[2]](https://python.langchain.com/docs/how_to/recursive_text_splitter/).
+
+
 ## Embedding configuration
 
 You use the embedding configuration functions to specify how embeddings are
