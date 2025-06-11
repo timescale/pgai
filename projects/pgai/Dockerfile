@@ -1,4 +1,5 @@
-FROM python:3.13-slim AS build
+# Note: some dependencies are not supported on 3.13, do not bump until that is sorted out
+FROM python:3.12-slim AS build
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_PROJECT_ENVIRONMENT=/usr/local/
@@ -9,7 +10,8 @@ COPY pyproject.toml uv.lock ./
 
 RUN uv sync --frozen --no-install-project --no-dev
 
-FROM python:3.13-slim
+# Note: some dependencies are not supported on 3.13, do not bump until that is sorted out
+FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 WORKDIR /app
