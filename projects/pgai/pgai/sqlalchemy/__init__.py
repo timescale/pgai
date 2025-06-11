@@ -1,4 +1,4 @@
-from typing import Any, Generic, TypeVar, overload
+from typing import Any, Generic, TypeVar, cast, overload
 
 from pgvector.sqlalchemy import Vector  # type: ignore
 from sqlalchemy import ForeignKeyConstraint, Integer, Text, event, inspect
@@ -75,7 +75,18 @@ class _Vectorizer:
             self.__get__(None, self.owner)
 
     def set_schemas_correctly(self, owner: type[DeclarativeBase]) -> None:
-        table_args_schema_name = getattr(owner, "__table_args__", {}).get("schema")
+        table_args = getattr(owner, "__table_args__", {})
+        table_args_schema_name: str | None = None
+
+        if isinstance(table_args, dict):
+            table_args_schema_name = cast(str | None, table_args.get("schema"))  # type: ignore
+        elif (
+            isinstance(table_args, tuple)
+            and len(table_args) > 0  # type: ignore
+            and isinstance(table_args[-1], dict)
+        ):
+            table_args_schema_name = cast(str | None, table_args[-1].get("schema"))  # type: ignore
+
         self.target_schema = (
             self.target_schema
             or table_args_schema_name
