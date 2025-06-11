@@ -156,6 +156,16 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
+      - name: Ensure we can build the Docker image (only on main branch)
+        if: |
+          (github.event_name == 'pull_request_target' && github.event.pull_request.base.ref == 'main') ||
+          (github.event_name == 'workflow_dispatch' && github.ref_name == 'main')
+        uses: docker/build-push-action@v6
+        with:
+          context: "{{defaultContext}}:projects/pgai"
+          push: false # we don't push the image, we just build it to validate it
+          platforms: linux/amd64,linux/arm64
+
   build-and-test-pgai-db-module:
     needs: authorize
     runs-on: ubuntu-latest
