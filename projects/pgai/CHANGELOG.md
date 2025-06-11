@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/timescale/pgai/compare/pgai-v0.11.1...pgai-v0.12.0) (2025-06-11)
+
+
+### Features
+
+* release pgai 0.11.2 ([920b92a](https://github.com/timescale/pgai/commit/920b92a85382fc34e82d19bb32683a91f006a9d6))
+
 ## [0.11.1](https://github.com/timescale/pgai/compare/pgai-v0.11.0...pgai-v0.11.1) (2025-06-11)
 
 
