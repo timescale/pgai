@@ -156,6 +156,13 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
+      - name: Ensure we can build the Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: "{{defaultContext}}:projects/pgai"
+          push: false # we don't push the image, we just build it to validate it
+          platforms: linux/amd64,linux/arm64
+
   build-and-test-pgai-db-module:
     needs: authorize
     runs-on: ubuntu-latest
