@@ -11,7 +11,7 @@
 ### Bug Fixes
 
 * incorrect error of column does not exist ([b8019a4](https://github.com/timescale/pgai/commit/b8019a4acce5a7bd2c1600d5e3a6dc0071b3e028))
-* skip grating already granted roles when granting permissions to ai.vectorizer_errors view ([#804](https://github.com/timescale/pgai/issues/804)) ([15a06e6](https://github.com/timescale/pgai/commit/15a06e6b99583fd7d9002599920a946e8bd3441d))
+* skip granting already granted roles when granting permissions to ai.vectorizer_errors view ([#804](https://github.com/timescale/pgai/issues/804)) ([15a06e6](https://github.com/timescale/pgai/commit/15a06e6b99583fd7d9002599920a946e8bd3441d))
 * use cwd for dotenv ([b95efcb](https://github.com/timescale/pgai/commit/b95efcb8c636a1ccb41045c1a8955697740ad2a9))
 
 
