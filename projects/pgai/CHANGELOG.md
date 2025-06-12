@@ -3,11 +3,6 @@
 ## [0.11.2](https://github.com/timescale/pgai/compare/pgai-v0.11.1...pgai-v0.11.2) (2025-06-12)
 
 
-### Bug Fixes
-
-* add compilers for arm64 docker images required for pandas package ([#811](https://github.com/timescale/pgai/issues/811)) ([1476d40](https://github.com/timescale/pgai/commit/1476d40d5fe3b4883918104cde292c385172341b))
-
-
 ### Miscellaneous
 
 * use arm64 wheels for pandas ([#816](https://github.com/timescale/pgai/issues/816)) ([99f7c7c](https://github.com/timescale/pgai/commit/99f7c7c66f9f63a17d779bba54eb53998d59a294))
