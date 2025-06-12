@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.11.2](https://github.com/timescale/pgai/compare/pgai-v0.11.1...pgai-v0.11.2) (2025-06-12)
+
+
+### Bug Fixes
+
+* add compilers for arm64 docker images required for pandas package ([#811](https://github.com/timescale/pgai/issues/811)) ([1476d40](https://github.com/timescale/pgai/commit/1476d40d5fe3b4883918104cde292c385172341b))
+
+
+### Miscellaneous
+
+* use arm64 wheels for pandas ([#816](https://github.com/timescale/pgai/issues/816)) ([99f7c7c](https://github.com/timescale/pgai/commit/99f7c7c66f9f63a17d779bba54eb53998d59a294))
+* use cpu-only torch in pgai docker image ([#818](https://github.com/timescale/pgai/issues/818)) ([a5e0bd5](https://github.com/timescale/pgai/commit/a5e0bd52b2b0e7e6cbe0e79ef5988a78aa40cefa))
+
 ## [0.11.1](https://github.com/timescale/pgai/compare/pgai-v0.11.0...pgai-v0.11.1) (2025-06-11)
 
 
