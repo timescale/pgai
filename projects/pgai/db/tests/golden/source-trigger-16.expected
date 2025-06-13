@@ -1,0 +1,5 @@
+List of functions
+ Schema |         Name          | Result data type | Argument data types | Type | Volatility | Parallel | Owner | Security | Access privileges | Language | Internal name | Description 
+--------+-----------------------+------------------+---------------------+------+------------+----------+-------+----------+-------------------+----------+---------------+-------------
+ ai     | _vectorizer_src_trg_1 | trigger          |                     | func | volatile   | safe     | test  | definer  | test=X/test       | plpgsql  |               | 
+(1 row)
