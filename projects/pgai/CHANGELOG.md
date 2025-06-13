@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.3](https://github.com/timescale/pgai/compare/pgai-v0.11.2...pgai-v0.11.3) (2025-06-13)
+
+
+### Miscellaneous
+
+* ignore line-too-long (E501) lint ([#821](https://github.com/timescale/pgai/issues/821)) ([f3989d7](https://github.com/timescale/pgai/commit/f3989d7306552f5d2604aa25a266ec20f9f69c74))
+* store golden query results in files ([#819](https://github.com/timescale/pgai/issues/819)) ([fc9e23f](https://github.com/timescale/pgai/commit/fc9e23fc8580665e444cd51647304dd1d081f36e))
+
 ## [0.11.2](https://github.com/timescale/pgai/compare/pgai-v0.11.1...pgai-v0.11.2) (2025-06-12)
 
 
