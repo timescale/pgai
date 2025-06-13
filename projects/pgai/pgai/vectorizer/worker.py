@@ -231,6 +231,9 @@ class Worker:
                         else:
                             warn_on_old_version(pgai_version)
                             features = Features.from_db(cur)
+                            await logger.adebug(
+                                "vectorizer worker features", **vars(features)
+                            )
                             worker_tracking = WorkerTracking(
                                 self.db_url, self.poll_interval, features, __version__
                             )

@@ -103,6 +103,7 @@ vectorizer_fields = {
             "attname": "id",
             "pknum": 1,
             "attnum": 1,
+            "typname": "integer",
         }
     ],
 }

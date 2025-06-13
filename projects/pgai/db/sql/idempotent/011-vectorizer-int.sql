@@ -424,8 +424,8 @@ begin
       create table %I.%I
       ( %s
       , queued_at pg_catalog.timestamptz not null default now()
-      , loading_retries pg_catalog.int4 not null default 0
-      , loading_retry_after pg_catalog.timestamptz
+      , attempts pg_catalog.int4 not null default 0
+      , retry_after pg_catalog.timestamptz
       )
       $sql$
     , queue_schema, queue_table
@@ -1265,5 +1265,83 @@ begin
 end
 $func$
 language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+create or replace function ai._get_next_queue_batch(
+    queue_table pg_catalog.regclass,
+    batch_size pg_catalog.int4
+) returns setof record AS $$
+declare
+    source_pk pg_catalog.jsonb;
+    lock_id_string pg_catalog.text;
+    query pg_catalog.text;
+    lock_count pg_catalog.int4 := 0;
+    row record;
+begin
+    -- get the source_pk for this queue table
+    select v.source_pk
+    into source_pk
+    from ai.vectorizer v
+    where pg_catalog.to_regclass(pg_catalog.format('%I.%I', v.queue_schema, v.queue_table)) operator(pg_catalog.=) _get_next_queue_batch.queue_table;
+
+    -- construct the "lock id string"
+    -- this is a string of all pk column names and their values, e.g. for a
+    -- two-column pk consisting of 'time' and 'url' this will generate:
+    -- hashtext(format('time|%s|url|%s', time, url))
+    select pg_catalog.format($fmt$pg_catalog.hashtext(pg_catalog.format('%s', %s))$fmt$, format_string, format_args)
+    into lock_id_string
+    from (
+      select
+        pg_catalog.string_agg(pg_catalog.format('%s|%%s', attname), '|' order by attnum) as format_string
+      , pg_catalog.string_agg(attname, ', ' order by attnum) as format_args
+      from pg_catalog.jsonb_to_recordset(source_pk) as (attnum int, attname text)
+    ) as _;
+
+    -- TODO: for very small batch sizes (<10), an array _may_ be faster
+    create temporary table seen_lock_ids (lock_id bigint);
+    create index on seen_lock_ids (lock_id);
+
+    -- construct query to get all
+    query := pg_catalog.format($sql$
+      select
+        q.ctid as _ctid
+      , %s as _lock_id
+      , q.*
+      from %s as q
+      where (retry_after is null or retry_after <= now())
+        and %s not in (
+            -- exclude all locks that we already hold
+            select objid::int
+            from pg_locks
+            where locktype = 'advisory'
+              and pid = pg_catalog.pg_backend_pid()
+              and classid = %s
+          )
+    $sql$, lock_id_string, _get_next_queue_batch.queue_table, lock_id_string, _get_next_queue_batch.queue_table::pg_catalog.oid);
+
+    for row in execute query
+    loop
+        if lock_count operator(pg_catalog.>=) batch_size then
+            exit;
+        end if;
+
+        if exists(select 1 from pg_temp.seen_lock_ids WHERE lock_id operator(pg_catalog.=) row._lock_id) then
+            continue;
+        end if;
+
+        insert into pg_temp.seen_lock_ids (lock_id) values (row._lock_id);
+
+        if pg_catalog.pg_try_advisory_lock(queue_table::pg_catalog.oid::int, row._lock_id) then
+            lock_count := lock_count operator(pg_catalog.+) 1;
+            return next row;
+        end if;
+    end loop;
+
+    drop table seen_lock_ids;
+
+    return;
+end;
+$$ language plpgsql
 set search_path to pg_catalog, pg_temp
 ;
