@@ -128,6 +128,7 @@ select = [
     "PIE",  # print statements
     "Q"     # flakes8-quote
 ]
+ignore = ["E501"] # we use `ruff format` on everything, so this is just annoying
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.ruff.lint.per-file-ignores]

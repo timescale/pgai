@@ -55,7 +55,7 @@ def warn_on_old_version(version: Version):
             version.pgai_lib_version
         ):
             logger.warning(
-                f"The pgai installation in your database is outdated and can be upgraded. Installed version: {version.pgai_lib_version}, latest version: {__version__}."  # noqa
+                f"The pgai installation in your database is outdated and can be upgraded. Installed version: {version.pgai_lib_version}, latest version: {__version__}."
             )
 
 
@@ -115,7 +115,7 @@ class Worker:
             con.cursor(row_factory=dict_row) as cur,
         ):
             cur.execute(
-                "select pg_catalog.to_jsonb(v) as vectorizer from ai.vectorizer v where v.id = %s",  # noqa
+                "select pg_catalog.to_jsonb(v) as vectorizer from ai.vectorizer v where v.id = %s",
                 (vectorizer_id,),
             )
             row = cur.fetchone()
@@ -150,7 +150,7 @@ class Worker:
                     vectorizer.config.embedding.set_api_key(secrets)
                 else:
                     logger.error(
-                        f"cannot set secret value '{api_key_name}' for vectorizer with id: '{vectorizer.id}'"  # noqa
+                        f"cannot set secret value '{api_key_name}' for vectorizer with id: '{vectorizer.id}'"
                     )
             return vectorizer
 
@@ -245,7 +245,7 @@ class Worker:
                             self.vectorizer_ids,
                         )
                         if len(valid_vectorizer_ids) != len(self.vectorizer_ids):
-                            err_msg = f"invalid vectorizers, wanted: {list(self.vectorizer_ids)}, got: {valid_vectorizer_ids}"  # noqa: E501
+                            err_msg = f"invalid vectorizers, wanted: {list(self.vectorizer_ids)}, got: {valid_vectorizer_ids}"
                             exception = await self._handle_error(
                                 err_msg,
                                 None,
@@ -264,7 +264,7 @@ class Worker:
                         try:
                             vectorizer = self._get_vectorizer(vectorizer_id, features)
                         except (VectorizerNotFoundError, ApiKeyNotFoundError) as e:
-                            err_msg = f"error getting vectorizer: {type(e).__name__}: {str(e)}"  # noqa: E501
+                            err_msg = f"error getting vectorizer: {type(e).__name__}: {str(e)}"
                             exception = await self._handle_error(
                                 err_msg, vectorizer_id, worker_tracking
                             )

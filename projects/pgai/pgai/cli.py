@@ -112,7 +112,7 @@ def download_models():
     "vectorizer_ids",
     type=click.INT,
     multiple=True,
-    help="Only fetch work from the given vectorizer ids. If not provided, all vectorizers will be fetched.",  # noqa
+    help="Only fetch work from the given vectorizer ids. If not provided, all vectorizers will be fetched.",
     default=[],
 )
 @click.option(
@@ -130,7 +130,6 @@ def download_models():
     help="The interval, in duration string or integer (seconds), "
     "to wait before checking for new work after processing "
     "all available work in the queue.",
-    # noqa
 )
 @click.option(
     "--once",
@@ -239,7 +238,7 @@ cli.add_command(vectorizer)
     is_flag=True,
     default=False,
     show_default=True,
-    help="Raise an error when the extension already exists and is at the latest version.",  # noqa: E501
+    help="Raise an error when the extension already exists and is at the latest version.",
 )
 def install(db_url: str, strict: bool) -> None:
     import pgai
@@ -508,7 +507,7 @@ def describe(
     "--embed-config",
     type=click.STRING,
     default=None,
-    help="Name of the embedding configuration to use. If not specified, uses all available configurations.",  # noqa: E501
+    help="Name of the embedding configuration to use. If not specified, uses all available configurations.",
 )
 @click.option(
     "-b",
@@ -658,7 +657,7 @@ def vectorize(
     "--embed-config",
     type=click.STRING,
     default=None,
-    help="The name of the embedding configuration to generate embeddings for. (If None, do all)",  # noqa: E501
+    help="The name of the embedding configuration to generate embeddings for. (If None, do all)",
 )
 @click.option(
     "--base-url",
@@ -670,7 +669,7 @@ def vectorize(
     "--api-key-name",
     type=click.STRING,
     default=None,
-    help="The name of the environment variable containing the API key for the embedding provider",  # noqa: E501
+    help="The name of the environment variable containing the API key for the embedding provider",
 )
 @click.option(
     "-q",
@@ -737,7 +736,7 @@ def create(
         \b
         # Create a catalog with custom embedding name
         pgai semantic-catalog create --catalog-name my_catalog --embed-config custom_embeddings
-    """  # noqa: E501
+    """
     import logging
 
     log_handlers: list[logging.Handler] = []
@@ -832,7 +831,7 @@ def create(
     "--embed-config",
     type=click.STRING,
     default=None,
-    help="The name of the embedding configuration to generate embeddings for. (If None, do all)",  # noqa: E501
+    help="The name of the embedding configuration to generate embeddings for. (If None, do all)",
 )
 @click.option(
     "-b",
@@ -894,7 +893,7 @@ def import_catalog(
         \b
         # Import from stdin
         cat descriptions.yaml | pgai semantic-catalog import
-    """  # noqa: E501
+    """
     import logging
 
     log_handlers: list[logging.Handler] = []
@@ -973,7 +972,7 @@ def import_catalog(
     "--catalog-name",
     type=click.STRING,
     default="default",
-    help="The name of the semantic catalog to generate embeddings for.",  # noqa: E501
+    help="The name of the semantic catalog to generate embeddings for.",
 )
 @click.option(
     "-q",
@@ -1024,7 +1023,7 @@ def export_catalog(
         \b
         # Export to stdout
         pgai semantic-catalog export | tee catalog_backup.yaml
-    """  # noqa: E501
+    """
     import logging
 
     log_handlers: list[logging.Handler] = []
@@ -1113,14 +1112,14 @@ def export_catalog(
     "--embed-config",
     type=click.STRING,
     default=None,
-    help="Name of the embedding configuration to use. If not specified, uses the first available configuration.",  # noqa: E501
+    help="Name of the embedding configuration to use. If not specified, uses the first available configuration.",
 )
 @click.option(
     "-p",
     "--prompt",
     type=click.STRING,
     default=None,
-    help="Natural language description of the SQL query you want to generate (e.g., 'Find all orders placed last month')",  # noqa: E501
+    help="Natural language description of the SQL query you want to generate (e.g., 'Find all orders placed last month')",
     required=True,
 )
 @click.option(
@@ -1239,7 +1238,7 @@ def generate_sql(
         # Save the final prompt for debugging
         pgai semantic-catalog generate-sql --prompt "Find inactive customers" \\
             --save-final-prompt debug_prompt.txt
-    """  # noqa: E501
+    """
     import logging
 
     log_handlers: list[logging.Handler] = []
@@ -1332,15 +1331,15 @@ def generate_sql(
         table.add_row("Requests", str(usage.requests))
         table.add_row(
             "Request Tokens",
-            str(usage.request_tokens) if usage.request_tokens else "?",  # noqa: E501
+            str(usage.request_tokens) if usage.request_tokens else "?",
         )
         table.add_row(
             "Response Tokens",
-            str(usage.response_tokens) if usage.response_tokens else "?",  # noqa
+            str(usage.response_tokens) if usage.response_tokens else "?",
         )
         table.add_row(
             "Total Tokens",
-            str(usage.total_tokens) if usage.total_tokens else "?",  # noqa: E501
+            str(usage.total_tokens) if usage.total_tokens else "?",
         )
         console.print(table)
 
@@ -1385,7 +1384,7 @@ def generate_sql(
     "--prompt",
     type=click.STRING,
     default=None,
-    help="Natural language query to search for related database objects (e.g., 'customer orders')",  # noqa: E501
+    help="Natural language query to search for related database objects (e.g., 'customer orders')",
     required=True,
 )
 @click.option(

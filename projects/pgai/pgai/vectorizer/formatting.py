@@ -32,7 +32,7 @@ class ChunkValue(BaseModel, Formatter):
     implementation: Literal["chunk_value"]
 
     @override
-    def format(self, chunk: str, item: dict[str, Any]) -> str:  # noqa
+    def format(self, chunk: str, item: dict[str, Any]) -> str:
         """
         Returns the chunk of text without any formatting.
 

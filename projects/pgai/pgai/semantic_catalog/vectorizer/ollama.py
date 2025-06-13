@@ -29,7 +29,7 @@ async def embed_batch(config: OllamaConfig, batch: list[EmbedRow]) -> None:
     response = await client.embed(config.model, [x.content for x in batch])
     if len(response.embeddings) != len(batch):
         raise RuntimeError(
-            f"{len(batch)} items sent to ollama but {len(response.embeddings)} embeddings returned"  # noqa
+            f"{len(batch)} items sent to ollama but {len(response.embeddings)} embeddings returned"
         )
     for i, embed in enumerate(response.embeddings):
         batch[i].vector = embed

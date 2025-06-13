@@ -59,7 +59,7 @@ def raise_on_old_extension_version(result: Any | None) -> None:
 
     if semver.VersionInfo.parse(result[0]) < semver.VersionInfo.parse("0.10.0"):
         raise Exception(
-            f"The ai extension is outdated and must be upgraded. Installed version: {result[0]}, required version: 0.10.0"  # noqa: E501
+            f"The ai extension is outdated and must be upgraded. Installed version: {result[0]}, required version: 0.10.0"
         )
 
 
@@ -108,7 +108,7 @@ async def ainstall(
         pg_version = int(result[0]) if result is not None else None
         if pg_version and pg_version < 15:
             raise RuntimeError(
-                f"postgres {pg_version} is unsupported, pgai requires postgres version 15 or greater"  # noqa
+                f"postgres {pg_version} is unsupported, pgai requires postgres version 15 or greater"
             )
 
         if vector_extension_schema is None:
@@ -176,7 +176,7 @@ def install(
         pg_version = int(result[0]) if result is not None else None
         if pg_version and pg_version < 15:
             raise RuntimeError(
-                f"postgres {pg_version} is unsupported, pgai requires postgres version 15 or greater"  # noqa
+                f"postgres {pg_version} is unsupported, pgai requires postgres version 15 or greater"
             )
 
         if vector_extension_schema is None:

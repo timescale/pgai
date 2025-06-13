@@ -211,7 +211,7 @@ def _update_ids_sql(catalog_id: int, obj: _Object, ids: _Ids) -> Composed:
         SQL query to update the object's IDs
     """
     return SQL(
-        "UPDATE ai.{table} SET classid={classid}, objid={objid}, objsubid={objsubid} WHERE id = {id};"  # noqa
+        "UPDATE ai.{table} SET classid={classid}, objid={objid}, objsubid={objsubid} WHERE id = {id};"
     ).format(
         table=Identifier(f"semantic_catalog_obj_{catalog_id}"),
         classid=Literal(ids.classid),
@@ -291,7 +291,7 @@ def _update_names_sql(catalog_id: int, obj: _Object, names: _Names) -> Composed:
         SQL query to update the object's name identifiers
     """
     return SQL(
-        "UPDATE ai.{table} set objtype={objtype}, objnames={objnames}, objargs={objargs} WHERE id = {id};"  # noqa
+        "UPDATE ai.{table} set objtype={objtype}, objnames={objnames}, objargs={objargs} WHERE id = {id};"
     ).format(
         table=Identifier(f"semantic_catalog_obj_{catalog_id}"),
         objtype=Literal(names.objtype),
@@ -390,7 +390,7 @@ async def fix_ids(
         catalog_id: ID of the semantic catalog to fix
         dry_run: If True, only check for issues without making changes
         console: Rich console for output and progress display
-    """  # noqa
+    """
     pbcols = [
         SpinnerColumn(),
         TextColumn("{task.description}"),
@@ -479,7 +479,7 @@ async def fix_names(
         catalog_id: ID of the semantic catalog to fix
         dry_run: If True, only check for issues without making changes
         console: Rich console for output and progress display
-    """  # noqa
+    """
     pbcols = [
         SpinnerColumn(),
         TextColumn("{task.description}"),

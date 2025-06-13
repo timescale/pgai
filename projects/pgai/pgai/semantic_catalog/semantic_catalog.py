@@ -128,7 +128,7 @@ class SemanticCatalog:
 
         Raises:
             RuntimeError: If the embedding could not be added.
-        """  # noqa: E501
+        """
         logger.debug(
             f"adding embedding config {embedding_name} to semantic catalog {self.name}"
         )
@@ -164,7 +164,7 @@ class SemanticCatalog:
             embedding_name: Name of the embedding configuration to drop.
         """
         logger.debug(
-            f"dropping embedding config {embedding_name} from semantic catalog {self.name}"  # noqa
+            f"dropping embedding config {embedding_name} from semantic catalog {self.name}"
         )
         async with con.cursor() as cur:
             await cur.execute(
@@ -256,7 +256,7 @@ class SemanticCatalog:
             batch_size: Number of items to process in each batch.
         """
         logger.debug(
-            f"vectorizing embedding config {embedding_name} in semantic catalog {self.name}"  # noqa
+            f"vectorizing embedding config {embedding_name} in semantic catalog {self.name}"
         )
         await vectorize(con, self.id, embedding_name, config, batch_size)
 
@@ -913,7 +913,7 @@ class SemanticCatalog:
 
         Returns:
             A list of database objects (Tables, Views, Procedures) with metadata and descriptions.
-        """  # noqa: E501
+        """
         return await loader.load_objects(
             catalog_con, target_con, self.id, obj_desc, sample_size
         )
@@ -999,7 +999,7 @@ class SemanticCatalog:
 
         Raises:
             RuntimeError: If no embeddings are configured for the semantic catalog.
-        """  # noqa: E501
+        """
         if embedding_name is None:
             embeddings = await self.list_embeddings(catalog_con)
             if not embeddings:
@@ -1056,7 +1056,7 @@ class SemanticCatalog:
 
         Raises:
             RuntimeError: If the specified embedding configuration is not found.
-        """  # noqa: E501
+        """
         batch_size = batch_size or 32
         console = console or Console(stderr=True, quiet=True)
         console.status("importing yaml file into semantic catalog...")
@@ -1114,7 +1114,7 @@ class SemanticCatalog:
             dry_run: If True, only check for issues without making changes
             console: Rich console for output and progress display. If None, a default
                 console with minimal output is used
-        """  # noqa
+        """
         console = console or Console(stderr=True, quiet=True)
         await fix.fix_ids(catalog_con, target_con, self.id, dry_run, console)
 
@@ -1143,7 +1143,7 @@ class SemanticCatalog:
             dry_run: If True, only check for issues without making changes
             console: Rich console for output and progress display. If None, a default
                 console with minimal output is used
-        """  # noqa
+        """
         console = console or Console(stderr=True, quiet=True)
         await fix.fix_names(catalog_con, target_con, self.id, dry_run, console)
 
@@ -1162,7 +1162,7 @@ async def from_id(con: CatalogConnection, id: int) -> SemanticCatalog:
 
     Raises:
         RuntimeError: If the semantic catalog is not installed or the specified ID is not found.
-    """  # noqa: E501
+    """
     async with con.cursor(row_factory=dict_row) as cur:
         try:
             await cur.execute(
@@ -1198,7 +1198,7 @@ async def from_name(con: CatalogConnection, catalog_name: str) -> SemanticCatalo
 
     Raises:
         RuntimeError: If the semantic catalog is not installed or the specified name is not found.
-    """  # noqa: E501
+    """
     async with con.cursor(row_factory=dict_row) as cur:
         try:
             await cur.execute(
@@ -1276,7 +1276,7 @@ async def create(
 
     Raises:
         RuntimeError: If the semantic catalog could not be created.
-    """  # noqa: E501
+    """
     async with con.cursor(row_factory=dict_row) as cur:
         params: list[Composable] = []
         args: dict[str, Any] = {}

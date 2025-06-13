@@ -6,7 +6,7 @@ content to be vectorized, and functions for processing and saving embeddings.
 
 The vectorizer supports multiple embedding providers (SentenceTransformers, Ollama, OpenAI)
 and can vectorize different types of content (database objects, SQL examples, facts).
-"""  # noqa: E501
+"""
 
 import logging
 from collections.abc import Sequence
@@ -140,7 +140,7 @@ class OpenAIConfig(BaseModel):
 
         Returns:
             A new OpenAIConfig instance.
-        """  # noqa: E501
+        """
         return cls(
             implementation="openai",
             config_type="embedding",
@@ -234,7 +234,7 @@ async def _get_obj_batch(
         )
         batch = [EmbedRow(**row) for row in await cur.fetchall()]
         logger.debug(
-            f"got batch of {len(batch)} objects for {embedding_name} of semantic catalog {catalog_id}"  # noqa
+            f"got batch of {len(batch)} objects for {embedding_name} of semantic catalog {catalog_id}"
         )
         return batch
 
@@ -279,7 +279,7 @@ async def _get_sql_batch(
         )
         batch = [EmbedRow(**row) for row in await cur.fetchall()]
         logger.debug(
-            f"got batch of {len(batch)} sql examples for {embedding_name} of semantic catalog {catalog_id}"  # noqa
+            f"got batch of {len(batch)} sql examples for {embedding_name} of semantic catalog {catalog_id}"
         )
         return batch
 
@@ -320,7 +320,7 @@ async def _get_fact_batch(
         )
         batch = [EmbedRow(**row) for row in await cur.fetchall()]
         logger.debug(
-            f"got batch of {len(batch)} facts for {embedding_name} of semantic catalog {catalog_id}"  # noqa
+            f"got batch of {len(batch)} facts for {embedding_name} of semantic catalog {catalog_id}"
         )
         return batch
 
@@ -387,7 +387,7 @@ async def _save_batch(
     assert table in {"obj", "sql", "fact"}
     async with con.cursor() as cur:
         logger.debug(
-            f"saving batch of {len(batch)} vectors for {embedding_name} of semantic catalog {catalog_id}"  # noqa
+            f"saving batch of {len(batch)} vectors for {embedding_name} of semantic catalog {catalog_id}"
         )
         for row in batch:
             await cur.execute(
@@ -433,11 +433,11 @@ async def vectorize(
                 )
                 if not batch:
                     logger.debug(
-                        f"no items found to vectorize for {embedding_name} of semantic catalog {catalog_id}"  # noqa
+                        f"no items found to vectorize for {embedding_name} of semantic catalog {catalog_id}"
                     )
                     break
                 logger.debug(
-                    f"vectorizing {len(batch)} items for {embedding_name} of semantic catalog {catalog_id}"  # noqa
+                    f"vectorizing {len(batch)} items for {embedding_name} of semantic catalog {catalog_id}"
                 )
                 match config:
                     case SentenceTransformersConfig():
@@ -471,7 +471,7 @@ async def vectorize_query(config: EmbeddingConfig, query: str) -> Sequence[float
 
     Raises:
         ValueError: If the embedding provider configuration is unrecognized.
-    """  # noqa: E501
+    """
     match config:
         case SentenceTransformersConfig():
             from .sentence_tranformers import embed_query
