@@ -107,90 +107,6 @@ VECTORIZER_ROW = r"""
 """
 
 
-SOURCE_TABLE = """
-                                                               Table "website.blog"
-  Column   |           Type           | Collation | Nullable |           Default            | Storage  | Compression | Stats target | Description 
------------+--------------------------+-----------+----------+------------------------------+----------+-------------+--------------+-------------
- id        | integer                  |           | not null | generated always as identity | plain    |             |              | 
- title     | text                     |           | not null |                              | extended |             |              | 
- published | timestamp with time zone |           | not null |                              | plain    |             |              | 
- body      | text                     |           | not null |                              | extended |             |              | 
-Indexes:
-    "blog_pkey" PRIMARY KEY, btree (title, published)
-Triggers:
-    _vectorizer_src_trg_1 AFTER INSERT OR DELETE OR UPDATE ON website.blog FOR EACH ROW EXECUTE FUNCTION ai._vectorizer_src_trg_1()
-    _vectorizer_src_trg_1_truncate AFTER TRUNCATE ON website.blog FOR EACH STATEMENT EXECUTE FUNCTION ai._vectorizer_src_trg_1()
-Access method: heap
-""".strip()
-
-
-SOURCE_TRIGGER_FUNC = """
-                                                                                   List of functions
- Schema |         Name          | Result data type | Argument data types | Type | Volatility | Parallel | Owner | Security | Access privileges | Language | Internal name | Description 
---------+-----------------------+------------------+---------------------+------+------------+----------+-------+----------+-------------------+----------+---------------+-------------
- ai     | _vectorizer_src_trg_1 | trigger          |                     | func | volatile   | safe     | test  | definer  | test=X/test       | plpgsql  |               | 
-(1 row)
-""".strip()
-
-
-TARGET_TABLE = """
-                                                    Table "website.blog_embedding_store"
-     Column     |           Type           | Collation | Nullable |      Default      | Storage  | Compression | Stats target | Description 
-----------------+--------------------------+-----------+----------+-------------------+----------+-------------+--------------+-------------
- embedding_uuid | uuid                     |           | not null | gen_random_uuid() | plain    |             |              | 
- title          | text                     |           | not null |                   | extended |             |              | 
- published      | timestamp with time zone |           | not null |                   | plain    |             |              | 
- chunk_seq      | integer                  |           | not null |                   | plain    |             |              | 
- chunk          | text                     |           | not null |                   | extended |             |              | 
- embedding      | vector(768)              |           | not null |                   | main     |             |              | 
-Indexes:
-    "blog_embedding_store_pkey" PRIMARY KEY, btree (embedding_uuid)
-    "blog_embedding_store_title_published_chunk_seq_key" UNIQUE CONSTRAINT, btree (title, published, chunk_seq)
-Access method: heap
-""".strip()
-
-
-QUEUE_TABLE = """
-                                                 Table "ai._vectorizer_q_1"
-       Column        |           Type           | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
----------------------+--------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
- title               | text                     |           | not null |         | extended |             |              | 
- published           | timestamp with time zone |           | not null |         | plain    |             |              | 
- queued_at           | timestamp with time zone |           | not null | now()   | plain    |             |              | 
- loading_retries     | integer                  |           | not null | 0       | plain    |             |              | 
- loading_retry_after | timestamp with time zone |           |          |         | plain    |             |              | 
-Indexes:
-    "_vectorizer_q_1_title_published_idx" btree (title, published)
-Access method: heap
-""".strip()
-
-
-VIEW = """
-                                    View "website.blog_embedding"
-     Column     |           Type           | Collation | Nullable | Default | Storage  | Description 
-----------------+--------------------------+-----------+----------+---------+----------+-------------
- embedding_uuid | uuid                     |           |          |         | plain    | 
- chunk_seq      | integer                  |           |          |         | plain    | 
- chunk          | text                     |           |          |         | extended | 
- embedding      | vector(768)              |           |          |         | external | 
- id             | integer                  |           |          |         | plain    | 
- title          | text                     |           |          |         | extended | 
- published      | timestamp with time zone |           |          |         | plain    | 
- body           | text                     |           |          |         | extended | 
-View definition:
- SELECT t.embedding_uuid,
-    t.chunk_seq,
-    t.chunk,
-    t.embedding,
-    s.id,
-    t.title,
-    t.published,
-    s.body
-   FROM website.blog_embedding_store t
-     LEFT JOIN website.blog s ON t.title = s.title AND t.published = s.published;
-""".strip()
-
-
 def db_url(user: str) -> str:
     return f"postgres://{user}@127.0.0.1:5432/test"
 
@@ -199,6 +115,17 @@ def psql_cmd(cmd: str) -> str:
     cmd = f'''psql -X -d "{db_url("test")}" -c "{cmd}"'''
     proc = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
     return str(proc.stdout).strip()
+
+
+def golden_check(name: str, actual: str):
+    file = f"./golden/{name}-{os.getenv('PG_MAJOR', 'unknown')}.expected"
+    if os.getenv("OVERWRITE_GOLDEN", "false") == "true":
+        with open(file, "w+") as f:
+            f.write(actual)
+    else:
+        with open(file) as f:
+            contents = f.read()
+            assert actual == contents
 
 
 @pytest.mark.skipif(
@@ -583,23 +510,23 @@ def test_vectorizer_timescaledb():
 
     # does the source table look right?
     actual = psql_cmd(r"\d+ website.blog")
-    assert actual == SOURCE_TABLE
+    golden_check("source-table", actual)
 
     # does the source trigger function look right?
     actual = psql_cmd(r"\df+ ai._vectorizer_src_trg_1()")
-    assert actual == SOURCE_TRIGGER_FUNC
+    golden_check("source-trigger", actual)
 
     # does the target table look right?
     actual = psql_cmd(r"\d+ website.blog_embedding_store")
-    assert actual == TARGET_TABLE
+    golden_check("target-table", actual)
 
     # does the queue table look right?
     actual = psql_cmd(r"\d+ ai._vectorizer_q_1")
-    assert actual == QUEUE_TABLE
+    golden_check("queue-table", actual)
 
     # does the view look right?
     actual = psql_cmd(r"\d+ website.blog_embedding")
-    assert actual == VIEW
+    golden_check("view", actual)
 
 
 @pytest.mark.skipif(

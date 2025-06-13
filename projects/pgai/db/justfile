@@ -1,6 +1,7 @@
 export PROJECT_JUSTFILE := "1" # Note: used in build.py
 PG_MAJOR := env("PG_MAJOR", "17")
 PG_BIN := env("PG_BIN", "/usr/lib/postgresql/" + PG_MAJOR + "/bin")
+OVERWRITE_GOLDEN := env("OVERWRITE_GOLDEN", "false")
 
 # Show list of recipes
 default:
@@ -14,7 +15,7 @@ ci: docker-build docker-run docker-sync
   docker exec pgai-db just build
   docker exec pgai-db just lint
   docker exec -d pgai-db just test-server
-  docker exec pgai-db just test
+  docker exec -e OVERWRITE_GOLDEN={{OVERWRITE_GOLDEN}} pgai-db just test
 
 clean:
 	@./build.py clean
@@ -30,7 +31,7 @@ test-server:
 
 test:
 	@./build.py test
-	
+
 lint:
 	@./build.py lint
 
