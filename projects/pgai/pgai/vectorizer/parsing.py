@@ -1,5 +1,7 @@
+import asyncio
 import os
 from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Literal
 
@@ -8,11 +10,14 @@ from typing_extensions import override
 
 from pgai.vectorizer.loading import LoadedDocument
 
+# Thread pool for CPU-intensive parsing operations
+_PARSING_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="parsing")
+
 
 class ParsingNone(BaseModel):
     implementation: Literal["none"]
 
-    def parse(self, _1: dict[str, Any], payload: str | LoadedDocument) -> str:  # noqa: ARG002
+    async def parse(self, _1: dict[str, Any], payload: str | LoadedDocument) -> str:  # noqa: ARG002
         if isinstance(payload, LoadedDocument):
             raise ValueError(
                 "Cannot chunk Document with parsing_none, "
@@ -24,13 +29,15 @@ class ParsingNone(BaseModel):
 class ParsingAuto(BaseModel):
     implementation: Literal["auto"]
 
-    def parse(self, row: dict[str, Any], payload: str | LoadedDocument) -> str:
+    async def parse(self, row: dict[str, Any], payload: str | LoadedDocument) -> str:
         if isinstance(payload, LoadedDocument):
             if payload.file_type == "epub":
                 # epub is not supported by docling, but by pymupdf
-                return ParsingPyMuPDF(implementation="pymupdf").parse(row, payload)
+                return await ParsingPyMuPDF(implementation="pymupdf").parse(
+                    row, payload
+                )
 
-            return ParsingDocling(implementation="docling").parse(row, payload)
+            return await ParsingDocling(implementation="docling").parse(row, payload)
         else:
             return payload
 
@@ -40,7 +47,7 @@ class BaseDocumentParsing(BaseModel, ABC):
 
     implementation: str
 
-    def parse(self, row: dict[str, Any], payload: LoadedDocument | str) -> str:
+    async def parse(self, row: dict[str, Any], payload: LoadedDocument | str) -> str:
         """
         Parse a document payload into a string representation.
 
@@ -66,10 +73,10 @@ class BaseDocumentParsing(BaseModel, ABC):
         if payload.file_type in ["txt", "md"]:
             return payload.content.getvalue().decode("utf-8")
 
-        return self.parse_doc(row, payload)
+        return await self.parse_doc(row, payload)
 
     @abstractmethod
-    def parse_doc(self, row: dict[str, Any], payload: LoadedDocument) -> str:
+    async def parse_doc(self, row: dict[str, Any], payload: LoadedDocument) -> str:
         """
         Parse a binary document into a string representation, Markdown preferable.
         Must be implemented by subclasses.
@@ -82,7 +89,15 @@ class ParsingPyMuPDF(BaseDocumentParsing):
     implementation: Literal["pymupdf"]  # type: ignore[reportIncompatibleVariableOverride]
 
     @override
-    def parse_doc(self, row: dict[str, Any], payload: LoadedDocument) -> str:  # noqa: ARG002
+    async def parse_doc(self, row: dict[str, Any], payload: LoadedDocument) -> str:  # noqa: ARG002
+        # Run blocking parsing operation in thread pool
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            _PARSING_EXECUTOR, self._parse_with_pymupdf, payload
+        )
+
+    def _parse_with_pymupdf(self, payload: LoadedDocument) -> str:
+        """Synchronous pymupdf parsing to run in thread pool."""
         # Note: deferred import to avoid import overhead
         import pymupdf  # type: ignore
         import pymupdf4llm  # type: ignore
@@ -105,7 +120,15 @@ class ParsingDocling(BaseDocumentParsing):
     cache_dir: Path | str = DOCLING_CACHE_DIR
 
     @override
-    def parse_doc(self, row: dict[str, Any], payload: LoadedDocument) -> str:  # noqa: ARG002
+    async def parse_doc(self, row: dict[str, Any], payload: LoadedDocument) -> str:  # noqa: ARG002
+        # Run blocking parsing operation in thread pool
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            _PARSING_EXECUTOR, self._parse_with_docling, payload
+        )
+
+    def _parse_with_docling(self, payload: LoadedDocument) -> str:
+        """Synchronous docling parsing to run in thread pool."""
         # Note: deferred import to avoid import overhead
         from docling.datamodel.base_models import (
             DocumentStream,  # type: ignore
