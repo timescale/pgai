@@ -51,7 +51,7 @@ async def embed_batch(
 
     Raises:
         AssertionError: If the number of embeddings returned doesn't match the batch size.
-    """  # noqa: E501
+    """
     st = SentenceTransformer(
         config.model, trust_remote_code=True
     )  # TODO: configurable?

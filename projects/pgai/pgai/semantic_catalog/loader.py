@@ -199,7 +199,7 @@ async def load_tables(
             tables.append(Table.model_validate(row))
         if len(tables) != len(oids):
             logger.warning(
-                f"{len(oids)} oids were provided but only {len(tables)} tables were loaded"  # noqa
+                f"{len(oids)} oids were provided but only {len(tables)} tables were loaded"
             )
         if sample_size > 0:
             logger.debug(
@@ -296,7 +296,7 @@ async def load_views(
             views.append(View.model_validate(row))
         if len(views) != len(oids):
             logger.warning(
-                f"{len(oids)} oids were provided but only {len(views)} views were loaded"  # noqa
+                f"{len(oids)} oids were provided but only {len(views)} views were loaded"
             )
         if sample_size > 0:
             logger.debug(f"sampling {sample_size} rows from each of {len(views)} views")
@@ -446,7 +446,7 @@ async def load_procedures(
             procedures.append(Procedure.model_validate(row))
         if len(procedures) != len(oids):
             logger.warning(
-                f"{len(oids)} oids were provided but only {len(procedures)} procedures were loaded"  # noqa
+                f"{len(oids)} oids were provided but only {len(procedures)} procedures were loaded"
             )
     return procedures
 
@@ -515,7 +515,7 @@ async def load_objects(
 
     Raises:
         ValueError: If an unknown object type is encountered.
-    """  # noqa: E501
+    """
     t: set[int] = set()  # distinct objid
     v: set[int] = set()  # distinct objid
     p: set[int] = set()  # distinct objid

@@ -193,7 +193,7 @@ def import_from_yaml(text: TextIO) -> Generator[Item, None, None]:
 
     Raises:
         RuntimeError: If the first document is not a header or has an invalid schema version.
-    """  # noqa: E501
+    """
     for i, doc in enumerate(yaml.safe_load_all(text)):
         if not doc:
             continue
@@ -310,7 +310,7 @@ async def _look_up_proc(
 
     Raises:
         RuntimeError: If the procedure, function, or aggregate is not found in the database.
-    """  # noqa: E501
+    """
     async with target_con.cursor(row_factory=dict_row) as cur:
         await cur.execute(
             """\
@@ -493,7 +493,7 @@ async def save_to_catalog(
         target_con: Asynchronous database connection to the target database (where objects are defined).
         catalog_id: ID of the semantic catalog to save to.
         items: Iterator of catalog items to save.
-    """  # noqa: E501
+    """
     for item in items:
         match item.type:
             case "table" | "view":
@@ -570,7 +570,7 @@ async def _load_functions_procedures_aggregates(
 
     Returns:
         An async generator yielding Function, Procedure, and Aggregate objects.
-    """  # noqa: E501
+    """
     await cur.execute(
         SQL("""\
             select
@@ -693,7 +693,7 @@ async def async_export_to_yaml(text: TextIO, items: AsyncIterator[Item]) -> None
     Args:
         text: A text IO stream to write the YAML documents to.
         items: Async iterator of catalog items to export.
-    """  # noqa: E501
+    """
     text.write(Header().to_yaml())
     async for item in items:
         text.write(item.to_yaml())

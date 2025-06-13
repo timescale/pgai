@@ -89,7 +89,7 @@ async def search_sql_examples(
 
     Returns:
         A list of SQLExample objects ordered by similarity to the query vector.
-    """  # noqa: E501
+    """
     logger.debug(f"searching semantic catalog {catalog_id}")
     params = dict(query=query, limit=limit)
     if exclude_ids:

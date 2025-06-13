@@ -81,7 +81,7 @@ class DatabaseContext:
         rendered_objects: Dictionary mapping object IDs to their rendered text representations.
         rendered_sql_examples: Dictionary mapping SQL example IDs to their rendered text representations.
         rendered_facts: Dictionary mapping fact IDs to their rendered text representations.
-    """  # noqa: E501
+    """
 
     objects: dict[int, Table | View | Procedure]
     sql_examples: dict[int, SQLExample]
@@ -119,7 +119,7 @@ async def fetch_database_context(
 
     Returns:
         A DatabaseContext containing the relevant database objects, SQL examples, and facts.
-    """  # noqa: E501
+    """
     ctx = (
         ctx
         if ctx
@@ -215,7 +215,7 @@ async def fetch_database_context_alt(
 
     Returns:
         A DatabaseContext containing the specified database objects, SQL examples, and facts.
-    """  # noqa: E501
+    """
     ctx = DatabaseContext(
         objects={},
         sql_examples={},
@@ -414,7 +414,7 @@ async def initialize_database_context(
 
     Raises:
         AssertionError: If the context_mode is not one of the supported values.
-    """  # noqa: E501
+    """
     assert context_mode in {"semantic_search", "entire_catalog", "specific_ids"}
     match context_mode:
         case "semantic_search":
@@ -699,7 +699,7 @@ async def generate_sql(
         # Use the generated SQL
         print(response.sql_statement)
         ```
-    """  # noqa: E501
+    """
     usage = usage or Usage()
     usage_limits = usage_limits or UsageLimits(request_limit=None)
     model_settings = model_settings or ModelSettings()

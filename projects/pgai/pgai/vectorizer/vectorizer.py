@@ -817,7 +817,7 @@ class Executor:
                             e.msg,
                             Jsonb(
                                 {
-                                    "provider": self.vectorizer.config.embedding.implementation,  # noqa
+                                    "provider": self.vectorizer.config.embedding.implementation,
                                     "error_reason": str(e.__cause__),
                                 }
                             ),
@@ -825,7 +825,7 @@ class Executor:
                     )
 
                 if e.__cause__ is not None:
-                    raise e.__cause__  # noqa
+                    raise e.__cause__  # noqa: B904
                 raise e
 
             except Exception as e:

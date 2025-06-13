@@ -1,4 +1,3 @@
-# ruff: noqa: E501
 from pathlib import Path
 
 from jinja2 import Environment

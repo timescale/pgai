@@ -37,7 +37,7 @@ async def embed_batch(config: OpenAIConfig, batch: list[EmbedRow]) -> None:
     )
     if len(response.data) != len(batch):
         raise RuntimeError(
-            f"{len(batch)} items sent to openai but {len(response.data)} embeddings returned"  # noqa
+            f"{len(batch)} items sent to openai but {len(response.data)} embeddings returned"
         )
     for emb in response.data:
         batch[emb.index].vector = emb.embedding

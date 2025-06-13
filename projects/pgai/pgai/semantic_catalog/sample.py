@@ -61,7 +61,7 @@ async def _sample_as_copy_text(
 
     Returns:
         A string containing the COPY command followed by the sampled data in text format.
-    """  # noqa: E501
+    """
     query = SQL(
         "COPY (SELECT * FROM {}.{} LIMIT {}) TO STDOUT WITH (FORMAT TEXT, HEADER true)"
     ).format(

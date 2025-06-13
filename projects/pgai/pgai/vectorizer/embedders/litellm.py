@@ -70,18 +70,18 @@ class LiteLLM(ApiKeyMixin, BaseModel, Embedder):
             case "azure":
                 return 2048  # https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/embeddings?tabs=console#verify-inputs-dont-exceed-the-maximum-length
             case "bedrock":
-                return 96  # NOTE: currently (Jan 2025) Bedrock only supports embeddings with Cohere or Titan models. The Titan API only processes one input per request, which LiteLLM already handles under the hood. We assume that the Cohere API has the same input limits as above.  # noqa
+                return 96  # NOTE: currently (Jan 2025) Bedrock only supports embeddings with Cohere or Titan models. The Titan API only processes one input per request, which LiteLLM already handles under the hood. We assume that the Cohere API has the same input limits as above.
             case "huggingface":
-                return 2048  # NOTE: There is not documented limit. In testing we got a response for a request with 10k (short) inputs.  # noqa
+                return 2048  # NOTE: There is not documented limit. In testing we got a response for a request with 10k (short) inputs.
             case "mistral":
                 return 128  # NOTE: this is chosen somewhat arbitrarily.
             case "vertex_ai":
-                return 250  # FIXME: this applies to `us-central-1` only (otherwise 5). See https://cloud.google.com/vertex-ai/generative-ai/docs/embeddings/get-text-embeddings#get_text_embeddings_for_a_snippet_of_text  # noqa
+                return 250  # FIXME: this applies to `us-central-1` only (otherwise 5). See https://cloud.google.com/vertex-ai/generative-ai/docs/embeddings/get-text-embeddings#get_text_embeddings_for_a_snippet_of_text
             case "voyage":
                 return 128  # see https://docs.voyageai.com/reference/embeddings-api
             case _:
                 logger.warn(
-                    f"unknown provider '{custom_llm_provider}', falling back to conservative max chunks per batch"  # noqa: E501
+                    f"unknown provider '{custom_llm_provider}', falling back to conservative max chunks per batch"
                 )
                 return 5
 
@@ -95,7 +95,7 @@ class LiteLLM(ApiKeyMixin, BaseModel, Embedder):
             case "mistral":
                 return 16_000  # No official documentation, see: https://github.com/langchain-ai/langchain/blob/33354f984fba660e71ca0039cfbd3cf37643cfab/libs/partners/mistralai/langchain_mistralai/embeddings.py#L25
             case "vertex_ai":
-                return 20_000  # See https://cloud.google.com/vertex-ai/generative-ai/docs/embeddings/get-text-embeddings#get_text_embeddings_for_a_snippet_of_text  # noqa
+                return 20_000  # See https://cloud.google.com/vertex-ai/generative-ai/docs/embeddings/get-text-embeddings#get_text_embeddings_for_a_snippet_of_text
             case "openai" | "azure":
                 return 600_000
             case "voyage":

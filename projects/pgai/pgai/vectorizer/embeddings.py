@@ -49,7 +49,7 @@ def batch_indices(
     for idx, chunk_tokens in enumerate(chunk_token_lengths):
         if max_tokens_per_batch is not None and chunk_tokens > max_tokens_per_batch:
             raise BatchingError(
-                f"chunk length {chunk_tokens} greater than max_tokens_per_batch {max_tokens_per_batch}"  # noqa
+                f"chunk length {chunk_tokens} greater than max_tokens_per_batch {max_tokens_per_batch}"
             )
         max_tokens_reached = (
             max_tokens_per_batch is not None
@@ -58,7 +58,7 @@ def batch_indices(
         max_chunks_reached = len(batch) + 1 > max_chunks_per_batch
         if max_tokens_reached or max_chunks_reached:
             logger.debug(
-                f"Batch {len(batches) + 1} has {token_count} tokens in {len(batch)} chunks"  # noqa
+                f"Batch {len(batches) + 1} has {token_count} tokens in {len(batch)} chunks"
             )
             batches.append(batch)
             batch = []

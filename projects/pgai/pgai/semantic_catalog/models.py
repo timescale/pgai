@@ -97,7 +97,7 @@ class View(BaseModel):
         definition: SQL definition of the view.
         description: Object description containing metadata and textual description.
         sample: Sample data from the view (if available).
-    """  # noqa: E501
+    """
 
     id: int = -1
     classid: int

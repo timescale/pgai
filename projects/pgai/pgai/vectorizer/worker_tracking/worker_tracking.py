@@ -67,7 +67,7 @@ class WorkerTracking:
         async with await psycopg.AsyncConnection.connect(
             self.db_url,
             autocommit=True,
-            application_name=f"pgai-worker-heartbeat-force: {self.get_short_worker_id()}",  # noqa: E501
+            application_name=f"pgai-worker-heartbeat-force: {self.get_short_worker_id()}",
         ) as conn:
             await self._heartbeat(conn)
 
@@ -101,7 +101,7 @@ class WorkerTracking:
                 async with await psycopg.AsyncConnection.connect(
                     self.db_url,
                     autocommit=True,
-                    application_name=f"pgai-worker-heartbeat: {self.get_short_worker_id()}",  # noqa: E501
+                    application_name=f"pgai-worker-heartbeat: {self.get_short_worker_id()}",
                 ) as conn:
                     while True:
                         await self._heartbeat(conn)
@@ -145,7 +145,7 @@ class WorkerTracking:
             await psycopg.AsyncConnection.connect(
                 self.db_url,
                 autocommit=True,
-                application_name=f"pgai-worker-error-reporter: {self.get_short_worker_id()}",  # noqa: E501
+                application_name=f"pgai-worker-error-reporter: {self.get_short_worker_id()}",
             ) as conn,
             conn.cursor() as cur,
             conn.transaction(),

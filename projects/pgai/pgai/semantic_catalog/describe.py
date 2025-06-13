@@ -4,7 +4,7 @@ This module provides functionality for finding database objects (tables, views, 
 and generating natural language descriptions for them using AI models. These descriptions
 can be used to populate a semantic catalog, making it easier for users to understand
 the database schema and its purpose.
-"""  # noqa: E501
+"""
 
 import logging
 from collections.abc import Callable
@@ -55,7 +55,7 @@ async def find_tables(
 
     Returns:
         A list of PostgreSQL object IDs (OIDs) for the matching tables.
-    """  # noqa: E501
+    """
     async with con.cursor() as cur:
         filters: list[Composable] = []
         params: dict[str, Any] = {}
@@ -128,7 +128,7 @@ async def find_views(
 
     Returns:
         A list of PostgreSQL object IDs (OIDs) for the matching views.
-    """  # noqa: E501
+    """
     async with con.cursor() as cur:
         filters: list[Composable] = []
         params: dict[str, Any] = {}
@@ -201,7 +201,7 @@ async def find_procedures(
 
     Returns:
         A list of PostgreSQL object IDs (OIDs) for the matching procedures and functions.
-    """  # noqa: E501
+    """
     async with con.cursor() as cur:
         filters: list[Composable] = []
         params: dict[str, Any] = {}
@@ -282,7 +282,7 @@ async def generate_table_descriptions(
 
     Returns:
         Updated Usage object with information about token usage.
-    """  # noqa: E501
+    """
 
     def batches(batch_size: int):
         for i in range(0, len(oids), batch_size):
@@ -305,28 +305,25 @@ async def generate_table_descriptions(
                 description="",
                 columns=[
                     file.Column(name=c.name, description="")
-                    for c in (table.columns or [])  # noqa: E501
+                    for c in (table.columns or [])
                 ],
             )
         logger.debug(f"rendering details for batch of {len(batch)} tables")
         rendered: str = render.render_tables(tables)
         prompt = (
-            (
-                "Below are representations of one or more PostgreSQL tables. "
-                "Generate a natural language description for each table and column represented. "  # noqa: E501
-                "Use tools to record your description. Respond ONLY with 'done' when finished. "  # noqa: E501
-                "\n\n"
-            )
-            + rendered
-        )
+            "Below are representations of one or more PostgreSQL tables. "
+            "Generate a natural language description for each table and column represented. "
+            "Use tools to record your description. Respond ONLY with 'done' when finished. "
+            "\n\n"
+        ) + rendered
 
         agent = Agent(
             model,
             model_settings=model_settings,
             name="table-describer",
             system_prompt=(
-                "You are a SQL expert who generates natural language descriptions of tables in a PostgreSQL database. "  # noqa: E501
-                "The descriptions that you generate should be a concise, single sentence."  # noqa: E501
+                "You are a SQL expert who generates natural language descriptions of tables in a PostgreSQL database. "
+                "The descriptions that you generate should be a concise, single sentence."
             ),
         )
 
@@ -344,7 +341,7 @@ async def generate_table_descriptions(
                 logger.warning(f"invalid table id provided by LLM: {table_id}")
                 return
             logger.debug(
-                f"recording description for table {table.schema_name}.{table.name}"  # noqa: E501
+                f"recording description for table {table.schema_name}.{table.name}"
             )
             table.description = description
             if progress_callback:
@@ -366,22 +363,22 @@ async def generate_table_descriptions(
             if table is None:
                 logger.warning(
                     f"invalid table id provided by LLM: {table_id} {column_name}"
-                )  # noqa: E501
+                )
                 return
             if not table.columns:
                 logger.warning(
-                    f"column described by LLM but table has no columns: {table_id} {column_name}"  # noqa: E501
+                    f"column described by LLM but table has no columns: {table_id} {column_name}"
                 )
                 return
             column = next((c for c in table.columns if c.name == column_name), None)
             if column is None:
                 logger.warning(
                     f"invalid column provided by LLM: {table_id} {column_name}"
-                )  # noqa: E501
+                )
                 return
             column.description = description
             logger.debug(
-                f"recording description for column {table.schema_name}.{table.name}.{column.name}"  # noqa
+                f"recording description for column {table.schema_name}.{table.name}.{column.name}"
             )
             if progress_callback:
                 progress_callback(
@@ -432,7 +429,7 @@ async def generate_view_descriptions(
 
     Returns:
         Updated Usage object with information about token usage.
-    """  # noqa: E501
+    """
 
     def batches(batch_size: int):
         for i in range(0, len(oids), batch_size):
@@ -453,29 +450,26 @@ async def generate_view_descriptions(
                 description="",
                 columns=[
                     file.Column(name=c.name, description="")
-                    for c in (view.columns or [])  # noqa: E501
+                    for c in (view.columns or [])
                 ],
             )
 
         logger.debug(f"rendering details for batch of {len(batch)} views")
         rendered: str = render.render_views(views)
         prompt = (
-            (
-                "Below are representations of one or more PostgreSQL views. "
-                "Generate a natural language description for each view and column represented. "  # noqa: E501
-                "Use tools to record your description. Respond ONLY with 'done' when finished. "  # noqa: E501
-                "\n\n"
-            )
-            + rendered
-        )
+            "Below are representations of one or more PostgreSQL views. "
+            "Generate a natural language description for each view and column represented. "
+            "Use tools to record your description. Respond ONLY with 'done' when finished. "
+            "\n\n"
+        ) + rendered
 
         agent = Agent(
             model,
             model_settings=model_settings,
             name="view-describer",
             system_prompt=(
-                "You are a SQL expert who generates natural language descriptions of views in a PostgreSQL database. "  # noqa: E501
-                "The descriptions that you generate should be a concise, single sentence."  # noqa: E501
+                "You are a SQL expert who generates natural language descriptions of views in a PostgreSQL database. "
+                "The descriptions that you generate should be a concise, single sentence."
             ),
         )
 
@@ -519,7 +513,7 @@ async def generate_view_descriptions(
                 return
             if not view.columns:
                 logger.warning(
-                    f"column description provided for view but view has no columns: {view_id} {column_name}"  # noqa
+                    f"column description provided for view but view has no columns: {view_id} {column_name}"
                 )
                 return
             column = next((c for c in view.columns if c.name == column_name), None)
@@ -530,7 +524,7 @@ async def generate_view_descriptions(
                 return
             column.description = description
             logger.debug(
-                f"recording description for view column {view.schema_name}.{view.name}.{column.name}"  # noqa
+                f"recording description for view column {view.schema_name}.{view.name}.{column.name}"
             )
             if progress_callback:
                 progress_callback(".".join([view.schema_name, view.name, column.name]))
@@ -577,7 +571,7 @@ async def generate_procedure_descriptions(
 
     Returns:
         Updated Usage object with information about token usage.
-    """  # noqa: E501
+    """
 
     def batches(batch_size: int):
         for i in range(0, len(oids), batch_size):
@@ -618,22 +612,19 @@ async def generate_procedure_descriptions(
         logger.debug(f"rendering details for batch of {len(batch)} procedures")
         rendered: str = render.render_procedures(procs)
         prompt = (
-            (
-                "Below are representations of one or more PostgreSQL procedures/functions. "  # noqa
-                "Generate a natural language description for each procedure/function represented. "  # noqa
-                "Use the tool to record your description. Respond ONLY with 'done' when finished. "  # noqa
-                "\n\n"
-            )
-            + rendered
-        )
+            "Below are representations of one or more PostgreSQL procedures/functions. "
+            "Generate a natural language description for each procedure/function represented. "
+            "Use the tool to record your description. Respond ONLY with 'done' when finished. "
+            "\n\n"
+        ) + rendered
 
         agent = Agent(
             model,
             model_settings=model_settings,
             name="procedure-describer",
             system_prompt=(
-                "You are a SQL expert who generates natural language descriptions of procedures and functions in a PostgreSQL database. "  # noqa: E501
-                "The descriptions that you generate should be a concise, single sentence."  # noqa: E501
+                "You are a SQL expert who generates natural language descriptions of procedures and functions in a PostgreSQL database. "
+                "The descriptions that you generate should be a concise, single sentence."
             ),
         )
 
@@ -644,7 +635,7 @@ async def generate_procedure_descriptions(
             Args:
                 proc_id (int): The ID of the procedure or function (specified in the XML tag)
                 description (str): a concise, single sentence description of the procedure/function
-            """  # noqa: E501
+            """
             nonlocal proc_index
             proc = proc_index.get(proc_id)
             if proc is None:
@@ -795,7 +786,7 @@ async def describe(
 
     Returns:
         Updated Usage object with information about token usage.
-    """  # noqa: E501
+    """
     usage = usage or Usage()
     usage_limits = usage_limits or UsageLimits(request_limit=None)
 
@@ -981,15 +972,15 @@ async def describe(
     table.add_row("Requests", str(usage.requests))
     table.add_row(
         "Request Tokens",
-        str(usage.request_tokens) if usage.request_tokens else "?",  # noqa: E501
+        str(usage.request_tokens) if usage.request_tokens else "?",
     )
     table.add_row(
         "Response Tokens",
-        str(usage.response_tokens) if usage.response_tokens else "?",  # noqa: E501
+        str(usage.response_tokens) if usage.response_tokens else "?",
     )
     table.add_row(
         "Total Tokens",
-        str(usage.total_tokens) if usage.total_tokens else "?",  # noqa: E501
+        str(usage.total_tokens) if usage.total_tokens else "?",
     )
 
     console.print(table)
