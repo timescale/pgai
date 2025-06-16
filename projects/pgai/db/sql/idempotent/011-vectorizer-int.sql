@@ -507,6 +507,7 @@ begin
       ( %s
       , created_at pg_catalog.timestamptz not null default now()
       , failure_step pg_catalog.text not null default ''
+      , attempts pg_catalog.int4 not null default 0
       )
       $sql$
     , queue_schema, queue_failed_table
@@ -1299,6 +1300,7 @@ begin
     ) as _;
 
     -- TODO: for very small batch sizes (<10), an array _may_ be faster
+    drop table if exists seen_lock_ids;
     create temporary table seen_lock_ids (lock_id bigint);
     create index on seen_lock_ids (lock_id);
 

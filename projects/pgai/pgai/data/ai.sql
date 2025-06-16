@@ -1243,6 +1243,10 @@ begin
         execute format('alter table %I.%I rename column loading_retries to attempts', _vectorizer.queue_schema, _vectorizer.queue_table);
         execute format('alter table %I.%I rename column loading_retry_after to retry_after', _vectorizer.queue_schema, _vectorizer.queue_table);
     end loop;
+    for _vectorizer in select queue_schema, queue_failed_table from ai.vectorizer
+    loop
+        execute format('alter table %I.%I add column attempts pg_catalog.int4 not null default 0', _vectorizer.queue_schema, _vectorizer.queue_failed_table);
+    end loop;
 end;
 $block$;
 
@@ -2826,6 +2830,7 @@ begin
       ( %s
       , created_at pg_catalog.timestamptz not null default now()
       , failure_step pg_catalog.text not null default ''
+      , attempts pg_catalog.int4 not null default 0
       )
       $sql$
     , queue_schema, queue_failed_table
@@ -3618,6 +3623,7 @@ begin
     ) as _;
 
     -- TODO: for very small batch sizes (<10), an array _may_ be faster
+    drop table if exists seen_lock_ids;
     create temporary table seen_lock_ids (lock_id bigint);
     create index on seen_lock_ids (lock_id);
 

@@ -635,8 +635,8 @@ class VectorizerQueryBuilder:
                 ),
                 delete_duplicate_rows AS (
                    DELETE FROM {queue_table} q
-                   WHERE ({pk_fields}) IN (SELECT {pk_fields} FROM locked_queue_rows)
-                     AND q.ctid NOT IN (SELECT _ctid FROM locked_queue_rows)
+                   WHERE ({pk_fields}) IN (SELECT {pk_fields} FROM update_locked_rows)
+                     AND q.ctid NOT IN (SELECT _ctid FROM update_locked_rows)
                 )
                 SELECT s.*, {attempts}
                 FROM update_locked_rows l
@@ -846,10 +846,10 @@ class VectorizerQueryBuilder:
                 DELETE FROM {queue_table}
                 WHERE attempts > {max_attempts}
                   AND ({pk_fields}) IN (SELECT {pk_fields} FROM erroring_pk_and_step)
-                RETURNING {pk_fields}
+                RETURNING {pk_fields}, attempts
             )
-            INSERT INTO {queue_failed_table} ({pk_fields}, failure_step)
-                SELECT {pk_fields}, failure_step FROM delete_over_attempts JOIN erroring_pk_and_step USING ({pk_fields})
+            INSERT INTO {queue_failed_table} ({pk_fields}, failure_step, attempts)
+                SELECT {pk_fields}, failure_step, attempts FROM delete_over_attempts JOIN erroring_pk_and_step USING ({pk_fields})
             """).format(
             error_values=self._placeholders_tuples(
                 len(self.vectorizer.source_pk) + 1, len(items)
