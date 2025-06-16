@@ -346,6 +346,7 @@ async def test_vectorizer_error_handling_moves_failed_items_to_dlq_and_logs_erro
                 "id": 1,
                 "failure_step": "loading",
                 "created_at": now,
+                "attempts": 7,
             },
         )
 

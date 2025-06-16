@@ -1,0 +1,11 @@
+Table "ai._vectorizer_q_failed_1"
+    Column    |           Type           | Collation | Nullable | Default  | Storage  | Compression | Stats target | Description 
+--------------+--------------------------+-----------+----------+----------+----------+-------------+--------------+-------------
+ title        | text                     |           | not null |          | extended |             |              | 
+ published    | timestamp with time zone |           | not null |          | plain    |             |              | 
+ created_at   | timestamp with time zone |           | not null | now()    | plain    |             |              | 
+ failure_step | text                     |           | not null | ''::text | extended |             |              | 
+ attempts     | integer                  |           | not null | 0        | plain    |             |              | 
+Indexes:
+    "_vectorizer_q_failed_1_title_published_idx" btree (title, published)
+Access method: heap
