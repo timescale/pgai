@@ -208,9 +208,7 @@ async def _get_obj_batch(
             SQL("""\
             select
               id
-            , concat_ws
-              ( ' '
-              , case
+            , case
                 when objargs is not null and array_length(objargs, 1) > 0 then
                     format
                     ( '%%s(%%s)'
@@ -218,9 +216,7 @@ async def _get_obj_batch(
                     , array_to_string(objargs, ', ')
                     )
                 else array_to_string(objnames, '.')
-                end
-              , description
-              ) as content
+              end as content
             from ai.{table}
             where {name} is null
             order by random()
@@ -262,8 +258,7 @@ async def _get_sql_batch(
             select
               x.id
             , format
-              ( E'%%s\n<sql>\n%%s\n</sql>'
-              , x.description
+              ( E'<sql>\n%%s\n</sql>'
               , x.sql
               ) as content
             from ai.{table} x
