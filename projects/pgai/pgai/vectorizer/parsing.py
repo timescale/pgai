@@ -11,7 +11,10 @@ from typing_extensions import override
 from pgai.vectorizer.loading import LoadedDocument
 
 # Thread pool for CPU-intensive parsing operations
-_PARSING_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="parsing")
+max_workers = int(os.getenv("PARSING_MAX_WORKERS", 4))
+_PARSING_EXECUTOR = ThreadPoolExecutor(
+    max_workers=max_workers, thread_name_prefix="parsing"
+)
 
 
 class ParsingNone(BaseModel):
@@ -91,7 +94,7 @@ class ParsingPyMuPDF(BaseDocumentParsing):
     @override
     async def parse_doc(self, row: dict[str, Any], payload: LoadedDocument) -> str:  # noqa: ARG002
         # Run blocking parsing operation in thread pool
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             _PARSING_EXECUTOR, self._parse_with_pymupdf, payload
         )
@@ -122,7 +125,7 @@ class ParsingDocling(BaseDocumentParsing):
     @override
     async def parse_doc(self, row: dict[str, Any], payload: LoadedDocument) -> str:  # noqa: ARG002
         # Run blocking parsing operation in thread pool
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             _PARSING_EXECUTOR, self._parse_with_docling, payload
         )
