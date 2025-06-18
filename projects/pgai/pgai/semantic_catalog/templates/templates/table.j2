@@ -46,14 +46,6 @@ ALTER TABLE {{ table.schema_name }}.{{ table.table_name }} ADD CONSTRAINT {{ con
 {% for index in (table.indexes if table.indexes is not none else []) -%}
 {{ index.definition }};
 {% endfor -%}
-{% if table.description is not none %}
-COMMENT ON TABLE {{ table.schema_name }}.{{ table.table_name }} IS $${{ table.description.description }}$$;
-{% endif -%}
-{% for column in (table.columns if table.columns is not none else []) -%}
-{% if column.description is not none -%}
-COMMENT ON COLUMN {{ table.schema_name }}.{{ table.table_name }}.{{ column.name }} IS $${{ column.description.description }}$$;
-{% endif -%}
-{% endfor -%}
 {% if table.dimensions is not none -%}
 {% for dimension in table.dimensions -%}
 SELECT {% if loop.first %}create_hypertable{% else %}add_dimension{% endif %}('{{ table.schema_name }}.{{ table.table_name }}', {{ dimension.dimension_builder }}('{{ dimension.column_name }}', {% if dimension.partition_interval is not none %}{{ dimension.partition_interval }}{% else %}{{ dimension.number_partitions }}{% endif %}{% if dimension.partition_func is not none %}, partition_func => '{{ dimension.partition_func }}'{% endif %}));
