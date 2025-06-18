@@ -37,7 +37,7 @@ models = [
         "name": "cohere/embed-english-v3.0",
         "dimensions": 1024,
         "api_key_name": "COHERE_API_KEY",
-        "exception": """CohereException - {"message":"no api key supplied"}""",
+        "exception": '"message":"no api key supplied"',
         "extra_options": {},
         "input_types": [
             "search_query",
