@@ -1347,7 +1347,10 @@ def generate_sql(
     console.print(Syntax(resp.sql_statement, "sql", word_wrap=True))
 
     if save_final_prompt:
-        save_final_prompt.expanduser().resolve().write_text(resp.final_prompt)
+        # The final prompt is the user prompt of the last message request we made.
+        save_final_prompt.expanduser().resolve().write_text(
+            str(resp.messages[-1][0].parts[-1].content)
+        )
 
 
 @semantic_catalog.command()
