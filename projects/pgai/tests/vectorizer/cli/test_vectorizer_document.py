@@ -134,6 +134,16 @@ def list_dir_contents(path: Path):
     return sorted(p.relative_to(path) for p in path.rglob("*") if p.exists())
 
 
+@pytest.mark.parametrize(
+    "",
+    [
+        pytest.param(
+            marks=pytest.mark.postgres_params(pgai_db_version="0.10.5"),
+            id="with_0.10.5_db",
+        ),
+        pytest.param(marks=[], id="with_current_db"),
+    ],
+)
 def test_simple_document_embedding_local(
     cli_db: tuple[TestDatabase, Connection],
     cli_db_url: str,
@@ -203,6 +213,16 @@ def test_simple_document_embedding_local(
     assert list_dir_contents(easyocr_models_dir) == easyocr_models_dir_before
 
 
+@pytest.mark.parametrize(
+    "",
+    [
+        pytest.param(
+            marks=pytest.mark.postgres_params(pgai_db_version="0.10.5"),
+            id="with_0.10.5_db",
+        ),
+        pytest.param(marks=[], id="with_current_db"),
+    ],
+)
 def test_simple_document_embedding_s3_no_credentials(
     s3_bucket: str,
     cli_db: tuple[TestDatabase, Connection],
@@ -235,12 +255,21 @@ def test_simple_document_embedding_s3_no_credentials(
         assert error["id"] == vectorizer_id
         assert error["message"] == "loading failed"
         assert error["details"] == {
-            "loader": "uri",
+            "step": "loading",
             "error_reason": "Unable to locate credentials",
-            "is_retryable": True,
         }
 
 
+@pytest.mark.parametrize(
+    "",
+    [
+        pytest.param(
+            marks=pytest.mark.postgres_params(pgai_db_version="0.10.5"),
+            id="with_0.10.5_db",
+        ),
+        pytest.param(marks=[], id="with_current_db"),
+    ],
+)
 def test_simple_document_embedding_s3(
     s3_bucket: str,
     cli_db: tuple[TestDatabase, Connection],
@@ -278,6 +307,16 @@ def test_simple_document_embedding_s3(
         assert "And lo, there came forth PostgreSQL, blessed be its name" in chunks_str
 
 
+@pytest.mark.parametrize(
+    "",
+    [
+        pytest.param(
+            marks=pytest.mark.postgres_params(pgai_db_version="0.10.5"),
+            id="with_0.10.5_db",
+        ),
+        pytest.param(marks=[], id="with_current_db"),
+    ],
+)
 def test_binary_document_embedding(
     cli_db: tuple[TestDatabase, Connection],
     cli_db_url: str,
@@ -344,6 +383,7 @@ def test_binary_document_embedding(
         )  # From sample_with_table
 
 
+@pytest.mark.postgres_params(pgai_db_version="0.10.5")
 def test_retries_on_not_present_document_embedding_s3(
     s3_bucket: str,
     cli_db: tuple[TestDatabase, Connection],
@@ -372,13 +412,12 @@ def test_retries_on_not_present_document_embedding_s3(
         assert error["id"] == vectorizer_id
         assert error["message"] == "loading failed"
         assert error["details"] == {
-            "loader": "uri",
+            "step": "loading",
             "error_reason": f"unable to access bucket: '{s3_bucket}'"
             " key: 'non_existing_doc.pdf' version: None"
             " error: An error occurred (NoSuchKey) when"
             " calling the GetObject operation: The specified"
             " key does not exist.",
-            "is_retryable": True,
         }
 
         cur.execute(
@@ -389,6 +428,7 @@ def test_retries_on_not_present_document_embedding_s3(
         assert queue_item["loading_retry_after"] > datetime.now(tz=timezone.utc)  # type: ignore
 
 
+@pytest.mark.postgres_params(pgai_db_version="0.10.5")
 def test_there_will_be_no_more_retries_after_the_sixth_failure(
     s3_bucket: str,
     cli_db: tuple[TestDatabase, Connection],
@@ -421,13 +461,12 @@ def test_there_will_be_no_more_retries_after_the_sixth_failure(
         assert error["id"] == vectorizer_id
         assert error["message"] == "loading failed"
         assert error["details"] == {
-            "loader": "uri",
+            "step": "loading",
             "error_reason": f"unable to access bucket: '{s3_bucket}'"
             " key: 'non_existing_doc.pdf' version: None"
             " error: An error occurred (NoSuchKey) when"
             " calling the GetObject operation: The specified"
             " key does not exist.",
-            "is_retryable": False,
         }
 
         cur.execute(
@@ -439,6 +478,7 @@ def test_there_will_be_no_more_retries_after_the_sixth_failure(
         assert cur.fetchone()["count"] == 1  # type: ignore
 
 
+@pytest.mark.postgres_params(pgai_db_version="0.10.5")
 def test_retries_should_do_nothing_if_retry_after_is_in_the_future(
     s3_bucket: str,
     cli_db: tuple[TestDatabase, Connection],
@@ -467,13 +507,12 @@ def test_retries_should_do_nothing_if_retry_after_is_in_the_future(
         assert error["id"] == vectorizer_id
         assert error["message"] == "loading failed"
         assert error["details"] == {
-            "loader": "uri",
+            "step": "loading",
             "error_reason": f"unable to access bucket: '{s3_bucket}'"
             " key: 'non_existing_doc.pdf' version: None"
             " error: An error occurred (NoSuchKey) when"
             " calling the GetObject operation: The specified"
             " key does not exist.",
-            "is_retryable": True,
         }
 
         cur.execute(

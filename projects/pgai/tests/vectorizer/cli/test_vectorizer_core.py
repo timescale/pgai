@@ -514,3 +514,59 @@ def test_chunking_none(
             assert (
                 doc_chunks[0]["chunk_seq"] == 0
             ), "Chunk sequence should be 0 for single chunks"
+
+
+def test_vectorizer_without_retries_works_as_expected(
+    cli_db: tuple[PostgresContainer, Connection],
+    cli_db_url: str,
+    vcr_: Any,
+):
+    """Test that vectorizers work as intended without
+    the loading_retries feature enabled"""
+    _, connection = cli_db
+    table_name = setup_source_table(connection, 1)
+
+    # Given a vectorizer and the feature `loading_retries` disabled.
+    vectorizer_id = configure_vectorizer(
+        table_name,
+        cli_db[1],
+    )
+    features = Features.for_testing_no_features()
+    assert not features.loading_retries
+
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "select pg_catalog.to_jsonb(v) as vectorizer from ai.vectorizer v where v.id = %s",  # noqa
+            (vectorizer_id,),
+        )
+        row = cur.fetchone()
+    assert row is not None
+
+    vectorizer = Vectorizer(**row["vectorizer"])
+    vectorizer.config.embedding.set_api_key(  # type: ignore
+        {"OPENAI_API_KEY": os.getenv("OPENAI_API_KEY")}
+    )
+
+    # When the vectorizer is executed.
+    with vcr_.use_cassette("test_loading_retries_disabled_works_with_vectorizer.yaml"):
+        worker_tracking = WorkerTracking(cli_db_url, 500, features, "0.0.1")
+        asyncio.run(Executor(cli_db_url, vectorizer, features, worker_tracking).run())
+
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("""
+                    SELECT count(*)
+                    FROM blog_embedding_store
+                    """)
+        row = cur.fetchone()
+        assert row is not None and row["count"] == 1
+
+        cur.execute(
+            """
+            SELECT pending_items
+            FROM ai.vectorizer_status
+            WHERE id = %s
+            """,
+            (vectorizer_id,),
+        )
+        row = cur.fetchone()
+        assert row is not None and row["pending_items"] == 0
