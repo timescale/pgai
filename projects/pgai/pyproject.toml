@@ -54,6 +54,7 @@ vectorizer-worker = [
     "boto3-stubs[s3,sts]>=1.37.30",
     "smart-open==7.1.0",
     "filetype==1.2.0",
+    "pymupdf==1.26.0",
     "pymupdf4llm==0.0.24",
     "docling==2.34.0",
     "ijson>=3.3.0",
