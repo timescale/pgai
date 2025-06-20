@@ -542,6 +542,8 @@ The chunking functions are:
 - [ai.chunking_character_text_splitter](#aichunking_character_text_splitter)
 - [ai.chunking_recursive_character_text_splitter](#aichunking_recursive_character_text_splitter)
 
+Both chunking implementations use langchain's Text splitters under the hood: [[1]](https://python.langchain.com/docs/how_to/character_text_splitter/), [[2]](https://python.langchain.com/docs/how_to/recursive_text_splitter/).
+
 The key difference between these functions is that `chunking_recursive_character_text_splitter`
 allows for a more sophisticated splitting strategy, potentially preserving more
 semantic meaning in the chunks.
@@ -616,6 +618,7 @@ You use it to recursively split text into chunks using multiple separators.
 #### Returns
 
 A JSON configuration object that you can use in [ai.create_vectorizer](#create-vectorizers).
+
 
 ## Embedding configuration
 
