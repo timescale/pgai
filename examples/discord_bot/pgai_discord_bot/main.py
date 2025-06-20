@@ -64,17 +64,43 @@ async def retrieve_relevant_documents(user_message: str) -> str:
             results = "\n".join(
                 [f"{doc.parent.file_name}: {doc.chunk}" for doc in relevant_docs]
             )
-            logger.info("Query" + str(user_message))
-            logger.info("Results:" + results)
+            logger.info(
+                "Query" + str(user_message)[:100] + "..."
+                if len(str(user_message)) > 100
+                else str(user_message)
+            )
+            logger.info(
+                "Results:" + results[:200] + "..." if len(results) > 200 else results
+            )
             return results
 
 
-async def ask_ai(
-    bot: discord.ClientUser,
-    previous_messages: list[discord.Message],
-    relevant_docs: str,
+async def generate_rag_response(
+    user_message: str, conversation_history: list[dict] = None
 ) -> str:
-    logger.info("Responding with these docs:" + relevant_docs)
+    """Generate a response using RAG pipeline.
+
+    Args:
+        user_message: The user's question
+        conversation_history: Optional list of {"role": "user"|"assistant", "content": str} messages
+
+    Returns:
+        Generated response string
+    """
+    # Retrieve relevant documents
+    relevant_docs = await retrieve_relevant_documents(user_message)
+
+    # Generate response using OpenAI
+    return await generate_response_with_docs(
+        user_message, relevant_docs, conversation_history
+    )
+
+
+async def generate_response_with_docs(
+    user_message: str, relevant_docs: str, conversation_history: list[dict] = None
+) -> str:
+    """Generate response using relevant docs and conversation history."""
+
     system_message = {
         "content": f"""
         You're the pgai documentation bot. Try to help the user with answering any questions about pgai based on this system message.
@@ -87,27 +113,47 @@ async def ask_ai(
         
         Please try to keep answers concise this is a discord chat, the message cant be longer than 2000 characters.
         Also don't hallucinate code that wasn't mentioned in the documentation above! Only use APIs that are explicitly listed there.
-        If you can't find anything useful, say so and tell the user to wait for a developer to respond (they have access to this chat).
+        If you can't find anything useful, say so and tell the user to ask in a different channel. Other users or the development team may be able to help.
         """,
         "role": "system",
     }
 
+    # Build messages list
+    messages = [system_message]
+    if conversation_history:
+        messages.extend(conversation_history)
+    messages.append({"content": user_message, "role": "user"})
+
     chat_completion = await openai_client.chat.completions.create(
-        messages=[system_message]
-        + [  # type: ignore
-            {
-                "content": message.content,
-                "role": "assistant" if message.author == bot else "user",
-                "name": re.sub(r"[^a-zA-Z0-9_-]", "_", message.author.name),
-            }
-            for message in previous_messages  # type: ignore
-        ],
+        messages=messages,
         model="gpt-4o",
     )
     return (
         chat_completion.choices[0].message.content
         or chat_completion.choices[0].message.refusal
     )  # type: ignore
+
+
+async def ask_ai(
+    bot: discord.ClientUser,
+    previous_messages: list[discord.Message],
+    relevant_docs: str,
+) -> str:
+    """Discord-specific wrapper for generate_response_with_docs."""
+    # Convert Discord messages to conversation history format
+    conversation_history = [
+        {
+            "content": message.content,
+            "role": "assistant" if message.author == bot else "user",
+            "name": re.sub(r"[^a-zA-Z0-9_-]", "_", message.author.name),
+        }
+        for message in previous_messages[:-1]  # Exclude the current message
+    ]
+
+    current_message = previous_messages[-1].content
+    return await generate_response_with_docs(
+        current_message, relevant_docs, conversation_history
+    )
 
 
 async def summarize_chat(chat: list[discord.Message], response: str) -> str:
