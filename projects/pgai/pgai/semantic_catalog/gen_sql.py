@@ -358,8 +358,8 @@ class GenerateSQLResponse:
         context: The database context used to generate the SQL statement.
         command_type: The type of SQL statement generated (e.g. SELECT, INSERT, UPDATE)
         query_plan: The PostgreSQL query plan for the generated SQL statement.
-        final_prompt: The final prompt that was sent to the model.
-        messages: List of all messages exchanged during the generation process.
+        messages: List of all messages exchanged during the generation process, where the
+            ModelRequest has two parts: (SystemPromptPart, UserPromptPart).
         usage: Usage statistics for the AI model calls.
     """
 
@@ -367,8 +367,7 @@ class GenerateSQLResponse:
     context: DatabaseContext
     command_type: str
     query_plan: dict[str, Any]
-    final_prompt: str
-    messages: list[ModelRequest | ModelResponse]
+    messages: list[tuple[ModelRequest, ModelResponse]]
     usage: Usage
 
 
@@ -727,7 +726,7 @@ async def generate_sql(
     answer: str | None = None
     command_type: str | None = None
     pgversion: int | None = await _get_database_version(target_con)
-    messages: list[ModelRequest | ModelResponse] = []
+    messages: list[tuple[ModelRequest, ModelResponse]] = []
     user_prompt: str | None = None
     query_plan: dict[str, Any] | None = None
     error: str | None = None
@@ -755,16 +754,15 @@ async def generate_sql(
             error=error,
         )
 
+        request = ModelRequest(
+            parts=[
+                SystemPromptPart(content=system_prompt),
+                UserPromptPart(content=user_prompt),
+            ]
+        )
         model_response: ModelResponse = await model_request(
             model=model,
-            messages=[
-                ModelRequest(
-                    parts=[
-                        SystemPromptPart(content=system_prompt),
-                        UserPromptPart(content=user_prompt),
-                    ]
-                )
-            ],
+            messages=[request],
             model_request_parameters=ModelRequestParameters(
                 function_tools=[_search_tool_definition()]
                 if iteration < iteration_limit
@@ -775,7 +773,7 @@ async def generate_sql(
             model_settings=model_settings,
         )
 
-        messages.append(model_response)
+        messages.append((request, model_response))
         usage = usage + model_response.usage
 
         for part in model_response.parts:
@@ -882,7 +880,6 @@ async def generate_sql(
         context=ctx,
         command_type=command_type or "UNKNOWN",
         query_plan=query_plan or {},
-        final_prompt=user_prompt or "MISSING",
         messages=messages,
         usage=usage,
     )
