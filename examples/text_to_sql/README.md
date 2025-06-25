@@ -392,6 +392,3 @@ This question required a query that joins four tables, filtering on two, and a
 (1 row)
 ```
 
-### Check out the docs
-
-Check out [the docs](/docs/structured_retrieval/text_to_sql.md) for more information.
