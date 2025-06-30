@@ -276,9 +276,9 @@ def test_invalid_api_key_error(
         assert len(records) == 1
         error = records[0]
         assert error["id"] == vectorizer_id
-        assert error["message"] == "embedding provider failed"
+        assert error["message"] == "embedding failed"
         assert error["details"] == {
-            "provider": "openai",
+            "step": "embedding",
             "error_reason": "Error code: 401 - {'error': {'message': "
             "'Incorrect API key provided: invalid."
             " You can find your API key at"
@@ -323,8 +323,8 @@ def test_invalid_function_arguments(
         assert len(records) == 1
         error = records[0]
         assert error["id"] == vectorizer_id
-        assert error["message"] == "embedding provider failed"
+        assert error["message"] == "embedding failed"
         assert error["details"] == {
-            "provider": "openai",
+            "step": "embedding",
             "error_reason": "dimensions must be 1536 for text-embedding-ada-002",
         }

@@ -524,6 +524,10 @@ def test_vectorizer_timescaledb():
     actual = psql_cmd(r"\d+ ai._vectorizer_q_1")
     golden_check("queue-table", actual)
 
+    # does the queue failed table look right?
+    actual = psql_cmd(r"\d+ ai._vectorizer_q_failed_1")
+    golden_check("failed-queue-table", actual)
+
     # does the view look right?
     actual = psql_cmd(r"\d+ website.blog_embedding")
     golden_check("view", actual)
