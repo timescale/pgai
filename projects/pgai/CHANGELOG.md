@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.11.3](https://github.com/timescale/pgai/compare/pgai-v0.11.2...pgai-v0.11.3) (2025-06-30)
+
+
+### Bug Fixes
+
+* pass voyage api key to client ([8eab632](https://github.com/timescale/pgai/commit/8eab632ca32c795451935cad6912b30395898a64))
+* store ModelRequest in generate_sql messages list ([#834](https://github.com/timescale/pgai/issues/834)) ([0dd09c0](https://github.com/timescale/pgai/commit/0dd09c0294225373653d36001dcafe28801de336))
+* vectorizer_relationship with tuple table args ([#805](https://github.com/timescale/pgai/issues/805)) ([ae49c48](https://github.com/timescale/pgai/commit/ae49c483e3be91af9842d351ff0328cda4ae1065))
+
+
+### Miscellaneous
+
+* ignore line-too-long (E501) lint ([#821](https://github.com/timescale/pgai/issues/821)) ([f3989d7](https://github.com/timescale/pgai/commit/f3989d7306552f5d2604aa25a266ec20f9f69c74))
+* remove git lfs ([2af8fbc](https://github.com/timescale/pgai/commit/2af8fbcb712a92bfa9c13da256c5ef5075949da7))
+* split deps into separate extras ([#800](https://github.com/timescale/pgai/issues/800)) ([3a11921](https://github.com/timescale/pgai/commit/3a1192125fc934d36e063b866cf73f49e306b62a))
+* store golden query results in files ([#819](https://github.com/timescale/pgai/issues/819)) ([fc9e23f](https://github.com/timescale/pgai/commit/fc9e23fc8580665e444cd51647304dd1d081f36e))
+
 ## [0.11.2](https://github.com/timescale/pgai/compare/pgai-v0.11.1...pgai-v0.11.2) (2025-06-12)
 
 
