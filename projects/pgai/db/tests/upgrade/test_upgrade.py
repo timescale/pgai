@@ -154,7 +154,7 @@ def upgrade_and_compare(from_version, to_version, exclude_incrementals, fixups):
     # STEP 1: Create the "expected" database state by installing the current dev version fresh
     # This represents what the database should look like after a successful upgrade
     create_database(target_database_name)
-    install_pgai_db(target_database_name, "")  # Empty string = use local dev version
+    install_pgai_db(target_database_name, to_version)
     assert check_version(target_database_name) == to_version
     init_db_script(target_database_name, "init.sql")  # Create test data and vectorizer
 
@@ -337,7 +337,7 @@ def snapshot(
         f'-v source_version="{source_version}"',
         f'-v target_version="{current_dev_version}"',
         # HACK: Inject the exclude list to filter out problematic migrations
-        f"-v exclude_list=\"{exclude_sql or 'NULL'}\"",
+        f'-v exclude_list="{exclude_sql or "NULL"}"',
         f"-f {docker_dir()}/snapshot.sql",  # SQL script that generates the snapshot
         f"-o {docker_dir()}/{filename}",  # Output file
     ]
@@ -356,7 +356,7 @@ def is_version_earlier_or_equal_than(v1, v2):
     return v1_parts <= v2_parts
 
 
-def install_pgai_db(dbname: str, version: str = "") -> None:
+def install_pgai_db(dbname: str, version: str) -> None:
     """Install or upgrade pgai in the database.
 
     This function handles both fresh installations and upgrades by calling the
@@ -370,7 +370,7 @@ def install_pgai_db(dbname: str, version: str = "") -> None:
     """
 
     db = db_url(user=USER, dbname=dbname)
-    if version == "":
+    if version == current_dev_version:
         # Use local development version (from source code)
         source_root = (
             Path(__file__).parents[4].absolute()
