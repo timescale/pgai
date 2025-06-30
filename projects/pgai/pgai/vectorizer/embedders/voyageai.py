@@ -30,11 +30,13 @@ def voyage_max_tokens_per_batch(model: str) -> int:
             return 120_000  # NOTE: This is conservative, but there probably won't be new Voyage models, so...
 
 
-def voyage_token_counter(model: str) -> Callable[[str], int] | None:
+def voyage_token_counter(
+    model: str, api_key: str | None = None
+) -> Callable[[str], int] | None:
     # Note: deferred import to avoid import overhead
     import voyageai
 
-    client: voyageai.Client = voyageai.Client()
+    client: voyageai.Client = voyageai.Client(api_key=api_key)
     try:
         tokenizer: Tokenizer = client.tokenizer(model)
         return lambda text: len(tokenizer.encode(text).tokens)
@@ -91,7 +93,7 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
         return voyage_max_tokens_per_batch(self.model)
 
     def _token_counter(self) -> Callable[[str], int] | None:
-        return voyage_token_counter(self.model)
+        return voyage_token_counter(self.model, self._api_key)
 
     @override
     async def call_embed_api(self, documents: list[str]) -> EmbeddingResponse:
