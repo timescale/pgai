@@ -152,7 +152,7 @@ class LiteLLM(ApiKeyMixin, BaseModel, Embedder):
 
                 return token_counter
             case "voyage":
-                return voyage_token_counter(model)
+                return voyage_token_counter(model, self._api_key)
             case _:
                 return None
 
