@@ -5,6 +5,7 @@ import time
 from typing import Any
 
 import pytest
+import vcr  # type: ignore
 from psycopg import Connection
 from psycopg.rows import dict_row
 from testcontainers.postgres import PostgresContainer  # type: ignore
@@ -514,3 +515,52 @@ def test_chunking_none(
             assert (
                 doc_chunks[0]["chunk_seq"] == 0
             ), "Chunk sequence should be 0 for single chunks"
+
+
+def test_empty_string_content_skips_embedding(
+    cli_db: tuple[PostgresContainer, Connection],
+    cli_db_url: str,
+):
+    """Test that empty string content is skipped and no embedding requests are made"""
+    _, connection = cli_db
+    table_name = setup_source_table(connection, 3)
+    vectorizer_id = configure_vectorizer(
+        table_name,
+        cli_db[1],
+        batch_size=3,
+    )
+
+    # Insert empty and whitespace-only content
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("UPDATE blog SET content = %s WHERE id = 1", ("",))  # Empty string
+        cur.execute(
+            "UPDATE blog SET content = %s WHERE id = 2", ("   ",)
+        )  # Whitespace only
+        cur.execute(
+            "UPDATE blog SET content = %s WHERE id = 3", ("\t\n  \t",)
+        )  # Mixed whitespace
+
+    vcr_ = vcr.VCR(record_mode="none")  # type: ignore
+    # When running the worker - using VCR with no cassette to ensure no HTTP requests
+    with vcr_.use_cassette("test_empty_string_content_skips_embedding.yaml"):  # type: ignore
+        result = run_vectorizer_worker(cli_db_url, vectorizer_id)
+
+    assert result.exit_code == 0
+
+    # Verify no chunks were created since all content was empty
+    with connection.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT count(*) FROM blog_embedding_store")
+        row = cur.fetchone()
+        assert row is not None and row["count"] == 0
+
+        # Verify no pending items remain (they were processed but skipped)
+        cur.execute(
+            """
+            SELECT pending_items
+            FROM ai.vectorizer_status
+            WHERE id = %s
+        """,
+            (vectorizer_id,),
+        )
+        row = cur.fetchone()
+        assert row is not None and row["pending_items"] == 0

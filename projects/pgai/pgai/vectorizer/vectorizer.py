@@ -1188,12 +1188,18 @@ class Executor:
                     loading_errors.append((item, (LoadingError(e=e))))
                 continue
 
+            if isinstance(payload, str) and not payload:
+                continue
+
             payload = self.vectorizer.config.parsing.parse(item, payload)
             chunks = self.vectorizer.config.chunking.into_chunks(item, payload)
             for chunk_id, chunk in enumerate(chunks, 0):
                 formatted = self.vectorizer.config.formatting.format(chunk, item)
                 records_without_embeddings.append(pk_values + [chunk_id, formatted])
                 documents.append(formatted)
+
+        if not documents:
+            yield [], []
 
         if loading_errors:
             yield [], loading_errors
