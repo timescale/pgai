@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.4](https://github.com/timescale/pgai/compare/pgai-v0.11.3...pgai-v0.11.4) (2025-07-04)
+
+
+### Bug Fixes
+
+* skip empty strings when batching documents ([4e040a9](https://github.com/timescale/pgai/commit/4e040a9ba703494df89fa1ce0e41ca26806b87c8))
+
 ## [0.11.3](https://github.com/timescale/pgai/compare/pgai-v0.11.2...pgai-v0.11.3) (2025-06-30)
 
 
