@@ -119,7 +119,7 @@ Wait at least 10 seconds and then check the table:
 select * from document_embedding;
 ```
 
-[tsdb_actions]: https://docs.timescale.com/timescaledb/latest/how-to-guides/background-jobs/
+[tsdb_actions]: https://docs.tigerdata.com/use-timescale/latest/jobs/
 [pgvectorscale]: https://github.com/timescale/pgvectorscale
 [pinecone_comparison]: https://www.timescale.com/blog/pgvector-is-now-as-fast-as-pinecone-at-75-less-cost?utm_source=pgai-examples
 [delayed_embed]: /examples/delayed_embed.sql
