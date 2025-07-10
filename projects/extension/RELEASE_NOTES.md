@@ -1,5 +1,8 @@
-
 # Pgai extension release notes
+
+## 0.11.0 (2025-07-10)
+
+Enable bedrock embedding via liteLLM.
 
 ## 0.10.1 (2025-04-24)
 
@@ -19,24 +22,27 @@ etc.)
 
 We made this change in a way that will allow current users of the vectorizer to
 continue using the feature without interruption, but they will have to modify how they
-upgrade vectorizer functionality in the future. 
+upgrade vectorizer functionality in the future.
 
 **Upgrading vectorizer functionality to 0.10.0:**
+
 1. Run `ALTER EXTENSION name UPDATE TO '0.10.0'` to detach the vectorizer catalog tables and functions from the extension. This leaves them in your database in the ai schema, and the vectorizer will continue to work.
 2. You can then manage them from the python library or cli by upgrading the vectorizer with `pgai install -d DB_URL` as described in the new python-library-based [workflow](/docs/vectorizer/api-reference.md#install-or-upgrade-the-database-objects-necessary-for-vectorizer).
 3. If you don't use the model calling capabilities of pgai, you can then remove the pgai extension from your database.
 
 ### New features and improvements
+
 Split extension into an extension and a library package (#580) ([3fe83c6](https://github.com/timescale/pgai/commit/3fe83c6))
 
 ### Fixes
+
 fix: send top level destination fields in updateembeddings request (#629) ([ee4f383](https://github.com/timescale/pgai/commit/ee4f383))
 chore: update anthropic and openai libraries in extension (#595) ([d31ef9c](https://github.com/timescale/pgai/commit/d31ef9c))
-
 
 ## 0.9.0 (2025-03-06)
 
 ### New features and improvements
+
 - [BREAKING] Add openai client config arguments ([#426](https://github.com/timescale/pgai/pull/426))
 - Add support for openai extra request parameteres ([#420](https://github.com/timescale/pgai/pull/420))
 - Add verbose flag to model calls ([#475](https://github.com/timescale/pgai/pull/475))
@@ -123,7 +129,7 @@ introduced in 0.4.1.
 
 ## 0.4.1 (2024-11-19)
 
-This release focuses on improving reliability, performance, and maintainability 
+This release focuses on improving reliability, performance, and maintainability
 while fixing several important edge cases in table management and permissions.
 
 ### New features and improvements
@@ -139,49 +145,49 @@ while fixing several important edge cases in table management and permissions.
   c64f2403219788a42d981b3ee299530bbd9a94e4
 - Dropping the source table with cascade will drop the target too 644858dd685f897ba28f509562773f1d475f1b9e
 - Added entries into pg_depend such that when you `drop table <source-table> cascade` or
-  `drop table <target-table> cascade` it will also drop the queue table for 
+  `drop table <target-table> cascade` it will also drop the queue table for
   vectorizers. f68e73ac5e82f41b4bcd25a0976daef889b34d1f
 - Created a more thorough snapshot in upgrade tests 2b330a4ea732ef94d00808a24d96c43c846dfa6b
 - Added a vectorizer and secret to upgrade tests a1d4104cf798de84a85189aaccf3a0af9bc17b93
 - Added a test to ensure ai.secret_permissions is dumped/restored properly. 5a9bfd1fb1b415c38e2a60430dac9762cb59de5a
 - Added cache for secrets 20809c16745540bd8bc21a546f0d0b7ec912549e
 - Allowed drop_vectorizer to optionally drop target and view ec53befe9151a2d0091de53ace068b8ea2f12573
-- Added an api_key_name parameter to allow functions to remain immutable while 
-  getting a secret. This avoids having to use ai.reveal_secret() which is stable 
-  and not immutable. This allows for more efficient queries when getting a secret 
+- Added an api_key_name parameter to allow functions to remain immutable while
+  getting a secret. This avoids having to use ai.reveal_secret() which is stable
+  and not immutable. This allows for more efficient queries when getting a secret
   that is not the one with a default query. 59b86d66f92840eed49f80e9ebdcf4f0c60475bd
 - Made reveal_secrets stable f2e0e1489f2ac30f824db7ff137e1252463bddb1
-- Added an event trigger to detect when a source, queue, or target table associated 
-  with a vectorizer is dropped. The event trigger calls ai.drop_vectorizer to 
+- Added an event trigger to detect when a source, queue, or target table associated
+  with a vectorizer is dropped. The event trigger calls ai.drop_vectorizer to
   clean up the mess. a01e6208e81942b289970feebfc96bafb95c3fcc
-- Allowed SQL to be gated behind feature flags. This commit added support for building 
-  and shipping prerelease SQL code gated behind feature flags in extension versions 
-  that include a prerelease tag. Prerelease SQL code is omitted entirely from 
-  extension versions that do not include a prerelease tag. For details, see 
+- Allowed SQL to be gated behind feature flags. This commit added support for building
+  and shipping prerelease SQL code gated behind feature flags in extension versions
+  that include a prerelease tag. Prerelease SQL code is omitted entirely from
+  extension versions that do not include a prerelease tag. For details, see
   DEVELOPMENT.md d2bcbfaa83f424d9b8d6894d4d206be8f84ab8d6
 - Added tests to check that extension upgrades work d2bcbfaa83f424d9b8d6894d4d206be8f84ab8d6
 
 ### Fixes
 
-- Made ai.secret_permissions dump/restore properly. Two rows are inserted into 
-  ai.secret_permissions on extension creation. If these rows are dumped, then on 
+- Made ai.secret_permissions dump/restore properly. Two rows are inserted into
+  ai.secret_permissions on extension creation. If these rows are dumped, then on
   restore the extension creation inserts them AND the table restoration tries to insert them.
   This causes a constraint violation and prevents the table from restoring properly.
   This commit added a filter to prevent the two rows from being dumped. 39d61db97e85f61441dbe2eafa2bee209bc797fd
 - Prevent vectorizer status view from failing if missing privileges to one or more
   vectorizer queue tables 44ea1cb0f92b294284ae252fd179191d83145d5c
 - Handle dropped columns when creating vectorizers 814f0ba5a27d69f839c7c8232b118a7a4d0e6772
-- Avoid inserting duplicates into ai._secret_permissions. This fixes an issue that
+- Avoid inserting duplicates into ai.\_secret_permissions. This fixes an issue that
   would cause upgrade to fail. ec2363a9f55cc25ce1295526c9f90d9446edd97b
 
 ### Breaking changes
 
 - Previously, the vectorizer_queue_pending function would return an exact count which could be very
   slow for queues with a large number of rows. Now, by default, we limit the count to 10000 by
-  default. An `exact_count` parameter was added. If true, the original behavior is used. 
+  default. An `exact_count` parameter was added. If true, the original behavior is used.
   c11db9c2d7fb8346f28f4de17bf3706e9d1620d4
 - If a vectorizer has no queue table, or the user does not have select privileges on the queue table
-  we will now return null for the pending_items column in the vectorizer_status view. 
+  we will now return null for the pending_items column in the vectorizer_status view.
   f17d1b908df9fd7072b5554de7dc162102a5611b
 
 ### Deprecations
@@ -191,9 +197,9 @@ while fixing several important edge cases in table management and permissions.
 
 ## 0.4.0 (2024-10-23)
 
-This release adds the [Vectorizer](/docs/vectorizer/overview.md) feature to the extension. Vectorizer is an 
+This release adds the [Vectorizer](/docs/vectorizer/overview.md) feature to the extension. Vectorizer is an
 innovative SQL-level interface for automating the embedding process within
-the database. Vectorizer treats embeddings as a declarative, DDL-like feature, similar to 
+the database. Vectorizer treats embeddings as a declarative, DDL-like feature, similar to
 an index. For more details, check out the [documentation](/docs/vectorizer/overview.md).
 
 ### New features and improvements
@@ -206,10 +212,10 @@ an index. For more details, check out the [documentation](/docs/vectorizer/overv
 
 ### Breaking changes
 
-- There are no update paths from 0.1.0, 0.2.0, 0.3.0 to the 0.4.0 release. You 
+- There are no update paths from 0.1.0, 0.2.0, 0.3.0 to the 0.4.0 release. You
   must `DROP EXTENSION ai` and then `CREATE EXTENSION ai VERSION '0.4.0' CASCADE`.
-- The pgai extension is now installed in the `ai` schema. It was previously 
-  installed in the `public` schema by default, but could be explicitly put in 
+- The pgai extension is now installed in the `ai` schema. It was previously
+  installed in the `public` schema by default, but could be explicitly put in
   another schema. All pgai functions have moved to the `ai` schema. For example,
   `openai_list_models()` is now `ai.openai_list_models()`
 - The `pg_database_owner` and the database user running `CREATE EXTENSION` now get

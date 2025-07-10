@@ -3,9 +3,8 @@
 > ⚠️ **Note:**
 >
 > For Windows users, we recommend using the [pgai Docker
-image](./docker.md) to run the pgai extension. These instructions have
-only been tested on macOS and Linux.
-
+> image](./docker.md) to run the pgai extension. These instructions have
+> only been tested on macOS and Linux.
 
 To install pgai from source on a PostgreSQL server:
 
@@ -14,14 +13,14 @@ To install pgai from source on a PostgreSQL server:
    - **PostgreSQL**: Version 16 or newer is required.
 
    - **Python3**: if running `python3 --version` in Terminal returns `command
-     not found`, download and install the latest version of [Python3][python3].
+not found`, download and install the latest version of [Python3][python3].
 
    - **Pip**: if running `pip --version` in Terminal returns `command not found`, install it with one of the pip [supported methods][pip].
 
    - **PL/Python**: follow [How to install Postgres 16 with plpython3u: Recipes for macOS, Ubuntu, Debian, CentOS, Docker][pgai-plpython].
 
-      _macOS_: the standard PostgreSQL brew in Homebrew does not include the `plpython3` extension. These instructions show
-      how to install from an alternate tap.
+     _macOS_: the standard PostgreSQL brew in Homebrew does not include the `plpython3` extension. These instructions show
+     how to install from an alternate tap.
 
      - **[Postgresql plugin][asdf-postgres] for the [asdf][asdf] version manager**: set the `--with-python` option
        when installing PostgreSQL:
@@ -32,46 +31,47 @@ To install pgai from source on a PostgreSQL server:
 
    - **pgvector**: follow the [install instructions][pgvector-install] from the official repository. This extension is automatically added to your PostgreSQL database when you install the pgai extension.
 
-
 1. Clone the pgai repo at the latest tagged release:
 
-    ```bash
-    git clone https://github.com/timescale/pgai.git --branch extension-0.8.0
-    cd pgai
-    ```
+   ```bash
+   git clone https://github.com/timescale/pgai.git --branch extension-0.8.0
+   cd pgai
+   ```
 
 1. Install the `pgai` PostgreSQL extension:
 
-    ```bash
-    sudo just ext install
-    ```
+   ```bash
+   sudo just ext install
+   ```
 
-    Note: The install requires write access to system-owned paths to create the following files:
-      - pgai's Python dependencies (in `/usr/local/lib/pgai`)
-      - pgai's extension files (`ai.control` and `ai--*.sql`) (in Postgres' extension
-        directory, typically `/usr/share/postgresql/<pg version>/extension`, but configurable.
-        Use `pg_config --sharedir` to determine this path)
-    If you would prefer to not run the install command using `sudo`, it must be run as a user with
-    write access to the above paths.
+   Note: The install requires write access to system-owned paths to create the following files:
 
-    We use [just][just] to run project commands. If you don't have just you can
-    install the extension with:
+   - pgai's Python dependencies (in `/usr/local/lib/pgai`)
+   - pgai's extension files (`ai.control` and `ai--*.sql`) (in Postgres' extension
+     directory, typically `/usr/share/postgresql/<pg version>/extension`, but configurable.
+     Use `pg_config --sharedir` to determine this path)
+     If you would prefer to not run the install command using `sudo`, it must be run as a user with
+     write access to the above paths.
 
-    ```bash
-    sudo projects/extension/build.py install
-    ```
+   We use [just][just] to run project commands. If you don't have just you can
+   install the extension with:
 
-1. Connect to your database with a postgres client like [psql v16](https://docs.timescale.com/use-timescale/latest/integrations/query-admin/psql/)
+   ```bash
+   sudo projects/extension/build.py install
+   ```
+
+1. Connect to your database with a postgres client like [psql v16](https://docs.tigerdata.com/integrations/latest/psql/)
    or [PopSQL](https://docs.timescale.com/use-timescale/latest/popsql/).
+
    ```bash
    psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
    ```
 
 1. Create the pgai extension:
 
-    ```sql
-    CREATE EXTENSION IF NOT EXISTS ai CASCADE;
-    ```
+   ```sql
+   CREATE EXTENSION IF NOT EXISTS ai CASCADE;
+   ```
 
    The `CASCADE` automatically installs `pgvector` and `plpython3u` extensions.
 
