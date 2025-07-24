@@ -87,14 +87,11 @@ This quickstart uses the:
 Using these tools, you create a semantic catalog in another PostgreSQL database, then import and embed the descriptions.
 Once the semantic catalog is loaded with embedded descriptions, you start generating SQL to answer questions.
 
-1. **Create a quickstart project with pgai installed**
+1. **Install pgai**
 
    ```bash
-   mkdir quickstart
-   cd quickstart
-   uv init
-   uv add "pgai[semantic-catalog]"
-   uv run pgai --version
+   pip install "pgai[semantic-catalog]"
+   pgai --version
    ```
 
 1. **Run a PostgreSQL container**
@@ -133,7 +130,7 @@ Once the semantic catalog is loaded with embedded descriptions, you start genera
    using an LLM, and outputs a yaml file containing the content for the semantic catalog.
 
    ```bash
-   uv run pgai semantic-catalog describe -f descriptions.yaml
+   pgai semantic-catalog describe -f descriptions.yaml
    ```
 
    Take a look at `descriptions.yaml`. You can manually edit the descriptions to improve them if you wish.
@@ -145,13 +142,13 @@ Once the semantic catalog is loaded with embedded descriptions, you start genera
    `text-embedding-3-small`.
 
    ```bash
-   uv run pgai semantic-catalog create
+   pgai semantic-catalog create
    ```
 
 1. **Import the descriptions into the semantic catalog in your database**
 
    ```bash
-   uv run pgai semantic-catalog import -f descriptions.yaml
+   pgai semantic-catalog import -f descriptions.yaml
    ```
 
 1. **Now the fun part, search the semantic catalog using natural language**
@@ -161,24 +158,24 @@ Once the semantic catalog is loaded with embedded descriptions, you start genera
    provided. For example:
 
    ```bash
-   uv run pgai semantic-catalog search -p "Which passengers have experienced the most flight delays in 2024?"
+   pgai semantic-catalog search -p "Which passengers have experienced the most flight delays in 2024?"
    ```
 
 1. **See how these search results are rendered to a prompt for an LLM**
 
    ```bash
-   uv run pgai semantic-catalog search -p "Which passengers have experienced the most flight delays in 2024?" --render
+   pgai semantic-catalog search -p "Which passengers have experienced the most flight delays in 2024?" --render
    ```
 
 1. **More fun, generate SQL statements on the command line**
 
    ```bash
-   uv run pgai semantic-catalog generate-sql -p "Which passengers have experienced the most flight delays in 2024?"
+   pgai semantic-catalog generate-sql -p "Which passengers have experienced the most flight delays in 2024?"
    ```
 
 1. **Generate SQL statements directly from your Python app**
 
-Replace the contents of `main.py` with the below:
+Create a `main.py` file with the contents below:
 
 ```python
 import os
@@ -220,7 +217,7 @@ if __name__ == "__main__":
 Then, run the following:
 
 ```bash
-uv run main.py
+python3 main.py
 ```
 
 
