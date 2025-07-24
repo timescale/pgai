@@ -71,8 +71,6 @@ Once our semantic catalog is loaded with embedded descriptions, we can start gen
 ### Prerequisites
 
 * [Python 3](https://www.python.org/downloads/)
-* [git](https://git-scm.com/downloads)
-* [uv](https://docs.astral.sh/uv/getting-started/installation/)
 * [docker](https://www.docker.com/products/docker-desktop/)
 * An [OpenAI key](https://platform.openai.com/api-keys)
 
