@@ -15,7 +15,6 @@ Expected context variables:
   - objid: PostgreSQL object ID
   - schema_name: Schema name
   - view_name: View name
-  - table_name: Table name (for comments)
   - is_materialized: Boolean indicating if it's a materialized view
   - is_continuous_aggregate: Boolean indicating if it's a TimescaleDB continuous aggregate
   - definition: The SQL definition of the view
@@ -35,11 +34,11 @@ CREATE{% if view.is_materialized %} MATERIALIZED {% else %} {% endif %}VIEW {{ v
 {% endfor -%}
 */
 {% if view.description is not none %}
-COMMENT ON TABLE {{ view.schema_name }}.{{ view.table_name }} IS $${{ view.description.description }}$$;
+COMMENT ON VIEW {{ view.schema_name }}.{{ view.view_name }} IS $${{ view.description.description }}$$;
 {% endif -%}
 {% for column in (view.columns if view.columns is not none else []) -%}
 {% if column.description is not none -%}
-COMMENT ON COLUMN {{ view.schema_name }}.{{ view.table_name }}.{{ column.name }} IS $${{ column.description.description }}$$;
+COMMENT ON COLUMN {{ view.schema_name }}.{{ view.view_name }}.{{ column.name }} IS $${{ column.description.description }}$$;
 {% endif -%}
 {% endfor -%}
 {% if view.sample is not none %}
