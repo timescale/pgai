@@ -19,7 +19,9 @@
 
 A Python library that transforms PostgreSQL into a robust, production-ready retrieval engine for RAG and Agentic applications.
 
-- 🔄 Automatically create and synchronize vector embeddings from PostgreSQL data and S3 documents. Embeddings update automatically as data changes.
+- 🔄 **Automatically create and synchronize vector embeddings** from PostgreSQL data and S3 documents. Embeddings update automatically as data changes.
+
+- 🤖 **[Semantic Catalog](/docs/semantic_catalog/README.md): Enable natural language to SQL with AI**. Automatically generate database descriptions and power text-to-SQL for agentic applications. 
 
 - 🔍 Powerful vector and semantic search with pgvector and pgvectorscale.
 
@@ -62,10 +64,18 @@ If you are not on Timescale Cloud you will also need to run the pgai vectorizer 
 pip install pgai[vectorizer-worker]
 ```
 
+If you are using the [semantic catalog](/docs/semantic_catalog/README.md), you will need to run:
+
+```bash
+pip install pgai[semantic-catalog]
+```
+
 
 # Quick Start
 
 This quickstart demonstrates how pgai Vectorizer enables semantic search and RAG over PostgreSQL data by automatically creating and synchronizing embeddings as data changes.
+
+**Looking for text-to-SQL?** Check out the [Semantic Catalog quickstart](/docs/semantic_catalog/README.md) to transform natural language questions into SQL queries.
 
 The key "secret sauce" of pgai Vectorizer is its declarative approach to
 embedding generation. Simply define your pipeline and let Vectorizer handle the
@@ -309,12 +319,15 @@ Answer:"""
 
 ## Next steps
 
-Look for other quickstarts:
-- Quickstart with FastAPI and psycopg [here](/examples/simple_fastapi_app/README.md)
 
-Explore more about the vectorizer:
-- Learn more about the [vectorizer](/docs/vectorizer/overview.md) and the [vectorizer worker](/docs/vectorizer/worker.md)
-- dive into the vectorizer api [reference](/docs/vectorizer/api-reference.md)
+### More RAG and Vectorization Examples  
+- [FastAPI + psycopg quickstart](/examples/simple_fastapi_app/README.md)
+- [Vectorizer overview](/docs/vectorizer/overview.md) and [worker documentation](/docs/vectorizer/worker.md)
+- [Vectorizer API reference](/docs/vectorizer/api-reference.md)
+
+### Text-to-SQL with Semantic Catalog
+- **[Semantic Catalog Quickstart](/docs/semantic_catalog/README.md)** - Learn how to use the semantic catalog to improve the translation of natural language to SQL for agentic applications.
+
 
 # Features 
 
@@ -330,6 +343,8 @@ You can use the vector embeddings to:
 - Implement Retrieval Augmented Generation (RAG)
 - Perform high-performance, cost-efficient ANN search on large vector workloads with [pgvectorscale](https://github.com/timescale/pgvectorscale), which complements pgvector.
 
+
+**Text-to-SQL with Semantic Catalog:** Transform natural language into accurate SQL queries. The semantic catalog generates database descriptions automatically, lets a human in the loop review and improve the descriptions and stores SQL examples and business facts. This enables LLMs to understand your schema and data context. See the [semantic catalog](/docs/semantic_catalog/README.md) for more details.
 
 We also offer a [PostgreSQL extension](/projects/extension/README.md) that can perform LLM model calling directly from SQL. This is often useful for use cases like classification, summarization, and data enrichment on your existing data.
 
@@ -387,7 +402,8 @@ Many specialized vector databases create embeddings for you. However, they typic
 - [pgai: Giving PostgreSQL Developers AI Engineering Superpowers](http://www.timescale.com/blog/pgai-giving-postgresql-developers-ai-engineering-superpowers)
 
 ## Quick start guides
-- [The quick start with Ollama guide above](#quick-start)
+- [Semantic Catalog (Text-to-SQL)](/docs/semantic_catalog/README.md) - Learn how to use the semantic catalog to improve the translation of natural language to SQL for agentic applications.
+- [The vectorizer quick start above](#quick-start)
 - [Quick start with OpenAI](/docs/vectorizer/quick-start-openai.md)
 - [Quick start with VoyageAI](/docs/vectorizer/quick-start-voyage.md)
 
