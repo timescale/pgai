@@ -61,13 +61,13 @@ pgai.install(DB_URL)
 
 If you are not on Timescale Cloud you will also need to run the pgai vectorizer worker. Install the dependencies for it via:
 ```bash
-pip install pgai[vectorizer-worker]
+pip install "pgai[vectorizer-worker]"
 ```
 
 If you are using the [semantic catalog](/docs/semantic_catalog/README.md), you will need to run:
 
 ```bash
-pip install pgai[semantic-catalog]
+pip install "pgai[semantic-catalog]"
 ```
 
 
@@ -326,7 +326,7 @@ Answer:"""
 - [Vectorizer API reference](/docs/vectorizer/api-reference.md)
 
 ### Text-to-SQL with Semantic Catalog
-- **[Semantic Catalog Quickstart](/docs/semantic_catalog/README.md)** - Learn how to use the semantic catalog to improve the translation of natural language to SQL for agentic applications.
+- **[Semantic Catalog Quickstart](/docs/semantic_catalog/README.md)** - Learn how to use the semantic catalog to translate natural language to SQL for agentic applications.
 
 
 # Features 
