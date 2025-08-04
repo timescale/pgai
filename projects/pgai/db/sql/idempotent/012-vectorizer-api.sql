@@ -51,7 +51,7 @@ begin
     if embedding is null then
         raise exception 'embedding configuration is required';
     end if;
-    
+
     if loading is null then
         raise exception 'loading configuration is required';
     end if;
@@ -173,7 +173,7 @@ begin
         raise notice 'a vectorizer named % already exists, skipping', name;
         return _existing_vectorizer_id;
     end if;
-    
+
     -- validate the destination can create objects after the if_not_exists check
     perform ai._validate_destination_can_create_objects(destination);
 
@@ -752,3 +752,73 @@ as $func$
     ;
 $func$ language sql stable security invoker
 set search_path to pg_catalog, pg_temp;
+
+
+-------------------------------------------------------------------------------
+-- set_scheduling_timescaledb
+create or replace function ai.set_scheduling
+( vectorizer_id pg_catalog.int4
+, scheduling pg_catalog.jsonb default ai.scheduling_default()
+, indexing pg_catalog.jsonb default ai.indexing_default()
+) returns pg_catalog.jsonb
+as $func$
+declare
+  _job_id pg_catalog.int8;
+  _updated_config pg_catalog.jsonb;
+begin
+    -- if ai.indexing_default, resolve the default
+    if indexing operator(pg_catalog.->>) 'implementation' = 'default' then
+        indexing = ai._resolve_indexing_default();
+    end if;
+
+    -- validate the indexing config
+    perform ai._validate_indexing(indexing);
+
+    -- if ai.scheduling_default, resolve the default
+    if scheduling operator(pg_catalog.->>) 'implementation' = 'default' then
+        scheduling = ai._resolve_scheduling_default();
+    end if;
+
+    -- validate the scheduling config
+    perform ai._validate_scheduling(scheduling);
+
+    -- if scheduling is none then indexing must also be none
+    if scheduling operator(pg_catalog.->>) 'implementation' = 'none'
+    and indexing operator(pg_catalog.->>) 'implementation' != 'none' then
+        raise exception 'automatic indexing is not supported without scheduling. set indexing=>ai.indexing_none() when scheduling=>ai.scheduling_none()';
+    end if;
+
+    -- delete current job if it exists
+    PERFORM public.delete_job(job_id::pg_catalog.int4)
+    FROM (
+        SELECT config #>> '{scheduling,job_id}' as job_id
+        FROM ai.vectorizer
+        WHERE id = vectorizer_id
+    ) c
+    WHERE job_id IS NOT NULL;
+
+    -- schedule the async ext job
+    select ai._vectorizer_schedule_job
+    ( vectorizer_id
+    , scheduling
+    ) into _job_id
+    ;
+    if _job_id is not null then
+        scheduling = pg_catalog.jsonb_insert(scheduling, array['job_id'], pg_catalog.to_jsonb(_job_id));
+    end if;
+
+    UPDATE ai.vectorizer
+    SET config = config operator(pg_catalog.||) pg_catalog.jsonb_build_object
+    ( 'scheduling'
+    , scheduling
+    , 'indexing'
+    , indexing
+    )
+    WHERE id = vectorizer_id
+    RETURNING config INTO _updated_config;
+
+    RETURN _updated_config;
+end
+$func$ language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;

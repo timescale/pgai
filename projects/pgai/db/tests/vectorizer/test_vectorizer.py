@@ -1115,7 +1115,7 @@ def index_creation_tester(cur: psycopg.Cursor, vectorizer_id: int) -> None:
 
     # insert 5 rows into the target
     cur.execute(f"""
-                insert into {vectorizer.config['destination']['target_schema']}.{vectorizer.config['destination']['target_table']}
+                insert into {vectorizer.config["destination"]["target_schema"]}.{vectorizer.config["destination"]["target_table"]}
                 ( embedding_uuid
                 , id
                 , chunk_seq
@@ -1151,7 +1151,7 @@ def index_creation_tester(cur: psycopg.Cursor, vectorizer_id: int) -> None:
 
     # insert 5 rows into the target
     cur.execute(f"""
-                insert into {vectorizer.config['destination']['target_schema']}.{vectorizer.config['destination']['target_table']}
+                insert into {vectorizer.config["destination"]["target_schema"]}.{vectorizer.config["destination"]["target_table"]}
                 ( embedding_uuid
                 , id
                 , chunk_seq
@@ -1416,7 +1416,7 @@ def test_index_create_concurrency():
 
             # insert 10 rows into the target
             cur.execute(f"""
-                        insert into {vectorizer.config['destination']['target_schema']}.{vectorizer.config['destination']['target_table']}
+                        insert into {vectorizer.config["destination"]["target_schema"]}.{vectorizer.config["destination"]["target_table"]}
                         ( embedding_uuid
                         , id
                         , chunk_seq
@@ -1808,7 +1808,7 @@ def test_grant_to_public():
             cur.execute(f"""
                 select has_table_privilege
                 ( 'public'
-                , '{vectorizer.config['destination']['target_schema']}.{vectorizer.config['destination']['target_table']}'
+                , '{vectorizer.config["destination"]["target_schema"]}.{vectorizer.config["destination"]["target_table"]}'
                 , 'select'
                 )""")
             assert cur.fetchone()[0]
@@ -2222,3 +2222,164 @@ def test_install_library_before_ai_extension():
     with psycopg.connect(db_url("test")) as con:
         with con.cursor() as cur:
             cur.execute("create extension ai cascade")
+
+
+@pytest.mark.skipif(
+    os.getenv("PG_MAJOR") == "15", reason="extension does not support pg15"
+)
+def test_set_scheduling():
+    with psycopg.connect(db_url("test")) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension ai cascade")
+
+    with psycopg.connect(
+        db_url("postgres"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute("create extension if not exists timescaledb")
+            cur.execute("select to_regrole('bob') is null")
+            if cur.fetchone()[0] is True:
+                cur.execute("create user bob")
+            cur.execute("select to_regrole('adelaide') is null")
+            if cur.fetchone()[0] is True:
+                cur.execute("create user adelaide")
+    with psycopg.connect(
+        db_url("test"), autocommit=True, row_factory=namedtuple_row
+    ) as con:
+        con.add_notice_handler(detailed_notice_handler)
+        with con.cursor() as cur:
+            cur.execute("drop schema if exists website cascade")
+            cur.execute("create schema website")
+            cur.execute("drop table if exists website.blog")
+            cur.execute("""
+                create table website.blog
+                ( id int not null generated always as identity
+                , title text not null
+                , published timestamptz
+                , body text not null
+                , drop_me text
+                , primary key (title, published)
+                )
+            """)
+            cur.execute(
+                """grant select, insert, update, delete on website.blog to bob, adelaide"""
+            )
+            cur.execute("""grant usage on schema website to adelaide""")
+            cur.execute("""
+                insert into website.blog(title, published, body)
+                values
+                  ('how to cook a hot dog', '2024-01-06'::timestamptz, 'put it on a hot grill')
+                , ('how to make a sandwich', '2023-01-06'::timestamptz, 'put a slice of meat between two pieces of bread')
+                , ('how to make stir fry', '2022-01-06'::timestamptz, 'pick up the phone and order takeout')
+            """)
+
+            # drop the drop_me column
+            cur.execute("alter table website.blog drop column drop_me")
+
+            # create a vectorizer for the blog table
+            # language=PostgreSQL
+            cur.execute("""
+            select ai.create_vectorizer
+            ( 'website.blog'::regclass
+            , loading => ai.loading_column('body')
+            , embedding=>ai.embedding_openai('text-embedding-3-small', 768)
+            , chunking=>ai.chunking_character_text_splitter(128, 10)
+            , formatting=>ai.formatting_python_template('title: $title published: $published $chunk')
+            , scheduling=>ai.scheduling_timescaledb
+                    ( interval '5m'
+                    , initial_start=>'2050-01-06'::timestamptz
+                    , timezone=>'America/Chicago'
+                    )
+            , grant_to=>ai.grant_to('bob', 'fernando') -- bob is good. fernando doesn't exist. don't grant to adelaide
+            );
+            """)
+            vectorizer_id = cur.fetchone()[0]
+
+            # check the vectorizer that was created
+            cur.execute(
+                """
+                select jsonb_pretty(to_jsonb(x) #- array['config', 'version']) 
+                from ai.vectorizer x 
+                where x.id = %s
+            """,
+                (vectorizer_id,),
+            )
+            actual = json.dumps(json.loads(cur.fetchone()[0]), sort_keys=True, indent=2)
+            expected = json.dumps(json.loads(VECTORIZER_ROW), sort_keys=True, indent=2)
+            assert actual == expected
+
+            # get timescaledb job's job_id
+            cur.execute(
+                """
+                select (x.config->'scheduling'->>'job_id')::int
+                from ai.vectorizer x
+                where x.id = %s
+                """,
+                (vectorizer_id,),
+            )
+            current_job_id = cur.fetchone()[0]
+
+            # check the timescaledb job that was created
+            cur.execute(
+                """
+                select j.schedule_interval = interval '5m'
+                and j.proc_schema = 'ai'
+                and j.proc_name = '_vectorizer_job'
+                and j.scheduled = true
+                and j.fixed_schedule = true
+                as is_ok
+                from timescaledb_information.jobs j
+                where j.job_id = %s
+            """,
+                (current_job_id,),
+            )
+            actual = cur.fetchone()[0]
+            assert actual is True
+
+            cur.execute(
+                """
+            select ai.set_scheduling
+            ( %s
+            , scheduling=>ai.scheduling_timescaledb
+                ( interval '30m'
+                , initial_start=>'2050-01-06'::timestamptz
+                , timezone=>'America/Chicago'
+                )
+            , indexing=>ai.indexing_hnsw()
+            )
+            """,
+                (vectorizer_id,),
+            )
+
+            # check the timescaledb old job that was deleted
+            cur.execute(
+                "select exists (select from timescaledb_information.jobs j where j.job_id = %s)",
+                (current_job_id,),
+            )
+            exists = cur.fetchone()[0]
+            assert not exists
+
+            cur.execute(
+                "select config from ai.vectorizer where id = %s", (vectorizer_id,)
+            )
+            config = cur.fetchone()[0]
+            assert config["scheduling"]["schedule_interval"] == "00:30:00"
+            assert config["indexing"]["implementation"] == "hnsw"
+            job_id = config["scheduling"]["job_id"]
+            assert job_id != current_job_id
+
+            cur.execute(
+                """
+                select j.schedule_interval = interval '30m'
+                and j.proc_schema = 'ai'
+                and j.proc_name = '_vectorizer_job'
+                and j.scheduled = true
+                and j.fixed_schedule = true
+                as is_ok
+                from timescaledb_information.jobs j
+                where j.job_id = %s
+            """,
+                (job_id,),
+            )
+            actual = cur.fetchone()[0]
+            assert actual is True
