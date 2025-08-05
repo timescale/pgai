@@ -786,6 +786,14 @@ def build_idempotent_sql_file(input_file: Path) -> str:
         # This seems paranoid, but it was a real problem.
         if "purelib" in sysconfig.get_path_names() and sysconfig.get_path("purelib") in sys.path:
             sys.path.remove(sysconfig.get_path("purelib"))
+        # Debian based systems have their own convention and install some
+        # packages in a dist-packages directory.
+        system_paths_to_remove = [
+            '/usr/lib/python3/dist-packages',
+        ]
+        for path in system_paths_to_remove:
+            if path in sys.path:
+                sys.path.remove(path)
         python_lib_dir = Path(python_lib_dir).joinpath("{this_version()}")
         import site
         site.addsitedir(str(python_lib_dir))
