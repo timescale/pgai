@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
--- ai 0.11.4 (x-release-please-version)
+-- ai 0.12.0 (x-release-please-version)
 
 
 set local search_path = pg_catalog, pg_temp;
