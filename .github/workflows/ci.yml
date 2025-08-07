@@ -15,16 +15,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # see https://datachain.ai/blog/testing-external-contributions-using-github-actions-secrets 
+  # see https://datachain.ai/blog/testing-external-contributions-using-github-actions-secrets
   # the point of this is to forbid external contributors from running ci without explicit
   # approval from the maintainers (via the environment external-contributors)
   # this allows tests to be run with secrets on forks after the maintainers have approved the run
   #
-  # note: you may think the "run ci with approval setting" in github is enough, 
+  # note: you may think the "run ci with approval setting" in github is enough,
   #       but it doesn't work for pull_request_target
   authorize:
-    environment:
-      ${{ github.event_name == 'pull_request_target' &&
+    environment: ${{ github.event_name == 'pull_request_target' &&
       github.event.pull_request.head.repo.full_name != github.repository &&
       'external-contributors' || 'internal-contributors' }}
     runs-on: ubuntu-latest
@@ -41,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        postgres-version: [ 16, 17 ]
+        postgres-version: [16, 17]
       fail-fast: false
 
     steps:
@@ -79,7 +78,7 @@ jobs:
 
       - name: Check Python Formatting
         run: docker exec pgai-ext just format
-      
+
       - name: Compare requirements file
         run: docker exec pgai-ext just check-requirements
 
@@ -150,7 +149,7 @@ jobs:
         with:
           python-version-file: "./projects/pgai/.python-version"
 
-      - name: CI pipeline. Install dependencies, run linters and formatters, execute tests and build the project", 
+      - name: CI pipeline. Install dependencies, run linters and formatters, execute tests and build the project",
         run: just pgai ci
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -180,10 +179,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        postgres-version: [ 15, 16, 17 ]
+        postgres-version: [15, 16, 17]
       fail-fast: false
 
     steps:
+      - name: Delete huge unnecessary tools folder
+        run: rm -rf /opt/hostedtoolcache
+
       - uses: actions/checkout@v4
         with:
           # in a pull_request_target event, the ref is the `main` branch not the PR branch
@@ -203,8 +205,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version-file: "./projects/pgai/.python-version"
-          
-      - name: DB sub moduleCI pipeline. Install dependencies, run linters execute tests and build the project", 
+
+      - name: DB sub moduleCI pipeline. Install dependencies, run linters execute tests and build the project",
         run: just pgai db ci
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -220,7 +222,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ "3.10", "3.11", "3.12", "3.13" ]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
       fail-fast: true
 
     steps:
@@ -229,7 +231,7 @@ jobs:
           # in a pull_request_target event, the ref is the `main` branch not the PR branch
           # so we need to tell checkout to use the head.ref instead.
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
-      
+
       - name: "Set up Python"
         uses: actions/setup-python@v5
         with:
