@@ -1,5 +1,11 @@
 # Pgai extension release notes
 
+## 0.11.1 (2025-08-06)
+
+### Fixes
+
+Remove Debian specific python path for global packages from sys.path ([b7badfe](https://github.com/timescale/pgai/commit/b7badfe))
+
 ## 0.11.0 (2025-07-10)
 
 Enable bedrock embedding via liteLLM.
