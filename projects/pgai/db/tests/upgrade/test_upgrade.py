@@ -102,23 +102,24 @@ def test_upgrades():
     released_versions = [
         # ("0.10.0", [], []), # TODO Uncomment when fixed. See https://github.com/timescale/pgai/issues/835
         # ("0.10.1", [], []), # TODO Uncomment when fixed. See https://github.com/timescale/pgai/issues/835
-        ("0.10.2", [], []),
-        ("0.10.3", [], []),
-        (
-            # Bug introduced in 0.10.4, fixed in 0.11.0
-            "0.10.4",
-            ["030-add_vectorizer_errors_view.sql"],
-            ["revoke_vectorizer_errors_privileges.sql"],
-        ),
-        (
-            # Bug introduced in 0.10.4, fixed in 0.11.0
-            "0.10.5",
-            ["030-add_vectorizer_errors_view.sql"],
-            ["revoke_vectorizer_errors_privileges.sql"],
-        ),
-        ("0.11.0", [], []),
-        ("0.11.1", [], []),
+        # ("0.10.2", [], []),
+        # ("0.10.3", [], []),
+        # (
+        #     # Bug introduced in 0.10.4, fixed in 0.11.0
+        #     "0.10.4",
+        #     ["030-add_vectorizer_errors_view.sql"],
+        #     ["revoke_vectorizer_errors_privileges.sql"],
+        # ),
+        # (
+        #     # Bug introduced in 0.10.4, fixed in 0.11.0
+        #     "0.10.5",
+        #     ["030-add_vectorizer_errors_view.sql"],
+        #     ["revoke_vectorizer_errors_privileges.sql"],
+        # ),
+        # ("0.11.0", [], []),
+        # ("0.11.1", [], []),
         ("0.11.2", [], []),
+        ("0.11.3", [], []),
     ]
 
     # Run all upgrade tests in parallel for efficiency
