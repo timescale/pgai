@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -108,11 +109,73 @@ def get_docs_directory() -> Path:
     return docs_path.resolve()
 
 
+async def fetch_remote_docs(async_session: AsyncSession) -> tuple[int, list[str]]:
+    """
+    Fetch remote documentation files and insert them into the database.
+
+    Args:
+        async_session: SQLAlchemy async session
+
+    Returns:
+        tuple containing:
+            - Number of files processed
+            - List of any files that failed to process
+    """
+    processed_count = 0
+    failed_files = []
+
+    # List of remote docs to fetch
+    remote_docs = [
+        {
+            "url": "https://raw.githubusercontent.com/timescale/pgvectorscale/main/README.md",
+            "file_name": "external/pgvectorscale_README.md",
+        }
+    ]
+
+    async with httpx.AsyncClient() as client:
+        for doc in remote_docs:
+            try:
+                # Check if document already exists
+                existing_document = await async_session.execute(
+                    select(Document).where(Document.file_name == doc["file_name"])
+                )
+                existing_document = existing_document.scalar_one_or_none()
+
+                # Fetch content from remote URL
+                response = await client.get(doc["url"])
+                response.raise_for_status()
+                content = response.text
+
+                if existing_document:
+                    # Update existing document if content has changed
+                    if existing_document.content != content:
+                        existing_document.content = content
+                        processed_count += 1
+                else:
+                    # Create new document
+                    document = Document(file_name=doc["file_name"], content=content)
+                    async_session.add(document)
+                    processed_count += 1
+
+            except Exception as e:
+                failed_files.append(f"{doc['file_name']}: {str(e)}")
+
+    # Commit all changes
+    try:
+        await async_session.commit()
+    except Exception as e:
+        await async_session.rollback()
+        raise Exception(f"Failed to commit remote docs to database: {str(e)}")
+
+    return processed_count, failed_files
+
+
 # Example usage:
 async def main():
     docs_path = get_docs_directory()
     print(f"Processing markdown files in: {docs_path}")
     async with async_session() as session:
+        # Process local markdown files
         processed, failed = await process_markdown_files(
             directory_path=docs_path,
             async_session=session,
@@ -120,11 +183,24 @@ async def main():
             excluded_dirs=[".git"],
         )
 
-        print(f"Processed {processed} files")
+        print(f"Processed {processed} local files")
         if failed:
-            print("Failed files:")
+            print("Failed local files:")
             for failure in failed:
                 print(f"  - {failure}")
+
+        # Process remote documentation files
+        print("Processing remote documentation files...")
+        remote_processed, remote_failed = await fetch_remote_docs(session)
+
+        print(f"Processed {remote_processed} remote files")
+        if remote_failed:
+            print("Failed remote files:")
+            for failure in remote_failed:
+                print(f"  - {failure}")
+
+        total_processed = processed + remote_processed
+        print(f"Total files processed: {total_processed}")
 
 
 if __name__ == "__main__":
