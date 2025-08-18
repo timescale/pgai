@@ -359,8 +359,8 @@ class VectorizerQueryBuilder:
                     SELECT
                         {pk_fields},
                         pg_try_advisory_xact_lock(
-                            %s,
-                            hashtext(concat_ws('|', {lock_fields}))
+                            %s::oid::bigint,
+                            hashtext(concat_ws('|', {lock_fields}))::bigint
                         ) AS locked
                     FROM (
                         SELECT DISTINCT {pk_fields}
@@ -468,8 +468,8 @@ class VectorizerQueryBuilder:
                     SELECT
                         {pk_fields}, {loading_retries},
                         pg_try_advisory_xact_lock(
-                            %s,
-                            hashtext(concat_ws('|', {lock_fields}))
+                            %s::oid::bigint,
+                            hashtext(concat_ws('|', {lock_fields}))::bigint
                         ) AS locked
                     FROM (
                         SELECT DISTINCT {pk_fields}, {loading_retries}
