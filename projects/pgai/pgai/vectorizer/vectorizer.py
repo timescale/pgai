@@ -359,8 +359,8 @@ class VectorizerQueryBuilder:
                     SELECT
                         {pk_fields},
                         pg_try_advisory_xact_lock(
-                            %s,
-                            hashtext(concat_ws('|', {lock_fields}))
+                            %s::int,
+                            hashtext(concat_ws('|', {lock_fields}))::int
                         ) AS locked
                     FROM (
                         SELECT DISTINCT {pk_fields}
@@ -468,8 +468,8 @@ class VectorizerQueryBuilder:
                     SELECT
                         {pk_fields}, {loading_retries},
                         pg_try_advisory_xact_lock(
-                            %s,
-                            hashtext(concat_ws('|', {lock_fields}))
+                            %s::int,
+                            hashtext(concat_ws('|', {lock_fields}))::int
                         ) AS locked
                     FROM (
                         SELECT DISTINCT {pk_fields}, {loading_retries}
@@ -940,14 +940,13 @@ class Executor:
         Returns:
             list[SourceRow]: The rows from the source table that need to be embedded.
         """
-        queue_table_oid = await self._get_queue_table_oid(conn)
         async with conn.cursor(row_factory=dict_row) as cursor:
             if self.features.loading_retries:
                 await cursor.execute(
                     self.queries.fetch_work_query_with_retries,
                     (
                         self._batch_size,
-                        queue_table_oid,
+                        self.vectorizer.id,
                     ),
                 )
             else:
@@ -955,33 +954,10 @@ class Executor:
                     self.queries.fetch_work_query,
                     (
                         self._batch_size,
-                        queue_table_oid,
+                        self.vectorizer.id,
                     ),
                 )
             return await cursor.fetchall()
-
-    async def _get_queue_table_oid(self, conn: AsyncConnection) -> int:
-        """
-        Retrieves the OID (Object Identifier) of the queue table.
-
-        Args:
-            conn (AsyncConnection): The database connection.
-
-        Returns:
-            int: The OID of the queue table.
-        """
-        if self._queue_table_oid is not None:
-            return self._queue_table_oid
-
-        async with conn.cursor(row_factory=dict_row) as cursor:
-            await cursor.execute(
-                self.queries.fetch_queue_table_oid_query,
-            )
-            row = await cursor.fetchone()
-            if not row:
-                raise Exception("work queue table doesn't exist")
-            self._queue_table_oid = row["to_regclass"]
-        return self._queue_table_oid
 
     @tracer.wrap()
     async def _embed_and_write(self, conn: AsyncConnection, items: list[SourceRow]):
