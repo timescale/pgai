@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.12.0](https://github.com/timescale/pgai/compare/pgai-v0.11.4...pgai-v0.12.0) (2025-08-21)
+
+
+### Features
+
+* add ai.set_scheduling function to change scheduling ([cbb688f](https://github.com/timescale/pgai/commit/cbb688f87be9f809fd1e8514242e09564cfceaca))
+
+
+### Bug Fixes
+
+* render view comments ([ce66c5c](https://github.com/timescale/pgai/commit/ce66c5c1aa4d161927cd422e9e898efa13d64cd7))
+
+
+### Miscellaneous
+
+* release extension 0.11.1 ([4b54320](https://github.com/timescale/pgai/commit/4b54320370dae8313b2c239b7ad90e0a737226e8))
+
 ## [0.11.4](https://github.com/timescale/pgai/compare/pgai-v0.11.3...pgai-v0.11.4) (2025-07-04)
 
 
