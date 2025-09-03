@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pgai"
 dynamic = ["version"]
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.13"
 
 dependencies= [
     "openai==1.69.0",
