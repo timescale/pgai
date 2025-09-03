@@ -1,3 +1,4 @@
+import re
 import subprocess
 from pathlib import Path
 
@@ -41,6 +42,13 @@ async def setup(dump_url: str) -> None:
             await cur.execute("select ai.sc_grant_admin('ada')")
             await cur.execute("select ai.sc_grant_write('default', 'vera')")
             await cur.execute("select ai.sc_grant_read('default', 'edith')")
+
+
+def strip_restrict_lines(file_path: Path) -> None:
+    """Remove \\restrict and \\unrestrict lines from a PostgreSQL dump file."""
+    content = file_path.read_text()
+    cleaned_content = re.sub(r'^\\(?:un)?restrict\s+[a-zA-Z0-9]+.*$', '', content, flags=re.MULTILINE)
+    file_path.write_text(cleaned_content)
 
 
 async def test_dump_restore(container: PostgresContainer):
@@ -147,6 +155,9 @@ async def test_dump_restore(container: PostgresContainer):
         capture_output=True,
     )
     assert cp.returncode == 0, f"dump of the restore db failed: {cp.stderr}"
+
+    strip_restrict_lines(dump_expected)
+    strip_restrict_lines(dump_actual)
 
     # compare dump files of restore and dump databases
     expected = dump_expected.read_text()
