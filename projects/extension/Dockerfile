@@ -4,7 +4,7 @@ ARG PGVECTORSCALE_VERSION=0.5.1
 
 ###############################################################################
 # base image
-FROM postgres:${PG_MAJOR} as base
+FROM postgres:${PG_MAJOR}-bookworm as base
 ARG PGVECTORSCALE_VERSION
 ENV DEBIAN_FRONTEND=noninteractive
 USER root
