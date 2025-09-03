@@ -44,13 +44,13 @@ async def setup(dump_url: str) -> None:
             await cur.execute("select ai.sc_grant_read('default', 'edith')")
 
 
-def strip_restrict_lines(file_path: Path) -> None:
+def strip_restrict_lines(file_path: Path) -> str:
     """Remove \\restrict and \\unrestrict lines from a PostgreSQL dump file."""
     content = file_path.read_text()
     cleaned_content = re.sub(
         r"^\\(?:un)?restrict\s+[a-zA-Z0-9]+.*$", "", content, flags=re.MULTILINE
     )
-    file_path.write_text(cleaned_content)
+    return cleaned_content
 
 
 async def test_dump_restore(container: PostgresContainer):
@@ -158,12 +158,9 @@ async def test_dump_restore(container: PostgresContainer):
     )
     assert cp.returncode == 0, f"dump of the restore db failed: {cp.stderr}"
 
-    strip_restrict_lines(dump_expected)
-    strip_restrict_lines(dump_actual)
-
     # compare dump files of restore and dump databases
-    expected = dump_expected.read_text()
-    actual = dump_actual.read_text()
+    expected = strip_restrict_lines(dump_expected)
+    actual = strip_restrict_lines(dump_actual)
     assert expected == actual
 
     # get the privileges in the restore db
