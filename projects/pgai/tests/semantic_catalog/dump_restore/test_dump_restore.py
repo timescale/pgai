@@ -47,7 +47,9 @@ async def setup(dump_url: str) -> None:
 def strip_restrict_lines(file_path: Path) -> None:
     """Remove \\restrict and \\unrestrict lines from a PostgreSQL dump file."""
     content = file_path.read_text()
-    cleaned_content = re.sub(r'^\\(?:un)?restrict\s+[a-zA-Z0-9]+.*$', '', content, flags=re.MULTILINE)
+    cleaned_content = re.sub(
+        r"^\\(?:un)?restrict\s+[a-zA-Z0-9]+.*$", "", content, flags=re.MULTILINE
+    )
     file_path.write_text(cleaned_content)
 
 
