@@ -120,6 +120,7 @@ def test_upgrades():
         # ("0.11.1", [], []),
         ("0.11.2", [], []),
         ("0.11.3", [], []),
+        ("0.12.0", [], []),
     ]
 
     # Run all upgrade tests in parallel for efficiency
