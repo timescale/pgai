@@ -82,6 +82,7 @@ semantic-catalog = [
     "ollama>=0.4.5,<0.6.0",
     "sentence-transformers>=4.0.2",
     "torch>=2.6.0",
+    "torchvision>=0.17.0",
     "einops>=0.8.1",
 ]
 

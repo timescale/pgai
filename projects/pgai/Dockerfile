@@ -9,10 +9,13 @@ COPY --from=ghcr.io/astral-sh/uv:0.7.10 /uv /uvx /bin/
 COPY pyproject.toml uv.lock README.md ./
 COPY pgai ./pgai
 
-# use cpu-only torch
+# use cpu-only torch and torchvision
 RUN cat <<EOF >>pyproject.toml
 [tool.uv.sources]
 torch = [
+  { index = "pytorch-cpu" },
+]
+torchvision = [
   { index = "pytorch-cpu" },
 ]
 
