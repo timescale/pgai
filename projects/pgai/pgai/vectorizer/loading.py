@@ -16,22 +16,21 @@ class LoadedDocument:
 
 
 def guess_filetype(file_like: BytesIO, file_path: str | None = None) -> str | None:
-    data = file_like.read()
+    guess = filetype.guess(file_like)  # type: ignore[reportUnknownArgumentType,reportUnknownMemberType]
     file_like.seek(0)
-    extension = filetype.guess_extension(data)
-    if extension is not None:
-        return extension
+    if guess is not None:
+        return guess.extension
 
     if file_path is None:
         return None
+
     try:
         parsed = urlparse(file_path)
+        _, ext = os.path.splitext(parsed.path)
     except Exception:
         return None
-    split = parsed.path.split(".")
-    if len(split) < 2:
-        return None
-    return split[-1]
+
+    return ext[1:].lower() if ext else None
 
 
 class ColumnLoading(BaseModel):
