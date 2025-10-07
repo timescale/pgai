@@ -596,9 +596,9 @@ langchain-core==0.3.33 \
     --hash=sha256:269706408a2223f863ff1f9616f31903a5712403199d828b50aadbc4c28b553a \
     --hash=sha256:b5dd93a4e7f8198d2fc6048723b0bfecf7aaf128b0d268cbac19c34c1579b953
     # via langchain-text-splitters
-langchain-text-splitters==0.3.5 \
-    --hash=sha256:11cb7ca3694e5bdd342bc16d3875b7f7381651d4a53cbb91d34f22412ae16443 \
-    --hash=sha256:8c9b059827438c5fa8f327b4df857e307828a5ec815163c9b5c9569a3e82c8ee
+langchain-text-splitters==1.0.0a1 \
+    --hash=sha256:0746e5742db551d609ae947573d3f6e52f8bdda719367bd98ba1ef9ca514f2d0 \
+    --hash=sha256:ec52275ecb1813054277d9aa8136364e3e44fb7de9a8714b519908efd5387066
     # via pgai
 langsmith==0.3.4 \
     --hash=sha256:79fd516e68bbc30f408ab0b30a92175e5be0f5c21002e30a7804c59cb72cfe1a \
