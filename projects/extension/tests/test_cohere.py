@@ -71,6 +71,7 @@ def test_cohere_list_models_endpoint(cur_with_api_key):
     assert actual is True
 
 
+@pytest.mark.skip(reason="command model removed on September 15, 2025")
 def test_cohere_tokenize(cur, cohere_api_key):
     cur.execute(
         """
@@ -90,6 +91,7 @@ def test_cohere_tokenize(cur, cohere_api_key):
     assert actual == 17
 
 
+@pytest.mark.skip(reason="command model removed on September 15, 2025")
 def test_cohere_tokenize_api_key_name(cur_with_external_functions_executor_url):
     cur_with_external_functions_executor_url.execute(
         """
@@ -108,6 +110,7 @@ def test_cohere_tokenize_api_key_name(cur_with_external_functions_executor_url):
     assert actual == 17
 
 
+@pytest.mark.skip(reason="command model removed on September 15, 2025")
 def test_cohere_tokenize_no_key(cur_with_api_key):
     cur_with_api_key.execute("""
         select ai.cohere_tokenize
@@ -122,6 +125,7 @@ def test_cohere_tokenize_no_key(cur_with_api_key):
     )
 
 
+@pytest.mark.skip(reason="command model removed on September 15, 2025")
 def test_cohere_detokenize(cur, cohere_api_key):
     cur.execute(
         """
@@ -140,6 +144,7 @@ def test_cohere_detokenize(cur, cohere_api_key):
     )
 
 
+@pytest.mark.skip(reason="command model removed on September 15, 2025")
 def test_cohere_detokenize_api_key_name(cur_with_external_functions_executor_url):
     cur_with_external_functions_executor_url.execute(
         """
@@ -157,6 +162,7 @@ def test_cohere_detokenize_api_key_name(cur_with_external_functions_executor_url
     )
 
 
+@pytest.mark.skip(reason="command model removed on September 15, 2025")
 def test_cohere_detokenize_no_key(cur_with_api_key):
     cur_with_api_key.execute("""
         select ai.cohere_detokenize
