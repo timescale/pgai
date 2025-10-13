@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.1](https://github.com/timescale/pgai/compare/pgai-v0.12.0...pgai-v0.12.1) (2025-10-13)
+
+
+### Bug Fixes
+
+* make file extension guessing with uri query parameters ([#879](https://github.com/timescale/pgai/issues/879)) ([55c3c2e](https://github.com/timescale/pgai/commit/55c3c2e25c443336ead90b271b73636e38511ee1))
+
+
+### Miscellaneous
+
+* pull localstack on CI ([43a02a3](https://github.com/timescale/pgai/commit/43a02a3cb55abd69b86f7fd65152e59d4bf38f8a))
+
 ## [0.12.0](https://github.com/timescale/pgai/compare/pgai-v0.11.4...pgai-v0.12.0) (2025-09-04)
 
 
