@@ -159,11 +159,6 @@ jobs:
         with:
           python-version-file: "./projects/pgai/.python-version"
 
-      - name: Clean Docker before tests
-        run: |
-          docker system prune -a -f
-          docker volume prune -f
-
       - name: CI pipeline. Install dependencies, run linters and formatters, execute tests and build the project",
         run: just pgai ci
         env:

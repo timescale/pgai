@@ -2,6 +2,7 @@ import os
 from dataclasses import dataclass
 from io import BytesIO
 from typing import Any, Literal
+from urllib.parse import urlparse
 
 from filetype import filetype  # type: ignore
 from pydantic import BaseModel
@@ -15,13 +16,21 @@ class LoadedDocument:
 
 
 def guess_filetype(file_like: BytesIO, file_path: str | None = None) -> str | None:
-    guess = filetype.guess(file_like)  # type: ignore
+    guess = filetype.guess(file_like)  # type: ignore[reportUnknownArgumentType,reportUnknownMemberType]
     file_like.seek(0)
-    if guess is None:
-        if file_path is None:
-            return None
-        return file_path.split(".")[-1]
-    return guess.extension
+    if guess is not None:
+        return guess.extension
+
+    if file_path is None:
+        return None
+
+    try:
+        parsed = urlparse(file_path)
+        _, ext = os.path.splitext(parsed.path)
+    except Exception:
+        return None
+
+    return ext[1:].lower() if ext else None
 
 
 class ColumnLoading(BaseModel):
