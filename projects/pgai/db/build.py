@@ -343,7 +343,7 @@ def git_tag(version: str) -> str:
 
 
 def pg_major() -> str:
-    return os.getenv("PG_MAJOR", "17")
+    return os.getenv("PG_MAJOR", "18")
 
 
 def db_dir() -> Path:

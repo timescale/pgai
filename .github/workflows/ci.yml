@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        postgres-version: [16, 17]
+        postgres-version: [16, 17, 18]
       fail-fast: false
 
     steps:
@@ -189,7 +189,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        postgres-version: [15, 16, 17]
+        postgres-version: [15, 16, 17, 18]
       fail-fast: false
 
     steps:
