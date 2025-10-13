@@ -149,6 +149,9 @@ jobs:
         with:
           python-version-file: "./projects/pgai/.python-version"
 
+      - name: Pull LocalStack Docker image
+        run: docker pull localstack/localstack:4
+
       - name: CI pipeline. Install dependencies, run linters and formatters, execute tests and build the project",
         run: just pgai ci
         env:

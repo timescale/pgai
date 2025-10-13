@@ -33,6 +33,7 @@ docs = [
 @pytest.fixture(scope="session")
 def s3_bucket() -> Generator[str, None, None]:
     region = "eu-central-1"
+    # Download localstack
     localstack = LocalStackContainer(
         image="localstack/localstack:4", region_name=region
     ).with_services("s3")  # type: ignore
