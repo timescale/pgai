@@ -135,6 +135,16 @@ jobs:
           # so we need to tell checkout to use the head.ref instead.
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/local/share/powershell
+          sudo rm -rf /usr/share/swift
+
       - uses: taiki-e/install-action@just
 
       - name: Install uv
@@ -148,6 +158,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version-file: "./projects/pgai/.python-version"
+
+      - name: Clean Docker before tests
+        run: |
+          docker system prune -a -f
+          docker volume prune -f
 
       - name: CI pipeline. Install dependencies, run linters and formatters, execute tests and build the project",
         run: just pgai ci
