@@ -576,6 +576,7 @@ class Actions:
 def versions() -> list[str]:
     # ADD NEW VERSIONS TO THE FRONT OF THIS LIST! STAY SORTED PLEASE
     return [
+        "0.11.3-dev",  # released
         "0.11.2",  # released
         "0.11.1",  # released
         "0.11.0",  # released
