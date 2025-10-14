@@ -1,5 +1,12 @@
 # Pgai extension release notes
 
+## 0.11.2 (2025-10-14)
+
+### Fixes
+
+Use lockfile when installing prior versions when running the install-all
+command.
+
 ## 0.11.1 (2025-08-06)
 
 ### Fixes
