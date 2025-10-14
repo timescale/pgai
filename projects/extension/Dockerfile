@@ -21,6 +21,7 @@ RUN set -e; \
     git \
     curl \
     vim \
+    build-essential \
     && curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin/
 
 # install timescaledb
