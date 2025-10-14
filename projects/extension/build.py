@@ -143,8 +143,24 @@ class Actions:
                     env=os.environ,
                 )
                 tmp_src_dir = tmp_dir.joinpath("projects", "extension").resolve()
+                requirements_lock = tmp_src_dir.joinpath("requirements-lock.txt")
+
+                # Generate requirements-lock.txt if it doesn't exist
+                if not requirements_lock.exists():
+                    if shutil.which("uv") is None:
+                        fatal(
+                            "uv not found - required to generate requirements-lock.txt for older versions"
+                        )
+                    subprocess.run(
+                        f'uv export --format requirements-txt -o "{requirements_lock}"',
+                        shell=True,
+                        check=True,
+                        env=os.environ,
+                        cwd=str(tmp_src_dir),
+                    )
+
                 bin = "pip3" if shutil.which("uv") is None else "uv pip"
-                cmd = f'{bin} install -v --compile --target "{version_target_dir}" "{tmp_src_dir}"'
+                cmd = f'{bin} install -v --compile --target "{version_target_dir}" -r "{requirements_lock}"'
                 subprocess.run(
                     cmd,
                     check=True,
