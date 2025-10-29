@@ -31,7 +31,7 @@ dev = [
     "fastapi==0.115.6",
     "fastapi-cli==0.0.5",
     "psycopg[binary]==3.2.1",
-    "uv==0.7.10",
+    "uv==0.9.6",
     "pgspot>=0.9.0",
     "requests>=2.32.3",
     "semver>=3.0.4",
