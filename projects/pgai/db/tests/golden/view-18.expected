@@ -1,0 +1,22 @@
+View "website.blog_embedding"
+     Column     |           Type           | Collation | Nullable | Default | Storage  | Description 
+----------------+--------------------------+-----------+----------+---------+----------+-------------
+ embedding_uuid | uuid                     |           |          |         | plain    | 
+ chunk_seq      | integer                  |           |          |         | plain    | 
+ chunk          | text                     |           |          |         | extended | 
+ embedding      | vector(768)              |           |          |         | external | 
+ id             | integer                  |           |          |         | plain    | 
+ title          | text                     |           |          |         | extended | 
+ published      | timestamp with time zone |           |          |         | plain    | 
+ body           | text                     |           |          |         | extended | 
+View definition:
+ SELECT t.embedding_uuid,
+    t.chunk_seq,
+    t.chunk,
+    t.embedding,
+    s.id,
+    t.title,
+    t.published,
+    s.body
+   FROM website.blog_embedding_store t
+     LEFT JOIN website.blog s ON t.title = s.title AND t.published = s.published;
