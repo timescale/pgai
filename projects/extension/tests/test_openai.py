@@ -175,22 +175,6 @@ def test_openai_embed_with_raw_response(cur, openai_api_key):
             None,
             "Could not finish the message because max_tokens",
         ),
-        # OK.
-        ("o1-mini", {"max_completion_tokens": 10000}, False, None),
-        # Stopped generating because max_tokens was reached.
-        (
-            "o1-mini",
-            {"max_completion_tokens": 100},
-            True,
-            None,
-        ),
-        # For some reason, o1-mini does not return a 400 status code in this case.
-        (
-            "o1-mini",
-            {"max_completion_tokens": 1},
-            True,
-            None,
-        ),
         # Stopped generating because max_tokens was reached.
         ("o3-mini", {"max_completion_tokens": 10000}, False, None),  # OK.
         (
@@ -594,7 +578,7 @@ def test_openai_moderate(cur, openai_api_key):
         with x as
         (
             select ai.openai_moderate
-            ( 'text-moderation-stable'
+            ( 'omni-moderation-latest'
             , 'I want to kill them.'
             , api_key=>%s
             , extra_headers=>'{"X-Custom-Header": "my-value"}'
@@ -614,7 +598,7 @@ def test_openai_moderate_with_raw_response(cur, openai_api_key):
     cur.execute(
         """
         select ai.openai_moderate
-        ( 'text-moderation-stable'
+        ( 'omni-moderation-latest'
         , 'I want to kill them.'
         , api_key=>%s
         , extra_headers=>'{"X-Custom-Header": "my-value"}'
@@ -633,7 +617,7 @@ def test_openai_moderate_api_key_name(cur_with_external_functions_executor_url):
         with x as
         (
             select ai.openai_moderate
-            ( 'text-moderation-stable'
+            ( 'omni-moderation-latest'
             , 'I want to kill them.'
             , api_key_name=> 'OPENAI_API_KEY_REAL'
             ) as actual
@@ -651,7 +635,7 @@ def test_openai_moderate_no_key(cur_with_api_key):
         with x as
         (
             select ai.openai_moderate
-            ( 'text-moderation-stable'
+            ( 'omni-moderation-latest'
             , 'I want to kill them.'
             ) as actual
         )

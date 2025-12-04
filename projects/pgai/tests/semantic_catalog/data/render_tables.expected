@@ -7,6 +7,10 @@ CREATE TABLE postgres_air.account
 , frequent_flyer_id integer
 , update_ts timestamp with time zone
 );
+ALTER TABLE postgres_air.account ADD CONSTRAINT account_account_id_not_null NOT NULL account_id;
+ALTER TABLE postgres_air.account ADD CONSTRAINT account_login_not_null NOT NULL login;
+ALTER TABLE postgres_air.account ADD CONSTRAINT account_first_name_not_null NOT NULL first_name;
+ALTER TABLE postgres_air.account ADD CONSTRAINT account_last_name_not_null NOT NULL last_name;
 ALTER TABLE postgres_air.account ADD CONSTRAINT account_pkey PRIMARY KEY (account_id);
 ALTER TABLE postgres_air.account ADD CONSTRAINT frequent_flyer_id_fk FOREIGN KEY (frequent_flyer_id) REFERENCES postgres_air.frequent_flyer(frequent_flyer_id);
 </table>
@@ -19,6 +23,10 @@ CREATE TABLE postgres_air.aircraft
 , velocity numeric NOT NULL
 , code text NOT NULL
 );
+ALTER TABLE postgres_air.aircraft ADD CONSTRAINT aircraft_range_not_null NOT NULL range;
+ALTER TABLE postgres_air.aircraft ADD CONSTRAINT aircraft_class_not_null NOT NULL class;
+ALTER TABLE postgres_air.aircraft ADD CONSTRAINT aircraft_velocity_not_null NOT NULL velocity;
+ALTER TABLE postgres_air.aircraft ADD CONSTRAINT aircraft_code_not_null NOT NULL code;
 ALTER TABLE postgres_air.aircraft ADD CONSTRAINT aircraft_pkey PRIMARY KEY (code);
 </table>
 
@@ -34,6 +42,11 @@ CREATE TABLE postgres_air.airport
 , intnl boolean NOT NULL
 , update_ts timestamp with time zone
 );
+ALTER TABLE postgres_air.airport ADD CONSTRAINT airport_airport_code_not_null NOT NULL airport_code;
+ALTER TABLE postgres_air.airport ADD CONSTRAINT airport_airport_name_not_null NOT NULL airport_name;
+ALTER TABLE postgres_air.airport ADD CONSTRAINT airport_city_not_null NOT NULL city;
+ALTER TABLE postgres_air.airport ADD CONSTRAINT airport_airport_tz_not_null NOT NULL airport_tz;
+ALTER TABLE postgres_air.airport ADD CONSTRAINT airport_intnl_not_null NOT NULL intnl;
 ALTER TABLE postgres_air.airport ADD CONSTRAINT airport_pkey PRIMARY KEY (airport_code);
 </table>
 
@@ -47,6 +60,7 @@ CREATE TABLE postgres_air.boarding_pass
 , precheck boolean
 , update_ts timestamp with time zone
 );
+ALTER TABLE postgres_air.boarding_pass ADD CONSTRAINT boarding_pass_pass_id_not_null NOT NULL pass_id;
 ALTER TABLE postgres_air.boarding_pass ADD CONSTRAINT boarding_pass_pkey PRIMARY KEY (pass_id);
 ALTER TABLE postgres_air.boarding_pass ADD CONSTRAINT booking_leg_id_fk FOREIGN KEY (booking_leg_id) REFERENCES postgres_air.booking_leg(booking_leg_id);
 ALTER TABLE postgres_air.boarding_pass ADD CONSTRAINT passenger_id_fk FOREIGN KEY (passenger_id) REFERENCES postgres_air.passenger(passenger_id);
@@ -63,6 +77,10 @@ CREATE TABLE postgres_air.booking
 , update_ts timestamp with time zone
 , price numeric(7,2)
 );
+ALTER TABLE postgres_air.booking ADD CONSTRAINT booking_booking_id_not_null NOT NULL booking_id;
+ALTER TABLE postgres_air.booking ADD CONSTRAINT booking_booking_ref_not_null NOT NULL booking_ref;
+ALTER TABLE postgres_air.booking ADD CONSTRAINT booking_email_not_null NOT NULL email;
+ALTER TABLE postgres_air.booking ADD CONSTRAINT booking_phone_not_null NOT NULL phone;
 ALTER TABLE postgres_air.booking ADD CONSTRAINT booking_booking_ref_key UNIQUE (booking_ref);
 ALTER TABLE postgres_air.booking ADD CONSTRAINT booking_pkey PRIMARY KEY (booking_id);
 ALTER TABLE postgres_air.booking ADD CONSTRAINT booking_account_id_fk FOREIGN KEY (account_id) REFERENCES postgres_air.account(account_id);
@@ -78,6 +96,9 @@ CREATE TABLE postgres_air.booking_leg
 , is_returning boolean
 , update_ts timestamp with time zone
 );
+ALTER TABLE postgres_air.booking_leg ADD CONSTRAINT booking_leg_booking_leg_id_not_null NOT NULL booking_leg_id;
+ALTER TABLE postgres_air.booking_leg ADD CONSTRAINT booking_leg_booking_id_not_null NOT NULL booking_id;
+ALTER TABLE postgres_air.booking_leg ADD CONSTRAINT booking_leg_flight_id_not_null NOT NULL flight_id;
 ALTER TABLE postgres_air.booking_leg ADD CONSTRAINT booking_leg_pkey PRIMARY KEY (booking_leg_id);
 ALTER TABLE postgres_air.booking_leg ADD CONSTRAINT booking_id_fk FOREIGN KEY (booking_id) REFERENCES postgres_air.booking(booking_id);
 ALTER TABLE postgres_air.booking_leg ADD CONSTRAINT flight_id_fk FOREIGN KEY (flight_id) REFERENCES postgres_air.flight(flight_id);
@@ -89,6 +110,9 @@ CREATE TABLE postgres_air.events
 , name text NOT NULL
 , params jsonb NOT NULL
 );
+ALTER TABLE postgres_air.events ADD CONSTRAINT events_time_not_null NOT NULL "time";
+ALTER TABLE postgres_air.events ADD CONSTRAINT events_name_not_null NOT NULL name;
+ALTER TABLE postgres_air.events ADD CONSTRAINT events_params_not_null NOT NULL params;
 CREATE INDEX events_time_idx ON postgres_air.events USING btree ("time" DESC);
 SELECT create_hypertable('postgres_air.events', by_range('time', INTERVAL '7 days'));
 </table>
@@ -107,6 +131,14 @@ CREATE TABLE postgres_air.flight
 , actual_arrival timestamp with time zone
 , update_ts timestamp with time zone
 );
+ALTER TABLE postgres_air.flight ADD CONSTRAINT flight_flight_id_not_null NOT NULL flight_id;
+ALTER TABLE postgres_air.flight ADD CONSTRAINT flight_flight_no_not_null NOT NULL flight_no;
+ALTER TABLE postgres_air.flight ADD CONSTRAINT flight_scheduled_departure_not_null NOT NULL scheduled_departure;
+ALTER TABLE postgres_air.flight ADD CONSTRAINT flight_scheduled_arrival_not_null NOT NULL scheduled_arrival;
+ALTER TABLE postgres_air.flight ADD CONSTRAINT flight_departure_airport_not_null NOT NULL departure_airport;
+ALTER TABLE postgres_air.flight ADD CONSTRAINT flight_arrival_airport_not_null NOT NULL arrival_airport;
+ALTER TABLE postgres_air.flight ADD CONSTRAINT flight_status_not_null NOT NULL status;
+ALTER TABLE postgres_air.flight ADD CONSTRAINT flight_aircraft_code_not_null NOT NULL aircraft_code;
 ALTER TABLE postgres_air.flight ADD CONSTRAINT flight_pkey PRIMARY KEY (flight_id);
 ALTER TABLE postgres_air.flight ADD CONSTRAINT aircraft_code_fk FOREIGN KEY (aircraft_code) REFERENCES postgres_air.aircraft(code);
 ALTER TABLE postgres_air.flight ADD CONSTRAINT arrival_airport_fk FOREIGN KEY (arrival_airport) REFERENCES postgres_air.airport(airport_code);
@@ -126,6 +158,15 @@ CREATE TABLE postgres_air.frequent_flyer
 , phone text NOT NULL
 , update_ts timestamp with time zone
 );
+ALTER TABLE postgres_air.frequent_flyer ADD CONSTRAINT frequent_flyer_frequent_flyer_id_not_null NOT NULL frequent_flyer_id;
+ALTER TABLE postgres_air.frequent_flyer ADD CONSTRAINT frequent_flyer_first_name_not_null NOT NULL first_name;
+ALTER TABLE postgres_air.frequent_flyer ADD CONSTRAINT frequent_flyer_last_name_not_null NOT NULL last_name;
+ALTER TABLE postgres_air.frequent_flyer ADD CONSTRAINT frequent_flyer_title_not_null NOT NULL title;
+ALTER TABLE postgres_air.frequent_flyer ADD CONSTRAINT frequent_flyer_card_num_not_null NOT NULL card_num;
+ALTER TABLE postgres_air.frequent_flyer ADD CONSTRAINT frequent_flyer_level_not_null NOT NULL level;
+ALTER TABLE postgres_air.frequent_flyer ADD CONSTRAINT frequent_flyer_award_points_not_null NOT NULL award_points;
+ALTER TABLE postgres_air.frequent_flyer ADD CONSTRAINT frequent_flyer_email_not_null NOT NULL email;
+ALTER TABLE postgres_air.frequent_flyer ADD CONSTRAINT frequent_flyer_phone_not_null NOT NULL phone;
 ALTER TABLE postgres_air.frequent_flyer ADD CONSTRAINT frequent_flyer_pkey PRIMARY KEY (frequent_flyer_id);
 </table>
 
@@ -136,6 +177,9 @@ CREATE TABLE postgres_air.hypertable_test
 , time_received timestamp with time zone NOT NULL
 , params jsonb NOT NULL
 );
+ALTER TABLE postgres_air.hypertable_test ADD CONSTRAINT hypertable_test_time_not_null NOT NULL "time";
+ALTER TABLE postgres_air.hypertable_test ADD CONSTRAINT hypertable_test_time_received_not_null NOT NULL time_received;
+ALTER TABLE postgres_air.hypertable_test ADD CONSTRAINT hypertable_test_params_not_null NOT NULL params;
 CREATE INDEX hypertable_test_time_idx ON postgres_air.hypertable_test USING btree ("time" DESC);
 SELECT create_hypertable('postgres_air.hypertable_test', by_range('time', INTERVAL '7 days'));
 SELECT add_dimension('postgres_air.hypertable_test', by_hash('location', 2));
@@ -155,6 +199,10 @@ CREATE TABLE postgres_air.passenger
 , update_ts timestamp with time zone
 , age integer
 );
+ALTER TABLE postgres_air.passenger ADD CONSTRAINT passenger_passenger_id_not_null NOT NULL passenger_id;
+ALTER TABLE postgres_air.passenger ADD CONSTRAINT passenger_booking_id_not_null NOT NULL booking_id;
+ALTER TABLE postgres_air.passenger ADD CONSTRAINT passenger_first_name_not_null NOT NULL first_name;
+ALTER TABLE postgres_air.passenger ADD CONSTRAINT passenger_last_name_not_null NOT NULL last_name;
 ALTER TABLE postgres_air.passenger ADD CONSTRAINT passenger_pkey PRIMARY KEY (passenger_id);
 ALTER TABLE postgres_air.passenger ADD CONSTRAINT pass_account_id_fk FOREIGN KEY (account_id) REFERENCES postgres_air.account(account_id);
 ALTER TABLE postgres_air.passenger ADD CONSTRAINT pass_booking_id_fk FOREIGN KEY (booking_id) REFERENCES postgres_air.booking(booking_id);
@@ -170,6 +218,7 @@ CREATE TABLE postgres_air.phone
 , primary_phone boolean
 , update_ts timestamp with time zone
 );
+ALTER TABLE postgres_air.phone ADD CONSTRAINT phone_phone_id_not_null NOT NULL phone_id;
 ALTER TABLE postgres_air.phone ADD CONSTRAINT phone_pkey PRIMARY KEY (phone_id);
 ALTER TABLE postgres_air.phone ADD CONSTRAINT phone_account_id_fk FOREIGN KEY (account_id) REFERENCES postgres_air.account(account_id);
 </table>

@@ -79,7 +79,7 @@ def test_anthropic_generate(cur, anthropic_api_key):
         with x as
         (
             select ai.anthropic_generate
-            ( 'claude-3-5-sonnet-20240620'
+            ( 'claude-sonnet-4-5-20250929'
             , jsonb_build_array
               ( jsonb_build_object
                 ( 'role', 'user'
@@ -105,7 +105,7 @@ def test_anthropic_generate_api_key_name(cur_with_external_functions_executor_ur
         with x as
         (
             select ai.anthropic_generate
-            ( 'claude-3-5-sonnet-20240620'
+            ( 'claude-sonnet-4-5-20250929'
             , jsonb_build_array
               ( jsonb_build_object
                 ( 'role', 'user'
@@ -129,7 +129,7 @@ def test_anthropic_generate_no_key(cur_with_api_key):
         with x as
         (
             select ai.anthropic_generate
-            ( 'claude-3-5-sonnet-20240620'
+            ( 'claude-sonnet-4-5-20250929'
             , jsonb_build_array
               ( jsonb_build_object
                 ( 'role', 'user'

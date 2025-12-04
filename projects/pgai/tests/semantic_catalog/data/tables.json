@@ -54,6 +54,22 @@
     ],
     "constraints": [
       {
+        "name": "aircraft_range_not_null",
+        "definition": "NOT NULL range"
+      },
+      {
+        "name": "aircraft_class_not_null",
+        "definition": "NOT NULL class"
+      },
+      {
+        "name": "aircraft_velocity_not_null",
+        "definition": "NOT NULL velocity"
+      },
+      {
+        "name": "aircraft_code_not_null",
+        "definition": "NOT NULL code"
+      },
+      {
         "name": "aircraft_pkey",
         "definition": "PRIMARY KEY (code)"
       }
@@ -170,6 +186,38 @@
     ],
     "constraints": [
       {
+        "name": "flight_flight_id_not_null",
+        "definition": "NOT NULL flight_id"
+      },
+      {
+        "name": "flight_flight_no_not_null",
+        "definition": "NOT NULL flight_no"
+      },
+      {
+        "name": "flight_scheduled_departure_not_null",
+        "definition": "NOT NULL scheduled_departure"
+      },
+      {
+        "name": "flight_scheduled_arrival_not_null",
+        "definition": "NOT NULL scheduled_arrival"
+      },
+      {
+        "name": "flight_departure_airport_not_null",
+        "definition": "NOT NULL departure_airport"
+      },
+      {
+        "name": "flight_arrival_airport_not_null",
+        "definition": "NOT NULL arrival_airport"
+      },
+      {
+        "name": "flight_status_not_null",
+        "definition": "NOT NULL status"
+      },
+      {
+        "name": "flight_aircraft_code_not_null",
+        "definition": "NOT NULL aircraft_code"
+      },
+      {
         "name": "flight_pkey",
         "definition": "PRIMARY KEY (flight_id)"
       },
@@ -280,6 +328,26 @@
     ],
     "constraints": [
       {
+        "name": "airport_airport_code_not_null",
+        "definition": "NOT NULL airport_code"
+      },
+      {
+        "name": "airport_airport_name_not_null",
+        "definition": "NOT NULL airport_name"
+      },
+      {
+        "name": "airport_city_not_null",
+        "definition": "NOT NULL city"
+      },
+      {
+        "name": "airport_airport_tz_not_null",
+        "definition": "NOT NULL airport_tz"
+      },
+      {
+        "name": "airport_intnl_not_null",
+        "definition": "NOT NULL intnl"
+      },
+      {
         "name": "airport_pkey",
         "definition": "PRIMARY KEY (airport_code)"
       }
@@ -350,6 +418,22 @@
       }
     ],
     "constraints": [
+      {
+        "name": "account_account_id_not_null",
+        "definition": "NOT NULL account_id"
+      },
+      {
+        "name": "account_login_not_null",
+        "definition": "NOT NULL login"
+      },
+      {
+        "name": "account_first_name_not_null",
+        "definition": "NOT NULL first_name"
+      },
+      {
+        "name": "account_last_name_not_null",
+        "definition": "NOT NULL last_name"
+      },
       {
         "name": "account_pkey",
         "definition": "PRIMARY KEY (account_id)"
@@ -444,6 +528,22 @@
     ],
     "constraints": [
       {
+        "name": "booking_booking_id_not_null",
+        "definition": "NOT NULL booking_id"
+      },
+      {
+        "name": "booking_booking_ref_not_null",
+        "definition": "NOT NULL booking_ref"
+      },
+      {
+        "name": "booking_email_not_null",
+        "definition": "NOT NULL email"
+      },
+      {
+        "name": "booking_phone_not_null",
+        "definition": "NOT NULL phone"
+      },
+      {
         "name": "booking_booking_ref_key",
         "definition": "UNIQUE (booking_ref)"
       },
@@ -527,6 +627,18 @@
       }
     ],
     "constraints": [
+      {
+        "name": "booking_leg_booking_leg_id_not_null",
+        "definition": "NOT NULL booking_leg_id"
+      },
+      {
+        "name": "booking_leg_booking_id_not_null",
+        "definition": "NOT NULL booking_id"
+      },
+      {
+        "name": "booking_leg_flight_id_not_null",
+        "definition": "NOT NULL flight_id"
+      },
       {
         "name": "booking_leg_pkey",
         "definition": "PRIMARY KEY (booking_leg_id)"
@@ -615,6 +727,10 @@
       }
     ],
     "constraints": [
+      {
+        "name": "boarding_pass_pass_id_not_null",
+        "definition": "NOT NULL pass_id"
+      },
       {
         "name": "boarding_pass_pkey",
         "definition": "PRIMARY KEY (pass_id)"
@@ -731,6 +847,42 @@
     ],
     "constraints": [
       {
+        "name": "frequent_flyer_frequent_flyer_id_not_null",
+        "definition": "NOT NULL frequent_flyer_id"
+      },
+      {
+        "name": "frequent_flyer_first_name_not_null",
+        "definition": "NOT NULL first_name"
+      },
+      {
+        "name": "frequent_flyer_last_name_not_null",
+        "definition": "NOT NULL last_name"
+      },
+      {
+        "name": "frequent_flyer_title_not_null",
+        "definition": "NOT NULL title"
+      },
+      {
+        "name": "frequent_flyer_card_num_not_null",
+        "definition": "NOT NULL card_num"
+      },
+      {
+        "name": "frequent_flyer_level_not_null",
+        "definition": "NOT NULL level"
+      },
+      {
+        "name": "frequent_flyer_award_points_not_null",
+        "definition": "NOT NULL award_points"
+      },
+      {
+        "name": "frequent_flyer_email_not_null",
+        "definition": "NOT NULL email"
+      },
+      {
+        "name": "frequent_flyer_phone_not_null",
+        "definition": "NOT NULL phone"
+      },
+      {
         "name": "frequent_flyer_pkey",
         "definition": "PRIMARY KEY (frequent_flyer_id)"
       }
@@ -829,6 +981,22 @@
     ],
     "constraints": [
       {
+        "name": "passenger_passenger_id_not_null",
+        "definition": "NOT NULL passenger_id"
+      },
+      {
+        "name": "passenger_booking_id_not_null",
+        "definition": "NOT NULL booking_id"
+      },
+      {
+        "name": "passenger_first_name_not_null",
+        "definition": "NOT NULL first_name"
+      },
+      {
+        "name": "passenger_last_name_not_null",
+        "definition": "NOT NULL last_name"
+      },
+      {
         "name": "passenger_pkey",
         "definition": "PRIMARY KEY (passenger_id)"
       },
@@ -912,6 +1080,10 @@
     ],
     "constraints": [
       {
+        "name": "phone_phone_id_not_null",
+        "definition": "NOT NULL phone_id"
+      },
+      {
         "name": "phone_pkey",
         "definition": "PRIMARY KEY (phone_id)"
       },
@@ -958,7 +1130,20 @@
         "default_value": null
       }
     ],
-    "constraints": null,
+    "constraints": [
+      {
+        "name": "events_time_not_null",
+        "definition": "NOT NULL \"time\""
+      },
+      {
+        "name": "events_name_not_null",
+        "definition": "NOT NULL name"
+      },
+      {
+        "name": "events_params_not_null",
+        "definition": "NOT NULL params"
+      }
+    ],
     "indexes": [
       {
         "name": "events_time_idx",
@@ -1019,7 +1204,20 @@
         "default_value": null
       }
     ],
-    "constraints": null,
+    "constraints": [
+      {
+        "name": "hypertable_test_time_not_null",
+        "definition": "NOT NULL \"time\""
+      },
+      {
+        "name": "hypertable_test_time_received_not_null",
+        "definition": "NOT NULL time_received"
+      },
+      {
+        "name": "hypertable_test_params_not_null",
+        "definition": "NOT NULL params"
+      }
+    ],
     "indexes": [
       {
         "name": "hypertable_test_time_idx",
