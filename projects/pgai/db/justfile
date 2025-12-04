@@ -1,5 +1,5 @@
 export PROJECT_JUSTFILE := "1" # Note: used in build.py
-PG_MAJOR := env("PG_MAJOR", "17")
+PG_MAJOR := env("PG_MAJOR", "18")
 PG_BIN := env("PG_BIN", "/usr/lib/postgresql/" + PG_MAJOR + "/bin")
 OVERWRITE_GOLDEN := env("OVERWRITE_GOLDEN", "false")
 

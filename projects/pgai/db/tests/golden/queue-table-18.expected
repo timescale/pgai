@@ -1,0 +1,16 @@
+Table "ai._vectorizer_q_1"
+       Column        |           Type           | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
+---------------------+--------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
+ title               | text                     |           | not null |         | extended |             |              | 
+ published           | timestamp with time zone |           | not null |         | plain    |             |              | 
+ queued_at           | timestamp with time zone |           | not null | now()   | plain    |             |              | 
+ loading_retries     | integer                  |           | not null | 0       | plain    |             |              | 
+ loading_retry_after | timestamp with time zone |           |          |         | plain    |             |              | 
+Indexes:
+    "_vectorizer_q_1_title_published_idx" btree (title, published)
+Not-null constraints:
+    "_vectorizer_q_1_title_not_null" NOT NULL "title"
+    "_vectorizer_q_1_published_not_null" NOT NULL "published"
+    "_vectorizer_q_1_queued_at_not_null" NOT NULL "queued_at"
+    "_vectorizer_q_1_loading_retries_not_null" NOT NULL "loading_retries"
+Access method: heap
