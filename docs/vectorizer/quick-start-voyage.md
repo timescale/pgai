@@ -94,12 +94,68 @@ Now you can create and run a vectorizer. A vectorizer is a pgai concept, it proc
       'blog'::regclass,
       loading => ai.loading_column('contents'),
       embedding => ai.embedding_voyageai(
-        'voyage-3-lite',
-        512
+        'voyage-3.5-lite',  -- or 'voyage-3.5', 'voyage-3-large', 'voyage-code-3', etc.
+        1024  -- default dimensions for voyage-3.5-lite
       ),
       destination => ai.destination_table('blog_contents_embeddings')
     );
     ```
+
+    **Available Voyage AI Models:**
+    - `voyage-3.5-lite`: Cost & latency optimized, 1024 dims (1M tokens/request) - **Recommended**
+    - `voyage-3.5`: General-purpose optimized, 1024 dims (320K tokens/request)
+    - `voyage-3-large`: Best for general-purpose & multilingual, 1024 dims (120K tokens/request)
+    - `voyage-code-3`: Specialized for code retrieval, 1024 dims (120K tokens/request)
+    - `voyage-finance-2`: Finance domain optimized, 1024 dims
+    - `voyage-law-2`: Legal document optimized, 1024 dims
+    - `voyage-3-lite`: Older model, 512 dims (120K tokens/request)
+
+    **Flexible Dimensions (New!):**
+    For voyage-3.x models, you can specify `output_dimension` to reduce storage and improve performance:
+    ```sql
+    -- Use 256 dimensions for 75% storage reduction
+    SELECT ai.create_vectorizer(
+      'blog'::regclass,
+      loading => ai.loading_column('contents'),
+      embedding => ai.embedding_voyageai(
+        'voyage-3.5-lite',
+        1024,                     -- Schema dimensions
+        output_dimension => 256   -- Actual embedding dimensions
+      ),
+      destination => ai.destination_table('blog_embeddings_compact')
+    );
+    ```
+
+    **Dimension Trade-offs:**
+    - **256 dims**: Fastest search, 75% less storage, minimal accuracy loss
+    - **512 dims**: Balanced performance and accuracy
+    - **1024 dims**: Default, best accuracy (recommended for most use cases)
+    - **2048 dims**: Maximum accuracy for complex tasks
+
+    **Quantization (New!):**
+    Use `output_dtype` to reduce network bandwidth and API costs:
+    ```sql
+    -- Use int8 quantization for 4x bandwidth reduction
+    SELECT ai.create_vectorizer(
+      'blog'::regclass,
+      loading => ai.loading_column('contents'),
+      embedding => ai.embedding_voyageai(
+        'voyage-3.5-lite',
+        1024,
+        output_dtype => 'int8'  -- Options: float, int8, uint8, binary, ubinary
+      ),
+      destination => ai.destination_table('blog_embeddings_quantized')
+    );
+    ```
+
+    **Quantization Options:**
+    - **float**: Default, no compression (4 bytes per dimension)
+    - **int8**: Integer quantization, 4x smaller transfer (~1 byte per dim)
+    - **uint8**: Unsigned integer quantization, 4x smaller
+    - **binary**: Maximum compression, 32x smaller (1 bit per dim)
+    - **ubinary**: Unsigned binary, 32x smaller
+
+    Note: Quantized embeddings are automatically converted to float for storage in PostgreSQL, so you get bandwidth savings but not storage savings.
 
 1. **Check the vectorizer worker logs** 
    ```shell
@@ -118,7 +174,7 @@ Now you can create and run a vectorizer. A vectorizer is a pgai concept, it proc
    ```sql
    SELECT
        chunk,
-       embedding <=>  ai.voyageai_embed('voyage-3-lite', 'good food') as distance
+       embedding <=>  ai.voyageai_embed('voyage-3.5-lite', 'good food') as distance
    FROM blog_contents_embeddings
    ORDER BY distance;
    ```
@@ -134,6 +190,78 @@ The results look like:
 | Cloud computing has revolutionized the way businesses operate... | 0.9131323552491029 |
 
 
-That's it, you're done. You now have a table in Postgres that pgai vectorizer automatically creates 
-and syncs embeddings for. You can use this vectorizer for semantic search, RAG or any other AI 
+## Reranking with Voyage AI
+
+Voyage AI also provides reranking capabilities to improve search result relevance. Reranking takes your initial search results and reorders them based on relevance to your query.
+
+### Using the Reranker
+
+**Basic reranking:**
+```sql
+SELECT *
+FROM ai.voyageai_rerank_simple(
+  'rerank-2.5',
+  'What are best practices for healthy eating?',
+  ARRAY[
+    'Maintaining a healthy diet can be challenging for busy professionals...',
+    'Blogging can be a great way to share your thoughts and expertise...',
+    'PostgreSQL is a powerful, open source object-relational database system...',
+    'As we look towards the future, artificial intelligence continues to evolve...',
+    'Cloud computing has revolutionized the way businesses operate...'
+  ],
+  api_key => 'your-api-key'
+)
+ORDER BY relevance_score DESC;
+```
+
+**Results:**
+| index | document | relevance_score |
+|-------|----------|-----------------|
+| 0 | Maintaining a healthy diet can be challenging... | 0.9156 |
+| 1 | Blogging can be a great way to share... | 0.2341 |
+| 4 | Cloud computing has revolutionized... | 0.1023 |
+| ... | ... | ... |
+
+**Limit results with top_k:**
+```sql
+SELECT *
+FROM ai.voyageai_rerank_simple(
+  'rerank-2.5-lite',
+  'healthy eating',
+  ARRAY['...'],
+  api_key => 'your-api-key',
+  top_k => 3
+)
+ORDER BY relevance_score DESC;
+```
+
+### Available Reranker Models
+
+**Current Generation (Recommended):**
+| Model | Context Length | Best For |
+|-------|---------------|----------|
+| `rerank-2.5` | 32K tokens | Quality with multilingual/instruction support |
+| `rerank-2.5-lite` | 32K tokens | Latency & quality balance |
+
+**Older Models:**
+| Model | Context Length | Notes |
+|-------|---------------|-------|
+| `rerank-2` | 16K tokens | Legacy |
+| `rerank-2-lite` | 8K tokens | Legacy |
+| `rerank-1` | 8K tokens | Legacy |
+| `rerank-lite-1` | 4K tokens | Legacy |
+
+### Reranker vs Semantic Search
+
+- **Semantic Search** (embeddings): Fast initial retrieval from large datasets
+- **Reranking**: Precise relevance scoring for top-k results from semantic search
+
+**Typical workflow:**
+1. Use semantic search to get top 100 candidates
+2. Use reranker to get the most relevant 5-10 results
+
+---
+
+That's it, you're done. You now have a table in Postgres that pgai vectorizer automatically creates
+and syncs embeddings for. You can use this vectorizer for semantic search, RAG or any other AI
 app you can think of! If you have any questions, reach out to us on [Discord](https://discord.gg/KRdHVXAmkp).

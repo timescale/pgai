@@ -982,24 +982,59 @@ This function is used to create an embedding configuration object that is passed
 SELECT ai.create_vectorizer(
     'my_table'::regclass,
     embedding => ai.embedding_voyageai(
-      'voyage-3-lite',
-      512,
-      api_key_name => "TEST_API_KEY"
+      'voyage-3.5-lite',  -- or 'voyage-3.5', 'voyage-3-large', etc.
+      1024,               -- default dimensions for voyage-3.5 models
+      api_key_name => "TEST_API_KEY",
+      output_dimension => 512  -- Optional: use 256, 512, 1024, or 2048
     ),
     -- other parameters...
 );
 ```
 
+**Example with flexible dimensions (Matryoshka embeddings):**
+```sql
+-- Use 256 dimensions for faster search and less storage
+SELECT ai.create_vectorizer(
+    'articles'::regclass,
+    embedding => ai.embedding_voyageai(
+      'voyage-3-large',
+      1024,                    -- Schema dimensions
+      output_dimension => 256  -- Actual embedding dimensions
+    ),
+    destination => ai.destination_table('articles_embeddings_256d')
+);
+```
+
+#### Available Models
+
+**Current Generation (Recommended):**
+| Model | Purpose | Default Dimensions | Max Tokens/Request |
+|-------|---------|-------------------|-------------------|
+| `voyage-3.5-lite` | Cost & latency optimized | 1024 | 1M |
+| `voyage-3.5` | General-purpose optimized | 1024 | 320K |
+| `voyage-3-large` | Best for general-purpose & multilingual | 1024 | 120K |
+| `voyage-code-3` | Code retrieval specialized | 1024 | 120K |
+| `voyage-finance-2` | Finance domain | 1024 | 120K |
+| `voyage-law-2` | Legal documents | 1024 | 120K |
+
+**Older Models:**
+| Model | Purpose | Default Dimensions | Max Tokens/Request |
+|-------|---------|-------------------|-------------------|
+| `voyage-3-lite` | General-purpose (older) | 512 | 120K |
+| `voyage-2` | General-purpose (legacy) | - | 320K |
+
 #### Parameters
 
 The function takes several parameters to customize the Voyage AI embedding configuration:
 
-| Name         | Type    | Default          | Required | Description                                                                                                                                                                                                                                                               |
-|--------------|---------|------------------|----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| model        | text    | -                | ✔        | Specify the name of the [Voyage AI model](https://docs.voyageai.com/docs/embeddings#model-choices) to use.                                                                                                                                                                |
-| dimensions   | int     | -                | ✔        | Define the number of dimensions for the embedding vectors. This should match the output dimensions of the chosen model.                                                                                                                                                   |
-| input_type   | text    | 'document'       | ✖        | Type of the input text, null, 'query', or 'document'.                                                                                                                                                                                                                     |
-| api_key_name | text    | `VOYAGE_API_KEY` | ✖        | Set the name of the environment variable that contains the Voyage AI API key. This allows for flexible API key management without hardcoding keys in the database. On Timescale Cloud, you should set this to the name of the secret that contains the Voyage AI API key. |
+| Name             | Type    | Default          | Required | Description                                                                                                                                                                                                                                                               |
+|------------------|---------|------------------|----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| model            | text    | -                | ✔        | Specify the name of the [Voyage AI model](https://docs.voyageai.com/docs/embeddings) to use. See table above for available models.                                                                                                                                                                |
+| dimensions       | int     | -                | ✔        | Define the number of dimensions for the embedding vectors. This should match the output dimensions of the chosen model (typically 1024 for voyage-3.x models).                                                                                                                                                   |
+| input_type       | text    | 'document'       | ✖        | Type of the input text: null, 'query', or 'document'. Setting this improves retrieval quality by allowing the model to optimize the embedding.                                                                                                                                                                                                     |
+| api_key_name     | text    | `VOYAGE_API_KEY` | ✖        | Set the name of the environment variable that contains the Voyage AI API key. This allows for flexible API key management without hardcoding keys in the database. On Timescale Cloud, you should set this to the name of the secret that contains the Voyage AI API key. |
+| output_dimension | int     | null             | ✖        | Set the output dimension for embeddings. Supports 256, 512, 1024, or 2048 for voyage-3.x models. Lower dimensions reduce storage (up to 75%) and improve search speed with minimal accuracy loss. Uses Matryoshka embeddings technique. |
+| output_dtype     | text    | 'float'          | ✖        | Set the output data type for embeddings. Options: 'float' (default), 'int8', 'uint8', 'binary', 'ubinary'. Quantized types (int8, uint8) reduce network bandwidth and API costs. Binary types (binary, ubinary) provide maximum compression with 1/8 the dimensions. Embeddings are automatically converted to float for storage in PostgreSQL. |
 
 #### Returns
 
