@@ -1,4 +1,3 @@
-
 # pgai Vectorizer API reference
 
 This page provides an API reference for Vectorizer functions. For an overview
@@ -790,7 +789,7 @@ The simplest method is to provide the `AWS_ACCESS_KEY_ID`,
 vectorizer worker. Consult the [boto3 credentials documentation] for more
 options.
 
-[boto3 credentials documentation]: (https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html)
+[boto3 credentials documentation]: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html
 
 ```sql
     SELECT ai.create_vectorizer(
