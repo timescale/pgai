@@ -63,7 +63,7 @@ Generate embeddings using a specified model.
   The data returned looks like:
 
     ```text
-                          litellm_embed                      
+                          litellm_embed
     --------------------------------------------------------
      [0.005978798,-0.020522336,...-0.0022857306,-0.023699166]
     (1 row)
@@ -188,7 +188,7 @@ The simplest method is to set the `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
 and `AWS_REGION_NAME` environment variables for the database process. Consult
 the [boto3 credentials documentation] for more options.
 
-[boto3 credentials documentation]: (https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html)
+[boto3 credentials documentation]: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html
 
 ```sql
     SELECT ai.litellm_embed(
