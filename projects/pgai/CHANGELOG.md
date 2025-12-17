@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.13.0](https://github.com/timescale/pgai/compare/pgai-v0.12.1...pgai-v0.13.0) (2025-12-17)
+
+
+### Features
+
+* implement dynamic max chunks per batch from env variable ([#898](https://github.com/timescale/pgai/issues/898)) ([3e05485](https://github.com/timescale/pgai/commit/3e054856bdc1fc01bf09f5eda60f77488ffd2f94))
+* support postgres 18 ([#884](https://github.com/timescale/pgai/issues/884)) ([f92ffe4](https://github.com/timescale/pgai/commit/f92ffe439c87972d5a85568713acb744ec90b3d4))
+* voyageAI features ([#897](https://github.com/timescale/pgai/issues/897)) ([b2422d7](https://github.com/timescale/pgai/commit/b2422d70e2289b128116ff073b0b13d909404cbf))
+
+
+### Miscellaneous
+
+* pgai db on pg18 ([#901](https://github.com/timescale/pgai/issues/901)) ([c93d8ce](https://github.com/timescale/pgai/commit/c93d8ce2cec85be261b864346f05e73d7c08f4fa))
+
 ## [0.12.1](https://github.com/timescale/pgai/compare/pgai-v0.12.0...pgai-v0.12.1) (2025-10-13)
 
 
