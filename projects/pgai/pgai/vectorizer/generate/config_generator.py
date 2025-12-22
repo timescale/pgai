@@ -52,7 +52,7 @@ class SQLArgumentMixin:
 @dataclass
 class {{ function.name|replace('ai.', '')|replace('_', ' ')|title|replace(' ', '') }}Config(SQLArgumentMixin):
     """Configuration for {{ function.name }} function."""
-    arg_type: ClassVar[str] = "{{ function.name|split('.')|last|split('_')|first }}"
+    arg_type: ClassVar[str] = "{{ function.name|get_arg_type }}"
     function_name: ClassVar[str] = "{{ function.name }}"
 
     {% for param in function.parameters %}
@@ -123,6 +123,24 @@ def generate_vectorizer_params(
     output_file.write_text(output)
 
 
+def _get_arg_type(function_name: str) -> str:
+    """Extract arg_type from function name (e.g., 'text_indexing_bm25' -> 'text_indexing').
+
+    Maps function names to their corresponding create_vectorizer parameter names.
+    """
+    # Known arg_type prefixes that span multiple words
+    name = function_name.split(".")[-1]  # Remove 'ai.' prefix
+
+    # Check for known multi-word prefixes
+    multi_word_prefixes = ["text_indexing"]
+    for prefix in multi_word_prefixes:
+        if name.startswith(prefix + "_"):
+            return prefix
+
+    # Default: use the first word
+    return name.split("_")[0]
+
+
 def generate_config_classes(
     functions: list[PostgresFunction], output_file: Path
 ) -> None:
@@ -131,6 +149,7 @@ def generate_config_classes(
 
     # Add custom filters
     env.filters["split"] = lambda x, sep: x.split(sep)  # type: ignore
+    env.filters["get_arg_type"] = _get_arg_type
 
     template = env.from_string(TEMPLATE)
     output = template.render(functions=functions)

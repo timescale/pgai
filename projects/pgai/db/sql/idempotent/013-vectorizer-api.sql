@@ -9,6 +9,7 @@ create or replace function ai.create_vectorizer
 , embedding pg_catalog.jsonb default null
 , chunking pg_catalog.jsonb default ai.chunking_recursive_character_text_splitter()
 , indexing pg_catalog.jsonb default ai.indexing_default()
+, text_indexing pg_catalog.jsonb default ai.text_indexing_none()
 , formatting pg_catalog.jsonb default ai.formatting_python_template()
 , scheduling pg_catalog.jsonb default ai.scheduling_default()
 , processing pg_catalog.jsonb default ai.processing_default()
@@ -128,6 +129,9 @@ begin
 
     -- validate the indexing config
     perform ai._validate_indexing(indexing);
+
+    -- validate the text_indexing config
+    perform ai._validate_text_indexing(text_indexing);
 
     -- validate the formatting config
     perform ai._validate_formatting(formatting, _source_schema, _source_table);
@@ -272,6 +276,7 @@ begin
       , 'embedding', embedding
       , 'chunking', chunking
       , 'indexing', indexing
+      , 'text_indexing', text_indexing
       , 'formatting', formatting
       , 'scheduling', scheduling
       , 'processing', processing
@@ -306,6 +311,40 @@ begin
         ;
         execute _sql;
     end if;
+
+    -- create text index if configured
+    if text_indexing operator(pg_catalog.->>) 'implementation' operator(pg_catalog.!=) 'none' then
+        declare
+            _text_schema_name pg_catalog.name;
+            _text_table_name pg_catalog.name;
+            _text_column_name pg_catalog.name;
+            _destination_impl pg_catalog.text;
+            _chunking_impl pg_catalog.text;
+        begin
+            _destination_impl = destination operator(pg_catalog.->>) 'implementation';
+            _chunking_impl = chunking operator(pg_catalog.->>) 'implementation';
+
+            -- if destination=column OR chunking=none, index the source column
+            -- otherwise, index the chunk column in the destination table
+            if _destination_impl operator(pg_catalog.=) 'column' or _chunking_impl operator(pg_catalog.=) 'none' then
+                _text_schema_name = _source_schema;
+                _text_table_name = _source_table;
+                _text_column_name = loading operator(pg_catalog.->>) 'column_name';
+            else
+                _text_schema_name = destination operator(pg_catalog.->>) 'target_schema';
+                _text_table_name = destination operator(pg_catalog.->>) 'target_table';
+                _text_column_name = 'chunk';
+            end if;
+
+            perform ai._vectorizer_create_text_index
+            ( _text_schema_name
+            , _text_table_name
+            , _text_column_name
+            , text_indexing
+            );
+        end;
+    end if;
+
     return _vectorizer_id;
 end
 $func$ language plpgsql volatile security invoker

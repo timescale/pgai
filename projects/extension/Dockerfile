@@ -42,6 +42,14 @@ RUN set -e; \
     dpkg -i pgvectorscale-postgresql-${PG_MAJOR}_${PGVECTORSCALE_VERSION}-Linux_"$TARGET_ARCH".deb; \
     rm pgvectorscale-${PGVECTORSCALE_VERSION}-pg${PG_MAJOR}-"$TARGET_ARCH".zip pgvectorscale-postgresql-${PG_MAJOR}_${PGVECTORSCALE_VERSION}-Linux_"$TARGET_ARCH".deb
 
+# install pg_textsearch
+RUN set -e; \
+    git clone --depth 1 https://github.com/timescale/pg_textsearch.git /tmp/pg_textsearch; \
+    cd /tmp/pg_textsearch; \
+    make; \
+    make install; \
+    rm -rf /tmp/pg_textsearch
+
 
 ###############################################################################
 # image for use in testing the pgai library

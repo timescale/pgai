@@ -1810,7 +1810,112 @@ set search_path to pg_catalog, pg_temp
 
 
 --------------------------------------------------------------------------------
--- 006-processing.sql
+-- 006-text-indexing.sql
+
+-------------------------------------------------------------------------------
+-- text_indexing_none
+create or replace function ai.text_indexing_none() returns pg_catalog.jsonb
+as $func$
+    select jsonb_build_object
+    ( 'implementation', 'none'
+    , 'config_type', 'text_indexing'
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- text_indexing_bm25
+create or replace function ai.text_indexing_bm25
+( text_config pg_catalog.text default 'english'
+, k1 pg_catalog.float8 default 1.2
+, b pg_catalog.float8 default 0.75
+) returns pg_catalog.jsonb
+as $func$
+    select json_strip_nulls(json_build_object
+    ( 'implementation', 'bm25'
+    , 'config_type', 'text_indexing'
+    , 'text_config', text_config
+    , 'k1', k1
+    , 'b', b
+    ))
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _validate_text_indexing_bm25
+create or replace function ai._validate_text_indexing_bm25(config pg_catalog.jsonb) returns void
+as $func$
+declare
+    _text_config pg_catalog.text;
+    _k1 pg_catalog.float8;
+    _b pg_catalog.float8;
+begin
+    -- Validate text_config is a valid regconfig (language configuration)
+    _text_config = config operator(pg_catalog.->>) 'text_config';
+    if _text_config is not null then
+        begin
+            perform _text_config::pg_catalog.regconfig;
+        exception when others then
+            raise exception 'invalid text_config: %. Must be a valid text search configuration (e.g., ''english'', ''simple'', ''french'')', _text_config;
+        end;
+    end if;
+
+    -- Validate k1 is positive
+    _k1 = (config operator(pg_catalog.->>) 'k1')::pg_catalog.float8;
+    if _k1 is not null and _k1 operator(pg_catalog.<=) 0 then
+        raise exception 'k1 must be a positive number, got: %', _k1;
+    end if;
+
+    -- Validate b is between 0 and 1
+    _b = (config operator(pg_catalog.->>) 'b')::pg_catalog.float8;
+    if _b is not null and (_b operator(pg_catalog.<) 0 or _b operator(pg_catalog.>) 1) then
+        raise exception 'b must be between 0 and 1, got: %', _b;
+    end if;
+end
+$func$ language plpgsql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _validate_text_indexing
+create or replace function ai._validate_text_indexing(config pg_catalog.jsonb) returns void
+as $func$
+declare
+    _config_type pg_catalog.text;
+    _implementation pg_catalog.text;
+begin
+    if pg_catalog.jsonb_typeof(config) operator(pg_catalog.!=) 'object' then
+        raise exception 'text_indexing config is not a jsonb object';
+    end if;
+
+    _config_type = config operator(pg_catalog.->>) 'config_type';
+    if _config_type is null or _config_type operator(pg_catalog.!=) 'text_indexing' then
+        raise exception 'invalid config_type for text_indexing config';
+    end if;
+    _implementation = config operator(pg_catalog.->>) 'implementation';
+    case _implementation
+        when 'none' then
+            -- ok
+        when 'bm25' then
+            perform ai._validate_text_indexing_bm25(config);
+        else
+            if _implementation is null then
+                raise exception 'text_indexing implementation not specified';
+            else
+                raise exception 'invalid text_indexing implementation: "%"', _implementation;
+            end if;
+    end case;
+end
+$func$ language plpgsql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+
+
+--------------------------------------------------------------------------------
+-- 007-processing.sql
 
 -------------------------------------------------------------------------------
 -- processing_default
@@ -1888,7 +1993,7 @@ set search_path to pg_catalog, pg_temp
 
 
 --------------------------------------------------------------------------------
--- 007-grant-to.sql
+-- 008-grant-to.sql
 -------------------------------------------------------------------------------
 -- grant_to
 create or replace function ai.grant_to(variadic grantees pg_catalog.name[]) returns pg_catalog.name[]
@@ -1914,7 +2019,7 @@ set search_path to pg_catalog, pg_temp
 
 
 --------------------------------------------------------------------------------
--- 008-loading.sql
+-- 009-loading.sql
 -------------------------------------------------------------------------------
 -- loading_column
 create or replace function ai.loading_column
@@ -2022,7 +2127,7 @@ set search_path to pg_catalog, pg_temp
 
 
 --------------------------------------------------------------------------------
--- 009-parsing.sql
+-- 010-parsing.sql
 -------------------------------------------------------------------------------
 -- parsing_auto
 create or replace function ai.parsing_auto() returns pg_catalog.jsonb
@@ -2134,7 +2239,7 @@ set search_path to pg_catalog, pg_temp;
 
 
 --------------------------------------------------------------------------------
--- 010-destination.sql
+-- 011-destination.sql
 -------------------------------------------------------------------------------
 -- destination_table
 create or replace function ai.destination_table
@@ -2277,7 +2382,7 @@ set search_path to pg_catalog, pg_temp
 ;
 
 --------------------------------------------------------------------------------
--- 011-vectorizer-int.sql
+-- 012-vectorizer-int.sql
 
 -------------------------------------------------------------------------------
 -- _vectorizer_source_pk
@@ -3357,6 +3462,173 @@ language plpgsql volatile security invoker
 set search_path to pg_catalog, pg_temp
 ;
 
+-------------------------------------------------------------------------------
+-- _vectorizer_text_index_exists
+create or replace function ai._vectorizer_text_index_exists
+( target_schema pg_catalog.name
+, target_table pg_catalog.name
+, column_name pg_catalog.name
+) returns pg_catalog.bool as
+$func$
+declare
+    _found pg_catalog.bool;
+begin
+    -- look for a BM25 index on the target table for the specified column
+    select pg_catalog.count(*) filter
+    ( where pg_catalog.pg_get_indexdef(i.indexrelid) ilike '% using bm25 %'
+    ) > 0 into _found
+    from pg_catalog.pg_class k
+    inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
+    inner join pg_index i on (k.oid operator(pg_catalog.=) i.indrelid)
+    inner join pg_catalog.pg_attribute a
+        on (k.oid operator(pg_catalog.=) a.attrelid
+        and a.attname operator(pg_catalog.=) column_name
+        and a.attnum operator(pg_catalog.=) i.indkey[0]
+        )
+    where n.nspname operator(pg_catalog.=) target_schema
+    and k.relname operator(pg_catalog.=) target_table
+    ;
+    return coalesce(_found, false);
+end
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _vectorizer_should_create_text_index
+create or replace function ai._vectorizer_should_create_text_index(vectorizer ai.vectorizer) returns boolean
+as $func$
+declare
+    _text_indexing pg_catalog.jsonb;
+    _implementation pg_catalog.text;
+    _schema_name pg_catalog.name;
+    _table_name pg_catalog.name;
+    _column_name pg_catalog.name;
+    _destination_impl pg_catalog.text;
+    _chunking_impl pg_catalog.text;
+begin
+    -- grab the text_indexing config
+    _text_indexing = pg_catalog.jsonb_extract_path(vectorizer.config, 'text_indexing');
+    if _text_indexing is null then
+        return false;
+    end if;
+
+    -- grab the implementation
+    _implementation = pg_catalog.jsonb_extract_path_text(_text_indexing, 'implementation');
+    -- if implementation is missing or none, exit
+    if _implementation is null or _implementation = 'none' then
+        return false;
+    end if;
+
+    -- determine the target schema, table, and column based on destination and chunking config
+    _destination_impl = vectorizer.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation';
+    _chunking_impl = vectorizer.config operator(pg_catalog.->) 'chunking' operator(pg_catalog.->>) 'implementation';
+
+    -- if destination=column OR chunking=none, index the source column
+    -- otherwise, index the chunk column in the destination table
+    if _destination_impl operator(pg_catalog.=) 'column' or _chunking_impl operator(pg_catalog.=) 'none' then
+        _schema_name = vectorizer.source_schema;
+        _table_name = vectorizer.source_table;
+        _column_name = vectorizer.config operator(pg_catalog.->) 'loading' operator(pg_catalog.->>) 'column_name';
+    else
+        _schema_name = vectorizer.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_schema';
+        _table_name = vectorizer.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_table';
+        _column_name = 'chunk';
+    end if;
+
+    -- see if the index already exists
+    if ai._vectorizer_text_index_exists(_schema_name, _table_name, _column_name) then
+        return false;
+    end if;
+
+    return true;
+end
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
+-- _vectorizer_create_text_index
+create or replace function ai._vectorizer_create_text_index
+( target_schema pg_catalog.name
+, target_table pg_catalog.name
+, column_name pg_catalog.name
+, text_indexing pg_catalog.jsonb
+) returns void as
+$func$
+declare
+    _key1 pg_catalog.int4 = 1982010643; -- different key from vector index
+    _key2 pg_catalog.int4;
+    _text_config pg_catalog.text;
+    _k1 pg_catalog.float8;
+    _b pg_catalog.float8;
+    _index_name pg_catalog.name;
+    _with_parts pg_catalog.text[];
+    _sql pg_catalog.text;
+begin
+    -- check if pg_textsearch extension is installed
+    if not exists (
+        select 1 from pg_catalog.pg_extension
+        where extname operator(pg_catalog.=) 'pg_textsearch'
+    ) then
+        raise exception 'pg_textsearch extension is not installed. Install it with: CREATE EXTENSION pg_textsearch;';
+    end if;
+
+    -- use the target table's oid as the second key for the advisory lock
+    select k.oid::pg_catalog.int4 into strict _key2
+    from pg_catalog.pg_class k
+    inner join pg_catalog.pg_namespace n on (k.relnamespace operator(pg_catalog.=) n.oid)
+    where k.relname operator(pg_catalog.=) target_table
+    and n.nspname operator(pg_catalog.=) target_schema
+    ;
+
+    -- try to grab a transaction-level advisory lock specific to the target table
+    if not pg_catalog.pg_try_advisory_xact_lock(_key1, _key2) then
+        raise warning 'another process is already building a text index on %.%', target_schema, target_table;
+        return;
+    end if;
+
+    -- double-check that the index doesn't exist now that we're holding the advisory lock
+    if ai._vectorizer_text_index_exists(target_schema, target_table, column_name) then
+        raise notice 'the text index on %.%.% already exists', target_schema, target_table, column_name;
+        return;
+    end if;
+
+    -- extract configuration parameters
+    _text_config = coalesce(pg_catalog.jsonb_extract_path_text(text_indexing, 'text_config'), 'english');
+    _k1 = (pg_catalog.jsonb_extract_path_text(text_indexing, 'k1'))::pg_catalog.float8;
+    _b = (pg_catalog.jsonb_extract_path_text(text_indexing, 'b'))::pg_catalog.float8;
+
+    -- build the WITH clause parts
+    _with_parts = array[pg_catalog.format('text_config=%L', _text_config)];
+    if _k1 is not null then
+        _with_parts = pg_catalog.array_append(_with_parts, pg_catalog.format('k1=%s', _k1));
+    end if;
+    if _b is not null then
+        _with_parts = pg_catalog.array_append(_with_parts, pg_catalog.format('b=%s', _b));
+    end if;
+
+    -- generate index name
+    _index_name = pg_catalog.format('%s_%s_bm25_idx', target_table, column_name);
+
+    -- create the BM25 index
+    select pg_catalog.format
+    ( $sql$create index %I on %I.%I using bm25 (%I) with (%s)$sql$
+    , _index_name
+    , target_schema, target_table
+    , column_name
+    , pg_catalog.array_to_string(_with_parts, ', ')
+    ) into strict _sql;
+
+    execute _sql;
+end
+$func$
+language plpgsql volatile security invoker
+set search_path to pg_catalog, pg_temp
+;
+
 
 -------------------------------------------------------------------------------
 -- _vectorizer_schedule_job
@@ -3444,6 +3716,12 @@ declare
     _found pg_catalog.bool;
     _count pg_catalog.int8;
     _should_create_vector_index pg_catalog.bool;
+    _should_create_text_index pg_catalog.bool;
+    _text_schema_name pg_catalog.name;
+    _text_table_name pg_catalog.name;
+    _text_column_name pg_catalog.name;
+    _destination_impl pg_catalog.text;
+    _chunking_impl pg_catalog.text;
 begin
     set local search_path = pg_catalog, pg_temp;
     if config is null then
@@ -3483,6 +3761,37 @@ begin
         , _vec.source_table
         , pg_catalog.jsonb_extract_path(_vec.config, 'indexing')
         , _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'embedding_column'
+        );
+    end if;
+
+    commit;
+    set local search_path = pg_catalog, pg_temp;
+
+    -- check and create text index if configured
+    _should_create_text_index = ai._vectorizer_should_create_text_index(_vec);
+    if _should_create_text_index then
+        commit;
+        set local search_path = pg_catalog, pg_temp;
+
+        -- determine the target schema, table, and column for text index
+        _destination_impl = _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'implementation';
+        _chunking_impl = _vec.config operator(pg_catalog.->) 'chunking' operator(pg_catalog.->>) 'implementation';
+
+        if _destination_impl operator(pg_catalog.=) 'column' or _chunking_impl operator(pg_catalog.=) 'none' then
+            _text_schema_name = _vec.source_schema;
+            _text_table_name = _vec.source_table;
+            _text_column_name = _vec.config operator(pg_catalog.->) 'loading' operator(pg_catalog.->>) 'column_name';
+        else
+            _text_schema_name = _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_schema';
+            _text_table_name = _vec.config operator(pg_catalog.->) 'destination' operator(pg_catalog.->>) 'target_table';
+            _text_column_name = 'chunk';
+        end if;
+
+        perform ai._vectorizer_create_text_index
+        ( _text_schema_name
+        , _text_table_name
+        , _text_column_name
+        , pg_catalog.jsonb_extract_path(_vec.config, 'text_indexing')
         );
     end if;
 
@@ -3549,7 +3858,7 @@ set search_path to pg_catalog, pg_temp
 ;
 
 --------------------------------------------------------------------------------
--- 012-vectorizer-api.sql
+-- 013-vectorizer-api.sql
 -------------------------------------------------------------------------------
 -- create_vectorizer
 create or replace function ai.create_vectorizer
@@ -3561,6 +3870,7 @@ create or replace function ai.create_vectorizer
 , embedding pg_catalog.jsonb default null
 , chunking pg_catalog.jsonb default ai.chunking_recursive_character_text_splitter()
 , indexing pg_catalog.jsonb default ai.indexing_default()
+, text_indexing pg_catalog.jsonb default ai.text_indexing_none()
 , formatting pg_catalog.jsonb default ai.formatting_python_template()
 , scheduling pg_catalog.jsonb default ai.scheduling_default()
 , processing pg_catalog.jsonb default ai.processing_default()
@@ -3680,6 +3990,9 @@ begin
 
     -- validate the indexing config
     perform ai._validate_indexing(indexing);
+
+    -- validate the text_indexing config
+    perform ai._validate_text_indexing(text_indexing);
 
     -- validate the formatting config
     perform ai._validate_formatting(formatting, _source_schema, _source_table);
@@ -3824,6 +4137,7 @@ begin
       , 'embedding', embedding
       , 'chunking', chunking
       , 'indexing', indexing
+      , 'text_indexing', text_indexing
       , 'formatting', formatting
       , 'scheduling', scheduling
       , 'processing', processing
@@ -3858,6 +4172,40 @@ begin
         ;
         execute _sql;
     end if;
+
+    -- create text index if configured
+    if text_indexing operator(pg_catalog.->>) 'implementation' operator(pg_catalog.!=) 'none' then
+        declare
+            _text_schema_name pg_catalog.name;
+            _text_table_name pg_catalog.name;
+            _text_column_name pg_catalog.name;
+            _destination_impl pg_catalog.text;
+            _chunking_impl pg_catalog.text;
+        begin
+            _destination_impl = destination operator(pg_catalog.->>) 'implementation';
+            _chunking_impl = chunking operator(pg_catalog.->>) 'implementation';
+
+            -- if destination=column OR chunking=none, index the source column
+            -- otherwise, index the chunk column in the destination table
+            if _destination_impl operator(pg_catalog.=) 'column' or _chunking_impl operator(pg_catalog.=) 'none' then
+                _text_schema_name = _source_schema;
+                _text_table_name = _source_table;
+                _text_column_name = loading operator(pg_catalog.->>) 'column_name';
+            else
+                _text_schema_name = destination operator(pg_catalog.->>) 'target_schema';
+                _text_table_name = destination operator(pg_catalog.->>) 'target_table';
+                _text_column_name = 'chunk';
+            end if;
+
+            perform ai._vectorizer_create_text_index
+            ( _text_schema_name
+            , _text_table_name
+            , _text_column_name
+            , text_indexing
+            );
+        end;
+    end if;
+
     return _vectorizer_id;
 end
 $func$ language plpgsql volatile security invoker
@@ -4377,7 +4725,7 @@ set search_path to pg_catalog, pg_temp
 
 
 --------------------------------------------------------------------------------
--- 013-worker-tracking.sql
+-- 014-worker-tracking.sql
 CREATE OR REPLACE FUNCTION ai._worker_start(version text, expected_heartbeat_interval interval) RETURNS uuid AS $$
 DECLARE
     worker_id uuid;
@@ -4428,7 +4776,7 @@ $$ LANGUAGE plpgsql security invoker
 set search_path to pg_catalog, pg_temp;
 
 --------------------------------------------------------------------------------
--- 014-semantic-catalog.sql
+-- 015-semantic-catalog.sql
 
 -------------------------------------------------------------------------------
 -- embedding_sentence_transformers
