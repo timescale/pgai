@@ -141,6 +141,17 @@ class EmbeddingOpenaiConfig(SQLArgumentMixin):
 
 
 @dataclass
+class EmbeddingSentenceTransformersConfig(SQLArgumentMixin):
+    """Configuration for ai.embedding_sentence_transformers function."""
+
+    arg_type: ClassVar[str] = "embedding"
+    function_name: ClassVar[str] = "ai.embedding_sentence_transformers"
+
+    model: str | None = None
+    dimensions: int | None = None
+
+
+@dataclass
 class EmbeddingVoyageaiConfig(SQLArgumentMixin):
     """Configuration for ai.embedding_voyageai function."""
 
@@ -230,6 +241,7 @@ class LoadingUriConfig(SQLArgumentMixin):
 
     column_name: str
     retries: int | None = None
+    aws_role_arn: str | None = None
 
 
 @dataclass
@@ -302,3 +314,23 @@ class SchedulingTimescaledbConfig(SQLArgumentMixin):
     initial_start: datetime | None = None
     fixed_schedule: bool | None = None
     timezone: str | None = None
+
+
+@dataclass
+class TextIndexingBm25Config(SQLArgumentMixin):
+    """Configuration for ai.text_indexing_bm25 function."""
+
+    arg_type: ClassVar[str] = "text_indexing"
+    function_name: ClassVar[str] = "ai.text_indexing_bm25"
+
+    text_config: str | None = None
+    k1: float | None = None
+    b: float | None = None
+
+
+@dataclass
+class TextIndexingNoneConfig(SQLArgumentMixin):
+    """Configuration for ai.text_indexing_none function."""
+
+    arg_type: ClassVar[str] = "text_indexing"
+    function_name: ClassVar[str] = "ai.text_indexing_none"
