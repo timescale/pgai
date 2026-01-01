@@ -28,17 +28,17 @@ jobs:
     if: needs.release-please.outputs.pgai_release_created
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           version: "0.7.10"
           enable-cache: true
           cache-dependency-glob: "./projects/pgai/uv.lock"
 
       - name: "Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version-file: "./projects/pgai/.python-version"
 
