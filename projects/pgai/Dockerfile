@@ -1,5 +1,5 @@
 # Note: some dependencies are not supported on 3.13, do not bump until that is sorted out
-FROM python:3.12-slim AS build
+FROM python:3.14-slim AS build
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_PROJECT_ENVIRONMENT=/usr/local/
@@ -25,7 +25,7 @@ RUN uv lock # update lockfile, switches to cpu-only torch
 RUN uv sync --frozen --no-install-project --no-dev --extra vectorizer-worker
 
 # Note: some dependencies are not supported on 3.13, do not bump until that is sorted out
-FROM python:3.12-slim
+FROM python:3.14-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 WORKDIR /app
