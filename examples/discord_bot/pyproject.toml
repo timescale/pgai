@@ -5,6 +5,7 @@ requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.14.0",
     "asyncpg>=0.30.0",
+    "httpx>=0.25.0",
     "openai>=1.59.3",
     "pgai[sqlalchemy] @ git+https://github.com/timescale/pgai@main#egg=pgai&subdirectory=projects/pgai",
     "py-cord>=2.6.1",
