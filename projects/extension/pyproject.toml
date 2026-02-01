@@ -8,16 +8,16 @@ dynamic = ["version"]
 requires-python = ">=3.10,<3.13"
 
 dependencies= [
-    "openai==1.69.0",
-    "tiktoken==0.7.0",
-    "ollama==0.4.5",
-    "anthropic==0.49.0",
-    "cohere==5.13.11",
+    "openai==2.16.0",
+    "tiktoken==0.12.0",
+    "ollama==0.6.1",
+    "anthropic==0.77.0",
+    "cohere==5.20.2",
     "backoff==2.2.1",
-    "voyageai==0.3.1",
-    "datasets==3.1.0",
-    "litellm==1.72.1",
-    "google-cloud-aiplatform==1.74.0", # required for vertexAI (don't know why litellm doesn't include this)
+    "voyageai==0.3.7",
+    "datasets==4.5.0",
+    "litellm==1.81.6",
+    "google-cloud-aiplatform==1.135.0", # required for vertexAI (don't know why litellm doesn't include this)
     "langchain-text-splitters>=0.3.5",
     "jinja2>=3.1.6",
     "boto3>=1.37.33",
@@ -25,13 +25,13 @@ dependencies= [
 
 [dependency-groups]
 dev = [
-    "ruff==0.6.9",
-    "pytest==8.3.2",
-    "python-dotenv==1.0.1",
-    "fastapi==0.115.6",
-    "fastapi-cli==0.0.5",
-    "psycopg[binary]==3.2.1",
-    "uv==0.7.10",
+    "ruff==0.14.14",
+    "pytest==9.0.2",
+    "python-dotenv==1.2.1",
+    "fastapi==0.128.0",
+    "fastapi-cli==0.0.20",
+    "psycopg[binary]==3.3.2",
+    "uv==0.9.28",
     "pgspot>=0.9.0",
     "requests>=2.32.3",
     "semver>=3.0.4",
