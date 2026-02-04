@@ -90,13 +90,24 @@ class OpenAI(ApiKeyMixin, BaseURLMixin, BaseModel, Embedder):
 
         return self.user if self.user is not None else openai.NOT_GIVEN
 
-    @cached_property
+    _client: "openai.AsyncOpenAI | None" = None
+
+    @property
     def _embedder(self) -> "resources.AsyncEmbeddingsWithStreamingResponse":
         import openai
 
-        return openai.AsyncOpenAI(
-            base_url=self.base_url, api_key=self._api_key, max_retries=3
-        ).embeddings.with_streaming_response
+        if self._client is None:
+            self._client = openai.AsyncOpenAI(
+                base_url=self.base_url, api_key=self._api_key, max_retries=3
+            )
+        return self._client.embeddings.with_streaming_response
+
+    @override
+    async def cleanup(self) -> None:
+        """Close the underlying HTTP client to prevent connection leaks."""
+        if self._client is not None:
+            await self._client.close()
+            self._client = None
 
     @override
     def _max_chunks_per_batch(self) -> int:
