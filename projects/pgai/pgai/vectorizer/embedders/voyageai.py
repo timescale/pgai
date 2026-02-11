@@ -18,13 +18,13 @@ from ..embeddings import (
 def voyage_max_tokens_per_batch(model: str) -> int:
     # According to https://docs.voyageai.com/docs/embeddings:
     # The total number of tokens in the list is at most:
-    # - 1M for voyage-3.5-lite and voyage-3-lite
-    # - 320K for voyage-3.5, voyage-3, and voyage-2
-    # - 120K for voyage-3-large, voyage-code-3, voyage-large-2-instruct, voyage-finance-2, voyage-multilingual-2, voyage-law-2, voyage-large-2, and voyage-3-lite
+    # - 1M for voyage-4-lite, voyage-3.5-lite, and voyage-3-lite
+    # - 320K for voyage-4, voyage-3.5, voyage-3, and voyage-2
+    # - 120K for voyage-4-large, voyage-3-large, voyage-code-3, voyage-large-2-instruct, voyage-finance-2, voyage-multilingual-2, voyage-law-2, voyage-large-2
     match model:
-        case "voyage-3.5-lite" | "voyage-3-lite":
+        case "voyage-4-lite" | "voyage-3.5-lite" | "voyage-3-lite":
             return 1_000_000
-        case "voyage-3.5" | "voyage-2" | "voyage-3":
+        case "voyage-4" | "voyage-3.5" | "voyage-2" | "voyage-3":
             return 320_000
         case _:
             return 120_000  # Conservative default for specialized and older models

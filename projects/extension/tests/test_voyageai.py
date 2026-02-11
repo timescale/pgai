@@ -143,6 +143,63 @@ def test_voyageai_embed_with_multiple_inputs(cur, voyageai_api_key):
     assert result == 2
 
 
+def test_voyageai_embed_voyage_4(cur, voyageai_api_key):
+    """Test voyage-4 model."""
+    cur.execute(
+        """
+        select vector_dims
+        (
+            ai.voyageai_embed
+            ( 'voyage-4'
+            , 'hello world'
+            , api_key=>%s
+            )
+        )
+    """,
+        (voyageai_api_key,),
+    )
+    actual = cur.fetchone()[0]
+    assert actual == 1024
+
+
+def test_voyageai_embed_voyage_4_lite(cur, voyageai_api_key):
+    """Test voyage-4-lite model."""
+    cur.execute(
+        """
+        select vector_dims
+        (
+            ai.voyageai_embed
+            ( 'voyage-4-lite'
+            , 'hello world'
+            , api_key=>%s
+            )
+        )
+    """,
+        (voyageai_api_key,),
+    )
+    actual = cur.fetchone()[0]
+    assert actual == 1024
+
+
+def test_voyageai_embed_voyage_4_large(cur, voyageai_api_key):
+    """Test voyage-4-large model."""
+    cur.execute(
+        """
+        select vector_dims
+        (
+            ai.voyageai_embed
+            ( 'voyage-4-large'
+            , 'hello world'
+            , api_key=>%s
+            )
+        )
+    """,
+        (voyageai_api_key,),
+    )
+    actual = cur.fetchone()[0]
+    assert actual == 1024
+
+
 def test_voyageai_embed_voyage_3_5_lite(cur, voyageai_api_key):
     """Test voyage-3.5-lite model (current naming)."""
     cur.execute(
