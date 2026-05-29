@@ -70,6 +70,24 @@ class Ollama(BaseModel, BaseURLMixin, Embedder):
     model: str
     options: OllamaOptions | None = None
     keep_alive: str | None = None  # this is only `str` because of the SQL API
+    _client: "ollama.AsyncClient | None" = None
+
+    def _get_client(self) -> "ollama.AsyncClient":
+        # Note: deferred import to avoid import overhead
+        import ollama
+
+        if self._client is None:
+            self._client = ollama.AsyncClient(host=self.base_url)
+        return self._client
+
+    @override
+    async def cleanup(self) -> None:
+        """Close the underlying HTTP client to prevent connection leaks."""
+        if self._client is not None:
+            # Ollama's AsyncClient uses httpx internally
+            if hasattr(self._client, "_client") and self._client._client is not None:
+                await self._client._client.aclose()
+            self._client = None
 
     @override
     async def embed(
@@ -101,7 +119,7 @@ class Ollama(BaseModel, BaseURLMixin, Embedder):
         # Note: deferred import to avoid import overhead
         import ollama
 
-        client = ollama.AsyncClient(host=self.base_url)
+        client = self._get_client()
         try:
             await client.show(self.model)
         except ollama.ResponseError as e:
@@ -113,10 +131,7 @@ class Ollama(BaseModel, BaseURLMixin, Embedder):
 
     @override
     async def call_embed_api(self, documents: list[str]) -> EmbeddingResponse:
-        # Note: deferred import to avoid import overhead
-        import ollama
-
-        response = await ollama.AsyncClient(host=self.base_url).embed(
+        response = await self._get_client().embed(
             model=self.model,
             input=documents,
             options=self.options,
@@ -132,10 +147,7 @@ class Ollama(BaseModel, BaseURLMixin, Embedder):
         """
         Gets the context_length of the configured model, if available
         """
-        # Note: deferred import to avoid import overhead
-        import ollama
-
-        model = await ollama.AsyncClient(host=self.base_url).show(self.model)
+        model = await self._get_client().show(self.model)
         architecture = model["model_info"].get("general.architecture", None)
         if architecture is None:
             logger.warn(f"unable to determine architecture for model '{self.model}'")

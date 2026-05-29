@@ -70,6 +70,24 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
     input_type: Literal["document"] | Literal["query"] | None = None
     output_dimension: int | None = None
     output_dtype: str | None = None
+    _client: "voyageai.AsyncClient | None" = None
+
+    def _get_client(self) -> "voyageai.AsyncClient":
+        # Note: deferred import to avoid import overhead
+        import voyageai
+
+        if self._client is None:
+            self._client = voyageai.AsyncClient(api_key=self._api_key)
+        return self._client
+
+    @override
+    async def cleanup(self) -> None:
+        """Close the underlying HTTP client to prevent connection leaks."""
+        if self._client is not None:
+            # VoyageAI's AsyncClient uses httpx internally
+            if hasattr(self._client, "_client") and self._client._client is not None:
+                await self._client._client.aclose()
+            self._client = None
 
     @override
     async def embed(
@@ -107,9 +125,6 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
 
     @override
     async def call_embed_api(self, documents: list[str]) -> EmbeddingResponse:
-        # Note: deferred import to avoid import overhead
-        import voyageai
-
         # Build API call parameters
         params: dict[str, Any] = {
             "model": self.model,
@@ -120,7 +135,7 @@ class VoyageAI(ApiKeyMixin, BaseModel, Embedder):
         if self.output_dtype is not None:
             params["output_dtype"] = self.output_dtype
 
-        response = await voyageai.AsyncClient(api_key=self._api_key).embed(
+        response = await self._get_client().embed(
             documents,
             **params,
         )

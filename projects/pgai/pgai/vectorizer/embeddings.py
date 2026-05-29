@@ -118,6 +118,12 @@ class Embedder(ABC):
         Setup the embedder
         """
 
+    async def cleanup(self) -> None:  # noqa: B027 empty on purpose
+        """
+        Cleanup resources used by the embedder (e.g., close HTTP clients).
+        Should be called when the embedder is no longer needed.
+        """
+
     @abstractmethod
     async def call_embed_api(self, documents: list[str]) -> EmbeddingResponse:
         """

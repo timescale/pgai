@@ -839,6 +839,10 @@ class Executor:
                         ),
                     )
                 raise e
+            finally:
+                # Clean up embedder resources (e.g., close HTTP clients)
+                # to prevent connection leaks
+                await self.vectorizer.config.embedding.cleanup()
 
     async def _should_continue_processing(
         self, conn: AsyncConnection, loops: int, res: int
