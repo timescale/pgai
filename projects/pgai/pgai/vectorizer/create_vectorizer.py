@@ -14,6 +14,7 @@ from .configuration import (
     EmbeddingLitellmConfig,
     EmbeddingOllamaConfig,
     EmbeddingOpenaiConfig,
+    EmbeddingSentenceTransformersConfig,
     EmbeddingVoyageaiConfig,
     FormattingPythonTemplateConfig,
     IndexingDefaultConfig,
@@ -31,6 +32,8 @@ from .configuration import (
     SchedulingNoneConfig,
     SchedulingTimescaledbConfig,
     SQLArgumentMixin,
+    TextIndexingBm25Config,
+    TextIndexingNoneConfig,
 )
 
 
@@ -53,6 +56,7 @@ class CreateVectorizer:
         EmbeddingLitellmConfig
         | EmbeddingOllamaConfig
         | EmbeddingOpenaiConfig
+        | EmbeddingSentenceTransformersConfig
         | EmbeddingVoyageaiConfig
         | None
     ) = None
@@ -69,6 +73,7 @@ class CreateVectorizer:
         | IndexingNoneConfig
         | None
     ) = None
+    text_indexing: TextIndexingBm25Config | TextIndexingNoneConfig | None = None
     formatting: FormattingPythonTemplateConfig | None = None
     scheduling: (
         SchedulingDefaultConfig
@@ -81,6 +86,7 @@ class CreateVectorizer:
     queue_table: str | None = None
     grant_to: Any | None = None
     enqueue_existing: bool | None = None
+    if_not_exists: bool | None = None
 
     def to_sql(self) -> str:
         """Convert parameters to SQL function call"""
