@@ -23,7 +23,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE EXTENSION IF NOT EXISTS ai CASCADE;")
+    op.execute("CREATE EXTENSION IF NOT EXISTS ai VERSION '0.8.0' CASCADE;")
     op.create_vectorizer(
         source="documents",
         embedding=EmbeddingOpenaiConfig(model="text-embedding-3-small", dimensions=768),
