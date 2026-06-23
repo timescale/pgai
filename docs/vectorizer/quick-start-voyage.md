@@ -102,8 +102,17 @@ Now you can create and run a vectorizer. A vectorizer is a pgai concept, it proc
     ```
 
     **Available Voyage AI Models:**
-    - `voyage-3.5-lite`: Cost & latency optimized, 1024 dims (1M tokens/request) - **Recommended**
+
+    **Voyage 4 Series (Latest):**
+    - `voyage-4-lite`: Cost & latency optimized, 1024 dims (1M tokens/request) - **Recommended**
+    - `voyage-4`: General-purpose optimized, 1024 dims (320K tokens/request)
+    - `voyage-4-large`: Best retrieval quality, 1024 dims (120K tokens/request)
+
+    **Voyage 3.5 Series:**
+    - `voyage-3.5-lite`: Cost & latency optimized, 1024 dims (1M tokens/request)
     - `voyage-3.5`: General-purpose optimized, 1024 dims (320K tokens/request)
+
+    **Voyage 3 Series:**
     - `voyage-3-large`: Best for general-purpose & multilingual, 1024 dims (120K tokens/request)
     - `voyage-code-3`: Specialized for code retrieval, 1024 dims (120K tokens/request)
     - `voyage-finance-2`: Finance domain optimized, 1024 dims
